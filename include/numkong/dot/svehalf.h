@@ -50,62 +50,63 @@ extern "C" {
 NK_PUBLIC void nk_dot_f16_svehalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
     nk_size_t idx_scalars = 0;
-    svfloat16_t ab_vec = svdup_f16(0);
+    svfloat32_t ab_f32x = svdup_f32(0);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)idx_scalars, (unsigned int)count_scalars);
-        svfloat16_t a_vec = svld1_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(a_scalars + idx_scalars));
-        svfloat16_t b_vec = svld1_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(b_scalars + idx_scalars));
-        ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
-        idx_scalars += svcnth();
+        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)idx_scalars, (unsigned int)count_scalars);
+        svfloat16_t a_f16x = svld1_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(a_scalars) + idx_scalars);
+        svfloat16_t b_f16x = svld1_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(b_scalars) + idx_scalars);
+        svfloat32_t a_f32x = svcvt_f32_f16_x(predicate_f32x, a_f16x);
+        svfloat32_t b_f32x = svcvt_f32_f16_x(predicate_f32x, b_f16x);
+        ab_f32x = svmla_f32_x(predicate_f32x, ab_f32x, a_f32x, b_f32x);
+        idx_scalars += svcntw();
     } while (idx_scalars < count_scalars);
-    nk_f16_for_arm_simd_t ab = svaddv_f16(svptrue_b16(), ab_vec);
-    *result = ab;
+    *result = svaddv_f32(svptrue_b32(), ab_f32x);
 }
 
 NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                    nk_f32c_t *results) {
-    nk_size_t idx_pairs = 0;
-    svfloat16_t ab_real_vec = svdup_f16(0);
-    svfloat16_t ab_imag_vec = svdup_f16(0);
+    nk_size_t idx_scalars = 0;
+    svfloat32_t ab_real_f32x = svdup_f32(0);
+    svfloat32_t ab_imag_f32x = svdup_f32(0);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)idx_pairs, (unsigned int)count_pairs);
-        svfloat16x2_t a_vec = svld2_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(a_pairs + idx_pairs));
-        svfloat16x2_t b_vec = svld2_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(b_pairs + idx_pairs));
-        svfloat16_t a_real_vec = svget2_f16(a_vec, 0);
-        svfloat16_t a_imag_vec = svget2_f16(a_vec, 1);
-        svfloat16_t b_real_vec = svget2_f16(b_vec, 0);
-        svfloat16_t b_imag_vec = svget2_f16(b_vec, 1);
-        ab_real_vec = svmla_f16_x(pg_vec, ab_real_vec, a_real_vec, b_real_vec);
-        ab_real_vec = svmls_f16_x(pg_vec, ab_real_vec, a_imag_vec, b_imag_vec);
-        ab_imag_vec = svmla_f16_x(pg_vec, ab_imag_vec, a_real_vec, b_imag_vec);
-        ab_imag_vec = svmla_f16_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
-        idx_pairs += svcnth();
-    } while (idx_pairs < count_pairs);
-    results->real = svaddv_f16(svptrue_b16(), ab_real_vec);
-    results->imag = svaddv_f16(svptrue_b16(), ab_imag_vec);
+        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)idx_scalars, (unsigned int)count_pairs);
+        svfloat16x2_t a_f16x2 = svld2_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(a_pairs) + idx_scalars * 2);
+        svfloat16x2_t b_f16x2 = svld2_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(b_pairs) + idx_scalars * 2);
+        svfloat32_t a_real_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(a_f16x2, 0));
+        svfloat32_t a_imag_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(a_f16x2, 1));
+        svfloat32_t b_real_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(b_f16x2, 0));
+        svfloat32_t b_imag_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(b_f16x2, 1));
+        ab_real_f32x = svmla_f32_x(predicate_f32x, ab_real_f32x, a_real_f32x, b_real_f32x);
+        ab_real_f32x = svmls_f32_x(predicate_f32x, ab_real_f32x, a_imag_f32x, b_imag_f32x);
+        ab_imag_f32x = svmla_f32_x(predicate_f32x, ab_imag_f32x, a_real_f32x, b_imag_f32x);
+        ab_imag_f32x = svmla_f32_x(predicate_f32x, ab_imag_f32x, a_imag_f32x, b_real_f32x);
+        idx_scalars += svcntw();
+    } while (idx_scalars < count_pairs);
+    results->real = svaddv_f32(svptrue_b32(), ab_real_f32x);
+    results->imag = svaddv_f32(svptrue_b32(), ab_imag_f32x);
 }
 
 NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                     nk_f32c_t *results) {
-    nk_size_t idx_pairs = 0;
-    svfloat16_t ab_real_vec = svdup_f16(0);
-    svfloat16_t ab_imag_vec = svdup_f16(0);
+    nk_size_t idx_scalars = 0;
+    svfloat32_t ab_real_f32x = svdup_f32(0);
+    svfloat32_t ab_imag_f32x = svdup_f32(0);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)idx_pairs, (unsigned int)count_pairs);
-        svfloat16x2_t a_vec = svld2_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(a_pairs + idx_pairs));
-        svfloat16x2_t b_vec = svld2_f16(pg_vec, (nk_f16_for_arm_simd_t const *)(b_pairs + idx_pairs));
-        svfloat16_t a_real_vec = svget2_f16(a_vec, 0);
-        svfloat16_t a_imag_vec = svget2_f16(a_vec, 1);
-        svfloat16_t b_real_vec = svget2_f16(b_vec, 0);
-        svfloat16_t b_imag_vec = svget2_f16(b_vec, 1);
-        ab_real_vec = svmla_f16_x(pg_vec, ab_real_vec, a_real_vec, b_real_vec);
-        ab_real_vec = svmla_f16_x(pg_vec, ab_real_vec, a_imag_vec, b_imag_vec);
-        ab_imag_vec = svmla_f16_x(pg_vec, ab_imag_vec, a_real_vec, b_imag_vec);
-        ab_imag_vec = svmls_f16_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
-        idx_pairs += svcnth();
-    } while (idx_pairs < count_pairs);
-    results->real = svaddv_f16(svptrue_b16(), ab_real_vec);
-    results->imag = svaddv_f16(svptrue_b16(), ab_imag_vec);
+        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)idx_scalars, (unsigned int)count_pairs);
+        svfloat16x2_t a_f16x2 = svld2_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(a_pairs) + idx_scalars * 2);
+        svfloat16x2_t b_f16x2 = svld2_f16(predicate_f32x, (nk_f16_for_arm_simd_t const *)(b_pairs) + idx_scalars * 2);
+        svfloat32_t a_real_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(a_f16x2, 0));
+        svfloat32_t a_imag_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(a_f16x2, 1));
+        svfloat32_t b_real_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(b_f16x2, 0));
+        svfloat32_t b_imag_f32x = svcvt_f32_f16_x(predicate_f32x, svget2_f16(b_f16x2, 1));
+        ab_real_f32x = svmla_f32_x(predicate_f32x, ab_real_f32x, a_real_f32x, b_real_f32x);
+        ab_real_f32x = svmla_f32_x(predicate_f32x, ab_real_f32x, a_imag_f32x, b_imag_f32x);
+        ab_imag_f32x = svmla_f32_x(predicate_f32x, ab_imag_f32x, a_real_f32x, b_imag_f32x);
+        ab_imag_f32x = svmls_f32_x(predicate_f32x, ab_imag_f32x, a_imag_f32x, b_real_f32x);
+        idx_scalars += svcntw();
+    } while (idx_scalars < count_pairs);
+    results->real = svaddv_f32(svptrue_b32(), ab_real_f32x);
+    results->imag = svaddv_f32(svptrue_b32(), ab_imag_f32x);
 }
 
 #if defined(__clang__)

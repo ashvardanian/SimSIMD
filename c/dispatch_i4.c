@@ -18,6 +18,10 @@ void nk_dispatch_i4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4_sme, *c = nk_cap_sme_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_i4_sme, *c = nk_cap_sme_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_i4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_i4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_i4_sme, *c = nk_cap_sme_k; return;
         default: break;
         }
 #endif
@@ -28,6 +32,14 @@ void nk_dispatch_i4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4_neonsdot, *c = nk_cap_neonsdot_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_i4_neonsdot, *c = nk_cap_neonsdot_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_i4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_i4_neonsdot, *c = nk_cap_neonsdot_k;
+            return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_i4_neonsdot, *c = nk_cap_neonsdot_k;
+            return;
         default: break;
         }
 #endif
@@ -41,6 +53,12 @@ void nk_dispatch_i4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_i4_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_i4_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i4_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_i4_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i4_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_i4_icelake, *c = nk_cap_icelake_k;
+            return;
         default: break;
         }
 #endif
@@ -79,6 +97,12 @@ void nk_dispatch_i4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_i4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_i4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_i4_serial, *c = nk_cap_serial_k;
+            return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i4_serial, *c = nk_cap_serial_k; return;
         default: break;
@@ -100,6 +124,11 @@ void nk_dispatch_i4_init_(nk_capability_t caps) {
     nk_dispatch_i4_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_i4, &used);
     nk_dispatch_i4_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_i4, &used);
     nk_dispatch_i4_find_(caps, nk_kernel_dots_symmetric_k, (nk_kernel_punned_t *)&t->dots_symmetric_i4, &used);
+    nk_dispatch_i4_find_(caps, nk_kernel_angulars_packed_k, (nk_kernel_punned_t *)&t->angulars_packed_i4, &used);
+    nk_dispatch_i4_find_(caps, nk_kernel_angulars_symmetric_k, (nk_kernel_punned_t *)&t->angulars_symmetric_i4, &used);
+    nk_dispatch_i4_find_(caps, nk_kernel_euclideans_packed_k, (nk_kernel_punned_t *)&t->euclideans_packed_i4, &used);
+    nk_dispatch_i4_find_(caps, nk_kernel_euclideans_symmetric_k, (nk_kernel_punned_t *)&t->euclideans_symmetric_i4,
+                         &used);
     nk_dispatch_i4_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_i4, &used);
     nk_dispatch_i4_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_i4, &used);
 }

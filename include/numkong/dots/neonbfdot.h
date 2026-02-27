@@ -12,7 +12,7 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
 
-#include "numkong/types.h"
+#include "numkong/dot/neonbfdot.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -26,8 +26,10 @@ extern "C" {
 #endif
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes = NEON register width) */
-nk_define_cross_pack_size_(dots, bf16, neonbfdot, bf16, bf16, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, bf16, neonbfdot, bf16, bf16, nk_assign_from_to_, /*depth_simd_dimensions=*/8,
+nk_define_cross_pack_size_(dots, bf16, neonbfdot, bf16, bf16, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
+                           /*dimensions_per_value=*/1)
+nk_define_cross_pack_(dots, bf16, neonbfdot, bf16, bf16, nk_assign_from_to_, /*norm_value_type=*/f32,
+                      nk_dots_reduce_sumsq_bf16_, /*depth_simd_dimensions=*/8,
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, bf16, neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t,
                            nk_b128_vec_t, nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_,

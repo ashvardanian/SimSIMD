@@ -118,7 +118,7 @@ void measure_each(bm::State &state, kernel_type_ kernel, std::size_t dimensions)
 
 template <nk_dtype_t input_dtype_, nk_kernel_kind_t kernel_kind_ = nk_kernel_unknown_k,
           nk_dtype_t alpha_dtype_ = nk_dtype_unknown_k, typename kernel_type_ = void>
-void each_(std::string name, kernel_type_ *kernel) {
+void run_each(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_each<input_dtype_, kernel_kind_, alpha_dtype_, kernel_type_ *>,
                           kernel, bench_config.dense_dimensions);
@@ -144,111 +144,111 @@ void bench_each() {
     constexpr nk_kernel_kind_t scale_k = nk_kernel_each_scale_k;
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
-    each_<f32_k, sum_k, f32_k>("sum_f32_with_blas", sum_f32_with_blas);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_with_blas", wsum_f32_with_blas);
-    each_<f64_k, sum_k, f64_k>("sum_f64_with_blas", sum_f64_with_blas);
-    each_<f64_k, wsum_k, f64_k>("each_wsum_f64_with_blas", wsum_f64_with_blas);
+    run_each<f32_k, sum_k, f32_k>("sum_f32_with_blas", sum_f32_with_blas);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_with_blas", wsum_f32_with_blas);
+    run_each<f64_k, sum_k, f64_k>("sum_f64_with_blas", sum_f64_with_blas);
+    run_each<f64_k, wsum_k, f64_k>("each_wsum_f64_with_blas", wsum_f64_with_blas);
 #endif
 
 #if NK_TARGET_NEON
-    each_<f32_k, fma_k, f32_k>("each_fma_f32_neon", nk_each_fma_f32_neon);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_neon", nk_each_blend_f32_neon);
-    each_<f32_k, fma_k, f32_k>("each_fma_f32_serial", nk_each_fma_f32_serial);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_serial", nk_each_blend_f32_serial);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_neon", nk_each_fma_f32_neon);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_neon", nk_each_blend_f32_neon);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_serial", nk_each_fma_f32_serial);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_serial", nk_each_blend_f32_serial);
 #endif
 
 #if NK_TARGET_NEONHALF
-    each_<f16_k, fma_k, f32_k>("each_fma_f16_neonhalf", nk_each_fma_f16_neonhalf);
-    each_<f16_k, wsum_k, f32_k>("each_wsum_f16_neonhalf", nk_each_blend_f16_neonhalf);
-    each_<u8_k, fma_k, f32_k>("each_fma_u8_neonhalf", nk_each_fma_u8_neonhalf);
-    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_neonhalf", nk_each_blend_u8_neonhalf);
-    each_<i8_k, fma_k, f32_k>("each_fma_i8_neonhalf", nk_each_fma_i8_neonhalf);
-    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_neonhalf", nk_each_blend_i8_neonhalf);
+    run_each<f16_k, fma_k, f32_k>("each_fma_f16_neonhalf", nk_each_fma_f16_neonhalf);
+    run_each<f16_k, wsum_k, f32_k>("each_wsum_f16_neonhalf", nk_each_blend_f16_neonhalf);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_neonhalf", nk_each_fma_u8_neonhalf);
+    run_each<u8_k, wsum_k, f32_k>("each_wsum_u8_neonhalf", nk_each_blend_u8_neonhalf);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_neonhalf", nk_each_fma_i8_neonhalf);
+    run_each<i8_k, wsum_k, f32_k>("each_wsum_i8_neonhalf", nk_each_blend_i8_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT
-    each_<bf16_k, fma_k, f32_k>("each_fma_bf16_neonbfdot", nk_each_fma_bf16_neonbfdot);
-    each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_neonbfdot", nk_each_blend_bf16_neonbfdot);
+    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_neonbfdot", nk_each_fma_bf16_neonbfdot);
+    run_each<bf16_k, wsum_k, f32_k>("each_wsum_bf16_neonbfdot", nk_each_blend_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_HASWELL
-    each_<f64_k, scale_k, f64_k>("each_scale_f64_haswell", nk_each_scale_f64_haswell);
-    each_<f64_k, fma_k, f64_k>("each_fma_f64_haswell", nk_each_fma_f64_haswell);
-    each_<f64_k, wsum_k, f64_k>("each_wsum_f64_haswell", nk_each_blend_f64_haswell);
-    each_<f32_k, scale_k, f32_k>("each_scale_f32_haswell", nk_each_scale_f32_haswell);
-    each_<f32_k, fma_k, f32_k>("each_fma_f32_haswell", nk_each_fma_f32_haswell);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_haswell", nk_each_blend_f32_haswell);
-    each_<f16_k, scale_k, f32_k>("each_scale_f16_haswell", nk_each_scale_f16_haswell);
-    each_<f16_k, fma_k, f32_k>("each_fma_f16_haswell", nk_each_fma_f16_haswell);
-    each_<f16_k, wsum_k, f32_k>("each_wsum_f16_haswell", nk_each_blend_f16_haswell);
-    each_<bf16_k, scale_k, f32_k>("each_scale_bf16_haswell", nk_each_scale_bf16_haswell);
-    each_<bf16_k, fma_k, f32_k>("each_fma_bf16_haswell", nk_each_fma_bf16_haswell);
-    each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_haswell", nk_each_blend_bf16_haswell);
-    each_<i8_k, scale_k, f32_k>("each_scale_i8_haswell", nk_each_scale_i8_haswell);
-    each_<i8_k, fma_k, f32_k>("each_fma_i8_haswell", nk_each_fma_i8_haswell);
-    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_haswell", nk_each_blend_i8_haswell);
-    each_<u8_k, scale_k, f32_k>("each_scale_u8_haswell", nk_each_scale_u8_haswell);
-    each_<u8_k, fma_k, f32_k>("each_fma_u8_haswell", nk_each_fma_u8_haswell);
-    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_haswell", nk_each_blend_u8_haswell);
-    each_<i16_k, scale_k, f32_k>("each_scale_i16_haswell", nk_each_scale_i16_haswell);
-    each_<i16_k, fma_k, f32_k>("each_fma_i16_haswell", nk_each_fma_i16_haswell);
-    each_<u16_k, scale_k, f32_k>("each_scale_u16_haswell", nk_each_scale_u16_haswell);
-    each_<u16_k, fma_k, f32_k>("each_fma_u16_haswell", nk_each_fma_u16_haswell);
+    run_each<f64_k, scale_k, f64_k>("each_scale_f64_haswell", nk_each_scale_f64_haswell);
+    run_each<f64_k, fma_k, f64_k>("each_fma_f64_haswell", nk_each_fma_f64_haswell);
+    run_each<f64_k, wsum_k, f64_k>("each_wsum_f64_haswell", nk_each_blend_f64_haswell);
+    run_each<f32_k, scale_k, f32_k>("each_scale_f32_haswell", nk_each_scale_f32_haswell);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_haswell", nk_each_fma_f32_haswell);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_haswell", nk_each_blend_f32_haswell);
+    run_each<f16_k, scale_k, f32_k>("each_scale_f16_haswell", nk_each_scale_f16_haswell);
+    run_each<f16_k, fma_k, f32_k>("each_fma_f16_haswell", nk_each_fma_f16_haswell);
+    run_each<f16_k, wsum_k, f32_k>("each_wsum_f16_haswell", nk_each_blend_f16_haswell);
+    run_each<bf16_k, scale_k, f32_k>("each_scale_bf16_haswell", nk_each_scale_bf16_haswell);
+    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_haswell", nk_each_fma_bf16_haswell);
+    run_each<bf16_k, wsum_k, f32_k>("each_wsum_bf16_haswell", nk_each_blend_bf16_haswell);
+    run_each<i8_k, scale_k, f32_k>("each_scale_i8_haswell", nk_each_scale_i8_haswell);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_haswell", nk_each_fma_i8_haswell);
+    run_each<i8_k, wsum_k, f32_k>("each_wsum_i8_haswell", nk_each_blend_i8_haswell);
+    run_each<u8_k, scale_k, f32_k>("each_scale_u8_haswell", nk_each_scale_u8_haswell);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_haswell", nk_each_fma_u8_haswell);
+    run_each<u8_k, wsum_k, f32_k>("each_wsum_u8_haswell", nk_each_blend_u8_haswell);
+    run_each<i16_k, scale_k, f32_k>("each_scale_i16_haswell", nk_each_scale_i16_haswell);
+    run_each<i16_k, fma_k, f32_k>("each_fma_i16_haswell", nk_each_fma_i16_haswell);
+    run_each<u16_k, scale_k, f32_k>("each_scale_u16_haswell", nk_each_scale_u16_haswell);
+    run_each<u16_k, fma_k, f32_k>("each_fma_u16_haswell", nk_each_fma_u16_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    each_<f64_k, fma_k, f64_k>("each_fma_f64_skylake", nk_each_fma_f64_skylake);
-    each_<f64_k, wsum_k, f64_k>("each_wsum_f64_skylake", nk_each_blend_f64_skylake);
-    each_<f32_k, fma_k, f32_k>("each_fma_f32_skylake", nk_each_fma_f32_skylake);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_skylake", nk_each_blend_f32_skylake);
-    each_<bf16_k, fma_k, f32_k>("each_fma_bf16_skylake", nk_each_fma_bf16_skylake);
-    each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_skylake", nk_each_blend_bf16_skylake);
+    run_each<f64_k, fma_k, f64_k>("each_fma_f64_skylake", nk_each_fma_f64_skylake);
+    run_each<f64_k, wsum_k, f64_k>("each_wsum_f64_skylake", nk_each_blend_f64_skylake);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_skylake", nk_each_fma_f32_skylake);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_skylake", nk_each_blend_f32_skylake);
+    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_skylake", nk_each_fma_bf16_skylake);
+    run_each<bf16_k, wsum_k, f32_k>("each_wsum_bf16_skylake", nk_each_blend_bf16_skylake);
 #endif
 
 #if NK_TARGET_ICELAKE
-    each_<i8_k, sum_k, f32_k>("each_sum_i8_icelake", nk_each_sum_i8_icelake);
-    each_<u8_k, sum_k, f32_k>("each_sum_u8_icelake", nk_each_sum_u8_icelake);
-    each_<i16_k, sum_k, f32_k>("each_sum_i16_icelake", nk_each_sum_i16_icelake);
-    each_<u16_k, sum_k, f32_k>("each_sum_u16_icelake", nk_each_sum_u16_icelake);
-    each_<i32_k, sum_k, f32_k>("each_sum_i32_icelake", nk_each_sum_i32_icelake);
-    each_<u32_k, sum_k, f32_k>("each_sum_u32_icelake", nk_each_sum_u32_icelake);
-    each_<i64_k, sum_k, f64_k>("each_sum_i64_icelake", nk_each_sum_i64_icelake);
-    each_<u64_k, sum_k, f64_k>("each_sum_u64_icelake", nk_each_sum_u64_icelake);
+    run_each<i8_k, sum_k, f32_k>("each_sum_i8_icelake", nk_each_sum_i8_icelake);
+    run_each<u8_k, sum_k, f32_k>("each_sum_u8_icelake", nk_each_sum_u8_icelake);
+    run_each<i16_k, sum_k, f32_k>("each_sum_i16_icelake", nk_each_sum_i16_icelake);
+    run_each<u16_k, sum_k, f32_k>("each_sum_u16_icelake", nk_each_sum_u16_icelake);
+    run_each<i32_k, sum_k, f32_k>("each_sum_i32_icelake", nk_each_sum_i32_icelake);
+    run_each<u32_k, sum_k, f32_k>("each_sum_u32_icelake", nk_each_sum_u32_icelake);
+    run_each<i64_k, sum_k, f64_k>("each_sum_i64_icelake", nk_each_sum_i64_icelake);
+    run_each<u64_k, sum_k, f64_k>("each_sum_u64_icelake", nk_each_sum_u64_icelake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    each_<u8_k, fma_k, f32_k>("each_fma_u8_sapphire", nk_each_fma_u8_sapphire);
-    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_sapphire", nk_each_blend_u8_sapphire);
-    each_<i8_k, fma_k, f32_k>("each_fma_i8_sapphire", nk_each_fma_i8_sapphire);
-    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_sapphire", nk_each_blend_i8_sapphire);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_sapphire", nk_each_fma_u8_sapphire);
+    run_each<u8_k, wsum_k, f32_k>("each_wsum_u8_sapphire", nk_each_blend_u8_sapphire);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_sapphire", nk_each_fma_i8_sapphire);
+    run_each<i8_k, wsum_k, f32_k>("each_wsum_i8_sapphire", nk_each_blend_i8_sapphire);
 #endif
 
 #if NK_TARGET_RVV
-    each_<f64_k, scale_k, f64_k>("each_scale_f64_rvv", nk_each_scale_f64_rvv);
-    each_<f64_k, fma_k, f64_k>("each_fma_f64_rvv", nk_each_fma_f64_rvv);
-    each_<f64_k, wsum_k, f64_k>("each_wsum_f64_rvv", nk_each_blend_f64_rvv);
-    each_<f32_k, scale_k, f32_k>("each_scale_f32_rvv", nk_each_scale_f32_rvv);
-    each_<f32_k, fma_k, f32_k>("each_fma_f32_rvv", nk_each_fma_f32_rvv);
-    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_rvv", nk_each_blend_f32_rvv);
-    each_<f16_k, scale_k, f32_k>("each_scale_f16_rvv", nk_each_scale_f16_rvv);
-    each_<f16_k, fma_k, f32_k>("each_fma_f16_rvv", nk_each_fma_f16_rvv);
-    each_<f16_k, wsum_k, f32_k>("each_wsum_f16_rvv", nk_each_blend_f16_rvv);
-    each_<bf16_k, scale_k, f32_k>("each_scale_bf16_rvv", nk_each_scale_bf16_rvv);
-    each_<bf16_k, fma_k, f32_k>("each_fma_bf16_rvv", nk_each_fma_bf16_rvv);
-    each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_rvv", nk_each_blend_bf16_rvv);
-    each_<i8_k, scale_k, f32_k>("each_scale_i8_rvv", nk_each_scale_i8_rvv);
-    each_<i8_k, fma_k, f32_k>("each_fma_i8_rvv", nk_each_fma_i8_rvv);
-    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_rvv", nk_each_blend_i8_rvv);
-    each_<u8_k, scale_k, f32_k>("each_scale_u8_rvv", nk_each_scale_u8_rvv);
-    each_<u8_k, fma_k, f32_k>("each_fma_u8_rvv", nk_each_fma_u8_rvv);
-    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_rvv", nk_each_blend_u8_rvv);
+    run_each<f64_k, scale_k, f64_k>("each_scale_f64_rvv", nk_each_scale_f64_rvv);
+    run_each<f64_k, fma_k, f64_k>("each_fma_f64_rvv", nk_each_fma_f64_rvv);
+    run_each<f64_k, wsum_k, f64_k>("each_wsum_f64_rvv", nk_each_blend_f64_rvv);
+    run_each<f32_k, scale_k, f32_k>("each_scale_f32_rvv", nk_each_scale_f32_rvv);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_rvv", nk_each_fma_f32_rvv);
+    run_each<f32_k, wsum_k, f32_k>("each_wsum_f32_rvv", nk_each_blend_f32_rvv);
+    run_each<f16_k, scale_k, f32_k>("each_scale_f16_rvv", nk_each_scale_f16_rvv);
+    run_each<f16_k, fma_k, f32_k>("each_fma_f16_rvv", nk_each_fma_f16_rvv);
+    run_each<f16_k, wsum_k, f32_k>("each_wsum_f16_rvv", nk_each_blend_f16_rvv);
+    run_each<bf16_k, scale_k, f32_k>("each_scale_bf16_rvv", nk_each_scale_bf16_rvv);
+    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_rvv", nk_each_fma_bf16_rvv);
+    run_each<bf16_k, wsum_k, f32_k>("each_wsum_bf16_rvv", nk_each_blend_bf16_rvv);
+    run_each<i8_k, scale_k, f32_k>("each_scale_i8_rvv", nk_each_scale_i8_rvv);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_rvv", nk_each_fma_i8_rvv);
+    run_each<i8_k, wsum_k, f32_k>("each_wsum_i8_rvv", nk_each_blend_i8_rvv);
+    run_each<u8_k, scale_k, f32_k>("each_scale_u8_rvv", nk_each_scale_u8_rvv);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_rvv", nk_each_fma_u8_rvv);
+    run_each<u8_k, wsum_k, f32_k>("each_wsum_u8_rvv", nk_each_blend_u8_rvv);
 #endif
 
     // Serial fallbacks
-    each_<f16_k, fma_k, f32_k>("each_fma_f16_serial", nk_each_fma_f16_serial);
-    each_<f16_k, wsum_k, f32_k>("each_wsum_f16_serial", nk_each_blend_f16_serial);
-    each_<u8_k, fma_k, f32_k>("each_fma_u8_serial", nk_each_fma_u8_serial);
-    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_serial", nk_each_blend_u8_serial);
-    each_<i8_k, fma_k, f32_k>("each_fma_i8_serial", nk_each_fma_i8_serial);
-    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_serial", nk_each_blend_i8_serial);
+    run_each<f16_k, fma_k, f32_k>("each_fma_f16_serial", nk_each_fma_f16_serial);
+    run_each<f16_k, wsum_k, f32_k>("each_wsum_f16_serial", nk_each_blend_f16_serial);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_serial", nk_each_fma_u8_serial);
+    run_each<u8_k, wsum_k, f32_k>("each_wsum_u8_serial", nk_each_blend_u8_serial);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_serial", nk_each_fma_i8_serial);
+    run_each<i8_k, wsum_k, f32_k>("each_wsum_i8_serial", nk_each_blend_i8_serial);
 }

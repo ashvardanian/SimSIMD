@@ -465,7 +465,7 @@ NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t n_ve
 
 #pragma endregion // Double Precision Floats
 
-#pragma region Quarter Precision E2M3
+#pragma region Micro Precision E2M3
 
 /**
  *  @brief  Scalar conversion helper: e2m3 byte → signed i8 (value × 16).
@@ -738,9 +738,9 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t n_
     }
 }
 
-#pragma endregion // Quarter Precision E2M3
+#pragma endregion // Micro Precision E2M3
 
-#pragma region Quarter Precision E3M2
+#pragma region Micro Precision E3M2
 
 /**
  *  @brief  Scalar conversion helper: e3m2 byte → signed i16 (value × 16).
@@ -998,7 +998,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t n_
     }
 }
 
-#pragma endregion // Quarter Precision E3M2
+#pragma endregion // Micro Precision E3M2
 
 #pragma region Brain Float 16
 
@@ -1825,7 +1825,7 @@ NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t n_vect
 
 #pragma endregion // Unsigned 8-bit Integers
 
-#pragma region Eighth Precision E4M3
+#pragma region Quarter Precision E4M3
 
 /**
  *  @brief  E4M3 magnitude LUT: 7-bit magnitude -> f32 bit pattern (u32).
@@ -2106,9 +2106,9 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_
     }
 }
 
-#pragma endregion // Eighth Precision E4M3
+#pragma endregion // Quarter Precision E4M3
 
-#pragma region Eighth Precision E5M2
+#pragma region Quarter Precision E5M2
 
 /**
  *  @brief  E5M2 magnitude LUT: 7-bit magnitude -> f32 bit pattern (u32).
@@ -2389,7 +2389,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
     }
 }
 
-#pragma endregion // Eighth Precision E5M2
+#pragma endregion // Quarter Precision E5M2
 
 #if defined(__cplusplus)
 } // extern "C"

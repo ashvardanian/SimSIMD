@@ -11,18 +11,35 @@
  *
  *  For dtypes:
  *
- *  - 64-bit IEEE floating point numbers
- *  - 32-bit IEEE floating point numbers
- *  - 16-bit IEEE floating point numbers
- *  - 16-bit brain floating point numbers
- *  - 8-bit unsigned integral numbers
- *  - 8-bit signed integral numbers
- *  - 4-bit signed integral numbers
+ *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
+ *  - bf16: 16-bit brain floating point numbers → 32-bit floats
+ *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
+ *  - e5m2: 8-bit e5m2 floating point numbers → 32-bit floats
+ *  - e2m3: 8-bit e2m3 floating point numbers (MX) → 32-bit floats
+ *  - e3m2: 8-bit e3m2 floating point numbers (MX) → 32-bit floats
+ *  - i8: 8-bit signed integers → 32-bit floats
+ *  - u8: 8-bit unsigned integers → 32-bit floats
+ *  - i4: 4-bit signed integers (packed pairs) → 32-bit floats
+ *  - u4: 4-bit unsigned integers (packed pairs) → 32-bit floats
  *
  *  For hardware architectures:
  *
- *  - Arm: NEON, SVE
- *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire
+ *  - Arm: NEON, NEON+F16, NEON+BF16, NEON+SDOT, SVE, SVE+F16, SVE+BF16
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire Rapids, Sierra Forest
+ *  - RISC-V: RVV, RVV+BF16, RVV+HALF
+ *  - WASM: V128Relaxed
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  Serial kernels use Neumaier compensated summation for dot, a_norm_sq, b_norm_sq —
+ *  O(1) error growth regardless of vector dimension. f32 serial accumulates in f64.
+ *  Angular finalization uses rsqrt via magic constant + 3 Newton-Raphson iterations (f32,
+ *  ~34.9 correct bits) or 4 iterations (f64, ~69.3 correct bits), then clamps result ≥ 0.
+ *  L2 uses conditional `dist_sq > 0 ? sqrt(dist_sq) : 0` to avoid NaN from rounding.
+ *  Integer types (i8/u8/i4/u4) accumulate squared differences in i32 — overflows at
+ *  n > 2^31/65,025 ≈ 33K for i8 (max diff² = 255²). Output is cast to f32.
  *
  *  @section streaming_api Streaming API
  *

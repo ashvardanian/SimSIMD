@@ -26,8 +26,10 @@ extern "C" {
 #endif
 
 /* F32 GEMM: depth_simd_dimensions=2 (2 f32s = 8 bytes = 64-bit input for f64 upcast accumulation) */
-nk_define_cross_pack_size_(dots, f32, neon, f32, f32, /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, f32, neon, f32, f32, nk_assign_from_to_, /*depth_simd_dimensions=*/2,
+nk_define_cross_pack_size_(dots, f32, neon, f32, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/2,
+                           /*dimensions_per_value=*/1)
+nk_define_cross_pack_(dots, f32, neon, f32, f32, nk_assign_from_to_, /*norm_value_type=*/f32, nk_dots_reduce_sumsq_f32_,
+                      /*depth_simd_dimensions=*/2,
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f32, neon, f32, f32, nk_b64_vec_t, nk_dot_f32x2_state_neon_t, nk_b128_vec_t,
                            nk_dot_f32x2_init_neon, nk_load_b64_neon_, nk_partial_load_b32x2_serial_,
@@ -39,9 +41,22 @@ nk_define_cross_packed_(dots, f32, neon, f32, f32, f32, nk_b64_vec_t, nk_dot_f32
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 
+/* U1 GEMM: depth_simd_dimensions=128 (128 bits = 16 bytes = NEON register width) */
+nk_define_cross_symmetric_(dots, u1, neon, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_neon_t, nk_b128_vec_t,
+                           nk_dot_u1x128_init_neon, nk_load_b128_neon_, nk_partial_load_b1x128_serial_,
+                           nk_dot_u1x128_update_neon, nk_dot_u1x128_finalize_neon, nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
+nk_define_cross_packed_(dots, u1, neon, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_neon_t, nk_b128_vec_t,
+                        nk_dot_u1x128_init_neon, nk_load_b128_neon_, nk_partial_load_b1x128_serial_, nk_load_b128_neon_,
+                        nk_partial_load_b1x128_serial_, nk_dot_u1x128_update_neon, nk_dot_u1x128_finalize_neon,
+                        nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
+
 /* F64 GEMM: depth_simd_dimensions=2 (2 f64s = 16 bytes = NEON register width) */
-nk_define_cross_pack_size_(dots, f64, neon, f64, f64, /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, f64, neon, f64, f64, nk_assign_from_to_, /*depth_simd_dimensions=*/2,
+nk_define_cross_pack_size_(dots, f64, neon, f64, f64, /*norm_value_type=*/f64, /*depth_simd_dimensions=*/2,
+                           /*dimensions_per_value=*/1)
+nk_define_cross_pack_(dots, f64, neon, f64, f64, nk_assign_from_to_, /*norm_value_type=*/f64, nk_dots_reduce_sumsq_f64_,
+                      /*depth_simd_dimensions=*/2,
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f64, neon, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_neon_t, nk_b256_vec_t,
                            nk_dot_f64x2_init_neon, nk_load_b128_neon_, nk_partial_load_b64x2_serial_,

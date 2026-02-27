@@ -50,7 +50,8 @@
  *      nk_dot_i8x16_update_haswell(&state_fourth, query_i8x16, target_fourth_i8x16, idx, 16);
  *  }
  *  nk_b128_vec_t results_i32x4;
- *  nk_dot_through_i32_finalize_haswell_(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  nk_dot_through_i32_finalize_haswell_(&state_first, &state_second, &state_third, &state_fourth,
+ *      depth, &results_i32x4);
  *  @endcode
  *
  *  Not every numeric type has dedicated dot-product SIMD circuitry on each ISA. Smaller float types
@@ -1662,6 +1663,44 @@ NK_INTERNAL void nk_dot_u4x32_finalize_haswell(                                 
 }
 
 #pragma endregion - Small Integers
+
+#pragma region - Binary
+
+NK_PUBLIC void nk_dot_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
+    nk_u32_t dot = 0;
+    for (; n_bytes >= 8; n_bytes -= 8, a += 8, b += 8)
+        dot += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a & *(nk_u64_t const *)b);
+    for (; n_bytes; --n_bytes, ++a, ++b) dot += (nk_u32_t)_mm_popcnt_u32(*a & *b);
+    *result = dot;
+}
+
+typedef struct nk_dot_u1x128_state_haswell_t {
+    nk_u32_t dot_count;
+} nk_dot_u1x128_state_haswell_t;
+
+NK_INTERNAL void nk_dot_u1x128_init_haswell(nk_dot_u1x128_state_haswell_t *state) { state->dot_count = 0; }
+
+NK_INTERNAL void nk_dot_u1x128_update_haswell(nk_dot_u1x128_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    state->dot_count += (nk_u32_t)_mm_popcnt_u64(a.u64s[0] & b.u64s[0]);
+    state->dot_count += (nk_u32_t)_mm_popcnt_u64(a.u64s[1] & b.u64s[1]);
+}
+
+NK_INTERNAL void nk_dot_u1x128_finalize_haswell( //
+    nk_dot_u1x128_state_haswell_t const *state_a, nk_dot_u1x128_state_haswell_t const *state_b,
+    nk_dot_u1x128_state_haswell_t const *state_c, nk_dot_u1x128_state_haswell_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    result->u32s[0] = state_a->dot_count;
+    result->u32s[1] = state_b->dot_count;
+    result->u32s[2] = state_c->dot_count;
+    result->u32s[3] = state_d->dot_count;
+}
+
+#pragma endregion - Binary
 
 #if defined(__clang__)
 #pragma clang attribute pop

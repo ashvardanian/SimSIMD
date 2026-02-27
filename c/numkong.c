@@ -495,6 +495,9 @@ nk_dispatch_trigonometry_(cos, f32)
 nk_dispatch_trigonometry_(cos, f64)
 nk_dispatch_trigonometry_(atan, f32)
 nk_dispatch_trigonometry_(atan, f64)
+nk_dispatch_trigonometry_(sin, f16)
+nk_dispatch_trigonometry_(cos, f16)
+nk_dispatch_trigonometry_(atan, f16)
 
 // Mesh alignment (RMSD, Kabsch, Umeyama)
 nk_dispatch_mesh_(rmsd, f32, f32)
@@ -546,7 +549,7 @@ nk_dispatch_reduce_minmax_(i4, nk_i4x2_t, nk_i8_t)
 nk_dispatch_reduce_minmax_(u4, nk_u4x2_t, nk_u8_t)
 nk_dispatch_reduce_minmax_(u1, nk_u1x8_t, nk_u8_t)
 
-// Matrix multiplications (GEMM with packed B)
+// Dots packed sizes
 nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
 nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
 nk_dispatch_cross_packed_size_(dots, f16, f16, f32)
@@ -561,6 +564,7 @@ nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
 nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32)
 nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
 
+// Dots packing
 nk_dispatch_cross_pack_(dots, f32, f32, f32)
 nk_dispatch_cross_pack_(dots, f64, f64, f64)
 nk_dispatch_cross_pack_(dots, f16, f16, f32)
@@ -575,6 +579,7 @@ nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
 nk_dispatch_cross_pack_(dots, u4, u4x2, u32)
 nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
 
+// Dots packed
 nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(dots, f64, f64, f64, f64)
 nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
@@ -589,7 +594,7 @@ nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
 nk_dispatch_cross_packed_(dots, u4, u4x2, u32, u32)
 nk_dispatch_cross_packed_(dots, i4, i4x2, i32, i32)
 
-// Symmetric Gram matrix (A × Aᵀ)
+// Dots symmetric
 nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
 nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
 nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
@@ -602,12 +607,71 @@ nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
 nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
 nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
 nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
+nk_dispatch_cross_symmetric_(dots, u1, u1x8, u32)
 
-// Hamming distances (batched binary set computations)
-nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32)
-nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
+// Sets packed
 nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32)
+nk_dispatch_cross_packed_(jaccards, u1, u1x8, f32, f32)
+
+// Sets symmetric
 nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
+nk_dispatch_cross_symmetric_(jaccards, u1, u1x8, f32)
+
+// Angulars packed
+nk_dispatch_cross_packed_(angulars, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(angulars, f64, f64, f64, f64)
+nk_dispatch_cross_packed_(angulars, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(angulars, bf16, bf16, f32, f32)
+nk_dispatch_cross_packed_(angulars, i8, i8, i32, f32)
+nk_dispatch_cross_packed_(angulars, u8, u8, u32, f32)
+nk_dispatch_cross_packed_(angulars, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(angulars, e5m2, e5m2, f32, f32)
+nk_dispatch_cross_packed_(angulars, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(angulars, e3m2, e3m2, f32, f32)
+nk_dispatch_cross_packed_(angulars, u4, u4x2, u32, f32)
+nk_dispatch_cross_packed_(angulars, i4, i4x2, i32, f32)
+
+// Angulars symmetric
+nk_dispatch_cross_symmetric_(angulars, f32, f32, f32)
+nk_dispatch_cross_symmetric_(angulars, f64, f64, f64)
+nk_dispatch_cross_symmetric_(angulars, f16, f16, f32)
+nk_dispatch_cross_symmetric_(angulars, bf16, bf16, f32)
+nk_dispatch_cross_symmetric_(angulars, i8, i8, f32)
+nk_dispatch_cross_symmetric_(angulars, u8, u8, f32)
+nk_dispatch_cross_symmetric_(angulars, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(angulars, e5m2, e5m2, f32)
+nk_dispatch_cross_symmetric_(angulars, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(angulars, e3m2, e3m2, f32)
+nk_dispatch_cross_symmetric_(angulars, u4, u4x2, f32)
+nk_dispatch_cross_symmetric_(angulars, i4, i4x2, f32)
+
+// Euclideans packed
+nk_dispatch_cross_packed_(euclideans, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(euclideans, f64, f64, f64, f64)
+nk_dispatch_cross_packed_(euclideans, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(euclideans, bf16, bf16, f32, f32)
+nk_dispatch_cross_packed_(euclideans, i8, i8, i32, f32)
+nk_dispatch_cross_packed_(euclideans, u8, u8, u32, f32)
+nk_dispatch_cross_packed_(euclideans, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(euclideans, e5m2, e5m2, f32, f32)
+nk_dispatch_cross_packed_(euclideans, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(euclideans, e3m2, e3m2, f32, f32)
+nk_dispatch_cross_packed_(euclideans, u4, u4x2, u32, f32)
+nk_dispatch_cross_packed_(euclideans, i4, i4x2, i32, f32)
+
+// Euclideans symmetric
+nk_dispatch_cross_symmetric_(euclideans, f32, f32, f32)
+nk_dispatch_cross_symmetric_(euclideans, f64, f64, f64)
+nk_dispatch_cross_symmetric_(euclideans, f16, f16, f32)
+nk_dispatch_cross_symmetric_(euclideans, bf16, bf16, f32)
+nk_dispatch_cross_symmetric_(euclideans, i8, i8, f32)
+nk_dispatch_cross_symmetric_(euclideans, u8, u8, f32)
+nk_dispatch_cross_symmetric_(euclideans, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(euclideans, e5m2, e5m2, f32)
+nk_dispatch_cross_symmetric_(euclideans, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(euclideans, e3m2, e3m2, f32)
+nk_dispatch_cross_symmetric_(euclideans, u4, u4x2, f32)
+nk_dispatch_cross_symmetric_(euclideans, i4, i4x2, f32)
 
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }

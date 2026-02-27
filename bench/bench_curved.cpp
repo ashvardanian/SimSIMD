@@ -80,11 +80,11 @@ void bilinear_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t c
  *  @param kernel The kernel function to benchmark.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
 void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimensions) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::curved_result_t;
     using input_vector_t = nk::vector<input_t>;
 
     // Preallocate inputs: pairs of vectors + metric tensors (dimensions x dimensions)
@@ -116,10 +116,10 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
-void curved_(std::string name, kernel_type_ *kernel) {
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
+void run_curved(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.curved_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<input_dtype_, kernel_type_ *>, kernel,
                           bench_config.curved_dimensions);
 }
 
@@ -134,72 +134,72 @@ void bench_curved() {
     constexpr nk_dtype_t bf16c_k = nk_bf16c_k;
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
-    curved_<f64_k, f64_k>("bilinear_f64_with_blas", bilinear_f64_with_blas);
-    curved_<f64c_k, f64c_k>("bilinear_f64c_with_blas", bilinear_f64c_with_blas);
-    curved_<f32_k, f32_k>("bilinear_f32_with_blas", bilinear_f32_with_blas);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_with_blas", bilinear_f32c_with_blas);
+    run_curved<f64_k>("bilinear_f64_with_blas", bilinear_f64_with_blas);
+    run_curved<f64c_k>("bilinear_f64c_with_blas", bilinear_f64c_with_blas);
+    run_curved<f32_k>("bilinear_f32_with_blas", bilinear_f32_with_blas);
+    run_curved<f32c_k>("bilinear_f32c_with_blas", bilinear_f32c_with_blas);
 #endif
 
 #if NK_TARGET_NEON
-    curved_<f32_k, f32_k>("bilinear_f32_neon", nk_bilinear_f32_neon);
-    curved_<f32_k, f32_k>("mahalanobis_f32_neon", nk_mahalanobis_f32_neon);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_neon", nk_bilinear_f32c_neon);
+    run_curved<f32_k>("bilinear_f32_neon", nk_bilinear_f32_neon);
+    run_curved<f32_k>("mahalanobis_f32_neon", nk_mahalanobis_f32_neon);
+    run_curved<f32c_k>("bilinear_f32c_neon", nk_bilinear_f32c_neon);
 #endif
 
 #if NK_TARGET_NEONHALF
-    curved_<f16_k, f32_k>("bilinear_f16_neonhalf", nk_bilinear_f16_neonhalf);
-    curved_<f16_k, f32_k>("mahalanobis_f16_neonhalf", nk_mahalanobis_f16_neonhalf);
-    curved_<f16c_k, f32c_k>("bilinear_f16c_neonhalf", nk_bilinear_f16c_neonhalf);
+    run_curved<f16_k>("bilinear_f16_neonhalf", nk_bilinear_f16_neonhalf);
+    run_curved<f16_k>("mahalanobis_f16_neonhalf", nk_mahalanobis_f16_neonhalf);
+    run_curved<f16c_k>("bilinear_f16c_neonhalf", nk_bilinear_f16c_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT
-    curved_<bf16_k, f32_k>("bilinear_bf16_neonbfdot", nk_bilinear_bf16_neonbfdot);
-    curved_<bf16_k, f32_k>("mahalanobis_bf16_neonbfdot", nk_mahalanobis_bf16_neonbfdot);
-    curved_<bf16c_k, f32c_k>("bilinear_bf16c_neonbfdot", nk_bilinear_bf16c_neonbfdot);
+    run_curved<bf16_k>("bilinear_bf16_neonbfdot", nk_bilinear_bf16_neonbfdot);
+    run_curved<bf16_k>("mahalanobis_bf16_neonbfdot", nk_mahalanobis_bf16_neonbfdot);
+    run_curved<bf16c_k>("bilinear_bf16c_neonbfdot", nk_bilinear_bf16c_neonbfdot);
 #endif
 
 #if NK_TARGET_SMEF64
-    curved_<f32_k, f32_k>("bilinear_f32_smef64", nk_bilinear_f32_smef64);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_smef64", nk_bilinear_f32c_smef64);
-    curved_<f32_k, f32_k>("mahalanobis_f32_smef64", nk_mahalanobis_f32_smef64);
-    curved_<f64_k, f64_k>("bilinear_f64_smef64", nk_bilinear_f64_smef64);
-    curved_<f64c_k, f64c_k>("bilinear_f64c_smef64", nk_bilinear_f64c_smef64);
-    curved_<f64_k, f64_k>("mahalanobis_f64_smef64", nk_mahalanobis_f64_smef64);
+    run_curved<f32_k>("bilinear_f32_smef64", nk_bilinear_f32_smef64);
+    run_curved<f32c_k>("bilinear_f32c_smef64", nk_bilinear_f32c_smef64);
+    run_curved<f32_k>("mahalanobis_f32_smef64", nk_mahalanobis_f32_smef64);
+    run_curved<f64_k>("bilinear_f64_smef64", nk_bilinear_f64_smef64);
+    run_curved<f64c_k>("bilinear_f64c_smef64", nk_bilinear_f64c_smef64);
+    run_curved<f64_k>("mahalanobis_f64_smef64", nk_mahalanobis_f64_smef64);
 #endif
 
 #if NK_TARGET_HASWELL
-    curved_<f16_k, f32_k>("bilinear_f16_haswell", nk_bilinear_f16_haswell);
-    curved_<f16_k, f32_k>("mahalanobis_f16_haswell", nk_mahalanobis_f16_haswell);
-    curved_<bf16_k, f32_k>("bilinear_bf16_haswell", nk_bilinear_bf16_haswell);
-    curved_<bf16_k, f32_k>("mahalanobis_bf16_haswell", nk_mahalanobis_bf16_haswell);
+    run_curved<f16_k>("bilinear_f16_haswell", nk_bilinear_f16_haswell);
+    run_curved<f16_k>("mahalanobis_f16_haswell", nk_mahalanobis_f16_haswell);
+    run_curved<bf16_k>("bilinear_bf16_haswell", nk_bilinear_bf16_haswell);
+    run_curved<bf16_k>("mahalanobis_bf16_haswell", nk_mahalanobis_bf16_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    curved_<f32_k, f32_k>("bilinear_f32_skylake", nk_bilinear_f32_skylake);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_skylake", nk_bilinear_f32c_skylake);
-    curved_<f64_k, f64_k>("bilinear_f64_skylake", nk_bilinear_f64_skylake);
-    curved_<f64c_k, f64c_k>("bilinear_f64c_skylake", nk_bilinear_f64c_skylake);
-    curved_<f32_k, f32_k>("mahalanobis_f32_skylake", nk_mahalanobis_f32_skylake);
-    curved_<f64_k, f64_k>("mahalanobis_f64_skylake", nk_mahalanobis_f64_skylake);
+    run_curved<f32_k>("bilinear_f32_skylake", nk_bilinear_f32_skylake);
+    run_curved<f32c_k>("bilinear_f32c_skylake", nk_bilinear_f32c_skylake);
+    run_curved<f64_k>("bilinear_f64_skylake", nk_bilinear_f64_skylake);
+    run_curved<f64c_k>("bilinear_f64c_skylake", nk_bilinear_f64c_skylake);
+    run_curved<f32_k>("mahalanobis_f32_skylake", nk_mahalanobis_f32_skylake);
+    run_curved<f64_k>("mahalanobis_f64_skylake", nk_mahalanobis_f64_skylake);
 #endif
 
 #if NK_TARGET_GENOA
-    curved_<bf16_k, f32_k>("bilinear_bf16_genoa", nk_bilinear_bf16_genoa);
-    curved_<bf16_k, f32_k>("mahalanobis_bf16_genoa", nk_mahalanobis_bf16_genoa);
-    curved_<bf16c_k, f32c_k>("bilinear_bf16c_genoa", nk_bilinear_bf16c_genoa);
+    run_curved<bf16_k>("bilinear_bf16_genoa", nk_bilinear_bf16_genoa);
+    run_curved<bf16_k>("mahalanobis_bf16_genoa", nk_mahalanobis_bf16_genoa);
+    run_curved<bf16c_k>("bilinear_bf16c_genoa", nk_bilinear_bf16c_genoa);
 #endif
 
     // Serial fallbacks
-    curved_<f64_k, f64_k>("bilinear_f64_serial", nk_bilinear_f64_serial);
-    curved_<f64c_k, f64c_k>("bilinear_f64c_serial", nk_bilinear_f64c_serial);
-    curved_<f64_k, f64_k>("mahalanobis_f64_serial", nk_mahalanobis_f64_serial);
-    curved_<f32_k, f32_k>("bilinear_f32_serial", nk_bilinear_f32_serial);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_serial", nk_bilinear_f32c_serial);
-    curved_<f32_k, f32_k>("mahalanobis_f32_serial", nk_mahalanobis_f32_serial);
-    curved_<f16_k, f32_k>("bilinear_f16_serial", nk_bilinear_f16_serial);
-    curved_<f16c_k, f32c_k>("bilinear_f16c_serial", nk_bilinear_f16c_serial);
-    curved_<f16_k, f32_k>("mahalanobis_f16_serial", nk_mahalanobis_f16_serial);
-    curved_<bf16_k, f32_k>("bilinear_bf16_serial", nk_bilinear_bf16_serial);
-    curved_<bf16c_k, f32c_k>("bilinear_bf16c_serial", nk_bilinear_bf16c_serial);
-    curved_<bf16_k, f32_k>("mahalanobis_bf16_serial", nk_mahalanobis_bf16_serial);
+    run_curved<f64_k>("bilinear_f64_serial", nk_bilinear_f64_serial);
+    run_curved<f64c_k>("bilinear_f64c_serial", nk_bilinear_f64c_serial);
+    run_curved<f64_k>("mahalanobis_f64_serial", nk_mahalanobis_f64_serial);
+    run_curved<f32_k>("bilinear_f32_serial", nk_bilinear_f32_serial);
+    run_curved<f32c_k>("bilinear_f32c_serial", nk_bilinear_f32c_serial);
+    run_curved<f32_k>("mahalanobis_f32_serial", nk_mahalanobis_f32_serial);
+    run_curved<f16_k>("bilinear_f16_serial", nk_bilinear_f16_serial);
+    run_curved<f16c_k>("bilinear_f16c_serial", nk_bilinear_f16c_serial);
+    run_curved<f16_k>("mahalanobis_f16_serial", nk_mahalanobis_f16_serial);
+    run_curved<bf16_k>("bilinear_bf16_serial", nk_bilinear_bf16_serial);
+    run_curved<bf16c_k>("bilinear_bf16c_serial", nk_bilinear_bf16c_serial);
+    run_curved<bf16_k>("mahalanobis_bf16_serial", nk_mahalanobis_bf16_serial);
 }

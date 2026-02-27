@@ -23,7 +23,7 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/trigonometry/haswell.h" // `nk_f64x4_sin_haswell_`, `nk_f64x4_cos_haswell_`, `nk_f64x4_atan2_haswell_`, etc.
+#include "numkong/trigonometry/haswell.h" // `nk_sin_f64x4_haswell_`, `nk_cos_f64x4_haswell_`, `nk_atan2_f64x4_haswell_`, etc.
 
 #if defined(__cplusplus)
 extern "C" {
@@ -55,14 +55,14 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     // Haversine terms: sin²(Δ/2)
     __m256d latitude_delta_half = _mm256_mul_pd(latitude_delta, half);
     __m256d longitude_delta_half = _mm256_mul_pd(longitude_delta, half);
-    __m256d sin_latitude_delta_half = nk_f64x4_sin_haswell_(latitude_delta_half);
-    __m256d sin_longitude_delta_half = nk_f64x4_sin_haswell_(longitude_delta_half);
+    __m256d sin_latitude_delta_half = nk_sin_f64x4_haswell_(latitude_delta_half);
+    __m256d sin_longitude_delta_half = nk_sin_f64x4_haswell_(longitude_delta_half);
     __m256d sin_squared_latitude_delta_half = _mm256_mul_pd(sin_latitude_delta_half, sin_latitude_delta_half);
     __m256d sin_squared_longitude_delta_half = _mm256_mul_pd(sin_longitude_delta_half, sin_longitude_delta_half);
 
     // Latitude cosine product
-    __m256d cos_first_latitude = nk_f64x4_cos_haswell_(first_latitudes);
-    __m256d cos_second_latitude = nk_f64x4_cos_haswell_(second_latitudes);
+    __m256d cos_first_latitude = nk_cos_f64x4_haswell_(first_latitudes);
+    __m256d cos_second_latitude = nk_cos_f64x4_haswell_(second_latitudes);
     __m256d cos_latitude_product = _mm256_mul_pd(cos_first_latitude, cos_second_latitude);
 
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
@@ -75,7 +75,7 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m256d sqrt_haversine = _mm256_sqrt_pd(haversine_term);
     __m256d sqrt_complement = _mm256_sqrt_pd(_mm256_sub_pd(one, haversine_term));
-    __m256d central_angle = _mm256_mul_pd(two, nk_f64x4_atan2_haswell_(sqrt_haversine, sqrt_complement));
+    __m256d central_angle = _mm256_mul_pd(two, nk_atan2_f64x4_haswell_(sqrt_haversine, sqrt_complement));
 
     return _mm256_mul_pd(earth_radius, central_angle);
 }
@@ -127,14 +127,14 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     // Haversine terms: sin²(Δ/2)
     __m256 latitude_delta_half = _mm256_mul_ps(latitude_delta, half);
     __m256 longitude_delta_half = _mm256_mul_ps(longitude_delta, half);
-    __m256 sin_latitude_delta_half = nk_f32x8_sin_haswell_(latitude_delta_half);
-    __m256 sin_longitude_delta_half = nk_f32x8_sin_haswell_(longitude_delta_half);
+    __m256 sin_latitude_delta_half = nk_sin_f32x8_haswell_(latitude_delta_half);
+    __m256 sin_longitude_delta_half = nk_sin_f32x8_haswell_(longitude_delta_half);
     __m256 sin_squared_latitude_delta_half = _mm256_mul_ps(sin_latitude_delta_half, sin_latitude_delta_half);
     __m256 sin_squared_longitude_delta_half = _mm256_mul_ps(sin_longitude_delta_half, sin_longitude_delta_half);
 
     // Latitude cosine product
-    __m256 cos_first_latitude = nk_f32x8_cos_haswell_(first_latitudes);
-    __m256 cos_second_latitude = nk_f32x8_cos_haswell_(second_latitudes);
+    __m256 cos_first_latitude = nk_cos_f32x8_haswell_(first_latitudes);
+    __m256 cos_second_latitude = nk_cos_f32x8_haswell_(second_latitudes);
     __m256 cos_latitude_product = _mm256_mul_ps(cos_first_latitude, cos_second_latitude);
 
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
@@ -148,7 +148,7 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m256 sqrt_haversine = _mm256_sqrt_ps(haversine_term);
     __m256 sqrt_complement = _mm256_sqrt_ps(_mm256_sub_ps(one, haversine_term));
-    __m256 central_angle = _mm256_mul_ps(two, nk_f32x8_atan2_haswell_(sqrt_haversine, sqrt_complement));
+    __m256 central_angle = _mm256_mul_ps(two, nk_atan2_f32x8_haswell_(sqrt_haversine, sqrt_complement));
 
     return _mm256_mul_ps(earth_radius, central_angle);
 }
@@ -210,9 +210,9 @@ NK_INTERNAL __m256d nk_vincenty_f64x4_haswell_(        //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m256d one_minus_f = _mm256_sub_pd(one, flattening);
-    __m256d tan_first = _mm256_div_pd(nk_f64x4_sin_haswell_(first_latitudes), nk_f64x4_cos_haswell_(first_latitudes));
-    __m256d tan_second = _mm256_div_pd(nk_f64x4_sin_haswell_(second_latitudes),
-                                       nk_f64x4_cos_haswell_(second_latitudes));
+    __m256d tan_first = _mm256_div_pd(nk_sin_f64x4_haswell_(first_latitudes), nk_cos_f64x4_haswell_(first_latitudes));
+    __m256d tan_second = _mm256_div_pd(nk_sin_f64x4_haswell_(second_latitudes),
+                                       nk_cos_f64x4_haswell_(second_latitudes));
     __m256d tan_reduced_first = _mm256_mul_pd(one_minus_f, tan_first);
     __m256d tan_reduced_second = _mm256_mul_pd(one_minus_f, tan_second);
 
@@ -238,8 +238,8 @@ NK_INTERNAL __m256d nk_vincenty_f64x4_haswell_(        //
         int converged_bits = _mm256_movemask_pd(converged_mask);
         if (converged_bits == 0xF) break;
 
-        __m256d sin_lambda = nk_f64x4_sin_haswell_(lambda);
-        __m256d cos_lambda = nk_f64x4_cos_haswell_(lambda);
+        __m256d sin_lambda = nk_sin_f64x4_haswell_(lambda);
+        __m256d cos_lambda = nk_cos_f64x4_haswell_(lambda);
 
         // sin²(angular_distance) = (cos(U₂) × sin(λ))² + (cos(U₁) × sin(U₂) - sin(U₁) × cos(U₂) × cos(λ))²
         __m256d cross_term = _mm256_mul_pd(cos_reduced_second, sin_lambda);
@@ -257,7 +257,7 @@ NK_INTERNAL __m256d nk_vincenty_f64x4_haswell_(        //
                                                _mm256_mul_pd(sin_reduced_first, sin_reduced_second));
 
         // angular_distance = atan2(sin, cos)
-        angular_distance = nk_f64x4_atan2_haswell_(sin_angular_distance, cos_angular_distance);
+        angular_distance = nk_atan2_f64x4_haswell_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
         // Avoid division by zero by using blending
@@ -407,8 +407,8 @@ NK_INTERNAL __m256 nk_vincenty_f32x8_haswell_(       //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m256 one_minus_f = _mm256_sub_ps(one, flattening);
-    __m256 tan_first = _mm256_div_ps(nk_f32x8_sin_haswell_(first_latitudes), nk_f32x8_cos_haswell_(first_latitudes));
-    __m256 tan_second = _mm256_div_ps(nk_f32x8_sin_haswell_(second_latitudes), nk_f32x8_cos_haswell_(second_latitudes));
+    __m256 tan_first = _mm256_div_ps(nk_sin_f32x8_haswell_(first_latitudes), nk_cos_f32x8_haswell_(first_latitudes));
+    __m256 tan_second = _mm256_div_ps(nk_sin_f32x8_haswell_(second_latitudes), nk_cos_f32x8_haswell_(second_latitudes));
     __m256 tan_reduced_first = _mm256_mul_ps(one_minus_f, tan_first);
     __m256 tan_reduced_second = _mm256_mul_ps(one_minus_f, tan_second);
 
@@ -434,8 +434,8 @@ NK_INTERNAL __m256 nk_vincenty_f32x8_haswell_(       //
         int converged_bits = _mm256_movemask_ps(converged_mask);
         if (converged_bits == 0xFF) break;
 
-        __m256 sin_lambda = nk_f32x8_sin_haswell_(lambda);
-        __m256 cos_lambda = nk_f32x8_cos_haswell_(lambda);
+        __m256 sin_lambda = nk_sin_f32x8_haswell_(lambda);
+        __m256 cos_lambda = nk_cos_f32x8_haswell_(lambda);
 
         // sin²(angular_distance) = (cos(U₂) × sin(λ))² + (cos(U₁) × sin(U₂) - sin(U₁) × cos(U₂) × cos(λ))²
         __m256 cross_term = _mm256_mul_ps(cos_reduced_second, sin_lambda);
@@ -453,7 +453,7 @@ NK_INTERNAL __m256 nk_vincenty_f32x8_haswell_(       //
                                                _mm256_mul_ps(sin_reduced_first, sin_reduced_second));
 
         // angular_distance = atan2(sin, cos)
-        angular_distance = nk_f32x8_atan2_haswell_(sin_angular_distance, cos_angular_distance);
+        angular_distance = nk_atan2_f32x8_haswell_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
         // Avoid division by zero by using blending

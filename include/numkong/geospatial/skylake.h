@@ -23,7 +23,7 @@
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
-#include "numkong/trigonometry/skylake.h" // `nk_f64x8_sin_skylake_`, `nk_f64x8_cos_skylake_`, `nk_f64x8_atan2_skylake_`, etc.
+#include "numkong/trigonometry/skylake.h" // `nk_sin_f64x8_skylake_`, `nk_cos_f64x8_skylake_`, `nk_atan2_f64x8_skylake_`, etc.
 
 #if defined(__cplusplus)
 extern "C" {
@@ -52,14 +52,14 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     // Haversine terms: sin²(Δ/2)
     __m512d latitude_delta_half = _mm512_mul_pd(latitude_delta, half);
     __m512d longitude_delta_half = _mm512_mul_pd(longitude_delta, half);
-    __m512d sin_latitude_delta_half = nk_f64x8_sin_skylake_(latitude_delta_half);
-    __m512d sin_longitude_delta_half = nk_f64x8_sin_skylake_(longitude_delta_half);
+    __m512d sin_latitude_delta_half = nk_sin_f64x8_skylake_(latitude_delta_half);
+    __m512d sin_longitude_delta_half = nk_sin_f64x8_skylake_(longitude_delta_half);
     __m512d sin_squared_latitude_delta_half = _mm512_mul_pd(sin_latitude_delta_half, sin_latitude_delta_half);
     __m512d sin_squared_longitude_delta_half = _mm512_mul_pd(sin_longitude_delta_half, sin_longitude_delta_half);
 
     // Latitude cosine product
-    __m512d cos_first_latitude = nk_f64x8_cos_skylake_(first_latitudes);
-    __m512d cos_second_latitude = nk_f64x8_cos_skylake_(second_latitudes);
+    __m512d cos_first_latitude = nk_cos_f64x8_skylake_(first_latitudes);
+    __m512d cos_second_latitude = nk_cos_f64x8_skylake_(second_latitudes);
     __m512d cos_latitude_product = _mm512_mul_pd(cos_first_latitude, cos_second_latitude);
 
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
@@ -72,7 +72,7 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m512d sqrt_haversine = _mm512_sqrt_pd(haversine_term);
     __m512d sqrt_complement = _mm512_sqrt_pd(_mm512_sub_pd(one, haversine_term));
-    __m512d central_angle = _mm512_mul_pd(two, nk_f64x8_atan2_skylake_(sqrt_haversine, sqrt_complement));
+    __m512d central_angle = _mm512_mul_pd(two, nk_atan2_f64x8_skylake_(sqrt_haversine, sqrt_complement));
 
     return _mm512_mul_pd(earth_radius, central_angle);
 }
@@ -133,9 +133,9 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m512d one_minus_f = _mm512_sub_pd(one, flattening);
-    __m512d tan_first = _mm512_div_pd(nk_f64x8_sin_skylake_(first_latitudes), nk_f64x8_cos_skylake_(first_latitudes));
-    __m512d tan_second = _mm512_div_pd(nk_f64x8_sin_skylake_(second_latitudes),
-                                       nk_f64x8_cos_skylake_(second_latitudes));
+    __m512d tan_first = _mm512_div_pd(nk_sin_f64x8_skylake_(first_latitudes), nk_cos_f64x8_skylake_(first_latitudes));
+    __m512d tan_second = _mm512_div_pd(nk_sin_f64x8_skylake_(second_latitudes),
+                                       nk_cos_f64x8_skylake_(second_latitudes));
     __m512d tan_reduced_first = _mm512_mul_pd(one_minus_f, tan_first);
     __m512d tan_reduced_second = _mm512_mul_pd(one_minus_f, tan_second);
 
@@ -157,8 +157,8 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
     __mmask8 coincident_mask = 0;
 
     for (nk_u32_t iteration = 0; iteration < NK_VINCENTY_MAX_ITERATIONS && converged_mask != 0xFF; ++iteration) {
-        __m512d sin_lambda = nk_f64x8_sin_skylake_(lambda);
-        __m512d cos_lambda = nk_f64x8_cos_skylake_(lambda);
+        __m512d sin_lambda = nk_sin_f64x8_skylake_(lambda);
+        __m512d cos_lambda = nk_cos_f64x8_skylake_(lambda);
 
         // sin²(angular_distance) = (cos(U₂) × sin(λ))² + (cos(U₁) × sin(U₂) - sin(U₁) × cos(U₂) × cos(λ))²
         __m512d cross_term = _mm512_mul_pd(cos_reduced_second, sin_lambda);
@@ -176,7 +176,7 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
                                                _mm512_mul_pd(sin_reduced_first, sin_reduced_second));
 
         // angular_distance = atan2(sin, cos)
-        angular_distance = nk_f64x8_atan2_skylake_(sin_angular_distance, cos_angular_distance);
+        angular_distance = nk_atan2_f64x8_skylake_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
         sin_azimuth = _mm512_div_pd(_mm512_mul_pd(_mm512_mul_pd(cos_reduced_first, cos_reduced_second), sin_lambda),
@@ -311,14 +311,14 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     // Haversine terms: sin²(Δ/2)
     __m512 latitude_delta_half = _mm512_mul_ps(latitude_delta, half);
     __m512 longitude_delta_half = _mm512_mul_ps(longitude_delta, half);
-    __m512 sin_latitude_delta_half = nk_f32x16_sin_skylake_(latitude_delta_half);
-    __m512 sin_longitude_delta_half = nk_f32x16_sin_skylake_(longitude_delta_half);
+    __m512 sin_latitude_delta_half = nk_sin_f32x16_skylake_(latitude_delta_half);
+    __m512 sin_longitude_delta_half = nk_sin_f32x16_skylake_(longitude_delta_half);
     __m512 sin_squared_latitude_delta_half = _mm512_mul_ps(sin_latitude_delta_half, sin_latitude_delta_half);
     __m512 sin_squared_longitude_delta_half = _mm512_mul_ps(sin_longitude_delta_half, sin_longitude_delta_half);
 
     // Latitude cosine product
-    __m512 cos_first_latitude = nk_f32x16_cos_skylake_(first_latitudes);
-    __m512 cos_second_latitude = nk_f32x16_cos_skylake_(second_latitudes);
+    __m512 cos_first_latitude = nk_cos_f32x16_skylake_(first_latitudes);
+    __m512 cos_second_latitude = nk_cos_f32x16_skylake_(second_latitudes);
     __m512 cos_latitude_product = _mm512_mul_ps(cos_first_latitude, cos_second_latitude);
 
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
@@ -332,7 +332,7 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m512 sqrt_haversine = _mm512_sqrt_ps(haversine_term);
     __m512 sqrt_complement = _mm512_sqrt_ps(_mm512_sub_ps(one, haversine_term));
-    __m512 central_angle = _mm512_mul_ps(two, nk_f32x16_atan2_skylake_(sqrt_haversine, sqrt_complement));
+    __m512 central_angle = _mm512_mul_ps(two, nk_atan2_f32x16_skylake_(sqrt_haversine, sqrt_complement));
 
     return _mm512_mul_ps(earth_radius, central_angle);
 }
@@ -393,9 +393,9 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m512 one_minus_f = _mm512_sub_ps(one, flattening);
-    __m512 tan_first = _mm512_div_ps(nk_f32x16_sin_skylake_(first_latitudes), nk_f32x16_cos_skylake_(first_latitudes));
-    __m512 tan_second = _mm512_div_ps(nk_f32x16_sin_skylake_(second_latitudes),
-                                      nk_f32x16_cos_skylake_(second_latitudes));
+    __m512 tan_first = _mm512_div_ps(nk_sin_f32x16_skylake_(first_latitudes), nk_cos_f32x16_skylake_(first_latitudes));
+    __m512 tan_second = _mm512_div_ps(nk_sin_f32x16_skylake_(second_latitudes),
+                                      nk_cos_f32x16_skylake_(second_latitudes));
     __m512 tan_reduced_first = _mm512_mul_ps(one_minus_f, tan_first);
     __m512 tan_reduced_second = _mm512_mul_ps(one_minus_f, tan_second);
 
@@ -417,8 +417,8 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
     __mmask16 coincident_mask = 0;
 
     for (nk_u32_t iteration = 0; iteration < NK_VINCENTY_MAX_ITERATIONS && converged_mask != 0xFFFF; ++iteration) {
-        __m512 sin_lambda = nk_f32x16_sin_skylake_(lambda);
-        __m512 cos_lambda = nk_f32x16_cos_skylake_(lambda);
+        __m512 sin_lambda = nk_sin_f32x16_skylake_(lambda);
+        __m512 cos_lambda = nk_cos_f32x16_skylake_(lambda);
 
         // sin²(angular_distance) = (cos(U₂) × sin(λ))² + (cos(U₁) × sin(U₂) - sin(U₁) × cos(U₂) × cos(λ))²
         __m512 cross_term = _mm512_mul_ps(cos_reduced_second, sin_lambda);
@@ -436,7 +436,7 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
                                                _mm512_mul_ps(sin_reduced_first, sin_reduced_second));
 
         // angular_distance = atan2(sin, cos)
-        angular_distance = nk_f32x16_atan2_skylake_(sin_angular_distance, cos_angular_distance);
+        angular_distance = nk_atan2_f32x16_skylake_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
         sin_azimuth = _mm512_div_ps(_mm512_mul_ps(_mm512_mul_ps(cos_reduced_first, cos_reduced_second), sin_lambda),

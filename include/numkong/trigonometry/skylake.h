@@ -40,7 +40,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-NK_INTERNAL __m512 nk_f32x16_sin_skylake_(__m512 const angles_radians) {
+NK_INTERNAL __m512 nk_sin_f32x16_skylake_(__m512 const angles_radians) {
     // Constants for argument reduction
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
@@ -70,7 +70,7 @@ NK_INTERNAL __m512 nk_f32x16_sin_skylake_(__m512 const angles_radians) {
     return results;
 }
 
-NK_INTERNAL __m512 nk_f32x16_cos_skylake_(__m512 const angles_radians) {
+NK_INTERNAL __m512 nk_cos_f32x16_skylake_(__m512 const angles_radians) {
     // Constants for argument reduction
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_half = _mm512_set1_ps(1.57079632679489661923f);       // π/2
@@ -103,7 +103,7 @@ NK_INTERNAL __m512 nk_f32x16_cos_skylake_(__m512 const angles_radians) {
     return results;
 }
 
-NK_INTERNAL __m512 nk_f32x16_atan_skylake_(__m512 const inputs) {
+NK_INTERNAL __m512 nk_atan_f32x16_skylake_(__m512 const inputs) {
     // Polynomial coefficients
     __m512 const coeff_8 = _mm512_set1_ps(-0.333331018686294555664062f);
     __m512 const coeff_7 = _mm512_set1_ps(+0.199926957488059997558594f);
@@ -142,7 +142,7 @@ NK_INTERNAL __m512 nk_f32x16_atan_skylake_(__m512 const inputs) {
     return result;
 }
 
-NK_INTERNAL __m512 nk_f32x16_atan2_skylake_(__m512 const ys_inputs, __m512 const xs_inputs) {
+NK_INTERNAL __m512 nk_atan2_f32x16_skylake_(__m512 const ys_inputs, __m512 const xs_inputs) {
     // Polynomial coefficients
     __m512 const coeff_8 = _mm512_set1_ps(-0.333331018686294555664062f);
     __m512 const coeff_7 = _mm512_set1_ps(+0.199926957488059997558594f);
@@ -207,13 +207,13 @@ NK_PUBLIC void nk_each_sin_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = nk_f32x16_sin_skylake_(angles);
+        __m512 results = nk_sin_f32x16_skylake_(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = nk_f32x16_sin_skylake_(angles);
+        __m512 results = nk_sin_f32x16_skylake_(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
@@ -221,13 +221,13 @@ NK_PUBLIC void nk_each_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = nk_f32x16_cos_skylake_(angles);
+        __m512 results = nk_cos_f32x16_skylake_(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = nk_f32x16_cos_skylake_(angles);
+        __m512 results = nk_cos_f32x16_skylake_(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
@@ -235,18 +235,18 @@ NK_PUBLIC void nk_each_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = nk_f32x16_atan_skylake_(angles);
+        __m512 results = nk_atan_f32x16_skylake_(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = nk_f32x16_atan_skylake_(angles);
+        __m512 results = nk_atan_f32x16_skylake_(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
 
-NK_INTERNAL __m512d nk_f64x8_sin_skylake_(__m512d const angles_radians) {
+NK_INTERNAL __m512d nk_sin_f64x8_skylake_(__m512d const angles_radians) {
     // Constants for argument reduction
     __m512d const pi_high = _mm512_set1_pd(3.141592653589793116);         // High-digits part of π
     __m512d const pi_low = _mm512_set1_pd(1.2246467991473532072e-16);     // Low-digits part of π
@@ -302,7 +302,7 @@ NK_INTERNAL __m512d nk_f64x8_sin_skylake_(__m512d const angles_radians) {
     return results;
 }
 
-NK_INTERNAL __m512d nk_f64x8_cos_skylake_(__m512d const angles_radians) {
+NK_INTERNAL __m512d nk_cos_f64x8_skylake_(__m512d const angles_radians) {
     // Constants for argument reduction
     __m512d const pi_high_half = _mm512_set1_pd(3.141592653589793116 * 0.5);     // High-digits part of π
     __m512d const pi_low_half = _mm512_set1_pd(1.2246467991473532072e-16 * 0.5); // Low-digits part of π
@@ -356,7 +356,7 @@ NK_INTERNAL __m512d nk_f64x8_cos_skylake_(__m512d const angles_radians) {
     return results;
 }
 
-NK_INTERNAL __m512d nk_f64x8_atan_skylake_(__m512d const inputs) {
+NK_INTERNAL __m512d nk_atan_f64x8_skylake_(__m512d const inputs) {
     // Polynomial coefficients for atan approximation
     __m512d const coeff_19 = _mm512_set1_pd(-1.88796008463073496563746e-05);
     __m512d const coeff_18 = _mm512_set1_pd(+0.000209850076645816976906797);
@@ -418,7 +418,7 @@ NK_INTERNAL __m512d nk_f64x8_atan_skylake_(__m512d const inputs) {
  *  @brief AVX-512 implementation of atan2(y, x) for 8 double-precision values.
  *  @see Based on the f32x16 version with appropriate precision constants.
  */
-NK_INTERNAL __m512d nk_f64x8_atan2_skylake_(__m512d const ys_inputs, __m512d const xs_inputs) {
+NK_INTERNAL __m512d nk_atan2_f64x8_skylake_(__m512d const ys_inputs, __m512d const xs_inputs) {
     // Polynomial coefficients for atan approximation (higher precision than f32)
     __m512d const coeff_19 = _mm512_set1_pd(-1.88796008463073496563746e-05);
     __m512d const coeff_18 = _mm512_set1_pd(+0.000209850076645816976906797);
@@ -504,13 +504,13 @@ NK_PUBLIC void nk_each_sin_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = nk_f64x8_sin_skylake_(angles);
+        __m512d results = nk_sin_f64x8_skylake_(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = nk_f64x8_sin_skylake_(angles);
+        __m512d results = nk_sin_f64x8_skylake_(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
@@ -518,13 +518,13 @@ NK_PUBLIC void nk_each_cos_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = nk_f64x8_cos_skylake_(angles);
+        __m512d results = nk_cos_f64x8_skylake_(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = nk_f64x8_cos_skylake_(angles);
+        __m512d results = nk_cos_f64x8_skylake_(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
@@ -532,13 +532,13 @@ NK_PUBLIC void nk_each_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = nk_f64x8_atan_skylake_(angles);
+        __m512d results = nk_atan_f64x8_skylake_(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = nk_f64x8_atan_skylake_(angles);
+        __m512d results = nk_atan_f64x8_skylake_(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }

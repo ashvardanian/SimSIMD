@@ -85,23 +85,23 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
     nk_f16_t const *q_vecs = (nk_f16_t const *)((char const *)q_packed + sizeof(nk_dots_sme_packed_header_t));
     nk_f16_t const *d_vecs = (nk_f16_t const *)((char const *)d_packed + sizeof(nk_dots_sme_packed_header_t));
 
-    svbool_t const full_predicate_b16 = svptrue_b16();
-    svbool_t const full_predicate_b32 = svptrue_b32();
+    svbool_t const predicate_all_f16x = svptrue_b16();
+    svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_f32_t total = 0.0f;
 
     for (nk_size_t row_tile_index = 0; row_tile_index < q_row_tiles; row_tile_index++) {
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= n_q) ? tile_dimension : (n_q - row_start);
-        svbool_t const row_predicate_b16 = (rows_remaining == tile_dimension)
-                                               ? svptrue_b16()
-                                               : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
-        svbool_t const row_predicate_b32 = (rows_remaining == tile_dimension)
-                                               ? svptrue_b32()
-                                               : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
+        svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
+                                                ? svptrue_b16()
+                                                : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
+        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension)
+                                                ? svptrue_b32()
+                                                : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
 
         // Running max vector: element i = max_j dot(q_{row_start+i}, d_j) seen so far
-        svfloat32_t running_max = svdup_f32(NK_F32_MIN);
+        svfloat32_t running_max_f32x = svdup_f32(NK_F32_MIN);
 
         nk_size_t column_tile_index = 0;
 
@@ -111,29 +111,29 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
 
             // Accumulate: for each depth step, load Q vector and 4 D vectors, issue 4 FMOPAs
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-                svfloat16_t a_packed_vector = svld1_f16(
-                    row_predicate_b16,
+                svfloat16_t a_packed_f16x = svld1_f16(
+                    row_predicate_f16x,
                     (float16_t const *)(q_vecs + (row_tile_index * depth_step_count + depth_step) * vector_elements));
-                svfloat16_t b_packed_vector_0 = svld1_f16(
-                    full_predicate_b16,
+                svfloat16_t b_packed_0_f16x = svld1_f16(
+                    predicate_all_f16x,
                     (float16_t const *)(d_vecs +
                                         ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
-                svfloat16_t b_packed_vector_1 = svld1_f16(
-                    full_predicate_b16,
+                svfloat16_t b_packed_1_f16x = svld1_f16(
+                    predicate_all_f16x,
                     (float16_t const *)(d_vecs +
                                         ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
-                svfloat16_t b_packed_vector_2 = svld1_f16(
-                    full_predicate_b16,
+                svfloat16_t b_packed_2_f16x = svld1_f16(
+                    predicate_all_f16x,
                     (float16_t const *)(d_vecs +
                                         ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
-                svfloat16_t b_packed_vector_3 = svld1_f16(
-                    full_predicate_b16,
+                svfloat16_t b_packed_3_f16x = svld1_f16(
+                    predicate_all_f16x,
                     (float16_t const *)(d_vecs +
                                         ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_f16_m(0, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_0);
-                svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_1);
-                svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_2);
-                svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_3);
+                svmopa_za32_f16_m(0, row_predicate_f16x, predicate_all_f16x, a_packed_f16x, b_packed_0_f16x);
+                svmopa_za32_f16_m(1, row_predicate_f16x, predicate_all_f16x, a_packed_f16x, b_packed_1_f16x);
+                svmopa_za32_f16_m(2, row_predicate_f16x, predicate_all_f16x, a_packed_f16x, b_packed_2_f16x);
+                svmopa_za32_f16_m(3, row_predicate_f16x, predicate_all_f16x, a_packed_f16x, b_packed_3_f16x);
             }
 
             // Vertical column extraction:
@@ -142,17 +142,18 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
             // Element-wise max across all 64 columns (4 tiles × 16 columns) gives the per-query-token
             // maximum similarity over these 64 doc tokens.
             for (nk_size_t column_within_tile = 0; column_within_tile < tile_dimension; column_within_tile++) {
-                svfloat32_t v0 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 0,
-                                                       column_within_tile);
-                svfloat32_t v1 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 1,
-                                                       column_within_tile);
-                svfloat32_t v2 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 2,
-                                                       column_within_tile);
-                svfloat32_t v3 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 3,
-                                                       column_within_tile);
-                svfloat32_t col_max = svmax_f32_x(full_predicate_b32, svmax_f32_x(full_predicate_b32, v0, v1),
-                                                  svmax_f32_x(full_predicate_b32, v2, v3));
-                running_max = svmax_f32_x(full_predicate_b32, running_max, col_max);
+                svfloat32_t col_0_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                                                               column_within_tile);
+                svfloat32_t col_1_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 1,
+                                                               column_within_tile);
+                svfloat32_t col_2_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 2,
+                                                               column_within_tile);
+                svfloat32_t col_3_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 3,
+                                                               column_within_tile);
+                svfloat32_t col_max_f32x = svmax_f32_x(predicate_all_f32x,
+                                                       svmax_f32_x(predicate_all_f32x, col_0_f32x, col_1_f32x),
+                                                       svmax_f32_x(predicate_all_f32x, col_2_f32x, col_3_f32x));
+                running_max_f32x = svmax_f32_x(predicate_all_f32x, running_max_f32x, col_max_f32x);
             }
         }
 
@@ -160,33 +161,33 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
         for (; column_tile_index < d_col_tiles; column_tile_index++) {
             nk_size_t const col_start = column_tile_index * tile_dimension;
             nk_size_t const cols_remaining = (col_start + tile_dimension <= n_d) ? tile_dimension : (n_d - col_start);
-            svbool_t const column_predicate_b16 = (cols_remaining == tile_dimension)
-                                                      ? svptrue_b16()
-                                                      : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
+            svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
+                                                       ? svptrue_b16()
+                                                       : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
 
             svzero_mask_za(nk_sme_zero_za32_tile_0_); // Zero ZA0 only
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-                svfloat16_t a_packed_vector = svld1_f16(
-                    row_predicate_b16,
+                svfloat16_t a_packed_f16x = svld1_f16(
+                    row_predicate_f16x,
                     (float16_t const *)(q_vecs + (row_tile_index * depth_step_count + depth_step) * vector_elements));
-                svfloat16_t b_packed_vector = svld1_f16(
-                    column_predicate_b16,
+                svfloat16_t b_packed_f16x = svld1_f16(
+                    column_predicate_f16x,
                     (float16_t const *)(d_vecs +
                                         (column_tile_index * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_f16_m(0, row_predicate_b16, column_predicate_b16, a_packed_vector, b_packed_vector);
+                svmopa_za32_f16_m(0, row_predicate_f16x, column_predicate_f16x, a_packed_f16x, b_packed_f16x);
             }
 
             // Vertical column extraction from ZA0 — only cols_remaining valid columns
             for (nk_size_t column_within_tile = 0; column_within_tile < cols_remaining; column_within_tile++) {
-                svfloat32_t v0 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 0,
-                                                       column_within_tile);
-                running_max = svmax_f32_x(full_predicate_b32, running_max, v0);
+                svfloat32_t col_0_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                                                               column_within_tile);
+                running_max_f32x = svmax_f32_x(predicate_all_f32x, running_max_f32x, col_0_f32x);
             }
         }
 
         // Horizontal sum of the max vector (predicated to rows_remaining active lanes)
-        total += svaddv_f32(row_predicate_b32, running_max);
+        total += svaddv_f32(row_predicate_f32x, running_max_f32x);
     }
 
     return total;
@@ -226,23 +227,23 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
     nk_bf16_t const *q_vecs = (nk_bf16_t const *)((char const *)q_packed + sizeof(nk_dots_sme_packed_header_t));
     nk_bf16_t const *d_vecs = (nk_bf16_t const *)((char const *)d_packed + sizeof(nk_dots_sme_packed_header_t));
 
-    svbool_t const full_predicate_b16 = svptrue_b16();
-    svbool_t const full_predicate_b32 = svptrue_b32();
+    svbool_t const predicate_all_f16x = svptrue_b16();
+    svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_f32_t total = 0.0f;
 
     for (nk_size_t row_tile_index = 0; row_tile_index < q_row_tiles; row_tile_index++) {
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= n_q) ? tile_dimension : (n_q - row_start);
-        svbool_t const row_predicate_b16 = (rows_remaining == tile_dimension)
-                                               ? svptrue_b16()
-                                               : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
-        svbool_t const row_predicate_b32 = (rows_remaining == tile_dimension)
-                                               ? svptrue_b32()
-                                               : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
+        svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
+                                                ? svptrue_b16()
+                                                : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
+        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension)
+                                                ? svptrue_b32()
+                                                : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
 
         // Running max vector: element i = max_j dot(q_{row_start+i}, d_j) seen so far
-        svfloat32_t running_max = svdup_f32(NK_F32_MIN);
+        svfloat32_t running_max_f32x = svdup_f32(NK_F32_MIN);
 
         nk_size_t column_tile_index = 0;
 
@@ -252,29 +253,29 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
 
             // Accumulate: for each depth step, load Q vector and 4 D vectors, issue 4 BFMOPAs
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-                svbfloat16_t a_packed_vector = svld1_bf16(
-                    row_predicate_b16,
+                svbfloat16_t a_packed_bf16x = svld1_bf16(
+                    row_predicate_f16x,
                     (bfloat16_t const *)(q_vecs + (row_tile_index * depth_step_count + depth_step) * vector_elements));
-                svbfloat16_t b_packed_vector_0 = svld1_bf16(
-                    full_predicate_b16,
+                svbfloat16_t b_packed_0_bf16x = svld1_bf16(
+                    predicate_all_f16x,
                     (bfloat16_t const *)(d_vecs +
                                          ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
-                svbfloat16_t b_packed_vector_1 = svld1_bf16(
-                    full_predicate_b16,
+                svbfloat16_t b_packed_1_bf16x = svld1_bf16(
+                    predicate_all_f16x,
                     (bfloat16_t const *)(d_vecs +
                                          ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
-                svbfloat16_t b_packed_vector_2 = svld1_bf16(
-                    full_predicate_b16,
+                svbfloat16_t b_packed_2_bf16x = svld1_bf16(
+                    predicate_all_f16x,
                     (bfloat16_t const *)(d_vecs +
                                          ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
-                svbfloat16_t b_packed_vector_3 = svld1_bf16(
-                    full_predicate_b16,
+                svbfloat16_t b_packed_3_bf16x = svld1_bf16(
+                    predicate_all_f16x,
                     (bfloat16_t const *)(d_vecs +
                                          ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_bf16_m(0, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_0);
-                svmopa_za32_bf16_m(1, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_1);
-                svmopa_za32_bf16_m(2, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_2);
-                svmopa_za32_bf16_m(3, row_predicate_b16, full_predicate_b16, a_packed_vector, b_packed_vector_3);
+                svmopa_za32_bf16_m(0, row_predicate_f16x, predicate_all_f16x, a_packed_bf16x, b_packed_0_bf16x);
+                svmopa_za32_bf16_m(1, row_predicate_f16x, predicate_all_f16x, a_packed_bf16x, b_packed_1_bf16x);
+                svmopa_za32_bf16_m(2, row_predicate_f16x, predicate_all_f16x, a_packed_bf16x, b_packed_2_bf16x);
+                svmopa_za32_bf16_m(3, row_predicate_f16x, predicate_all_f16x, a_packed_bf16x, b_packed_3_bf16x);
             }
 
             // Vertical column extraction:
@@ -283,17 +284,18 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
             // Element-wise max across all 64 columns (4 tiles × 16 columns) gives the per-query-token
             // maximum similarity over these 64 doc tokens.
             for (nk_size_t column_within_tile = 0; column_within_tile < tile_dimension; column_within_tile++) {
-                svfloat32_t v0 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 0,
-                                                       column_within_tile);
-                svfloat32_t v1 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 1,
-                                                       column_within_tile);
-                svfloat32_t v2 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 2,
-                                                       column_within_tile);
-                svfloat32_t v3 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 3,
-                                                       column_within_tile);
-                svfloat32_t col_max = svmax_f32_x(full_predicate_b32, svmax_f32_x(full_predicate_b32, v0, v1),
-                                                  svmax_f32_x(full_predicate_b32, v2, v3));
-                running_max = svmax_f32_x(full_predicate_b32, running_max, col_max);
+                svfloat32_t col_0_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                                                               column_within_tile);
+                svfloat32_t col_1_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 1,
+                                                               column_within_tile);
+                svfloat32_t col_2_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 2,
+                                                               column_within_tile);
+                svfloat32_t col_3_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 3,
+                                                               column_within_tile);
+                svfloat32_t col_max_f32x = svmax_f32_x(predicate_all_f32x,
+                                                       svmax_f32_x(predicate_all_f32x, col_0_f32x, col_1_f32x),
+                                                       svmax_f32_x(predicate_all_f32x, col_2_f32x, col_3_f32x));
+                running_max_f32x = svmax_f32_x(predicate_all_f32x, running_max_f32x, col_max_f32x);
             }
         }
 
@@ -301,33 +303,33 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
         for (; column_tile_index < d_col_tiles; column_tile_index++) {
             nk_size_t const col_start = column_tile_index * tile_dimension;
             nk_size_t const cols_remaining = (col_start + tile_dimension <= n_d) ? tile_dimension : (n_d - col_start);
-            svbool_t const column_predicate_b16 = (cols_remaining == tile_dimension)
-                                                      ? svptrue_b16()
-                                                      : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
+            svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
+                                                       ? svptrue_b16()
+                                                       : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
 
             svzero_mask_za(nk_sme_zero_za32_tile_0_); // Zero ZA0 only
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-                svbfloat16_t a_packed_vector = svld1_bf16(
-                    row_predicate_b16,
+                svbfloat16_t a_packed_bf16x = svld1_bf16(
+                    row_predicate_f16x,
                     (bfloat16_t const *)(q_vecs + (row_tile_index * depth_step_count + depth_step) * vector_elements));
-                svbfloat16_t b_packed_vector = svld1_bf16(
-                    column_predicate_b16,
+                svbfloat16_t b_packed_bf16x = svld1_bf16(
+                    column_predicate_f16x,
                     (bfloat16_t const *)(d_vecs +
                                          (column_tile_index * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_bf16_m(0, row_predicate_b16, column_predicate_b16, a_packed_vector, b_packed_vector);
+                svmopa_za32_bf16_m(0, row_predicate_f16x, column_predicate_f16x, a_packed_bf16x, b_packed_bf16x);
             }
 
             // Vertical column extraction from ZA0 — only cols_remaining valid columns
             for (nk_size_t column_within_tile = 0; column_within_tile < cols_remaining; column_within_tile++) {
-                svfloat32_t v0 = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), full_predicate_b32, 0,
-                                                       column_within_tile);
-                running_max = svmax_f32_x(full_predicate_b32, running_max, v0);
+                svfloat32_t col_0_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                                                               column_within_tile);
+                running_max_f32x = svmax_f32_x(predicate_all_f32x, running_max_f32x, col_0_f32x);
             }
         }
 
         // Horizontal sum of the max vector (predicated to rows_remaining active lanes)
-        total += svaddv_f32(row_predicate_b32, running_max);
+        total += svaddv_f32(row_predicate_f32x, running_max_f32x);
     }
 
     return total;

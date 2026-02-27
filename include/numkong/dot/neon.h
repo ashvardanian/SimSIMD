@@ -670,6 +670,54 @@ NK_PUBLIC void nk_dot_e3m2_neon(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_s
 
 #pragma endregion - Smaller Floats
 
+#pragma region - Binary
+
+NK_PUBLIC void nk_dot_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
+    nk_u32_t dot = 0;
+    nk_size_t i = 0;
+    while (i + 16 <= n_bytes) {
+        uint8x16_t popcount_u8x16 = vdupq_n_u8(0);
+        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
+            uint8x16_t a_u8x16 = vld1q_u8(a + i);
+            uint8x16_t b_u8x16 = vld1q_u8(b + i);
+            popcount_u8x16 = vaddq_u8(popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
+        }
+        dot += nk_reduce_add_u8x16_neon_(popcount_u8x16);
+    }
+    for (; i != n_bytes; ++i) dot += nk_u1x8_popcount_(a[i] & b[i]);
+    *result = dot;
+}
+
+typedef struct nk_dot_u1x128_state_neon_t {
+    uint32x4_t dot_count_u32x4;
+} nk_dot_u1x128_state_neon_t;
+
+NK_INTERNAL void nk_dot_u1x128_init_neon(nk_dot_u1x128_state_neon_t *state) { state->dot_count_u32x4 = vdupq_n_u32(0); }
+
+NK_INTERNAL void nk_dot_u1x128_update_neon(nk_dot_u1x128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    uint8x16_t and_u8x16 = vandq_u8(a.u8x16, b.u8x16);
+    uint8x16_t popcount_u8x16 = vcntq_u8(and_u8x16);
+    uint16x8_t popcount_u16x8 = vpaddlq_u8(popcount_u8x16);
+    uint32x4_t popcount_u32x4 = vpaddlq_u16(popcount_u16x8);
+    state->dot_count_u32x4 = vaddq_u32(state->dot_count_u32x4, popcount_u32x4);
+}
+
+NK_INTERNAL void nk_dot_u1x128_finalize_neon( //
+    nk_dot_u1x128_state_neon_t const *state_a, nk_dot_u1x128_state_neon_t const *state_b,
+    nk_dot_u1x128_state_neon_t const *state_c, nk_dot_u1x128_state_neon_t const *state_d, nk_size_t total_dimensions,
+    nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    uint32x4_t ab_sum_u32x4 = vpaddq_u32(state_a->dot_count_u32x4, state_b->dot_count_u32x4);
+    uint32x4_t cd_sum_u32x4 = vpaddq_u32(state_c->dot_count_u32x4, state_d->dot_count_u32x4);
+    result->u32x4 = vpaddq_u32(ab_sum_u32x4, cd_sum_u32x4);
+}
+
+#pragma endregion - Binary
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

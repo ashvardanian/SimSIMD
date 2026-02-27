@@ -15,7 +15,16 @@
  *
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake
- *  - RISC-V: SpaceMIT
+ *  - RISC-V: RVV, RVV+BB
+ *  - WASM: V128Relaxed
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  Hamming u1: u32 popcount accumulator. Overflows at n_bits > 2^32 (~4.3 billion).
+ *  The streaming u1x512 variant uses u64, safe for any practical dimension.
+ *  Jaccard u1: u32 intersection/union counts, f32 division at finalization.
+ *  Popcount values above 2^24 lose precision in f32 cast (24-bit mantissa).
+ *  Byte-level Hamming/Jaccard u8: u32 mismatch counter. Overflows at n > 2^32.
  *
  *  @section popcount_strategies Population Count Strategies
  *

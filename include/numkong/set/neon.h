@@ -227,9 +227,9 @@ NK_INTERNAL void nk_hamming_u1x128_finalize_neon( //
 
     // Horizontal sum using pairwise adds - same pattern as Jaccard.
     // 3× ADDP to reduce 4 state vectors into [sum_a, sum_b, sum_c, sum_d].
-    uint32x4_t ab_sum = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
-    uint32x4_t cd_sum = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
-    result->u32x4 = vpaddq_u32(ab_sum, cd_sum);
+    uint32x4_t ab_sum_u32x4 = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
+    uint32x4_t cd_sum_u32x4 = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
+    result->u32x4 = vpaddq_u32(ab_sum_u32x4, cd_sum_u32x4);
 }
 
 typedef struct nk_jaccard_u1x128_state_neon_t {
@@ -284,10 +284,10 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     // 3 ADDP instructions vs 4 ADDV + union store/load.
     //
     // Step 1: vpaddq_u32(A, B) = [a0+a1, a2+a3, b0+b1, b2+b3]
-    uint32x4_t ab_sum = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
-    uint32x4_t cd_sum = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
+    uint32x4_t ab_sum_u32x4 = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
+    uint32x4_t cd_sum_u32x4 = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
     // Step 2: Final pairwise reduction gives [sum_a, sum_b, sum_c, sum_d]
-    uint32x4_t intersection_u32x4 = vpaddq_u32(ab_sum, cd_sum);
+    uint32x4_t intersection_u32x4 = vpaddq_u32(ab_sum_u32x4, cd_sum_u32x4);
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A ∪ B| = |A| + |B| - |A ∩ B|
@@ -317,6 +317,35 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     float32x4_t ratio_f32x4 = vmulq_f32(intersection_f32x4, union_reciprocal_f32x4);
     float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
     result->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
+}
+
+/** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (NEON). */
+NK_INTERNAL void nk_hamming_u32x4_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                 nk_b128_vec_t *results) {
+    uint32x4_t dots_u32x4 = dots.u32x4;
+    uint32x4_t query_u32x4 = vdupq_n_u32(query_pop);
+    uint32x4_t target_u32x4 = target_pops.u32x4;
+    results->u32x4 = vsubq_u32(vaddq_u32(query_u32x4, target_u32x4), vshlq_n_u32(dots_u32x4, 1));
+}
+
+/** @brief Jaccard from_dot: computes 1 - dot / (pop_a + pop_b - dot) for 4 pairs (NEON). */
+NK_INTERNAL void nk_jaccard_f32x4_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                 nk_b128_vec_t *results) {
+    float32x4_t dot_f32x4 = vcvtq_f32_u32(dots.u32x4);
+    float32x4_t query_f32x4 = vdupq_n_f32((nk_f32_t)query_pop);
+    float32x4_t target_f32x4 = vcvtq_f32_u32(target_pops.u32x4);
+    float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, target_f32x4), dot_f32x4);
+
+    float32x4_t one_f32x4 = vdupq_n_f32(1.0f);
+    uint32x4_t zero_union_mask = vceqq_f32(union_f32x4, vdupq_n_f32(0.0f));
+    float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);
+
+    float32x4_t union_reciprocal_f32x4 = vrecpeq_f32(safe_union_f32x4);
+    union_reciprocal_f32x4 = vmulq_f32(union_reciprocal_f32x4, vrecpsq_f32(safe_union_f32x4, union_reciprocal_f32x4));
+
+    float32x4_t ratio_f32x4 = vmulq_f32(dot_f32x4, union_reciprocal_f32x4);
+    float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
+    results->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
 }
 
 #pragma endregion - Stateful Streaming

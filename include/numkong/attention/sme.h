@@ -116,11 +116,11 @@ extern "C" {
  *  3. Shift left by 16 to place in f32 exponent+mantissa position
  *  4. Reinterpret as f32
  */
-NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t pg, svbfloat16_t x) __arm_streaming {
-    svuint16_t u16 = svreinterpret_u16_bf16(x);
-    svuint32_t u32 = svunpklo_u32(u16);
-    u32 = svlsl_n_u32_x(pg, u32, 16);
-    return svreinterpret_f32_u32(u32);
+NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t predicate_f32x, svbfloat16_t x_bf16x) __arm_streaming {
+    svuint16_t x_u16x = svreinterpret_u16_bf16(x_bf16x);
+    svuint32_t x_u32x = svunpklo_u32(x_u16x);
+    x_u32x = svlsl_n_u32_x(predicate_f32x, x_u32x, 16);
+    return svreinterpret_f32_u32(x_u32x);
 }
 
 /**
@@ -131,12 +131,12 @@ NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t pg, svbfloat16_t x) __arm_s
  *  3. Shift right by 16
  *  4. Narrow to u16 and reinterpret as bf16
  */
-NK_INTERNAL svbfloat16_t nk_f32_to_bf16_sve_(svbool_t pg, svfloat32_t x) __arm_streaming {
-    svuint32_t u32 = svreinterpret_u32_f32(x);
-    u32 = svadd_n_u32_x(pg, u32, 0x8000); // Round to nearest
-    u32 = svlsr_n_u32_x(pg, u32, 16);
-    svuint16_t u16 = svuzp1_u16(svreinterpret_u16_u32(u32), svreinterpret_u16_u32(u32));
-    return svreinterpret_bf16_u16(u16);
+NK_INTERNAL svbfloat16_t nk_f32_to_bf16_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
+    svuint32_t x_u32x = svreinterpret_u32_f32(x_f32x);
+    x_u32x = svadd_n_u32_x(predicate_f32x, x_u32x, 0x8000); // Round to nearest
+    x_u32x = svlsr_n_u32_x(predicate_f32x, x_u32x, 16);
+    svuint16_t x_u16x = svuzp1_u16(svreinterpret_u16_u32(x_u32x), svreinterpret_u16_u32(x_u32x));
+    return svreinterpret_bf16_u16(x_u16x);
 }
 
 /**
@@ -166,71 +166,71 @@ typedef struct {
  *  @param x Input vector
  *  @return exp(x) approximation
  */
-NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming {
+NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
     // Constants for Cody-Waite range reduction
-    svfloat32_t log2e = svdup_f32(1.4426950408889634f);
-    svfloat32_t ln2_hi = svdup_f32(0.693145751953125f);
-    svfloat32_t ln2_lo = svdup_f32(1.42860682030941723212e-6f);
+    svfloat32_t log2e_f32x = svdup_f32(1.4426950408889634f);
+    svfloat32_t ln2_hi_f32x = svdup_f32(0.693145751953125f);
+    svfloat32_t ln2_lo_f32x = svdup_f32(1.42860682030941723212e-6f);
 
     // Clamp to avoid overflow/underflow
-    svfloat32_t max_x = svdup_f32(88.3762626647949f);
-    svfloat32_t min_x = svdup_f32(-87.3365447504021f);
-    x = svmax_f32_m(pg, svmin_f32_m(pg, x, max_x), min_x);
+    svfloat32_t max_x_f32x = svdup_f32(88.3762626647949f);
+    svfloat32_t min_x_f32x = svdup_f32(-87.3365447504021f);
+    x_f32x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x_f32x, max_x_f32x), min_x_f32x);
 
     // n = round(x / ln(2))
-    svfloat32_t n = svrintn_f32_m(svundef_f32(), pg, svmul_f32_m(pg, x, log2e));
+    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x_f32x, log2e_f32x));
 
     // r = x - n × ln(2) using Cody-Waite for precision
-    svfloat32_t r = svmsb_f32_m(pg, n, ln2_hi, x);
-    r = svmsb_f32_m(pg, n, ln2_lo, r);
+    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x_f32x);
+    r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_lo_f32x, r_f32x);
 
     // Polynomial approximation for exp(r): degree 4
     // exp(r) ≈ 1 + r + r²/2 + r³/6 + r⁴/24
-    svfloat32_t p = svdup_f32(4.1666666667e-2f);            // 1/24
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.6666666667e-1f)); // 1/6
-    p = svmad_f32_m(pg, p, r, svdup_f32(5.0000000000e-1f)); // 1/2
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
+    svfloat32_t p_f32x = svdup_f32(4.1666666667e-2f);                                  // 1/24
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.6666666667e-1f)); // 1/6
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(5.0000000000e-1f)); // 1/2
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
 
     // Reconstruct: exp(x) = 2ⁿ × exp(r)
     // 2ⁿ via IEEE 754 exponent manipulation
-    svint32_t ni = svcvt_s32_f32_m(svundef_s32(), pg, n);
-    ni = svadd_s32_m(pg, ni, svdup_s32(127));
-    ni = svlsl_n_s32_m(pg, ni, 23);
-    svfloat32_t pow2n = svreinterpret_f32_s32(ni);
+    svint32_t n_i32x = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
+    n_i32x = svadd_s32_m(predicate_f32x, n_i32x, svdup_s32(127));
+    n_i32x = svlsl_n_s32_m(predicate_f32x, n_i32x, 23);
+    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(n_i32x);
 
-    return svmul_f32_m(pg, p, pow2n);
+    return svmul_f32_m(predicate_f32x, p_f32x, pow2n_f32x);
 }
 
 /**
  *  @brief Degree-3 fast exp approximation. Max relative error ~0.5%.
  *  Saves 1 FMA per call vs degree-4 nk_exp_f32_sve_.
  */
-NK_INTERNAL svfloat32_t nk_exp_fast_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming {
-    svfloat32_t log2e = svdup_f32(1.4426950408889634f);
-    svfloat32_t ln2_hi = svdup_f32(0.693145751953125f);
-    svfloat32_t ln2_lo = svdup_f32(1.42860682030941723212e-6f);
+NK_INTERNAL svfloat32_t nk_exp_fast_f32_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
+    svfloat32_t log2e_f32x = svdup_f32(1.4426950408889634f);
+    svfloat32_t ln2_hi_f32x = svdup_f32(0.693145751953125f);
+    svfloat32_t ln2_lo_f32x = svdup_f32(1.42860682030941723212e-6f);
 
-    svfloat32_t max_x = svdup_f32(88.3762626647949f);
-    svfloat32_t min_x = svdup_f32(-87.3365447504021f);
-    x = svmax_f32_m(pg, svmin_f32_m(pg, x, max_x), min_x);
+    svfloat32_t max_x_f32x = svdup_f32(88.3762626647949f);
+    svfloat32_t min_x_f32x = svdup_f32(-87.3365447504021f);
+    x_f32x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x_f32x, max_x_f32x), min_x_f32x);
 
-    svfloat32_t n = svrintn_f32_m(svundef_f32(), pg, svmul_f32_m(pg, x, log2e));
-    svfloat32_t r = svmsb_f32_m(pg, n, ln2_hi, x);
-    r = svmsb_f32_m(pg, n, ln2_lo, r);
+    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x_f32x, log2e_f32x));
+    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x_f32x);
+    r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_lo_f32x, r_f32x);
 
     // Degree-3: exp(r) ~ 1 + r + r^2/2 + r^3/6 (drop 1/24 term)
-    svfloat32_t p = svdup_f32(1.6666666667e-1f);            // 1/6
-    p = svmad_f32_m(pg, p, r, svdup_f32(5.0000000000e-1f)); // 1/2
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
+    svfloat32_t p_f32x = svdup_f32(1.6666666667e-1f);                                  // 1/6
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(5.0000000000e-1f)); // 1/2
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
+    p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
 
-    svint32_t ni = svcvt_s32_f32_m(svundef_s32(), pg, n);
-    ni = svadd_s32_m(pg, ni, svdup_s32(127));
-    ni = svlsl_n_s32_m(pg, ni, 23);
-    svfloat32_t pow2n = svreinterpret_f32_s32(ni);
+    svint32_t n_i32x = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
+    n_i32x = svadd_s32_m(predicate_f32x, n_i32x, svdup_s32(127));
+    n_i32x = svlsl_n_s32_m(predicate_f32x, n_i32x, 23);
+    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(n_i32x);
 
-    return svmul_f32_m(pg, p, pow2n);
+    return svmul_f32_m(predicate_f32x, p_f32x, pow2n_f32x);
 }
 
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
@@ -410,22 +410,22 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
     nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_size_t dim_tile_count,
     nk_f32_t scale) {
 
-    svbool_t const predicate_all_f32 = svptrue_b32();
-    svbool_t const predicate_all_f16 = svptrue_b16();
+    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_f16x = svptrue_b16();
     nk_size_t const valid_query_count = (query_len < 16) ? query_len : 16;
 
-    svfloat32_t row_max_f32 = svdup_f32(NK_F32_MIN);
-    svfloat32_t row_sum_f32 = svdup_f32(0.0f);
+    svfloat32_t row_max_f32x = svdup_f32(NK_F32_MIN);
+    svfloat32_t row_sum_f32x = svdup_f32(0.0f);
 
     NK_ALIGN64 nk_f32_t output_accumulator[16 * 256];
-    svfloat32_t zero_v = svdup_f32(0.0f);
+    svfloat32_t zero_f32x = svdup_f32(0.0f);
     for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) {
-        svst1_f32(predicate_all_f32, output_accumulator + i, zero_v);
+        svst1_f32(predicate_all_f32x, output_accumulator + i, zero_f32x);
     }
 
     nk_size_t kv_block_index = 0;
     nk_size_t kv_start = 0;
-    svbool_t const batch_predicate_b32 = svwhilelt_b32(0u, 16u);
+    svbool_t const batch_predicate_f32x = svwhilelt_b32(0u, 16u);
 
     nk_size_t const k_depth_step_count = head_dim_padded / 2;
 
@@ -434,11 +434,11 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
     for (nk_size_t batch = 0; batch < head_dim_padded / 32; batch++) {
         svzero_mask_za(nk_sme_zero_za32_tile_0_);
         for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-            svld1_hor_za32(0, query_index, batch_predicate_b32,
+            svld1_hor_za32(0, query_index, batch_predicate_f32x,
                            (nk_f32_t const *)(q + query_index * head_dim + batch * 32));
         for (nk_size_t step = 0; step < 16; step++)
-            svst1_f32(predicate_all_f32, queries_transposed + (batch * 16 + step) * 16,
-                      svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, step));
+            svst1_f32(predicate_all_f32x, queries_transposed + (batch * 16 + step) * 16,
+                      svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, step));
     }
 
     // Bc=32 main loop (prefill only, skipped for decode)
@@ -450,132 +450,132 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
             nk_bf16_t const *keys_block_lower = k + kv_block_index * k_depth_step_count * 32;
             nk_bf16_t const *keys_block_upper = k + (kv_block_index + 1) * k_depth_step_count * 32;
             for (nk_size_t step = 0; step < k_depth_step_count; step++) {
-                svbfloat16_t zn = svreinterpret_bf16_f32(svld1_f32(predicate_all_f32, queries_transposed + step * 16));
-                svbfloat16_t zm0 = svld1_bf16(predicate_all_f16, (bfloat16_t const *)(keys_block_lower + step * 32));
-                svbfloat16_t zm1 = svld1_bf16(predicate_all_f16, (bfloat16_t const *)(keys_block_upper + step * 32));
-                svmopa_za32_bf16_m(2, predicate_all_f32, predicate_all_f32, zn, zm0);
-                svmopa_za32_bf16_m(3, predicate_all_f32, predicate_all_f32, zn, zm1);
+                svbfloat16_t zn = svreinterpret_bf16_f32(svld1_f32(predicate_all_f32x, queries_transposed + step * 16));
+                svbfloat16_t zm0 = svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(keys_block_lower + step * 32));
+                svbfloat16_t zm1 = svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(keys_block_upper + step * 32));
+                svmopa_za32_bf16_m(2, predicate_all_f32x, predicate_all_f32x, zn, zm0);
+                svmopa_za32_bf16_m(3, predicate_all_f32x, predicate_all_f32x, zn, zm1);
             }
 
             // Pass 1: Column-wise max (read ZA2/ZA3 columns vertically)
-            svfloat32_t scale_f32 = svdup_f32(scale);
-            svfloat32_t block_max_f32 = svdup_f32(NK_F32_MIN);
+            svfloat32_t scale_f32x = svdup_f32(scale);
+            svfloat32_t block_max_f32x = svdup_f32(NK_F32_MIN);
             for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-                svfloat32_t score_column_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                    scale_f32);
-                block_max_f32 = svmax_f32_x(predicate_all_f32, block_max_f32, score_column_f32);
+                svfloat32_t score_column_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                    scale_f32x);
+                block_max_f32x = svmax_f32_x(predicate_all_f32x, block_max_f32x, score_column_f32x);
             }
             for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-                svfloat32_t score_column_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index),
-                    scale_f32);
-                block_max_f32 = svmax_f32_x(predicate_all_f32, block_max_f32, score_column_f32);
+                svfloat32_t score_column_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index),
+                    scale_f32x);
+                block_max_f32x = svmax_f32_x(predicate_all_f32x, block_max_f32x, score_column_f32x);
             }
 
             // Softmax correction (fully vectorized)
-            svfloat32_t new_max_v = svmax_f32_x(predicate_all_f32, row_max_f32, block_max_f32);
-            svfloat32_t correction_v = nk_exp_fast_f32_sve_(predicate_all_f32,
-                                                            svsub_f32_x(predicate_all_f32, row_max_f32, new_max_v));
-            svbool_t max_changed = svcmplt_f32(predicate_all_f32, correction_v, svdup_f32(1.0f));
-            nk_u32_t max_was_updated = svptest_any(predicate_all_f32, max_changed) ? 1 : 0;
-            if (max_was_updated) row_sum_f32 = svmul_f32_x(predicate_all_f32, row_sum_f32, correction_v);
+            svfloat32_t new_max_f32x = svmax_f32_x(predicate_all_f32x, row_max_f32x, block_max_f32x);
+            svfloat32_t correction_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, row_max_f32x, new_max_f32x));
+            svbool_t max_changed = svcmplt_f32(predicate_all_f32x, correction_f32x, svdup_f32(1.0f));
+            nk_u32_t max_was_updated = svptest_any(predicate_all_f32x, max_changed) ? 1 : 0;
+            if (max_was_updated) row_sum_f32x = svmul_f32_x(predicate_all_f32x, row_sum_f32x, correction_f32x);
             NK_ALIGN64 nk_f32_t corrections[16];
-            svst1_f32(predicate_all_f32, corrections, correction_v);
+            svst1_f32(predicate_all_f32x, corrections, correction_f32x);
 
             // Pass 2: Column-wise exp + fused P write + sum
-            svfloat32_t sum_delta_f32 = svdup_f32(0.0f);
+            svfloat32_t sum_delta_f32x = svdup_f32(0.0f);
             svzero_mask_za(nk_sme_zero_za32_tile_0_);
             // ZA2 columns in pairs → ZA0 columns 0-7
             for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-                svfloat32_t score_even_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                    scale_f32);
-                svfloat32_t score_odd_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index + 1),
-                    scale_f32);
-                svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_v));
-                svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_v));
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_even_f32);
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_odd_f32);
-                svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32, weight_even_f32),
-                                                            nk_f32_to_bf16_sve_(predicate_all_f32, weight_odd_f32));
-                svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32,
+                svfloat32_t score_even_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                    scale_f32x);
+                svfloat32_t score_odd_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index + 1),
+                    scale_f32x);
+                svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+                svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_even_f32x);
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_odd_f32x);
+                svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32x, weight_even_f32x),
+                                                            nk_f32_to_bf16_sve_(predicate_all_f32x, weight_odd_f32x));
+                svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32x,
                                        svreinterpret_f32_bf16(weight_pair_bf16));
             }
             // ZA3 columns in pairs → ZA0 columns 8-15
             for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-                svfloat32_t score_even_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index),
-                    scale_f32);
-                svfloat32_t score_odd_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index + 1),
-                    scale_f32);
-                svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_v));
-                svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_v));
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_even_f32);
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_odd_f32);
-                svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32, weight_even_f32),
-                                                            nk_f32_to_bf16_sve_(predicate_all_f32, weight_odd_f32));
-                svwrite_ver_za32_f32_m(0, 8 + column_index / 2, predicate_all_f32,
+                svfloat32_t score_even_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index),
+                    scale_f32x);
+                svfloat32_t score_odd_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index + 1),
+                    scale_f32x);
+                svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+                svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_even_f32x);
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_odd_f32x);
+                svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32x, weight_even_f32x),
+                                                            nk_f32_to_bf16_sve_(predicate_all_f32x, weight_odd_f32x));
+                svwrite_ver_za32_f32_m(0, 8 + column_index / 2, predicate_all_f32x,
                                        svreinterpret_f32_bf16(weight_pair_bf16));
             }
-            row_sum_f32 = svadd_f32_x(predicate_all_f32, row_sum_f32, sum_delta_f32);
-            row_max_f32 = new_max_v;
+            row_sum_f32x = svadd_f32_x(predicate_all_f32x, row_sum_f32x, sum_delta_f32x);
+            row_max_f32x = new_max_f32x;
 
             // Extract P columns from ZA0
-            svbfloat16_t probability_column_0 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
-            svbfloat16_t probability_column_1 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 1));
-            svbfloat16_t probability_column_2 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 2));
-            svbfloat16_t probability_column_3 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 3));
-            svbfloat16_t probability_column_4 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 4));
-            svbfloat16_t probability_column_5 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 5));
-            svbfloat16_t probability_column_6 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 6));
-            svbfloat16_t probability_column_7 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 7));
-            svbfloat16_t probability_column_8 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 8));
-            svbfloat16_t probability_column_9 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 9));
-            svbfloat16_t probability_column_10 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 10));
-            svbfloat16_t probability_column_11 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 11));
-            svbfloat16_t probability_column_12 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 12));
-            svbfloat16_t probability_column_13 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 13));
-            svbfloat16_t probability_column_14 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 14));
-            svbfloat16_t probability_column_15 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 15));
+            svbfloat16_t probability_column_0_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
+            svbfloat16_t probability_column_1_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 1));
+            svbfloat16_t probability_column_2_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 2));
+            svbfloat16_t probability_column_3_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 3));
+            svbfloat16_t probability_column_4_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 4));
+            svbfloat16_t probability_column_5_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 5));
+            svbfloat16_t probability_column_6_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 6));
+            svbfloat16_t probability_column_7_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 7));
+            svbfloat16_t probability_column_8_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 8));
+            svbfloat16_t probability_column_9_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 9));
+            svbfloat16_t probability_column_10_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 10));
+            svbfloat16_t probability_column_11_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 11));
+            svbfloat16_t probability_column_12_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 12));
+            svbfloat16_t probability_column_13_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 13));
+            svbfloat16_t probability_column_14_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 14));
+            svbfloat16_t probability_column_15_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 15));
 
             // Pre-apply correction once before P×V
-            svbool_t query_predicate_b16 = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
             nk_bf16_t const *values_block_lower = v_packed + kv_block_index * dim_tile_count * 8 * 32;
             nk_bf16_t const *values_block_upper = v_packed + (kv_block_index + 1) * dim_tile_count * 8 * 32;
 
             if (max_was_updated) {
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
-                    svfloat32_t correction_scalar_f32 = svdup_f32(corrections[query_index]);
+                    svfloat32_t correction_scalar_f32x = svdup_f32(corrections[query_index]);
                     for (nk_size_t dim_offset = 0; dim_offset < head_dim_padded; dim_offset += 16)
                         svst1_f32(
-                            predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_offset,
-                            svmul_f32_x(predicate_all_f32,
-                                        svld1_f32(predicate_all_f32,
+                            predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_offset,
+                            svmul_f32_x(predicate_all_f32x,
+                                        svld1_f32(predicate_all_f32x,
                                                   output_accumulator + query_index * head_dim_padded + dim_offset),
-                                        correction_scalar_f32));
+                                        correction_scalar_f32x));
                 }
             }
 
@@ -584,284 +584,284 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
             for (; dim_tile + 4 <= dim_tile_count; dim_tile += 4) {
                 svzero_za();
                 // Block0: 8 depth steps (KV positions 0-15)
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 0) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 1) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 2) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower +
-                                                                                      ((dim_tile + 3) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 0) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 1) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 2) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower +
+                                                                                       ((dim_tile + 3) * 8 + 7) * 32)));
                 // Block1: 8 depth steps (KV positions 16-31)
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 0) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 1) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 2) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 3) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 4) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 5) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 6) * 32)));
-                svmopa_za32_bf16_m(0, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 0) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(1, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 1) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(2, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 2) * 8 + 7) * 32)));
-                svmopa_za32_bf16_m(3, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                   svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper +
-                                                                                      ((dim_tile + 3) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 0) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 1) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 2) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 3) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 4) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 5) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 6) * 32)));
+                svmopa_za32_bf16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 0) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 1) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 2) * 8 + 7) * 32)));
+                svmopa_za32_bf16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                   svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper +
+                                                                                       ((dim_tile + 3) * 8 + 7) * 32)));
                 // Read BFMOPA result and ADD to output_accumulator
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 1, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 1, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, query_index)));
                 }
             }
             // Remainder: 1 dim_tile at a time using ZA0
             for (; dim_tile < dim_tile_count; dim_tile++) {
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_lower + (dim_tile * 8 + 7) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_8,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_9,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_10,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_11,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_12,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_13,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_14,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_15,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(values_block_upper + (dim_tile * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-                    svst1_f32(predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
-                              svadd_f32_x(predicate_all_f32,
-                                          svld1_f32(predicate_all_f32,
+                    svst1_f32(predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
+                              svadd_f32_x(predicate_all_f32x,
+                                          svld1_f32(predicate_all_f32x,
                                                     output_accumulator + query_index * head_dim_padded + dim_tile * 16),
-                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
             }
         }
     }
@@ -874,58 +874,58 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
         svzero_mask_za(nk_sme_zero_za32_tile_2_);
         nk_bf16_t const *k_block = k + kv_block_index * k_depth_step_count * 32;
         for (nk_size_t step = 0; step < k_depth_step_count; step++) {
-            svbfloat16_t zn = svreinterpret_bf16_f32(svld1_f32(predicate_all_f32, queries_transposed + step * 16));
-            svbfloat16_t zm = svld1_bf16(predicate_all_f16, (bfloat16_t const *)(k_block + step * 32));
-            svmopa_za32_bf16_m(2, predicate_all_f32, predicate_all_f32, zn, zm);
+            svbfloat16_t zn = svreinterpret_bf16_f32(svld1_f32(predicate_all_f32x, queries_transposed + step * 16));
+            svbfloat16_t zm = svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(k_block + step * 32));
+            svmopa_za32_bf16_m(2, predicate_all_f32x, predicate_all_f32x, zn, zm);
         }
 
         // Pass 1: Column-wise max (read ZA2 columns vertically)
-        svfloat32_t scale_f32_16 = svdup_f32(scale);
-        svfloat32_t block_max_f32_16 = svdup_f32(NK_F32_MIN);
+        svfloat32_t scale_16_f32x = svdup_f32(scale);
+        svfloat32_t block_max_16_f32x = svdup_f32(NK_F32_MIN);
         for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-            svfloat32_t score_column_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                scale_f32_16);
-            block_max_f32_16 = svmax_f32_x(predicate_all_f32, block_max_f32_16, score_column_f32);
+            svfloat32_t score_column_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                scale_16_f32x);
+            block_max_16_f32x = svmax_f32_x(predicate_all_f32x, block_max_16_f32x, score_column_f32x);
         }
 
         // Softmax correction (fully vectorized)
-        svfloat32_t new_max_v = svmax_f32_x(predicate_all_f32, row_max_f32, block_max_f32_16);
-        svfloat32_t correction_v = nk_exp_fast_f32_sve_(predicate_all_f32,
-                                                        svsub_f32_x(predicate_all_f32, row_max_f32, new_max_v));
-        svbool_t max_changed_16 = svcmplt_f32(predicate_all_f32, correction_v, svdup_f32(1.0f));
-        nk_u32_t max_was_updated_16 = svptest_any(predicate_all_f32, max_changed_16) ? 1 : 0;
-        if (max_was_updated_16) row_sum_f32 = svmul_f32_x(predicate_all_f32, row_sum_f32, correction_v);
+        svfloat32_t new_max_f32x = svmax_f32_x(predicate_all_f32x, row_max_f32x, block_max_16_f32x);
+        svfloat32_t correction_f32x = nk_exp_fast_f32_sve_(predicate_all_f32x,
+                                                           svsub_f32_x(predicate_all_f32x, row_max_f32x, new_max_f32x));
+        svbool_t max_changed_16 = svcmplt_f32(predicate_all_f32x, correction_f32x, svdup_f32(1.0f));
+        nk_u32_t max_was_updated_16 = svptest_any(predicate_all_f32x, max_changed_16) ? 1 : 0;
+        if (max_was_updated_16) row_sum_f32x = svmul_f32_x(predicate_all_f32x, row_sum_f32x, correction_f32x);
         NK_ALIGN64 nk_f32_t corrections[16];
-        svst1_f32(predicate_all_f32, corrections, correction_v);
+        svst1_f32(predicate_all_f32x, corrections, correction_f32x);
 
         // Pass 2: Column-wise exp + fused P write + sum (ZA2 → ZA0 columns 0-7)
-        svfloat32_t sum_delta_f32_16 = svdup_f32(0.0f);
+        svfloat32_t sum_delta_16_f32x = svdup_f32(0.0f);
         svzero_mask_za(nk_sme_zero_za32_tile_0_);
         for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-            svfloat32_t score_even_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                scale_f32_16);
-            svfloat32_t score_odd_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index + 1),
-                scale_f32_16);
-            svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_v));
-            svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(predicate_all_f32,
-                                                              svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_v));
-            sum_delta_f32_16 = svadd_f32_x(predicate_all_f32, sum_delta_f32_16, weight_even_f32);
-            sum_delta_f32_16 = svadd_f32_x(predicate_all_f32, sum_delta_f32_16, weight_odd_f32);
-            svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32, weight_even_f32),
-                                                        nk_f32_to_bf16_sve_(predicate_all_f32, weight_odd_f32));
-            svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32, svreinterpret_f32_bf16(weight_pair_bf16));
+            svfloat32_t score_even_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                scale_16_f32x);
+            svfloat32_t score_odd_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index + 1),
+                scale_16_f32x);
+            svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+            svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+            sum_delta_16_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_16_f32x, weight_even_f32x);
+            sum_delta_16_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_16_f32x, weight_odd_f32x);
+            svbfloat16_t weight_pair_bf16 = svzip1_bf16(nk_f32_to_bf16_sve_(predicate_all_f32x, weight_even_f32x),
+                                                        nk_f32_to_bf16_sve_(predicate_all_f32x, weight_odd_f32x));
+            svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32x, svreinterpret_f32_bf16(weight_pair_bf16));
         }
-        row_sum_f32 = svadd_f32_x(predicate_all_f32, row_sum_f32, sum_delta_f32_16);
-        row_max_f32 = new_max_v;
+        row_sum_f32x = svadd_f32_x(predicate_all_f32x, row_sum_f32x, sum_delta_16_f32x);
+        row_max_f32x = new_max_f32x;
 
         if (valid_query_count == 1) {
             // Decode path: extract f32 weights from ZA0 row 0 using SVE
             svbfloat16_t row0_bf16 = svreinterpret_bf16_f32(
-                svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
+                svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
             svbfloat16_t weights_even_bf16 = svuzp1_bf16(row0_bf16, row0_bf16);
             svbfloat16_t weights_odd_bf16 = svuzp2_bf16(row0_bf16, row0_bf16);
             NK_ALIGN64 nk_f32_t decode_weights[16];
@@ -938,57 +938,58 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
                 decode_weights_ordered[2 * i] = decode_weights[i];
                 decode_weights_ordered[2 * i + 1] = decode_weights[8 + i];
             }
-            svfloat32_t corr_vec = svdup_f32(corrections[0]);
+            svfloat32_t corr_f32x = svdup_f32(corrections[0]);
             for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-                svfloat32_t acc = svmul_f32_x(pg, svld1_f32(pg, output_accumulator + d), corr_vec);
+                svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
+                svfloat32_t acc_f32x = svmul_f32_x(predicate_f32x, svld1_f32(predicate_f32x, output_accumulator + d),
+                                                   corr_f32x);
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                     nk_size_t dim_tile = d / 16, depth_s = ki / 2, sub = ki % 2;
                     nk_bf16_t const *v_vec = v_packed +
                                              (kv_block_index * dim_tile_count * 8 + dim_tile * 8 + depth_s) * 32;
-                    svbfloat16_t packed_vec = svld1_bf16(predicate_all_f16, (bfloat16_t const *)v_vec);
-                    svbfloat16_t v_selected = (sub == 0) ? svuzp1_bf16(packed_vec, packed_vec)
-                                                         : svuzp2_bf16(packed_vec, packed_vec);
-                    acc = svmla_f32_x(pg, acc, svdup_f32(decode_weights_ordered[ki]),
-                                      nk_bf16_to_f32_sve_(pg, v_selected));
+                    svbfloat16_t packed_bf16x = svld1_bf16(predicate_all_f16x, (bfloat16_t const *)v_vec);
+                    svbfloat16_t v_selected = (sub == 0) ? svuzp1_bf16(packed_bf16x, packed_bf16x)
+                                                         : svuzp2_bf16(packed_bf16x, packed_bf16x);
+                    acc_f32x = svmla_f32_x(predicate_f32x, acc_f32x, svdup_f32(decode_weights_ordered[ki]),
+                                           nk_bf16_to_f32_sve_(predicate_f32x, v_selected));
                 }
-                svst1_f32(pg, output_accumulator + d, acc);
+                svst1_f32(predicate_f32x, output_accumulator + d, acc_f32x);
             }
         }
         else {
             // Prefill Bc=16: extract P columns, pre-apply correction, add-after P×V
-            svbool_t query_predicate_b16 = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
 
-            svbfloat16_t probability_column_0 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
-            svbfloat16_t probability_column_1 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 1));
-            svbfloat16_t probability_column_2 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 2));
-            svbfloat16_t probability_column_3 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 3));
-            svbfloat16_t probability_column_4 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 4));
-            svbfloat16_t probability_column_5 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 5));
-            svbfloat16_t probability_column_6 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 6));
-            svbfloat16_t probability_column_7 = svreinterpret_bf16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 7));
+            svbfloat16_t probability_column_0_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
+            svbfloat16_t probability_column_1_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 1));
+            svbfloat16_t probability_column_2_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 2));
+            svbfloat16_t probability_column_3_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 3));
+            svbfloat16_t probability_column_4_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 4));
+            svbfloat16_t probability_column_5_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 5));
+            svbfloat16_t probability_column_6_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 6));
+            svbfloat16_t probability_column_7_f32x = svreinterpret_bf16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 7));
 
             nk_bf16_t const *v_block = v_packed + kv_block_index * dim_tile_count * 8 * 32;
 
             // Pre-apply correction
             if (max_was_updated_16) {
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
-                    svfloat32_t correction_scalar_f32 = svdup_f32(corrections[query_index]);
+                    svfloat32_t correction_scalar_f32x = svdup_f32(corrections[query_index]);
                     for (nk_size_t dim_offset = 0; dim_offset < head_dim_padded; dim_offset += 16)
                         svst1_f32(
-                            predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_offset,
-                            svmul_f32_x(predicate_all_f32,
-                                        svld1_f32(predicate_all_f32,
+                            predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_offset,
+                            svmul_f32_x(predicate_all_f32x,
+                                        svld1_f32(predicate_all_f32x,
                                                   output_accumulator + query_index * head_dim_padded + dim_offset),
-                                        correction_scalar_f32));
+                                        correction_scalar_f32x));
                 }
             }
 
@@ -997,180 +998,184 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
             for (; dim_tile + 4 <= dim_tile_count; dim_tile += 4) {
                 svzero_za();
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 0) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 0) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 0) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 1) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 1) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 1) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 2) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 2) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 2) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 3) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 3) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 3) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 4) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 4) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 4) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 5) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 5) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 5) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 6) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 6) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 6) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 0) * 8 + 7) * 32)));
                 svmopa_za32_bf16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 7) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 1) * 8 + 7) * 32)));
                 svmopa_za32_bf16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 7) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 2) * 8 + 7) * 32)));
                 svmopa_za32_bf16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 7) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + ((dim_tile + 3) * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 1, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 1, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, query_index)));
                 }
             }
             for (; dim_tile < dim_tile_count; dim_tile++) {
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 0) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 1) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 2) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 3) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 4) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 5) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 6) * 32)));
                 svmopa_za32_bf16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_bf16(predicate_all_f16, (bfloat16_t const *)(v_block + (dim_tile * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_bf16(predicate_all_f16x, (bfloat16_t const *)(v_block + (dim_tile * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-                    svst1_f32(predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
-                              svadd_f32_x(predicate_all_f32,
-                                          svld1_f32(predicate_all_f32,
+                    svst1_f32(predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
+                              svadd_f32_x(predicate_all_f32x,
+                                          svld1_f32(predicate_all_f32x,
                                                     output_accumulator + query_index * head_dim_padded + dim_tile * 16),
-                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
             }
         }
     }
 
     // Final normalization
     NK_ALIGN64 nk_f32_t final_sums[16];
-    svst1_f32(predicate_all_f32, final_sums, row_sum_f32);
+    svst1_f32(predicate_all_f32x, final_sums, row_sum_f32x);
 
     for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
         nk_f32_t inv_sum = (final_sums[query_index] > 0.0f) ? (1.0f / final_sums[query_index]) : 0.0f;
-        svfloat32_t inv_sum_v = svdup_f32(inv_sum);
+        svfloat32_t inv_sum_f32x = svdup_f32(inv_sum);
 
-        for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-            svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-            svfloat32_t o = svmul_f32_x(pg, svld1_f32(pg, output_accumulator + query_index * head_dim_padded + d),
-                                        inv_sum_v);
-            svbfloat16_t o_bf16 = nk_f32_to_bf16_sve_(pg, o);
-            nk_size_t store_count = (head_dim - d) < (nk_size_t)svcntw() ? (head_dim - d) : (nk_size_t)svcntw();
-            svbool_t pg_bf16 = svwhilelt_b16(0u, (nk_u32_t)store_count);
-            svst1_bf16(pg_bf16, (bfloat16_t *)(output + query_index * head_dim + d), o_bf16);
+        for (nk_size_t dim_offset = 0; dim_offset < head_dim; dim_offset += svcntw()) {
+            svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)dim_offset, (nk_u32_t)head_dim);
+            svfloat32_t output_f32x = svmul_f32_x(
+                predicate_f32x,
+                svld1_f32(predicate_f32x, output_accumulator + query_index * head_dim_padded + dim_offset),
+                inv_sum_f32x);
+            svbfloat16_t output_bf16x = nk_f32_to_bf16_sve_(predicate_f32x, output_f32x);
+            nk_size_t store_count = (head_dim - dim_offset) < (nk_size_t)svcntw() ? (head_dim - dim_offset)
+                                                                                  : (nk_size_t)svcntw();
+            svbool_t store_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)store_count);
+            svst1_bf16(store_predicate_f16x, (bfloat16_t *)(output + query_index * head_dim + dim_offset),
+                       output_bf16x);
         }
     }
 }
@@ -1215,24 +1220,24 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
     nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_size_t dim_tile_count,
     nk_f32_t scale) {
 
-    svbool_t const predicate_all_f32 = svptrue_b32();
-    svbool_t const predicate_all_f16 = svptrue_b16();
+    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_f16x = svptrue_b16();
     nk_size_t const valid_query_count = (query_len < 16) ? query_len : 16;
 
     NK_ALIGN64 nk_f32_t row_max[16];
     NK_ALIGN64 nk_f32_t row_sum[16];
     NK_ALIGN64 nk_f32_t output_accumulator[16 * 256];
 
-    svst1_f32(predicate_all_f32, row_max, svdup_f32(NK_F32_MIN));
-    svst1_f32(predicate_all_f32, row_sum, svdup_f32(0.0f));
-    svfloat32_t zero_vec = svdup_f32(0.0f);
+    svst1_f32(predicate_all_f32x, row_max, svdup_f32(NK_F32_MIN));
+    svst1_f32(predicate_all_f32x, row_sum, svdup_f32(0.0f));
+    svfloat32_t zero_f32x = svdup_f32(0.0f);
     for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) {
-        svst1_f32(predicate_all_f32, output_accumulator + i, zero_vec);
+        svst1_f32(predicate_all_f32x, output_accumulator + i, zero_f32x);
     }
 
     nk_size_t kv_block_index = 0;
     nk_size_t kv_start = 0;
-    svbool_t const batch_predicate_b32 = svwhilelt_b32(0u, 16u);
+    svbool_t const batch_predicate_f32x = svwhilelt_b32(0u, 16u);
 
     nk_size_t const k_depth_step_count = head_dim_padded / 2;
 
@@ -1243,11 +1248,11 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
     for (nk_size_t batch = 0; batch < head_dim_padded / 32; batch++) {
         svzero_mask_za(nk_sme_zero_za32_tile_0_);
         for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-            svld1_hor_za32(0, query_index, batch_predicate_b32,
+            svld1_hor_za32(0, query_index, batch_predicate_f32x,
                            (nk_f32_t const *)(q + query_index * head_dim + batch * 32));
         for (nk_size_t step = 0; step < 16; step++)
-            svst1_f32(predicate_all_f32, queries_transposed + (batch * 16 + step) * 16,
-                      svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, step));
+            svst1_f32(predicate_all_f32x, queries_transposed + (batch * 16 + step) * 16,
+                      svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, step));
     }
 
     // === Bc=32 main loop (prefill only, skipped for decode) ===
@@ -1259,135 +1264,137 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
             nk_f16_t const *keys_block_lower = k + kv_block_index * k_depth_step_count * 32;
             nk_f16_t const *keys_block_upper = k + (kv_block_index + 1) * k_depth_step_count * 32;
             for (nk_size_t step = 0; step < k_depth_step_count; step++) {
-                svfloat16_t zn = svreinterpret_f16_f32(svld1_f32(predicate_all_f32, queries_transposed + step * 16));
-                svfloat16_t zm0 = svld1_f16(predicate_all_f16, (float16_t const *)(keys_block_lower + step * 32));
-                svfloat16_t zm1 = svld1_f16(predicate_all_f16, (float16_t const *)(keys_block_upper + step * 32));
-                svmopa_za32_f16_m(2, predicate_all_f32, predicate_all_f32, zn, zm0);
-                svmopa_za32_f16_m(3, predicate_all_f32, predicate_all_f32, zn, zm1);
+                svfloat16_t zn = svreinterpret_f16_f32(svld1_f32(predicate_all_f32x, queries_transposed + step * 16));
+                svfloat16_t zm0 = svld1_f16(predicate_all_f16x, (float16_t const *)(keys_block_lower + step * 32));
+                svfloat16_t zm1 = svld1_f16(predicate_all_f16x, (float16_t const *)(keys_block_upper + step * 32));
+                svmopa_za32_f16_m(2, predicate_all_f32x, predicate_all_f32x, zn, zm0);
+                svmopa_za32_f16_m(3, predicate_all_f32x, predicate_all_f32x, zn, zm1);
             }
             // ZA2 = scores[query_index][0:15], ZA3 = scores[query_index][16:31]
 
             // Pass 1: Column-wise max (read ZA2/ZA3 columns vertically)
-            svfloat32_t scale_f32 = svdup_f32(scale);
-            svfloat32_t block_max_f32 = svdup_f32(NK_F32_MIN);
+            svfloat32_t scale_f32x = svdup_f32(scale);
+            svfloat32_t block_max_f32x = svdup_f32(NK_F32_MIN);
             for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-                svfloat32_t score_column_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                    scale_f32);
-                block_max_f32 = svmax_f32_x(predicate_all_f32, block_max_f32, score_column_f32);
+                svfloat32_t score_column_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                    scale_f32x);
+                block_max_f32x = svmax_f32_x(predicate_all_f32x, block_max_f32x, score_column_f32x);
             }
             for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-                svfloat32_t score_column_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index),
-                    scale_f32);
-                block_max_f32 = svmax_f32_x(predicate_all_f32, block_max_f32, score_column_f32);
+                svfloat32_t score_column_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index),
+                    scale_f32x);
+                block_max_f32x = svmax_f32_x(predicate_all_f32x, block_max_f32x, score_column_f32x);
             }
 
             // Softmax correction (vectorized via array load/store)
-            svfloat32_t old_max_vec = svld1_f32(predicate_all_f32, row_max);
-            svfloat32_t new_max_vec = svmax_f32_x(predicate_all_f32, old_max_vec, block_max_f32);
-            svfloat32_t correction_vec = nk_exp_fast_f32_sve_(predicate_all_f32,
-                                                              svsub_f32_x(predicate_all_f32, old_max_vec, new_max_vec));
-            svbool_t max_changed = svcmplt_f32(predicate_all_f32, correction_vec, svdup_f32(1.0f));
-            nk_u32_t max_was_updated = svptest_any(predicate_all_f32, max_changed) ? 1 : 0;
-            svfloat32_t row_sum_f32ec = svld1_f32(predicate_all_f32, row_sum);
-            if (max_was_updated) row_sum_f32ec = svmul_f32_x(predicate_all_f32, row_sum_f32ec, correction_vec);
+            svfloat32_t old_max_f32x = svld1_f32(predicate_all_f32x, row_max);
+            svfloat32_t new_max_f32x = svmax_f32_x(predicate_all_f32x, old_max_f32x, block_max_f32x);
+            svfloat32_t correction_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, old_max_f32x, new_max_f32x));
+            svbool_t max_changed = svcmplt_f32(predicate_all_f32x, correction_f32x, svdup_f32(1.0f));
+            nk_u32_t max_was_updated = svptest_any(predicate_all_f32x, max_changed) ? 1 : 0;
+            svfloat32_t row_sum_corrected_f32x = svld1_f32(predicate_all_f32x, row_sum);
+            if (max_was_updated)
+                row_sum_corrected_f32x = svmul_f32_x(predicate_all_f32x, row_sum_corrected_f32x, correction_f32x);
             NK_ALIGN64 nk_f32_t corrections[16];
-            svst1_f32(predicate_all_f32, corrections, correction_vec);
+            svst1_f32(predicate_all_f32x, corrections, correction_f32x);
 
             // Pass 2: Column-wise exp + fused P write + sum
-            svfloat32_t sum_delta_f32 = svdup_f32(0.0f);
+            svfloat32_t sum_delta_f32x = svdup_f32(0.0f);
             svzero_mask_za(nk_sme_zero_za32_tile_0_);
             // ZA2 columns in pairs -> ZA0 columns 0-7
             for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-                svfloat32_t score_even_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                    scale_f32);
-                svfloat32_t score_odd_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index + 1),
-                    scale_f32);
-                svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_vec));
-                svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_vec));
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_even_f32);
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_odd_f32);
-                svfloat16_t weight_pair_f16 = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32, weight_even_f32),
-                                                         svcvt_f16_f32_x(predicate_all_f32, weight_odd_f32));
-                svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32, svreinterpret_f32_f16(weight_pair_f16));
+                svfloat32_t score_even_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                    scale_f32x);
+                svfloat32_t score_odd_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index + 1),
+                    scale_f32x);
+                svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+                svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_even_f32x);
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_odd_f32x);
+                svfloat16_t weight_pair_f16x = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32x, weight_even_f32x),
+                                                          svcvt_f16_f32_x(predicate_all_f32x, weight_odd_f32x));
+                svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32x,
+                                       svreinterpret_f32_f16(weight_pair_f16x));
             }
             // ZA3 columns in pairs -> ZA0 columns 8-15
             for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-                svfloat32_t score_even_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index),
-                    scale_f32);
-                svfloat32_t score_odd_f32 = svmul_f32_x(
-                    predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, column_index + 1),
-                    scale_f32);
-                svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_vec));
-                svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(
-                    predicate_all_f32, svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_vec));
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_even_f32);
-                sum_delta_f32 = svadd_f32_x(predicate_all_f32, sum_delta_f32, weight_odd_f32);
-                svfloat16_t weight_pair_f16 = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32, weight_even_f32),
-                                                         svcvt_f16_f32_x(predicate_all_f32, weight_odd_f32));
-                svwrite_ver_za32_f32_m(0, 8 + column_index / 2, predicate_all_f32,
-                                       svreinterpret_f32_f16(weight_pair_f16));
+                svfloat32_t score_even_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index),
+                    scale_f32x);
+                svfloat32_t score_odd_f32x = svmul_f32_x(
+                    predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, column_index + 1),
+                    scale_f32x);
+                svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+                svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                    predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_even_f32x);
+                sum_delta_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_f32x, weight_odd_f32x);
+                svfloat16_t weight_pair_f16x = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32x, weight_even_f32x),
+                                                          svcvt_f16_f32_x(predicate_all_f32x, weight_odd_f32x));
+                svwrite_ver_za32_f32_m(0, 8 + column_index / 2, predicate_all_f32x,
+                                       svreinterpret_f32_f16(weight_pair_f16x));
             }
-            row_sum_f32ec = svadd_f32_x(predicate_all_f32, row_sum_f32ec, sum_delta_f32);
-            svst1_f32(predicate_all_f32, row_sum, row_sum_f32ec);
-            svst1_f32(predicate_all_f32, row_max, new_max_vec);
+            row_sum_corrected_f32x = svadd_f32_x(predicate_all_f32x, row_sum_corrected_f32x, sum_delta_f32x);
+            svst1_f32(predicate_all_f32x, row_sum, row_sum_corrected_f32x);
+            svst1_f32(predicate_all_f32x, row_max, new_max_f32x);
 
             // Extract P columns from ZA0
-            svfloat16_t probability_column_0 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
-            svfloat16_t probability_column_1 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 1));
-            svfloat16_t probability_column_2 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 2));
-            svfloat16_t probability_column_3 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 3));
-            svfloat16_t probability_column_4 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 4));
-            svfloat16_t probability_column_5 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 5));
-            svfloat16_t probability_column_6 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 6));
-            svfloat16_t probability_column_7 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 7));
-            svfloat16_t probability_column_8 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 8));
-            svfloat16_t probability_column_9 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 9));
-            svfloat16_t probability_column_10 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 10));
-            svfloat16_t probability_column_11 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 11));
-            svfloat16_t probability_column_12 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 12));
-            svfloat16_t probability_column_13 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 13));
-            svfloat16_t probability_column_14 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 14));
-            svfloat16_t probability_column_15 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 15));
+            svfloat16_t probability_column_0_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
+            svfloat16_t probability_column_1_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 1));
+            svfloat16_t probability_column_2_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 2));
+            svfloat16_t probability_column_3_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 3));
+            svfloat16_t probability_column_4_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 4));
+            svfloat16_t probability_column_5_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 5));
+            svfloat16_t probability_column_6_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 6));
+            svfloat16_t probability_column_7_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 7));
+            svfloat16_t probability_column_8_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 8));
+            svfloat16_t probability_column_9_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 9));
+            svfloat16_t probability_column_10_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 10));
+            svfloat16_t probability_column_11_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 11));
+            svfloat16_t probability_column_12_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 12));
+            svfloat16_t probability_column_13_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 13));
+            svfloat16_t probability_column_14_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 14));
+            svfloat16_t probability_column_15_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 15));
 
             // Pre-apply correction once before P×V
-            svbool_t query_predicate_b16 = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
             nk_f16_t const *values_block_lower = v_packed + kv_block_index * dim_tile_count * 8 * 32;
             nk_f16_t const *values_block_upper = v_packed + (kv_block_index + 1) * dim_tile_count * 8 * 32;
 
             if (max_was_updated) {
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
-                    svfloat32_t correction_scalar_f32 = svdup_f32(corrections[query_index]);
+                    svfloat32_t correction_scalar_f32x = svdup_f32(corrections[query_index]);
                     for (nk_size_t dim_offset = 0; dim_offset < head_dim_padded; dim_offset += 16)
                         svst1_f32(
-                            predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_offset,
-                            svmul_f32_x(predicate_all_f32,
-                                        svld1_f32(predicate_all_f32,
+                            predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_offset,
+                            svmul_f32_x(predicate_all_f32x,
+                                        svld1_f32(predicate_all_f32x,
                                                   output_accumulator + query_index * head_dim_padded + dim_offset),
-                                        correction_scalar_f32));
+                                        correction_scalar_f32x));
                 }
             }
 
@@ -1396,284 +1403,284 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
             for (; dim_tile + 4 <= dim_tile_count; dim_tile += 4) {
                 svzero_za();
                 // Block0: 8 depth steps (KV positions 0-15)
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 0) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 1) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 2) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_lower + ((dim_tile + 3) * 8 + 7) * 32)));
                 // Block1: 8 depth steps (KV positions 16-31)
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_8,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 0) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_9,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 1) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_10,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 2) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_11,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 3) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_12,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 4) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_13,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 5) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_14,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 6) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(0, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 0) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(1, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(1, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 1) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(2, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(2, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 2) * 8 + 7) * 32)));
-                svmopa_za32_f16_m(3, query_predicate_b16, predicate_all_f16, probability_column_15,
-                                  svld1_f16(predicate_all_f16,
+                svmopa_za32_f16_m(3, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                                  svld1_f16(predicate_all_f16x,
                                             (float16_t const *)(values_block_upper + ((dim_tile + 3) * 8 + 7) * 32)));
                 // Read FMOPA result and ADD to output_accumulator
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 1, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 1, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, query_index)));
                 }
             }
             // Remainder: 1 dim_tile at a time using ZA0
             for (; dim_tile < dim_tile_count; dim_tile++) {
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_lower + (dim_tile * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_lower + (dim_tile * 8 + 7) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_8,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_8_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_9,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_9_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_10,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_10_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_11,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_11_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_12,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_12_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_13,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_13_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_14,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_14_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_15,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(values_block_upper + (dim_tile * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_15_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(values_block_upper + (dim_tile * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-                    svst1_f32(predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
-                              svadd_f32_x(predicate_all_f32,
-                                          svld1_f32(predicate_all_f32,
+                    svst1_f32(predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
+                              svadd_f32_x(predicate_all_f32x,
+                                          svld1_f32(predicate_all_f32x,
                                                     output_accumulator + query_index * head_dim_padded + dim_tile * 16),
-                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
             }
         }
     }
@@ -1686,59 +1693,60 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
         svzero_mask_za(nk_sme_zero_za32_tile_2_);
         nk_f16_t const *k_block = k + kv_block_index * k_depth_step_count * 32;
         for (nk_size_t step = 0; step < k_depth_step_count; step++) {
-            svfloat16_t zn = svreinterpret_f16_f32(svld1_f32(predicate_all_f32, queries_transposed + step * 16));
-            svfloat16_t zm = svld1_f16(predicate_all_f16, (float16_t const *)(k_block + step * 32));
-            svmopa_za32_f16_m(2, predicate_all_f32, predicate_all_f32, zn, zm);
+            svfloat16_t zn = svreinterpret_f16_f32(svld1_f32(predicate_all_f32x, queries_transposed + step * 16));
+            svfloat16_t zm = svld1_f16(predicate_all_f16x, (float16_t const *)(k_block + step * 32));
+            svmopa_za32_f16_m(2, predicate_all_f32x, predicate_all_f32x, zn, zm);
         }
 
         // Pass 1: Column-wise max (read ZA2 columns vertically)
-        svfloat32_t scale_f32_16 = svdup_f32(scale);
-        svfloat32_t block_max_f32_16 = svdup_f32(NK_F32_MIN);
+        svfloat32_t scale_16_f32x = svdup_f32(scale);
+        svfloat32_t block_max_16_f32x = svdup_f32(NK_F32_MIN);
         for (nk_size_t column_index = 0; column_index < 16; column_index++) {
-            svfloat32_t score_column_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                scale_f32_16);
-            block_max_f32_16 = svmax_f32_x(predicate_all_f32, block_max_f32_16, score_column_f32);
+            svfloat32_t score_column_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                scale_16_f32x);
+            block_max_16_f32x = svmax_f32_x(predicate_all_f32x, block_max_16_f32x, score_column_f32x);
         }
 
-        svfloat32_t old_max_vec = svld1_f32(predicate_all_f32, row_max);
-        svfloat32_t new_max_vec = svmax_f32_x(predicate_all_f32, old_max_vec, block_max_f32_16);
-        svfloat32_t correction_vec = nk_exp_fast_f32_sve_(predicate_all_f32,
-                                                          svsub_f32_x(predicate_all_f32, old_max_vec, new_max_vec));
-        svbool_t max_changed_16 = svcmplt_f32(predicate_all_f32, correction_vec, svdup_f32(1.0f));
-        nk_u32_t max_was_updated_16 = svptest_any(predicate_all_f32, max_changed_16) ? 1 : 0;
-        svfloat32_t row_sum_f32ec = svld1_f32(predicate_all_f32, row_sum);
-        if (max_was_updated_16) row_sum_f32ec = svmul_f32_x(predicate_all_f32, row_sum_f32ec, correction_vec);
+        svfloat32_t old_max_f32x = svld1_f32(predicate_all_f32x, row_max);
+        svfloat32_t new_max_f32x = svmax_f32_x(predicate_all_f32x, old_max_f32x, block_max_16_f32x);
+        svfloat32_t correction_f32x = nk_exp_fast_f32_sve_(predicate_all_f32x,
+                                                           svsub_f32_x(predicate_all_f32x, old_max_f32x, new_max_f32x));
+        svbool_t max_changed_16 = svcmplt_f32(predicate_all_f32x, correction_f32x, svdup_f32(1.0f));
+        nk_u32_t max_was_updated_16 = svptest_any(predicate_all_f32x, max_changed_16) ? 1 : 0;
+        svfloat32_t row_sum_corrected_f32x = svld1_f32(predicate_all_f32x, row_sum);
+        if (max_was_updated_16)
+            row_sum_corrected_f32x = svmul_f32_x(predicate_all_f32x, row_sum_corrected_f32x, correction_f32x);
         NK_ALIGN64 nk_f32_t corrections[16];
-        svst1_f32(predicate_all_f32, corrections, correction_vec);
+        svst1_f32(predicate_all_f32x, corrections, correction_f32x);
 
         // Pass 2: Column-wise exp + fused P write + sum (ZA2 → ZA0 columns 0-7)
-        svfloat32_t sum_delta_f32_16 = svdup_f32(0.0f);
+        svfloat32_t sum_delta_16_f32x = svdup_f32(0.0f);
         svzero_mask_za(nk_sme_zero_za32_tile_0_);
         for (nk_size_t column_index = 0; column_index < 16; column_index += 2) {
-            svfloat32_t score_even_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index),
-                scale_f32_16);
-            svfloat32_t score_odd_f32 = svmul_f32_x(
-                predicate_all_f32, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, column_index + 1),
-                scale_f32_16);
-            svfloat32_t weight_even_f32 = nk_exp_fast_f32_sve_(
-                predicate_all_f32, svsub_f32_x(predicate_all_f32, score_even_f32, new_max_vec));
-            svfloat32_t weight_odd_f32 = nk_exp_fast_f32_sve_(
-                predicate_all_f32, svsub_f32_x(predicate_all_f32, score_odd_f32, new_max_vec));
-            sum_delta_f32_16 = svadd_f32_x(predicate_all_f32, sum_delta_f32_16, weight_even_f32);
-            sum_delta_f32_16 = svadd_f32_x(predicate_all_f32, sum_delta_f32_16, weight_odd_f32);
-            svfloat16_t weight_pair_f16 = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32, weight_even_f32),
-                                                     svcvt_f16_f32_x(predicate_all_f32, weight_odd_f32));
-            svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32, svreinterpret_f32_f16(weight_pair_f16));
+            svfloat32_t score_even_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index),
+                scale_16_f32x);
+            svfloat32_t score_odd_f32x = svmul_f32_x(
+                predicate_all_f32x, svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, column_index + 1),
+                scale_16_f32x);
+            svfloat32_t weight_even_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_even_f32x, new_max_f32x));
+            svfloat32_t weight_odd_f32x = nk_exp_fast_f32_sve_(
+                predicate_all_f32x, svsub_f32_x(predicate_all_f32x, score_odd_f32x, new_max_f32x));
+            sum_delta_16_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_16_f32x, weight_even_f32x);
+            sum_delta_16_f32x = svadd_f32_x(predicate_all_f32x, sum_delta_16_f32x, weight_odd_f32x);
+            svfloat16_t weight_pair_f16x = svzip1_f16(svcvt_f16_f32_x(predicate_all_f32x, weight_even_f32x),
+                                                      svcvt_f16_f32_x(predicate_all_f32x, weight_odd_f32x));
+            svwrite_ver_za32_f32_m(0, column_index / 2, predicate_all_f32x, svreinterpret_f32_f16(weight_pair_f16x));
         }
-        row_sum_f32ec = svadd_f32_x(predicate_all_f32, row_sum_f32ec, sum_delta_f32_16);
-        svst1_f32(predicate_all_f32, row_sum, row_sum_f32ec);
-        svst1_f32(predicate_all_f32, row_max, new_max_vec);
+        row_sum_corrected_f32x = svadd_f32_x(predicate_all_f32x, row_sum_corrected_f32x, sum_delta_16_f32x);
+        svst1_f32(predicate_all_f32x, row_sum, row_sum_corrected_f32x);
+        svst1_f32(predicate_all_f32x, row_max, new_max_f32x);
 
         if (valid_query_count == 1) {
             // Decode path: extract f32 weights from ZA0 row 0 using SVE
-            svfloat16_t row0_f16 = svreinterpret_f16_f32(svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
+            svfloat16_t row0_f16 = svreinterpret_f16_f32(svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
             svfloat16_t weights_even_f16 = svuzp1_f16(row0_f16, row0_f16);
             svfloat16_t weights_odd_f16 = svuzp2_f16(row0_f16, row0_f16);
             NK_ALIGN64 nk_f32_t decode_weights[16];
@@ -1750,55 +1758,57 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
                 decode_weights_ordered[2 * i] = decode_weights[i];
                 decode_weights_ordered[2 * i + 1] = decode_weights[8 + i];
             }
-            svfloat32_t corr_vec = svdup_f32(corrections[0]);
+            svfloat32_t corr_f32x = svdup_f32(corrections[0]);
             for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-                svfloat32_t acc = svmul_f32_x(pg, svld1_f32(pg, output_accumulator + d), corr_vec);
+                svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
+                svfloat32_t acc_f32x = svmul_f32_x(predicate_f32x, svld1_f32(predicate_f32x, output_accumulator + d),
+                                                   corr_f32x);
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                     nk_size_t dim_tile = d / 16, depth_s = ki / 2, sub = ki % 2;
                     nk_f16_t const *v_vec = v_packed +
                                             (kv_block_index * dim_tile_count * 8 + dim_tile * 8 + depth_s) * 32;
-                    svfloat16_t packed_vec = svld1_f16(predicate_all_f16, (float16_t const *)v_vec);
-                    svfloat16_t v_selected = (sub == 0) ? svuzp1_f16(packed_vec, packed_vec)
-                                                        : svuzp2_f16(packed_vec, packed_vec);
-                    acc = svmla_f32_x(pg, acc, svdup_f32(decode_weights_ordered[ki]), svcvt_f32_f16_x(pg, v_selected));
+                    svfloat16_t packed_f16x = svld1_f16(predicate_all_f16x, (float16_t const *)v_vec);
+                    svfloat16_t v_selected = (sub == 0) ? svuzp1_f16(packed_f16x, packed_f16x)
+                                                        : svuzp2_f16(packed_f16x, packed_f16x);
+                    acc_f32x = svmla_f32_x(predicate_f32x, acc_f32x, svdup_f32(decode_weights_ordered[ki]),
+                                           svcvt_f32_f16_x(predicate_f32x, v_selected));
                 }
-                svst1_f32(pg, output_accumulator + d, acc);
+                svst1_f32(predicate_f32x, output_accumulator + d, acc_f32x);
             }
         }
         else {
             // Prefill Bc=16: extract P columns, pre-apply correction, add-after P×V
-            svbool_t query_predicate_b16 = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
 
-            svfloat16_t probability_column_0 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 0));
-            svfloat16_t probability_column_1 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 1));
-            svfloat16_t probability_column_2 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 2));
-            svfloat16_t probability_column_3 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 3));
-            svfloat16_t probability_column_4 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 4));
-            svfloat16_t probability_column_5 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 5));
-            svfloat16_t probability_column_6 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 6));
-            svfloat16_t probability_column_7 = svreinterpret_f16_f32(
-                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, 7));
+            svfloat16_t probability_column_0_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
+            svfloat16_t probability_column_1_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 1));
+            svfloat16_t probability_column_2_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 2));
+            svfloat16_t probability_column_3_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 3));
+            svfloat16_t probability_column_4_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 4));
+            svfloat16_t probability_column_5_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 5));
+            svfloat16_t probability_column_6_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 6));
+            svfloat16_t probability_column_7_f32x = svreinterpret_f16_f32(
+                svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 7));
 
             nk_f16_t const *v_block = v_packed + kv_block_index * dim_tile_count * 8 * 32;
 
             if (max_was_updated_16) {
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
-                    svfloat32_t correction_scalar_f32 = svdup_f32(corrections[query_index]);
+                    svfloat32_t correction_scalar_f32x = svdup_f32(corrections[query_index]);
                     for (nk_size_t dim_offset = 0; dim_offset < head_dim_padded; dim_offset += 16)
                         svst1_f32(
-                            predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_offset,
-                            svmul_f32_x(predicate_all_f32,
-                                        svld1_f32(predicate_all_f32,
+                            predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_offset,
+                            svmul_f32_x(predicate_all_f32x,
+                                        svld1_f32(predicate_all_f32x,
                                                   output_accumulator + query_index * head_dim_padded + dim_offset),
-                                        correction_scalar_f32));
+                                        correction_scalar_f32x));
                 }
             }
 
@@ -1806,176 +1816,188 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
             for (; dim_tile + 4 <= dim_tile_count; dim_tile += 4) {
                 svzero_za();
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 0) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 0) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 0) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_0,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 0) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 0) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 1) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 1) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 1) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_1,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 1) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 1) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 2) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 2) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 2) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_2,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 2) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 2) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 3) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 3) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 3) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_3,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 3) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 3) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 4) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 4) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 4) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_4,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 4) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 4) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 5) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 5) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 5) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_5,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 5) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 5) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 6) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 6) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 6) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_6,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 6) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 6) * 32)));
                 svmopa_za32_f16_m(
-                    0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 7) * 32)));
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 0) * 8 + 7) * 32)));
                 svmopa_za32_f16_m(
-                    1, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 7) * 32)));
+                    1, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 1) * 8 + 7) * 32)));
                 svmopa_za32_f16_m(
-                    2, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 7) * 32)));
+                    2, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 2) * 8 + 7) * 32)));
                 svmopa_za32_f16_m(
-                    3, query_predicate_b16, predicate_all_f16, probability_column_7,
-                    svld1_f16(predicate_all_f16, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 7) * 32)));
+                    3, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + ((dim_tile + 3) * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 0) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 1) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 1, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 1, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 2) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 2, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 2, query_index)));
                     svst1_f32(
-                        predicate_all_f32, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
-                        svadd_f32_x(predicate_all_f32,
-                                    svld1_f32(predicate_all_f32,
+                        predicate_all_f32x, output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16,
+                        svadd_f32_x(predicate_all_f32x,
+                                    svld1_f32(predicate_all_f32x,
                                               output_accumulator + query_index * head_dim_padded + (dim_tile + 3) * 16),
-                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 3, query_index)));
+                                    svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 3, query_index)));
                 }
             }
             for (; dim_tile < dim_tile_count; dim_tile++) {
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_0,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 0) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_1,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 1) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_2,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 2) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_3,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 3) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_4,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 4) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_5,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 5) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_6,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 6) * 32)));
-                svmopa_za32_f16_m(0, query_predicate_b16, predicate_all_f16, probability_column_7,
-                                  svld1_f16(predicate_all_f16, (float16_t const *)(v_block + (dim_tile * 8 + 7) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_0_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 0) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_1_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 1) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_2_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 2) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_3_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 3) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_4_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 4) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_5_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 5) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_6_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 6) * 32)));
+                svmopa_za32_f16_m(
+                    0, query_predicate_f16x, predicate_all_f16x, probability_column_7_f32x,
+                    svld1_f16(predicate_all_f16x, (float16_t const *)(v_block + (dim_tile * 8 + 7) * 32)));
                 for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++)
-                    svst1_f32(predicate_all_f32, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
-                              svadd_f32_x(predicate_all_f32,
-                                          svld1_f32(predicate_all_f32,
+                    svst1_f32(predicate_all_f32x, output_accumulator + query_index * head_dim_padded + dim_tile * 16,
+                              svadd_f32_x(predicate_all_f32x,
+                                          svld1_f32(predicate_all_f32x,
                                                     output_accumulator + query_index * head_dim_padded + dim_tile * 16),
-                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32, 0, query_index)));
+                                          svread_hor_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, query_index)));
             }
         }
     }
 
     // Final normalization
-    svfloat32_t final_sum_vec = svld1_f32(predicate_all_f32, row_sum);
-    svfloat32_t ones_vec = svdup_f32(1.0f);
-    svfloat32_t zeros_v = svdup_f32(0.0f);
-    svbool_t sum_positive = svcmpgt_f32(predicate_all_f32, final_sum_vec, zeros_v);
-    svfloat32_t inv_sum_vec = svsel_f32(sum_positive, svdiv_f32_x(predicate_all_f32, ones_vec, final_sum_vec), zeros_v);
+    svfloat32_t final_sum_f32x = svld1_f32(predicate_all_f32x, row_sum);
+    svfloat32_t ones_f32x = svdup_f32(1.0f);
+    svfloat32_t zeros_f32x = svdup_f32(0.0f);
+    svbool_t sum_positive = svcmpgt_f32(predicate_all_f32x, final_sum_f32x, zeros_f32x);
+    svfloat32_t inv_sum_f32x = svsel_f32(sum_positive, svdiv_f32_x(predicate_all_f32x, ones_f32x, final_sum_f32x),
+                                         zeros_f32x);
 
     NK_ALIGN64 nk_f32_t inv_sums[16];
-    svst1_f32(predicate_all_f32, inv_sums, inv_sum_vec);
+    svst1_f32(predicate_all_f32x, inv_sums, inv_sum_f32x);
 
     for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
-        svfloat32_t inv_sum_v = svdup_f32(inv_sums[query_index]);
-        for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-            svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-            svfloat32_t o = svmul_f32_x(pg, svld1_f32(pg, output_accumulator + query_index * head_dim_padded + d),
-                                        inv_sum_v);
-            svfloat16_t o_f16 = svcvt_f16_f32_x(pg, o);
-            nk_size_t store_count = (head_dim - d) < (nk_size_t)svcntw() ? (head_dim - d) : (nk_size_t)svcntw();
-            svbool_t pg_f16 = svwhilelt_b16(0u, (nk_u32_t)store_count);
-            svst1_f16(pg_f16, (float16_t *)(output + query_index * head_dim + d), o_f16);
+        svfloat32_t inv_sum_f32x = svdup_f32(inv_sums[query_index]);
+        for (nk_size_t dim_offset = 0; dim_offset < head_dim; dim_offset += svcntw()) {
+            svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)dim_offset, (nk_u32_t)head_dim);
+            svfloat32_t output_f32x = svmul_f32_x(
+                predicate_f32x,
+                svld1_f32(predicate_f32x, output_accumulator + query_index * head_dim_padded + dim_offset),
+                inv_sum_f32x);
+            svfloat16_t output_f16x = svcvt_f16_f32_x(predicate_f32x, output_f32x);
+            nk_size_t store_count = (head_dim - dim_offset) < (nk_size_t)svcntw() ? (head_dim - dim_offset)
+                                                                                  : (nk_size_t)svcntw();
+            svbool_t predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)store_count);
+            svst1_f16(predicate_f16x, (float16_t *)(output + query_index * head_dim + dim_offset), output_f16x);
         }
     }
 }

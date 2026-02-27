@@ -386,6 +386,47 @@ nk_dot_e3m2_v128relaxed_cycle:
     *result = (nk_f32_t)nk_reduce_add_i32x4_v128relaxed_(sum_i32x4) / 256.0f;
 }
 
+NK_PUBLIC void nk_dot_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
+    nk_u8_t const *a_bytes = (nk_u8_t const *)a;
+    nk_u8_t const *b_bytes = (nk_u8_t const *)b;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
+
+    nk_u32_t dot = 0;
+    nk_size_t i = 0;
+
+    // Windowed accumulation loop
+    while (i + 16 <= n_bytes) {
+        v128_t popcount_u8x16 = wasm_i8x16_splat(0);
+
+        // Inner loop: accumulate 31 iterations in u8 before widening
+        nk_size_t cycle = 0;
+        for (; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
+            v128_t a_u8x16 = wasm_v128_load(a_bytes + i);
+            v128_t b_u8x16 = wasm_v128_load(b_bytes + i);
+
+            // AND to find shared bits (dot product of binary vectors)
+            v128_t and_u8x16 = wasm_v128_and(a_u8x16, b_u8x16);
+
+            // Popcount each byte
+            v128_t popcnt_u8x16 = wasm_i8x16_popcnt(and_u8x16);
+
+            // Accumulate in u8 (safe: 31 × 8 = 248 < 255)
+            popcount_u8x16 = wasm_i8x16_add(popcount_u8x16, popcnt_u8x16);
+        }
+
+        // Widen once per window: u8 → u16 → u32
+        dot += nk_reduce_add_u8x16_v128relaxed_(popcount_u8x16);
+    }
+
+    // Handle tail bytes
+    for (; i < n_bytes; i++) {
+        nk_u8_t and_byte = a_bytes[i] & b_bytes[i];
+        dot += nk_u1x8_popcount_(and_byte);
+    }
+
+    *result = dot;
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #endif

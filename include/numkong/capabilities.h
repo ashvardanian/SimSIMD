@@ -205,18 +205,23 @@ typedef enum {
     nk_kernel_reduce_moments_k = 'R', ///< Horizontal moments reduction (sum + sum-of-squares)
     nk_kernel_reduce_minmax_k = 'X',  ///< Horizontal minmax reduction (min + argmin + max + argmax)
 
-    // Matrix multiplication (GEMM):
+    // GEMM-like batched dot products:
     nk_kernel_dots_packed_size_k = 'P', ///< GEMM packed buffer size
     nk_kernel_dots_pack_k = 'Q',        ///< GEMM B matrix packing
     nk_kernel_dots_packed_k = 'G',      ///< GEMM computation
-    nk_kernel_dots_compacting_k = 'g',  ///< GEMM computation with following renormalization
     nk_kernel_dots_symmetric_k = 'y',   ///< Symmetric Gram matrix (A x At)
 
-    // Hamming distance operations:
-    nk_kernel_hammings_packed_size_k = 'H', ///< Hamming packed buffer size
-    nk_kernel_hammings_pack_k = 'J',        ///< Hamming B matrix packing
-    nk_kernel_hammings_packed_k = 'M',      ///< Hamming distance computation
-    nk_kernel_hammings_symmetric_k = 'Y',   ///< Symmetric Hamming distance matrix (A x At)
+    // GEMM-like batched set similarity functions:
+    nk_kernel_hammings_packed_k = 'M',    ///< Hamming distance computation
+    nk_kernel_hammings_symmetric_k = 'Y', ///< Symmetric Hamming distance matrix (A x At)
+    nk_kernel_jaccards_packed_k = 'p',    ///< Jaccard distance computation
+    nk_kernel_jaccards_symmetric_k = 'Z', ///< Symmetric Jaccard distance matrix
+
+    // GEMM-like batched spatial distances functions:
+    nk_kernel_angulars_packed_k = 'N',      ///< Batched angular distances (packed B)
+    nk_kernel_angulars_symmetric_k = 'n',   ///< Symmetric angular distance matrix
+    nk_kernel_euclideans_packed_k = 'E',    ///< Batched euclidean distances (packed B)
+    nk_kernel_euclideans_symmetric_k = 'D', ///< Symmetric euclidean distance matrix
 
     nk_kernel_cast_k = '-', ///< Type casting from one type to another
 
@@ -313,9 +318,9 @@ typedef void (*nk_dots_symmetric_punned_t)(void const *vectors, nk_size_t n_vect
                                            void *result, nk_size_t result_stride, nk_size_t row_start,
                                            nk_size_t row_count);
 
-typedef nk_size_t (*nk_hammings_packed_size_punned_t)(nk_size_t n, nk_size_t k);
+typedef nk_size_t (*nk_sets_packed_size_punned_t)(nk_size_t n, nk_size_t k);
 
-typedef void (*nk_hammings_pack_punned_t)(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+typedef void (*nk_sets_pack_punned_t)(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 
 typedef void (*nk_hammings_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
                                      nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
@@ -323,6 +328,24 @@ typedef void (*nk_hammings_punned_t)(void const *a, void const *b_packed, void *
 typedef void (*nk_hammings_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                nk_size_t stride, void *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
+
+typedef void (*nk_jaccards_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
+                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+typedef void (*nk_jaccards_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                               nk_size_t stride, void *result, nk_size_t result_stride,
+                                               nk_size_t row_start, nk_size_t row_count);
+
+typedef void (*nk_angulars_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
+                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_angulars_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                               nk_size_t stride, void *result, nk_size_t result_stride,
+                                               nk_size_t row_start, nk_size_t row_count);
+typedef void (*nk_euclideans_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
+                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_euclideans_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                 nk_size_t stride, void *result, nk_size_t result_stride,
+                                                 nk_size_t row_start, nk_size_t row_count);
 
 typedef void (*nk_kernel_cast_punned_t)(void const *from, nk_dtype_t from_type, nk_size_t n, void *to,
                                         nk_dtype_t to_type);
