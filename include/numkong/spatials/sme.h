@@ -28,9 +28,9 @@ extern "C" {
 
 #pragma region Half Precision Floats
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_f16_sme_finalize_streaming_( //
-    nk_f16_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                             //
+__arm_locally_streaming static void nk_angulars_packed_f16_sme_finalize_streaming_( //
+    nk_f16_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                             //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -70,9 +70,9 @@ NK_PUBLIC void nk_angulars_packed_f16_sme(                //
                                                    c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_f16_sme_finalize_streaming_( //
-    nk_f16_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                               //
+__arm_locally_streaming static void nk_euclideans_packed_f16_sme_finalize_streaming_( //
+    nk_f16_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                               //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -105,8 +105,8 @@ NK_PUBLIC void nk_euclideans_packed_f16_sme(              //
                                                      c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_f16_sme_finalize_streaming_( //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_streaming_(        //
+    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -159,8 +159,8 @@ NK_PUBLIC void nk_angulars_symmetric_f16_sme(                                   
                                                       result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_f16_sme_finalize_streaming_( //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_streaming_(      //
+    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -210,9 +210,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f16_sme(                                 
 
 #pragma region Brain Float 16
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_bf16_sme_finalize_streaming_( //
-    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_angulars_packed_bf16_sme_finalize_streaming_( //
+    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -252,9 +252,9 @@ NK_PUBLIC void nk_angulars_packed_bf16_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_bf16_sme_finalize_streaming_( //
-    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_euclideans_packed_bf16_sme_finalize_streaming_( //
+    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -287,8 +287,8 @@ NK_PUBLIC void nk_euclideans_packed_bf16_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_bf16_sme_finalize_streaming_( //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_streaming_(        //
+    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -341,8 +341,8 @@ NK_PUBLIC void nk_angulars_symmetric_bf16_sme(                                  
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_bf16_sme_finalize_streaming_( //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_streaming_(      //
+    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -392,9 +392,9 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16_sme(                                
 
 #pragma region Quarter Precision E4M3
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_e4m3_sme_finalize_streaming_( //
-    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_angulars_packed_e4m3_sme_finalize_streaming_( //
+    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -434,9 +434,9 @@ NK_PUBLIC void nk_angulars_packed_e4m3_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_e4m3_sme_finalize_streaming_( //
-    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_euclideans_packed_e4m3_sme_finalize_streaming_( //
+    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -469,8 +469,8 @@ NK_PUBLIC void nk_euclideans_packed_e4m3_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_e4m3_sme_finalize_streaming_( //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_streaming_(        //
+    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -523,8 +523,8 @@ NK_PUBLIC void nk_angulars_symmetric_e4m3_sme(                                  
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_e4m3_sme_finalize_streaming_( //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_streaming_(      //
+    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -574,9 +574,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e4m3_sme(                                
 
 #pragma region Quarter Precision E5M2
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_e5m2_sme_finalize_streaming_( //
-    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_angulars_packed_e5m2_sme_finalize_streaming_( //
+    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -616,9 +616,9 @@ NK_PUBLIC void nk_angulars_packed_e5m2_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_e5m2_sme_finalize_streaming_( //
-    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_euclideans_packed_e5m2_sme_finalize_streaming_( //
+    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -651,8 +651,8 @@ NK_PUBLIC void nk_euclideans_packed_e5m2_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_e5m2_sme_finalize_streaming_( //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_streaming_(        //
+    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -705,8 +705,8 @@ NK_PUBLIC void nk_angulars_symmetric_e5m2_sme(                                  
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_e5m2_sme_finalize_streaming_( //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_streaming_(      //
+    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -756,9 +756,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e5m2_sme(                                
 
 #pragma region Micro Precision E2M3
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_e2m3_sme_finalize_streaming_( //
-    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_angulars_packed_e2m3_sme_finalize_streaming_( //
+    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -798,9 +798,9 @@ NK_PUBLIC void nk_angulars_packed_e2m3_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_e2m3_sme_finalize_streaming_( //
-    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_euclideans_packed_e2m3_sme_finalize_streaming_( //
+    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -833,8 +833,8 @@ NK_PUBLIC void nk_euclideans_packed_e2m3_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_e2m3_sme_finalize_streaming_( //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_streaming_(        //
+    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -887,8 +887,8 @@ NK_PUBLIC void nk_angulars_symmetric_e2m3_sme(                                  
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_e2m3_sme_finalize_streaming_( //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_streaming_(      //
+    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -938,9 +938,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e2m3_sme(                                
 
 #pragma region Micro Precision E3M2
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_e3m2_sme_finalize_streaming_( //
-    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_angulars_packed_e3m2_sme_finalize_streaming_( //
+    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -980,9 +980,9 @@ NK_PUBLIC void nk_angulars_packed_e3m2_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_e3m2_sme_finalize_streaming_( //
-    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_euclideans_packed_e3m2_sme_finalize_streaming_( //
+    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1015,8 +1015,8 @@ NK_PUBLIC void nk_euclideans_packed_e3m2_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_e3m2_sme_finalize_streaming_( //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_streaming_(        //
+    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1069,8 +1069,8 @@ NK_PUBLIC void nk_angulars_symmetric_e3m2_sme(                                  
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_e3m2_sme_finalize_streaming_( //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_streaming_(      //
+    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1119,9 +1119,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e3m2_sme(                                
 #pragma endregion // Micro Precision E3M2
 #pragma region Signed 8-bit Integers
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_i8_sme_finalize_streaming_( //
-    nk_i8_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                            //
+__arm_locally_streaming static void nk_angulars_packed_i8_sme_finalize_streaming_( //
+    nk_i8_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                            //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1164,9 +1164,9 @@ NK_PUBLIC void nk_angulars_packed_i8_sme(                //
                                                   c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_i8_sme_finalize_streaming_( //
-    nk_i8_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_euclideans_packed_i8_sme_finalize_streaming_( //
+    nk_i8_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1202,8 +1202,8 @@ NK_PUBLIC void nk_euclideans_packed_i8_sme(              //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_i8_sme_finalize_streaming_( //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_streaming_(        //
+    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1259,8 +1259,8 @@ NK_PUBLIC void nk_angulars_symmetric_i8_sme(                                    
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_i8_sme_finalize_streaming_( //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_streaming_(      //
+    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1313,9 +1313,9 @@ NK_PUBLIC void nk_euclideans_symmetric_i8_sme(                                  
 
 #pragma region Unsigned 8-bit Integers
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_u8_sme_finalize_streaming_( //
-    nk_u8_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                            //
+__arm_locally_streaming static void nk_angulars_packed_u8_sme_finalize_streaming_( //
+    nk_u8_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                            //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1358,9 +1358,9 @@ NK_PUBLIC void nk_angulars_packed_u8_sme(                //
                                                   c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_u8_sme_finalize_streaming_( //
-    nk_u8_t const *a, void const *b_packed, nk_f32_t *c,                                             //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_euclideans_packed_u8_sme_finalize_streaming_( //
+    nk_u8_t const *a, void const *b_packed, nk_f32_t *c,                             //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1396,8 +1396,8 @@ NK_PUBLIC void nk_euclideans_packed_u8_sme(              //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_u8_sme_finalize_streaming_( //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_streaming_(        //
+    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1453,8 +1453,8 @@ NK_PUBLIC void nk_angulars_symmetric_u8_sme(                                    
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_u8_sme_finalize_streaming_( //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,            //
+__arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_streaming_(      //
+    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1507,9 +1507,9 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_sme(                                  
 
 #pragma region Nibble Signed Integers
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_i4_sme_finalize_streaming_( //
-    nk_i4x2_t const *a, void const *b_packed, nk_f32_t *c,                                         //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                            //
+__arm_locally_streaming static void nk_angulars_packed_i4_sme_finalize_streaming_( //
+    nk_i4x2_t const *a, void const *b_packed, nk_f32_t *c,                         //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                            //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1552,9 +1552,9 @@ NK_PUBLIC void nk_angulars_packed_i4_sme(                  //
                                                   c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_i4_sme_finalize_streaming_( //
-    nk_i4x2_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_euclideans_packed_i4_sme_finalize_streaming_( //
+    nk_i4x2_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1590,8 +1590,8 @@ NK_PUBLIC void nk_euclideans_packed_i4_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_i4_sme_finalize_streaming_( //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,        //
+__arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_streaming_(          //
+    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1647,8 +1647,8 @@ NK_PUBLIC void nk_angulars_symmetric_i4_sme(                                    
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_i4_sme_finalize_streaming_( //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_streaming_(        //
+    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1701,9 +1701,9 @@ NK_PUBLIC void nk_euclideans_symmetric_i4_sme(                                  
 
 #pragma region Nibble Unsigned Integers
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_u4_sme_finalize_streaming_( //
-    nk_u4x2_t const *a, void const *b_packed, nk_f32_t *c,                                         //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                            //
+__arm_locally_streaming static void nk_angulars_packed_u4_sme_finalize_streaming_( //
+    nk_u4x2_t const *a, void const *b_packed, nk_f32_t *c,                         //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                            //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1746,9 +1746,9 @@ NK_PUBLIC void nk_angulars_packed_u4_sme(                  //
                                                   c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_u4_sme_finalize_streaming_( //
-    nk_u4x2_t const *a, void const *b_packed, nk_f32_t *c,                                           //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                              //
+__arm_locally_streaming static void nk_euclideans_packed_u4_sme_finalize_streaming_( //
+    nk_u4x2_t const *a, void const *b_packed, nk_f32_t *c,                           //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                              //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_offset);
@@ -1784,8 +1784,8 @@ NK_PUBLIC void nk_euclideans_packed_u4_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_u4_sme_finalize_streaming_( //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,        //
+__arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_streaming_(          //
+    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1841,8 +1841,8 @@ NK_PUBLIC void nk_angulars_symmetric_u4_sme(                                    
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_u4_sme_finalize_streaming_( //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,          //
+__arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_streaming_(        //
+    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {

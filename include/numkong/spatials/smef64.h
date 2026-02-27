@@ -51,9 +51,9 @@ NK_INTERNAL nk_f64_t nk_spatials_reduce_sumsq_f64_streaming_(nk_f64_t const *dat
 
 #pragma region Single Precision Packed Angular
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_f32_smef64_finalize_streaming_( //
-    nk_f32_t const *a, void const *b_packed, nk_f32_t *c,                                              //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_angulars_packed_f32_smef64_finalize_streaming_( //
+    nk_f32_t const *a, void const *b_packed, nk_f32_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -100,9 +100,9 @@ NK_PUBLIC void nk_angulars_packed_f32_smef64(             //
 
 #pragma region Single Precision Packed Euclidean
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_f32_smef64_finalize_streaming_( //
-    nk_f32_t const *a, void const *b_packed, nk_f32_t *c,                                                //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                  //
+__arm_locally_streaming static void nk_euclideans_packed_f32_smef64_finalize_streaming_( //
+    nk_f32_t const *a, void const *b_packed, nk_f32_t *c,                                //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                  //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -142,8 +142,8 @@ NK_PUBLIC void nk_euclideans_packed_f32_smef64(           //
 
 #pragma region Single Precision Symmetric Angular
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_f32_smef64_finalize_streaming_( //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,             //
+__arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_streaming_(     //
+    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -203,8 +203,8 @@ NK_PUBLIC void nk_angulars_symmetric_f32_smef64(                                
 
 #pragma region Single Precision Symmetric Euclidean
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_f32_smef64_finalize_streaming_( //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,               //
+__arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_streaming_(   //
+    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -257,9 +257,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f32_smef64(                              
 
 #pragma region Double Precision Packed Angular
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_packed_f64_smef64_finalize_streaming_( //
-    nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                                              //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                //
+__arm_locally_streaming static void nk_angulars_packed_f64_smef64_finalize_streaming_( //
+    nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -309,9 +309,9 @@ NK_PUBLIC void nk_angulars_packed_f64_smef64(             //
 
 #pragma region Double Precision Packed Euclidean
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_packed_f64_smef64_finalize_streaming_( //
-    nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                                                //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                  //
+__arm_locally_streaming static void nk_euclideans_packed_f64_smef64_finalize_streaming_( //
+    nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                                //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                  //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -351,8 +351,8 @@ NK_PUBLIC void nk_euclideans_packed_f64_smef64(           //
 
 #pragma region Double Precision Symmetric Angular
 
-__arm_locally_streaming __arm_new("za") static void nk_angulars_symmetric_f64_smef64_finalize_streaming_( //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,             //
+__arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_streaming_(     //
+    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -415,8 +415,8 @@ NK_PUBLIC void nk_angulars_symmetric_f64_smef64(                                
 
 #pragma region Double Precision Symmetric Euclidean
 
-__arm_locally_streaming __arm_new("za") static void nk_euclideans_symmetric_f64_smef64_finalize_streaming_( //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements,               //
+__arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_streaming_(   //
+    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
