@@ -510,6 +510,14 @@ NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
 NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_dot_u1 */
 NK_PUBLIC void nk_dot_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result);
+/** @copydoc nk_dot_f32c */
+NK_PUBLIC void nk_dot_f32c_rvv(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_vdot_f32c */
+NK_PUBLIC void nk_vdot_f32c_rvv(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_dot_f64c */
+NK_PUBLIC void nk_dot_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
+/** @copydoc nk_vdot_f64c */
+NK_PUBLIC void nk_vdot_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_RVVHALF
@@ -893,6 +901,8 @@ NK_PUBLIC void nk_dot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, 
     nk_dot_f32c_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_f32c_neon(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_f32c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f32c_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -907,6 +917,8 @@ NK_PUBLIC void nk_dot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, 
     nk_dot_f64c_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_f64c_neon(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f64c_skylake(a, b, n, result);
 #else
@@ -945,6 +957,8 @@ NK_PUBLIC void nk_vdot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n,
     nk_vdot_f32c_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_vdot_f32c_neon(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_vdot_f32c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_vdot_f32c_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -959,6 +973,8 @@ NK_PUBLIC void nk_vdot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n,
     nk_vdot_f64c_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_vdot_f64c_neon(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_vdot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_vdot_f64c_skylake(a, b, n, result);
 #else

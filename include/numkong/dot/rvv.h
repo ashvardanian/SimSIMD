@@ -456,6 +456,270 @@ NK_PUBLIC void nk_dot_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     *result = __riscv_vmv_x_s_u32m1_u32(sum_u32m1);
 }
 
+NK_PUBLIC void nk_dot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
+                               nk_f32c_t *results) {
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a_pairs;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b_pairs;
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_real_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_imag_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    for (nk_size_t vector_length; count_pairs > 0;
+         count_pairs -= vector_length, a_f32 += vector_length * 2, b_f32 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e32m1(count_pairs);
+        vfloat32m1x2_t a_f32m1x2 = __riscv_vlseg2e32_v_f32m1x2(a_f32, vector_length);
+        vfloat32m1x2_t b_f32m1x2 = __riscv_vlseg2e32_v_f32m1x2(b_f32, vector_length);
+        vfloat32m1_t a_real_f32m1 = __riscv_vget_v_f32m1x2_f32m1(a_f32m1x2, 0);
+        vfloat32m1_t a_imag_f32m1 = __riscv_vget_v_f32m1x2_f32m1(a_f32m1x2, 1);
+        vfloat32m1_t b_real_f32m1 = __riscv_vget_v_f32m1x2_f32m1(b_f32m1x2, 0);
+        vfloat32m1_t b_imag_f32m1 = __riscv_vget_v_f32m1x2_f32m1(b_f32m1x2, 1);
+        // real += a_real * b_real - a_imag * b_imag
+        sum_real_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_real_f64m2, a_real_f32m1, b_real_f32m1, vector_length);
+        sum_real_f64m2 = __riscv_vfwnmsac_vv_f64m2_tu(sum_real_f64m2, a_imag_f32m1, b_imag_f32m1, vector_length);
+        // imag += a_real * b_imag + a_imag * b_real
+        sum_imag_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_imag_f64m2, a_real_f32m1, b_imag_f32m1, vector_length);
+        sum_imag_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_imag_f64m2, a_imag_f32m1, b_real_f32m1, vector_length);
+    }
+    vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    results->real = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
+    results->imag = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
+}
+
+NK_PUBLIC void nk_vdot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
+                                nk_f32c_t *results) {
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a_pairs;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b_pairs;
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_real_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_imag_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    for (nk_size_t vector_length; count_pairs > 0;
+         count_pairs -= vector_length, a_f32 += vector_length * 2, b_f32 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e32m1(count_pairs);
+        vfloat32m1x2_t a_f32m1x2 = __riscv_vlseg2e32_v_f32m1x2(a_f32, vector_length);
+        vfloat32m1x2_t b_f32m1x2 = __riscv_vlseg2e32_v_f32m1x2(b_f32, vector_length);
+        vfloat32m1_t a_real_f32m1 = __riscv_vget_v_f32m1x2_f32m1(a_f32m1x2, 0);
+        vfloat32m1_t a_imag_f32m1 = __riscv_vget_v_f32m1x2_f32m1(a_f32m1x2, 1);
+        vfloat32m1_t b_real_f32m1 = __riscv_vget_v_f32m1x2_f32m1(b_f32m1x2, 0);
+        vfloat32m1_t b_imag_f32m1 = __riscv_vget_v_f32m1x2_f32m1(b_f32m1x2, 1);
+        // Conjugate dot: real += a_real * b_real + a_imag * b_imag
+        sum_real_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_real_f64m2, a_real_f32m1, b_real_f32m1, vector_length);
+        sum_real_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_real_f64m2, a_imag_f32m1, b_imag_f32m1, vector_length);
+        // Conjugate dot: imag += a_real * b_imag - a_imag * b_real
+        sum_imag_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_imag_f64m2, a_real_f32m1, b_imag_f32m1, vector_length);
+        sum_imag_f64m2 = __riscv_vfwnmsac_vv_f64m2_tu(sum_imag_f64m2, a_imag_f32m1, b_real_f32m1, vector_length);
+    }
+    vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    results->real = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
+    results->imag = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
+}
+
+NK_PUBLIC void nk_dot_f64c_rvv(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
+                               nk_f64c_t *results) {
+    // Dot2 (Ogita-Rump-Oishi) compensated complex dot product
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a_pairs;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b_pairs;
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_real_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t comp_real_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_imag_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t comp_imag_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    for (nk_size_t vector_length; count_pairs > 0;
+         count_pairs -= vector_length, a_f64 += vector_length * 2, b_f64 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e64m1(count_pairs);
+        vfloat64m1x2_t a_f64m1x2 = __riscv_vlseg2e64_v_f64m1x2(a_f64, vector_length);
+        vfloat64m1x2_t b_f64m1x2 = __riscv_vlseg2e64_v_f64m1x2(b_f64, vector_length);
+        vfloat64m1_t a_real_f64m1 = __riscv_vget_v_f64m1x2_f64m1(a_f64m1x2, 0);
+        vfloat64m1_t a_imag_f64m1 = __riscv_vget_v_f64m1x2_f64m1(a_f64m1x2, 1);
+        vfloat64m1_t b_real_f64m1 = __riscv_vget_v_f64m1x2_f64m1(b_f64m1x2, 0);
+        vfloat64m1_t b_imag_f64m1 = __riscv_vget_v_f64m1x2_f64m1(b_f64m1x2, 1);
+        // TwoProd+TwoSum: sum_real += a_real * b_real
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_real_f64m1, b_real_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_real_f64m1, b_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_real_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_real_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_real_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_real_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_real_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_real_f64m1, comp_real_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_real -= a_imag * b_imag
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_imag_f64m1, b_imag_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_imag_f64m1, b_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t neg_product_f64m1 = __riscv_vfneg_v_f64m1(product_f64m1, vector_length);
+            vfloat64m1_t neg_product_error_f64m1 = __riscv_vfneg_v_f64m1(product_error_f64m1, vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_real_f64m1, neg_product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_real_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(neg_product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_real_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_real_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, neg_product_error_f64m1,
+                                                                    vector_length);
+            comp_real_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_real_f64m1, comp_real_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_imag += a_real * b_imag
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_real_f64m1, b_imag_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_real_f64m1, b_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_imag_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_imag_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_imag_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_imag_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_imag_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_imag_f64m1, comp_imag_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_imag += a_imag * b_real
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_imag_f64m1, b_real_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_imag_f64m1, b_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_imag_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_imag_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_imag_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_imag_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_imag_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_imag_f64m1, comp_imag_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+    }
+    results->real = nk_dot_stable_sum_f64m1_rvv_(sum_real_f64m1, comp_real_f64m1);
+    results->imag = nk_dot_stable_sum_f64m1_rvv_(sum_imag_f64m1, comp_imag_f64m1);
+}
+
+NK_PUBLIC void nk_vdot_f64c_rvv(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
+                                nk_f64c_t *results) {
+    // Dot2 (Ogita-Rump-Oishi) compensated conjugate complex dot product
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a_pairs;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b_pairs;
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_real_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t comp_real_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_imag_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t comp_imag_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    for (nk_size_t vector_length; count_pairs > 0;
+         count_pairs -= vector_length, a_f64 += vector_length * 2, b_f64 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e64m1(count_pairs);
+        vfloat64m1x2_t a_f64m1x2 = __riscv_vlseg2e64_v_f64m1x2(a_f64, vector_length);
+        vfloat64m1x2_t b_f64m1x2 = __riscv_vlseg2e64_v_f64m1x2(b_f64, vector_length);
+        vfloat64m1_t a_real_f64m1 = __riscv_vget_v_f64m1x2_f64m1(a_f64m1x2, 0);
+        vfloat64m1_t a_imag_f64m1 = __riscv_vget_v_f64m1x2_f64m1(a_f64m1x2, 1);
+        vfloat64m1_t b_real_f64m1 = __riscv_vget_v_f64m1x2_f64m1(b_f64m1x2, 0);
+        vfloat64m1_t b_imag_f64m1 = __riscv_vget_v_f64m1x2_f64m1(b_f64m1x2, 1);
+        // TwoProd+TwoSum: sum_real += a_real * b_real
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_real_f64m1, b_real_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_real_f64m1, b_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_real_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_real_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_real_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_real_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_real_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_real_f64m1, comp_real_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_real += a_imag * b_imag (conjugate: + instead of -)
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_imag_f64m1, b_imag_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_imag_f64m1, b_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_real_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_real_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_real_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_real_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_real_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_real_f64m1, comp_real_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_imag += a_real * b_imag
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_real_f64m1, b_imag_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_real_f64m1, b_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_imag_f64m1, product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_imag_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_imag_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_imag_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1,
+                                                                    vector_length);
+            comp_imag_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_imag_f64m1, comp_imag_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+        // TwoProd+TwoSum: sum_imag -= a_imag * b_real (conjugate: - instead of +)
+        {
+            vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_imag_f64m1, b_real_f64m1, vector_length);
+            vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_imag_f64m1, b_real_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t neg_product_f64m1 = __riscv_vfneg_v_f64m1(product_f64m1, vector_length);
+            vfloat64m1_t neg_product_error_f64m1 = __riscv_vfneg_v_f64m1(product_error_f64m1, vector_length);
+            vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_imag_f64m1, neg_product_f64m1, vector_length);
+            vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_imag_f64m1,
+                                                                       vector_length);
+            vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+                __riscv_vfsub_vv_f64m1(sum_imag_f64m1,
+                                       __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                       vector_length),
+                __riscv_vfsub_vv_f64m1(neg_product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+            sum_imag_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_imag_f64m1, tentative_sum_f64m1, 0, vector_length);
+            vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, neg_product_error_f64m1,
+                                                                    vector_length);
+            comp_imag_f64m1 = __riscv_vfadd_vv_f64m1_tu(comp_imag_f64m1, comp_imag_f64m1, total_error_f64m1,
+                                                        vector_length);
+        }
+    }
+    results->real = nk_dot_stable_sum_f64m1_rvv_(sum_real_f64m1, comp_real_f64m1);
+    results->imag = nk_dot_stable_sum_f64m1_rvv_(sum_imag_f64m1, comp_imag_f64m1);
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

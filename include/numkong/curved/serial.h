@@ -81,7 +81,6 @@ extern "C" {
                 load_and_convert(&(b_pairs + column)->imag, &b_imag);                                               \
                 load_and_convert(&(c_pairs + row * n + column)->real, &c_real);                                     \
                 load_and_convert(&(c_pairs + row * n + column)->imag, &c_imag);                                     \
-                /* Complex multiply: c_ij * b_j = (c_re*b_re - c_im*b_im) + (c_re*b_im + c_im*b_re)i */             \
                 inner_sum_real += c_real * b_real - c_imag * b_imag;                                                \
                 inner_sum_imag += c_real * b_imag + c_imag * b_real;                                                \
             }                                                                                                       \

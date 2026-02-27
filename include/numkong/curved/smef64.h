@@ -338,7 +338,7 @@ NK_PUBLIC void nk_mahalanobis_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, n
 
 /**
  *  @brief f32c bilinear: complex GEMV via FMOPA (widening f32→f64).
- *  ZA0.D = C staging, ZA1.D = v_re accumulator, ZA2.D = v_im accumulator.
+ *  ZA0.D = C staging, ZA1.D = v_real accumulator, ZA2.D = v_imag accumulator.
  */
 __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_streaming_(
     nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_f32c_t const *c_pairs, nk_size_t n, nk_f32c_t *results) {
@@ -358,7 +358,7 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
             svbool_t batch_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)batch_size);
             svbool_t batch_predicate_f32x = svwhilelt_b32((uint64_t)0, (uint64_t)(batch_size + batch_size));
 
-            // Pass 1: Stage C_re into ZA0
+            // Pass 1: Stage C_real into ZA0
             svzero_mask_za(nk_sme_zero_za64_tile_0_);
             for (nk_size_t r = 0; r < rows_remaining; r++) {
                 svfloat32_t c_f32x = svld1_f32(batch_predicate_f32x,
@@ -370,12 +370,12 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
             for (nk_size_t k = 0; k < batch_size; k++) {
                 svfloat64_t c_re_col_f64x = svread_ver_za64_f64_m(svdup_f64(0.0), row_predicate_f64x, 0, k);
                 svmopa_za64_f64_m(1, row_predicate_f64x, row_predicate_f64x, c_re_col_f64x,
-                                  svdup_f64((nk_f64_t)b_pairs[j + k].real)); // v_re += c_re × b_re
+                                  svdup_f64((nk_f64_t)b_pairs[j + k].real)); // v_real += c_real × b_real
                 svmopa_za64_f64_m(2, row_predicate_f64x, row_predicate_f64x, c_re_col_f64x,
-                                  svdup_f64((nk_f64_t)b_pairs[j + k].imag)); // v_im += c_re × b_im
+                                  svdup_f64((nk_f64_t)b_pairs[j + k].imag)); // v_imag += c_real × b_imag
             }
 
-            // Pass 2: Stage C_im into ZA0
+            // Pass 2: Stage C_imag into ZA0
             svzero_mask_za(nk_sme_zero_za64_tile_0_);
             for (nk_size_t r = 0; r < rows_remaining; r++) {
                 svfloat32_t c_f32x = svld1_f32(batch_predicate_f32x,
@@ -387,9 +387,9 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
             for (nk_size_t k = 0; k < batch_size; k++) {
                 svfloat64_t c_im_col_f64x = svread_ver_za64_f64_m(svdup_f64(0.0), row_predicate_f64x, 0, k);
                 svmopa_za64_f64_m(2, row_predicate_f64x, row_predicate_f64x, c_im_col_f64x,
-                                  svdup_f64((nk_f64_t)b_pairs[j + k].real)); // v_im += c_im × b_re
+                                  svdup_f64((nk_f64_t)b_pairs[j + k].real)); // v_imag += c_imag × b_real
                 svmops_za64_f64_m(1, row_predicate_f64x, row_predicate_f64x, c_im_col_f64x,
-                                  svdup_f64((nk_f64_t)b_pairs[j + k].imag)); // v_re -= c_im × b_im
+                                  svdup_f64((nk_f64_t)b_pairs[j + k].imag)); // v_real -= c_imag × b_imag
             }
         }
 
@@ -456,8 +456,8 @@ __arm_locally_streaming static void nk_bilinear_f64c_smef64_streaming_(nk_f64c_t
             svfloat64_t c_swapped_f64x = svtbl_f64(c_f64x, swap_idx_u64x);
 
             // 2 Dot2 accumulators instead of 4:
-            // sum_real_f64x accumulates [c_re×b_re, c_im×b_im, ...] (sign-flip deferred)
-            // sum_imag_f64x accumulates [c_im×b_re, c_re×b_im, ...] (all positive)
+            // sum_real_f64x accumulates [c_real×b_real, c_imag×b_imag, ...] (sign-flip deferred)
+            // sum_imag_f64x accumulates [c_imag×b_real, c_real×b_imag, ...] (all positive)
             nk_dot2_f64_sve_accumulate_(predicate_f64x, &sum_real_f64x, &comp_real_f64x, c_f64x, b_f64x);
             nk_dot2_f64_sve_accumulate_(predicate_f64x, &sum_imag_f64x, &comp_imag_f64x, c_swapped_f64x, b_f64x);
 
@@ -465,7 +465,7 @@ __arm_locally_streaming static void nk_bilinear_f64c_smef64_streaming_(nk_f64c_t
             predicate_f64x = svwhilelt_b64(j, n2);
         }
 
-        // Flip sign of odd positions in sum_real_f64x: [c_re×b_re, -(c_im×b_im), ...]
+        // Flip sign of odd positions in sum_real_f64x: [c_real×b_real, -(c_imag×b_imag), ...]
         sum_real_f64x = svreinterpret_f64_u64(
             sveor_u64_x(predicate_all_f64x, svreinterpret_u64_f64(sum_real_f64x), sign_mask_u64x));
         comp_real_f64x = svreinterpret_f64_u64(

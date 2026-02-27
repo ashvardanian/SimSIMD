@@ -8,13 +8,28 @@
 #include "test.hpp"
 #include "numkong/each.hpp" // `nk::sum`, `nk::scale`, `nk::wsum`, `nk::fma`
 
+template <typename scalar_type_, typename generator_type_>
+typename scalar_type_::scale_t random_coef(generator_type_ &gen) {
+    using scale_t = typename scalar_type_::scale_t;
+    if constexpr (scalar_type_::is_complex()) {
+        using component_raw_t = typename scalar_type_::component_t::raw_t;
+        std::uniform_real_distribution<component_raw_t> dist(-2, 2);
+        scale_t coef;
+        coef.real = dist(gen), coef.imag = dist(gen);
+        return coef;
+    }
+    else {
+        std::uniform_real_distribution<scale_t> dist(scale_t(-2), scale_t(2));
+        return dist(gen);
+    }
+}
+
 /**
  *  @brief Unified test for elementwise sum: result[i] = a[i] + b[i]
  */
 template <typename scalar_type_>
 error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -42,25 +57,23 @@ error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
     using scale_t = typename scalar_t::scale_t;
+    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
     auto input = make_vector<scalar_t>(global_config.dense_dimensions);
     auto result = make_vector<scalar_t>(global_config.dense_dimensions),
          reference = make_vector<scalar_t>(global_config.dense_dimensions);
-    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, input);
-
-        scale_t alpha = coef_dist(generator);
-        scale_t beta = coef_dist(generator);
+        scale_t alpha = random_coef<scalar_t>(generator);
+        scale_t beta = random_coef<scalar_t>(generator);
 
         kernel(input.raw_values_data(), global_config.dense_dimensions, &alpha, &beta, result.raw_values_data());
-        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), global_config.dense_dimensions, &alpha, &beta,
-                                                   reference.values_data());
+        nk::scale<scalar_t, reference_t, nk::no_simd_k>(input.values_data(), global_config.dense_dimensions, &alpha,
+                                                        &beta, reference.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -73,8 +86,8 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
     using scale_t = typename scalar_t::scale_t;
+    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -82,19 +95,17 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
          b = make_vector<scalar_t>(global_config.dense_dimensions);
     auto result = make_vector<scalar_t>(global_config.dense_dimensions),
          reference = make_vector<scalar_t>(global_config.dense_dimensions);
-    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
-
-        scale_t alpha = coef_dist(generator);
-        scale_t beta = coef_dist(generator);
+        scale_t alpha = random_coef<scalar_t>(generator);
+        scale_t beta = random_coef<scalar_t>(generator);
 
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &alpha, &beta,
                result.raw_values_data());
-        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                  &alpha, &beta, reference.values_data());
+        nk::wsum<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &alpha, &beta, reference.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -107,8 +118,8 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
     using scale_t = typename scalar_t::scale_t;
+    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -117,20 +128,18 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     auto c = make_vector<scalar_t>(global_config.dense_dimensions);
     auto result = make_vector<scalar_t>(global_config.dense_dimensions),
          reference = make_vector<scalar_t>(global_config.dense_dimensions);
-    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
         fill_random(generator, c);
-
-        scale_t alpha = coef_dist(generator);
-        scale_t beta = coef_dist(generator);
+        scale_t alpha = random_coef<scalar_t>(generator);
+        scale_t beta = random_coef<scalar_t>(generator);
 
         kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), global_config.dense_dimensions, &alpha,
                &beta, result.raw_values_data());
-        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                 c.values_data(), &alpha, &beta, reference.values_data());
+        nk::fma<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                      c.values_data(), &alpha, &beta, reference.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -155,6 +164,14 @@ void test_elementwise() {
     run_if_matches("each_wsum_e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2);
     run_if_matches("each_fma_e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3);
     run_if_matches("each_fma_e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2);
+    run_if_matches("each_sum_f32c", test_sum<f32c_t>, nk_each_sum_f32c);
+    run_if_matches("each_sum_f64c", test_sum<f64c_t>, nk_each_sum_f64c);
+    run_if_matches("each_scale_f32c", test_scale<f32c_t>, nk_each_scale_f32c);
+    run_if_matches("each_scale_f64c", test_scale<f64c_t>, nk_each_scale_f64c);
+    run_if_matches("each_wsum_f32c", test_wsum<f32c_t>, nk_each_blend_f32c);
+    run_if_matches("each_wsum_f64c", test_wsum<f64c_t>, nk_each_blend_f64c);
+    run_if_matches("each_fma_f32c", test_fma<f32c_t>, nk_each_fma_f32c);
+    run_if_matches("each_fma_f64c", test_fma<f64c_t>, nk_each_fma_f64c);
 #else
     // Static compilation - test all available ISA variants
 
@@ -171,6 +188,12 @@ void test_elementwise() {
     run_if_matches("each_wsum_e5m2_neon", test_wsum<e5m2_t>, nk_each_blend_e5m2_neon);
     run_if_matches("each_fma_e4m3_neon", test_fma<e4m3_t>, nk_each_fma_e4m3_neon);
     run_if_matches("each_fma_e5m2_neon", test_fma<e5m2_t>, nk_each_fma_e5m2_neon);
+    run_if_matches("each_scale_f32c_neon", test_scale<f32c_t>, nk_each_scale_f32c_neon);
+    run_if_matches("each_scale_f64c_neon", test_scale<f64c_t>, nk_each_scale_f64c_neon);
+    run_if_matches("each_wsum_f32c_neon", test_wsum<f32c_t>, nk_each_blend_f32c_neon);
+    run_if_matches("each_wsum_f64c_neon", test_wsum<f64c_t>, nk_each_blend_f64c_neon);
+    run_if_matches("each_fma_f32c_neon", test_fma<f32c_t>, nk_each_fma_f32c_neon);
+    run_if_matches("each_fma_f64c_neon", test_fma<f64c_t>, nk_each_fma_f64c_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -208,6 +231,12 @@ void test_elementwise() {
     run_if_matches("each_wsum_e5m2_haswell", test_wsum<e5m2_t>, nk_each_blend_e5m2_haswell);
     run_if_matches("each_fma_e4m3_haswell", test_fma<e4m3_t>, nk_each_fma_e4m3_haswell);
     run_if_matches("each_fma_e5m2_haswell", test_fma<e5m2_t>, nk_each_fma_e5m2_haswell);
+    run_if_matches("each_scale_f32c_haswell", test_scale<f32c_t>, nk_each_scale_f32c_haswell);
+    run_if_matches("each_scale_f64c_haswell", test_scale<f64c_t>, nk_each_scale_f64c_haswell);
+    run_if_matches("each_wsum_f32c_haswell", test_wsum<f32c_t>, nk_each_blend_f32c_haswell);
+    run_if_matches("each_wsum_f64c_haswell", test_wsum<f64c_t>, nk_each_blend_f64c_haswell);
+    run_if_matches("each_fma_f32c_haswell", test_fma<f32c_t>, nk_each_fma_f32c_haswell);
+    run_if_matches("each_fma_f64c_haswell", test_fma<f64c_t>, nk_each_fma_f64c_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -223,6 +252,12 @@ void test_elementwise() {
     run_if_matches("each_wsum_e5m2_skylake", test_wsum<e5m2_t>, nk_each_blend_e5m2_skylake);
     run_if_matches("each_fma_e4m3_skylake", test_fma<e4m3_t>, nk_each_fma_e4m3_skylake);
     run_if_matches("each_fma_e5m2_skylake", test_fma<e5m2_t>, nk_each_fma_e5m2_skylake);
+    run_if_matches("each_scale_f32c_skylake", test_scale<f32c_t>, nk_each_scale_f32c_skylake);
+    run_if_matches("each_scale_f64c_skylake", test_scale<f64c_t>, nk_each_scale_f64c_skylake);
+    run_if_matches("each_wsum_f32c_skylake", test_wsum<f32c_t>, nk_each_blend_f32c_skylake);
+    run_if_matches("each_wsum_f64c_skylake", test_wsum<f64c_t>, nk_each_blend_f64c_skylake);
+    run_if_matches("each_fma_f32c_skylake", test_fma<f32c_t>, nk_each_fma_f32c_skylake);
+    run_if_matches("each_fma_f64c_skylake", test_fma<f64c_t>, nk_each_fma_f64c_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
@@ -278,6 +313,14 @@ void test_elementwise() {
     run_if_matches("each_wsum_e5m2_serial", test_wsum<e5m2_t>, nk_each_blend_e5m2_serial);
     run_if_matches("each_fma_e4m3_serial", test_fma<e4m3_t>, nk_each_fma_e4m3_serial);
     run_if_matches("each_fma_e5m2_serial", test_fma<e5m2_t>, nk_each_fma_e5m2_serial);
+    run_if_matches("each_sum_f32c_serial", test_sum<f32c_t>, nk_each_sum_f32c_serial);
+    run_if_matches("each_sum_f64c_serial", test_sum<f64c_t>, nk_each_sum_f64c_serial);
+    run_if_matches("each_scale_f32c_serial", test_scale<f32c_t>, nk_each_scale_f32c_serial);
+    run_if_matches("each_scale_f64c_serial", test_scale<f64c_t>, nk_each_scale_f64c_serial);
+    run_if_matches("each_wsum_f32c_serial", test_wsum<f32c_t>, nk_each_blend_f32c_serial);
+    run_if_matches("each_wsum_f64c_serial", test_wsum<f64c_t>, nk_each_blend_f64c_serial);
+    run_if_matches("each_fma_f32c_serial", test_fma<f32c_t>, nk_each_fma_f32c_serial);
+    run_if_matches("each_fma_f64c_serial", test_fma<f64c_t>, nk_each_fma_f64c_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

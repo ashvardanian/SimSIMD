@@ -404,6 +404,58 @@ extern "C" {
         result: *mut u8,
     );
 
+    // Complex elementwise operations (interleaved real/imag layout, n = number of complex pairs)
+    fn nk_each_sum_f32c(a: *const f32, b: *const f32, n: u64size, result: *mut f32);
+    fn nk_each_sum_f64c(a: *const f64, b: *const f64, n: u64size, result: *mut f64);
+    fn nk_each_scale_f32c(
+        a: *const f32,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut f32,
+    );
+    fn nk_each_scale_f64c(
+        a: *const f64,
+        n: u64size,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut f64,
+    );
+    fn nk_each_blend_f32c(
+        a: *const f32,
+        b: *const f32,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut f32,
+    );
+    fn nk_each_blend_f64c(
+        a: *const f64,
+        b: *const f64,
+        n: u64size,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut f64,
+    );
+    fn nk_each_fma_f32c(
+        a: *const f32,
+        b: *const f32,
+        c: *const f32,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut f32,
+    );
+    fn nk_each_fma_f64c(
+        a: *const f64,
+        b: *const f64,
+        c: *const f64,
+        n: u64size,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut f64,
+    );
+
     // Reductions: moments (sum + sum-of-squares)
     fn nk_reduce_moments_f64(
         data: *const f64,
@@ -6024,6 +6076,263 @@ impl ComplexBilinear for bf16 {
 
 // endregion: Complex Bilinear Form
 
+// region: Complex Elementwise
+
+/// Applies **complex element-wise addition** of two interleaved complex vectors.
+///
+/// rᵢ = aᵢ + bᵢ (complex addition)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`.
+pub trait ComplexEachSum: Sized {
+    fn complex_each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()>;
+}
+
+impl ComplexEachSum for f64 {
+    fn complex_each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_sum_f64c(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size / 2,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl ComplexEachSum for f32 {
+    fn complex_each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_sum_f32c(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size / 2,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+/// Applies a **complex element-wise affine transform** (scale and shift).
+///
+/// rᵢ = α × aᵢ + β (complex multiply and add)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Coefficients `alpha` and `beta` are `[real, imag]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`.
+pub trait ComplexEachScale: Sized {
+    fn complex_each_scale(
+        a: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
+impl ComplexEachScale for f64 {
+    fn complex_each_scale(
+        a: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_scale_f64c(
+                a.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl ComplexEachScale for f32 {
+    fn complex_each_scale(
+        a: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_scale_f32c(
+                a.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+/// Applies **complex element-wise weighted sum** (blend) of two interleaved complex vectors.
+///
+/// rᵢ = α × aᵢ + β × bᵢ (complex multiply and add)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Coefficients `alpha` and `beta` are `[real, imag]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`.
+pub trait ComplexEachBlend: Sized {
+    fn complex_each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
+impl ComplexEachBlend for f64 {
+    fn complex_each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_f64c(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl ComplexEachBlend for f32 {
+    fn complex_each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_f32c(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+/// Applies **complex fused multiply-add** element-wise across three interleaved complex vectors.
+///
+/// rᵢ = α × aᵢ × bᵢ + β × cᵢ (complex multiply chain)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Coefficients `alpha` and `beta` are `[real, imag]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`.
+pub trait ComplexEachFMA: Sized {
+    fn complex_each_fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
+impl ComplexEachFMA for f64 {
+    fn complex_each_fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != c.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_fma_f64c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl ComplexEachFMA for f32 {
+    fn complex_each_fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: [Self; 2],
+        beta: [Self; 2],
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != c.len() || a.len() != result.len() || a.len() % 2 != 0 {
+            return None;
+        }
+        unsafe {
+            nk_each_fma_f32c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size / 2,
+                alpha.as_ptr(),
+                beta.as_ptr(),
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+// endregion: Complex Elementwise
+
 // region: Mahalanobis Distance
 
 /// Mahalanobis distance: √((a−b)ᵀ × C × (a−b)).
@@ -6153,10 +6462,6 @@ impl<T: KullbackLeibler + JensenShannon> ProbabilitySimilarity for T {}
 /// `ComplexProducts` bundles complex number products: ComplexDot and ComplexVDot.
 pub trait ComplexProducts: ComplexDot + ComplexVDot {}
 impl<T: ComplexDot + ComplexVDot> ComplexProducts for T {}
-
-/// `Elementwise` bundles element-wise operations: EachScale, EachSum, EachBlend, and EachFMA.
-pub trait Elementwise: EachScale + EachSum + EachBlend + EachFMA {}
-impl<T: EachScale + EachSum + EachBlend + EachFMA> Elementwise for T {}
 
 /// `Trigonometry` bundles trigonometric functions: EachSin, EachCos, and EachATan.
 pub trait Trigonometry: EachSin + EachCos + EachATan {}

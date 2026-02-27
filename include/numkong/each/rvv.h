@@ -933,6 +933,184 @@ NK_PUBLIC void nk_each_fma_e5m2_rvv(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e
     }
 }
 
+NK_PUBLIC void nk_each_scale_f32c_rvv(nk_f32c_t const *a, nk_size_t n, nk_f32c_t const *alpha, nk_f32c_t const *beta,
+                                      nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    for (nk_size_t vector_length; n > 0;
+         n -= vector_length, a_f32 += vector_length * 2, result_f32 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e32m2(n);
+        vfloat32m2x2_t a_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(a_f32, vector_length);
+        vfloat32m2_t a_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 0);
+        vfloat32m2_t a_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 1);
+        vfloat32m2_t y_real_f32m2 = __riscv_vfmv_v_f_f32m2(beta_real, vector_length);
+        y_real_f32m2 = __riscv_vfmacc_vf_f32m2(y_real_f32m2, alpha_real, a_real_f32m2, vector_length);
+        y_real_f32m2 = __riscv_vfnmsac_vf_f32m2(y_real_f32m2, alpha_imag, a_imag_f32m2, vector_length);
+        vfloat32m2_t y_imag_f32m2 = __riscv_vfmv_v_f_f32m2(beta_imag, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, alpha_real, a_imag_f32m2, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, alpha_imag, a_real_f32m2, vector_length);
+        vfloat32m2x2_t out_f32m2x2 = __riscv_vcreate_v_f32m2x2(y_real_f32m2, y_imag_f32m2);
+        __riscv_vsseg2e32_v_f32m2x2(result_f32, out_f32m2x2, vector_length);
+    }
+}
+
+NK_PUBLIC void nk_each_scale_f64c_rvv(nk_f64c_t const *a, nk_size_t n, nk_f64c_t const *alpha, nk_f64c_t const *beta,
+                                      nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    for (nk_size_t vector_length; n > 0;
+         n -= vector_length, a_f64 += vector_length * 2, result_f64 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e64m2(n);
+        vfloat64m2x2_t a_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(a_f64, vector_length);
+        vfloat64m2_t a_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 0);
+        vfloat64m2_t a_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 1);
+        vfloat64m2_t y_real_f64m2 = __riscv_vfmv_v_f_f64m2(beta_real, vector_length);
+        y_real_f64m2 = __riscv_vfmacc_vf_f64m2(y_real_f64m2, alpha_real, a_real_f64m2, vector_length);
+        y_real_f64m2 = __riscv_vfnmsac_vf_f64m2(y_real_f64m2, alpha_imag, a_imag_f64m2, vector_length);
+        vfloat64m2_t y_imag_f64m2 = __riscv_vfmv_v_f_f64m2(beta_imag, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, alpha_real, a_imag_f64m2, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, alpha_imag, a_real_f64m2, vector_length);
+        vfloat64m2x2_t out_f64m2x2 = __riscv_vcreate_v_f64m2x2(y_real_f64m2, y_imag_f64m2);
+        __riscv_vsseg2e64_v_f64m2x2(result_f64, out_f64m2x2, vector_length);
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f32c_rvv(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t const *alpha,
+                                      nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    for (nk_size_t vector_length; n > 0;
+         n -= vector_length, a_f32 += vector_length * 2, b_f32 += vector_length * 2, result_f32 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e32m2(n);
+        vfloat32m2x2_t a_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(a_f32, vector_length);
+        vfloat32m2x2_t b_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(b_f32, vector_length);
+        vfloat32m2_t a_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 0);
+        vfloat32m2_t a_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 1);
+        vfloat32m2_t b_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(b_f32m2x2, 0);
+        vfloat32m2_t b_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(b_f32m2x2, 1);
+        vfloat32m2_t ya_real_f32m2 = __riscv_vfmul_vf_f32m2(a_real_f32m2, alpha_real, vector_length);
+        ya_real_f32m2 = __riscv_vfnmsac_vf_f32m2(ya_real_f32m2, alpha_imag, a_imag_f32m2, vector_length);
+        vfloat32m2_t ya_imag_f32m2 = __riscv_vfmul_vf_f32m2(a_imag_f32m2, alpha_real, vector_length);
+        ya_imag_f32m2 = __riscv_vfmacc_vf_f32m2(ya_imag_f32m2, alpha_imag, a_real_f32m2, vector_length);
+        vfloat32m2_t y_real_f32m2 = __riscv_vfmacc_vf_f32m2(ya_real_f32m2, beta_real, b_real_f32m2, vector_length);
+        y_real_f32m2 = __riscv_vfnmsac_vf_f32m2(y_real_f32m2, beta_imag, b_imag_f32m2, vector_length);
+        vfloat32m2_t y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(ya_imag_f32m2, beta_real, b_imag_f32m2, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, beta_imag, b_real_f32m2, vector_length);
+        vfloat32m2x2_t out_f32m2x2 = __riscv_vcreate_v_f32m2x2(y_real_f32m2, y_imag_f32m2);
+        __riscv_vsseg2e32_v_f32m2x2(result_f32, out_f32m2x2, vector_length);
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t const *alpha,
+                                      nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    for (nk_size_t vector_length; n > 0;
+         n -= vector_length, a_f64 += vector_length * 2, b_f64 += vector_length * 2, result_f64 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e64m2(n);
+        vfloat64m2x2_t a_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(a_f64, vector_length);
+        vfloat64m2x2_t b_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(b_f64, vector_length);
+        vfloat64m2_t a_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 0);
+        vfloat64m2_t a_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 1);
+        vfloat64m2_t b_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(b_f64m2x2, 0);
+        vfloat64m2_t b_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(b_f64m2x2, 1);
+        vfloat64m2_t ya_real_f64m2 = __riscv_vfmul_vf_f64m2(a_real_f64m2, alpha_real, vector_length);
+        ya_real_f64m2 = __riscv_vfnmsac_vf_f64m2(ya_real_f64m2, alpha_imag, a_imag_f64m2, vector_length);
+        vfloat64m2_t ya_imag_f64m2 = __riscv_vfmul_vf_f64m2(a_imag_f64m2, alpha_real, vector_length);
+        ya_imag_f64m2 = __riscv_vfmacc_vf_f64m2(ya_imag_f64m2, alpha_imag, a_real_f64m2, vector_length);
+        vfloat64m2_t y_real_f64m2 = __riscv_vfmacc_vf_f64m2(ya_real_f64m2, beta_real, b_real_f64m2, vector_length);
+        y_real_f64m2 = __riscv_vfnmsac_vf_f64m2(y_real_f64m2, beta_imag, b_imag_f64m2, vector_length);
+        vfloat64m2_t y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(ya_imag_f64m2, beta_real, b_imag_f64m2, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, beta_imag, b_real_f64m2, vector_length);
+        vfloat64m2x2_t out_f64m2x2 = __riscv_vcreate_v_f64m2x2(y_real_f64m2, y_imag_f64m2);
+        __riscv_vsseg2e64_v_f64m2x2(result_f64, out_f64m2x2, vector_length);
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f32c_rvv(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                    nk_f32c_t const *alpha, nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b;
+    nk_f32_t const *c_f32 = (nk_f32_t const *)c;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    for (nk_size_t vector_length; n > 0; n -= vector_length, a_f32 += vector_length * 2, b_f32 += vector_length * 2,
+                                         c_f32 += vector_length * 2, result_f32 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e32m2(n);
+        vfloat32m2x2_t a_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(a_f32, vector_length);
+        vfloat32m2x2_t b_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(b_f32, vector_length);
+        vfloat32m2x2_t c_f32m2x2 = __riscv_vlseg2e32_v_f32m2x2(c_f32, vector_length);
+        vfloat32m2_t a_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 0);
+        vfloat32m2_t a_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(a_f32m2x2, 1);
+        vfloat32m2_t b_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(b_f32m2x2, 0);
+        vfloat32m2_t b_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(b_f32m2x2, 1);
+        vfloat32m2_t c_real_f32m2 = __riscv_vget_v_f32m2x2_f32m2(c_f32m2x2, 0);
+        vfloat32m2_t c_imag_f32m2 = __riscv_vget_v_f32m2x2_f32m2(c_f32m2x2, 1);
+        vfloat32m2_t ab_real_f32m2 = __riscv_vfmul_vv_f32m2(a_real_f32m2, b_real_f32m2, vector_length);
+        ab_real_f32m2 = __riscv_vfnmsac_vv_f32m2(ab_real_f32m2, a_imag_f32m2, b_imag_f32m2, vector_length);
+        vfloat32m2_t ab_imag_f32m2 = __riscv_vfmul_vv_f32m2(a_real_f32m2, b_imag_f32m2, vector_length);
+        ab_imag_f32m2 = __riscv_vfmacc_vv_f32m2(ab_imag_f32m2, a_imag_f32m2, b_real_f32m2, vector_length);
+        vfloat32m2_t y_real_f32m2 = __riscv_vfmul_vf_f32m2(ab_real_f32m2, alpha_real, vector_length);
+        y_real_f32m2 = __riscv_vfnmsac_vf_f32m2(y_real_f32m2, alpha_imag, ab_imag_f32m2, vector_length);
+        vfloat32m2_t y_imag_f32m2 = __riscv_vfmul_vf_f32m2(ab_imag_f32m2, alpha_real, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, alpha_imag, ab_real_f32m2, vector_length);
+        y_real_f32m2 = __riscv_vfmacc_vf_f32m2(y_real_f32m2, beta_real, c_real_f32m2, vector_length);
+        y_real_f32m2 = __riscv_vfnmsac_vf_f32m2(y_real_f32m2, beta_imag, c_imag_f32m2, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, beta_real, c_imag_f32m2, vector_length);
+        y_imag_f32m2 = __riscv_vfmacc_vf_f32m2(y_imag_f32m2, beta_imag, c_real_f32m2, vector_length);
+        vfloat32m2x2_t out_f32m2x2 = __riscv_vcreate_v_f32m2x2(y_real_f32m2, y_imag_f32m2);
+        __riscv_vsseg2e32_v_f32m2x2(result_f32, out_f32m2x2, vector_length);
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
+                                    nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b;
+    nk_f64_t const *c_f64 = (nk_f64_t const *)c;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    for (nk_size_t vector_length; n > 0; n -= vector_length, a_f64 += vector_length * 2, b_f64 += vector_length * 2,
+                                         c_f64 += vector_length * 2, result_f64 += vector_length * 2) {
+        vector_length = __riscv_vsetvl_e64m2(n);
+        vfloat64m2x2_t a_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(a_f64, vector_length);
+        vfloat64m2x2_t b_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(b_f64, vector_length);
+        vfloat64m2x2_t c_f64m2x2 = __riscv_vlseg2e64_v_f64m2x2(c_f64, vector_length);
+        vfloat64m2_t a_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 0);
+        vfloat64m2_t a_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(a_f64m2x2, 1);
+        vfloat64m2_t b_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(b_f64m2x2, 0);
+        vfloat64m2_t b_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(b_f64m2x2, 1);
+        vfloat64m2_t c_real_f64m2 = __riscv_vget_v_f64m2x2_f64m2(c_f64m2x2, 0);
+        vfloat64m2_t c_imag_f64m2 = __riscv_vget_v_f64m2x2_f64m2(c_f64m2x2, 1);
+        vfloat64m2_t ab_real_f64m2 = __riscv_vfmul_vv_f64m2(a_real_f64m2, b_real_f64m2, vector_length);
+        ab_real_f64m2 = __riscv_vfnmsac_vv_f64m2(ab_real_f64m2, a_imag_f64m2, b_imag_f64m2, vector_length);
+        vfloat64m2_t ab_imag_f64m2 = __riscv_vfmul_vv_f64m2(a_real_f64m2, b_imag_f64m2, vector_length);
+        ab_imag_f64m2 = __riscv_vfmacc_vv_f64m2(ab_imag_f64m2, a_imag_f64m2, b_real_f64m2, vector_length);
+        vfloat64m2_t y_real_f64m2 = __riscv_vfmul_vf_f64m2(ab_real_f64m2, alpha_real, vector_length);
+        y_real_f64m2 = __riscv_vfnmsac_vf_f64m2(y_real_f64m2, alpha_imag, ab_imag_f64m2, vector_length);
+        vfloat64m2_t y_imag_f64m2 = __riscv_vfmul_vf_f64m2(ab_imag_f64m2, alpha_real, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, alpha_imag, ab_real_f64m2, vector_length);
+        y_real_f64m2 = __riscv_vfmacc_vf_f64m2(y_real_f64m2, beta_real, c_real_f64m2, vector_length);
+        y_real_f64m2 = __riscv_vfnmsac_vf_f64m2(y_real_f64m2, beta_imag, c_imag_f64m2, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, beta_real, c_imag_f64m2, vector_length);
+        y_imag_f64m2 = __riscv_vfmacc_vf_f64m2(y_imag_f64m2, beta_imag, c_real_f64m2, vector_length);
+        vfloat64m2x2_t out_f64m2x2 = __riscv_vcreate_v_f64m2x2(y_real_f64m2, y_imag_f64m2);
+        __riscv_vsseg2e64_v_f64m2x2(result_f64, out_f64m2x2, vector_length);
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

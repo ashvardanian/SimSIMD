@@ -94,11 +94,11 @@ extern "C" {
 #define nk_define_dot_(input_type, accumulator_type, output_type, load_and_convert)                         \
     NK_PUBLIC void nk_dot_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                 nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t sum = 0, ai, bi;                                                          \
+        nk_##accumulator_type##_t sum = 0, a_val, b_val;                                                    \
         for (nk_size_t i = 0; i != n; ++i) {                                                                \
-            load_and_convert(a + i, &ai);                                                                   \
-            load_and_convert(b + i, &bi);                                                                   \
-            sum += ai * bi;                                                                                 \
+            load_and_convert(a + i, &a_val);                                                                \
+            load_and_convert(b + i, &b_val);                                                                \
+            sum += a_val * b_val;                                                                           \
         }                                                                                                   \
         *result = (nk_##output_type##_t)sum;                                                                \
     }
@@ -108,14 +108,14 @@ extern "C" {
                                                 nk_##input_type##_t const *b_pairs, nk_size_t count_pairs, \
                                                 nk_##output_complex_type##_t *result) {                    \
         nk_##accumulator_type##_t sum_real = 0, sum_imag = 0;                                              \
-        nk_##accumulator_type##_t ar, br, ai, bi;                                                          \
+        nk_##accumulator_type##_t a_real, b_real, a_imag, b_imag;                                          \
         for (nk_size_t i = 0; i != count_pairs; ++i) {                                                     \
-            load_and_convert(&(a_pairs + i)->real, &ar);                                                   \
-            load_and_convert(&(b_pairs + i)->real, &br);                                                   \
-            load_and_convert(&(a_pairs + i)->imag, &ai);                                                   \
-            load_and_convert(&(b_pairs + i)->imag, &bi);                                                   \
-            sum_real += ar * br - ai * bi;                                                                 \
-            sum_imag += ar * bi + ai * br;                                                                 \
+            load_and_convert(&(a_pairs + i)->real, &a_real);                                               \
+            load_and_convert(&(b_pairs + i)->real, &b_real);                                               \
+            load_and_convert(&(a_pairs + i)->imag, &a_imag);                                               \
+            load_and_convert(&(b_pairs + i)->imag, &b_imag);                                               \
+            sum_real += a_real * b_real - a_imag * b_imag;                                                 \
+            sum_imag += a_real * b_imag + a_imag * b_real;                                                 \
         }                                                                                                  \
         result->real = sum_real;                                                                           \
         result->imag = sum_imag;                                                                           \
@@ -126,14 +126,14 @@ extern "C" {
                                                  nk_##input_type##_t const *b_pairs, nk_size_t count_pairs, \
                                                  nk_##output_complex_type##_t *result) {                    \
         nk_##accumulator_type##_t sum_real = 0, sum_imag = 0;                                               \
-        nk_##accumulator_type##_t ar, br, ai, bi;                                                           \
+        nk_##accumulator_type##_t a_real, b_real, a_imag, b_imag;                                           \
         for (nk_size_t i = 0; i != count_pairs; ++i) {                                                      \
-            load_and_convert(&(a_pairs + i)->real, &ar);                                                    \
-            load_and_convert(&(b_pairs + i)->real, &br);                                                    \
-            load_and_convert(&(a_pairs + i)->imag, &ai);                                                    \
-            load_and_convert(&(b_pairs + i)->imag, &bi);                                                    \
-            sum_real += ar * br + ai * bi;                                                                  \
-            sum_imag += ar * bi - ai * br;                                                                  \
+            load_and_convert(&(a_pairs + i)->real, &a_real);                                                \
+            load_and_convert(&(b_pairs + i)->real, &b_real);                                                \
+            load_and_convert(&(a_pairs + i)->imag, &a_imag);                                                \
+            load_and_convert(&(b_pairs + i)->imag, &b_imag);                                                \
+            sum_real += a_real * b_real + a_imag * b_imag;                                                  \
+            sum_imag += a_real * b_imag - a_imag * b_real;                                                  \
         }                                                                                                   \
         result->real = sum_real;                                                                            \
         result->imag = sum_imag;                                                                            \
@@ -248,9 +248,10 @@ NK_PUBLIC void nk_dot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_p
                                   nk_f64c_t *result) {
     nk_f64_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;
     for (nk_size_t i = 0; i != count_pairs; ++i) {
-        nk_f64_t ar = a_pairs[i].real, br = b_pairs[i].real, ai = a_pairs[i].imag, bi = b_pairs[i].imag;
-        nk_f64_t term_real = ar * br - ai * bi, t_real = sum_real + term_real;
-        nk_f64_t term_imag = ar * bi + ai * br, t_imag = sum_imag + term_imag;
+        nk_f64_t a_real = a_pairs[i].real, b_real = b_pairs[i].real;
+        nk_f64_t a_imag = a_pairs[i].imag, b_imag = b_pairs[i].imag;
+        nk_f64_t term_real = a_real * b_real - a_imag * b_imag, t_real = sum_real + term_real;
+        nk_f64_t term_imag = a_real * b_imag + a_imag * b_real, t_imag = sum_imag + term_imag;
         compensation_real += (nk_f64_abs_(sum_real) >= nk_f64_abs_(term_real)) ? ((sum_real - t_real) + term_real)
                                                                                : ((term_real - t_real) + sum_real);
         compensation_imag += (nk_f64_abs_(sum_imag) >= nk_f64_abs_(term_imag)) ? ((sum_imag - t_imag) + term_imag)
@@ -266,9 +267,10 @@ NK_PUBLIC void nk_vdot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
                                    nk_f64c_t *result) {
     nk_f64_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;
     for (nk_size_t i = 0; i != count_pairs; ++i) {
-        nk_f64_t ar = a_pairs[i].real, br = b_pairs[i].real, ai = a_pairs[i].imag, bi = b_pairs[i].imag;
-        nk_f64_t term_real = ar * br + ai * bi, t_real = sum_real + term_real;
-        nk_f64_t term_imag = ar * bi - ai * br, t_imag = sum_imag + term_imag;
+        nk_f64_t a_real = a_pairs[i].real, b_real = b_pairs[i].real;
+        nk_f64_t a_imag = a_pairs[i].imag, b_imag = b_pairs[i].imag;
+        nk_f64_t term_real = a_real * b_real + a_imag * b_imag, t_real = sum_real + term_real;
+        nk_f64_t term_imag = a_real * b_imag - a_imag * b_real, t_imag = sum_imag + term_imag;
         compensation_real += (nk_f64_abs_(sum_real) >= nk_f64_abs_(term_real)) ? ((sum_real - t_real) + term_real)
                                                                                : ((term_real - t_real) + sum_real);
         compensation_imag += (nk_f64_abs_(sum_imag) >= nk_f64_abs_(term_imag)) ? ((sum_imag - t_imag) + term_imag)
