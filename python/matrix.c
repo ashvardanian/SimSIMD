@@ -23,14 +23,10 @@ static void PackedMatrix_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(self);
 
 /** @brief Compute packed buffer size for a PackedMatrix. */
 static size_t packed_matrix_nbytes(PackedMatrix *mm) {
-    nk_kernel_kind_t size_kind;
-    if (mm->kind == nk_kernel_hammings_packed_k) size_kind = nk_kernel_hammings_packed_size_k;
-    else size_kind = nk_kernel_dots_packed_size_k;
-
     nk_dots_packed_size_punned_t size_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
-    nk_find_kernel_punned(size_kind, mm->dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&size_fn,
-                          &cap);
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, mm->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn) return 0;
     return size_fn(mm->n, mm->k);
 }
@@ -133,8 +129,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     if (kind_obj) {
         char const *kind_str = PyUnicode_AsUTF8(kind_obj);
         if (!kind_str) return NULL;
-        if (same_string(kind_str, "hammings")) size_kind = nk_kernel_hammings_packed_size_k;
-        else if (!same_string(kind_str, "dots")) {
+        if (!same_string(kind_str, "hammings") && !same_string(kind_str, "dots")) {
             PyErr_Format(PyExc_ValueError, "Unknown kind: '%s'. Expected 'dots' or 'hammings'.", kind_str);
             return NULL;
         }
@@ -171,6 +166,12 @@ PyTypeObject PackedMatrixType = {
 
 /** @brief Parse a Python buffer format string into a NumKong dtype. */
 static int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
+    // If the source object is a Tensor, use its dtype directly —
+    // the PEP 3118 format string may be a placeholder for exotic types.
+    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) {
+        *dtype = ((Tensor *)buffer->obj)->dtype;
+        return 1;
+    }
     char const *format = buffer->format;
     if (!format) {
         PyErr_SetString(PyExc_TypeError, "Input buffer must expose a format string");
@@ -649,13 +650,13 @@ PyObject *api_dots_packed(PyObject *self, PyObject *const *args, Py_ssize_t narg
 }
 
 char const doc_hammings_pack[] =                                                 //
-    "hammings_pack(b, dtype='bin8') -> PackedMatrix\n\n"                         //
+    "hammings_pack(b, dtype='uint1') -> PackedMatrix\n\n"                        //
     "Pack a matrix for repeated Hamming distance computation.\n\n"               //
     "Parameters:\n"                                                              //
     "    b : array_like\n"                                                       //
     "        The (n, k) matrix to pack.\n"                                       //
     "    dtype : str, optional\n"                                                //
-    "        Data type for packing. Default: 'bin8'.\n\n"                        //
+    "        Data type for packing. Default: 'uint1'.\n\n"                       //
     "Returns:\n"                                                                 //
     "    PackedMatrix : Opaque packed matrix for use with hammings_packed().\n"; //
 
@@ -663,13 +664,13 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
     (void)self;
 
     PyObject *b_obj = NULL;
-    char const *dtype_str = "bin8";
+    char const *dtype_str = "uint1";
 
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 1 || total > 2) {
-        PyErr_SetString(PyExc_TypeError, "hammings_pack() requires 1-2 arguments: b, dtype='bin8'");
+        PyErr_SetString(PyExc_TypeError, "hammings_pack() requires 1-2 arguments: b, dtype='uint1'");
         return NULL;
     }
 
@@ -735,10 +736,13 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
 
     nk_size_t n = (nk_size_t)b_buffer.shape[0];
     nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
+    k *= nk_dtype_dimensions_per_value(target_dtype);
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
-    if (src_dtype != target_dtype) {
+    // Allow uint8 input when target is uint1 (packed bits are stored as uint8 bytes)
+    if (src_dtype != target_dtype && !(src_dtype == nk_u8_k && target_dtype == nk_u1_k)) {
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'.",
                      dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
@@ -750,9 +754,9 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
         return NULL;
     }
 
-    nk_hammings_packed_size_punned_t size_fn = NULL;
+    nk_dots_packed_size_punned_t size_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_hammings_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn) {
         PyBuffer_Release(&b_buffer);
@@ -774,9 +778,9 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
     packed->n = n;
     packed->k = k;
 
-    nk_hammings_pack_punned_t pack_fn = NULL;
+    nk_dots_pack_punned_t pack_fn = NULL;
     cap = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_hammings_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
+    nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&pack_fn, &cap);
     if (!pack_fn) {
         Py_DECREF(packed);
@@ -871,6 +875,8 @@ PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t 
 
     nk_size_t m = (nk_size_t)a_buffer.shape[0];
     nk_size_t k_a = (nk_size_t)a_buffer.shape[1];
+    // For sub-byte types, shape[1] is in bytes but packed->k is in logical dimensions
+    k_a *= nk_dtype_dimensions_per_value(packed->dtype);
     nk_size_t row_stride = (nk_size_t)a_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)a_buffer.strides[1];
 
@@ -880,7 +886,8 @@ PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t 
         return NULL;
     }
 
-    if (src_dtype != packed->dtype) {
+    // Allow uint8 input when packed matrix uses uint1 (packed bits stored as uint8 bytes)
+    if (src_dtype != packed->dtype && !(src_dtype == nk_u8_k && packed->dtype == nk_u1_k)) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_TypeError, "dtype mismatch: input is '%s' but packed matrix is '%s'.",
                      dtype_to_python_string(src_dtype), dtype_to_python_string(packed->dtype));
@@ -1057,6 +1064,8 @@ PyObject *api_dots_symmetric( //
 
     nk_size_t n_vectors = (nk_size_t)vec_buf.shape[0];
     nk_size_t depth = (nk_size_t)vec_buf.shape[1];
+    // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
+    depth *= nk_dtype_dimensions_per_value(dtype);
     nk_size_t stride = (nk_size_t)vec_buf.strides[0];
 
     Tensor *result = NULL;
@@ -1188,6 +1197,8 @@ PyObject *api_hammings_symmetric( //
     nk_dtype_t out_dtype = nk_u32_k; // Hamming output is always u32
     nk_size_t n_vectors = (nk_size_t)vec_buf.shape[0];
     nk_size_t depth = (nk_size_t)vec_buf.shape[1];
+    // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
+    depth *= nk_dtype_dimensions_per_value(dtype);
     nk_size_t stride = (nk_size_t)vec_buf.strides[0];
 
     Tensor *result = NULL;
