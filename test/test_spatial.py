@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Test spatial distances: nk.euclidean, nk.sqeuclidean, nk.angular.
+
+Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8.
+Parametrized over: ndim from dense_dimensions, metric, capability.
+
+Precision notes:
+    Integer dtypes use exact ±1 tolerance (discrete arithmetic with possible
+    accumulator width differences). Floating-point dtypes use NK_ATOL/NK_RTOL
+    (0.1/0.1). Sub-byte floats (bf16, e4m3, e5m2, e2m3, e3m2) carry wider
+    quantization noise but are held to the same relative error bar.
+
+Matches C++ suite: test_spatial.cpp.
+"""
+
+import atexit
+import warnings
+import decimal
+import math
+import pytest
+
+try:
+    import numpy as np
+except:
+    np = None
+
+import numkong as nk
+from test_base import (
+    make_random_buffer,
+    numpy_available,
+    scipy_available,
+    dense_dimensions,
+    possible_capabilities,
+    randomized_repetitions_count,
+    keep_one_capability,
+    profile,
+    NK_ATOL,
+    NK_RTOL,
+    _DECIMAL_PRECISION,
+    NATIVE_COMPUTE_DTYPE,
+    make_random,
+    tolerances_for_dtype,
+    hex_array,
+    collect_errors,
+    create_stats,
+    print_stats_report,
+    LazyFormat,
+    _seed_rng,
+)
+
+_algebraic_dtypes = ["float32", "float64"]
+_algebraic_ndims = [7, 97]
+_stats = create_stats()
+atexit.register(print_stats_report, _stats)
+
+try:
+    import scipy.spatial.distance as spd
+
+    baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))
+    baseline_sqeuclidean = spd.sqeuclidean
+    baseline_angular = spd.cosine
+except ImportError:
+    baseline_angular = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
+    baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
+
+
+def precise_sqeuclidean(a, b):
+    """High-precision squared Euclidean distance via Python Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = _DECIMAL_PRECISION
+        D = decimal.Decimal
+        return float(sum((D.from_float(float(x)) - D.from_float(float(y))) ** 2 for x, y in zip(a, b)))
+
+
+def precise_euclidean(a, b):
+    return math.sqrt(precise_sqeuclidean(a, b))
+
+
+def precise_angular(a, b):
+    """High-precision angular/cosine distance via Python Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = _DECIMAL_PRECISION
+        D = decimal.Decimal
+        ab, aa, bb = D(0), D(0), D(0)
+        for x, y in zip(a, b):
+            dx = D.from_float(float(x))
+            dy = D.from_float(float(y))
+            ab += dx * dy
+            aa += dx * dx
+            bb += dy * dy
+        return float(1 - ab / (aa * bb).sqrt())
+
+
+_KERNELS_SPATIAL = {
+    "euclidean": (baseline_euclidean, nk.euclidean, precise_euclidean),
+    "sqeuclidean": (baseline_sqeuclidean, nk.sqeuclidean, precise_sqeuclidean),
+    "angular": (baseline_angular, nk.angular, precise_angular),
+}
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", dense_dimensions)
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "float64",
+        "float32",
+        "float16",
+        "bfloat16",
+        "e4m3",
+        "e5m2",
+        "e2m3",
+        "e3m2",
+        "int8",
+        "uint8",
+    ],
+)
+@pytest.mark.parametrize("metric", ["euclidean", "sqeuclidean", "angular"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_spatial(ndim, dtype, metric, capability):
+    """Spatial distances across all numeric dtypes.
+
+    Integer dtypes use exact ±1 tolerance (discrete arithmetic).
+    Sub-byte floats (bf16, e4m3, e5m2, e2m3, e3m2) carry wider quantization
+    noise but are held to the same relative error bar.
+    """
+    a_raw, a_baseline = make_random((ndim,), dtype)
+    b_raw, b_baseline = make_random((ndim,), dtype)
+    atol, rtol = tolerances_for_dtype(dtype)
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel, precise_kernel = _KERNELS_SPATIAL[metric]
+
+    # High-precision baseline (always f64)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline)
+
+    # Baseline at native precision (for error stats)
+    native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        expected_dt, expected = profile(baseline_kernel, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
+
+    # SIMD result
+    result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
+    result = np.asarray(result)
+
+    err_msg = LazyFormat(
+        lambda: (
+            f"\n{metric}({dtype}, ndim={ndim}):"
+            f"\n  Accurate:  {accurate}"
+            f"\n  Got:       {result}"
+            f"\n  Raw a:     {hex_array(a_raw)}"
+            f"\n  Raw b:     {hex_array(b_raw)}"
+        )
+    )
+
+    np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
+    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("ndim", dense_dimensions)
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_angular_zero_vector(ndim, dtype, capability):
+    """Tests the nk.angular() function with zero vectors, to catch division by zero errors."""
+    a = np.zeros(ndim, dtype=dtype)
+    b = (np.random.randn(ndim) + 1).astype(dtype)
+    keep_one_capability(capability)
+
+    result = nk.angular(a, b)
+    assert result == 1, f"Expected 1, but got {result}"
+
+    result = nk.angular(a, a)
+    assert result == 0, f"Expected 0 distance from itself, but got {result}"
+
+    result = nk.angular(b, b)
+    assert abs(result) < NK_ATOL, f"Expected 0 distance from itself, but got {result}"
+
+    assert np.all(result >= 0), f"Negative result for angular distance"
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_self_distance_zero(ndim, dtype, capability):
+    """d(v, v) should be 0 for all spatial metrics."""
+    keep_one_capability(capability)
+    v = nk.full((ndim,), 1.5, dtype=dtype)
+    atol = NK_ATOL
+    assert abs(nk.euclidean(v, v)) < atol
+    assert abs(nk.sqeuclidean(v, v)) < atol
+    assert abs(nk.angular(v, v)) < atol
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_euclidean_known(ndim, dtype, capability):
+    """euclidean(ones, zeros) = sqrt(n)."""
+    keep_one_capability(capability)
+    o = nk.ones((ndim,), dtype=dtype)
+    z = nk.zeros((ndim,), dtype=dtype)
+    result = nk.euclidean(o, z)
+    expected = math.sqrt(ndim)
+    assert abs(result - expected) < NK_ATOL + NK_RTOL * expected
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_sqeuclidean_known(ndim, dtype, capability):
+    """sqeuclidean(ones, zeros) = n."""
+    keep_one_capability(capability)
+    o = nk.ones((ndim,), dtype=dtype)
+    z = nk.zeros((ndim,), dtype=dtype)
+    result = nk.sqeuclidean(o, z)
+    assert abs(result - ndim) < NK_ATOL + NK_RTOL * ndim
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_distance_symmetry(ndim, dtype, capability):
+    """d(a, b) = d(b, a) for all spatial metrics."""
+    keep_one_capability(capability)
+    a = make_random_buffer(ndim, dtype)
+    b = make_random_buffer(ndim, dtype)
+    for metric_fn in [nk.euclidean, nk.sqeuclidean, nk.angular]:
+        d_ab = metric_fn(a, b)
+        d_ba = metric_fn(b, a)
+        assert abs(d_ab - d_ba) < NK_ATOL, f"{metric_fn.__name__}: d(a,b)={d_ab} != d(b,a)={d_ba}"
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_distance_non_negative(ndim, dtype, capability):
+    """d(a, b) >= 0 for all spatial metrics."""
+    keep_one_capability(capability)
+    a = make_random_buffer(ndim, dtype)
+    b = make_random_buffer(ndim, dtype)
+    for metric_fn in [nk.euclidean, nk.sqeuclidean, nk.angular]:
+        d = metric_fn(a, b)
+        assert d >= -NK_ATOL, f"{metric_fn.__name__}: d(a,b)={d} is negative"
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_triangle_inequality(ndim, dtype, capability):
+    """euclidean(a, c) <= euclidean(a, b) + euclidean(b, c)."""
+    keep_one_capability(capability)
+    a = make_random_buffer(ndim, dtype)
+    b = make_random_buffer(ndim, dtype)
+    c = make_random_buffer(ndim, dtype)
+    d_ac = nk.euclidean(a, c)
+    d_ab = nk.euclidean(a, b)
+    d_bc = nk.euclidean(b, c)
+    assert d_ac <= d_ab + d_bc + NK_ATOL, f"Triangle inequality violated: d(a,c)={d_ac} > d(a,b)+d(b,c)={d_ab + d_bc}"
+
+
+@pytest.mark.parametrize("ndim", _algebraic_ndims)
+@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_cauchy_schwarz(ndim, dtype, capability):
+    """|inner(a,b)|^2 <= inner(a,a) * inner(b,b)."""
+    keep_one_capability(capability)
+    a = make_random_buffer(ndim, dtype)
+    b = make_random_buffer(ndim, dtype)
+    ab = nk.inner(a, b)
+    aa = nk.inner(a, a)
+    bb = nk.inner(b, b)
+    assert (
+        ab * ab <= aa * bb + NK_ATOL
+    ), f"Cauchy-Schwarz violated: |inner(a,b)|²={ab*ab} > inner(a,a)*inner(b,b)={aa*bb}"

@@ -219,7 +219,7 @@ nk_dtype_info_t const nk_dtype_table[] = {
     {nk_f32c_k, "complex64", "Zf", "<c8", sizeof(nk_f32_t) * 2, 1},
     {nk_f16c_k, "complex32", "Ze", "|V4", sizeof(nk_f16_t) * 2, 1},
     {nk_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(nk_bf16_t) * 2, 1},
-    {nk_u1_k, "bin8", "?", "|V1", sizeof(nk_u1x8_t), 0},
+    {nk_u1_k, "uint1", "?", "|V1", sizeof(nk_u1x8_t), 0},
     {nk_i8_k, "int8", "b", "|i1", sizeof(nk_i8_t), 0},
     {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
     {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
@@ -305,7 +305,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
         return nk_bf16c_k;
 
     // Boolean values:
-    else if (same_string(name, "bin8") || same_string(name, "?")) return nk_u1_k;
+    else if (same_string(name, "uint1") || same_string(name, "?")) return nk_u1_k;
 
     // Signed integers:
     else if (same_string(name, "int8") || same_string(name, "i1") || same_string(name, "|i1") ||

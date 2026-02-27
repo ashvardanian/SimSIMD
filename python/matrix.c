@@ -1107,15 +1107,15 @@ cleanup:
     return return_obj;
 }
 
-char const doc_hammings_symmetric[] =                                                          //
-    "Compute the symmetric Hamming distance matrix for a set of vectors.\n\n"                  //
-    "Parameters:\n"                                                                            //
-    "    vectors (Tensor): 2D input matrix of shape (n, depth). Dtype: bin8, uint8, uint32.\n" //
-    "    dtype (str, optional): Override the presumed input type.\n"                           //
-    "    out (Tensor, optional): Pre-allocated (n, n) output Tensor of uint32.\n\n"            //
-    "Returns:\n"                                                                               //
-    "    Tensor: (n, n) symmetric matrix of Hamming distances (uint32).\n\n"                   //
-    "Signature:\n"                                                                             //
+char const doc_hammings_symmetric[] =                                                           //
+    "Compute the symmetric Hamming distance matrix for a set of vectors.\n\n"                   //
+    "Parameters:\n"                                                                             //
+    "    vectors (Tensor): 2D input matrix of shape (n, depth). Dtype: uint1, uint8, uint32.\n" //
+    "    dtype (str, optional): Override the presumed input type.\n"                            //
+    "    out (Tensor, optional): Pre-allocated (n, n) output Tensor of uint32.\n\n"             //
+    "Returns:\n"                                                                                //
+    "    Tensor: (n, n) symmetric matrix of Hamming distances (uint32).\n\n"                    //
+    "Signature:\n"                                                                              //
     "    >>> def hammings_symmetric(vectors, /, *, dtype=None, out=None) -> Tensor: ...";
 
 PyObject *api_hammings_symmetric( //

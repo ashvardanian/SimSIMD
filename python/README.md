@@ -49,12 +49,12 @@ dist = numkong.angular(vec1, vec2, "int8")
 dist = numkong.angular(vec1, vec2, "float16")
 dist = numkong.angular(vec1, vec2, "float32")
 dist = numkong.angular(vec1, vec2, "float64")
-dist = numkong.hamming(vec1, vec2, "bin8")
+dist = numkong.hamming(vec1, vec2, "uint1")
 ```
 
 Binary distance functions are computed at a bit-level.
 Meaning a vector of 10x 8-bit integers will be treated as a sequence of 80 individual bits or dimensions.
-This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `bin8` argument by reinterpreting the vector as booleans:
+This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `uint1` argument by reinterpreting the vector as booleans:
 
 ```py
 vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
@@ -211,7 +211,7 @@ distances = numkong.cdist(matrix1, matrix2,
     metric="hamming",   # Unlike SciPy, NumKong doesn't divide by the number of dimensions
     out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
     threads=0,          # Use all CPU cores with OpenMP.
-    dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
+    dtype="uint1",      # Override input argument type to `uint1` packed bit words.
 )
 ```
 

@@ -124,7 +124,7 @@ static PyObject *implement_dense_metric( //
     // When a dtype override (or a sub-byte buffer type like bool) reinterprets
     // elements at a different width than the buffer protocol reports, rescale
     // dimensions so the SIMD kernel receives logical element counts.
-    // Examples: uint8 → bin8 (×8), bool → bin8 (×8), float32 → complex64 (÷2).
+    // Examples: uint8 → uint1 (×8), bool → uint1 (×8), float32 → complex64 (÷2).
     {
         nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);
@@ -626,7 +626,7 @@ static PyObject *implement_cdist(                        //
     // When a dtype override (or a sub-byte buffer type like bool) reinterprets
     // elements at a different width than the buffer protocol reports, rescale
     // dimensions so the SIMD kernel receives logical element counts.
-    // Examples: uint8 → bin8 (×8), bool → bin8 (×8), float32 → complex64 (÷2).
+    // Examples: uint8 → uint1 (×8), bool → uint1 (×8), float32 → complex64 (÷2).
     {
         nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);

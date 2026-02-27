@@ -30,7 +30,10 @@ _MetricType = Literal[
     "wsum",
 ]
 _IntegralType = Literal[
-    "bin8",
+    "uint1",
+    # Sub-byte integers
+    "int4",
+    "uint4",
     # Signed integers
     "int8",
     "int16",
@@ -52,7 +55,13 @@ _FloatType = Literal[
     "bf16",  #! Not supported by NumPy
     "bfloat16",  #! Not supported by NumPy
     "e4m3",  #! FP8 E4M3 format
+    "float8_e4m3",  #! FP8 E4M3 format (long-form)
     "e5m2",  #! FP8 E5M2 format
+    "float8_e5m2",  #! FP8 E5M2 format (long-form)
+    "e2m3",  #! FP6 E2M3 format
+    "float6_e2m3",  #! FP6 E2M3 format (long-form)
+    "e3m2",  #! FP6 E3M2 format
+    "float6_e3m2",  #! FP6 E3M2 format (long-form)
 ]
 _ComplexType = Literal[
     "complex32",  #! Not supported by NumPy
