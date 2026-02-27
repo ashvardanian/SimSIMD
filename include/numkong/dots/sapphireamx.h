@@ -2863,30 +2863,39 @@ NK_INTERNAL void nk_dots_e2m3_load_a_sapphireamx_( //
     nk_size_t valid_rows, nk_size_t valid_cols) {
 
     // Build 64-byte LUT for VPERMB: 32 entries replicated to fill both halves.
-    // magnitude → value×16: {0,2,4,6,8,10,12,14,16,20,24,28,32,36,40,44,
-    //                         48,52,56,60,64,72,80,88,96,104,112,120, 0,0,0,0}
+    // magnitude → value×16:
+    //  e=0 (step 2): {0,2,4,6,8,10,12,14},
+    //  e=1 (step 2): {16,18,20,22,24,26,28,30},
+    //  e=2 (step 4): {32,36,40,44,48,52,56,60},
+    //  e=3 (step 8): {64,72,80,88,96,104,112,120}
     NK_ALIGN64 static nk_u8_t const lut_bytes[64] = {
-        0,  2,  4,  6,   8,   10,  12, 14, 16, 20, 24, 28, 32, 36,  40,  44,  48, 52, 56, 60, 64, 72,
-        80, 88, 96, 104, 112, 120, 0,  0,  0,  0,  0,  2,  4,  6,   8,   10,  12, 14, 16, 20, 24, 28,
-        32, 36, 40, 44,  48,  52,  56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0,
+        0,  2,  4,  6,  8,  10,  12,  14,  //
+        16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52,  56,  60,  //
+        64, 72, 80, 88, 96, 104, 112, 120, //
+        0,  2,  4,  6,  8,  10,  12,  14,  //
+        16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52,  56,  60,  //
+        64, 72, 80, 88, 96, 104, 112, 120, //
     };
-    __m512i lut = _mm512_load_si512((__m512i const *)lut_bytes);
-    __m512i sign_bit = _mm512_set1_epi8(0x20);
-    __m512i mag_mask = _mm512_set1_epi8(0x1F);
-    __m512i zero = _mm512_setzero_si512();
+    __m512i magnitude_lut_u8x64 = _mm512_load_si512((__m512i const *)lut_bytes);
+    __m512i sign_mask_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i magnitude_mask_u8x64 = _mm512_set1_epi8(0x1F);
+    __m512i zero_i8x64 = _mm512_setzero_si512();
 
     __mmask64 column_mask = (valid_cols >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << valid_cols) - 1;
 
     for (nk_size_t row = 0; row < 16; row++) {
         if (row < valid_rows) {
-            __m512i raw = _mm512_maskz_loadu_epi8(column_mask, src + row * src_stride);
-            __m512i magnitude = _mm512_and_si512(raw, mag_mask);
-            __m512i unsigned_val = _mm512_permutexvar_epi8(magnitude, lut);
-            __mmask64 negate_mask = _mm512_test_epi8_mask(raw, sign_bit);
-            __m512i signed_val = _mm512_mask_sub_epi8(unsigned_val, negate_mask, zero, unsigned_val);
-            _mm512_store_si512(a_tile->data[row], signed_val);
+            __m512i raw_u8x64 = _mm512_maskz_loadu_epi8(column_mask, src + row * src_stride);
+            __m512i magnitude_u8x64 = _mm512_and_si512(raw_u8x64, magnitude_mask_u8x64);
+            __m512i unsigned_value_u8x64 = _mm512_permutexvar_epi8(magnitude_u8x64, magnitude_lut_u8x64);
+            __mmask64 negate_mask = _mm512_test_epi8_mask(raw_u8x64, sign_mask_u8x64);
+            __m512i signed_value_i8x64 = _mm512_mask_sub_epi8(unsigned_value_u8x64, negate_mask, zero_i8x64,
+                                                              unsigned_value_u8x64);
+            _mm512_store_si512(a_tile->data[row], signed_value_i8x64);
         }
-        else { _mm512_store_si512(a_tile->data[row], zero); }
+        else { _mm512_store_si512(a_tile->data[row], zero_i8x64); }
     }
     nk_compiler_barrier_sapphireamx_();
 }
@@ -2970,8 +2979,8 @@ NK_PUBLIC void nk_dots_pack_e2m3_sapphireamx(                    //
 
     // E2M3 magnitude-to-value LUT (value * 16)
     static nk_u8_t const lut_magnitude[32] = {
-        0,  2,  4,  6,  8,  10, 12, 14, 16, 20,  24,  28,  32, 36, 40, 44,
-        48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0,
+        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
     };
 
     // Pack tiles with E2M3 -> I8 conversion and quad-interleaving

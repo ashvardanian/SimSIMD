@@ -2418,18 +2418,20 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_
  */
 NK_INTERNAL svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) {
     // 32-entry magnitude LUT, replicated for SVE TBL (handles SVL > 256 bits)
-    static NK_ALIGN64 nk_u8_t const lut_data[64] = {0,  2,  4,  6,  8,  10, 12, 14, 16, 20,  24,  28,  32, 36, 40, 44,
-                                                    48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0,
-                                                    0,  2,  4,  6,  8,  10, 12, 14, 16, 20,  24,  28,  32, 36, 40, 44,
-                                                    48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0};
-    svuint8_t lut_vector_u8x = svld1_u8(svptrue_b8(), lut_data);
+    static NK_ALIGN64 nk_u8_t const lut_data[64] = {
+        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
+        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
+    };
+    svuint8_t magnitude_lut_u8x = svld1_u8(svptrue_b8(), lut_data);
     svuint8_t magnitude_u8x = svand_n_u8_x(predicate_i8x, raw_bytes_u8x, 0x1F);
-    svuint8_t unsigned_val_u8x = svtbl_u8(lut_vector_u8x, magnitude_u8x);
+    svuint8_t unsigned_value_u8x = svtbl_u8(magnitude_lut_u8x, magnitude_u8x);
     svuint8_t sign_bits_u8x = svand_n_u8_x(predicate_i8x, raw_bytes_u8x, 0x20);
-    svbool_t negate_i8x = svcmpne_n_u8(predicate_i8x, sign_bits_u8x, 0);
-    svint8_t positive_i8x = svreinterpret_s8_u8(unsigned_val_u8x);
-    svint8_t negated_i8x = svneg_s8_x(predicate_i8x, positive_i8x);
-    return svsel_s8(negate_i8x, negated_i8x, positive_i8x);
+    svbool_t negate_mask_b8x = svcmpne_n_u8(predicate_i8x, sign_bits_u8x, 0);
+    svint8_t positive_value_i8x = svreinterpret_s8_u8(unsigned_value_u8x);
+    svint8_t negated_value_i8x = svneg_s8_x(predicate_i8x, positive_value_i8x);
+    return svsel_s8(negate_mask_b8x, negated_value_i8x, positive_value_i8x);
 }
 
 /**
@@ -2624,8 +2626,10 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) { tiles_ptr[i] = 0; }
 
     // Scalar e2m3 → signed i8 magnitude LUT
-    static nk_u8_t const lut_magnitude[32] = {0,  2,  4,  6,  8,  10, 12, 14, 16, 20,  24,  28,  32, 36, 40, 44,
-                                              48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0};
+    static nk_u8_t const lut_magnitude[32] = {
+        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
+    };
 
     // Interleaved packing with e2m3 → i8 conversion
     for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
