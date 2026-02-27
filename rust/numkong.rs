@@ -75,7 +75,7 @@
 //! - `jensenshannon(a, b)`: Computes Jensen-Shannon divergence.
 //! - `kullbackleibler(a, b)`: Computes Kullback-Leibler divergence.
 //!
-//! The `Elementwise` trait (combining `EachScale`, `EachSum`, `EachBlend`, `EachFMA`) covers:
+//! The elementwise traits (including `EachScale`, `EachSum`, `EachBlend`, `EachFMA`) covers:
 //!
 //! - `scale(a, alpha, beta, result)`: Element-wise `result[i] = α × a[i] + β`.
 //! - `sum(a, b, result)`: Element-wise `result[i] = a[i] + b[i]`.
@@ -106,11 +106,12 @@ pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
-    Angular, Bilinear, BinarySimilarity, ComplexBilinear, ComplexDot, ComplexProducts, ComplexVDot,
-    Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise,
-    Euclidean, Hamming, Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis,
-    MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax, ReduceMoments,
-    Reductions, SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
+    Angular, Bilinear, BinarySimilarity, ComplexBilinear, ComplexDot, ComplexEachBlend,
+    ComplexEachFMA, ComplexEachScale, ComplexEachSum, ComplexProducts, ComplexVDot, Dot, EachATan,
+    EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise, Euclidean, Hamming,
+    Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment,
+    MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax, ReduceMoments, Reductions, SparseDot,
+    SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
 };
 
 // Re-export cast operations
@@ -531,22 +532,22 @@ mod tests {
     // region: Complex Products
 
     trait ComplexOutput {
-        fn re_f64(&self) -> f64;
-        fn im_f64(&self) -> f64;
+        fn real(&self) -> f64;
+        fn imag(&self) -> f64;
     }
     impl ComplexOutput for (f32, f32) {
-        fn re_f64(&self) -> f64 {
+        fn real(&self) -> f64 {
             self.0 as f64
         }
-        fn im_f64(&self) -> f64 {
+        fn imag(&self) -> f64 {
             self.1 as f64
         }
     }
     impl ComplexOutput for (f64, f64) {
-        fn re_f64(&self) -> f64 {
+        fn real(&self) -> f64 {
             self.0
         }
-        fn im_f64(&self) -> f64 {
+        fn imag(&self) -> f64 {
             self.1
         }
     }
@@ -561,19 +562,19 @@ mod tests {
         let result = <T as ComplexDot>::dot(&a_t, &b_t).unwrap();
         let tol = T::atol() + T::rtol() * expected_re.abs().max(expected_im.abs());
         assert!(
-            (result.re_f64() - expected_re).abs() <= tol,
+            (result.real() - expected_re).abs() <= tol,
             "complex_dot<{}> real: expected {} got {} (tol={})",
             core::any::type_name::<T>(),
             expected_re,
-            result.re_f64(),
+            result.real(),
             tol
         );
         assert!(
-            (result.im_f64() - expected_im).abs() <= tol,
+            (result.imag() - expected_im).abs() <= tol,
             "complex_dot<{}> imag: expected {} got {} (tol={})",
             core::any::type_name::<T>(),
             expected_im,
-            result.im_f64(),
+            result.imag(),
             tol
         );
     }
@@ -588,19 +589,19 @@ mod tests {
         let result = T::vdot(&a_t, &b_t).unwrap();
         let tol = T::atol() + T::rtol() * expected_re.abs().max(expected_im.abs());
         assert!(
-            (result.re_f64() - expected_re).abs() <= tol,
+            (result.real() - expected_re).abs() <= tol,
             "complex_vdot<{}> real: expected {} got {} (tol={})",
             core::any::type_name::<T>(),
             expected_re,
-            result.re_f64(),
+            result.real(),
             tol
         );
         assert!(
-            (result.im_f64() - expected_im).abs() <= tol,
+            (result.imag() - expected_im).abs() <= tol,
             "complex_vdot<{}> imag: expected {} got {} (tol={})",
             core::any::type_name::<T>(),
             expected_im,
-            result.im_f64(),
+            result.imag(),
             tol
         );
     }
@@ -622,17 +623,17 @@ mod tests {
         let result = T::complex_bilinear(&a, &b, &c).unwrap();
         let tol = T::atol() + T::rtol();
         assert!(
-            (result.re_f64() - 1.0).abs() <= tol,
+            (result.real() - 1.0).abs() <= tol,
             "complex_bilinear<{}> real: expected ~1.0, got {} (tol={})",
             core::any::type_name::<T>(),
-            result.re_f64(),
+            result.real(),
             tol
         );
         assert!(
-            result.im_f64().abs() <= tol,
+            result.imag().abs() <= tol,
             "complex_bilinear<{}> imag: expected ~0.0, got {} (tol={})",
             core::any::type_name::<T>(),
-            result.im_f64(),
+            result.imag(),
             tol
         );
     }
