@@ -15,7 +15,7 @@ Matches C++ suite: test_reduce.cpp.
 """
 
 import atexit
-import math as _math
+import math
 import pytest
 
 try:
@@ -31,13 +31,13 @@ from test_base import (
     create_stats,
     collect_errors,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
-_algebraic_dtypes = ["float32", "float64"]
-_algebraic_ndims = [7, 97]
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+algebraic_dtypes = ["float32", "float64"]
+algebraic_ndims = [7, 97]
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 
 def baseline_moments(a):
@@ -76,7 +76,7 @@ def baseline_norm(a):
     return np.linalg.norm(np.asarray(a).astype(np.float64))
 
 
-_KERNELS_REDUCE = {
+KERNELS_REDUCE = {
     "moments": (baseline_moments, nk.moments, None),
     "minmax": (
         lambda a: (np.asarray(a).min(), np.asarray(a).argmin(), np.asarray(a).max(), np.asarray(a).argmax()),
@@ -301,39 +301,39 @@ def test_norm_integer():
         np.testing.assert_allclose(result, expected, rtol=1e-10)
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 def test_sum_known(ndim, dtype):
     """sum(ones(n)) ~ n."""
-    o = nk.ones((ndim,), dtype=dtype)
-    result = o.sum()
+    ones_tensor = nk.ones((ndim,), dtype=dtype)
+    result = ones_tensor.sum()
     assert abs(result - ndim) < 0.1 + 0.1 * ndim
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 def test_norm_known(ndim, dtype):
     """norm(ones(n)) ~ sqrt(n)."""
-    o = nk.ones((ndim,), dtype=dtype)
-    result = nk.norm(o)
-    expected = _math.sqrt(ndim)
+    ones_tensor = nk.ones((ndim,), dtype=dtype)
+    result = nk.norm(ones_tensor)
+    expected = math.sqrt(ndim)
     assert abs(result - expected) < 0.1 + 0.1 * expected
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 def test_min_max_known(ndim, dtype):
     """min(full(c)) = max(full(c)) = c."""
-    c = 3.14
-    f = nk.full((ndim,), c, dtype=dtype)
-    assert abs(f.min() - c) < 0.01
-    assert abs(f.max() - c) < 0.01
+    fill_value = 3.14
+    constant_tensor = nk.full((ndim,), fill_value, dtype=dtype)
+    assert abs(constant_tensor.min() - fill_value) < 0.01
+    assert abs(constant_tensor.max() - fill_value) < 0.01
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 def test_argmin_argmax_constant(ndim, dtype):
     """For a constant tensor, argmin and argmax return valid indices in [0, n)."""
-    f = nk.full((ndim,), 2.0, dtype=dtype)
-    assert 0 <= f.argmin() < ndim
-    assert 0 <= f.argmax() < ndim
+    constant_tensor = nk.full((ndim,), 2.0, dtype=dtype)
+    assert 0 <= constant_tensor.argmin() < ndim
+    assert 0 <= constant_tensor.argmax() < ndim

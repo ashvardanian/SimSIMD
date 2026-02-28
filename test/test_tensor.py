@@ -45,7 +45,7 @@ from test_base import (
     NK_RTOL,
     f32_downcast_to_bf16,
     make_nk,
-    _seed_rng,
+    seed_rng,
 )
 
 try:
@@ -53,7 +53,7 @@ try:
 except ImportError:
     pass
 
-_KERNELS_TENSOR = {
+KERNELS_TENSOR = {
     "sum": (lambda a: np.sum(np.asarray(a)), lambda a: a.sum(), None),
     "min": (lambda a: np.min(np.asarray(a)), lambda a: a.min(), None),
     "max": (lambda a: np.max(np.asarray(a)), lambda a: a.max(), None),

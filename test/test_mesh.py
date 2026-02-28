@@ -29,11 +29,11 @@ from test_base import (
     keep_one_capability,
     create_stats,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 try:
     from scipy.spatial import procrustes as scipy_procrustes
@@ -46,7 +46,7 @@ try:
 except ImportError:
     baseline_kabsch = None
 
-_KERNELS_MESH = {
+KERNELS_MESH = {
     "kabsch": (baseline_kabsch, nk.kabsch, None),
     "umeyama": (None, nk.umeyama, None),
     "rmsd": (None, nk.rmsd, None),
@@ -99,7 +99,7 @@ def test_mesh_rmsd(dtype, capability):
 def test_rmsd_self_zero(capability):
     """rmsd(cloud, cloud).rmsd ~ 0 for identical point clouds."""
     keep_one_capability(capability)
-    cloud = nk.ones((4, 3), dtype="float64")
-    result = nk.rmsd(cloud, cloud)
+    point_cloud = nk.ones((4, 3), dtype="float64")
+    result = nk.rmsd(point_cloud, point_cloud)
     rmsd_val = float(result.rmsd)
     assert rmsd_val < 1e-4, f"rmsd(cloud, cloud) = {rmsd_val}, expected ~0"

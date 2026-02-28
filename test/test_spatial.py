@@ -37,7 +37,7 @@ from test_base import (
     profile,
     NK_ATOL,
     NK_RTOL,
-    _DECIMAL_PRECISION,
+    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     make_random,
     tolerances_for_dtype,
@@ -46,13 +46,13 @@ from test_base import (
     create_stats,
     print_stats_report,
     LazyFormat,
-    _seed_rng,
+    seed_rng,
 )
 
-_algebraic_dtypes = ["float32", "float64"]
-_algebraic_ndims = [7, 97]
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+algebraic_dtypes = ["float32", "float64"]
+algebraic_ndims = [7, 97]
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 try:
     import scipy.spatial.distance as spd
@@ -69,7 +69,7 @@ except ImportError:
 def precise_sqeuclidean(a, b):
     """High-precision squared Euclidean distance via Python Decimal."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         return float(sum((D.from_float(float(x)) - D.from_float(float(y))) ** 2 for x, y in zip(a, b)))
 
@@ -81,7 +81,7 @@ def precise_euclidean(a, b):
 def precise_angular(a, b):
     """High-precision angular/cosine distance via Python Decimal."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         ab, aa, bb = D(0), D(0), D(0)
         for x, y in zip(a, b):
@@ -90,10 +90,13 @@ def precise_angular(a, b):
             ab += dx * dy
             aa += dx * dx
             bb += dy * dy
-        return float(1 - ab / (aa * bb).sqrt())
+        denom = (aa * bb).sqrt()
+        if denom == 0:
+            return 1.0
+        return float(1 - ab / denom)
 
 
-_KERNELS_SPATIAL = {
+KERNELS_SPATIAL = {
     "euclidean": (baseline_euclidean, nk.euclidean, precise_euclidean),
     "sqeuclidean": (baseline_sqeuclidean, nk.sqeuclidean, precise_sqeuclidean),
     "angular": (baseline_angular, nk.angular, precise_angular),
@@ -120,19 +123,14 @@ _KERNELS_SPATIAL = {
 )
 @pytest.mark.parametrize("metric", ["euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_spatial(ndim, dtype, metric, capability):
-    """Spatial distances across all numeric dtypes.
-
-    Integer dtypes use exact ±1 tolerance (discrete arithmetic).
-    Sub-byte floats (bf16, e4m3, e5m2, e2m3, e3m2) carry wider quantization
-    noise but are held to the same relative error bar.
-    """
+def test_spatial_random_accuracy(ndim, dtype, metric, capability):
+    """Spatial distances across all numeric dtypes against high-precision Decimal baselines."""
     a_raw, a_baseline = make_random((ndim,), dtype)
     b_raw, b_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, precise_kernel = _KERNELS_SPATIAL[metric]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_SPATIAL[metric]
 
     # High-precision baseline (always f64)
     with warnings.catch_warnings():
@@ -160,7 +158,7 @@ def test_spatial(ndim, dtype, metric, capability):
     )
 
     np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
-    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -185,11 +183,11 @@ def test_angular_zero_vector(ndim, dtype, capability):
     assert np.all(result >= 0), f"Negative result for angular distance"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_self_distance_zero(ndim, dtype, capability):
-    """d(v, v) should be 0 for all spatial metrics."""
+def test_spatial_self_distance_zero(ndim, dtype, capability):
+    """d(v, v) should be 0 for euclidean, sqeuclidean, and angular."""
     keep_one_capability(capability)
     v = nk.full((ndim,), 1.5, dtype=dtype)
     atol = NK_ATOL
@@ -198,36 +196,36 @@ def test_self_distance_zero(ndim, dtype, capability):
     assert abs(nk.angular(v, v)) < atol
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_euclidean_known(ndim, dtype, capability):
     """euclidean(ones, zeros) = sqrt(n)."""
     keep_one_capability(capability)
-    o = nk.ones((ndim,), dtype=dtype)
-    z = nk.zeros((ndim,), dtype=dtype)
-    result = nk.euclidean(o, z)
+    ones_vector = nk.ones((ndim,), dtype=dtype)
+    zeros_vector = nk.zeros((ndim,), dtype=dtype)
+    result = nk.euclidean(ones_vector, zeros_vector)
     expected = math.sqrt(ndim)
     assert abs(result - expected) < NK_ATOL + NK_RTOL * expected
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_sqeuclidean_known(ndim, dtype, capability):
     """sqeuclidean(ones, zeros) = n."""
     keep_one_capability(capability)
-    o = nk.ones((ndim,), dtype=dtype)
-    z = nk.zeros((ndim,), dtype=dtype)
-    result = nk.sqeuclidean(o, z)
+    ones_vector = nk.ones((ndim,), dtype=dtype)
+    zeros_vector = nk.zeros((ndim,), dtype=dtype)
+    result = nk.sqeuclidean(ones_vector, zeros_vector)
     assert abs(result - ndim) < NK_ATOL + NK_RTOL * ndim
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_distance_symmetry(ndim, dtype, capability):
-    """d(a, b) = d(b, a) for all spatial metrics."""
+def test_spatial_symmetry(ndim, dtype, capability):
+    """Commutativity: d(a, b) = d(b, a) for all spatial metrics."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
     b = make_random_buffer(ndim, dtype)
@@ -237,24 +235,24 @@ def test_distance_symmetry(ndim, dtype, capability):
         assert abs(d_ab - d_ba) < NK_ATOL, f"{metric_fn.__name__}: d(a,b)={d_ab} != d(b,a)={d_ba}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_distance_non_negative(ndim, dtype, capability):
-    """d(a, b) >= 0 for all spatial metrics."""
+def test_spatial_non_negative(ndim, dtype, capability):
+    """Non-negativity: d(a, b) >= 0 for all spatial metrics."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
     b = make_random_buffer(ndim, dtype)
     for metric_fn in [nk.euclidean, nk.sqeuclidean, nk.angular]:
-        d = metric_fn(a, b)
-        assert d >= -NK_ATOL, f"{metric_fn.__name__}: d(a,b)={d} is negative"
+        distance = metric_fn(a, b)
+        assert distance >= -NK_ATOL, f"{metric_fn.__name__}: d(a,b)={distance} is negative"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_triangle_inequality(ndim, dtype, capability):
-    """euclidean(a, c) <= euclidean(a, b) + euclidean(b, c)."""
+def test_euclidean_triangle_inequality(ndim, dtype, capability):
+    """Triangle inequality: euclidean(a, c) <= euclidean(a, b) + euclidean(b, c)."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
     b = make_random_buffer(ndim, dtype)
@@ -263,19 +261,3 @@ def test_triangle_inequality(ndim, dtype, capability):
     d_ab = nk.euclidean(a, b)
     d_bc = nk.euclidean(b, c)
     assert d_ac <= d_ab + d_bc + NK_ATOL, f"Triangle inequality violated: d(a,c)={d_ac} > d(a,b)+d(b,c)={d_ab + d_bc}"
-
-
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_cauchy_schwarz(ndim, dtype, capability):
-    """|inner(a,b)|^2 <= inner(a,a) * inner(b,b)."""
-    keep_one_capability(capability)
-    a = make_random_buffer(ndim, dtype)
-    b = make_random_buffer(ndim, dtype)
-    ab = nk.inner(a, b)
-    aa = nk.inner(a, a)
-    bb = nk.inner(b, b)
-    assert (
-        ab * ab <= aa * bb + NK_ATOL
-    ), f"Cauchy-Schwarz violated: |inner(a,b)|²={ab*ab} > inner(a,a)*inner(b,b)={aa*bb}"

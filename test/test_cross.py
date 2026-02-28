@@ -34,15 +34,15 @@ from test_base import (
     scipy_metric_name,
     NK_ATOL,
     NK_RTOL,
-    _DECIMAL_PRECISION,
-    EXOTIC_DTYPES,
+    DECIMAL_PRECISION,
+    NATIVE_COMPUTE_DTYPE,
     make_random,
     make_nk,
     tolerances_for_dtype,
     collect_errors,
     create_stats,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
 try:
@@ -50,8 +50,8 @@ try:
 except ImportError:
     pass
 
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 baseline_dots_symmetric = lambda vectors: vectors @ vectors.T
 baseline_dots_packed = lambda A, B: A @ B.T
@@ -60,7 +60,7 @@ baseline_dots_packed = lambda A, B: A @ B.T
 def precise_matmul(A, B_T):
     """High-precision A @ B^T via Decimal. Returns 2D numpy array."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         m, k = A.shape
         n = B_T.shape[0]
@@ -83,7 +83,7 @@ def precise_dots_packed(A, B):
     return precise_matmul(A, B)
 
 
-_KERNELS_CROSS = {
+KERNELS_CROSS = {
     "dots_symmetric": (baseline_dots_symmetric, nk.dots_symmetric, precise_dots_symmetric),
     "dots_packed": (baseline_dots_packed, nk.dots_packed, precise_dots_packed),
 }
@@ -94,77 +94,78 @@ _KERNELS_CROSS = {
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_batch(ndim, dtype, capability):
+def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
+    """Batch sqeuclidean with NxD-vs-NxD, NxD-vs-1xD, strided, transposed, and out_dtype scenarios."""
     keep_one_capability(capability)
 
     # NxD vs NxD
-    A = np.random.randn(10, ndim).astype(dtype)
-    B = np.random.randn(10, ndim).astype(dtype)
-    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    a_matrix = np.random.randn(10, ndim).astype(dtype)
+    b_matrix = np.random.randn(10, ndim).astype(dtype)
+    expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # NxD vs 1xD
-    B = np.random.randn(1, ndim).astype(dtype)
-    result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    b_matrix = np.random.randn(1, ndim).astype(dtype)
+    expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[0]) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # 1xD vs NxD
-    A = np.random.randn(1, ndim).astype(dtype)
-    B = np.random.randn(10, ndim).astype(dtype)
-    result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    a_matrix = np.random.randn(1, ndim).astype(dtype)
+    b_matrix = np.random.randn(10, ndim).astype(dtype)
+    expected_distances = [spd.sqeuclidean(a_matrix[0], b_matrix[i]) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # NxD vs D (1D)
-    A = np.random.randn(10, ndim).astype(dtype)
-    B = np.random.randn(ndim).astype(dtype)
-    result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    a_matrix = np.random.randn(10, ndim).astype(dtype)
+    b_matrix = np.random.randn(ndim).astype(dtype)
+    expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # D (1D) vs NxD
-    B = np.random.randn(10, ndim).astype(dtype)
-    A = np.random.randn(ndim).astype(dtype)
-    result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(B, A)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    b_matrix = np.random.randn(10, ndim).astype(dtype)
+    a_matrix = np.random.randn(ndim).astype(dtype)
+    expected_distances = [spd.sqeuclidean(b_matrix[i], a_matrix) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(b_matrix, a_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Strided slices of bigger matrices
-    A_extended = np.random.randn(10, ndim + 11).astype(dtype)
-    B_extended = np.random.randn(10, ndim + 13).astype(dtype)
-    A = A_extended[:, 1 : 1 + ndim]
-    B = B_extended[:, 3 : 3 + ndim]
-    assert A.base is A_extended and B.base is B_extended
-    assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
-    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    a_matrix_extended = np.random.randn(10, ndim + 11).astype(dtype)
+    b_matrix_extended = np.random.randn(10, ndim + 13).astype(dtype)
+    a_matrix = a_matrix_extended[:, 1 : 1 + ndim]
+    b_matrix = b_matrix_extended[:, 3 : 3 + ndim]
+    assert a_matrix.base is a_matrix_extended and b_matrix.base is b_matrix_extended
+    assert a_matrix.__array_interface__["strides"] is not None and b_matrix.__array_interface__["strides"] is not None
+    expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Transposed matrix
-    A = np.random.randn(10, ndim).astype(dtype)
-    B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
-    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
+    a_matrix = np.random.randn(10, ndim).astype(dtype)
+    b_matrix = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
+    expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Different output type
-    A = np.random.randn(10, ndim).astype(dtype)
-    B = np.random.randn(10, ndim).astype(dtype)
-    result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
-    result_simd = np.array(nk.sqeuclidean(A, B, out_dtype="float32"))
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
-    assert result_simd.dtype == result_np.dtype
+    a_matrix = np.random.randn(10, ndim).astype(dtype)
+    b_matrix = np.random.randn(10, ndim).astype(dtype)
+    expected_distances = np.array([spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]).astype(np.float32)
+    simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix, out_dtype="float32"))
+    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert simd_distances.dtype == expected_distances.dtype
 
     # Supplied output buffer
-    A = np.random.randn(10, ndim).astype(dtype)
-    B = np.random.randn(10, ndim).astype(dtype)
-    result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
-    result_simd = np.zeros(10, dtype=np.float32)
-    assert nk.sqeuclidean(A, B, out=result_simd) is None
-    np.testing.assert_allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
-    assert result_simd.dtype == result_np.dtype
+    a_matrix = np.random.randn(10, ndim).astype(dtype)
+    b_matrix = np.random.randn(10, ndim).astype(dtype)
+    expected_distances = np.array([spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]).astype(np.float32)
+    output_buffer = np.zeros(10, dtype=np.float32)
+    assert nk.sqeuclidean(a_matrix, b_matrix, out=output_buffer) is None
+    np.testing.assert_allclose(output_buffer, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert output_buffer.dtype == expected_distances.dtype
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -174,41 +175,42 @@ def test_batch(ndim, dtype, capability):
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
 @pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
+def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
+    """Pairwise cdist for float dtypes with out_dtype and out= buffer support."""
     keep_one_capability(capability)
 
-    M, N = 10, 15
-    A_extended = np.random.randn(M, ndim + 1).astype(input_dtype)
-    B_extended = np.random.randn(N, ndim + 3).astype(input_dtype)
-    A = A_extended[:, :ndim]
-    B = B_extended[:, :ndim]
+    num_rows_a, num_rows_b = 10, 15
+    a_matrix_extended = np.random.randn(num_rows_a, ndim + 1).astype(input_dtype)
+    b_matrix_extended = np.random.randn(num_rows_b, ndim + 3).astype(input_dtype)
+    a_matrix = a_matrix_extended[:, :ndim]
+    b_matrix = b_matrix_extended[:, :ndim]
 
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
     scipy_metric = scipy_metric_name(metric)
 
     if out_dtype is None:
-        expected = spd.cdist(A, B, scipy_metric)
-        result = nk.cdist(A, B, metric)
-        expected_out = np.zeros((M, N))
-        result_out_extended = np.zeros((M, N + 7))
-        result_out = result_out_extended[:, :N]
-        assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
-        assert nk.cdist(A, B, metric, out=result_out) is None
+        expected = spd.cdist(a_matrix, b_matrix, scipy_metric)
+        result = nk.cdist(a_matrix, b_matrix, metric)
+        expected_out = np.zeros((num_rows_a, num_rows_b))
+        output_buffer_extended = np.zeros((num_rows_a, num_rows_b + 7))
+        output_buffer = output_buffer_extended[:, :num_rows_b]
+        assert spd.cdist(a_matrix, b_matrix, scipy_metric, out=expected_out) is not None
+        assert nk.cdist(a_matrix, b_matrix, metric, out=output_buffer) is None
     else:
-        scipy_result = spd.cdist(A, B, scipy_metric)
+        scipy_result = spd.cdist(a_matrix, b_matrix, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = nk.cdist(A, B, metric, out_dtype=out_dtype)
+        result = nk.cdist(a_matrix, b_matrix, metric, out_dtype=out_dtype)
 
-        expected_out = np.zeros((M, N), dtype=np.float64)
-        result_out_extended = np.zeros((M, N + 7), dtype=out_dtype)
-        result_out = result_out_extended[:, :N]
-        assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
-        assert nk.cdist(A, B, metric, out=result_out) is None
+        expected_out = np.zeros((num_rows_a, num_rows_b), dtype=np.float64)
+        output_buffer_extended = np.zeros((num_rows_a, num_rows_b + 7), dtype=out_dtype)
+        output_buffer = output_buffer_extended[:, :num_rows_b]
+        assert spd.cdist(a_matrix, b_matrix, scipy_metric, out=expected_out) is not None
+        assert nk.cdist(a_matrix, b_matrix, metric, out=output_buffer) is None
         expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
 
     atol = 1 if is_integer_output else NK_ATOL
     np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
-    np.testing.assert_allclose(result_out, expected_out, atol=atol, rtol=NK_RTOL)
+    np.testing.assert_allclose(output_buffer, expected_out, atol=atol, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -217,18 +219,19 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
 @pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
-def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
+def test_cdist_self_distance(ndim, input_dtype, out_dtype, metric):
+    """cdist(A, A) self-distance matrix against SciPy baseline."""
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
     scipy_metric = scipy_metric_name(metric)
 
-    A = np.random.randn(10, ndim + 1).astype(input_dtype)
+    a_matrix = np.random.randn(10, ndim + 1).astype(input_dtype)
     if out_dtype is None:
-        expected = spd.cdist(A, A, scipy_metric)
-        result = nk.cdist(A, A, metric=metric)
+        expected = spd.cdist(a_matrix, a_matrix, scipy_metric)
+        result = nk.cdist(a_matrix, a_matrix, metric=metric)
     else:
-        scipy_result = spd.cdist(A, A, scipy_metric)
+        scipy_result = spd.cdist(a_matrix, a_matrix, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = nk.cdist(A, A, metric=metric, out_dtype=out_dtype)
+        result = nk.cdist(a_matrix, a_matrix, metric=metric, out_dtype=out_dtype)
 
     atol = 1 if is_integer_output else NK_ATOL
     np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
@@ -241,35 +244,36 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
 @pytest.mark.parametrize("metric", ["dot", "vdot"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
+    """cdist for complex dot and vdot with 1D and 2D inputs plus out= support."""
     keep_one_capability(capability)
 
-    M, N = 10, 15
-    A_extended = np.random.randn(M, ndim + 1).astype(input_dtype)
-    B_extended = np.random.randn(N, ndim + 3).astype(input_dtype)
-    A = A_extended[:, :ndim]
-    B = B_extended[:, :ndim]
-    C_extended = np.random.randn(M, N + 7).astype(out_dtype if out_dtype else np.complex128)
-    C = C_extended[:, :N]
+    num_rows_a, num_rows_b = 10, 15
+    a_matrix_extended = np.random.randn(num_rows_a, ndim + 1).astype(input_dtype)
+    b_matrix_extended = np.random.randn(num_rows_b, ndim + 3).astype(input_dtype)
+    a_matrix = a_matrix_extended[:, :ndim]
+    b_matrix = b_matrix_extended[:, :ndim]
+    c_matrix_extended = np.random.randn(num_rows_a, num_rows_b + 7).astype(out_dtype if out_dtype else np.complex128)
+    c_matrix = c_matrix_extended[:, :num_rows_b]
 
-    expected = np.zeros((M, N), dtype=out_dtype if out_dtype else np.complex128)
+    expected = np.zeros((num_rows_a, num_rows_b), dtype=out_dtype if out_dtype else np.complex128)
     baseline_kernel = np.dot if metric == "dot" else np.vdot
-    for i in range(M):
-        for j in range(N):
-            expected[i, j] = baseline_kernel(A[i], B[j])
+    for i in range(num_rows_a):
+        for j in range(num_rows_b):
+            expected[i, j] = baseline_kernel(a_matrix[i], b_matrix[j])
 
     if out_dtype is None:
-        result1d = nk.cdist(A[0], B[0], metric=metric)
-        result2d = nk.cdist(A, B, metric=metric)
-        assert nk.cdist(A, B, metric=metric, out=C) is None
+        result1d = nk.cdist(a_matrix[0], b_matrix[0], metric=metric)
+        result2d = nk.cdist(a_matrix, b_matrix, metric=metric)
+        assert nk.cdist(a_matrix, b_matrix, metric=metric, out=c_matrix) is None
     else:
         expected = expected.astype(out_dtype)
-        result1d = nk.cdist(A[0], B[0], metric=metric, out_dtype=out_dtype)
-        result2d = nk.cdist(A, B, metric=metric, out_dtype=out_dtype)
-        assert nk.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
+        result1d = nk.cdist(a_matrix[0], b_matrix[0], metric=metric, out_dtype=out_dtype)
+        result2d = nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype)
+        assert nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype, out=c_matrix) is None
 
     np.testing.assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
     np.testing.assert_allclose(result2d, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(C, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    np.testing.assert_allclose(c_matrix, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -279,19 +283,20 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cdist_hamming(ndim, out_dtype, capability):
+    """cdist for packed Hamming bits with optional out_dtype."""
     keep_one_capability(capability)
 
-    M, N = 10, 15
-    A = np.random.randint(2, size=(M, ndim)).astype(np.uint8)
-    B = np.random.randint(2, size=(N, ndim)).astype(np.uint8)
-    A_bits, B_bits = np.packbits(A, axis=1), np.packbits(B, axis=1)
+    num_rows_a, num_rows_b = 10, 15
+    a_bits = np.random.randint(2, size=(num_rows_a, ndim)).astype(np.uint8)
+    b_bits = np.random.randint(2, size=(num_rows_b, ndim)).astype(np.uint8)
+    a_packed_bits, b_packed_bits = np.packbits(a_bits, axis=1), np.packbits(b_bits, axis=1)
 
     if out_dtype is None:
-        expected = spd.cdist(A, B, "hamming") * ndim
-        result = nk.cdist(A_bits, B_bits, metric="hamming", dtype="uint1")
+        expected = spd.cdist(a_bits, b_bits, "hamming") * ndim
+        result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1")
     else:
-        expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
-        result = nk.cdist(A_bits, B_bits, metric="hamming", dtype="uint1", out_dtype=out_dtype)
+        expected = (spd.cdist(a_bits, b_bits, "hamming") * ndim).astype(out_dtype)
+        result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
@@ -317,31 +322,34 @@ def test_cdist_hamming(ndim, out_dtype, capability):
 def test_dots_symmetric(dtype, capability):
     """Test nk.dots_symmetric against high-precision matmul (upper triangle)."""
 
-    baseline_kernel, simd_kernel, precise_kernel = _KERNELS_CROSS["dots_symmetric"]
-    n, d = 32, 64
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_CROSS["dots_symmetric"]
+    num_vectors, vector_depth = 32, 64
     atol, rtol = tolerances_for_dtype(dtype)
-    vectors_raw, vectors_baseline = make_random((n, d), dtype)
+    vectors_raw, vectors_baseline = make_random((num_vectors, vector_depth), dtype)
 
     keep_one_capability(capability)
 
     accurate_dt, accurate = profile(precise_kernel or baseline_kernel, vectors_baseline)
 
+    native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
+    expected_dt, expected = profile(baseline_kernel, vectors_baseline.astype(native_dt))
+
     result_dt, result = profile(simd_kernel, vectors_raw, dtype=dtype)
     result = np.asarray(result)
 
-    mask = np.triu(np.ones((n, n), dtype=bool))
+    mask = np.triu(np.ones((num_vectors, num_vectors), dtype=bool))
     np.testing.assert_allclose(result[mask], accurate[mask], atol=atol, rtol=rtol)
     collect_errors(
         "dots_symmetric",
-        n * d,
+        num_vectors * vector_depth,
         dtype,
         accurate[mask],
         accurate_dt,
-        accurate[mask],
-        accurate_dt,
+        expected[mask],
+        expected_dt,
         result[mask],
         result_dt,
-        _stats,
+        stats,
     )
 
 
@@ -350,17 +358,17 @@ def test_dots_symmetric(dtype, capability):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_hammings_symmetric(capability):
     """Test nk.hammings_symmetric against pairwise Hamming (upper triangle)."""
-    n, d_bits = 16, 128
-    bits = np.random.randint(2, size=(n, d_bits)).astype(np.uint8)
+    num_vectors, bit_depth = 16, 128
+    bits = np.random.randint(2, size=(num_vectors, bit_depth)).astype(np.uint8)
     packed = np.packbits(bits, axis=1)
 
     keep_one_capability(capability)
     result = np.asarray(nk.hammings_symmetric(packed, dtype="uint1"))
 
-    mask = np.triu(np.ones((n, n), dtype=bool))
-    expected = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(i, n):
+    mask = np.triu(np.ones((num_vectors, num_vectors), dtype=bool))
+    expected = np.zeros((num_vectors, num_vectors), dtype=np.float64)
+    for i in range(num_vectors):
+        for j in range(i, num_vectors):
             expected[i, j] = np.logical_xor(bits[i], bits[j]).sum()
 
     np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
@@ -384,52 +392,51 @@ def test_hammings_symmetric(capability):
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dots_packed(dtype, capability):
+def test_dots_pack_and_packed(dtype, capability):
     """Test dots_pack + dots_packed against high-precision matmul."""
 
-    _, _, precise_kernel = _KERNELS_CROSS["dots_packed"]
-    m, n, k = 8, 16, 64
+    _, _, precise_kernel = KERNELS_CROSS["dots_packed"]
+    height, width, depth = 8, 16, 64
     atol, rtol = tolerances_for_dtype(dtype)
-    A_raw, A_baseline = make_random((m, k), dtype)
-    B_raw, B_baseline = make_random((n, k), dtype)
+    a_raw, a_baseline = make_random((height, depth), dtype)
+    b_raw, b_baseline = make_random((width, depth), dtype)
 
     keep_one_capability(capability)
 
-    # SIMD path — exotic types need nk.Tensor wrappers because
-    # dots_packed infers dtype from the tensor, not a kwarg.
-    if dtype in EXOTIC_DTYPES:
-        nk_A = make_nk(A_raw, dtype)
-        nk_B = make_nk(B_raw, dtype)
-        packed_B = nk.dots_pack(nk_B)
-        result_dt, result = profile(nk.dots_packed, nk_A, packed_B)
-        result = np.asarray(result)
-    else:
-        packed_B = nk.dots_pack(B_raw, dtype=dtype)
-        result_dt, result = profile(nk.dots_packed, A_raw, packed_B)
-        result = np.asarray(result)
+    # SIMD path — wrap in nk.Tensor so dots_packed can infer dtype
+    a_tensor = make_nk(a_raw, dtype)
+    b_tensor = make_nk(b_raw, dtype)
+    b_packed = nk.dots_pack(b_tensor, dtype=dtype)
+    result_dt, result = profile(nk.dots_packed, a_tensor, b_packed)
+    result = np.asarray(result)
 
-    accurate_dt, accurate = profile(precise_kernel, A_baseline, B_baseline)
+    accurate_dt, accurate = profile(precise_kernel, a_baseline, b_baseline)
+
+    native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
+    expected_dt, expected = profile(baseline_dots_packed, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
 
     np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol)
-    collect_errors("dots_packed", m * k, dtype, accurate, accurate_dt, accurate, accurate_dt, result, result_dt, _stats)
+    collect_errors(
+        "dots_packed", height * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dots_pack_matmul_operator(capability):
     """Test the @ operator with a PackedMatrix (Tensor @ PackedMatrix)."""
-    m, n, k = 8, 16, 64
-    A = np.random.randn(m, k).astype(np.float32)
-    B = np.random.randn(n, k).astype(np.float32)
+    height, width, depth = 8, 16, 64
+    a_matrix = np.random.randn(height, depth).astype(np.float32)
+    b_matrix = np.random.randn(width, depth).astype(np.float32)
 
     keep_one_capability(capability)
-    nk_A = nk.zeros((m, k), dtype="float32")
-    nk_A_np = np.asarray(nk_A)
-    np.copyto(nk_A_np, A)
+    a_tensor = nk.zeros((height, depth), dtype="float32")
+    a_tensor_view = np.asarray(a_tensor)
+    np.copyto(a_tensor_view, a_matrix)
 
-    packed_B = nk.dots_pack(B, dtype="float32")
-    result = np.asarray(nk_A @ packed_B)
-    expected = A @ B.T
+    b_packed = nk.dots_pack(b_matrix, dtype="float32")
+    result = np.asarray(a_tensor @ b_packed)
+    expected = a_matrix @ b_matrix.T
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
@@ -439,19 +446,19 @@ def test_dots_pack_matmul_operator(capability):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_hammings_pack_and_packed(capability):
     """Test hammings_pack + hammings_packed against pairwise Hamming."""
-    m, n, d_bits = 8, 16, 128
-    bits_A = np.random.randint(2, size=(m, d_bits)).astype(np.uint8)
-    bits_B = np.random.randint(2, size=(n, d_bits)).astype(np.uint8)
-    packed_A = np.packbits(bits_A, axis=1)
-    packed_B_raw = np.packbits(bits_B, axis=1)
+    num_rows_a, num_rows_b, bit_depth = 8, 16, 128
+    a_bits = np.random.randint(2, size=(num_rows_a, bit_depth)).astype(np.uint8)
+    b_bits = np.random.randint(2, size=(num_rows_b, bit_depth)).astype(np.uint8)
+    a_packed = np.packbits(a_bits, axis=1)
+    b_packed_raw = np.packbits(b_bits, axis=1)
 
     keep_one_capability(capability)
-    packed_B = nk.hammings_pack(packed_B_raw, dtype="uint1")
-    result = np.asarray(nk.hammings_packed(packed_A, packed_B))
+    b_packed = nk.hammings_pack(b_packed_raw, dtype="uint1")
+    result = np.asarray(nk.hammings_packed(a_packed, b_packed))
 
-    expected = np.zeros((m, n), dtype=np.float64)
-    for i in range(m):
-        for j in range(n):
-            expected[i, j] = np.logical_xor(bits_A[i], bits_B[j]).sum()
+    expected = np.zeros((num_rows_a, num_rows_b), dtype=np.float64)
+    for i in range(num_rows_a):
+        for j in range(num_rows_b):
+            expected[i, j] = np.logical_xor(a_bits[i], b_bits[j]).sum()
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)

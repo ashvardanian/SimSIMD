@@ -13,7 +13,7 @@ Matches C++ suite: test_trigonometry.cpp.
 """
 
 import atexit
-import math as _math
+import math
 import pytest
 
 try:
@@ -35,13 +35,13 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
-_algebraic_dtypes = ["float32", "float64"]
-_algebraic_ndims = [7, 97]
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+algebraic_dtypes = ["float32", "float64"]
+algebraic_ndims = [7, 97]
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 
 def baseline_sin(a):
@@ -59,7 +59,7 @@ def baseline_atan(a):
     return np.arctan(a)
 
 
-_KERNELS_TRIGONOMETRY = {
+KERNELS_TRIGONOMETRY = {
     "sin": (baseline_sin, nk.sin, None),
     "cos": (baseline_cos, nk.cos, None),
     "atan": (baseline_atan, nk.atan, None),
@@ -70,14 +70,14 @@ _KERNELS_TRIGONOMETRY = {
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-@pytest.mark.parametrize("metric", list(_KERNELS_TRIGONOMETRY.keys()))
+@pytest.mark.parametrize("metric", list(KERNELS_TRIGONOMETRY.keys()))
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometric(ndim, dtype, metric, capability):
-    """Test nk trig functions against NumPy."""
+def test_trigonometry_random_accuracy(ndim, dtype, metric, capability):
+    """sin, cos, atan on random inputs in [-pi, pi] against NumPy baselines."""
     a = np.random.uniform(-np.pi, np.pi, ndim).astype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_TRIGONOMETRY[metric]
+    baseline_kernel, simd_kernel, _ = KERNELS_TRIGONOMETRY[metric]
 
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a)
@@ -85,69 +85,73 @@ def test_trigonometric(ndim, dtype, metric, capability):
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trig_at_zero(ndim, dtype, capability):
+def test_trigonometry_at_zero(ndim, dtype, capability):
     """sin(0)~0, cos(0)~1, atan(0)~0."""
     keep_one_capability(capability)
-    z = nk.zeros((ndim,), dtype=dtype)
-    sin_z = list(nk.sin(z))
-    cos_z = list(nk.cos(z))
-    atan_z = list(nk.atan(z))
+    zeros_vector = nk.zeros((ndim,), dtype=dtype)
+    sin_values = list(nk.sin(zeros_vector))
+    cos_values = list(nk.cos(zeros_vector))
+    atan_values = list(nk.atan(zeros_vector))
     for i in range(ndim):
-        assert abs(sin_z[i]) < NK_ATOL, f"sin(0)[{i}]={sin_z[i]}"
-        assert abs(cos_z[i] - 1.0) < NK_ATOL, f"cos(0)[{i}]={cos_z[i]}"
-        assert abs(atan_z[i]) < NK_ATOL, f"atan(0)[{i}]={atan_z[i]}"
+        assert abs(sin_values[i]) < NK_ATOL, f"sin(0)[{i}]={sin_values[i]}"
+        assert abs(cos_values[i] - 1.0) < NK_ATOL, f"cos(0)[{i}]={cos_values[i]}"
+        assert abs(atan_values[i]) < NK_ATOL, f"atan(0)[{i}]={atan_values[i]}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_sin_cos_known(ndim, dtype, capability):
-    """sin(pi/2)~1, cos(pi/2)~0, atan(1)~pi/4."""
+def test_trigonometry_known_values(ndim, dtype, capability):
+    """sin(pi/2)~1, cos(pi/2)~0, atan(1)~pi/4 for all elements."""
     keep_one_capability(capability)
-    half_pi = nk.full((ndim,), _math.pi / 2, dtype=dtype)
-    one_vec = nk.ones((ndim,), dtype=dtype)
-    sin_hp = list(nk.sin(half_pi))
-    cos_hp = list(nk.cos(half_pi))
-    atan_one = list(nk.atan(one_vec))
+    half_pi = nk.full((ndim,), math.pi / 2, dtype=dtype)
+    ones_vector = nk.ones((ndim,), dtype=dtype)
+    sin_values = list(nk.sin(half_pi))
+    cos_values = list(nk.cos(half_pi))
+    atan_one = list(nk.atan(ones_vector))
     for i in range(ndim):
-        assert abs(sin_hp[i] - 1.0) < NK_ATOL, f"sin(pi/2)[{i}]={sin_hp[i]}"
-        assert abs(cos_hp[i]) < NK_ATOL, f"cos(pi/2)[{i}]={cos_hp[i]}"
-        assert abs(atan_one[i] - _math.pi / 4) < NK_ATOL, f"atan(1)[{i}]={atan_one[i]}"
+        assert abs(sin_values[i] - 1.0) < NK_ATOL, f"sin(pi/2)[{i}]={sin_values[i]}"
+        assert abs(cos_values[i]) < NK_ATOL, f"cos(pi/2)[{i}]={cos_values[i]}"
+        assert abs(atan_one[i] - math.pi / 4) < NK_ATOL, f"atan(1)[{i}]={atan_one[i]}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_pythagorean_identity(ndim, dtype, capability):
     """sin^2(x) + cos^2(x) ~ 1."""
     keep_one_capability(capability)
-    x = make_random_buffer(ndim, dtype)
-    sin_x = list(nk.sin(x))
-    cos_x = list(nk.cos(x))
+    input_angles = make_random_buffer(ndim, dtype)
+    sin_values = list(nk.sin(input_angles))
+    cos_values = list(nk.cos(input_angles))
     for i in range(ndim):
-        identity = sin_x[i] ** 2 + cos_x[i] ** 2
+        identity = sin_values[i] ** 2 + cos_values[i] ** 2
         assert abs(identity - 1.0) < NK_ATOL, f"sin²+cos²={identity} at [{i}]"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trig_odd_even(ndim, dtype, capability):
+def test_trigonometry_odd_even(ndim, dtype, capability):
     """sin(-x) ~ -sin(x) (odd), cos(-x) ~ cos(x) (even)."""
     keep_one_capability(capability)
-    for c in [0.5, 1.0, 2.0]:
-        pos = nk.full((ndim,), c, dtype=dtype)
-        neg = nk.full((ndim,), -c, dtype=dtype)
-        sin_pos = list(nk.sin(pos))
-        sin_neg = list(nk.sin(neg))
-        cos_pos = list(nk.cos(pos))
-        cos_neg = list(nk.cos(neg))
+    for random_angles in [0.5, 1.0, 2.0]:
+        positive_input = nk.full((ndim,), random_angles, dtype=dtype)
+        negative_input = nk.full((ndim,), -random_angles, dtype=dtype)
+        sin_positive = list(nk.sin(positive_input))
+        sin_negative = list(nk.sin(negative_input))
+        cos_positive = list(nk.cos(positive_input))
+        cos_negative = list(nk.cos(negative_input))
         for i in range(ndim):
-            assert abs(sin_neg[i] + sin_pos[i]) < NK_ATOL, f"sin(-{c}) + sin({c}) = {sin_neg[i] + sin_pos[i]}"
-            assert abs(cos_neg[i] - cos_pos[i]) < NK_ATOL, f"cos(-{c}) - cos({c}) = {cos_neg[i] - cos_pos[i]}"
+            assert (
+                abs(sin_negative[i] + sin_positive[i]) < NK_ATOL
+            ), f"sin(-{random_angles}) + sin({random_angles}) = {sin_negative[i] + sin_positive[i]}"
+            assert (
+                abs(cos_negative[i] - cos_positive[i]) < NK_ATOL
+            ), f"cos(-{random_angles}) - cos({random_angles}) = {cos_negative[i] - cos_positive[i]}"

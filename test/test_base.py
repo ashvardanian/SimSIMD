@@ -19,15 +19,14 @@ Helpers:
     random_of_dtype(dtype, shape)   Legacy wrapper around ``make_random``.
 Constants:
     NATIVE_COMPUTE_DTYPE            Maps dtype → NumPy dtype for native-precision baselines.
-    EXOTIC_DTYPES                   Set of dtypes whose raw bytes aren't NumPy-readable.
     NK_ATOL, NK_RTOL                Default assertion tolerances.
-    _DECIMAL_PRECISION              Shared decimal precision for high-accuracy baselines.
+    DECIMAL_PRECISION              Shared decimal precision for high-accuracy baselines.
 
 Profiling:
     profile(callable, ...)          Time a callable, return ``(ns, result)``.
 
 Fixtures:
-    _seed_rng                       Auto-seeds NumPy RNG (autouse).
+    seed_rng                       Auto-seeds NumPy RNG (autouse).
 
 Stats:
     create_stats / collect_errors / collect_warnings / print_stats_report
@@ -52,39 +51,39 @@ import collections
 import warnings
 import faulthandler
 
-import array as _array
-import random as _random
+import array
+import random
 
-import tabulate
 import pytest
 import numkong as nk
 
 faulthandler.enable()
 
-_nk_seed_str = os.environ.get("NK_SEED")
-nk_seed: int | None = int(_nk_seed_str) if _nk_seed_str is not None else None
+nk_seed: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not None else None
 
-_nk_reps_str = os.environ.get("NK_REPETITIONS")
-randomized_repetitions_count: int = int(_nk_reps_str) if _nk_reps_str is not None else 10
+randomized_repetitions_count: int = int(s) if (s := os.environ.get("NK_REPETITIONS")) is not None else 10
 
-_nk_dense_str = os.environ.get("NK_DENSE_DIMENSIONS")
 dense_dimensions: list[int] = (
-    [int(d) for d in _nk_dense_str.split(",")]
-    if _nk_dense_str is not None
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_DENSE_DIMENSIONS")) is not None
     else [1, 2, 3, 4, 7, 8, 15, 16, 11, 97, 1536]
 )
 
-_nk_curved_str = os.environ.get("NK_CURVED_DIMENSIONS")
-curved_dimensions: list[int] = [int(d) for d in _nk_curved_str.split(",")] if _nk_curved_str is not None else [11, 97]
+curved_dimensions: list[int] = (
+    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_CURVED_DIMENSIONS")) is not None else [11, 97]
+)
 
-_nk_matrix_h_str = os.environ.get("NK_MATRIX_HEIGHT")
-matrix_heights: list[int] = [int(d) for d in _nk_matrix_h_str.split(",")] if _nk_matrix_h_str is not None else [1024]
+matrix_heights: list[int] = (
+    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_HEIGHT")) is not None else [1024]
+)
 
-_nk_matrix_w_str = os.environ.get("NK_MATRIX_WIDTH")
-matrix_widths: list[int] = [int(d) for d in _nk_matrix_w_str.split(",")] if _nk_matrix_w_str is not None else [128]
+matrix_widths: list[int] = (
+    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_WIDTH")) is not None else [128]
+)
 
-_nk_matrix_d_str = os.environ.get("NK_MATRIX_DEPTH")
-matrix_depths: list[int] = [int(d) for d in _nk_matrix_d_str.split(",")] if _nk_matrix_d_str is not None else [1536]
+matrix_depths: list[int] = (
+    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_DEPTH")) is not None else [1536]
+)
 
 try:
     import numpy as np
@@ -144,17 +143,7 @@ NATIVE_COMPUTE_DTYPE: dict[str, type] = (
 )
 
 
-def _is_numpy_native(name: str) -> bool:
-    try:
-        return np.dtype(name).type.__module__ == "numpy"
-    except TypeError:
-        return False
-
-
-# True for any dtype whose raw representation isn't directly readable by NumPy.
-EXOTIC_DTYPES: set[str] = {k for k in NATIVE_COMPUTE_DTYPE if not _is_numpy_native(k)}
-
-_DECIMAL_PRECISION = 120
+DECIMAL_PRECISION = 120
 
 
 def is_running_under_qemu():
@@ -214,10 +203,22 @@ class LazyFormat:
 
 
 def f32_downcast_to_bf16(array):
-    """Converts an array of 32-bit floats into 16-bit brain-floats."""
+    """Converts an array of 32-bit floats into 16-bit brain-floats.
+
+    Uses IEEE 754 round-to-nearest-even (banker's rounding) to match
+    ml_dtypes.bfloat16 behavior.
+    """
     array = np.asarray(array, dtype=np.float32)
-    array_f32_rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-    array_bf16 = np.right_shift(array_f32_rounded.view(np.uint32), 16).astype(np.uint16)
+    u32 = array.view(np.uint32)
+    lower = u32 & np.uint32(0xFFFF)
+    # For exact ties (lower 16 bits == 0x8000), round to even:
+    # only round up when the bf16 mantissa LSB (bit 16) is odd.
+    is_tie = lower == np.uint32(0x8000)
+    lsb = (u32 >> np.uint32(16)) & np.uint32(1)
+    adjustment = np.where(is_tie, lsb << np.uint32(15), np.uint32(0x8000))
+    rounded_u32 = (u32 + adjustment) & np.uint32(0xFFFF0000)
+    array_f32_rounded = rounded_u32.view(np.float32)
+    array_bf16 = np.right_shift(rounded_u32, 16).astype(np.uint16)
     return array_f32_rounded, array_bf16
 
 
@@ -274,7 +275,9 @@ def hex_array(arr):
 # NaN entries are stored as ``float('nan')``.
 
 
-def _build_lut(sign_bit, exp_bits, mant_bits, bias, total_bits, has_inf=False, nan_only_max_mant=False):
+def build_subbyte_float_lookup_table(
+    sign_bit, exp_bits, mant_bits, bias, total_bits, has_inf=False, nan_only_max_mant=False
+):
     """Build a byte→float64 lookup table for a sub-byte float format.
 
     Args:
@@ -317,12 +320,21 @@ def _build_lut(sign_bit, exp_bits, mant_bits, bias, total_bits, has_inf=False, n
     return lut
 
 
-_LUT_E2M3 = _build_lut(sign_bit=5, exp_bits=2, mant_bits=3, bias=1, total_bits=6)
-_LUT_E3M2 = _build_lut(sign_bit=5, exp_bits=3, mant_bits=2, bias=3, total_bits=6)
-_LUT_E4M3 = _build_lut(sign_bit=7, exp_bits=4, mant_bits=3, bias=7, total_bits=8, nan_only_max_mant=True)
-_LUT_E5M2 = _build_lut(sign_bit=7, exp_bits=5, mant_bits=2, bias=15, total_bits=8, has_inf=True)
+LOOKUP_TABLE_E2M3 = build_subbyte_float_lookup_table(sign_bit=5, exp_bits=2, mant_bits=3, bias=1, total_bits=6)
+LOOKUP_TABLE_E3M2 = build_subbyte_float_lookup_table(sign_bit=5, exp_bits=3, mant_bits=2, bias=3, total_bits=6)
+LOOKUP_TABLE_E4M3 = build_subbyte_float_lookup_table(
+    sign_bit=7, exp_bits=4, mant_bits=3, bias=7, total_bits=8, nan_only_max_mant=True
+)
+LOOKUP_TABLE_E5M2 = build_subbyte_float_lookup_table(
+    sign_bit=7, exp_bits=5, mant_bits=2, bias=15, total_bits=8, has_inf=True
+)
 
-_SUBBYTE_LUTS = {"e2m3": _LUT_E2M3, "e3m2": _LUT_E3M2, "e4m3": _LUT_E4M3, "e5m2": _LUT_E5M2}
+SUBBYTE_LOOKUP_TABLES = {
+    "e2m3": LOOKUP_TABLE_E2M3,
+    "e3m2": LOOKUP_TABLE_E3M2,
+    "e4m3": LOOKUP_TABLE_E4M3,
+    "e5m2": LOOKUP_TABLE_E5M2,
+}
 
 
 def make_random(shape, dtype):
@@ -362,7 +374,7 @@ def make_random(shape, dtype):
         return raw, baseline
 
     if dtype in ("e4m3", "e5m2", "e2m3", "e3m2"):
-        lut = np.array(_SUBBYTE_LUTS[dtype])
+        lut = np.array(SUBBYTE_LOOKUP_TABLES[dtype])
         # Exclude NaN/±∞ entries from random generation
         finite_mask = np.isfinite(lut)
         valid_bytes = np.where(finite_mask)[0].astype(np.uint8)
@@ -386,15 +398,31 @@ def make_random(shape, dtype):
 
 
 def make_nk(np_arr, dtype=None):
-    """Copy a NumPy array into a NumKong tensor.
-
-    If *dtype* is ``None`` it is inferred from ``np_arr.dtype``.
-    """
+    """Copy a NumPy array into a NumKong tensor."""
     if dtype is None:
         dtype = str(np_arr.dtype)
     nk_arr = nk.zeros(np_arr.shape, dtype=dtype)
-    np.copyto(np.asarray(nk_arr), np_arr)
+    dst = np.asarray(nk_arr)
+    src = np.ascontiguousarray(np_arr)
+    if dst.dtype != src.dtype:
+        src = src.view(np.uint8).reshape(dst.shape)
+    np.copyto(dst, src)
     return nk_arr
+
+
+def downcast_f32_to_dtype(f32_arr, dtype):
+    """Downcast an f32 array to *dtype*, returning (raw, f64_baseline).
+
+    For native NumPy dtypes (float16/32/64, int*), casts directly.
+    For bfloat16, uses round-to-nearest bf16 truncation.
+    The baseline is always derived from the *actually stored* values
+    (post-quantization), not the original f32.
+    """
+    if dtype in ("bfloat16", "bf16"):
+        f32_rounded, raw = f32_downcast_to_bf16(f32_arr)
+        return raw, f32_rounded.astype(np.float64)
+    raw = f32_arr.astype(dtype)
+    return raw, raw.astype(np.float64)
 
 
 available_capabilities: dict[str, str] = nk.get_capabilities()
@@ -418,49 +446,49 @@ possible_rvv_capabilities = [c for c in possible_rvv_capabilities if available_c
 possible_wasm_capabilities = [c for c in possible_wasm_capabilities if available_capabilities[c]]
 
 hardware_capabilities: list[str] = []
-_machine = platform.machine()
+machine_architecture = platform.machine()
 
 if sys.platform == "linux":
-    if _machine == "x86_64":
+    if machine_architecture == "x86_64":
         hardware_capabilities = possible_x86_capabilities
-    elif _machine == "aarch64":
+    elif machine_architecture == "aarch64":
         hardware_capabilities = possible_arm_capabilities
-    elif _machine == "riscv64":
+    elif machine_architecture == "riscv64":
         hardware_capabilities = possible_rvv_capabilities
 elif sys.platform == "darwin":
-    if _machine == "x86_64":
+    if machine_architecture == "x86_64":
         hardware_capabilities = possible_x86_capabilities
-    elif _machine == "arm64":
+    elif machine_architecture == "arm64":
         hardware_capabilities = possible_arm_capabilities
 elif sys.platform == "win32":
-    if _machine == "AMD64":
+    if machine_architecture == "AMD64":
         hardware_capabilities = possible_x86_capabilities
-    elif _machine == "ARM64":
+    elif machine_architecture == "ARM64":
         hardware_capabilities = possible_arm_capabilities
 elif sys.platform.startswith("freebsd"):
-    if _machine == "amd64":
+    if machine_architecture == "amd64":
         hardware_capabilities = possible_x86_capabilities
-    elif _machine == "arm64":
+    elif machine_architecture == "arm64":
         hardware_capabilities = possible_arm_capabilities
 elif sys.platform in ("emscripten", "wasi"):
     hardware_capabilities = possible_wasm_capabilities
 
 possible_capabilities: list[str] = ["serial"] + hardware_capabilities
 
-_current_capability: str | None = None
+current_capability: str | None = None
 
 
 def keep_one_capability(cap: str):
-    global _current_capability
+    global current_capability
     assert cap in possible_capabilities, f"Capability {cap} is not available on this platform."
-    if cap == _current_capability:
+    if cap == current_capability:
         return
     for c in possible_capabilities:
         if c != cap and c != "serial":
             nk.disable_capability(c)
     if cap != "serial":
         nk.enable_capability(cap)
-    _current_capability = cap
+    current_capability = cap
 
 
 def create_stats():
@@ -469,6 +497,7 @@ def create_stats():
         "metric": [],
         "ndim": [],
         "dtype": [],
+        "capability": [],
         "absolute_baseline_error": [],
         "relative_baseline_error": [],
         "absolute_nk_error": [],
@@ -503,6 +532,7 @@ def collect_errors(
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
     stats["dtype"].append(dtype)
+    stats["capability"].append(current_capability or "unknown")
     stats["absolute_baseline_error"].append(absolute_baseline_error)
     stats["relative_baseline_error"].append(relative_baseline_error)
     stats["absolute_nk_error"].append(absolute_nk_error)
@@ -519,112 +549,172 @@ def collect_warnings(message: str, stats: dict):
     stats["warnings"].append((function_name, message))
 
 
+def format_scientific(value):
+    """Format a float as compact scientific notation (e.g. 7.4e-5). Return '0' for exact zero."""
+    if value == 0:
+        return "0"
+    s = f"{value:.1e}"
+    if "e" not in s:
+        return s  # inf, nan, etc.
+    mantissa, exp = s.split("e")
+    exp_sign = exp[0]
+    exp_digits = exp[1:].lstrip("0") or "0"
+    return f"{mantissa}e{exp_sign}{exp_digits}"
+
+
+def pad_with_ansi_color(visible, width, code):
+    """Pad visible string to width first, then wrap in ANSI so escape codes don't break alignment."""
+    padded = f"{visible:<{width}}"
+    return f"\033[{code}m{padded}\033[0m"
+
+
+CapabilityRecord = collections.namedtuple(
+    "CapabilityRecord",
+    ["metric", "ndim", "dtype", "capability", "baseline_error_mean", "nk_error_mean", "speedup_mean"],
+)
+
+
 def print_stats_report(stats):
-    """Print the error aggregation report from collected stats."""
+    """Print a condensed error/speedup report: two rows per (metric, dtype) showing min/max ndim."""
     if not stats["metric"]:
         return
 
-    grouped_errors = collections.defaultdict(
-        lambda: {
-            "absolute_baseline_error": [],
-            "relative_baseline_error": [],
-            "absolute_nk_error": [],
-            "relative_nk_error": [],
-            "accurate_duration": [],
-            "baseline_duration": [],
-            "nk_duration": [],
-        }
+    # Stage 1: Group raw stats by (metric, ndim, dtype, capability) and compute per-group means.
+    grouped = collections.defaultdict(
+        lambda: {"relative_baseline_error": [], "relative_nk_error": [], "baseline_duration": [], "nk_duration": []}
     )
-    for (
-        metric,
-        ndim,
-        dtype,
-        absolute_baseline_error,
-        relative_baseline_error,
-        absolute_nk_error,
-        relative_nk_error,
-        accurate_duration,
-        baseline_duration,
-        nk_duration,
-    ) in zip(
+    for metric, ndim, dtype, capability, rel_base, rel_nk, base_dur, nk_dur in zip(
         stats["metric"],
         stats["ndim"],
         stats["dtype"],
-        stats["absolute_baseline_error"],
+        stats["capability"],
         stats["relative_baseline_error"],
-        stats["absolute_nk_error"],
         stats["relative_nk_error"],
-        stats["accurate_duration"],
         stats["baseline_duration"],
         stats["nk_duration"],
     ):
-        key = (metric, ndim, dtype)
-        grouped_errors[key]["absolute_baseline_error"].append(absolute_baseline_error)
-        grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
-        grouped_errors[key]["absolute_nk_error"].append(absolute_nk_error)
-        grouped_errors[key]["relative_nk_error"].append(relative_nk_error)
-        grouped_errors[key]["accurate_duration"].append(accurate_duration)
-        grouped_errors[key]["baseline_duration"].append(baseline_duration)
-        grouped_errors[key]["nk_duration"].append(nk_duration)
+        key = (metric, ndim, dtype, capability)
+        grouped[key]["relative_baseline_error"].append(rel_base)
+        grouped[key]["relative_nk_error"].append(rel_nk)
+        grouped[key]["baseline_duration"].append(base_dur)
+        grouped[key]["nk_duration"].append(nk_dur)
 
-    final_results = []
-    for key, errors in grouped_errors.items():
-        n = len(errors["nk_duration"])
-        baseline_errors = errors["relative_baseline_error"]
-        nk_errors = errors["relative_nk_error"]
-        baseline_mean = float(sum(baseline_errors)) / n
-        nk_mean = float(sum(nk_errors)) / n
-        baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
-        nk_std = math.sqrt(sum((x - nk_mean) ** 2 for x in nk_errors) / n)
-        baseline_error_formatted = f"{baseline_mean:.2e} +/- {baseline_std:.2e}"
-        nk_error_formatted = f"{nk_mean:.2e} +/- {nk_std:.2e}"
+    cap_records = []
+    for (metric, ndim, dtype, capability), vals in grouped.items():
+        n = len(vals["nk_duration"])
+        base_err_mean = sum(vals["relative_baseline_error"]) / n
+        nk_err_mean = sum(vals["relative_nk_error"]) / n
+        speedups = [b / nk for b, nk in zip(vals["baseline_duration"], vals["nk_duration"]) if nk > 0]
+        speedup_mean = sum(speedups) / len(speedups) if speedups else 0.0
+        cap_records.append(CapabilityRecord(metric, ndim, dtype, capability, base_err_mean, nk_err_mean, speedup_mean))
 
-        accurate_durations = errors["accurate_duration"]
-        baseline_durations = errors["baseline_duration"]
-        nk_durations = errors["nk_duration"]
-        accurate_mean_duration = sum(accurate_durations) / n
-        baseline_mean_duration = sum(baseline_durations) / n
-        nk_mean_duration = sum(nk_durations) / n
-        accurate_std_duration = math.sqrt(sum((x - accurate_mean_duration) ** 2 for x in accurate_durations) / n)
-        baseline_std_duration = math.sqrt(sum((x - baseline_mean_duration) ** 2 for x in baseline_durations) / n)
-        nk_std_duration = math.sqrt(sum((x - nk_mean_duration) ** 2 for x in nk_durations) / n)
-        accurate_duration_str = f"{accurate_mean_duration:.2e} +/- {accurate_std_duration:.2e}"
-        baseline_duration_str = f"{baseline_mean_duration:.2e} +/- {baseline_std_duration:.2e}"
-        nk_duration_str = f"{nk_mean_duration:.2e} +/- {nk_std_duration:.2e}"
+    # Stage 2: Re-aggregate by (metric, dtype). For each, find min/max ndim and cross-capability aggregates.
+    by_metric_dtype = collections.defaultdict(list)
+    for rec in cap_records:
+        by_metric_dtype[(rec.metric, rec.dtype)].append(rec)
 
-        improvements = [baseline / numkong for baseline, numkong in zip(baseline_durations, nk_durations)]
-        improvements_mean = sum(improvements) / n
-        improvements_std = math.sqrt(sum((x - improvements_mean) ** 2 for x in improvements) / n)
-        nk_speedup = f"{improvements_mean:.2f}x +/- {improvements_std:.2f}x"
+    # Each output row: (metric_str, dtype_str, ndim_str, base_err_str, worst_nk_err_str, best_speedup_str)
+    rows = []
+    for (metric, dtype), recs in sorted(by_metric_dtype.items()):
+        all_ndims = sorted(set(r.ndim for r in recs))
+        min_ndim, max_ndim = all_ndims[0], all_ndims[-1]
+        single_ndim = min_ndim == max_ndim
+        target_ndims = [min_ndim] if single_ndim else [min_ndim, max_ndim]
 
-        final_results.append(
-            (
-                *key,
-                baseline_error_formatted,
-                nk_error_formatted,
-                accurate_duration_str,
-                baseline_duration_str,
-                nk_duration_str,
-                nk_speedup,
+        for i, target_ndim in enumerate(target_ndims):
+            subset = [r for r in recs if r.ndim == target_ndim]
+            if not subset:
+                continue
+
+            # Base error: average across capabilities
+            base_err = sum(r.baseline_error_mean for r in subset) / len(subset)
+            # Worst NK error: capability with highest mean NK error
+            worst_rec = max(subset, key=lambda r: r.nk_error_mean)
+            worst_nk_err = worst_rec.nk_error_mean
+            worst_cap = worst_rec.capability
+            # Best speedup: capability with highest mean speedup
+            best_rec = max(subset, key=lambda r: r.speedup_mean)
+            best_speedup = best_rec.speedup_mean
+            best_cap = best_rec.capability
+            best_cap_err = best_rec.nk_error_mean
+
+            # Format strings
+            if i == 0:
+                metric_str = metric
+                dtype_str = dtype
+            else:
+                metric_str = ""
+                dtype_str = ""
+
+            if single_ndim:
+                ndim_str = str(target_ndim)
+            elif i == 0:
+                ndim_str = f"\u230a{target_ndim:>4}\u230b"
+            else:
+                ndim_str = f"\u2308{target_ndim:>4}\u2309"
+
+            rows.append(
+                (
+                    metric_str,
+                    dtype_str,
+                    ndim_str,
+                    base_err,
+                    worst_nk_err,
+                    worst_cap,
+                    best_speedup,
+                    best_cap,
+                    best_cap_err,
+                )
             )
+
+    # Stage 3: Render
+    col_w = {"kernel": 17, "dtype": 12, "ndim": 8, "base_err": 14, "worst_nk": 30, "best_spd": 34}
+    header = (
+        f"{'Kernel':<{col_w['kernel']}}"
+        f"{'DType':<{col_w['dtype']}}"
+        f"{'NDim':<{col_w['ndim']}}"
+        f"{'Base Error':<{col_w['base_err']}}"
+        f"{'Worst NK Error':<{col_w['worst_nk']}}"
+        f"{'Best NK Speedup':<{col_w['best_spd']}}"
+    )
+    sep = "\u2500" * len(header)
+    print(f"\n\n{header}")
+    print(sep)
+
+    for (
+        metric_str,
+        dtype_str,
+        ndim_str,
+        base_err,
+        worst_nk_err,
+        worst_cap,
+        best_speedup,
+        best_cap,
+        best_cap_err,
+    ) in rows:
+        base_err_s = format_scientific(base_err)
+        worst_nk_s = f"{format_scientific(worst_nk_err)} \u2039{worst_cap}\u203a"
+        best_spd_s = f"{best_speedup:.1f}x \u2039{best_cap}, err {format_scientific(best_cap_err)}\u203a"
+
+        # Color for worst NK error: red if NK error > base error
+        nk_err_code = "31" if worst_nk_err > base_err else "0"
+        # Color for speedup: green >=2x, yellow 1-2x, red <1x
+        if best_speedup >= 2.0:
+            spd_code = "32"
+        elif best_speedup >= 1.0:
+            spd_code = "33"
+        else:
+            spd_code = "31"
+
+        line = (
+            f"{metric_str:<{col_w['kernel']}}"
+            f"{dtype_str:<{col_w['dtype']}}"
+            f"{ndim_str:<{col_w['ndim']}}"
+            f"{base_err_s:<{col_w['base_err']}}"
+            f"{pad_with_ansi_color(worst_nk_s, col_w['worst_nk'], nk_err_code)}"
+            f"{pad_with_ansi_color(best_spd_s, col_w['best_spd'], spd_code)}"
         )
-
-    final_results.sort(key=lambda x: (x[0], x[1], x[2]))
-
-    print("\n")
-    print("Numerical Error Aggregation Report:")
-    headers = [
-        "Metric",
-        "NDim",
-        "DType",
-        "Baseline Error",
-        "NumKong Error",
-        "Accurate Duration",
-        "Baseline Duration",
-        "NumKong Duration",
-        "NumKong Speedup",
-    ]
-    print(tabulate.tabulate(final_results, headers=headers, tablefmt="pretty", showindex=True))
+        print(line)
 
     warnings_list = stats.get("warnings", [])
     warnings_list = sorted(warnings_list)
@@ -637,7 +727,7 @@ def print_stats_report(stats):
 
 
 @pytest.fixture(autouse=True)
-def _seed_rng(__pytest_repeat_step_number):
+def seed_rng(__pytest_repeat_step_number):
     """Auto-seed NumPy RNG before every test. When NK_SEED is set, each
     @pytest.mark.repeat() step gets a unique derived seed."""
     if not numpy_available:
@@ -648,7 +738,7 @@ def _seed_rng(__pytest_repeat_step_number):
 
 
 # Map nk dtype → (array.array typecode, low, high)
-_ARRAY_TYPECODES = {
+ARRAY_TYPECODES = {
     "float32": ("f", -10.0, 10.0),
     "float64": ("d", -10.0, 10.0),
     "int8": ("b", -128, 127),
@@ -658,16 +748,16 @@ _ARRAY_TYPECODES = {
 
 def make_random_buffer(n, dtype="float32"):
     """Create a random array.array for the given dtype — no numpy needed."""
-    tc, lo, hi = _ARRAY_TYPECODES[dtype]
+    tc, lo, hi = ARRAY_TYPECODES[dtype]
     if tc in ("f", "d"):
-        return _array.array(tc, [_random.uniform(lo, hi) for _ in range(n)])
+        return array.array(tc, [random.uniform(lo, hi) for _ in range(n)])
     else:
-        return _array.array(tc, [_random.randint(int(lo), int(hi)) for _ in range(n)])
+        return array.array(tc, [random.randint(int(lo), int(hi)) for _ in range(n)])
 
 
 def make_positive_buffer(n, dtype="float32"):
     """Create a random positive array.array — for probability distributions."""
     tc = "f" if dtype == "float32" else "d"
-    vals = [_random.uniform(0.01, 1.0) for _ in range(n)]
+    vals = [random.uniform(0.01, 1.0) for _ in range(n)]
     total = sum(vals)
-    return _array.array(tc, [v / total for v in vals])
+    return array.array(tc, [v / total for v in vals])

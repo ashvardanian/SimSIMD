@@ -45,16 +45,16 @@ from test_base import (
     collect_warnings,
     create_stats,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
-_algebraic_dtypes = ["float32", "float64"]
-_algebraic_ndims = [7, 97]
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+algebraic_dtypes = ["float32", "float64"]
+algebraic_ndims = [7, 97]
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 
-def _normalize_element_wise(r, dtype_new):
+def normalize_elementwise(r, dtype_new):
     """Clips higher-resolution results to the smaller target dtype without overflow."""
     if np.issubdtype(dtype_new, np.integer):
         r = np.round(r)
@@ -67,7 +67,7 @@ def _normalize_element_wise(r, dtype_new):
     return r.astype(dtype_new)
 
 
-def _computation_dtype(x, y):
+def get_computation_dtypes(x, y):
     x = np.asarray(x)
     y = np.asarray(y)
     larger_dtype = np.promote_types(x.dtype, y.dtype)
@@ -89,50 +89,50 @@ def _computation_dtype(x, y):
 
 def baseline_scale(x, alpha, beta):
     """Scale operation: alpha * x + beta"""
-    compute_dtype, _ = _computation_dtype(x, alpha)
+    compute_dtype, _ = get_computation_dtypes(x, alpha)
     result = alpha * x.astype(compute_dtype) + beta
-    return _normalize_element_wise(result, x.dtype)
+    return normalize_elementwise(result, x.dtype)
 
 
 def baseline_sum(x, y):
-    compute_dtype, _ = _computation_dtype(x, y)
+    compute_dtype, _ = get_computation_dtypes(x, y)
     result = x.astype(compute_dtype) + y.astype(compute_dtype)
-    return _normalize_element_wise(result, x.dtype)
+    return normalize_elementwise(result, x.dtype)
 
 
 def baseline_wsum(x, y, alpha, beta):
     """Weighted sum: alpha * x + beta * y"""
-    compute_dtype, _ = _computation_dtype(x, y)
+    compute_dtype, _ = get_computation_dtypes(x, y)
     result = x.astype(compute_dtype) * alpha + y.astype(compute_dtype) * beta
-    return _normalize_element_wise(result, x.dtype)
+    return normalize_elementwise(result, x.dtype)
 
 
 def baseline_fma(x, y, z, alpha, beta):
     """Fused multiply-add: alpha * x * y + beta * z"""
-    compute_dtype, _ = _computation_dtype(x, y)
+    compute_dtype, _ = get_computation_dtypes(x, y)
     result = x.astype(compute_dtype) * y.astype(compute_dtype) * alpha + z.astype(compute_dtype) * beta
-    return _normalize_element_wise(result, x.dtype)
+    return normalize_elementwise(result, x.dtype)
 
 
 def baseline_add(x, y, out=None):
-    compute_dtype, final_dtype = _computation_dtype(x, y)
+    compute_dtype, final_dtype = get_computation_dtypes(x, y)
     a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
     b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
     result = np.add(a, b, out=out, casting="unsafe")
-    result = _normalize_element_wise(result, final_dtype)
+    result = normalize_elementwise(result, final_dtype)
     return result
 
 
 def baseline_multiply(x, y, out=None):
-    compute_dtype, final_dtype = _computation_dtype(x, y)
+    compute_dtype, final_dtype = get_computation_dtypes(x, y)
     a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
     b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
     result = np.multiply(a, b, out=out, casting="unsafe")
-    result = _normalize_element_wise(result, final_dtype)
+    result = normalize_elementwise(result, final_dtype)
     return result
 
 
-_KERNELS_EACH = {
+KERNELS_EACH = {
     "scale": (baseline_scale, nk.scale, None),
     "add": (baseline_add, nk.add, None),
     "wsum": (baseline_wsum, nk.wsum, None),
@@ -141,7 +141,7 @@ _KERNELS_EACH = {
 }
 
 
-def _random_coefficients(dtype, alpha_div=2, beta_div=2):
+def random_coefficients(dtype, alpha_div=2, beta_div=2):
     alpha = np.random.randn(1).astype(np.float64).item()
     beta = np.random.randn(1).astype(np.float64).item()
     if np.issubdtype(np.dtype(dtype), np.integer):
@@ -154,26 +154,23 @@ def _random_coefficients(dtype, alpha_div=2, beta_div=2):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_scale(ndim, dtype, capability):
-    """scale: alpha * x + beta.
-
-    Integer coefficients kept small (abs/2) to avoid overflow.
-    """
-    a, a_f64 = make_random((ndim,), dtype)
+def test_scale_random_accuracy(ndim, dtype, capability):
+    """scale(alpha * x + beta) across float and integer dtypes against NumPy baseline."""
+    input_raw, input_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
-    alpha, beta = _random_coefficients(dtype)
+    alpha, beta = random_coefficients(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["scale"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["scale"]
 
-    accurate_dt, accurate = profile(baseline_kernel, a_f64, alpha=alpha, beta=beta)
-    expected_dt, expected = profile(baseline_kernel, a, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a, alpha=alpha, beta=beta)
+    accurate_dt, accurate = profile(baseline_kernel, input_baseline, alpha=alpha, beta=beta)
+    expected_dt, expected = profile(baseline_kernel, input_raw, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, input_raw, alpha=alpha, beta=beta)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors("scale", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("scale", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -181,25 +178,22 @@ def test_scale(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_add(ndim, dtype, capability):
-    """add: x + y (elementwise).
-
-    No coefficients — just vector addition with clamp-on-overflow for ints.
-    """
-    a, a_f64 = make_random((ndim,), dtype)
-    b, b_f64 = make_random((ndim,), dtype)
+def test_add_random_accuracy(ndim, dtype, capability):
+    """Elementwise addition across float and integer dtypes against NumPy baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype)
+    b_raw, b_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["add"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["add"]
 
-    accurate_dt, accurate = profile(baseline_kernel, a_f64, b_f64)
-    expected_dt, expected = profile(baseline_kernel, a, b)
-    result_dt, result = profile(simd_kernel, a, b)
+    accurate_dt, accurate = profile(baseline_kernel, a_baseline, b_baseline)
+    expected_dt, expected = profile(baseline_kernel, a_raw, b_raw)
+    result_dt, result = profile(simd_kernel, a_raw, b_raw)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors("add", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("add", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -207,27 +201,24 @@ def test_add(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_wsum(ndim, dtype, capability):
-    """wsum: alpha * x + beta * y.
-
-    Integer coefficients kept small (abs/2) to avoid overflow.
-    """
-    a, a_f64 = make_random((ndim,), dtype)
-    b, b_f64 = make_random((ndim,), dtype)
+def test_wsum_random_accuracy(ndim, dtype, capability):
+    """Weighted sum (alpha * x + beta * y) across float and integer dtypes against NumPy baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype)
+    b_raw, b_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
-    alpha, beta = _random_coefficients(dtype)
+    alpha, beta = random_coefficients(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["wsum"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["wsum"]
 
-    accurate_dt, accurate = profile(baseline_kernel, a_f64, b_f64, alpha=alpha, beta=beta)
-    expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
+    accurate_dt, accurate = profile(baseline_kernel, a_baseline, b_baseline, alpha=alpha, beta=beta)
+    expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors("wsum", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("wsum", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -235,37 +226,32 @@ def test_wsum(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_fma(ndim, dtype, capability):
-    """fma: alpha * x * y + beta * z.
-
-    Integer alpha divided by 512 (x*y products magnify values up to ~16k),
-    beta divided by 3. This prevents overflow when result is clipped back
-    to the input dtype.
-    """
-    a, a_f64 = make_random((ndim,), dtype)
-    b, b_f64 = make_random((ndim,), dtype)
-    c, c_f64 = make_random((ndim,), dtype)
+def test_fma_random_accuracy(ndim, dtype, capability):
+    """Fused multiply-add (alpha * x * y + beta * z) across float and integer dtypes against NumPy baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype)
+    b_raw, b_baseline = make_random((ndim,), dtype)
+    c_raw, c_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
-    alpha, beta = _random_coefficients(dtype, 512, 3)
+    alpha, beta = random_coefficients(dtype, 512, 3)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["fma"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["fma"]
 
     accurate_dt, accurate = profile(
         baseline_kernel,
-        a_f64,
-        b_f64,
-        c_f64,
+        a_baseline,
+        b_baseline,
+        c_baseline,
         alpha=alpha,
         beta=beta,
     )
-    expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
+    expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors("fma", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("fma", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -287,10 +273,10 @@ def test_fma(ndim, dtype, capability):
 )
 @pytest.mark.parametrize("kernel", ["add", "multiply"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_elementwise(dtype, kernel, capability):
-    """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
+def test_add_multiply_noncontiguous(dtype, kernel, capability):
+    """Add and multiply on non-contiguous, strided, and shape-mismatched arrays."""
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH[kernel]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH[kernel]
     first_dtype, second_dtype, output_dtype = dtype
     operator = {"add": "+", "multiply": "*"}[kernel]
 
@@ -334,7 +320,7 @@ def test_elementwise(dtype, kernel, capability):
 
         mismatch_count = np.sum(~np.isclose(inplace_numkong, inplace_numpy, atol=NK_ATOL, rtol=NK_RTOL))
         if mismatch_count:
-            collect_warnings(f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})", _stats)
+            collect_warnings(f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})", stats)
         return result_numkong
 
     # Vector-Vector
@@ -426,12 +412,12 @@ def test_elementwise(dtype, kernel, capability):
 )
 @pytest.mark.parametrize("kernel", ["add", "multiply"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_elementwise_broadcast(ndim, dtype, kernel, capability):
-    """Tests element-wise add/multiply with broadcasting and mixed dtypes."""
+def test_add_multiply_broadcast(ndim, dtype, kernel, capability):
+    """Add and multiply with scalar-vector and mixed-dtype broadcasting."""
     first_dtype, second_dtype, output_dtype = dtype
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH[kernel]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH[kernel]
 
     # Vector-Vector
     a = np.random.randn(ndim).astype(first_dtype)
@@ -478,7 +464,7 @@ def test_elementwise_broadcast(ndim, dtype, kernel, capability):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_scale_edge_cases(ndim, dtype, capability):
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["scale"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["scale"]
 
     a = np.random.randn(ndim).astype(dtype)
 
@@ -512,7 +498,7 @@ def test_scale_edge_cases(ndim, dtype, capability):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_add_edge_cases(ndim, dtype, capability):
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_EACH["add"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["add"]
 
     # Standard random
     a = np.random.randn(ndim).astype(dtype)
@@ -542,8 +528,8 @@ def test_add_edge_cases(ndim, dtype, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_add_with_numpy_arrays(dtype):
-    """Test nk.add() with NumPy arrays via buffer protocol."""
+def test_add_numpy_buffer_protocol(dtype):
+    """nk.add() accepts NumPy arrays directly via buffer protocol."""
     a = np.random.randn(50).astype(dtype)
     b = np.random.randn(50).astype(dtype)
 
@@ -556,8 +542,8 @@ def test_add_with_numpy_arrays(dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_multiply_with_numpy_arrays(dtype):
-    """Test nk.multiply() with NumPy arrays via buffer protocol."""
+def test_multiply_numpy_buffer_protocol(dtype):
+    """nk.multiply() accepts NumPy arrays directly via buffer protocol."""
     a = np.random.randn(50).astype(dtype)
     b = np.random.randn(50).astype(dtype)
 
@@ -570,8 +556,8 @@ def test_multiply_with_numpy_arrays(dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_wsum_with_numpy_arrays(dtype):
-    """Test nk.wsum() with NumPy arrays via buffer protocol."""
+def test_wsum_numpy_buffer_protocol(dtype):
+    """nk.wsum() accepts NumPy arrays directly via buffer protocol."""
     a = np.random.randn(50).astype(dtype)
     b = np.random.randn(50).astype(dtype)
     alpha = 2.0
@@ -584,8 +570,8 @@ def test_wsum_with_numpy_arrays(dtype):
     np.testing.assert_allclose(result_np, expected, rtol=1e-4)
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_add_known(ndim, dtype, capability):
     """add(full(2), full(3)) ~ 5."""
@@ -597,8 +583,8 @@ def test_add_known(ndim, dtype, capability):
         assert abs(result[i] - 5.0) < NK_ATOL, f"add(2,3)[{i}] = {result[i]}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_multiply_known(ndim, dtype, capability):
     """multiply(full(2), full(3)) ~ 6."""
@@ -610,20 +596,20 @@ def test_multiply_known(ndim, dtype, capability):
         assert abs(result[i] - 6.0) < NK_ATOL, f"multiply(2,3)[{i}] = {result[i]}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_scale_identity(ndim, dtype, capability):
     """scale(v, alpha=1, beta=0) ~ v."""
     keep_one_capability(capability)
-    v = nk.full((ndim,), 7.5, dtype=dtype)
-    result = list(nk.scale(v, alpha=1.0, beta=0.0))
+    input_vector = nk.full((ndim,), 7.5, dtype=dtype)
+    result = list(nk.scale(input_vector, alpha=1.0, beta=0.0))
     for i in range(ndim):
         assert abs(result[i] - 7.5) < NK_ATOL, f"scale(7.5, 1, 0)[{i}] = {result[i]}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_wsum_known(ndim, dtype, capability):
     """wsum(full(a), full(b), alpha=2, beta=3) ~ 2a + 3b."""

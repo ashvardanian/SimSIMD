@@ -38,20 +38,19 @@ from test_base import (
     profile,
     NK_ATOL,
     NK_RTOL,
-    _DECIMAL_PRECISION,
-    EXOTIC_DTYPES,
+    DECIMAL_PRECISION,
     make_random,
-    f32_downcast_to_bf16,
+    downcast_f32_to_dtype,
     hex_array,
     collect_errors,
     create_stats,
     print_stats_report,
     LazyFormat,
-    _seed_rng,
+    seed_rng,
 )
 
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 baseline_bilinear = lambda x, y, z: x @ z @ y
 
@@ -74,10 +73,10 @@ except ImportError:
         return np.sqrt(diff @ z @ diff)
 
 
-def make_psd(data: np.ndarray) -> np.ndarray:
+def make_positive_semidefinite(data: np.ndarray) -> np.ndarray:
     """Make a square matrix positive semi-definite in-place (Gershgorin diagonal dominance).
 
-    Matches C++ make_psd() in test/test_curved.cpp.
+    Matches C++ make_positive_semidefinite() in test/test_curved.cpp.
     """
     n = data.shape[0]
     # Step 1: Symmetrize
@@ -92,7 +91,7 @@ def make_psd(data: np.ndarray) -> np.ndarray:
 def precise_bilinear(a, b, c):
     """High-precision bilinear form x @ z @ y via Python Decimal."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         da = [D.from_float(float(x)) for x in a]
         db = [D.from_float(float(x)) for x in b]
@@ -107,7 +106,7 @@ def precise_bilinear(a, b, c):
 def precise_mahalanobis(a, b, c):
     """High-precision Mahalanobis distance sqrt((a-b) @ c @ (a-b)) via Python Decimal."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         diff = [D.from_float(float(x)) - D.from_float(float(y)) for x, y in zip(a, b)]
         n = len(diff)
@@ -118,7 +117,7 @@ def precise_mahalanobis(a, b, c):
         return float(total.sqrt())
 
 
-_KERNELS_CURVED = {
+KERNELS_CURVED = {
     "bilinear": (baseline_bilinear, nk.bilinear, precise_bilinear),
     "mahalanobis": (baseline_mahalanobis, nk.mahalanobis, precise_mahalanobis),
 }
@@ -138,47 +137,34 @@ _KERNELS_CURVED = {
 )
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_curved(ndim, dtypes, metric, capability):
-    """Bilinear / Mahalanobis across float and exotic dtypes.
-
-    Data is generated at f32 precision so normalisation and positive-definite
-    construction are numerically stable, then cast to the target dtype.
-    For bfloat16, ``f32_downcast_to_bf16`` rounds the f32 values and
-    produces raw uint16 bytes for the SIMD kernel.
-    """
+def test_curved_random_accuracy(ndim, dtypes, metric, capability):
+    """Bilinear and Mahalanobis for float and bfloat16 dtypes against high-precision baselines."""
     dtype, compute_dtype = dtypes
 
     # Generate structured data at f32
-    a_f32 = np.abs(np.random.randn(ndim).astype(np.float32))
-    b_f32 = np.abs(np.random.randn(ndim).astype(np.float32))
-    a_f32 /= np.sum(a_f32)
-    b_f32 /= np.sum(b_f32)
-    c_f32 = make_psd(np.random.randn(ndim, ndim).astype(np.float32))
+    a_vector_f32 = np.abs(np.random.randn(ndim).astype(np.float32))
+    b_vector_f32 = np.abs(np.random.randn(ndim).astype(np.float32))
+    a_vector_f32 /= np.sum(a_vector_f32)
+    b_vector_f32 /= np.sum(b_vector_f32)
+    c_matrix_f32 = make_positive_semidefinite(np.random.randn(ndim, ndim).astype(np.float32))
 
-    if dtype in EXOTIC_DTYPES:
-        a_f32r, a_raw = f32_downcast_to_bf16(a_f32)
-        b_f32r, b_raw = f32_downcast_to_bf16(b_f32)
-        c_f32r, c_raw = f32_downcast_to_bf16(c_f32)
-        a_base, b_base, c_base = a_f32r.astype(np.float64), b_f32r.astype(np.float64), c_f32r.astype(np.float64)
-    else:
-        a_raw = a_f32.astype(dtype)
-        b_raw = b_f32.astype(dtype)
-        c_raw = c_f32.astype(dtype)
-        a_base, b_base, c_base = a_raw.astype(np.float64), b_raw.astype(np.float64), c_raw.astype(np.float64)
+    a_raw, a_baseline = downcast_f32_to_dtype(a_vector_f32, dtype)
+    b_raw, b_baseline = downcast_f32_to_dtype(b_vector_f32, dtype)
+    c_raw, c_baseline = downcast_f32_to_dtype(c_matrix_f32, dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, precise_kernel = _KERNELS_CURVED[metric]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_CURVED[metric]
 
     # High-precision baseline (f64)
-    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_base, b_base, c_base)
+    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline, c_baseline)
 
     # Baseline at native compute precision (for error-stat collection)
     native_dt = np.dtype(compute_dtype).type
     expected_dt, expected = profile(
         baseline_kernel,
-        a_base.astype(native_dt),
-        b_base.astype(native_dt),
-        c_base.astype(native_dt),
+        a_baseline.astype(native_dt),
+        b_baseline.astype(native_dt),
+        c_baseline.astype(native_dt),
     )
 
     # SIMD result
@@ -197,7 +183,7 @@ def test_curved(ndim, dtypes, metric, capability):
     )
 
     np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL, err_msg=err_msg)
-    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -205,24 +191,24 @@ def test_curved(ndim, dtypes, metric, capability):
 @pytest.mark.parametrize("ndim", curved_dimensions)
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_curved_complex(ndim, dtype, capability):
-    """Complex bilinear form — separate because operand construction differs."""
-    a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
-    b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
-    c = (np.random.randn(ndim, ndim) + 1.0j * np.random.randn(ndim, ndim)).astype(dtype)
+def test_bilinear_complex_accuracy(ndim, dtype, capability):
+    """Complex bilinear form against NumPy at extended precision."""
+    a_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    b_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    c_matrix = (np.random.randn(ndim, ndim) + 1.0j * np.random.randn(ndim, ndim)).astype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = _KERNELS_CURVED["bilinear"]
+    baseline_kernel, simd_kernel, _ = KERNELS_CURVED["bilinear"]
     precise_dtype = np.clongdouble if dtype == "complex128" else np.complex128
     accurate_dt, accurate = profile(
         baseline_kernel,
-        a.astype(precise_dtype),
-        b.astype(precise_dtype),
-        c.astype(precise_dtype),
+        a_vector.astype(precise_dtype),
+        b_vector.astype(precise_dtype),
+        c_matrix.astype(precise_dtype),
     )
-    expected_dt, expected = profile(baseline_kernel, a, b, c)
-    result_dt, result = profile(simd_kernel, a, b, c)
+    expected_dt, expected = profile(baseline_kernel, a_vector, b_vector, c_matrix)
+    result_dt, result = profile(simd_kernel, a_vector, b_vector, c_matrix)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
-    collect_errors("bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)

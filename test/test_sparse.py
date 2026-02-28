@@ -37,15 +37,15 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    _seed_rng,
+    seed_rng,
 )
 
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
 
-_KERNELS_SPARSE = {
+KERNELS_SPARSE = {
     "intersect": (baseline_intersect, nk.intersect, None),
 }
 
@@ -63,15 +63,24 @@ def test_sparse_dot(capability):
     keep_one_capability(capability)
     result_dt, result = profile(nk.sparse_dot, a_idx, a_val, b_idx, b_val)
 
-    common = np.intersect1d(a_idx, b_idx)
-    expected = 0.0
-    for idx in common:
-        ai = np.searchsorted(a_idx, idx)
-        bi = np.searchsorted(b_idx, idx)
-        expected += float(a_val[ai]) * float(b_val[bi])
+    def _sparse_dot_baseline(a_idx, a_val, b_idx, b_val):
+        common = np.intersect1d(a_idx, b_idx)
+        total = 0.0
+        for idx in common:
+            ai = np.searchsorted(a_idx, idx)
+            bi = np.searchsorted(b_idx, idx)
+            total += float(a_val[ai]) * float(b_val[bi])
+        return total
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    collect_errors("sparse_dot", len(a_idx), "float32", expected, 0, expected, 0, result, result_dt, _stats)
+    accurate_dt, accurate = profile(
+        _sparse_dot_baseline, a_idx, a_val.astype(np.float64), b_idx, b_val.astype(np.float64)
+    )
+    expected_dt, expected = profile(_sparse_dot_baseline, a_idx, a_val, b_idx, b_val)
+
+    np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
+    collect_errors(
+        "sparse_dot", len(a_idx), "float32", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

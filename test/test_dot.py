@@ -37,7 +37,7 @@ from test_base import (
     profile,
     NK_ATOL,
     NK_RTOL,
-    _DECIMAL_PRECISION,
+    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     make_random,
     tolerances_for_dtype,
@@ -47,15 +47,15 @@ from test_base import (
     create_stats,
     print_stats_report,
     LazyFormat,
-    _seed_rng,
+    seed_rng,
 )
 from test_spatial import baseline_euclidean, baseline_sqeuclidean, baseline_angular
 
-_algebraic_dtypes = ["float32", "float64"]
-_algebraic_ndims = [7, 97]
+algebraic_dtypes = ["float32", "float64"]
+algebraic_ndims = [7, 97]
 
-_stats = create_stats()
-atexit.register(print_stats_report, _stats)
+stats = create_stats()
+atexit.register(print_stats_report, stats)
 
 baseline_inner = np.inner if numpy_available else None
 
@@ -63,18 +63,18 @@ baseline_inner = np.inner if numpy_available else None
 def precise_inner(a, b):
     """High-precision inner product via Python Decimal, exceeding f118 accuracy."""
     with decimal.localcontext() as ctx:
-        ctx.prec = _DECIMAL_PRECISION
+        ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
         da = [D.from_float(float(x)) for x in a]
         db = [D.from_float(float(x)) for x in b]
         return float(sum(x * y for x, y in zip(da, db)))
 
 
-_KERNELS_DOT = {
+KERNELS_DOT = {
     "inner": (baseline_inner, nk.inner, precise_inner),
 }
 
-_KERNELS_OVERFLOW = {
+KERNELS_OVERFLOW = {
     "inner": (baseline_inner, nk.inner),
     "euclidean": (baseline_euclidean, nk.euclidean),
     "sqeuclidean": (baseline_sqeuclidean, nk.sqeuclidean),
@@ -101,19 +101,14 @@ _KERNELS_OVERFLOW = {
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner(ndim, dtype, capability):
-    """Inner product across all numeric dtypes.
-
-    Integer dtypes use exact ±1 tolerance (discrete arithmetic).
-    Sub-byte floats (bf16, e4m3, e5m2, e2m3, e3m2) carry wider quantization
-    noise but are held to the same relative error bar.
-    """
+def test_inner_random_accuracy(ndim, dtype, capability):
+    """Inner product of random vectors across all numeric dtypes, verified against high-precision Decimal baseline."""
     a_raw, a_baseline = make_random((ndim,), dtype)
     b_raw, b_baseline = make_random((ndim,), dtype)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, precise_kernel = _KERNELS_DOT["inner"]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_DOT["inner"]
 
     # High-precision baseline (always f64)
     accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline)
@@ -137,7 +132,7 @@ def test_inner(ndim, dtype, capability):
     )
 
     np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
-    collect_errors("inner", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("inner", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -145,46 +140,46 @@ def test_inner(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["complex64", "complex128"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_complex(ndim, dtype, capability):
-    """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
-    a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
-    b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+def test_dot_vdot_complex_accuracy(ndim, dtype, capability):
+    """Complex dot and vdot products against NumPy for complex64 and complex128 inputs."""
+    a_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    b_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
 
     keep_one_capability(capability)
-    accurate_dt, accurate = profile(np.dot, a.astype(np.complex128), b.astype(np.complex128))
-    expected_dt, expected = profile(np.dot, a, b)
-    result_dt, result = profile(nk.dot, a, b)
+    accurate_dt, accurate = profile(np.dot, a_vector.astype(np.complex128), b_vector.astype(np.complex128))
+    expected_dt, expected = profile(np.dot, a_vector, b_vector)
+    result_dt, result = profile(nk.dot, a_vector, b_vector)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
-    accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
-    expected_dt, expected = profile(np.vdot, a, b)
-    result_dt, result = profile(nk.vdot, a, b)
+    accurate_dt, accurate = profile(np.vdot, a_vector.astype(np.complex128), b_vector.astype(np.complex128))
+    expected_dt, expected = profile(np.vdot, a_vector, b_vector)
+    result_dt, result = profile(nk.vdot, a_vector, b_vector)
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    collect_errors("vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, _stats)
+    collect_errors("vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_complex_explicit(ndim, capability):
-    """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
-    a = np.random.randn(ndim * 2).astype(dtype=np.float32)
-    b = np.random.randn(ndim * 2).astype(dtype=np.float32)
+def test_dot_vdot_complex_explicit_dtype(ndim, capability):
+    """Complex dot and vdot with explicit dtype='complex64' passed to float32 storage."""
+    a_real_parts = np.random.randn(ndim * 2).astype(dtype=np.float32)
+    b_real_parts = np.random.randn(ndim * 2).astype(dtype=np.float32)
 
     keep_one_capability(capability)
-    expected = np.dot(a.view(np.complex64), b.view(np.complex64))
-    result = nk.dot(a, b, "complex64")
+    expected = np.dot(a_real_parts.view(np.complex64), b_real_parts.view(np.complex64))
+    result = nk.dot(a_real_parts, b_real_parts, "complex64")
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
-    expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
-    result = nk.vdot(a, b, "complex64")
+    expected = np.vdot(a_real_parts.view(np.complex64), b_real_parts.view(np.complex64))
+    result = nk.vdot(a_real_parts, b_real_parts, "complex64")
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
@@ -196,7 +191,7 @@ def test_dot_complex_explicit(ndim, capability):
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_overflow(ndim, dtype, metric, capability):
+def test_inner_float_overflow_detection(ndim, dtype, metric, capability):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
 
     a = np.random.randn(ndim)
@@ -208,7 +203,7 @@ def test_overflow(ndim, dtype, metric, capability):
     b = b.astype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel = _KERNELS_OVERFLOW[metric]
+    baseline_kernel, simd_kernel = KERNELS_OVERFLOW[metric]
     result = simd_kernel(a, b)
     assert np.isinf(result), f"Expected ±inf, but got {result}"
 
@@ -217,39 +212,39 @@ def test_overflow(ndim, dtype, metric, capability):
     try:
         expected_overflow = baseline_kernel(a, b)
         if not np.isinf(expected_overflow):
-            collect_warnings("Overflow not detected in SciPy", _stats)
+            collect_warnings("Overflow not detected in SciPy", stats)
     except Exception as e:
-        collect_warnings(f"Arbitrary error raised in SciPy: {e}", _stats)
+        collect_warnings(f"Arbitrary error raised in SciPy: {e}", stats)
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_inner_known(ndim, dtype, capability):
-    """inner(ones, ones) = n."""
+    """inner(ones, ones) should equal n."""
     keep_one_capability(capability)
-    o = nk.ones((ndim,), dtype=dtype)
-    result = nk.inner(o, o)
+    ones_vector = nk.ones((ndim,), dtype=dtype)
+    result = nk.inner(ones_vector, ones_vector)
     assert abs(result - ndim) < NK_ATOL + NK_RTOL * ndim
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_inner_orthogonal(ndim, dtype, capability):
-    """inner(ones, zeros) = 0."""
+    """inner(ones, zeros) should equal 0."""
     keep_one_capability(capability)
-    o = nk.ones((ndim,), dtype=dtype)
-    z = nk.zeros((ndim,), dtype=dtype)
-    result = nk.inner(o, z)
+    ones_vector = nk.ones((ndim,), dtype=dtype)
+    zeros_vector = nk.zeros((ndim,), dtype=dtype)
+    result = nk.inner(ones_vector, zeros_vector)
     assert abs(result) < NK_ATOL
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_inner_symmetry(ndim, dtype, capability):
-    """inner(a, b) = inner(b, a)."""
+    """Commutativity: inner(a, b) = inner(b, a)."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
     b = make_random_buffer(ndim, dtype)
@@ -258,11 +253,11 @@ def test_inner_symmetry(ndim, dtype, capability):
     assert abs(ab - ba) < NK_ATOL, f"inner(a,b)={ab} != inner(b,a)={ba}"
 
 
-@pytest.mark.parametrize("ndim", _algebraic_ndims)
-@pytest.mark.parametrize("dtype", _algebraic_dtypes)
+@pytest.mark.parametrize("ndim", algebraic_ndims)
+@pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_inner_cauchy_schwarz(ndim, dtype, capability):
-    """|inner(a,b)|^2 <= inner(a,a) * inner(b,b)."""
+    """Cauchy-Schwarz: |inner(a,b)|^2 <= inner(a,a) * inner(b,b)."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
     b = make_random_buffer(ndim, dtype)
@@ -280,7 +275,7 @@ def test_inner_cauchy_schwarz(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", [131072, 262144])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_overflow_i8(ndim, metric, capability):
+def test_inner_integer_overflow_detection(ndim, metric, capability):
     """Tests if the integral kernels are capable of detecting overflow yield the same ±inf result,
     as with 2^16 elements accumulating "u32(u16(u8)*u16(u8))+u32" products should overflow and the
     same is true for 2^17 elements with "i32(i15(i8))*i32(i15(i8))" products.
@@ -290,7 +285,7 @@ def test_overflow_i8(ndim, metric, capability):
     b = np.full(ndim, fill_value=-128, dtype=np.int8)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel = _KERNELS_OVERFLOW[metric]
+    baseline_kernel, simd_kernel = KERNELS_OVERFLOW[metric]
     expected = baseline_kernel(a, b)
     result = simd_kernel(a, b)
     assert np.isinf(result), f"Expected ±inf, but got {result}"
@@ -298,6 +293,6 @@ def test_overflow_i8(ndim, metric, capability):
     try:
         expected_overflow = baseline_kernel(a, b)
         if not np.isinf(expected_overflow):
-            collect_warnings("Overflow not detected in SciPy", _stats)
+            collect_warnings("Overflow not detected in SciPy", stats)
     except Exception as e:
-        collect_warnings(f"Arbitrary error raised in SciPy: {e}", _stats)
+        collect_warnings(f"Arbitrary error raised in SciPy: {e}", stats)
