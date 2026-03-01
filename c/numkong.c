@@ -319,64 +319,64 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
     }
 
 // Dot products
-nk_dispatch_dense_(dot, i8, i8, i32)
-nk_dispatch_dense_(dot, u8, u8, u32)
-nk_dispatch_dense_(dot, i4, i4x2, i32)
-nk_dispatch_dense_(dot, u4, u4x2, u32)
-nk_dispatch_dense_(dot, f16, f16, f32)
-nk_dispatch_dense_(dot, bf16, bf16, f32)
-nk_dispatch_dense_(dot, f32, f32, f32)
-nk_dispatch_dense_(dot, f64, f64, f64)
-nk_dispatch_dense_(dot, f16c, f16c, f32c)
-nk_dispatch_dense_(dot, bf16c, bf16c, f32c)
-nk_dispatch_dense_(dot, f32c, f32c, f32c)
 nk_dispatch_dense_(dot, f64c, f64c, f64c)
-nk_dispatch_dense_(dot, e4m3, e4m3, f32)
+nk_dispatch_dense_(dot, f32c, f32c, f32c)
+nk_dispatch_dense_(dot, bf16c, bf16c, f32c)
+nk_dispatch_dense_(dot, f16c, f16c, f32c)
+nk_dispatch_dense_(dot, f64, f64, f64)
+nk_dispatch_dense_(dot, f32, f32, f32)
+nk_dispatch_dense_(dot, bf16, bf16, f32)
+nk_dispatch_dense_(dot, f16, f16, f32)
 nk_dispatch_dense_(dot, e5m2, e5m2, f32)
-nk_dispatch_dense_(dot, e2m3, e2m3, f32)
+nk_dispatch_dense_(dot, e4m3, e4m3, f32)
 nk_dispatch_dense_(dot, e3m2, e3m2, f32)
-nk_dispatch_dense_(vdot, f16c, f16c, f32c)
-nk_dispatch_dense_(vdot, bf16c, bf16c, f32c)
-nk_dispatch_dense_(vdot, f32c, f32c, f32c)
+nk_dispatch_dense_(dot, e2m3, e2m3, f32)
+nk_dispatch_dense_(dot, i8, i8, i32)
+nk_dispatch_dense_(dot, i4, i4x2, i32)
+nk_dispatch_dense_(dot, u8, u8, u32)
+nk_dispatch_dense_(dot, u4, u4x2, u32)
 nk_dispatch_dense_(vdot, f64c, f64c, f64c)
+nk_dispatch_dense_(vdot, f32c, f32c, f32c)
+nk_dispatch_dense_(vdot, bf16c, bf16c, f32c)
+nk_dispatch_dense_(vdot, f16c, f16c, f32c)
 
 // Spatial distances
-nk_dispatch_dense_(angular, i8, i8, f32)
-nk_dispatch_dense_(angular, u8, u8, f32)
-nk_dispatch_dense_(angular, i4, i4x2, f32)
-nk_dispatch_dense_(angular, u4, u4x2, f32)
-nk_dispatch_dense_(angular, f16, f16, f32)
-nk_dispatch_dense_(angular, bf16, bf16, f32)
-nk_dispatch_dense_(angular, f32, f32, f32)
 nk_dispatch_dense_(angular, f64, f64, f64)
-nk_dispatch_dense_(angular, e4m3, e4m3, f32)
+nk_dispatch_dense_(angular, f32, f32, f32)
+nk_dispatch_dense_(angular, bf16, bf16, f32)
+nk_dispatch_dense_(angular, f16, f16, f32)
 nk_dispatch_dense_(angular, e5m2, e5m2, f32)
-nk_dispatch_dense_(angular, e2m3, e2m3, f32)
+nk_dispatch_dense_(angular, e4m3, e4m3, f32)
 nk_dispatch_dense_(angular, e3m2, e3m2, f32)
-nk_dispatch_dense_(sqeuclidean, i8, i8, u32)
-nk_dispatch_dense_(sqeuclidean, u8, u8, u32)
-nk_dispatch_dense_(sqeuclidean, i4, i4x2, u32)
-nk_dispatch_dense_(sqeuclidean, u4, u4x2, u32)
-nk_dispatch_dense_(sqeuclidean, f16, f16, f32)
-nk_dispatch_dense_(sqeuclidean, bf16, bf16, f32)
-nk_dispatch_dense_(sqeuclidean, f32, f32, f32)
+nk_dispatch_dense_(angular, e2m3, e2m3, f32)
+nk_dispatch_dense_(angular, i8, i8, f32)
+nk_dispatch_dense_(angular, i4, i4x2, f32)
+nk_dispatch_dense_(angular, u8, u8, f32)
+nk_dispatch_dense_(angular, u4, u4x2, f32)
 nk_dispatch_dense_(sqeuclidean, f64, f64, f64)
-nk_dispatch_dense_(sqeuclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(sqeuclidean, f32, f32, f32)
+nk_dispatch_dense_(sqeuclidean, bf16, bf16, f32)
+nk_dispatch_dense_(sqeuclidean, f16, f16, f32)
 nk_dispatch_dense_(sqeuclidean, e5m2, e5m2, f32)
-nk_dispatch_dense_(sqeuclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(sqeuclidean, e4m3, e4m3, f32)
 nk_dispatch_dense_(sqeuclidean, e3m2, e3m2, f32)
-nk_dispatch_dense_(euclidean, i8, i8, f32)
-nk_dispatch_dense_(euclidean, u8, u8, f32)
-nk_dispatch_dense_(euclidean, i4, i4x2, f32)
-nk_dispatch_dense_(euclidean, u4, u4x2, f32)
-nk_dispatch_dense_(euclidean, f16, f16, f32)
-nk_dispatch_dense_(euclidean, bf16, bf16, f32)
-nk_dispatch_dense_(euclidean, f32, f32, f32)
+nk_dispatch_dense_(sqeuclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(sqeuclidean, i8, i8, u32)
+nk_dispatch_dense_(sqeuclidean, i4, i4x2, u32)
+nk_dispatch_dense_(sqeuclidean, u8, u8, u32)
+nk_dispatch_dense_(sqeuclidean, u4, u4x2, u32)
 nk_dispatch_dense_(euclidean, f64, f64, f64)
-nk_dispatch_dense_(euclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(euclidean, f32, f32, f32)
+nk_dispatch_dense_(euclidean, bf16, bf16, f32)
+nk_dispatch_dense_(euclidean, f16, f16, f32)
 nk_dispatch_dense_(euclidean, e5m2, e5m2, f32)
-nk_dispatch_dense_(euclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(euclidean, e4m3, e4m3, f32)
 nk_dispatch_dense_(euclidean, e3m2, e3m2, f32)
+nk_dispatch_dense_(euclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(euclidean, i8, i8, f32)
+nk_dispatch_dense_(euclidean, i4, i4x2, f32)
+nk_dispatch_dense_(euclidean, u8, u8, f32)
+nk_dispatch_dense_(euclidean, u4, u4x2, f32)
 
 // Geospatial distances
 nk_dispatch_geospatial_(haversine, f64, f64)
@@ -385,228 +385,228 @@ nk_dispatch_geospatial_(vincenty, f64, f64)
 nk_dispatch_geospatial_(vincenty, f32, f32)
 
 // Binary distances
-nk_dispatch_dense_(hamming, u1, u1x8, u32)
-nk_dispatch_dense_(jaccard, u1, u1x8, f32)
-nk_dispatch_dense_(jaccard, u32, u32, f32)
 nk_dispatch_dense_(hamming, u8, u8, u32)
+nk_dispatch_dense_(hamming, u1, u1x8, u32)
+nk_dispatch_dense_(jaccard, u32, u32, f32)
 nk_dispatch_dense_(jaccard, u16, u16, f32)
+nk_dispatch_dense_(jaccard, u1, u1x8, f32)
 
 // Probability distributions
-nk_dispatch_dense_(kld, f16, f16, f32)
-nk_dispatch_dense_(kld, bf16, bf16, f32)
-nk_dispatch_dense_(kld, f32, f32, f32)
 nk_dispatch_dense_(kld, f64, f64, f64)
-nk_dispatch_dense_(jsd, f16, f16, f32)
-nk_dispatch_dense_(jsd, bf16, bf16, f32)
-nk_dispatch_dense_(jsd, f32, f32, f32)
+nk_dispatch_dense_(kld, f32, f32, f32)
+nk_dispatch_dense_(kld, bf16, bf16, f32)
+nk_dispatch_dense_(kld, f16, f16, f32)
 nk_dispatch_dense_(jsd, f64, f64, f64)
+nk_dispatch_dense_(jsd, f32, f32, f32)
+nk_dispatch_dense_(jsd, bf16, bf16, f32)
+nk_dispatch_dense_(jsd, f16, f16, f32)
 
 // Sparse sets
-nk_dispatch_sparse_(sparse_intersect, u16, u16)
-nk_dispatch_sparse_(sparse_intersect, u32, u32)
 nk_dispatch_sparse_(sparse_intersect, u64, u64)
-nk_dispatch_sparse_dot_(sparse_dot, u16, bf16, f32)
+nk_dispatch_sparse_(sparse_intersect, u32, u32)
+nk_dispatch_sparse_(sparse_intersect, u16, u16)
 nk_dispatch_sparse_dot_(sparse_dot, u32, f32, f32)
+nk_dispatch_sparse_dot_(sparse_dot, u16, bf16, f32)
 
 // Curved spaces
-nk_dispatch_curved_(bilinear, f64, f64)
 nk_dispatch_curved_(bilinear, f64c, f64c)
-nk_dispatch_curved_(mahalanobis, f64, f64)
-nk_dispatch_curved_(bilinear, f32, f32)
 nk_dispatch_curved_(bilinear, f32c, f32c)
-nk_dispatch_curved_(mahalanobis, f32, f32)
-nk_dispatch_curved_(bilinear, f16, f32)
-nk_dispatch_curved_(bilinear, f16c, f32c)
-nk_dispatch_curved_(mahalanobis, f16, f32)
-nk_dispatch_curved_(bilinear, bf16, f32)
 nk_dispatch_curved_(bilinear, bf16c, f32c)
+nk_dispatch_curved_(bilinear, f16c, f32c)
+nk_dispatch_curved_(bilinear, f64, f64)
+nk_dispatch_curved_(bilinear, f32, f32)
+nk_dispatch_curved_(bilinear, bf16, f32)
+nk_dispatch_curved_(bilinear, f16, f32)
+nk_dispatch_curved_(mahalanobis, f64, f64)
+nk_dispatch_curved_(mahalanobis, f32, f32)
 nk_dispatch_curved_(mahalanobis, bf16, f32)
+nk_dispatch_curved_(mahalanobis, f16, f32)
 
 // Element-wise operations
-nk_dispatch_each_fma_(f32, f32)
-nk_dispatch_each_fma_(f16, f32)
 nk_dispatch_each_fma_(f64, f64)
+nk_dispatch_each_fma_(f32, f32)
 nk_dispatch_each_fma_(bf16, f32)
-nk_dispatch_each_fma_(i8, f32)
-nk_dispatch_each_fma_(u8, f32)
-nk_dispatch_each_fma_(e4m3, f32)
+nk_dispatch_each_fma_(f16, f32)
 nk_dispatch_each_fma_(e5m2, f32)
-nk_dispatch_each_fma_(e2m3, f32)
+nk_dispatch_each_fma_(e4m3, f32)
 nk_dispatch_each_fma_(e3m2, f32)
+nk_dispatch_each_fma_(e2m3, f32)
+nk_dispatch_each_fma_(i64, f64)
+nk_dispatch_each_fma_(i32, f64)
+nk_dispatch_each_fma_(i16, f32)
+nk_dispatch_each_fma_(i8, f32)
+nk_dispatch_each_fma_(u64, f64)
+nk_dispatch_each_fma_(u32, f64)
+nk_dispatch_each_fma_(u16, f32)
+nk_dispatch_each_fma_(u8, f32)
 nk_dispatch_each_blend_(f64, f64)
 nk_dispatch_each_blend_(f32, f32)
-nk_dispatch_each_blend_(f16, f32)
 nk_dispatch_each_blend_(bf16, f32)
-nk_dispatch_each_blend_(i8, f32)
-nk_dispatch_each_blend_(u8, f32)
-nk_dispatch_each_blend_(e4m3, f32)
+nk_dispatch_each_blend_(f16, f32)
 nk_dispatch_each_blend_(e5m2, f32)
-nk_dispatch_each_blend_(e2m3, f32)
+nk_dispatch_each_blend_(e4m3, f32)
 nk_dispatch_each_blend_(e3m2, f32)
-nk_dispatch_each_fma_(i16, f32)
-nk_dispatch_each_fma_(u16, f32)
-nk_dispatch_each_fma_(i32, f64)
-nk_dispatch_each_fma_(u32, f64)
-nk_dispatch_each_fma_(i64, f64)
-nk_dispatch_each_fma_(u64, f64)
-nk_dispatch_each_blend_(i16, f32)
-nk_dispatch_each_blend_(u16, f32)
-nk_dispatch_each_blend_(i32, f64)
-nk_dispatch_each_blend_(u32, f64)
+nk_dispatch_each_blend_(e2m3, f32)
 nk_dispatch_each_blend_(i64, f64)
+nk_dispatch_each_blend_(i32, f64)
+nk_dispatch_each_blend_(i16, f32)
+nk_dispatch_each_blend_(i8, f32)
 nk_dispatch_each_blend_(u64, f64)
+nk_dispatch_each_blend_(u32, f64)
+nk_dispatch_each_blend_(u16, f32)
+nk_dispatch_each_blend_(u8, f32)
 nk_dispatch_each_scale_(f64, f64)
 nk_dispatch_each_scale_(f32, f32)
-nk_dispatch_each_scale_(f16, f32)
 nk_dispatch_each_scale_(bf16, f32)
-nk_dispatch_each_scale_(i8, f32)
-nk_dispatch_each_scale_(u8, f32)
-nk_dispatch_each_scale_(i16, f32)
-nk_dispatch_each_scale_(u16, f32)
-nk_dispatch_each_scale_(i32, f64)
-nk_dispatch_each_scale_(u32, f64)
-nk_dispatch_each_scale_(i64, f64)
-nk_dispatch_each_scale_(u64, f64)
-nk_dispatch_each_scale_(e4m3, f32)
+nk_dispatch_each_scale_(f16, f32)
 nk_dispatch_each_scale_(e5m2, f32)
-nk_dispatch_each_scale_(e2m3, f32)
+nk_dispatch_each_scale_(e4m3, f32)
 nk_dispatch_each_scale_(e3m2, f32)
+nk_dispatch_each_scale_(e2m3, f32)
+nk_dispatch_each_scale_(i64, f64)
+nk_dispatch_each_scale_(i32, f64)
+nk_dispatch_each_scale_(i16, f32)
+nk_dispatch_each_scale_(i8, f32)
+nk_dispatch_each_scale_(u64, f64)
+nk_dispatch_each_scale_(u32, f64)
+nk_dispatch_each_scale_(u16, f32)
+nk_dispatch_each_scale_(u8, f32)
 nk_dispatch_each_sum_(f64)
 nk_dispatch_each_sum_(f32)
-nk_dispatch_each_sum_(f16)
 nk_dispatch_each_sum_(bf16)
-nk_dispatch_each_sum_(i8)
-nk_dispatch_each_sum_(u8)
-nk_dispatch_each_sum_(i16)
-nk_dispatch_each_sum_(u16)
-nk_dispatch_each_sum_(i32)
-nk_dispatch_each_sum_(u32)
-nk_dispatch_each_sum_(i64)
-nk_dispatch_each_sum_(u64)
-nk_dispatch_each_sum_(e4m3)
+nk_dispatch_each_sum_(f16)
 nk_dispatch_each_sum_(e5m2)
-nk_dispatch_each_sum_(e2m3)
+nk_dispatch_each_sum_(e4m3)
 nk_dispatch_each_sum_(e3m2)
+nk_dispatch_each_sum_(e2m3)
+nk_dispatch_each_sum_(i64)
+nk_dispatch_each_sum_(i32)
+nk_dispatch_each_sum_(i16)
+nk_dispatch_each_sum_(i8)
+nk_dispatch_each_sum_(u64)
+nk_dispatch_each_sum_(u32)
+nk_dispatch_each_sum_(u16)
+nk_dispatch_each_sum_(u8)
 
 // Trigonometry functions
-nk_dispatch_trigonometry_(sin, f32)
 nk_dispatch_trigonometry_(sin, f64)
-nk_dispatch_trigonometry_(cos, f32)
-nk_dispatch_trigonometry_(cos, f64)
-nk_dispatch_trigonometry_(atan, f32)
-nk_dispatch_trigonometry_(atan, f64)
+nk_dispatch_trigonometry_(sin, f32)
 nk_dispatch_trigonometry_(sin, f16)
+nk_dispatch_trigonometry_(cos, f64)
+nk_dispatch_trigonometry_(cos, f32)
 nk_dispatch_trigonometry_(cos, f16)
+nk_dispatch_trigonometry_(atan, f64)
+nk_dispatch_trigonometry_(atan, f32)
 nk_dispatch_trigonometry_(atan, f16)
 
 // Mesh alignment (RMSD, Kabsch, Umeyama)
-nk_dispatch_mesh_(rmsd, f32, f32)
 nk_dispatch_mesh_(rmsd, f64, f64)
-nk_dispatch_mesh_(kabsch, f32, f32)
+nk_dispatch_mesh_(rmsd, f32, f32)
 nk_dispatch_mesh_(kabsch, f64, f64)
-nk_dispatch_mesh_(umeyama, f32, f32)
+nk_dispatch_mesh_(kabsch, f32, f32)
 nk_dispatch_mesh_(umeyama, f64, f64)
+nk_dispatch_mesh_(umeyama, f32, f32)
 
 // Horizontal reductions: moments (sum + sum-of-squares)
-nk_dispatch_reduce_moments_(f32, nk_f32_t, nk_f64_t, nk_f64_t)
 nk_dispatch_reduce_moments_(f64, nk_f64_t, nk_f64_t, nk_f64_t)
-nk_dispatch_reduce_moments_(i8, nk_i8_t, nk_i64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(u8, nk_u8_t, nk_u64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(i16, nk_i16_t, nk_i64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(u16, nk_u16_t, nk_u64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(i32, nk_i32_t, nk_i64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(u32, nk_u32_t, nk_u64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(i64, nk_i64_t, nk_i64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(u64, nk_u64_t, nk_u64_t, nk_u64_t)
-nk_dispatch_reduce_moments_(f16, nk_f16_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(f32, nk_f32_t, nk_f64_t, nk_f64_t)
 nk_dispatch_reduce_moments_(bf16, nk_bf16_t, nk_f32_t, nk_f32_t)
-nk_dispatch_reduce_moments_(e4m3, nk_e4m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(f16, nk_f16_t, nk_f32_t, nk_f32_t)
 nk_dispatch_reduce_moments_(e5m2, nk_e5m2_t, nk_f32_t, nk_f32_t)
-nk_dispatch_reduce_moments_(e2m3, nk_e2m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e4m3, nk_e4m3_t, nk_f32_t, nk_f32_t)
 nk_dispatch_reduce_moments_(e3m2, nk_e3m2_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e2m3, nk_e2m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(i64, nk_i64_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i32, nk_i32_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i16, nk_i16_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i8, nk_i8_t, nk_i64_t, nk_u64_t)
 nk_dispatch_reduce_moments_(i4, nk_i4x2_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u64, nk_u64_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u32, nk_u32_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u16, nk_u16_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u8, nk_u8_t, nk_u64_t, nk_u64_t)
 nk_dispatch_reduce_moments_(u4, nk_u4x2_t, nk_u64_t, nk_u64_t)
 nk_dispatch_reduce_moments_(u1, nk_u1x8_t, nk_u64_t, nk_u64_t)
 
 // Horizontal reductions: minmax (min + max with indices)
-nk_dispatch_reduce_minmax_(f32, nk_f32_t, nk_f32_t)
 nk_dispatch_reduce_minmax_(f64, nk_f64_t, nk_f64_t)
-nk_dispatch_reduce_minmax_(i8, nk_i8_t, nk_i8_t)
-nk_dispatch_reduce_minmax_(u8, nk_u8_t, nk_u8_t)
-nk_dispatch_reduce_minmax_(i16, nk_i16_t, nk_i16_t)
-nk_dispatch_reduce_minmax_(u16, nk_u16_t, nk_u16_t)
-nk_dispatch_reduce_minmax_(i32, nk_i32_t, nk_i32_t)
-nk_dispatch_reduce_minmax_(u32, nk_u32_t, nk_u32_t)
-nk_dispatch_reduce_minmax_(i64, nk_i64_t, nk_i64_t)
-nk_dispatch_reduce_minmax_(u64, nk_u64_t, nk_u64_t)
-nk_dispatch_reduce_minmax_(f16, nk_f16_t, nk_f16_t)
+nk_dispatch_reduce_minmax_(f32, nk_f32_t, nk_f32_t)
 nk_dispatch_reduce_minmax_(bf16, nk_bf16_t, nk_bf16_t)
-nk_dispatch_reduce_minmax_(e4m3, nk_e4m3_t, nk_e4m3_t)
+nk_dispatch_reduce_minmax_(f16, nk_f16_t, nk_f16_t)
 nk_dispatch_reduce_minmax_(e5m2, nk_e5m2_t, nk_e5m2_t)
-nk_dispatch_reduce_minmax_(e2m3, nk_e2m3_t, nk_e2m3_t)
+nk_dispatch_reduce_minmax_(e4m3, nk_e4m3_t, nk_e4m3_t)
 nk_dispatch_reduce_minmax_(e3m2, nk_e3m2_t, nk_e3m2_t)
+nk_dispatch_reduce_minmax_(e2m3, nk_e2m3_t, nk_e2m3_t)
+nk_dispatch_reduce_minmax_(i64, nk_i64_t, nk_i64_t)
+nk_dispatch_reduce_minmax_(i32, nk_i32_t, nk_i32_t)
+nk_dispatch_reduce_minmax_(i16, nk_i16_t, nk_i16_t)
+nk_dispatch_reduce_minmax_(i8, nk_i8_t, nk_i8_t)
 nk_dispatch_reduce_minmax_(i4, nk_i4x2_t, nk_i8_t)
+nk_dispatch_reduce_minmax_(u64, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_minmax_(u32, nk_u32_t, nk_u32_t)
+nk_dispatch_reduce_minmax_(u16, nk_u16_t, nk_u16_t)
+nk_dispatch_reduce_minmax_(u8, nk_u8_t, nk_u8_t)
 nk_dispatch_reduce_minmax_(u4, nk_u4x2_t, nk_u8_t)
 nk_dispatch_reduce_minmax_(u1, nk_u1x8_t, nk_u8_t)
 
 // Dots packed sizes
-nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
 nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
-nk_dispatch_cross_packed_size_(dots, f16, f16, f32)
+nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
 nk_dispatch_cross_packed_size_(dots, bf16, bf16, f32)
-nk_dispatch_cross_packed_size_(dots, i8, i8, i32)
-nk_dispatch_cross_packed_size_(dots, u8, u8, u32)
-nk_dispatch_cross_packed_size_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_packed_size_(dots, f16, f16, f32)
 nk_dispatch_cross_packed_size_(dots, e5m2, e5m2, f32)
-nk_dispatch_cross_packed_size_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_packed_size_(dots, e4m3, e4m3, f32)
 nk_dispatch_cross_packed_size_(dots, e3m2, e3m2, f32)
-nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
-nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32)
+nk_dispatch_cross_packed_size_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_packed_size_(dots, i8, i8, i32)
 nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
+nk_dispatch_cross_packed_size_(dots, u8, u8, u32)
+nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32)
+nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
 
 // Dots packing
-nk_dispatch_cross_pack_(dots, f32, f32, f32)
 nk_dispatch_cross_pack_(dots, f64, f64, f64)
-nk_dispatch_cross_pack_(dots, f16, f16, f32)
+nk_dispatch_cross_pack_(dots, f32, f32, f32)
 nk_dispatch_cross_pack_(dots, bf16, bf16, f32)
-nk_dispatch_cross_pack_(dots, i8, i8, i32)
-nk_dispatch_cross_pack_(dots, u8, u8, u32)
-nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_pack_(dots, f16, f16, f32)
 nk_dispatch_cross_pack_(dots, e5m2, e5m2, f32)
-nk_dispatch_cross_pack_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32)
 nk_dispatch_cross_pack_(dots, e3m2, e3m2, f32)
-nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
-nk_dispatch_cross_pack_(dots, u4, u4x2, u32)
+nk_dispatch_cross_pack_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_pack_(dots, i8, i8, i32)
 nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
+nk_dispatch_cross_pack_(dots, u8, u8, u32)
+nk_dispatch_cross_pack_(dots, u4, u4x2, u32)
+nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
 
 // Dots packed
-nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(dots, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
-nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
-nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
-nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
-nk_dispatch_cross_packed_(dots, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
 nk_dispatch_cross_packed_(dots, e3m2, e3m2, f32, f32)
-nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
-nk_dispatch_cross_packed_(dots, u4, u4x2, u32, u32)
+nk_dispatch_cross_packed_(dots, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
 nk_dispatch_cross_packed_(dots, i4, i4x2, i32, i32)
+nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
+nk_dispatch_cross_packed_(dots, u4, u4x2, u32, u32)
+nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
 
 // Dots symmetric
-nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
 nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
-nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
+nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
 nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
-nk_dispatch_cross_symmetric_(dots, i8, i8, i32)
-nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
-nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
 nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
-nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32)
 nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
-nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
+nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(dots, i8, i8, i32)
 nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
+nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
+nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
 nk_dispatch_cross_symmetric_(dots, u1, u1x8, u32)
 
 // Sets packed
@@ -618,60 +618,60 @@ nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
 nk_dispatch_cross_symmetric_(jaccards, u1, u1x8, f32)
 
 // Angulars packed
-nk_dispatch_cross_packed_(angulars, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(angulars, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(angulars, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(angulars, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(angulars, bf16, bf16, f32, f32)
-nk_dispatch_cross_packed_(angulars, i8, i8, i32, f32)
-nk_dispatch_cross_packed_(angulars, u8, u8, u32, f32)
-nk_dispatch_cross_packed_(angulars, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(angulars, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(angulars, e5m2, e5m2, f32, f32)
-nk_dispatch_cross_packed_(angulars, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(angulars, e4m3, e4m3, f32, f32)
 nk_dispatch_cross_packed_(angulars, e3m2, e3m2, f32, f32)
-nk_dispatch_cross_packed_(angulars, u4, u4x2, u32, f32)
+nk_dispatch_cross_packed_(angulars, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(angulars, i8, i8, i32, f32)
 nk_dispatch_cross_packed_(angulars, i4, i4x2, i32, f32)
+nk_dispatch_cross_packed_(angulars, u8, u8, u32, f32)
+nk_dispatch_cross_packed_(angulars, u4, u4x2, u32, f32)
 
 // Angulars symmetric
-nk_dispatch_cross_symmetric_(angulars, f32, f32, f32)
 nk_dispatch_cross_symmetric_(angulars, f64, f64, f64)
-nk_dispatch_cross_symmetric_(angulars, f16, f16, f32)
+nk_dispatch_cross_symmetric_(angulars, f32, f32, f32)
 nk_dispatch_cross_symmetric_(angulars, bf16, bf16, f32)
-nk_dispatch_cross_symmetric_(angulars, i8, i8, f32)
-nk_dispatch_cross_symmetric_(angulars, u8, u8, f32)
-nk_dispatch_cross_symmetric_(angulars, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(angulars, f16, f16, f32)
 nk_dispatch_cross_symmetric_(angulars, e5m2, e5m2, f32)
-nk_dispatch_cross_symmetric_(angulars, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(angulars, e4m3, e4m3, f32)
 nk_dispatch_cross_symmetric_(angulars, e3m2, e3m2, f32)
-nk_dispatch_cross_symmetric_(angulars, u4, u4x2, f32)
+nk_dispatch_cross_symmetric_(angulars, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(angulars, i8, i8, f32)
 nk_dispatch_cross_symmetric_(angulars, i4, i4x2, f32)
+nk_dispatch_cross_symmetric_(angulars, u8, u8, f32)
+nk_dispatch_cross_symmetric_(angulars, u4, u4x2, f32)
 
 // Euclideans packed
-nk_dispatch_cross_packed_(euclideans, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(euclideans, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(euclideans, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(euclideans, f32, f32, f32, f32)
 nk_dispatch_cross_packed_(euclideans, bf16, bf16, f32, f32)
-nk_dispatch_cross_packed_(euclideans, i8, i8, i32, f32)
-nk_dispatch_cross_packed_(euclideans, u8, u8, u32, f32)
-nk_dispatch_cross_packed_(euclideans, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(euclideans, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(euclideans, e5m2, e5m2, f32, f32)
-nk_dispatch_cross_packed_(euclideans, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(euclideans, e4m3, e4m3, f32, f32)
 nk_dispatch_cross_packed_(euclideans, e3m2, e3m2, f32, f32)
-nk_dispatch_cross_packed_(euclideans, u4, u4x2, u32, f32)
+nk_dispatch_cross_packed_(euclideans, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(euclideans, i8, i8, i32, f32)
 nk_dispatch_cross_packed_(euclideans, i4, i4x2, i32, f32)
+nk_dispatch_cross_packed_(euclideans, u8, u8, u32, f32)
+nk_dispatch_cross_packed_(euclideans, u4, u4x2, u32, f32)
 
 // Euclideans symmetric
-nk_dispatch_cross_symmetric_(euclideans, f32, f32, f32)
 nk_dispatch_cross_symmetric_(euclideans, f64, f64, f64)
-nk_dispatch_cross_symmetric_(euclideans, f16, f16, f32)
+nk_dispatch_cross_symmetric_(euclideans, f32, f32, f32)
 nk_dispatch_cross_symmetric_(euclideans, bf16, bf16, f32)
-nk_dispatch_cross_symmetric_(euclideans, i8, i8, f32)
-nk_dispatch_cross_symmetric_(euclideans, u8, u8, f32)
-nk_dispatch_cross_symmetric_(euclideans, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(euclideans, f16, f16, f32)
 nk_dispatch_cross_symmetric_(euclideans, e5m2, e5m2, f32)
-nk_dispatch_cross_symmetric_(euclideans, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(euclideans, e4m3, e4m3, f32)
 nk_dispatch_cross_symmetric_(euclideans, e3m2, e3m2, f32)
-nk_dispatch_cross_symmetric_(euclideans, u4, u4x2, f32)
+nk_dispatch_cross_symmetric_(euclideans, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(euclideans, i8, i8, f32)
 nk_dispatch_cross_symmetric_(euclideans, i4, i4x2, f32)
+nk_dispatch_cross_symmetric_(euclideans, u8, u8, f32)
+nk_dispatch_cross_symmetric_(euclideans, u4, u4x2, f32)
 
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
@@ -681,56 +681,56 @@ NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, voi
 }
 
 // Forward declarations for dtype-specific dispatch initialization functions
-void nk_dispatch_f64_init_(nk_capability_t caps);
-void nk_dispatch_f32_init_(nk_capability_t caps);
-void nk_dispatch_f16_init_(nk_capability_t caps);
-void nk_dispatch_bf16_init_(nk_capability_t caps);
-void nk_dispatch_i8_init_(nk_capability_t caps);
-void nk_dispatch_u8_init_(nk_capability_t caps);
-void nk_dispatch_i4_init_(nk_capability_t caps);
-void nk_dispatch_u4_init_(nk_capability_t caps);
-void nk_dispatch_e4m3_init_(nk_capability_t caps);
-void nk_dispatch_e5m2_init_(nk_capability_t caps);
-void nk_dispatch_e2m3_init_(nk_capability_t caps);
-void nk_dispatch_e3m2_init_(nk_capability_t caps);
-void nk_dispatch_u1_init_(nk_capability_t caps);
 void nk_dispatch_f64c_init_(nk_capability_t caps);
 void nk_dispatch_f32c_init_(nk_capability_t caps);
-void nk_dispatch_f16c_init_(nk_capability_t caps);
 void nk_dispatch_bf16c_init_(nk_capability_t caps);
-void nk_dispatch_i16_init_(nk_capability_t caps);
-void nk_dispatch_u16_init_(nk_capability_t caps);
-void nk_dispatch_i32_init_(nk_capability_t caps);
-void nk_dispatch_u32_init_(nk_capability_t caps);
+void nk_dispatch_f16c_init_(nk_capability_t caps);
+void nk_dispatch_f64_init_(nk_capability_t caps);
+void nk_dispatch_f32_init_(nk_capability_t caps);
+void nk_dispatch_bf16_init_(nk_capability_t caps);
+void nk_dispatch_f16_init_(nk_capability_t caps);
+void nk_dispatch_e5m2_init_(nk_capability_t caps);
+void nk_dispatch_e4m3_init_(nk_capability_t caps);
+void nk_dispatch_e3m2_init_(nk_capability_t caps);
+void nk_dispatch_e2m3_init_(nk_capability_t caps);
 void nk_dispatch_i64_init_(nk_capability_t caps);
+void nk_dispatch_i32_init_(nk_capability_t caps);
+void nk_dispatch_i16_init_(nk_capability_t caps);
+void nk_dispatch_i8_init_(nk_capability_t caps);
+void nk_dispatch_i4_init_(nk_capability_t caps);
 void nk_dispatch_u64_init_(nk_capability_t caps);
+void nk_dispatch_u32_init_(nk_capability_t caps);
+void nk_dispatch_u16_init_(nk_capability_t caps);
+void nk_dispatch_u8_init_(nk_capability_t caps);
+void nk_dispatch_u4_init_(nk_capability_t caps);
+void nk_dispatch_u1_init_(nk_capability_t caps);
 void nk_dispatch_cast_init_(nk_capability_t caps);
 void nk_dispatch_math_init_(nk_capability_t caps);
 
 NK_INTERNAL void nk_dispatch_table_update_implementation_(nk_capability_t caps) {
-    nk_dispatch_f64_init_(caps);
-    nk_dispatch_f32_init_(caps);
-    nk_dispatch_f16_init_(caps);
-    nk_dispatch_bf16_init_(caps);
-    nk_dispatch_i8_init_(caps);
-    nk_dispatch_u8_init_(caps);
-    nk_dispatch_i4_init_(caps);
-    nk_dispatch_u4_init_(caps);
-    nk_dispatch_e4m3_init_(caps);
-    nk_dispatch_e5m2_init_(caps);
-    nk_dispatch_e2m3_init_(caps);
-    nk_dispatch_e3m2_init_(caps);
-    nk_dispatch_u1_init_(caps);
     nk_dispatch_f64c_init_(caps);
     nk_dispatch_f32c_init_(caps);
-    nk_dispatch_f16c_init_(caps);
     nk_dispatch_bf16c_init_(caps);
-    nk_dispatch_i16_init_(caps);
-    nk_dispatch_u16_init_(caps);
-    nk_dispatch_i32_init_(caps);
-    nk_dispatch_u32_init_(caps);
+    nk_dispatch_f16c_init_(caps);
+    nk_dispatch_f64_init_(caps);
+    nk_dispatch_f32_init_(caps);
+    nk_dispatch_bf16_init_(caps);
+    nk_dispatch_f16_init_(caps);
+    nk_dispatch_e5m2_init_(caps);
+    nk_dispatch_e4m3_init_(caps);
+    nk_dispatch_e3m2_init_(caps);
+    nk_dispatch_e2m3_init_(caps);
     nk_dispatch_i64_init_(caps);
+    nk_dispatch_i32_init_(caps);
+    nk_dispatch_i16_init_(caps);
+    nk_dispatch_i8_init_(caps);
+    nk_dispatch_i4_init_(caps);
     nk_dispatch_u64_init_(caps);
+    nk_dispatch_u32_init_(caps);
+    nk_dispatch_u16_init_(caps);
+    nk_dispatch_u8_init_(caps);
+    nk_dispatch_u4_init_(caps);
+    nk_dispatch_u1_init_(caps);
     nk_dispatch_cast_init_(caps);
     nk_dispatch_math_init_(caps);
 }
@@ -774,19 +774,20 @@ NK_DYNAMIC void nk_find_kernel_punned( //
 
     switch (dtype) {
 
-    case nk_f64_k: nk_dispatch_f64_find_(viable, kind, m, c); return;
-    case nk_f32_k: nk_dispatch_f32_find_(viable, kind, m, c); return;
-    case nk_f16_k: nk_dispatch_f16_find_(viable, kind, m, c); return;
-    case nk_bf16_k: nk_dispatch_bf16_find_(viable, kind, m, c); return;
-    case nk_e4m3_k: nk_dispatch_e4m3_find_(viable, kind, m, c); return;
-    case nk_e5m2_k: nk_dispatch_e5m2_find_(viable, kind, m, c); return;
-    case nk_e2m3_k: nk_dispatch_e2m3_find_(viable, kind, m, c); return;
-    case nk_e3m2_k: nk_dispatch_e3m2_find_(viable, kind, m, c); return;
-
     case nk_f64c_k: nk_dispatch_f64c_find_(viable, kind, m, c); return;
     case nk_f32c_k: nk_dispatch_f32c_find_(viable, kind, m, c); return;
-    case nk_f16c_k: nk_dispatch_f16c_find_(viable, kind, m, c); return;
     case nk_bf16c_k: nk_dispatch_bf16c_find_(viable, kind, m, c); return;
+    case nk_f16c_k: nk_dispatch_f16c_find_(viable, kind, m, c); return;
+
+    case nk_f64_k: nk_dispatch_f64_find_(viable, kind, m, c); return;
+    case nk_f32_k: nk_dispatch_f32_find_(viable, kind, m, c); return;
+    case nk_bf16_k: nk_dispatch_bf16_find_(viable, kind, m, c); return;
+    case nk_f16_k: nk_dispatch_f16_find_(viable, kind, m, c); return;
+
+    case nk_e5m2_k: nk_dispatch_e5m2_find_(viable, kind, m, c); return;
+    case nk_e4m3_k: nk_dispatch_e4m3_find_(viable, kind, m, c); return;
+    case nk_e3m2_k: nk_dispatch_e3m2_find_(viable, kind, m, c); return;
+    case nk_e2m3_k: nk_dispatch_e2m3_find_(viable, kind, m, c); return;
 
     case nk_i64_k: nk_dispatch_i64_find_(viable, kind, m, c); return;
     case nk_i32_k: nk_dispatch_i32_find_(viable, kind, m, c); return;

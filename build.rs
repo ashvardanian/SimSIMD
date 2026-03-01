@@ -15,32 +15,34 @@ fn build_simsimd() -> HashMap<String, bool> {
         // Prefer portable flags to support MSVC and older toolchains
         .std("c99") // Enforce C99 standard when supported
         .file("c/numkong.c")
-        // Data type dispatch files
-        .file("c/dispatch_f64.c")
-        .file("c/dispatch_f32.c")
-        .file("c/dispatch_f16.c")
-        .file("c/dispatch_bf16.c")
-        .file("c/dispatch_i8.c")
-        .file("c/dispatch_u8.c")
-        .file("c/dispatch_i4.c")
-        .file("c/dispatch_u4.c")
-        .file("c/dispatch_e4m3.c")
-        .file("c/dispatch_e5m2.c")
-        .file("c/dispatch_e2m3.c")
-        .file("c/dispatch_e3m2.c")
-        .file("c/dispatch_u1.c")
-        // Complex type dispatch files
+        // Complex float dispatch files
         .file("c/dispatch_f64c.c")
         .file("c/dispatch_f32c.c")
-        .file("c/dispatch_f16c.c")
         .file("c/dispatch_bf16c.c")
-        // Integer dispatch files
-        .file("c/dispatch_i16.c")
-        .file("c/dispatch_u16.c")
-        .file("c/dispatch_i32.c")
-        .file("c/dispatch_u32.c")
+        .file("c/dispatch_f16c.c")
+        // Real float dispatch files
+        .file("c/dispatch_f64.c")
+        .file("c/dispatch_f32.c")
+        .file("c/dispatch_bf16.c")
+        .file("c/dispatch_f16.c")
+        // Exotic float dispatch files
+        .file("c/dispatch_e5m2.c")
+        .file("c/dispatch_e4m3.c")
+        .file("c/dispatch_e3m2.c")
+        .file("c/dispatch_e2m3.c")
+        // Signed integer dispatch files
         .file("c/dispatch_i64.c")
+        .file("c/dispatch_i32.c")
+        .file("c/dispatch_i16.c")
+        .file("c/dispatch_i8.c")
+        .file("c/dispatch_i4.c")
+        // Unsigned integer dispatch files
         .file("c/dispatch_u64.c")
+        .file("c/dispatch_u32.c")
+        .file("c/dispatch_u16.c")
+        .file("c/dispatch_u8.c")
+        .file("c/dispatch_u4.c")
+        .file("c/dispatch_u1.c")
         // Special dispatch files
         .file("c/dispatch_other.c")
         .include("include")
@@ -188,54 +190,73 @@ fn build_simsimd() -> HashMap<String, bool> {
     }
 
     // Declare file dependencies
-    println!("cargo:rerun-if-changed=c/numkong.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f64.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f32.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_bf16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i8.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u8.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i4.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u4.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e4m3.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e5m2.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e2m3.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e3m2.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u1.c");
+    println!("cargo:rerun-if-changed=c/dispatch.h");
     println!("cargo:rerun-if-changed=c/dispatch_f64c.c");
     println!("cargo:rerun-if-changed=c/dispatch_f32c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f16c.c");
     println!("cargo:rerun-if-changed=c/dispatch_bf16c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i32.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f16c.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_bf16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e5m2.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e4m3.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e3m2.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e2m3.c");
     println!("cargo:rerun-if-changed=c/dispatch_i64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i8.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i4.c");
     println!("cargo:rerun-if-changed=c/dispatch_u64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u8.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u4.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u1.c");
     println!("cargo:rerun-if-changed=c/dispatch_other.c");
-    println!("cargo:rerun-if-changed=c/dispatch.h");
+    println!("cargo:rerun-if-changed=c/numkong.c");
     println!("cargo:rerun-if-changed=rust/numkong.rs");
     // Top-level headers
     println!("cargo:rerun-if-changed=include/numkong/numkong.h");
     println!("cargo:rerun-if-changed=include/numkong/types.h");
-    println!("cargo:rerun-if-changed=include/numkong/binary.h");
+    println!("cargo:rerun-if-changed=include/numkong/capabilities.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast.h");
+    println!("cargo:rerun-if-changed=include/numkong/set.h");
     println!("cargo:rerun-if-changed=include/numkong/curved.h");
     println!("cargo:rerun-if-changed=include/numkong/dot.h");
     println!("cargo:rerun-if-changed=include/numkong/dots.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise.h");
+    println!("cargo:rerun-if-changed=include/numkong/each.h");
     println!("cargo:rerun-if-changed=include/numkong/geospatial.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh.h");
     println!("cargo:rerun-if-changed=include/numkong/probability.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce.h");
+    println!("cargo:rerun-if-changed=include/numkong/sets.h");
     println!("cargo:rerun-if-changed=include/numkong/sparse.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry.h");
-    // binary/
-    println!("cargo:rerun-if-changed=include/numkong/binary/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/binary/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/binary/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/binary/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/binary/sve.h");
+    // cast/
+    println!("cargo:rerun-if-changed=include/numkong/cast/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/sapphire.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/rvv.h");
+    println!("cargo:rerun-if-changed=include/numkong/cast/v128relaxed.h");
+    // curved/
+    println!("cargo:rerun-if-changed=include/numkong/curved/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/genoa.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/neonhalf.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/neonbfdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/smef64.h");
+    println!("cargo:rerun-if-changed=include/numkong/curved/rvv.h");
     // dot/
     println!("cargo:rerun-if-changed=include/numkong/dot/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/dot/haswell.h");
@@ -264,18 +285,30 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/dots/sierra.h");
     println!("cargo:rerun-if-changed=include/numkong/dots/sve.h");
     println!("cargo:rerun-if-changed=include/numkong/dots/svehalf.h");
-    // elementwise/
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/elementwise/svehalf.h");
+    // each/
+    println!("cargo:rerun-if-changed=include/numkong/each/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/sapphire.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/neonhalf.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/neonbfdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/each/rvv.h");
+    // geospatial/
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/rvv.h");
+    println!("cargo:rerun-if-changed=include/numkong/geospatial/v128relaxed.h");
+    // maxsim/
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/genoa.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/neonsdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/maxsim/sme.h");
     // mesh/
     println!("cargo:rerun-if-changed=include/numkong/mesh/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh/haswell.h");
@@ -288,6 +321,13 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonsdot.h");
+    // probability/
+    println!("cargo:rerun-if-changed=include/numkong/probability/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/probability/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/probability/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/probability/sapphire.h");
+    println!("cargo:rerun-if-changed=include/numkong/probability/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/probability/rvv.h");
     // reduce/
     println!("cargo:rerun-if-changed=include/numkong/reduce/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/haswell.h");
@@ -299,6 +339,34 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonsdot.h");
+    // scalar/
+    println!("cargo:rerun-if-changed=include/numkong/scalar/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar/sapphire.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar/rvv.h");
+    println!("cargo:rerun-if-changed=include/numkong/scalar/v128relaxed.h");
+    // set/
+    println!("cargo:rerun-if-changed=include/numkong/set/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/sve.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/rvv.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/rvvbb.h");
+    println!("cargo:rerun-if-changed=include/numkong/set/v128relaxed.h");
+    // sets/
+    println!("cargo:rerun-if-changed=include/numkong/sets/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/sets/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/sets/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/sets/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/sets/smebi32.h");
+    // sparse/
+    println!("cargo:rerun-if-changed=include/numkong/sparse/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/sparse/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/sparse/turin.h");
+    println!("cargo:rerun-if-changed=include/numkong/sparse/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/sparse/sve2.h");
     // spatial/
     println!("cargo:rerun-if-changed=include/numkong/spatial/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/haswell.h");
@@ -317,6 +385,22 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/spatial/spacemit.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/sifive.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/xuantie.h");
+    // spatials/
+    println!("cargo:rerun-if-changed=include/numkong/spatials/serial.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/haswell.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/skylake.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/icelake.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/genoa.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/sierra.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/sapphireamx.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/neon.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/neonhalf.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/neonbfdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/neonsdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/neonfhm.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/sme.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/smef64.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatials/rvv.h");
     // trigonometry/
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/haswell.h");

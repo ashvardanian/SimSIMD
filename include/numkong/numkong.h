@@ -27,6 +27,7 @@
 #include "numkong/sparse.h"       // Set Intersections and Sparse Dot Products, like `nk_sparse_intersect_u16`
 #include "numkong/spatial.h"      // Euclidean, Angular, like `nk_euclidean_f64`
 #include "numkong/spatials.h"     // Batched Angular & Euclidean distances, like `nk_angulars_packed_f32`
+#include "numkong/maxsim.h"       // MaxSim: Multi-Vector Maximum Similarity, like `nk_maxsim_packed_f32`
 #include "numkong/trigonometry.h" // Sin, Cos, Atan, like `nk_each_sin_f64`
 
 #if defined(__cplusplus)
