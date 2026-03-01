@@ -45,7 +45,7 @@ void sum(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ *c) noexc
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_each_sum_f64c(&a->raw_, &b->raw_, d, &c->raw_);
     // Scalar fallback
     else {
-        for (std::size_t i = 0; i < d; i++) c[i] = a[i].saturating_add(b[i]);
+        for (std::size_t i = 0; i < d; i++) c[i] = saturating_add(a[i], b[i]);
     }
 }
 

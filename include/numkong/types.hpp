@@ -153,6 +153,8 @@ struct f32_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
     using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
@@ -327,7 +329,7 @@ struct f32_t {
     inline f32_t clamp(f32_t lo, f32_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f32_t saturating_add(f32_t o) const noexcept {
+    constexpr f32_t sadd(f32_t o) const noexcept {
         float result = raw_ + o.raw_;
         if (result == std::numeric_limits<float>::infinity()) return finite_max();
         if (result == -std::numeric_limits<float>::infinity()) return finite_min();
@@ -411,6 +413,8 @@ struct f64_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64_k; }
     static constexpr char const *dtype_name() noexcept { return "f64"; }
@@ -584,7 +588,7 @@ struct f64_t {
     inline f64_t clamp(f64_t lo, f64_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f64_t saturating_add(f64_t o) const noexcept {
+    constexpr f64_t sadd(f64_t o) const noexcept {
         double result = raw_ + o.raw_;
         if (result == std::numeric_limits<double>::infinity()) return finite_max();
         if (result == -std::numeric_limits<double>::infinity()) return finite_min();
@@ -717,9 +721,7 @@ struct f32c_t {
     inline f32c_t &operator*=(f32c_t o) noexcept { return *this = *this * o; }
     inline f32c_t &operator/=(f32c_t o) noexcept { return *this = *this / o; }
 
-    constexpr f32c_t saturating_add(f32c_t o) const noexcept {
-        return f32c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
-    }
+    constexpr f32c_t sadd(f32c_t o) const noexcept { return f32c_t(real().sadd(o.real()), imag().sadd(o.imag())); }
 
     constexpr f32c_t operator*(f32_t s) const noexcept { return f32c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f32c_t operator/(f32_t s) const noexcept { return f32c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -967,9 +969,7 @@ struct f64c_t {
     inline f64c_t &operator*=(f64c_t o) noexcept { return *this = *this * o; }
     inline f64c_t &operator/=(f64c_t o) noexcept { return *this = *this / o; }
 
-    constexpr f64c_t saturating_add(f64c_t o) const noexcept {
-        return f64c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
-    }
+    constexpr f64c_t sadd(f64c_t o) const noexcept { return f64c_t(real().sadd(o.real()), imag().sadd(o.imag())); }
 
     constexpr f64c_t operator*(f64_t s) const noexcept { return f64c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f64c_t operator/(f64_t s) const noexcept { return f64c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -1164,6 +1164,8 @@ struct f16_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
     using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16_k; }
@@ -1332,7 +1334,7 @@ struct f16_t {
     inline f16_t clamp(f16_t lo, f16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline f16_t saturating_add(f16_t o) const noexcept {
+    inline f16_t sadd(f16_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -1411,6 +1413,8 @@ struct bf16_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
     using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_bf16_k; }
@@ -1577,7 +1581,7 @@ struct bf16_t {
     inline bf16_t clamp(bf16_t lo, bf16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline bf16_t saturating_add(bf16_t o) const noexcept {
+    inline bf16_t sadd(bf16_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -1826,6 +1830,8 @@ struct e4m3_t {
     using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e4m3` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e4m3` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_e4m3` output
+    using angular_result_t = f32_t;       // `nk_angular_e4m3` output
     using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e4m3` sum output
     using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e4m3` sumsq output
     using reduce_minmax_value_t = e4m3_t; // `nk_reduce_minmax_e4m3` value output
@@ -1848,6 +1854,8 @@ struct e4m3_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e4m3_k; }
     static constexpr char const *dtype_name() noexcept { return "e4m3"; }
@@ -1991,7 +1999,7 @@ struct e4m3_t {
     inline e4m3_t clamp(e4m3_t lo, e4m3_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline e4m3_t saturating_add(e4m3_t o) const noexcept {
+    inline e4m3_t sadd(e4m3_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2033,6 +2041,8 @@ struct e5m2_t {
     using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e5m2` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e5m2` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_e5m2` output
+    using angular_result_t = f32_t;       // `nk_angular_e5m2` output
     using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e5m2` sum output
     using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e5m2` sumsq output
     using reduce_minmax_value_t = e5m2_t; // `nk_reduce_minmax_e5m2` value output
@@ -2055,6 +2065,8 @@ struct e5m2_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e5m2_k; }
     static constexpr char const *dtype_name() noexcept { return "e5m2"; }
@@ -2200,7 +2212,7 @@ struct e5m2_t {
     inline e5m2_t clamp(e5m2_t lo, e5m2_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline e5m2_t saturating_add(e5m2_t o) const noexcept {
+    inline e5m2_t sadd(e5m2_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2266,6 +2278,8 @@ struct e2m3_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e2m3_k; }
     static constexpr char const *dtype_name() noexcept { return "e2m3"; }
@@ -2375,7 +2389,7 @@ struct e2m3_t {
     inline e2m3_t max(e2m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e2m3_t clamp(e2m3_t lo, e2m3_t hi) const noexcept { return max(lo).min(hi); }
 
-    inline e2m3_t saturating_add(e2m3_t o) const noexcept {
+    inline e2m3_t sadd(e2m3_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2440,6 +2454,8 @@ struct e3m2_t {
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
+    using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
+    using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e3m2_k; }
     static constexpr char const *dtype_name() noexcept { return "e3m2"; }
@@ -2549,7 +2565,7 @@ struct e3m2_t {
     inline e3m2_t max(e3m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e3m2_t clamp(e3m2_t lo, e3m2_t hi) const noexcept { return max(lo).min(hi); }
 
-    inline e3m2_t saturating_add(e3m2_t o) const noexcept {
+    inline e3m2_t sadd(e3m2_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2699,7 +2715,7 @@ struct f118_t {
     }
 
     /** @brief Saturating addition - clamps to max finite value instead of infinity. */
-    constexpr f118_t saturating_add(f118_t o) const noexcept {
+    constexpr f118_t sadd(f118_t o) const noexcept {
         f118_t result = *this + o;
         if (result.is_infinite()) return result.high_ > 0 ? finite_max() : finite_min();
         return result;
@@ -2713,7 +2729,7 @@ struct f118_t {
     }
 
     /** @brief Saturating multiplication - forwards to operator* (no saturation semantics for double-double). */
-    constexpr f118_t saturating_mul(f118_t o) const noexcept { return *this * o; }
+    constexpr f118_t smul(f118_t o) const noexcept { return *this * o; }
 
     /** @brief Exact equality (both high_ and low_ must match). */
     constexpr bool operator==(f118_t const &o) const noexcept { return high_ == o.high_ && low_ == o.low_; }
@@ -3488,6 +3504,8 @@ struct i8_t {
     using scale_t = nk_f32_t;
     using dot_result_t = i32_t;           // `nk_dot_i8` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_i8` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_i8` output
+    using angular_result_t = f32_t;       // `nk_angular_i8` output
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i8` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i8` sumsq output
     using reduce_minmax_value_t = i8_t;   // `nk_reduce_minmax_i8` value output
@@ -3512,6 +3530,10 @@ struct i8_t {
                                               nk_size_t, nk_size_t);
     using euclideans_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t,
                                                 nk_size_t, nk_size_t, nk_size_t);
+    using angulars_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
+                                                 nk_size_t, nk_size_t);
+    using euclideans_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *,
+                                                   nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i8_k; }
     static constexpr char const *dtype_name() noexcept { return "i8"; }
@@ -3615,7 +3637,7 @@ struct i8_t {
     constexpr i8_t max(i8_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i8_t clamp(i8_t lo, i8_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i8_t saturating_add(i8_t o) const noexcept {
+    constexpr i8_t sadd(i8_t o) const noexcept {
         nk_i32_t result = nk_i32_t(raw_) + nk_i32_t(o.raw_);
         if (result > NK_I8_MAX) return i8_t::finite_max();
         if (result < NK_I8_MIN) return i8_t::finite_min();
@@ -3652,6 +3674,8 @@ struct u8_t {
     using scale_t = nk_f32_t;
     using dot_result_t = u32_t;           // `nk_dot_u8` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_u8` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_u8` output
+    using angular_result_t = f32_t;       // `nk_angular_u8` output
     using hamming_result_t = u32_t;       // `nk_hamming_u8` output
     using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u8` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u8` sumsq output
@@ -3677,6 +3701,10 @@ struct u8_t {
                                               nk_size_t, nk_size_t);
     using euclideans_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t,
                                                 nk_size_t, nk_size_t, nk_size_t);
+    using angulars_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
+                                                 nk_size_t, nk_size_t);
+    using euclideans_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *,
+                                                   nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u8_k; }
     static constexpr char const *dtype_name() noexcept { return "u8"; }
@@ -3773,7 +3801,7 @@ struct u8_t {
     constexpr u8_t max(u8_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u8_t clamp(u8_t lo, u8_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u8_t saturating_add(u8_t o) const noexcept {
+    constexpr u8_t sadd(u8_t o) const noexcept {
         nk_u32_t result = nk_u32_t(raw_) + nk_u32_t(o.raw_);
         return result > NK_U8_MAX ? u8_t::finite_max() : u8_t {static_cast<raw_t>(result)};
     }
@@ -3919,7 +3947,7 @@ struct i32_t {
     constexpr i32_t max(i32_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i32_t clamp(i32_t lo, i32_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i32_t saturating_add(i32_t o) const noexcept {
+    constexpr i32_t sadd(i32_t o) const noexcept {
         nk_i64_t result = nk_i64_t(raw_) + nk_i64_t(o.raw_);
         if (result > NK_I32_MAX) return i32_t::finite_max();
         if (result < NK_I32_MIN) return i32_t::finite_min();
@@ -4061,7 +4089,7 @@ struct u32_t {
     constexpr u32_t max(u32_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u32_t clamp(u32_t lo, u32_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u32_t saturating_add(u32_t o) const noexcept {
+    constexpr u32_t sadd(u32_t o) const noexcept {
         nk_u64_t result = nk_u64_t(raw_) + nk_u64_t(o.raw_);
         return result > NK_U32_MAX ? u32_t::finite_max() : u32_t {static_cast<raw_t>(result)};
     }
@@ -4206,7 +4234,7 @@ struct i64_t {
     constexpr i64_t max(i64_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i64_t clamp(i64_t lo, i64_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i64_t saturating_add(i64_t o) const noexcept {
+    constexpr i64_t sadd(i64_t o) const noexcept {
         // Check for overflow: if signs match and result has different sign
         nk_i64_t result = raw_ + o.raw_;
         if (o.raw_ > 0 && raw_ > NK_I64_MAX - o.raw_) return i64_t::finite_max();
@@ -4348,7 +4376,7 @@ struct u64_t {
     constexpr u64_t max(u64_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u64_t clamp(u64_t lo, u64_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u64_t saturating_add(u64_t o) const noexcept {
+    constexpr u64_t sadd(u64_t o) const noexcept {
         nk_u64_t result = raw_ + o.raw_;
         return result < raw_ ? u64_t::finite_max() : u64_t {result}; // overflow check
     }
@@ -4489,7 +4517,7 @@ struct i16_t {
     constexpr i16_t max(i16_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i16_t clamp(i16_t lo, i16_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i16_t saturating_add(i16_t o) const noexcept {
+    constexpr i16_t sadd(i16_t o) const noexcept {
         nk_i32_t result = nk_i32_t(raw_) + nk_i32_t(o.raw_);
         if (result > NK_I16_MAX) return i16_t::finite_max();
         if (result < NK_I16_MIN) return i16_t::finite_min();
@@ -4631,7 +4659,7 @@ struct u16_t {
     constexpr u16_t max(u16_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u16_t clamp(u16_t lo, u16_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u16_t saturating_add(u16_t o) const noexcept {
+    constexpr u16_t sadd(u16_t o) const noexcept {
         nk_u32_t result = nk_u32_t(raw_) + nk_u32_t(o.raw_);
         return result > NK_U16_MAX ? u16_t::finite_max() : u16_t {static_cast<raw_t>(result)};
     }
@@ -4849,6 +4877,7 @@ struct i4x2_t {
     // Type aliases for mixed precision operations
     using dot_result_t = i32_t;           // `nk_dot_i4` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_i4` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_i4` output
     using angular_result_t = f32_t;       // `nk_angular_i4` output
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i4` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i4` sumsq output
@@ -4871,6 +4900,10 @@ struct i4x2_t {
                                               nk_size_t, nk_size_t);
     using euclideans_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t,
                                                 nk_size_t, nk_size_t, nk_size_t);
+    using angulars_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
+                                                 nk_size_t, nk_size_t);
+    using euclideans_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *,
+                                                   nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i4_k; }
     static constexpr char const *dtype_name() noexcept { return "i4x2"; }
@@ -4924,7 +4957,7 @@ struct i4x2_t {
         return {low() * o.low(), high() * o.high()};
     }
 
-    constexpr i4x2_t saturating_add(i4x2_t o) const noexcept {
+    constexpr i4x2_t sadd(i4x2_t o) const noexcept {
         auto clamp = [](int v) -> component_t {
             if (v < -8) return component_t(-8);
             if (v > 7) return component_t(7);
@@ -4970,6 +5003,7 @@ struct u4x2_t {
     // Type aliases for mixed precision operations
     using dot_result_t = u32_t;
     using sqeuclidean_result_t = u32_t;
+    using euclidean_result_t = f32_t;
     using angular_result_t = f32_t;
     using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u4` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u4` sumsq output
@@ -4992,6 +5026,10 @@ struct u4x2_t {
                                               nk_size_t, nk_size_t);
     using euclideans_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t,
                                                 nk_size_t, nk_size_t, nk_size_t);
+    using angulars_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
+                                                 nk_size_t, nk_size_t);
+    using euclideans_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *,
+                                                   nk_size_t, nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u4_k; }
     static constexpr char const *dtype_name() noexcept { return "u4x2"; }
@@ -5041,7 +5079,7 @@ struct u4x2_t {
         return {low() * o.low(), high() * o.high()};
     }
 
-    constexpr u4x2_t saturating_add(u4x2_t o) const noexcept {
+    constexpr u4x2_t sadd(u4x2_t o) const noexcept {
         auto clamp = [](unsigned v) -> component_t { return v > 15 ? component_t(15) : component_t(v); };
         return u4x2_t {clamp(low() + o.low()), clamp(high() + o.high())};
     }
@@ -5242,48 +5280,69 @@ enum allow_simd_t {
 };
 
 /** @brief FMA helper template for baseline dot-product implementations. */
-template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
-inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1)
+inline accumulator_type_ fma(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     return acc + static_cast<accumulator_type_>(a) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief FMA helper template for baseline conjugate complex dot-product implementations. */
-template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
-inline accumulator_type_ fused_conjugate_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1)
+inline accumulator_type_ fcma(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     return acc + static_cast<accumulator_type_>(a.conj()) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief Fused addition of squared differences for baseline L2 implementations. */
-template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
-constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1)
+constexpr accumulator_type_ fdsa(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     auto d = static_cast<accumulator_type_>(a) - static_cast<accumulator_type_>(b);
     return acc + d * d;
 }
 
+/** @brief Free-standing saturating addition for baseline implementations. */
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
+constexpr accumulator_type_ sarurating_add(accumulator_type_ a, in_type_ b) noexcept {
+    return a.sarurating_add(b);
+}
+
+/** @brief Free-standing saturating multiplication for baseline implementations. */
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
+constexpr accumulator_type_ saturating_mul(accumulator_type_ a, in_type_ b) noexcept {
+    return a.saturating_mul(b);
+}
+
+/** @brief Free-standing saturating FMA (a*b + c) for baseline implementations. */
+template <typename accumulator_type_, typename in_type_>
+    requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
+constexpr in_type_ saturating_fma(in_type_ a, in_type_ b, in_type_ c) noexcept {
+    return saturating_add(saturating_mul(a, b), c);
+}
+
 /** @brief FMA specialization for i4x2_t (signed 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+constexpr accumulator_type_ fma(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
     return acc + accumulator_type_(nk_i32_t(a.low()) * nk_i32_t(b.low()) + nk_i32_t(a.high()) * nk_i32_t(b.high()));
 }
 
 /** @brief FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+constexpr accumulator_type_ fma(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
     return acc + accumulator_type_(nk_u32_t(a.low()) * nk_u32_t(b.low()) + nk_u32_t(a.high()) * nk_u32_t(b.high()));
 }
 
 /** @brief FMA specialization for u1x8_t (8 packed bits). Counts matching set bits (popcount of AND). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, u1x8_t a, u1x8_t b) noexcept {
+constexpr accumulator_type_ fma(accumulator_type_ acc, u1x8_t a, u1x8_t b) noexcept {
     return acc + accumulator_type_(std::popcount(static_cast<unsigned>(a.raw() & b.raw())));
 }
 
 /** @brief Squared difference specialization for i4x2_t (signed 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+constexpr accumulator_type_ fdsa(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
     nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
     nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
     return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
@@ -5291,7 +5350,7 @@ constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, 
 
 /** @brief Squared difference specialization for u4x2_t (unsigned 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+constexpr accumulator_type_ fdsa(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
     nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
     nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
     return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);

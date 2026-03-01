@@ -48,7 +48,7 @@ void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_
     else {
         result_type_ sum {};
         for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++)
-            sum = fused_difference_squared_add(sum, a[i], b[i]);
+            sum = fdsa(sum, a[i], b[i]);
         *r = sum.sqrt();
     }
 }
@@ -85,7 +85,7 @@ void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_typ
     else {
         result_type_ sum {};
         for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++)
-            sum = fused_difference_squared_add(sum, a[i], b[i]);
+            sum = fdsa(sum, a[i], b[i]);
         *r = sum;
     }
 }
@@ -122,9 +122,9 @@ void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
     else {
         result_type_ ab {}, aa {}, bb {};
         for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++) {
-            ab = fused_multiply_add(ab, a[i], b[i]);
-            aa = fused_multiply_add(aa, a[i], a[i]);
-            bb = fused_multiply_add(bb, b[i], b[i]);
+            ab = fma(ab, a[i], b[i]);
+            aa = fma(aa, a[i], a[i]);
+            bb = fma(bb, b[i], b[i]);
         }
         // Angular distance = 1 - cosine_similarity, clamped to [0, 2]
         result_type_ cos_sim = ab / (aa.sqrt() * bb.sqrt());

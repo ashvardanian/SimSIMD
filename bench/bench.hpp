@@ -262,6 +262,130 @@ void run_dots_packed(std::string name, //
 }
 
 template <nk_dtype_t input_dtype_>
+void measure_angulars_packed(                                                            //
+    bm::State &state,                                                                    //
+    typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn, //
+    typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,               //
+    typename nk::type_for<input_dtype_>::type::angulars_packed_kernel_t kernel,          //
+    std::size_t m, std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename input_t::angular_result_t;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    nk_size_t values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t packed_bytes = packed_size_fn(n, k);
+
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes + m * n * sizeof(raw_output_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct gemm_set_t {
+        nk::vector<input_t> a, b;
+        std::vector<char> b_packed;
+        nk::vector<output_t> c;
+    };
+    std::vector<gemm_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(m, k);
+        s.b = make_vector_for_matrix<input_dtype_>(n, k);
+        s.b_packed.resize(packed_bytes, 0);
+        s.c = make_vector<output_t>(m * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+        nk::fill_uniform(generator, s.b.values_data(), s.b.size_values());
+        pack_fn(s.b.raw_values_data(), n, k, b_stride_bytes, s.b_packed.data());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), s.b_packed.data(), s.c.raw_values_data(), //
+               m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_angulars_packed(std::string name, //
+                         typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
+                         typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
+                         typename nk::type_for<input_dtype_>::type::angulars_packed_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_width) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_angulars_packed<input_dtype_>, packed_size_fn, pack_fn, kernel,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+}
+
+template <nk_dtype_t input_dtype_>
+void measure_euclideans_packed(                                                          //
+    bm::State &state,                                                                    //
+    typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn, //
+    typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,               //
+    typename nk::type_for<input_dtype_>::type::euclideans_packed_kernel_t kernel,        //
+    std::size_t m, std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename input_t::euclidean_result_t;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    nk_size_t values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t packed_bytes = packed_size_fn(n, k);
+
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes + m * n * sizeof(raw_output_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct gemm_set_t {
+        nk::vector<input_t> a, b;
+        std::vector<char> b_packed;
+        nk::vector<output_t> c;
+    };
+    std::vector<gemm_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(m, k);
+        s.b = make_vector_for_matrix<input_dtype_>(n, k);
+        s.b_packed.resize(packed_bytes, 0);
+        s.c = make_vector<output_t>(m * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+        nk::fill_uniform(generator, s.b.values_data(), s.b.size_values());
+        pack_fn(s.b.raw_values_data(), n, k, b_stride_bytes, s.b_packed.data());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), s.b_packed.data(), s.c.raw_values_data(), //
+               m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_euclideans_packed(std::string name, //
+                           typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
+                           typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
+                           typename nk::type_for<input_dtype_>::type::euclideans_packed_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_width) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_euclideans_packed<input_dtype_>, packed_size_fn, pack_fn, kernel,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+}
+
+template <nk_dtype_t input_dtype_>
 void measure_dots_symmetric(                                                   //
     bm::State &state,                                                          //
     typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel, //
@@ -311,6 +435,108 @@ void run_dots_symmetric(std::string name, //
     std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
                              std::to_string(bench_config.matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_>, //
+                          kernel, bench_config.matrix_height, bench_config.matrix_depth);
+}
+
+template <nk_dtype_t input_dtype_>
+void measure_angulars_symmetric(                                                   //
+    bm::State &state,                                                              //
+    typename nk::type_for<input_dtype_>::type::angulars_symmetric_kernel_t kernel, //
+    std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename input_t::angular_result_t;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    nk_size_t input_values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
+
+    std::size_t bytes_per_set = n * input_stride_bytes + n * n * sizeof(raw_output_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct syrk_set_t {
+        nk::vector<input_t> a;
+        nk::vector<output_t> c;
+    };
+    std::vector<syrk_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(n, k);
+        s.c = make_vector<output_t>(n * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), n, k, input_stride_bytes, //
+               s.c.raw_values_data(), output_stride_bytes, 0, n);
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_angulars_symmetric(std::string name, //
+                            typename nk::type_for<input_dtype_>::type::angulars_symmetric_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_angulars_symmetric<input_dtype_>, //
+                          kernel, bench_config.matrix_height, bench_config.matrix_depth);
+}
+
+template <nk_dtype_t input_dtype_>
+void measure_euclideans_symmetric(                                                   //
+    bm::State &state,                                                                //
+    typename nk::type_for<input_dtype_>::type::euclideans_symmetric_kernel_t kernel, //
+    std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename input_t::euclidean_result_t;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    nk_size_t input_values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
+
+    std::size_t bytes_per_set = n * input_stride_bytes + n * n * sizeof(raw_output_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct syrk_set_t {
+        nk::vector<input_t> a;
+        nk::vector<output_t> c;
+    };
+    std::vector<syrk_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(n, k);
+        s.c = make_vector<output_t>(n * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), n, k, input_stride_bytes, //
+               s.c.raw_values_data(), output_stride_bytes, 0, n);
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_euclideans_symmetric(std::string name, //
+                              typename nk::type_for<input_dtype_>::type::euclideans_symmetric_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_euclideans_symmetric<input_dtype_>, //
                           kernel, bench_config.matrix_height, bench_config.matrix_depth);
 }
 
