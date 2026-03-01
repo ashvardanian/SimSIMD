@@ -59,7 +59,6 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     compile_args = [
         "-std=c11",
         "-O3",
-        "-ffast-math",
         "-fdiagnostics-color=always",
         "-fvisibility=default",
         "-fPIC",
@@ -129,7 +128,6 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     compile_args = [
         "-std=c11",
         "-O3",
-        "-ffast-math",
         "-w",  # Hush warnings
     ]
     link_args: List[str] = []
@@ -185,7 +183,6 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     compile_args = [
         "/std:c11",
         "/O2",
-        "/fp:fast",
         # Dealing with MinGW linking errors
         # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
         "/d2FH4-",

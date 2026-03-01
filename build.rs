@@ -51,6 +51,7 @@ fn build_simsimd() -> HashMap<String, bool> {
         .define("NK_DYNAMIC_DISPATCH", "1")
         .opt_level(3)
         .flag_if_supported("-pedantic") // Strict compliance when supported
+        .flag_if_supported("-Wno-psabi") // Suppress GCC ABI note for 32-byte aligned params
         .warnings(false);
 
     // On 32-bit x86, ensure proper stack alignment for floating-point operations

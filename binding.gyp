@@ -35,11 +35,12 @@
             "defines": ["NK_NATIVE_F16=0", "NK_NATIVE_BF16=0", "NK_DYNAMIC_DISPATCH=1"],
             "cflags": [
                 "-std=c11",
-                "-ffast-math",
+                "-O3",
                 "-Wno-unknown-pragmas",
                 "-Wno-maybe-uninitialized",
                 "-Wno-cast-function-type",
                 "-Wno-switch",
+                "-Wno-psabi",
             ],
             "conditions": [
                 [

@@ -62,7 +62,7 @@ let package = Package(
                 .define("NK_DYNAMIC_DISPATCH", to: "1"),  // Define a C macro
                 .define("NK_NATIVE_F16", to: "0"),  // Define a C macro
                 .define("NK_NATIVE_BF16", to: "0"),  // Define a C macro
-                .unsafeFlags(["-Wall"]),  // Use with caution: specify custom compiler flags
+                .unsafeFlags(["-Wall", "-Wno-psabi"]),  // Use with caution: specify custom compiler flags
             ]
         ),
     ]
