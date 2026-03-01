@@ -27,7 +27,7 @@
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
-#include "numkong/scalars/rvv.h" // `nk_f32_rsqrt_rvv`
+#include "numkong/scalar/rvv.h" // `nk_f32_rsqrt_rvv`
 #include "numkong/cast/rvv.h"    // `nk_e4m3m1_to_f32m4_rvv_`
 #include "numkong/dot/rvv.h"     // `nk_dot_stable_sum_f64m1_rvv_`
 

@@ -53,7 +53,7 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
-#include "numkong/scalars/neon.h"  // `nk_f16_to_f32_neon`
+#include "numkong/scalar/neon.h"  // `nk_f16_to_f32_neon`
 #include "numkong/reduce/serial.h" // `nk_reduce_moments_f32_serial`
 
 #if defined(__cplusplus)

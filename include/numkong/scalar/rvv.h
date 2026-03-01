@@ -1,16 +1,16 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers for RISC-V.
- *  @file include/numkong/scalars/rvv.h
+ *  @file include/numkong/scalar/rvv.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  *
  *  RVV scalar helpers use vector instructions with VL=1 for hardware sqrt/rsqrt.
  *  `vfrsqrt7` provides 7-bit mantissa precision; Newton-Raphson refines to full precision.
  */
-#ifndef NK_SCALARS_RVV_H
-#define NK_SCALARS_RVV_H
+#ifndef NK_SCALAR_RVV_H
+#define NK_SCALAR_RVV_H
 
 #if NK_TARGET_RISCV_
 #if NK_TARGET_RVV
@@ -153,4 +153,4 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_add_rvv(nk_i64_t a, nk_i64_t b) {
 
 #endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
-#endif // NK_SCALARS_RVV_H
+#endif // NK_SCALAR_RVV_H

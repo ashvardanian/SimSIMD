@@ -1,15 +1,15 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers for Sapphire Rapids.
- *  @file include/numkong/scalars/sapphire.h
+ *  @file include/numkong/scalar/sapphire.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  *
  *  Provides native AVX-512 FP16 scalar conversions via `VCVTSS2SH` / `VCVTSH2SS`.
  */
-#ifndef NK_SCALARS_SAPPHIRE_H
-#define NK_SCALARS_SAPPHIRE_H
+#ifndef NK_SCALAR_SAPPHIRE_H
+#define NK_SCALAR_SAPPHIRE_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
@@ -47,4 +47,4 @@ NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *from, nk_f32_t *to) {
 
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
-#endif // NK_SCALARS_SAPPHIRE_H
+#endif // NK_SCALAR_SAPPHIRE_H

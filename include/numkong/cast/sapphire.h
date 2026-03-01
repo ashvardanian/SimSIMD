@@ -26,7 +26,7 @@
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
-#include "numkong/scalars/sapphire.h" // `nk_f32_to_f16_sapphire`
+#include "numkong/scalar/sapphire.h" // `nk_f32_to_f16_sapphire`
 #include "numkong/cast/icelake.h"     // `nk_cast_icelake`
 
 #if defined(__cplusplus)

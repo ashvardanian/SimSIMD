@@ -1,6 +1,6 @@
 /**
  *  @brief Low-Precision Scalar Wrappers for Python.
- *  @file python/scalars.h
+ *  @file python/scalar.h
  *  @author Ash Vardanian
  *  @date December 30, 2025
  *

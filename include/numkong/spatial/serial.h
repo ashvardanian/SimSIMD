@@ -10,7 +10,7 @@
 #define NK_SPATIAL_SERIAL_H
 
 #include "numkong/types.h"
-#include "numkong/scalars/serial.h" // `nk_f32_rsqrt_serial`
+#include "numkong/scalar/serial.h" // `nk_f32_rsqrt_serial`
 #include "numkong/cast/serial.h"
 #include "numkong/dot/serial.h" // `nk_dot_f64x2_state_serial_t`
 

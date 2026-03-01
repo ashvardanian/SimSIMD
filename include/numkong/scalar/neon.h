@@ -1,10 +1,10 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers for NEON.
- *  @file include/numkong/scalars/neon.h
+ *  @file include/numkong/scalar/neon.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  *
  *  @section scalars_neon_instructions Key NEON Scalar Instructions
  *
@@ -16,8 +16,8 @@
  *      vqaddb_u8           UQADD (B)                       1cy         4/cy
  *      vqaddb_s8           SQADD (B)                       1cy         4/cy
  */
-#ifndef NK_SCALARS_NEON_H
-#define NK_SCALARS_NEON_H
+#ifndef NK_SCALAR_NEON_H
+#define NK_SCALAR_NEON_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
@@ -74,4 +74,4 @@ NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest) {
 
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-#endif // NK_SCALARS_NEON_H
+#endif // NK_SCALAR_NEON_H

@@ -1,10 +1,10 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers for Haswell.
- *  @file include/numkong/scalars/haswell.h
+ *  @file include/numkong/scalar/haswell.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  *
  *  @section scalars_haswell_instructions Key AVX2/FMA Scalar Instructions
  *
@@ -16,8 +16,8 @@
  *      _mm_cvtps_ph                VCVTPS2PH (XMM, XMM, I8)        4cy         1/cy        p01+p5
  *      _mm_cvtph_ps                VCVTPH2PS (XMM, XMM)            5cy         1/cy        p01
  */
-#ifndef NK_SCALARS_HASWELL_H
-#define NK_SCALARS_HASWELL_H
+#ifndef NK_SCALAR_HASWELL_H
+#define NK_SCALAR_HASWELL_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
@@ -65,4 +65,4 @@ NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *from, nk_f32_t *to) {
 
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
-#endif // NK_SCALARS_HASWELL_H
+#endif // NK_SCALAR_HASWELL_H

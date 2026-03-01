@@ -33,7 +33,7 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
-#include "numkong/scalars/neon.h" // `nk_f32_sqrt_neon`
+#include "numkong/scalar/neon.h" // `nk_f32_sqrt_neon`
 #include "numkong/dot/neon.h"     // `nk_dot_stable_sum_f64x2_neon_`
 
 #if defined(__cplusplus)

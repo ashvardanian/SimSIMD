@@ -32,7 +32,7 @@
 #if NK_TARGET_V128RELAXED
 
 #include "numkong/types.h"
-#include "numkong/scalars/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
+#include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/cast/serial.h"
 #include "numkong/cast/v128relaxed.h"

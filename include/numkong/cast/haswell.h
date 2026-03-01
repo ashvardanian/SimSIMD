@@ -24,7 +24,7 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/scalars/haswell.h" // `nk_f32_to_f16_haswell`
+#include "numkong/scalar/haswell.h" // `nk_f32_to_f16_haswell`
 #include "numkong/cast/serial.h"     // `nk_partial_load_b16x16_serial_`
 
 #if defined(__cplusplus)

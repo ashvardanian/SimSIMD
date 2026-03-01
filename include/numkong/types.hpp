@@ -60,7 +60,7 @@
 #include <utility>  // `std::swap`
 
 #include "numkong/types.h"
-#include "numkong/scalars.h"
+#include "numkong/scalar.h"
 #include "numkong/cast.h"
 
 namespace ashvardanian::numkong {

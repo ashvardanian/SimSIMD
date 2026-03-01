@@ -35,7 +35,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::numerics::{Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum};
-use crate::scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+use crate::scalar::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
@@ -5418,7 +5418,7 @@ mod tests {
         });
     }
 
-    use crate::scalars::{FloatLike, TestableType};
+    use crate::scalar::{FloatLike, TestableType};
 
     // Dimension combos for generic tensor tests: (m, n, k).
     const DIMS: &[(usize, usize, usize)] =

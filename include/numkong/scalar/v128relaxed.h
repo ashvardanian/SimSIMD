@@ -1,13 +1,13 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers for WASM.
- *  @file include/numkong/scalars/v128relaxed.h
+ *  @file include/numkong/scalar/v128relaxed.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  */
-#ifndef NK_SCALARS_V128RELAXED_H
-#define NK_SCALARS_V128RELAXED_H
+#ifndef NK_SCALAR_V128RELAXED_H
+#define NK_SCALAR_V128RELAXED_H
 
 #if NK_TARGET_V128RELAXED
 
@@ -37,4 +37,4 @@ NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x) {
 #endif
 
 #endif // NK_TARGET_V128RELAXED
-#endif // NK_SCALARS_V128RELAXED_H
+#endif // NK_SCALAR_V128RELAXED_H

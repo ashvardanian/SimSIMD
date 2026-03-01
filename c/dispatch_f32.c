@@ -100,9 +100,9 @@ void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_icelake, *c = nk_cap_icelake_k; return;
-        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_icelake, *c = nk_cap_icelake_k;
-        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_icelake, *c = nk_cap_icelake_k; return;
-        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_icelake, *c = nk_cap_icelake_k; return;
         default: break;
         }
 #endif
@@ -179,17 +179,17 @@ void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_haswell, *c = nk_cap_haswell_k; return;
-        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_haswell, *c = nk_cap_haswell_k;
-        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_haswell, *c = nk_cap_haswell_k; return;
-        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
-        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_neonsdot, *c = nk_cap_neonsdot_k;
-        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_neonsdot, *c = nk_cap_neonsdot_k; return;
-        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_neonsdot, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif
@@ -248,9 +248,9 @@ void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_f32_serial, *c = nk_cap_serial_k;
             return;
-        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_serial, *c = nk_cap_serial_k;
-        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_serial, *c = nk_cap_serial_k; return;
-        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f32_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 
@@ -295,8 +295,7 @@ void nk_dispatch_f32_init_(nk_capability_t caps) {
     nk_dispatch_f32_find_(caps, nk_kernel_euclideans_packed_k, (nk_kernel_punned_t *)&t->euclideans_packed_f32, &used);
     nk_dispatch_f32_find_(caps, nk_kernel_euclideans_symmetric_k, (nk_kernel_punned_t *)&t->euclideans_symmetric_f32,
                           &used);
-    // nk_dispatch_f32_find_(caps, nk_kernel_maxsim_packed_size_k, (nk_kernel_punned_t *)&t->maxsim_packed_size_f32,
-    //                       &used);
-    // nk_dispatch_f32_find_(caps, nk_kernel_maxsim_pack_k, (nk_kernel_punned_t *)&t->maxsim_pack_f32, &used);
-    // nk_dispatch_f32_find_(caps, nk_kernel_maxsim_packed_k, (nk_kernel_punned_t *)&t->maxsim_packed_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_maxsim_packed_size_k, (nk_kernel_punned_t *)&t->maxsim_packed_size_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_maxsim_pack_k, (nk_kernel_punned_t *)&t->maxsim_pack_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_maxsim_packed_k, (nk_kernel_punned_t *)&t->maxsim_packed_f32, &used);
 }

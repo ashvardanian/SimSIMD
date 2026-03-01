@@ -1,6 +1,6 @@
 /**
  *  @brief Scalar types for NumKong low-precision types.
- *  @file python/scalars.c
+ *  @file python/scalar.c
  *
  *  Pure Python C API implementation of bfloat16, float8_e4m3, and float8_e5m2.
  *  These work without NumPy - they're standalone Python objects.
@@ -13,7 +13,7 @@
  *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  → arithmetic
  */
 
-#include "scalars.h"
+#include "scalar.h"
 #include <structmember.h>
 #include <stdio.h>
 

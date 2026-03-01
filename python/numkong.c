@@ -95,7 +95,7 @@
 #include "numkong.h"
 #include "tensor.h"
 #include "matrix.h"
-#include "scalars.h"
+#include "scalar.h"
 #include "distance.h"
 #include "each.h"
 #include "mesh.h"

@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Scalar Math Helpers.
- *  @file include/numkong/scalars.h
+ *  @file include/numkong/scalar.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
@@ -17,8 +17,8 @@
  *  - RISC-V: RVV (sqrt, rsqrt, fma, saturating_add via vfrsqrt7 + Newton-Raphson)
  *  - WASM: V128Relaxed (sqrt)
  */
-#ifndef NK_SCALARS_H
-#define NK_SCALARS_H
+#ifndef NK_SCALAR_H
+#define NK_SCALAR_H
 
 #include "numkong/types.h"
 
@@ -287,12 +287,12 @@ NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x);
 } // extern "C"
 #endif
 
-#include "numkong/scalars/serial.h"      // `nk_f32_rsqrt_serial`
-#include "numkong/scalars/neon.h"        // `nk_f32_sqrt_neon`
-#include "numkong/scalars/haswell.h"     // `nk_f32_sqrt_haswell`
-#include "numkong/scalars/sapphire.h"    // (currently empty)
-#include "numkong/scalars/rvv.h"         // `nk_f32_rsqrt_rvv`
-#include "numkong/scalars/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
+#include "numkong/scalar/serial.h"      // `nk_f32_rsqrt_serial`
+#include "numkong/scalar/neon.h"        // `nk_f32_sqrt_neon`
+#include "numkong/scalar/haswell.h"     // `nk_f32_sqrt_haswell`
+#include "numkong/scalar/sapphire.h"    // (currently empty)
+#include "numkong/scalar/rvv.h"         // `nk_f32_rsqrt_rvv`
+#include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -475,4 +475,4 @@ NK_PUBLIC int nk_e3m2_order(nk_e3m2_t a, nk_e3m2_t b) { return nk_e3m2_order_ser
 } // extern "C"
 #endif
 
-#endif // NK_SCALARS_H
+#endif // NK_SCALAR_H

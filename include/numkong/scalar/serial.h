@@ -1,16 +1,16 @@
 /**
  *  @brief Software-emulated Scalar Math Helpers for SIMD-free CPUs.
- *  @file include/numkong/scalars/serial.h
+ *  @file include/numkong/scalar/serial.h
  *  @author Ash Vardanian
  *  @date March 1, 2026
  *
- *  @sa include/numkong/scalars.h
+ *  @sa include/numkong/scalar.h
  *
  *  Uses the Quake 3 fast inverse square root trick with Newton-Raphson refinement.
  *  Three iterations for f32 (~34.9 correct bits), four for f64 (~69.3 correct bits).
  */
-#ifndef NK_SCALARS_SERIAL_H
-#define NK_SCALARS_SERIAL_H
+#ifndef NK_SCALAR_SERIAL_H
+#define NK_SCALAR_SERIAL_H
 
 #include "numkong/types.h"
 
@@ -49,4 +49,4 @@ NK_PUBLIC nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number > 0 ? num
 } // extern "C"
 #endif
 
-#endif // NK_SCALARS_SERIAL_H
+#endif // NK_SCALAR_SERIAL_H

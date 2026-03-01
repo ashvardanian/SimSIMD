@@ -28,7 +28,7 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/scalars/haswell.h" // `nk_f32_sqrt_haswell`
+#include "numkong/scalar/haswell.h" // `nk_f32_sqrt_haswell`
 #include "numkong/dot/haswell.h"     // `nk_dot_f32x4_state_haswell_t`
 #include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`
 
