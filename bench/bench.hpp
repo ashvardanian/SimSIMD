@@ -566,6 +566,7 @@ void bench_mesh();
 void bench_sparse();
 void bench_cast();
 void bench_reduce();
+void bench_maxsim();
 
 // Forward declarations for cross/batch operations (ISA-family files)
 void bench_cross_serial();

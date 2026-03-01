@@ -404,6 +404,18 @@ typedef struct {
     nk_euclideans_symmetric_punned_t euclideans_symmetric_e3m2;
     nk_euclideans_symmetric_punned_t euclideans_symmetric_u4;
     nk_euclideans_symmetric_punned_t euclideans_symmetric_i4;
+    // MaxSim packed size
+    nk_dots_packed_size_punned_t maxsim_packed_size_bf16;
+    nk_dots_packed_size_punned_t maxsim_packed_size_f32;
+    nk_dots_packed_size_punned_t maxsim_packed_size_f16;
+    // MaxSim pack
+    nk_dots_pack_punned_t maxsim_pack_bf16;
+    nk_dots_pack_punned_t maxsim_pack_f32;
+    nk_dots_pack_punned_t maxsim_pack_f16;
+    // MaxSim packed
+    nk_maxsim_packed_punned_t maxsim_packed_bf16;
+    nk_maxsim_packed_punned_t maxsim_packed_f32;
+    nk_maxsim_packed_punned_t maxsim_packed_f16;
     // Type casting
     nk_kernel_cast_punned_t cast;
     // Scalar conversions (single element)

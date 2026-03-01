@@ -283,7 +283,7 @@ error_stats_t test_jaccards_symmetric(typename scalar_type_::jaccards_symmetric_
 template <typename scalar_type_>
 error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
                                    typename scalar_type_::dots_pack_kernel_t pack_fn,
-                                   typename scalar_type_::dots_packed_kernel_t angulars_fn) {
+                                   typename scalar_type_::angulars_packed_kernel_t angulars_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::dot_result_t;
 
@@ -351,7 +351,7 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
 template <typename scalar_type_>
 error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
                                      typename scalar_type_::dots_pack_kernel_t pack_fn,
-                                     typename scalar_type_::dots_packed_kernel_t euclideans_fn) {
+                                     typename scalar_type_::euclideans_packed_kernel_t euclideans_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::dot_result_t;
 

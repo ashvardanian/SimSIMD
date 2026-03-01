@@ -22,10 +22,14 @@
 //  - i16_t:   scalar signed integer path
 //  - bf16c_t: complex path
 //  - i4x2_t:  packed sub-byte path
-template void nk::fill_uniform(std::mt19937 &, nk::f64_t *, std::size_t, nk::f64_t::component_t, nk::f64_t::component_t);
-template void nk::fill_uniform(std::mt19937 &, nk::i16_t *, std::size_t, nk::i16_t::component_t, nk::i16_t::component_t);
-template void nk::fill_uniform(std::mt19937 &, nk::bf16c_t *, std::size_t, nk::bf16c_t::component_t, nk::bf16c_t::component_t);
-template void nk::fill_uniform(std::mt19937 &, nk::i4x2_t *, std::size_t, nk::i4x2_t::component_t, nk::i4x2_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::f64_t *, std::size_t, nk::f64_t::component_t,
+                               nk::f64_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i16_t *, std::size_t, nk::i16_t::component_t,
+                               nk::i16_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::bf16c_t *, std::size_t, nk::bf16c_t::component_t,
+                               nk::bf16c_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i4x2_t *, std::size_t, nk::i4x2_t::component_t,
+                               nk::i4x2_t::component_t);
 template void nk::fill_uniform(std::mt19937 &, nk::f64_t *, std::size_t);
 template void nk::fill_uniform(std::mt19937 &, nk::i16_t *, std::size_t);
 template void nk::fill_uniform(std::mt19937 &, nk::bf16c_t *, std::size_t);
@@ -333,12 +337,11 @@ int main(int argc, char **argv) {
     test_set();
     test_elementwise();
     test_trigonometry();
-
-    // Additional operation tests
     test_reduce();
     test_geospatial();
     test_mesh();
     test_sparse();
+    test_maxsim();
 
     // Cross/batch tests (ISA-family files for parallel compilation)
     test_cross_serial();

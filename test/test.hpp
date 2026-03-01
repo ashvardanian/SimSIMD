@@ -412,6 +412,7 @@ void test_geospatial();
 void test_mesh();
 void test_sparse();
 void test_vector_types();
+void test_maxsim();
 
 // Forward declarations for cross/batch tests (ISA-family files)
 void test_cross_serial();
