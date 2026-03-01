@@ -38,7 +38,7 @@ void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) n
     else {
         result_type_ sum {};
         std::size_t n = divide_round_up(d, dimensions_per_value<in_type_>());
-        for (std::size_t i = 0; i < n; i++) sum = fused_multiply_add(sum, a[i], b[i]);
+        for (std::size_t i = 0; i < n; i++) sum = fma(sum, a[i], b[i]);
         *r = sum;
     }
 }
@@ -52,7 +52,7 @@ void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) 
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_vdot_f64c(&a->raw_, &b->raw_, d, &r->raw_);
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < d; i++) sum = fused_conjugate_multiply_add(sum, a[i], b[i]);
+        for (std::size_t i = 0; i < d; i++) sum = fcma(sum, a[i], b[i]);
         *r = sum;
     }
 }

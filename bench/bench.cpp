@@ -296,6 +296,7 @@ int main(int argc, char **argv) {
     bench_sparse();
     bench_cast();
     bench_reduce();
+    bench_maxsim();
 
     // Register cross/batch benchmarks (ISA-family files for parallel compilation)
     bench_cross_serial();

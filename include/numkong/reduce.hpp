@@ -82,9 +82,9 @@ void reduce_moments(in_type_ const *data, std::size_t count, std::size_t stride_
         sumsq_type_ running_sumsq {};
         auto const *ptr = reinterpret_cast<std::byte const *>(data);
         for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
-            sum_type_ val(static_cast<sum_type_>(*reinterpret_cast<in_type_ const *>(ptr)));
-            running_sum = running_sum.saturating_add(val);
-            running_sumsq = running_sumsq.saturating_add(static_cast<sumsq_type_>(val.saturating_mul(val)));
+            in_type_ val = *reinterpret_cast<in_type_ const *>(ptr);
+            running_sum = saturating_add(running_sum, val);
+            running_sumsq = saturating_fma(val, val, running_sumsq);
         }
         *sum = running_sum;
         *sumsq = running_sumsq;

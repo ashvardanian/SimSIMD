@@ -223,6 +223,11 @@ typedef enum {
     nk_kernel_euclideans_packed_k = 'E',    ///< Batched euclidean distances (packed B)
     nk_kernel_euclideans_symmetric_k = 'D', ///< Symmetric euclidean distance matrix
 
+    // MaxSim late-interaction functions:
+    nk_kernel_maxsim_packed_size_k = 'L', ///< MaxSim packed buffer size
+    nk_kernel_maxsim_pack_k = 'l',        ///< MaxSim vector packing
+    nk_kernel_maxsim_packed_k = 'T',      ///< MaxSim late-interaction computation
+
     nk_kernel_cast_k = '-', ///< Type casting from one type to another
 
 } nk_kernel_kind_t;
@@ -346,6 +351,8 @@ typedef void (*nk_euclideans_punned_t)(void const *a, void const *b_packed, void
 typedef void (*nk_euclideans_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                  nk_size_t stride, void *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
+
+typedef nk_f32_t (*nk_maxsim_packed_punned_t)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
 
 typedef void (*nk_kernel_cast_punned_t)(void const *from, nk_dtype_t from_type, nk_size_t n, void *to,
                                         nk_dtype_t to_type);

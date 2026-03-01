@@ -831,7 +831,6 @@ extern "C" {
         result: *mut f32,
     );
 
-    // FP8 EachBlend
     fn nk_each_blend_e4m3(
         a: *const u8,
         b: *const u8,
@@ -865,7 +864,6 @@ extern "C" {
         result: *mut u8,
     );
 
-    // FP8 EachFMA
     fn nk_each_fma_e4m3(
         a: *const u8,
         b: *const u8,
@@ -903,7 +901,6 @@ extern "C" {
         result: *mut u8,
     );
 
-    // Integer EachFMA (i16/u16 use f32 coefficients, i32/u32/i64/u64 use f64)
     fn nk_each_fma_i16(
         a: *const i16,
         b: *const i16,
@@ -959,7 +956,6 @@ extern "C" {
         r: *mut u64,
     );
 
-    // Half-precision ReduceMoments (output to f32)
     fn nk_reduce_moments_f16(
         data: *const u16,
         count: u64size,
@@ -1024,59 +1020,58 @@ extern "C" {
         sumsq: *mut u64,
     );
 
-    // Half-precision ReduceMinMax (output widened to f32 for f16/bf16/e4m3/e5m2)
     fn nk_reduce_minmax_f16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u16,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u16,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_bf16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u16,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u16,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_e4m3(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u8,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u8,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_e5m2(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u8,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u8,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_e2m3(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u8,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u8,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_e3m2(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_val: *mut f32,
+        min_val: *mut u8,
         min_idx: *mut u64size,
-        max_val: *mut f32,
+        max_val: *mut u8,
         max_idx: *mut u64size,
     );
     fn nk_reduce_minmax_i4(
@@ -4966,7 +4961,7 @@ impl ReduceMoments for u1x8 {
 /// Returns `(min_value, min_index, max_value, max_index)` for all elements in a slice.
 /// The value output type may be widened for half-precision types.
 pub trait ReduceMinMax: Sized {
-    /// Output type for the min/max values. Usually Self, but f32 for half-precision types.
+    /// Output type for the min/max values — matches the C layer's native type.
     type Output;
     /// Returns `(min_value, min_index, max_value, max_index)` for the given data with the specified stride.
     fn reduce_minmax(
@@ -5226,152 +5221,182 @@ impl ReduceMinMax for u64 {
 }
 
 impl ReduceMinMax for f16 {
-    type Output = f32;
+    type Output = f16;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u16 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u16 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_f16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            f16(min_raw),
+            min_idx as usize,
+            f16(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
 impl ReduceMinMax for bf16 {
-    type Output = f32;
+    type Output = bf16;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u16 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u16 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_bf16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            bf16(min_raw),
+            min_idx as usize,
+            bf16(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
 impl ReduceMinMax for e4m3 {
-    type Output = f32;
+    type Output = e4m3;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u8 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u8 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_e4m3(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            e4m3(min_raw),
+            min_idx as usize,
+            e4m3(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
 impl ReduceMinMax for e5m2 {
-    type Output = f32;
+    type Output = e5m2;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u8 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u8 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_e5m2(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            e5m2(min_raw),
+            min_idx as usize,
+            e5m2(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
 impl ReduceMinMax for e2m3 {
-    type Output = f32;
+    type Output = e2m3;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u8 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u8 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_e2m3(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            e2m3(min_raw),
+            min_idx as usize,
+            e2m3(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
 impl ReduceMinMax for e3m2 {
-    type Output = f32;
+    type Output = e3m2;
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
     ) -> (Self::Output, usize, Self::Output, usize) {
-        let mut min_val: f32 = 0.0;
+        let mut min_raw: u8 = 0;
         let mut min_idx: u64size = 0;
-        let mut max_val: f32 = 0.0;
+        let mut max_raw: u8 = 0;
         let mut max_idx: u64size = 0;
         unsafe {
             nk_reduce_minmax_e3m2(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_val,
+                &mut min_raw,
                 &mut min_idx,
-                &mut max_val,
+                &mut max_raw,
                 &mut max_idx,
             );
         }
-        (min_val, min_idx as usize, max_val, max_idx as usize)
+        (
+            e3m2(min_raw),
+            min_idx as usize,
+            e3m2(max_raw),
+            max_idx as usize,
+        )
     }
 }
 
@@ -6476,7 +6501,101 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalars::assert_close;
+    use crate::scalars::{assert_close, FloatLike, TestableType};
+
+    // region: Core Test Helpers
+
+    /// Test a two-input metric: convert f32 inputs to T, call `op`, compare to `expected`.
+    fn check_binary<T, R, F>(a_vals: &[f32], b_vals: &[f32], op: F, expected: f64, label: &str)
+    where
+        T: FloatLike + TestableType,
+        R: FloatLike,
+        F: FnOnce(&[T], &[T]) -> Option<R>,
+    {
+        let a: Vec<T> = a_vals.iter().map(|&v| T::from_f32(v)).collect();
+        let b: Vec<T> = b_vals.iter().map(|&v| T::from_f32(v)).collect();
+        let result = op(&a, &b).unwrap().to_f64();
+        assert_close(
+            result,
+            expected,
+            T::atol(),
+            T::rtol(),
+            &format!("{}<{}>", label, core::any::type_name::<T>()),
+        );
+    }
+
+    /// Test a binary elementwise op: convert inputs, apply `op`, compare element-wise.
+    fn check_each_binary<T, F>(
+        a_vals: &[f32],
+        b_vals: &[f32],
+        op: F,
+        expected_fn: fn(f64, f64) -> f64,
+        label: &str,
+    ) where
+        T: FloatLike + TestableType,
+        F: FnOnce(&[T], &[T], &mut [T]) -> Option<()>,
+    {
+        let a: Vec<T> = a_vals.iter().map(|&v| T::from_f32(v)).collect();
+        let b: Vec<T> = b_vals.iter().map(|&v| T::from_f32(v)).collect();
+        let mut result = vec![T::zero(); a.len()];
+        op(&a, &b, &mut result).unwrap();
+        for (i, &r) in result.iter().enumerate() {
+            let expected = expected_fn(a_vals[i] as f64, b_vals[i] as f64);
+            assert_close(
+                r.to_f64(),
+                expected,
+                T::atol(),
+                T::rtol(),
+                &format!("{}<{}>[{i}]", label, core::any::type_name::<T>()),
+            );
+        }
+    }
+
+    /// Test a unary elementwise op over generated values.
+    fn check_each_unary<T, F>(
+        count: usize,
+        gen_fn: fn(usize, usize) -> f64,
+        op: F,
+        ref_fn: fn(f64) -> f64,
+        label: &str,
+    ) where
+        T: FloatLike + TestableType,
+        F: FnOnce(&[T], &mut [T]) -> Option<()>,
+    {
+        let values: Vec<f64> = (0..count).map(|i| gen_fn(i, count)).collect();
+        let a: Vec<T> = values.iter().map(|&v| T::from_f32(v as f32)).collect();
+        let mut result = vec![T::zero(); count];
+        op(&a, &mut result).unwrap();
+        for (i, r) in result.iter().enumerate() {
+            let expected = ref_fn(values[i]);
+            assert_close(
+                r.to_f64(),
+                expected,
+                T::atol() * 10000.0,
+                T::rtol() * 10000.0,
+                &format!("{}<{}>[{}]", label, core::any::type_name::<T>(), i),
+            );
+        }
+    }
+
+    /// Build an identity matrix of size n*n.
+    fn make_identity<T: FloatLike>(n: usize) -> Vec<T> {
+        let mut v = vec![T::zero(); n * n];
+        for i in 0..n {
+            v[i * n + i] = T::one();
+        }
+        v
+    }
+
+    /// Convert a point cloud from f32 to T.
+    fn convert_cloud<T: FloatLike>(cloud: &[[f32; 3]]) -> Vec<[T; 3]> {
+        cloud
+            .iter()
+            .map(|p| [T::from_f32(p[0]), T::from_f32(p[1]), T::from_f32(p[2])])
+            .collect()
+    }
+
+    // endregion
 
     // region: Binary Distances
 
@@ -6575,6 +6694,1260 @@ mod tests {
         let b: Vec<u16> = vec![3, 4, 5, 6, 7];
         let mut result: Vec<u16> = vec![0; 2];
         assert!(u16::sparse_intersect_into(&a, &b, &mut result).is_none());
+    }
+
+    // endregion
+
+    // region: Dot Products
+
+    fn check_dot<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Dot,
+        T::Output: FloatLike,
+    {
+        check_binary::<T, T::Output, _>(a_vals, b_vals, T::dot, expected, "dot");
+    }
+
+    #[test]
+    fn dot() {
+        check_dot::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<e4m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<e5m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<e2m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 6.0);
+        check_dot::<e3m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 32.0);
+        check_dot::<i4x2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 12.0);
+        check_dot::<u4x2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 12.0);
+    }
+
+    // endregion
+
+    // region: Angular Distances
+
+    fn check_angular<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Angular,
+        T::Output: FloatLike,
+    {
+        check_binary::<T, T::Output, _>(a_vals, b_vals, T::angular, expected, "angular");
+    }
+
+    #[test]
+    fn angular() {
+        // angular([1,2,3],[4,5,6]) = 1 - 32/sqrt(14*77) ≈ 0.025368
+        let expected = 1.0 - 32.0 / (14.0_f64.sqrt() * 77.0_f64.sqrt());
+        check_angular::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<e4m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<e5m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        // e2m3 max is 7.5, use values in range
+        let expected_e2m3 = 1.0 - 6.0 / (14.0_f64.sqrt() * 3.0_f64.sqrt());
+        check_angular::<e2m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], expected_e2m3);
+        check_angular::<e3m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_angular::<i4x2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], expected_e2m3);
+        check_angular::<u4x2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], expected_e2m3);
+    }
+
+    // endregion
+
+    // region: Euclidean Distances
+
+    fn check_sqeuclidean<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Euclidean,
+        T::SqEuclideanOutput: FloatLike,
+    {
+        check_binary::<T, T::SqEuclideanOutput, _>(
+            a_vals,
+            b_vals,
+            T::sqeuclidean,
+            expected,
+            "sqeuclidean",
+        );
+    }
+
+    fn check_euclidean<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Euclidean,
+        T::EuclideanOutput: FloatLike,
+    {
+        check_binary::<T, T::EuclideanOutput, _>(
+            a_vals,
+            b_vals,
+            T::euclidean,
+            expected,
+            "euclidean",
+        );
+    }
+
+    #[test]
+    fn sqeuclidean() {
+        check_sqeuclidean::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<e4m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<e5m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<e2m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+        check_sqeuclidean::<e3m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 27.0);
+    }
+
+    #[test]
+    fn euclidean() {
+        let expected = 27.0_f64.sqrt();
+        check_euclidean::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<e4m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<e5m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<e2m3>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        check_euclidean::<e3m2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected);
+        let expected_packed = 54.0_f64.sqrt(); // i4x2 duplicates each value into both nibbles
+        check_euclidean::<i4x2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected_packed);
+        check_euclidean::<u4x2>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], expected_packed);
+    }
+
+    // endregion
+
+    // region: Probability Divergences
+
+    fn check_kld<T>(a: &[f32], b: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + KullbackLeibler,
+        T::Output: FloatLike,
+    {
+        let a_t: Vec<T> = a.iter().map(|&v| T::from_f32(v)).collect();
+        let b_t: Vec<T> = b.iter().map(|&v| T::from_f32(v)).collect();
+        let result = T::kullbackleibler(&a_t, &b_t).unwrap().to_f64();
+        // Divergences involve ln() so need wider tolerance than simple dot products
+        assert_close(
+            result,
+            expected,
+            T::atol().max(1e-6),
+            T::rtol().max(1e-6),
+            &format!("kld<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    fn check_jsd<T>(a: &[f32], b: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + JensenShannon,
+        T::Output: FloatLike,
+    {
+        let a_t: Vec<T> = a.iter().map(|&v| T::from_f32(v)).collect();
+        let b_t: Vec<T> = b.iter().map(|&v| T::from_f32(v)).collect();
+        let result = T::jensenshannon(&a_t, &b_t).unwrap().to_f64();
+        // Divergences involve ln() so need wider tolerance than simple dot products
+        assert_close(
+            result,
+            expected,
+            T::atol().max(1e-6),
+            T::rtol().max(1e-6),
+            &format!("jsd<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn divergences() {
+        let a = &[0.1_f32, 0.9, 0.0];
+        let b = &[0.2_f32, 0.8, 0.0];
+
+        // KL(a||b) = 0.1*ln(0.1/0.2) + 0.9*ln(0.9/0.8)
+        let kld_expected = 0.1_f64 * (0.1_f64 / 0.2).ln() + 0.9_f64 * (0.9_f64 / 0.8).ln();
+        check_kld::<f64>(a, b, kld_expected);
+        check_kld::<f32>(a, b, kld_expected);
+        check_kld::<f16>(a, b, kld_expected);
+        check_kld::<bf16>(a, b, kld_expected);
+
+        // JS distance = sqrt(0.5 * (KL(a||m) + KL(b||m))) where m = (a+b)/2
+        let kl_am = 0.1_f64 * (0.1_f64 / 0.15).ln() + 0.9 * (0.9_f64 / 0.85).ln();
+        let kl_bm = 0.2_f64 * (0.2_f64 / 0.15).ln() + 0.8 * (0.8_f64 / 0.85).ln();
+        let jsd_expected = (0.5 * (kl_am + kl_bm)).sqrt();
+        check_jsd::<f64>(a, b, jsd_expected);
+        check_jsd::<f32>(a, b, jsd_expected);
+        check_jsd::<f16>(a, b, jsd_expected);
+        check_jsd::<bf16>(a, b, jsd_expected);
+    }
+
+    // endregion
+
+    // region: Complex Products
+
+    trait ComplexOutput {
+        fn real(&self) -> f64;
+        fn imag(&self) -> f64;
+    }
+    impl ComplexOutput for (f32, f32) {
+        fn real(&self) -> f64 {
+            self.0 as f64
+        }
+        fn imag(&self) -> f64 {
+            self.1 as f64
+        }
+    }
+    impl ComplexOutput for (f64, f64) {
+        fn real(&self) -> f64 {
+            self.0
+        }
+        fn imag(&self) -> f64 {
+            self.1
+        }
+    }
+
+    /// Test a complex two-input operation with real + imaginary expected outputs.
+    fn check_complex<T, R, F>(
+        a: &[f32],
+        b: &[f32],
+        op: F,
+        expected_re: f64,
+        expected_im: f64,
+        label: &str,
+    ) where
+        T: FloatLike + TestableType,
+        R: ComplexOutput,
+        F: FnOnce(&[T], &[T]) -> Option<R>,
+    {
+        let a_t: Vec<T> = a.iter().map(|&v| T::from_f32(v)).collect();
+        let b_t: Vec<T> = b.iter().map(|&v| T::from_f32(v)).collect();
+        let result = op(&a_t, &b_t).unwrap();
+        let tol = T::atol() + T::rtol() * expected_re.abs().max(expected_im.abs());
+        assert_close(
+            result.real(),
+            expected_re,
+            tol,
+            0.0,
+            &format!("{}<{}> real", label, core::any::type_name::<T>()),
+        );
+        assert_close(
+            result.imag(),
+            expected_im,
+            tol,
+            0.0,
+            &format!("{}<{}> imag", label, core::any::type_name::<T>()),
+        );
+    }
+
+    fn check_complex_dot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
+    where
+        T: FloatLike + TestableType + ComplexDot,
+        T::Output: ComplexOutput,
+    {
+        check_complex::<T, T::Output, _>(
+            a,
+            b,
+            <T as ComplexDot>::dot,
+            expected_re,
+            expected_im,
+            "complex_dot",
+        );
+    }
+
+    fn check_complex_vdot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
+    where
+        T: FloatLike + TestableType + ComplexVDot,
+        T::Output: ComplexOutput,
+    {
+        check_complex::<T, T::Output, _>(a, b, T::vdot, expected_re, expected_im, "complex_vdot");
+    }
+
+    fn check_complex_bilinear_identity<T>(n: usize)
+    where
+        T: FloatLike + TestableType + ComplexBilinear,
+        T::Output: ComplexOutput,
+    {
+        // a = [1+0i, 0...], b = [1+0i, 0...], C = identity
+        let mut a = vec![T::zero(); n * 2];
+        let mut b = vec![T::zero(); n * 2];
+        a[0] = T::one();
+        b[0] = T::one();
+        let mut c = vec![T::zero(); n * n * 2];
+        for i in 0..n {
+            c[(i * n + i) * 2] = T::one();
+        }
+        let result = T::complex_bilinear(&a, &b, &c).unwrap();
+        let tol = T::atol() + T::rtol();
+        assert_close(
+            result.real(),
+            1.0,
+            tol,
+            0.0,
+            &format!("complex_bilinear<{}> real", core::any::type_name::<T>()),
+        );
+        assert_close(
+            result.imag(),
+            0.0,
+            tol,
+            0.0,
+            &format!("complex_bilinear<{}> imag", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn complex_products() {
+        // [1+2i, 3+4i] · [5+6i, 7+8i]
+        let a = &[1.0_f32, 2.0, 3.0, 4.0];
+        let b = &[5.0_f32, 6.0, 7.0, 8.0];
+
+        // dot: (-18, 68)
+        check_complex_dot::<f64>(a, b, -18.0, 68.0);
+        check_complex_dot::<f32>(a, b, -18.0, 68.0);
+        check_complex_dot::<f16>(a, b, -18.0, 68.0);
+        check_complex_dot::<bf16>(a, b, -18.0, 68.0);
+
+        // vdot (conjugate): (70, -8)
+        check_complex_vdot::<f64>(a, b, 70.0, -8.0);
+        check_complex_vdot::<f32>(a, b, 70.0, -8.0);
+        check_complex_vdot::<f16>(a, b, 70.0, -8.0);
+        check_complex_vdot::<bf16>(a, b, 70.0, -8.0);
+
+        // bilinear: identity matrix, unit vector → (1, 0)
+        check_complex_bilinear_identity::<f64>(4);
+        check_complex_bilinear_identity::<f32>(4);
+        check_complex_bilinear_identity::<f16>(4);
+        check_complex_bilinear_identity::<bf16>(4);
+    }
+
+    // endregion
+
+    // region: Intersection Tests
+
+    fn reference_intersect<T: Ord>(a: &[T], b: &[T]) -> usize {
+        let mut a_iter = a.iter();
+        let mut b_iter = b.iter();
+        let mut a_current = a_iter.next();
+        let mut b_current = b_iter.next();
+        let mut count = 0;
+        while let (Some(a_val), Some(b_val)) = (a_current, b_current) {
+            match a_val.cmp(b_val) {
+                core::cmp::Ordering::Less => a_current = a_iter.next(),
+                core::cmp::Ordering::Greater => b_current = b_iter.next(),
+                core::cmp::Ordering::Equal => {
+                    count += 1;
+                    a_current = a_iter.next();
+                    b_current = b_iter.next();
+                }
+            }
+        }
+        count
+    }
+
+    fn generate_intersection_test_arrays<T>() -> Vec<Vec<T>>
+    where
+        T: core::convert::TryFrom<u32> + Copy,
+        <T as core::convert::TryFrom<u32>>::Error: core::fmt::Debug,
+    {
+        vec![
+            vec![],
+            vec![T::try_from(42).unwrap()],
+            vec![
+                T::try_from(1).unwrap(),
+                T::try_from(5).unwrap(),
+                T::try_from(10).unwrap(),
+            ],
+            vec![
+                T::try_from(2).unwrap(),
+                T::try_from(4).unwrap(),
+                T::try_from(6).unwrap(),
+                T::try_from(8).unwrap(),
+                T::try_from(10).unwrap(),
+                T::try_from(12).unwrap(),
+                T::try_from(14).unwrap(),
+            ],
+            (0..14).map(|x| T::try_from(x * 10).unwrap()).collect(),
+            (5..20).map(|x| T::try_from(x * 10).unwrap()).collect(),
+            (0..40).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (10..50).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (0..45).map(|x| T::try_from(x * 3).unwrap()).collect(),
+            (0..100).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (50..150).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (0..100).map(|x| T::try_from(x * 5).unwrap()).collect(),
+            (0..150)
+                .filter(|x| x % 7 == 0)
+                .map(|x| T::try_from(x).unwrap())
+                .collect(),
+            (0..500).map(|x| T::try_from(x * 3).unwrap()).collect(),
+            (100..600).map(|x| T::try_from(x * 3).unwrap()).collect(),
+            (0..600).map(|x| T::try_from(x * 7).unwrap()).collect(),
+            (0..50).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (1000..1050).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (0..16).map(|x| T::try_from(x).unwrap()).collect(),
+            (0..32).map(|x| T::try_from(x).unwrap()).collect(),
+            (0..64).map(|x| T::try_from(x).unwrap()).collect(),
+        ]
+    }
+
+    #[test]
+    fn intersect_u32_comprehensive() {
+        let test_arrays: Vec<Vec<u32>> = generate_intersection_test_arrays();
+        for (i, array_a) in test_arrays.iter().enumerate() {
+            for (j, array_b) in test_arrays.iter().enumerate() {
+                let expected = reference_intersect(array_a, array_b);
+                let result = u32::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
+                assert_eq!(
+                    expected,
+                    result,
+                    "Intersection mismatch for arrays[{}] (len={}) and arrays[{}] (len={})",
+                    i,
+                    array_a.len(),
+                    j,
+                    array_b.len()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn intersect_u16_comprehensive() {
+        let test_arrays: Vec<Vec<u16>> = generate_intersection_test_arrays();
+        for (i, array_a) in test_arrays.iter().enumerate() {
+            for (j, array_b) in test_arrays.iter().enumerate() {
+                let expected = reference_intersect(array_a, array_b);
+                let result = u16::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
+                assert_eq!(
+                    expected,
+                    result,
+                    "Intersection mismatch for arrays[{}] (len={}) and arrays[{}] (len={})",
+                    i,
+                    array_a.len(),
+                    j,
+                    array_b.len()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn intersect_edge_cases() {
+        let empty: &[u32] = &[];
+        let non_empty: &[u32] = &[1, 2, 3];
+        assert_eq!(u32::sparse_intersection_size(empty, empty), 0);
+        assert_eq!(u32::sparse_intersection_size(empty, non_empty), 0);
+        assert_eq!(u32::sparse_intersection_size(non_empty, empty), 0);
+
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[42u32]), 1);
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[43u32]), 0);
+
+        let a: &[u32] = &[1, 2, 3, 4, 5];
+        let b: &[u32] = &[10, 20, 30, 40, 50];
+        assert_eq!(u32::sparse_intersection_size(a, b), 0);
+
+        let c: &[u32] = &[10, 20, 30, 40, 50];
+        assert_eq!(u32::sparse_intersection_size(c, c), 5);
+
+        let boundary_16: Vec<u32> = (0..16).collect();
+        let boundary_32: Vec<u32> = (0..32).collect();
+        let boundary_64: Vec<u32> = (0..64).collect();
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_16, &boundary_16),
+            16
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_32, &boundary_32),
+            32
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_64, &boundary_64),
+            64
+        );
+
+        let first_half: Vec<u32> = (0..32).collect();
+        let second_half: Vec<u32> = (16..48).collect();
+        assert_eq!(u32::sparse_intersection_size(&first_half, &second_half), 16);
+    }
+
+    // endregion
+
+    // region: Cast Operations
+
+    fn check_cast_roundtrip<T: FloatLike + TestableType + CastDtype>(values: &[f32]) {
+        let src: Vec<T> = values.iter().map(|&v| T::from_f32(v)).collect();
+        let mut dst = vec![0.0f32; src.len()];
+        cast(&src, &mut dst).unwrap();
+        for (i, (&expected, &actual)) in values.iter().zip(dst.iter()).enumerate() {
+            assert_close(
+                actual as f64,
+                expected as f64,
+                T::atol(),
+                T::rtol(),
+                &format!("cast_roundtrip<{}>[{i}]", core::any::type_name::<T>()),
+            );
+        }
+    }
+
+    #[test]
+    fn cast_roundtrip() {
+        check_cast_roundtrip::<f16>(&[1.0, 0.5, -1.0]);
+        check_cast_roundtrip::<bf16>(&[1.0, 0.5, -1.0]);
+        check_cast_roundtrip::<e4m3>(&[1.0, 0.5, -1.0]);
+        check_cast_roundtrip::<e5m2>(&[1.0, 0.5, -1.0]);
+        check_cast_roundtrip::<e2m3>(&[1.0, 0.5, -1.0]);
+        check_cast_roundtrip::<e3m2>(&[1.0, 0.5, -1.0]);
+    }
+
+    #[test]
+    fn cast_f32_to_f16() {
+        let src = [1.0f32, -1.0];
+        let mut dst = [f16(0); 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!([dst[0].0, dst[1].0], [0x3C00, 0xBC00]);
+    }
+
+    #[test]
+    fn cast_length_mismatch() {
+        let src = [f16(0x3C00)];
+        let mut dst = [0.0f32; 2];
+        assert!(cast(&src, &mut dst).is_none());
+    }
+
+    // endregion
+
+    // region: Elementwise Operations
+
+    fn check_each_scale<T>(values: &[f32], alpha: f32, beta: f32)
+    where
+        T: FloatLike + TestableType + EachScale,
+        <T as EachScale>::Scalar: FloatLike,
+    {
+        let a: Vec<T> = values.iter().map(|&v| T::from_f32(v)).collect();
+        let mut result = vec![T::zero(); a.len()];
+        let alpha_s = <<T as EachScale>::Scalar>::from_f32(alpha);
+        let beta_s = <<T as EachScale>::Scalar>::from_f32(beta);
+        T::each_scale(&a, alpha_s, beta_s, &mut result).unwrap();
+        for (i, r) in result.iter().enumerate() {
+            let expected = alpha as f64 * values[i] as f64 + beta as f64;
+            assert_close(
+                r.to_f64(),
+                expected,
+                T::atol(),
+                T::rtol(),
+                &format!("each_scale<{}>[{i}]", core::any::type_name::<T>()),
+            );
+        }
+    }
+
+    fn check_each_sum<T>(values_a: &[f32], values_b: &[f32])
+    where
+        T: FloatLike + TestableType + EachSum,
+    {
+        check_each_binary::<T, _>(values_a, values_b, T::each_sum, |a, b| a + b, "each_sum");
+    }
+
+    fn check_each_blend<T>(values_a: &[f32], values_b: &[f32], alpha: f32, beta: f32)
+    where
+        T: FloatLike + TestableType + EachBlend,
+        <T as EachBlend>::Scalar: FloatLike,
+    {
+        let a: Vec<T> = values_a.iter().map(|&v| T::from_f32(v)).collect();
+        let b: Vec<T> = values_b.iter().map(|&v| T::from_f32(v)).collect();
+        let mut result = vec![T::zero(); a.len()];
+        let alpha_s = <<T as EachBlend>::Scalar>::from_f32(alpha);
+        let beta_s = <<T as EachBlend>::Scalar>::from_f32(beta);
+        T::each_blend(&a, &b, alpha_s, beta_s, &mut result).unwrap();
+        for (i, r) in result.iter().enumerate() {
+            let expected = alpha as f64 * values_a[i] as f64 + beta as f64 * values_b[i] as f64;
+            assert_close(
+                r.to_f64(),
+                expected,
+                T::atol(),
+                T::rtol(),
+                &format!("each_blend<{}>[{i}]", core::any::type_name::<T>()),
+            );
+        }
+    }
+
+    fn check_each_fma<T>(
+        values_a: &[f32],
+        values_b: &[f32],
+        values_c: &[f32],
+        alpha: f32,
+        beta: f32,
+    ) where
+        T: FloatLike + TestableType + EachFMA,
+        <T as EachFMA>::Scalar: FloatLike,
+    {
+        let a: Vec<T> = values_a.iter().map(|&v| T::from_f32(v)).collect();
+        let b: Vec<T> = values_b.iter().map(|&v| T::from_f32(v)).collect();
+        let c: Vec<T> = values_c.iter().map(|&v| T::from_f32(v)).collect();
+        let mut result = vec![T::zero(); a.len()];
+        let alpha_s = <<T as EachFMA>::Scalar>::from_f32(alpha);
+        let beta_s = <<T as EachFMA>::Scalar>::from_f32(beta);
+        T::each_fma(&a, &b, &c, alpha_s, beta_s, &mut result).unwrap();
+        for (i, r) in result.iter().enumerate() {
+            let expected = alpha as f64 * values_a[i] as f64 * values_b[i] as f64
+                + beta as f64 * values_c[i] as f64;
+            assert_close(
+                r.to_f64(),
+                expected,
+                T::atol(),
+                T::rtol(),
+                &format!("each_fma<{}>[{i}]", core::any::type_name::<T>()),
+            );
+        }
+    }
+
+    #[test]
+    fn each_scale() {
+        check_each_scale::<f32>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<f64>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<f16>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<bf16>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<e2m3>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<e4m3>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<e5m2>(&[1.0, 2.0], 2.0, 0.0);
+        check_each_scale::<e3m2>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<i8>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<u8>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<i32>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<u32>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<i16>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<u16>(&[1.0, 2.0, 3.0], 2.0, 0.0);
+        check_each_scale::<i64>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+        check_each_scale::<u64>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
+    }
+
+    #[test]
+    fn each_sum() {
+        check_each_sum::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<e2m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0]);
+        check_each_sum::<e4m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0]);
+        check_each_sum::<e5m2>(&[1.0, 2.0], &[1.0, 1.0]);
+        check_each_sum::<e3m2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0]);
+        check_each_sum::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<i32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<u32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<i16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<u16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<i64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+        check_each_sum::<u64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
+    }
+
+    #[test]
+    fn each_sum_length_mismatch() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f32> = vec![4.0, 5.0];
+        let mut result = vec![0.0f32; a.len()];
+        assert!(f32::each_sum(&a, &b, &mut result).is_none());
+    }
+
+    #[test]
+    fn each_blend() {
+        check_each_blend::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+        check_each_blend::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+        check_each_blend::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+        check_each_blend::<bf16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+        check_each_blend::<e2m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 0.5, 0.5);
+        check_each_blend::<e4m3>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 0.5, 0.5);
+        check_each_blend::<e5m2>(&[1.0, 2.0], &[1.0, 1.0], 0.5, 0.5);
+        check_each_blend::<e3m2>(&[1.0, 2.0, 3.0], &[1.0, 1.0, 1.0], 0.5, 0.5);
+        check_each_blend::<i8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+        check_each_blend::<u8>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
+    }
+
+    #[test]
+    fn each_fma() {
+        let a = &[1.0, 2.0, 3.0];
+        let b = &[2.0, 3.0, 4.0];
+        let c = &[1.0, 1.0, 1.0];
+        check_each_fma::<f32>(a, b, c, 1.0, 1.0);
+        check_each_fma::<f64>(a, b, c, 1.0, 1.0);
+        check_each_fma::<f16>(a, b, c, 1.0, 1.0);
+        check_each_fma::<bf16>(a, b, c, 1.0, 1.0);
+        // e2m3 max is 7.5, so use small inputs that stay in range: 1*1+1=2
+        check_each_fma::<e2m3>(&[1.0, 1.0, 1.0], &[1.0, 1.0, 1.0], c, 1.0, 1.0);
+        check_each_fma::<e4m3>(a, b, c, 1.0, 1.0);
+        let a2 = &[1.0, 2.0];
+        let b2 = &[2.0, 3.0];
+        let c2 = &[1.0, 1.0];
+        check_each_fma::<e5m2>(a2, b2, c2, 1.0, 1.0);
+        check_each_fma::<e3m2>(a, b, c, 1.0, 1.0);
+        check_each_fma::<i8>(a, b, c, 1.0, 1.0);
+        check_each_fma::<u8>(a, b, c, 1.0, 1.0);
+        check_each_fma::<i32>(a, b, c, 1.0, 1.0);
+        check_each_fma::<u32>(a, b, c, 1.0, 1.0);
+        check_each_fma::<i16>(a, b, c, 1.0, 1.0);
+        check_each_fma::<u16>(a, b, c, 1.0, 1.0);
+        check_each_fma::<i64>(a, b, c, 1.0, 1.0);
+        check_each_fma::<u64>(a, b, c, 1.0, 1.0);
+    }
+
+    #[test]
+    fn each_large() {
+        let values: Vec<f32> = (0..1536).map(|i| i as f32).collect();
+        check_each_scale::<f32>(&values, 2.0, 0.5);
+
+        let b: Vec<f32> = (0..1536).map(|i| (i as f32) * 2.0).collect();
+        check_each_sum::<f32>(&values, &b);
+    }
+
+    // endregion
+
+    // region: Trigonometry
+
+    fn check_each_sin<T>(count: usize)
+    where
+        T: FloatLike + TestableType + EachSin,
+    {
+        use core::f64::consts::PI;
+        check_each_unary::<T, _>(
+            count,
+            |i, n| (i as f64) * 2.0 * PI / (n as f64),
+            T::sin,
+            f64::sin,
+            "sin",
+        );
+    }
+
+    fn check_each_cos<T>(count: usize)
+    where
+        T: FloatLike + TestableType + EachCos,
+    {
+        use core::f64::consts::PI;
+        check_each_unary::<T, _>(
+            count,
+            |i, n| (i as f64) * 2.0 * PI / (n as f64),
+            T::cos,
+            f64::cos,
+            "cos",
+        );
+    }
+
+    fn check_each_atan<T>(count: usize)
+    where
+        T: FloatLike + TestableType + EachATan,
+    {
+        check_each_unary::<T, _>(
+            count,
+            |i, n| -5.0 + 10.0 * (i as f64) / (n as f64),
+            T::atan,
+            f64::atan,
+            "atan",
+        );
+    }
+
+    #[test]
+    fn each_sin() {
+        check_each_sin::<f32>(97);
+        check_each_sin::<f64>(97);
+        check_each_sin::<f16>(97);
+    }
+
+    #[test]
+    fn each_cos() {
+        check_each_cos::<f32>(97);
+        check_each_cos::<f64>(97);
+        check_each_cos::<f16>(97);
+    }
+
+    #[test]
+    fn each_atan() {
+        check_each_atan::<f32>(100);
+        check_each_atan::<f64>(100);
+        check_each_atan::<f16>(100);
+    }
+
+    // endregion
+
+    // region: Mesh Alignment
+
+    fn check_kabsch_identical<T>(cloud: &[[f32; 3]])
+    where
+        T: FloatLike + TestableType + MeshAlignment,
+        T::Output: FloatLike,
+    {
+        let cloud_t = convert_cloud::<T>(cloud);
+        let result = T::kabsch(&cloud_t, &cloud_t).unwrap();
+        let tol = T::atol() + T::rtol();
+        assert_close(
+            FloatLike::to_f64(result.scale),
+            1.0,
+            tol,
+            0.0,
+            &format!("kabsch<{}> scale", core::any::type_name::<T>()),
+        );
+        assert_close(
+            FloatLike::to_f64(result.rmsd),
+            0.0,
+            tol,
+            0.0,
+            &format!("kabsch<{}> rmsd", core::any::type_name::<T>()),
+        );
+    }
+
+    fn check_umeyama_scaled<T>(cloud: &[[f32; 3]], scaled: &[[f32; 3]])
+    where
+        T: FloatLike + TestableType + MeshAlignment,
+        T::Output: FloatLike,
+    {
+        let cloud_t = convert_cloud::<T>(cloud);
+        let scaled_t = convert_cloud::<T>(scaled);
+        let result = T::umeyama(&cloud_t, &scaled_t).unwrap();
+        let scale = FloatLike::to_f64(result.scale);
+        assert!(
+            scale > 1.0 && scale < 3.0,
+            "umeyama<{}> scale: expected ~2.0, got {}",
+            core::any::type_name::<T>(),
+            scale
+        );
+    }
+
+    fn check_rmsd_identical<T>(cloud: &[[f32; 3]])
+    where
+        T: FloatLike + TestableType + MeshAlignment,
+        T::Output: FloatLike,
+    {
+        let cloud_t = convert_cloud::<T>(cloud);
+        let result = T::rmsd(&cloud_t, &cloud_t).unwrap();
+        let tol = T::atol() + T::rtol();
+        assert_close(
+            FloatLike::to_f64(result.scale),
+            1.0,
+            tol,
+            0.0,
+            &format!("rmsd<{}> scale", core::any::type_name::<T>()),
+        );
+        assert_close(
+            FloatLike::to_f64(result.rmsd),
+            0.0,
+            tol,
+            0.0,
+            &format!("rmsd<{}> rmsd", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn mesh_alignment() {
+        let cloud: &[[f32; 3]] = &[
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [0.0, 0.0, 3.0],
+        ];
+        let scaled: &[[f32; 3]] = &[
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 4.0, 0.0],
+            [0.0, 0.0, 6.0],
+        ];
+        let tri: &[[f32; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        // Kabsch — identical clouds
+        check_kabsch_identical::<f64>(cloud);
+        check_kabsch_identical::<f32>(cloud);
+
+        // Umeyama — 2x scaled
+        check_umeyama_scaled::<f64>(cloud, scaled);
+        check_umeyama_scaled::<f32>(cloud, scaled);
+
+        // RMSD — identical
+        check_rmsd_identical::<f64>(tri);
+        check_rmsd_identical::<f32>(tri);
+    }
+
+    #[test]
+    fn mesh_alignment_edge_cases() {
+        let tri: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let pair: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+
+        // Length mismatch
+        assert!(f64::kabsch(tri, pair).is_none());
+        assert!(f64::rmsd(tri, pair).is_none());
+        assert!(f64::umeyama(tri, pair).is_none());
+
+        // Too few points
+        assert!(f64::kabsch(pair, pair).is_none());
+
+        // Transform point — identical clouds → point stays approximately the same
+        let result = f64::kabsch(tri, tri).unwrap();
+        let transformed = result.transform_point([1.0, 0.0, 0.0]);
+        assert!(
+            (transformed[0] - 1.0).abs() < 0.01,
+            "Expected x ~1.0, got {}",
+            transformed[0]
+        );
+        assert!(
+            transformed[1].abs() < 0.01,
+            "Expected y ~0.0, got {}",
+            transformed[1]
+        );
+        assert!(
+            transformed[2].abs() < 0.01,
+            "Expected z ~0.0, got {}",
+            transformed[2]
+        );
+
+        // Rotation determinant
+        let cloud5: &[[f64; 3]] = &[
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0],
+        ];
+        let result = f64::kabsch(cloud5, cloud5).unwrap();
+        let r = &result.rotation_matrix;
+        let det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6])
+            + r[2] * (r[3] * r[7] - r[4] * r[6]);
+        assert!(
+            (det.abs() - 1.0).abs() < 0.001,
+            "Expected det(R) ~±1.0, got {}",
+            det
+        );
+    }
+
+    // endregion
+
+    // region: Bilinear
+
+    fn check_bilinear<T>(first_values: &[f32], second_values: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Bilinear,
+        T::Output: FloatLike,
+    {
+        let first: Vec<T> = first_values.iter().map(|&v| T::from_f32(v)).collect();
+        let second: Vec<T> = second_values.iter().map(|&v| T::from_f32(v)).collect();
+        let identity = make_identity::<T>(first.len());
+        let result = T::bilinear(&first, &second, &identity).unwrap();
+        assert_close(
+            result.to_f64(),
+            expected,
+            T::atol(),
+            T::rtol(),
+            &format!("bilinear<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn bilinear() {
+        // first=[1,2,3], second=[4,5,6], identity matrix → dot = 32
+        let first_values = &[1.0, 2.0, 3.0];
+        let second_values = &[4.0, 5.0, 6.0];
+        check_bilinear::<f64>(first_values, second_values, 32.0);
+        check_bilinear::<f32>(first_values, second_values, 32.0);
+        check_bilinear::<f16>(first_values, second_values, 32.0);
+        check_bilinear::<bf16>(first_values, second_values, 32.0);
+    }
+
+    // endregion
+
+    // region: Mahalanobis Distance
+
+    fn check_mahalanobis<T>(first_values: &[f32], second_values: &[f32], expected: f64)
+    where
+        T: FloatLike + TestableType + Mahalanobis,
+        T::Output: FloatLike,
+    {
+        let first: Vec<T> = first_values.iter().map(|&v| T::from_f32(v)).collect();
+        let second: Vec<T> = second_values.iter().map(|&v| T::from_f32(v)).collect();
+        let identity = make_identity::<T>(first.len());
+        let result = T::mahalanobis(&first, &second, &identity).unwrap();
+        assert_close(
+            result.to_f64(),
+            expected,
+            T::atol(),
+            T::rtol(),
+            &format!("mahalanobis<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn mahalanobis() {
+        // first=[1,2,3], second=[4,5,6], identity → sqrt(27)
+        let first_values = &[1.0, 2.0, 3.0];
+        let second_values = &[4.0, 5.0, 6.0];
+        let expected = (27.0_f64).sqrt();
+        check_mahalanobis::<f64>(first_values, second_values, expected);
+        check_mahalanobis::<f32>(first_values, second_values, expected);
+        check_mahalanobis::<f16>(first_values, second_values, expected);
+        check_mahalanobis::<bf16>(first_values, second_values, expected);
+    }
+
+    // endregion
+
+    // region: Geospatial
+
+    fn check_haversine<T>(
+        a_lat_deg: f64,
+        a_lon_deg: f64,
+        b_lat_deg: f64,
+        b_lon_deg: f64,
+        expected_meters: f64,
+        tolerance: f64,
+    ) where
+        T: FloatLike + TestableType + Haversine,
+    {
+        let a_lat = [T::from_f32(a_lat_deg.to_radians() as f32)];
+        let a_lon = [T::from_f32(a_lon_deg.to_radians() as f32)];
+        let b_lat = [T::from_f32(b_lat_deg.to_radians() as f32)];
+        let b_lon = [T::from_f32(b_lon_deg.to_radians() as f32)];
+        let mut result = [T::zero()];
+        T::haversine(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
+        assert_close(
+            result[0].to_f64(),
+            expected_meters,
+            tolerance,
+            0.0,
+            &format!("haversine<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    fn check_vincenty<T>(
+        a_lat_deg: f64,
+        a_lon_deg: f64,
+        b_lat_deg: f64,
+        b_lon_deg: f64,
+        expected_meters: f64,
+        tolerance: f64,
+    ) where
+        T: FloatLike + TestableType + Vincenty,
+    {
+        let a_lat = [T::from_f32(a_lat_deg.to_radians() as f32)];
+        let a_lon = [T::from_f32(a_lon_deg.to_radians() as f32)];
+        let b_lat = [T::from_f32(b_lat_deg.to_radians() as f32)];
+        let b_lon = [T::from_f32(b_lon_deg.to_radians() as f32)];
+        let mut result = [T::zero()];
+        T::vincenty(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
+        assert_close(
+            result[0].to_f64(),
+            expected_meters,
+            tolerance,
+            0.0,
+            &format!("vincenty<{}>", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn geospatial() {
+        // New York → Los Angeles
+        // Haversine uses NK_EARTH_MEDIATORIAL_RADIUS (6,335,439m) → ~3,913,778m
+        // Vincenty uses the WGS-84 ellipsoid → ~3,944,422m
+        let hav_expected = 3_914_000.0;
+        let vin_expected = 3_944_000.0;
+        check_haversine::<f64>(
+            40.7128,
+            -74.0060,
+            34.0522,
+            -118.2437,
+            hav_expected,
+            20_000.0,
+        );
+        check_haversine::<f32>(
+            40.7128,
+            -74.0060,
+            34.0522,
+            -118.2437,
+            hav_expected,
+            50_000.0,
+        );
+        check_vincenty::<f64>(
+            40.7128,
+            -74.0060,
+            34.0522,
+            -118.2437,
+            vin_expected,
+            20_000.0,
+        );
+        check_vincenty::<f32>(
+            40.7128,
+            -74.0060,
+            34.0522,
+            -118.2437,
+            vin_expected,
+            50_000.0,
+        );
+    }
+
+    // endregion
+
+    // region: ReduceMoments
+
+    fn check_reduce_moments<T>(input_values: &[f32])
+    where
+        T: FloatLike + TestableType + ReduceMoments,
+        T::SumOutput: FloatLike,
+        T::SumSqOutput: FloatLike,
+    {
+        let data: Vec<T> = input_values.iter().map(|&v| T::from_f32(v)).collect();
+        let stride_bytes = core::mem::size_of::<T>();
+        let (actual_sum, actual_sumsq) = T::reduce_moments(&data, stride_bytes);
+        let expected_sum: f64 = input_values.iter().map(|&v| v as f64).sum();
+        let expected_sumsq: f64 = input_values.iter().map(|&v| (v as f64) * (v as f64)).sum();
+        let n = input_values.len() as f64;
+        assert_close(
+            actual_sum.to_f64(),
+            expected_sum,
+            T::atol() * n,
+            T::rtol(),
+            &format!("reduce_moments<{}> sum", core::any::type_name::<T>()),
+        );
+        assert_close(
+            actual_sumsq.to_f64(),
+            expected_sumsq,
+            T::atol() * n,
+            T::rtol(),
+            &format!("reduce_moments<{}> sumsq", core::any::type_name::<T>()),
+        );
+    }
+
+    #[test]
+    fn reduce_moments() {
+        // Float types — SumOutput/SumSqOutput are FloatLike (f32 or f64)
+        let input_values = &[1.0, 2.0, 3.0, 4.0, 5.0];
+        check_reduce_moments::<f64>(input_values);
+        check_reduce_moments::<f32>(input_values);
+        check_reduce_moments::<f16>(input_values);
+        check_reduce_moments::<bf16>(input_values);
+        check_reduce_moments::<e4m3>(input_values);
+        check_reduce_moments::<e5m2>(&[1.0, 2.0, 3.0]);
+        check_reduce_moments::<e2m3>(&[1.0, 2.0, 3.0]);
+        check_reduce_moments::<e3m2>(&[1.0, 2.0, 3.0]);
+
+        // Integer types — now also go through generics with FloatLike for i64/u64
+        let signed = &[1.0_f32, -2.0, 3.0, -4.0, 5.0];
+        let unsigned = &[1.0_f32, 2.0, 3.0, 4.0, 5.0];
+        check_reduce_moments::<i8>(signed);
+        check_reduce_moments::<u8>(unsigned);
+        check_reduce_moments::<i16>(signed);
+        check_reduce_moments::<u16>(unsigned);
+        check_reduce_moments::<i32>(signed);
+        check_reduce_moments::<u32>(unsigned);
+        check_reduce_moments::<i64>(signed);
+        check_reduce_moments::<u64>(unsigned);
+    }
+
+    // endregion
+
+    // region: ReduceMinMax
+
+    fn check_reduce_minmax<T>(input_values: &[f32])
+    where
+        T: FloatLike + TestableType + ReduceMinMax,
+        T::Output: FloatLike,
+    {
+        let data: Vec<T> = input_values.iter().map(|&v| T::from_f32(v)).collect();
+        let stride_bytes = core::mem::size_of::<T>();
+        let (actual_min, actual_min_idx, actual_max, actual_max_idx) =
+            T::reduce_minmax(&data, stride_bytes);
+        let (exp_min_idx, exp_min) = input_values
+            .iter()
+            .enumerate()
+            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .unwrap();
+        let (exp_max_idx, exp_max) = input_values
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .unwrap();
+        assert_close(
+            actual_min.to_f64(),
+            *exp_min as f64,
+            T::atol(),
+            0.0,
+            &format!("reduce_minmax<{}> min", core::any::type_name::<T>()),
+        );
+        assert_eq!(
+            actual_min_idx,
+            exp_min_idx,
+            "reduce_minmax<{}> min_index",
+            core::any::type_name::<T>()
+        );
+        assert_close(
+            actual_max.to_f64(),
+            *exp_max as f64,
+            T::atol(),
+            0.0,
+            &format!("reduce_minmax<{}> max", core::any::type_name::<T>()),
+        );
+        assert_eq!(
+            actual_max_idx,
+            exp_max_idx,
+            "reduce_minmax<{}> max_index",
+            core::any::type_name::<T>()
+        );
+    }
+
+    #[test]
+    fn reduce_minmax() {
+        // All FloatLike types — Output is also FloatLike
+        let input_values = &[3.0, 1.0, 4.0, 1.5, 5.0, 2.0];
+        check_reduce_minmax::<f64>(input_values);
+        check_reduce_minmax::<f32>(input_values);
+        check_reduce_minmax::<f16>(input_values);
+        check_reduce_minmax::<bf16>(input_values);
+        check_reduce_minmax::<e4m3>(input_values);
+        check_reduce_minmax::<e5m2>(input_values);
+        check_reduce_minmax::<e2m3>(&[3.0, 1.0, 4.0, 1.5, 5.0, 2.0]);
+        check_reduce_minmax::<e3m2>(input_values);
+        check_reduce_minmax::<i8>(input_values);
+        check_reduce_minmax::<u8>(input_values);
+        check_reduce_minmax::<i32>(input_values);
+        check_reduce_minmax::<u32>(input_values);
+
+        // i16, u16, i64, u64 — now also go through generics with FloatLike
+        check_reduce_minmax::<i16>(&[3.0, -1.0, 4.0, -5.0, 2.0]);
+        check_reduce_minmax::<u16>(&[3.0, 1.0, 4.0, 5.0, 2.0]);
+        check_reduce_minmax::<i64>(&[3.0, -1.0, 4.0, -5.0, 2.0]);
+        check_reduce_minmax::<u64>(&[3.0, 1.0, 4.0, 5.0, 2.0]);
+    }
+
+    // endregion
+
+    // region: SparseDot
+
+    #[test]
+    fn sparse_dot() {
+        // u32 indices with f32 weights
+        let first_indices: Vec<u32> = vec![1, 3, 5];
+        let second_indices: Vec<u32> = vec![2, 3, 5, 7];
+        let first_weights: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let second_weights: Vec<f32> = vec![4.0, 5.0, 6.0, 7.0];
+        // Overlap at indices 3 and 5: 2.0*5.0 + 3.0*6.0 = 28.0
+        let result = u32::sparse_dot(
+            &first_indices,
+            &second_indices,
+            &first_weights,
+            &second_weights,
+        );
+        assert!((result - 28.0).abs() < 0.01, "sparse_dot u32f32: {result}");
+
+        // u16 indices with bf16 weights
+        let first_indices_u16: Vec<u16> = vec![1, 3, 5];
+        let second_indices_u16: Vec<u16> = vec![2, 3, 5, 7];
+        let first_weights_bf16: Vec<bf16> = vec![1.0, 2.0, 3.0]
+            .iter()
+            .map(|&value| bf16::from_f32(value))
+            .collect();
+        let second_weights_bf16: Vec<bf16> = vec![4.0, 5.0, 6.0, 7.0]
+            .iter()
+            .map(|&value| bf16::from_f32(value))
+            .collect();
+        let result = u16::sparse_dot(
+            &first_indices_u16,
+            &second_indices_u16,
+            &first_weights_bf16,
+            &second_weights_bf16,
+        );
+        assert!((result - 28.0).abs() < 1.0, "sparse_dot u16bf16: {result}");
+
+        // Disjoint sets → 0
+        let result = u32::sparse_dot(&[1, 2], &[3, 4], &[1.0, 1.0], &[1.0, 1.0]);
+        assert!(result.abs() < 0.01, "sparse_dot disjoint: {result}");
     }
 
     // endregion

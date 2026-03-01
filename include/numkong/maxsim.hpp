@@ -1,0 +1,164 @@
+/**
+ *  @brief C++ bindings for multi-target MaxSim (ColBERT late-interaction) kernels.
+ *  @file include/numkong/maxsim.hpp
+ *  @author Ash Vardanian
+ *  @date February 28, 2026
+ */
+#ifndef NK_MAXSIM_HPP
+#define NK_MAXSIM_HPP
+
+#include <cstddef>
+#include <cstring>
+#include <limits>
+#include <type_traits>
+
+#include "numkong/maxsim.h"
+#include "numkong/types.hpp"
+#include "numkong/spatial.hpp" // angular<>
+
+namespace ashvardanian::numkong {
+
+/**
+ *  @brief Estimates the memory requirements for a maxsim packed vector set.
+ *  @param[in] vector_count Number of vectors to pack.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @return Size in bytes for the packed buffer.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`.
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC std::size_t maxsim_packed_size(std::size_t vector_count, std::size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_maxsim_packed_size_bf16(vector_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_maxsim_packed_size_f32(vector_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_maxsim_packed_size_f16(vector_count, depth);
+    else return sizeof(void *) + sizeof(std::size_t);
+}
+
+/**
+ *  @brief Packs vectors into a backend-specific layout for maxsim computation.
+ *  @param[in] vectors Input vectors in row-major order.
+ *  @param[in] vector_count Number of vectors.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @param[in] stride Row stride in bytes for the input vectors.
+ *  @param[out] packed Output packed buffer from maxsim_packed_size.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`.
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC void maxsim_pack(typename in_type_::raw_t const *vectors, std::size_t vector_count, std::size_t depth,
+                           std::size_t stride, void *packed) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
+        nk_maxsim_pack_bf16(vectors, vector_count, depth, stride, packed);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
+        nk_maxsim_pack_f32(vectors, vector_count, depth, stride, packed);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
+        nk_maxsim_pack_f16(vectors, vector_count, depth, stride, packed);
+    else {
+        char *packed_bytes = reinterpret_cast<char *>(packed);
+        std::memcpy(packed_bytes, &vectors, sizeof(void *));
+        std::memcpy(packed_bytes + sizeof(void *), &stride, sizeof(std::size_t));
+    }
+}
+
+/**
+ *  @brief Computes angular distance late-interaction on pre-packed vectors.
+ *  Returns Σᵢ minⱼ angular(qᵢ, dⱼ).
+ *  @param[in] query_packed Packed query vectors.
+ *  @param[in] document_packed Packed document vectors.
+ *  @param[in] query_count Number of query vectors.
+ *  @param[in] document_count Number of document vectors.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @return Sum of per-query minimum angular distances.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam result_type_ Result type, defaults to `in_type_::maxsim_result_t`.
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`.
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::maxsim_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC result_type_ maxsim_packed(void const *query_packed, void const *document_packed, std::size_t query_count,
+                                     std::size_t document_count, std::size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::maxsim_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
+        return result_type_::from_raw(
+            nk_maxsim_packed_bf16(query_packed, document_packed, query_count, document_count, depth));
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
+        return result_type_::from_raw(
+            nk_maxsim_packed_f32(query_packed, document_packed, query_count, document_count, depth));
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
+        return result_type_::from_raw(
+            nk_maxsim_packed_f16(query_packed, document_packed, query_count, document_count, depth));
+    else {
+        typename in_type_::raw_t const *q_ptr;
+        std::size_t q_stride;
+        char const *q_bytes = reinterpret_cast<char const *>(query_packed);
+        std::memcpy(&q_ptr, q_bytes, sizeof(void *));
+        std::memcpy(&q_stride, q_bytes + sizeof(void *), sizeof(std::size_t));
+
+        typename in_type_::raw_t const *d_ptr;
+        std::size_t d_stride;
+        char const *d_bytes = reinterpret_cast<char const *>(document_packed);
+        std::memcpy(&d_ptr, d_bytes, sizeof(void *));
+        std::memcpy(&d_stride, d_bytes + sizeof(void *), sizeof(std::size_t));
+
+        return maxsim_reference<in_type_, result_type_>(q_ptr, query_count, q_stride, d_ptr, document_count, d_stride,
+                                                        depth);
+    }
+}
+
+/**
+ *  @brief Exhaustive angular reference for testing: Σᵢ minⱼ angular(qᵢ, dⱼ).
+ *  Computes all pairwise angular distances and picks the minimum per query.
+ *  Uses f64 accumulator for precision.
+ *  @param[in] queries Query vectors in row-major order.
+ *  @param[in] query_count Number of query vectors.
+ *  @param[in] query_stride Row stride in bytes for query vectors.
+ *  @param[in] documents Document vectors in row-major order.
+ *  @param[in] document_count Number of document vectors.
+ *  @param[in] document_stride Row stride in bytes for document vectors.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @return Sum of per-query minimum angular distances.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam result_type_ Result type, defaults to `in_type_::angular_result_t`.
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::angular_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC result_type_ maxsim_reference(typename in_type_::raw_t const *queries, std::size_t query_count,
+                                        std::size_t query_stride, typename in_type_::raw_t const *documents,
+                                        std::size_t document_count, std::size_t document_stride, std::size_t depth) {
+    result_type_ total_angular_distance {};
+
+    for (std::size_t query_index = 0; query_index < query_count; query_index++) {
+        in_type_ const *query_row = reinterpret_cast<in_type_ const *>(reinterpret_cast<char const *>(queries) +
+                                                                       query_index * query_stride);
+
+        result_type_ min_angular = result_type_::from_raw(std::numeric_limits<float>::max());
+
+        for (std::size_t document_index = 0; document_index < document_count; document_index++) {
+            in_type_ const *document_row = reinterpret_cast<in_type_ const *>(
+                reinterpret_cast<char const *>(documents) + document_index * document_stride);
+
+            result_type_ angular_distance {};
+            angular<in_type_, result_type_, allow_simd_>(query_row, document_row, depth, &angular_distance);
+
+            if (angular_distance.raw_ < min_angular.raw_) min_angular = angular_distance;
+        }
+
+        total_angular_distance = total_angular_distance + min_angular;
+    }
+
+    return total_angular_distance;
+}
+
+} // namespace ashvardanian::numkong
+
+#endif // NK_MAXSIM_HPP

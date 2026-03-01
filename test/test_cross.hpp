@@ -283,9 +283,9 @@ error_stats_t test_jaccards_symmetric(typename scalar_type_::jaccards_symmetric_
 template <typename scalar_type_>
 error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
                                    typename scalar_type_::dots_pack_kernel_t pack_fn,
-                                   typename scalar_type_::dots_packed_kernel_t angulars_fn) {
+                                   typename scalar_type_::angulars_packed_kernel_t angulars_fn) {
     using scalar_t = scalar_type_;
-    using result_t = typename scalar_t::dot_result_t;
+    using result_t = typename scalar_t::angular_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -351,9 +351,9 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
 template <typename scalar_type_>
 error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
                                      typename scalar_type_::dots_pack_kernel_t pack_fn,
-                                     typename scalar_type_::dots_packed_kernel_t euclideans_fn) {
+                                     typename scalar_type_::euclideans_packed_kernel_t euclideans_fn) {
     using scalar_t = scalar_type_;
-    using result_t = typename scalar_t::dot_result_t;
+    using result_t = typename scalar_t::euclidean_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -417,9 +417,9 @@ error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_ker
  *  @brief Test symmetric angular distance matrix computation.
  */
 template <typename scalar_type_>
-error_stats_t test_angulars_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
+error_stats_t test_angulars_symmetric(typename scalar_type_::angulars_symmetric_kernel_t kernel_fn) {
     using scalar_t = scalar_type_;
-    using result_t = typename scalar_t::dot_result_t;
+    using result_t = typename scalar_t::angular_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -471,9 +471,9 @@ error_stats_t test_angulars_symmetric(typename scalar_type_::dots_symmetric_kern
  *  @brief Test symmetric euclidean distance matrix computation.
  */
 template <typename scalar_type_>
-error_stats_t test_euclideans_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
+error_stats_t test_euclideans_symmetric(typename scalar_type_::euclideans_symmetric_kernel_t kernel_fn) {
     using scalar_t = scalar_type_;
-    using result_t = typename scalar_t::dot_result_t;
+    using result_t = typename scalar_t::euclidean_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);

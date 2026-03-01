@@ -351,6 +351,7 @@ if(NK_BUILD_BENCH)
         bench/bench_cross_sme.cpp
         bench/bench_cross_blas.cpp
         bench/bench_cross_rvv.cpp
+        bench/bench_maxsim.cpp
     )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
@@ -417,6 +418,7 @@ if(NK_BUILD_TEST)
         test/test_cross_sme.cpp
         test/test_cross_blas.cpp
         test/test_cross_rvv.cpp
+        test/test_maxsim.cpp
         test/test_tensor.cpp
     )
     target_link_libraries(nk_test numkong m)
@@ -541,6 +543,7 @@ if(NK_BUILD_SHARED_TEST)
         test/test_cross_sme.cpp
         test/test_cross_blas.cpp
         test/test_cross_rvv.cpp
+        test/test_maxsim.cpp
         test/test_tensor.cpp
     )
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
