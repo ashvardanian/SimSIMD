@@ -118,8 +118,10 @@ void nk_dispatch_u4_init_(nk_capability_t caps) {
 
     nk_dispatch_u4_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_angular_k, (nk_kernel_punned_t *)&t->angular_u4, &used);
-    nk_dispatch_u4_find_(caps, nk_kernel_sqeuclidean_k, (nk_kernel_punned_t *)&t->sqeuclidean_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_euclidean_k, (nk_kernel_punned_t *)&t->euclidean_u4, &used);
+    nk_dispatch_u4_find_(caps, nk_kernel_sqeuclidean_k, (nk_kernel_punned_t *)&t->sqeuclidean_u4, &used);
+    nk_dispatch_u4_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u4, &used);
+    nk_dispatch_u4_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_u4, &used);
@@ -129,8 +131,6 @@ void nk_dispatch_u4_init_(nk_capability_t caps) {
     nk_dispatch_u4_find_(caps, nk_kernel_euclideans_packed_k, (nk_kernel_punned_t *)&t->euclideans_packed_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_euclideans_symmetric_k, (nk_kernel_punned_t *)&t->euclideans_symmetric_u4,
                          &used);
-    nk_dispatch_u4_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u4, &used);
-    nk_dispatch_u4_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u4, &used);
 }
 
 #ifdef __cplusplus

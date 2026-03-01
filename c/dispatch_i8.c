@@ -211,12 +211,12 @@ void nk_dispatch_i8_init_(nk_capability_t caps) {
 
     nk_dispatch_i8_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_angular_k, (nk_kernel_punned_t *)&t->angular_i8, &used);
-    nk_dispatch_i8_find_(caps, nk_kernel_sqeuclidean_k, (nk_kernel_punned_t *)&t->sqeuclidean_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_euclidean_k, (nk_kernel_punned_t *)&t->euclidean_i8, &used);
-    nk_dispatch_i8_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_i8, &used);
-    nk_dispatch_i8_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_i8, &used);
+    nk_dispatch_i8_find_(caps, nk_kernel_sqeuclidean_k, (nk_kernel_punned_t *)&t->sqeuclidean_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_each_scale_k, (nk_kernel_punned_t *)&t->each_scale_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_each_sum_k, (nk_kernel_punned_t *)&t->each_sum_i8, &used);
+    nk_dispatch_i8_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_i8, &used);
+    nk_dispatch_i8_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_i8, &used);
     nk_dispatch_i8_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_i8, &used);

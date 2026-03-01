@@ -110,12 +110,12 @@ void nk_dispatch_u16_init_(nk_capability_t caps) {
     nk_implementations_t *t = &nk_dispatch_table;
     nk_capability_t used;
 
-    nk_dispatch_u16_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_u16, &used);
-    nk_dispatch_u16_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_u16, &used);
+    nk_dispatch_u16_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u16, &used);
+    nk_dispatch_u16_find_(caps, nk_kernel_sparse_intersect_k, (nk_kernel_punned_t *)&t->sparse_intersect_u16, &used);
     nk_dispatch_u16_find_(caps, nk_kernel_each_scale_k, (nk_kernel_punned_t *)&t->each_scale_u16, &used);
     nk_dispatch_u16_find_(caps, nk_kernel_each_sum_k, (nk_kernel_punned_t *)&t->each_sum_u16, &used);
+    nk_dispatch_u16_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_u16, &used);
+    nk_dispatch_u16_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_u16, &used);
     nk_dispatch_u16_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u16, &used);
     nk_dispatch_u16_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u16, &used);
-    nk_dispatch_u16_find_(caps, nk_kernel_sparse_intersect_k, (nk_kernel_punned_t *)&t->sparse_intersect_u16, &used);
-    nk_dispatch_u16_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u16, &used);
 }

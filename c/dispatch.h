@@ -92,19 +92,6 @@ typedef struct {
     nk_metric_dense_punned_t angular_i4;
     nk_metric_dense_punned_t angular_u8;
     nk_metric_dense_punned_t angular_u4;
-    // Squared Euclidean distances
-    nk_metric_dense_punned_t sqeuclidean_f64;
-    nk_metric_dense_punned_t sqeuclidean_f32;
-    nk_metric_dense_punned_t sqeuclidean_bf16;
-    nk_metric_dense_punned_t sqeuclidean_f16;
-    nk_metric_dense_punned_t sqeuclidean_e5m2;
-    nk_metric_dense_punned_t sqeuclidean_e4m3;
-    nk_metric_dense_punned_t sqeuclidean_e3m2;
-    nk_metric_dense_punned_t sqeuclidean_e2m3;
-    nk_metric_dense_punned_t sqeuclidean_i8;
-    nk_metric_dense_punned_t sqeuclidean_i4;
-    nk_metric_dense_punned_t sqeuclidean_u8;
-    nk_metric_dense_punned_t sqeuclidean_u4;
     // Euclidean distances
     nk_metric_dense_punned_t euclidean_f64;
     nk_metric_dense_punned_t euclidean_f32;
@@ -118,32 +105,25 @@ typedef struct {
     nk_metric_dense_punned_t euclidean_i4;
     nk_metric_dense_punned_t euclidean_u8;
     nk_metric_dense_punned_t euclidean_u4;
-    // Geospatial distances
-    nk_metric_geospatial_punned_t haversine_f64;
-    nk_metric_geospatial_punned_t haversine_f32;
-    nk_metric_geospatial_punned_t vincenty_f64;
-    nk_metric_geospatial_punned_t vincenty_f32;
+    // Squared Euclidean distances
+    nk_metric_dense_punned_t sqeuclidean_f64;
+    nk_metric_dense_punned_t sqeuclidean_f32;
+    nk_metric_dense_punned_t sqeuclidean_bf16;
+    nk_metric_dense_punned_t sqeuclidean_f16;
+    nk_metric_dense_punned_t sqeuclidean_e5m2;
+    nk_metric_dense_punned_t sqeuclidean_e4m3;
+    nk_metric_dense_punned_t sqeuclidean_e3m2;
+    nk_metric_dense_punned_t sqeuclidean_e2m3;
+    nk_metric_dense_punned_t sqeuclidean_i8;
+    nk_metric_dense_punned_t sqeuclidean_i4;
+    nk_metric_dense_punned_t sqeuclidean_u8;
+    nk_metric_dense_punned_t sqeuclidean_u4;
     // Binary distances
     nk_metric_dense_punned_t hamming_u8;
     nk_metric_dense_punned_t hamming_u1;
     nk_metric_dense_punned_t jaccard_u32;
     nk_metric_dense_punned_t jaccard_u16;
     nk_metric_dense_punned_t jaccard_u1;
-    // Probability distributions
-    nk_metric_dense_punned_t kld_f64;
-    nk_metric_dense_punned_t kld_f32;
-    nk_metric_dense_punned_t kld_bf16;
-    nk_metric_dense_punned_t kld_f16;
-    nk_metric_dense_punned_t jsd_f64;
-    nk_metric_dense_punned_t jsd_f32;
-    nk_metric_dense_punned_t jsd_bf16;
-    nk_metric_dense_punned_t jsd_f16;
-    // Sparse sets
-    nk_sparse_intersect_punned_t sparse_intersect_u64;
-    nk_sparse_intersect_punned_t sparse_intersect_u32;
-    nk_sparse_intersect_punned_t sparse_intersect_u16;
-    nk_sparse_dot_punned_t sparse_dot_u32f32;
-    nk_sparse_dot_punned_t sparse_dot_u16bf16;
     // Curved spaces
     nk_metric_curved_punned_t bilinear_f64c;
     nk_metric_curved_punned_t bilinear_f32c;
@@ -157,44 +137,40 @@ typedef struct {
     nk_metric_curved_punned_t mahalanobis_f32;
     nk_metric_curved_punned_t mahalanobis_bf16;
     nk_metric_curved_punned_t mahalanobis_f16;
-    // Element-wise FMA
-    nk_each_fma_punned_t each_fma_f64c;
-    nk_each_fma_punned_t each_fma_f32c;
-    nk_each_fma_punned_t each_fma_f64;
-    nk_each_fma_punned_t each_fma_f32;
-    nk_each_fma_punned_t each_fma_bf16;
-    nk_each_fma_punned_t each_fma_f16;
-    nk_each_fma_punned_t each_fma_e5m2;
-    nk_each_fma_punned_t each_fma_e4m3;
-    nk_each_fma_punned_t each_fma_e3m2;
-    nk_each_fma_punned_t each_fma_e2m3;
-    nk_each_fma_punned_t each_fma_i64;
-    nk_each_fma_punned_t each_fma_i32;
-    nk_each_fma_punned_t each_fma_i16;
-    nk_each_fma_punned_t each_fma_i8;
-    nk_each_fma_punned_t each_fma_u64;
-    nk_each_fma_punned_t each_fma_u32;
-    nk_each_fma_punned_t each_fma_u16;
-    nk_each_fma_punned_t each_fma_u8;
-    // Element-wise blend
-    nk_each_blend_punned_t each_blend_f64c;
-    nk_each_blend_punned_t each_blend_f32c;
-    nk_each_blend_punned_t each_blend_f64;
-    nk_each_blend_punned_t each_blend_f32;
-    nk_each_blend_punned_t each_blend_bf16;
-    nk_each_blend_punned_t each_blend_f16;
-    nk_each_blend_punned_t each_blend_e5m2;
-    nk_each_blend_punned_t each_blend_e4m3;
-    nk_each_blend_punned_t each_blend_e3m2;
-    nk_each_blend_punned_t each_blend_e2m3;
-    nk_each_blend_punned_t each_blend_i64;
-    nk_each_blend_punned_t each_blend_i32;
-    nk_each_blend_punned_t each_blend_i16;
-    nk_each_blend_punned_t each_blend_i8;
-    nk_each_blend_punned_t each_blend_u64;
-    nk_each_blend_punned_t each_blend_u32;
-    nk_each_blend_punned_t each_blend_u16;
-    nk_each_blend_punned_t each_blend_u8;
+    // Geospatial distances
+    nk_metric_geospatial_punned_t haversine_f64;
+    nk_metric_geospatial_punned_t haversine_f32;
+    nk_metric_geospatial_punned_t vincenty_f64;
+    nk_metric_geospatial_punned_t vincenty_f32;
+    // Probability distributions
+    nk_metric_dense_punned_t kld_f64;
+    nk_metric_dense_punned_t kld_f32;
+    nk_metric_dense_punned_t kld_bf16;
+    nk_metric_dense_punned_t kld_f16;
+    nk_metric_dense_punned_t jsd_f64;
+    nk_metric_dense_punned_t jsd_f32;
+    nk_metric_dense_punned_t jsd_bf16;
+    nk_metric_dense_punned_t jsd_f16;
+    // Mesh alignment
+    nk_metric_mesh_punned_t rmsd_f64;
+    nk_metric_mesh_punned_t rmsd_f32;
+    nk_metric_mesh_punned_t rmsd_bf16;
+    nk_metric_mesh_punned_t rmsd_f16;
+    nk_metric_mesh_punned_t kabsch_f64;
+    nk_metric_mesh_punned_t kabsch_f32;
+    nk_metric_mesh_punned_t kabsch_bf16;
+    nk_metric_mesh_punned_t kabsch_f16;
+    nk_metric_mesh_punned_t umeyama_f64;
+    nk_metric_mesh_punned_t umeyama_f32;
+    nk_metric_mesh_punned_t umeyama_bf16;
+    nk_metric_mesh_punned_t umeyama_f16;
+    // Sparse intersections
+    nk_sparse_intersect_punned_t sparse_intersect_u64;
+    nk_sparse_intersect_punned_t sparse_intersect_u32;
+    nk_sparse_intersect_punned_t sparse_intersect_u16;
+    // Sparse dot products
+    nk_sparse_dot_punned_t sparse_dot_u32f32;
+    nk_sparse_dot_punned_t sparse_dot_u16bf16;
     // Element-wise scale
     nk_each_scale_punned_t each_scale_f64c;
     nk_each_scale_punned_t each_scale_f32c;
@@ -233,6 +209,44 @@ typedef struct {
     nk_each_sum_punned_t each_sum_u32;
     nk_each_sum_punned_t each_sum_u16;
     nk_each_sum_punned_t each_sum_u8;
+    // Element-wise blend
+    nk_each_blend_punned_t each_blend_f64c;
+    nk_each_blend_punned_t each_blend_f32c;
+    nk_each_blend_punned_t each_blend_f64;
+    nk_each_blend_punned_t each_blend_f32;
+    nk_each_blend_punned_t each_blend_bf16;
+    nk_each_blend_punned_t each_blend_f16;
+    nk_each_blend_punned_t each_blend_e5m2;
+    nk_each_blend_punned_t each_blend_e4m3;
+    nk_each_blend_punned_t each_blend_e3m2;
+    nk_each_blend_punned_t each_blend_e2m3;
+    nk_each_blend_punned_t each_blend_i64;
+    nk_each_blend_punned_t each_blend_i32;
+    nk_each_blend_punned_t each_blend_i16;
+    nk_each_blend_punned_t each_blend_i8;
+    nk_each_blend_punned_t each_blend_u64;
+    nk_each_blend_punned_t each_blend_u32;
+    nk_each_blend_punned_t each_blend_u16;
+    nk_each_blend_punned_t each_blend_u8;
+    // Element-wise FMA
+    nk_each_fma_punned_t each_fma_f64c;
+    nk_each_fma_punned_t each_fma_f32c;
+    nk_each_fma_punned_t each_fma_f64;
+    nk_each_fma_punned_t each_fma_f32;
+    nk_each_fma_punned_t each_fma_bf16;
+    nk_each_fma_punned_t each_fma_f16;
+    nk_each_fma_punned_t each_fma_e5m2;
+    nk_each_fma_punned_t each_fma_e4m3;
+    nk_each_fma_punned_t each_fma_e3m2;
+    nk_each_fma_punned_t each_fma_e2m3;
+    nk_each_fma_punned_t each_fma_i64;
+    nk_each_fma_punned_t each_fma_i32;
+    nk_each_fma_punned_t each_fma_i16;
+    nk_each_fma_punned_t each_fma_i8;
+    nk_each_fma_punned_t each_fma_u64;
+    nk_each_fma_punned_t each_fma_u32;
+    nk_each_fma_punned_t each_fma_u16;
+    nk_each_fma_punned_t each_fma_u8;
     // Trigonometry
     nk_kernel_trigonometry_punned_t each_sin_f64;
     nk_kernel_trigonometry_punned_t each_sin_f32;
@@ -243,13 +257,6 @@ typedef struct {
     nk_kernel_trigonometry_punned_t each_atan_f64;
     nk_kernel_trigonometry_punned_t each_atan_f32;
     nk_kernel_trigonometry_punned_t each_atan_f16;
-    // Mesh alignment
-    nk_metric_mesh_punned_t rmsd_f64;
-    nk_metric_mesh_punned_t rmsd_f32;
-    nk_metric_mesh_punned_t kabsch_f64;
-    nk_metric_mesh_punned_t kabsch_f32;
-    nk_metric_mesh_punned_t umeyama_f64;
-    nk_metric_mesh_punned_t umeyama_f32;
     // Reduce moments (sum + sum-of-squares)
     nk_kernel_reduce_moments_punned_t reduce_moments_f64;
     nk_kernel_reduce_moments_punned_t reduce_moments_f32;

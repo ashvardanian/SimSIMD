@@ -135,6 +135,8 @@ void nk_dispatch_u1_init_(nk_capability_t caps) {
     nk_dispatch_u1_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hamming_k, (nk_kernel_punned_t *)&t->hamming_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_u1, &used);
@@ -143,6 +145,4 @@ void nk_dispatch_u1_init_(nk_capability_t caps) {
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_symmetric_k, (nk_kernel_punned_t *)&t->hammings_symmetric_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccards_packed_k, (nk_kernel_punned_t *)&t->jaccards_packed_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccards_symmetric_k, (nk_kernel_punned_t *)&t->jaccards_symmetric_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u1, &used);
 }
