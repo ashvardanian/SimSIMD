@@ -126,6 +126,15 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
     t->f32_fma = &nk_f32_fma_serial;
     t->f64_fma = &nk_f64_fma_serial;
 
+#if NK_TARGET_V128RELAXED
+    if (caps & nk_cap_v128relaxed_k) {
+        t->f32_rsqrt = &nk_f32_rsqrt_v128relaxed;
+        t->f64_rsqrt = &nk_f64_rsqrt_v128relaxed;
+        t->f32_fma = &nk_f32_fma_v128relaxed;
+        t->f64_fma = &nk_f64_fma_v128relaxed;
+    }
+#endif
+
 #if NK_TARGET_HASWELL
     if (caps & nk_cap_haswell_k) {
         t->f32_fma = &nk_f32_fma_haswell;
@@ -137,6 +146,35 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
     if (caps & nk_cap_neon_k) {
         t->f32_fma = &nk_f32_fma_neon;
         t->f64_fma = &nk_f64_fma_neon;
+    }
+#endif
+
+    // Half-precision scalar math
+    t->f16_sqrt = &nk_f16_sqrt_serial;
+    t->f16_rsqrt = &nk_f16_rsqrt_serial;
+    t->f16_fma = &nk_f16_fma_serial;
+
+#if NK_TARGET_HASWELL
+    if (caps & nk_cap_haswell_k) {
+        t->f16_sqrt = &nk_f16_sqrt_haswell;
+        t->f16_rsqrt = &nk_f16_rsqrt_haswell;
+        t->f16_fma = &nk_f16_fma_haswell;
+    }
+#endif
+
+#if NK_TARGET_NEONHALF
+    if (caps & nk_cap_neonhalf_k) {
+        t->f16_sqrt = &nk_f16_sqrt_neonhalf;
+        t->f16_rsqrt = &nk_f16_rsqrt_neonhalf;
+        t->f16_fma = &nk_f16_fma_neonhalf;
+    }
+#endif
+
+#if NK_TARGET_SAPPHIRE
+    if (caps & nk_cap_sapphire_k) {
+        t->f16_sqrt = &nk_f16_sqrt_sapphire;
+        t->f16_rsqrt = &nk_f16_rsqrt_sapphire;
+        t->f16_fma = &nk_f16_fma_sapphire;
     }
 #endif
 
@@ -174,6 +212,14 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
         t->i32_saturating_add = &nk_i32_saturating_add_rvv;
         t->u64_saturating_add = &nk_u64_saturating_add_rvv;
         t->i64_saturating_add = &nk_i64_saturating_add_rvv;
+        t->u8_saturating_mul = &nk_u8_saturating_mul_rvv;
+        t->i8_saturating_mul = &nk_i8_saturating_mul_rvv;
+        t->u16_saturating_mul = &nk_u16_saturating_mul_rvv;
+        t->i16_saturating_mul = &nk_i16_saturating_mul_rvv;
+        t->u32_saturating_mul = &nk_u32_saturating_mul_rvv;
+        t->i32_saturating_mul = &nk_i32_saturating_mul_rvv;
+        t->u64_saturating_mul = &nk_u64_saturating_mul_rvv;
+        t->i64_saturating_mul = &nk_i64_saturating_mul_rvv;
     }
 #endif
 
@@ -187,6 +233,19 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
         t->i32_saturating_add = &nk_i32_saturating_add_neon;
         t->u64_saturating_add = &nk_u64_saturating_add_neon;
         t->i64_saturating_add = &nk_i64_saturating_add_neon;
+        t->u64_saturating_mul = &nk_u64_saturating_mul_neon;
+        t->i64_saturating_mul = &nk_i64_saturating_mul_neon;
+    }
+#endif
+
+#if NK_TARGET_HASWELL
+    if (caps & nk_cap_haswell_k) {
+        t->u8_saturating_add = &nk_u8_saturating_add_haswell;
+        t->i8_saturating_add = &nk_i8_saturating_add_haswell;
+        t->u16_saturating_add = &nk_u16_saturating_add_haswell;
+        t->i16_saturating_add = &nk_i16_saturating_add_haswell;
+        t->u64_saturating_mul = &nk_u64_saturating_mul_haswell;
+        t->i64_saturating_mul = &nk_i64_saturating_mul_haswell;
     }
 #endif
 
@@ -197,6 +256,10 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
     t->e5m2_order = &nk_e5m2_order_serial;
     t->e2m3_order = &nk_e2m3_order_serial;
     t->e3m2_order = &nk_e3m2_order_serial;
+
+#if NK_TARGET_SAPPHIRE
+    if (caps & nk_cap_sapphire_k) { t->f16_order = &nk_f16_order_sapphire; }
+#endif
 }
 
 // Scalar conversion dispatch functions
@@ -222,6 +285,9 @@ NK_DYNAMIC nk_f32_t nk_f32_rsqrt(nk_f32_t x) { return nk_dispatch_table.f32_rsqr
 NK_DYNAMIC nk_f64_t nk_f64_rsqrt(nk_f64_t x) { return nk_dispatch_table.f64_rsqrt(x); }
 NK_DYNAMIC nk_f32_t nk_f32_fma(nk_f32_t a, nk_f32_t b, nk_f32_t c) { return nk_dispatch_table.f32_fma(a, b, c); }
 NK_DYNAMIC nk_f64_t nk_f64_fma(nk_f64_t a, nk_f64_t b, nk_f64_t c) { return nk_dispatch_table.f64_fma(a, b, c); }
+NK_DYNAMIC nk_f16_t nk_f16_sqrt(nk_f16_t x) { return nk_dispatch_table.f16_sqrt(x); }
+NK_DYNAMIC nk_f16_t nk_f16_rsqrt(nk_f16_t x) { return nk_dispatch_table.f16_rsqrt(x); }
+NK_DYNAMIC nk_f16_t nk_f16_fma(nk_f16_t a, nk_f16_t b, nk_f16_t c) { return nk_dispatch_table.f16_fma(a, b, c); }
 
 // Saturating arithmetic dispatch functions
 

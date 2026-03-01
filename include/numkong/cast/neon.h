@@ -53,7 +53,6 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
-#include "numkong/scalar/neon.h"  // `nk_f16_to_f32_neon`
 #include "numkong/reduce/serial.h" // `nk_reduce_moments_f32_serial`
 
 #if defined(__cplusplus)
@@ -66,6 +65,18 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
 #endif
+
+NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest) {
+    float16x4_t f16vec = vld1_dup_f16((nk_f16_for_arm_simd_t const *)src);
+    float32x4_t f32vec = vcvt_f32_f16(f16vec);
+    *dest = vgetq_lane_f32(f32vec, 0);
+}
+
+NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest) {
+    float32x4_t f32vec = vdupq_n_f32(*src);
+    float16x4_t f16vec = vcvt_f16_f32(f32vec);
+    vst1_lane_f16((nk_f16_for_arm_simd_t *)dest, f16vec, 0);
+}
 
 #pragma region - Type Punned Loads and Stores
 

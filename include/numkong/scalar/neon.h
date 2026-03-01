@@ -37,8 +37,19 @@ extern "C" {
 
 NK_PUBLIC nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
 NK_PUBLIC nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
-NK_PUBLIC nk_f32_t nk_f32_rsqrt_neon(nk_f32_t x) { return 1.0f / nk_f32_sqrt_neon(x); }
-NK_PUBLIC nk_f64_t nk_f64_rsqrt_neon(nk_f64_t x) { return 1.0 / nk_f64_sqrt_neon(x); }
+NK_PUBLIC nk_f32_t nk_f32_rsqrt_neon(nk_f32_t x) {
+    nk_f32_t r = vrsqrtes_f32(x);
+    r *= vrsqrtss_f32(x * r, r);
+    r *= vrsqrtss_f32(x * r, r);
+    return r;
+}
+NK_PUBLIC nk_f64_t nk_f64_rsqrt_neon(nk_f64_t x) {
+    nk_f64_t r = vrsqrted_f64(x);
+    r *= vrsqrtsd_f64(x * r, r);
+    r *= vrsqrtsd_f64(x * r, r);
+    r *= vrsqrtsd_f64(x * r, r);
+    return r;
+}
 NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) { return vfmas_f32(c, a, b); }
 NK_PUBLIC nk_f64_t nk_f64_fma_neon(nk_f64_t a, nk_f64_t b, nk_f64_t c) { return vfmad_f64(c, a, b); }
 
@@ -51,15 +62,27 @@ NK_PUBLIC nk_i32_t nk_i32_saturating_add_neon(nk_i32_t a, nk_i32_t b) { return v
 NK_PUBLIC nk_u64_t nk_u64_saturating_add_neon(nk_u64_t a, nk_u64_t b) { return vqaddd_u64(a, b); }
 NK_PUBLIC nk_i64_t nk_i64_saturating_add_neon(nk_i64_t a, nk_i64_t b) { return vqaddd_s64(a, b); }
 
-NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest) {
-    float16x4_t f16vec = vld1_dup_f16((nk_f16_for_arm_simd_t const *)src);
-    float32x4_t f32vec = vcvt_f32_f16(f16vec);
-    *dest = vgetq_lane_f32(f32vec, 0);
+NK_INTERNAL nk_u64_t nk_u64_mulhigh_neon_(nk_u64_t a, nk_u64_t b) {
+#if defined(_MSC_VER) || defined(__clang__)
+    return __umulh(a, b);
+#else
+    nk_u64_t high;
+    __asm__("umulh %0, %1, %2" : "=r"(high) : "r"(a), "r"(b));
+    return high;
+#endif
 }
-NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest) {
-    float32x4_t f32vec = vdupq_n_f32(*src);
-    float16x4_t f16vec = vcvt_f16_f32(f32vec);
-    vst1_lane_f16((nk_f16_for_arm_simd_t *)dest, f16vec, 0);
+NK_PUBLIC nk_u64_t nk_u64_saturating_mul_neon(nk_u64_t a, nk_u64_t b) {
+    return nk_u64_mulhigh_neon_(a, b) ? 18446744073709551615ull : (a * b);
+}
+NK_PUBLIC nk_i64_t nk_i64_saturating_mul_neon(nk_i64_t a, nk_i64_t b) {
+    int sign = (a < 0) ^ (b < 0);
+    nk_u64_t abs_a = a < 0 ? -(nk_u64_t)a : (nk_u64_t)a;
+    nk_u64_t abs_b = b < 0 ? -(nk_u64_t)b : (nk_u64_t)b;
+    nk_u64_t high = nk_u64_mulhigh_neon_(abs_a, abs_b);
+    nk_u64_t low = abs_a * abs_b;
+    if (high || (sign && low > 9223372036854775808ull) || (!sign && low > 9223372036854775807ull))
+        return sign ? (-9223372036854775807ll - 1ll) : 9223372036854775807ll;
+    return sign ? -(nk_i64_t)low : (nk_i64_t)low;
 }
 
 #if defined(__clang__)

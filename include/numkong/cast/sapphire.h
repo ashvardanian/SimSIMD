@@ -26,8 +26,7 @@
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
-#include "numkong/scalar/sapphire.h" // `nk_f32_to_f16_sapphire`
-#include "numkong/cast/icelake.h"     // `nk_cast_icelake`
+#include "numkong/cast/icelake.h" // `nk_cast_icelake`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -40,6 +39,14 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
 #endif
+
+NK_PUBLIC void nk_f32_to_f16_sapphire(nk_f32_t const *from, nk_f16_t *to) {
+    *to = _mm_cvtsi128_si32(_mm_castph_si128(_mm_cvtss_sh(_mm_setzero_ph(), _mm_set_ss(*from))));
+}
+
+NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *from, nk_f32_t *to) {
+    *to = _mm_cvtss_f32(_mm_cvtsh_ss(_mm_setzero_ps(), _mm_castsi128_ph(_mm_cvtsi32_si128(*from))));
+}
 
 #pragma region - Vectorized Conversions
 

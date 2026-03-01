@@ -438,6 +438,9 @@ typedef struct {
     nk_f64_t (*f64_rsqrt)(nk_f64_t);
     nk_f32_t (*f32_fma)(nk_f32_t, nk_f32_t, nk_f32_t);
     nk_f64_t (*f64_fma)(nk_f64_t, nk_f64_t, nk_f64_t);
+    nk_f16_t (*f16_sqrt)(nk_f16_t);
+    nk_f16_t (*f16_rsqrt)(nk_f16_t);
+    nk_f16_t (*f16_fma)(nk_f16_t, nk_f16_t, nk_f16_t);
     // Scalar saturating arithmetic (10 types × 2 ops = 20 pointers)
     nk_u8_t (*u8_saturating_add)(nk_u8_t, nk_u8_t);
     nk_u8_t (*u8_saturating_mul)(nk_u8_t, nk_u8_t);

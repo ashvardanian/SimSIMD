@@ -1151,75 +1151,6 @@ NK_INTERNAL nk_u32_t nk_u32_ror(nk_u32_t x, int n) { return (x >> n) | (x << (32
 NK_INTERNAL nk_u16_t nk_u16_ror(nk_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
 NK_INTERNAL nk_u8_t nk_u8_ror(nk_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
 
-NK_PUBLIC nk_u8_t nk_u8_saturating_add_serial(nk_u8_t a, nk_u8_t b) {
-    nk_u16_t result = (nk_u16_t)a + (nk_u16_t)b;
-    return (result > 255u) ? (nk_u8_t)255u : (nk_u8_t)result;
-}
-NK_PUBLIC nk_u16_t nk_u16_saturating_add_serial(nk_u16_t a, nk_u16_t b) {
-    nk_u32_t result = (nk_u32_t)a + (nk_u32_t)b;
-    return (result > 65535u) ? (nk_u16_t)65535u : (nk_u16_t)result;
-}
-NK_PUBLIC nk_u32_t nk_u32_saturating_add_serial(nk_u32_t a, nk_u32_t b) {
-    nk_u64_t result = (nk_u64_t)a + (nk_u64_t)b;
-    return (result > 4294967295u) ? (nk_u32_t)4294967295u : (nk_u32_t)result;
-}
-NK_PUBLIC nk_u64_t nk_u64_saturating_add_serial(nk_u64_t a, nk_u64_t b) {
-    return (a + b < a) ? 18446744073709551615ull : (a + b);
-}
-NK_PUBLIC nk_i8_t nk_i8_saturating_add_serial(nk_i8_t a, nk_i8_t b) {
-    nk_i16_t result = (nk_i16_t)a + (nk_i16_t)b;
-    return (result > 127) ? 127 : (result < -128 ? -128 : result);
-}
-NK_PUBLIC nk_i16_t nk_i16_saturating_add_serial(nk_i16_t a, nk_i16_t b) {
-    nk_i32_t result = (nk_i32_t)a + (nk_i32_t)b;
-    return (result > 32767) ? 32767 : (result < -32768 ? -32768 : result);
-}
-NK_PUBLIC nk_i32_t nk_i32_saturating_add_serial(nk_i32_t a, nk_i32_t b) {
-    nk_i64_t result = (nk_i64_t)a + (nk_i64_t)b;
-    return (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (nk_i32_t)result);
-}
-NK_PUBLIC nk_i64_t nk_i64_saturating_add_serial(nk_i64_t a, nk_i64_t b) {
-    //? We can't just write `-9223372036854775808ll`, even though it's the smallest signed 64-bit value.
-    //? The compiler will complain about the number being too large for the type, as it will process the
-    //? constant and the sign separately. So we use the same hint that compilers use to define the `INT64_MIN`.
-    if ((b > 0) && (a > (9223372036854775807ll) - b)) return 9223372036854775807ll;
-    if ((b < 0) && (a < (-9223372036854775807ll - 1ll) - b)) return -9223372036854775807ll - 1ll;
-    return a + b;
-}
-
-NK_PUBLIC nk_u8_t nk_u8_saturating_mul_serial(nk_u8_t a, nk_u8_t b) {
-    nk_u16_t result = (nk_u16_t)a * (nk_u16_t)b;
-    return (result > 255) ? 255 : (nk_u8_t)result;
-}
-
-NK_PUBLIC nk_u16_t nk_u16_saturating_mul_serial(nk_u16_t a, nk_u16_t b) {
-    nk_u32_t result = (nk_u32_t)a * (nk_u32_t)b;
-    return (result > 65535) ? 65535 : (nk_u16_t)result;
-}
-
-NK_PUBLIC nk_u32_t nk_u32_saturating_mul_serial(nk_u32_t a, nk_u32_t b) {
-    nk_u64_t result = (nk_u64_t)a * (nk_u64_t)b;
-    return (result > 4294967295u) ? 4294967295u : (nk_u32_t)result;
-}
-
-NK_PUBLIC nk_u64_t nk_u64_saturating_mul_serial(nk_u64_t a, nk_u64_t b) {
-    // Split the inputs into high and low 32-bit parts
-    nk_u64_t a_hi = a >> 32;
-    nk_u64_t a_lo = a & 0xFFFFFFFF;
-    nk_u64_t b_hi = b >> 32;
-    nk_u64_t b_lo = b & 0xFFFFFFFF;
-
-    // Compute partial products
-    nk_u64_t hi_hi = a_hi * b_hi;
-    nk_u64_t hi_lo = a_hi * b_lo;
-    nk_u64_t lo_hi = a_lo * b_hi;
-    nk_u64_t lo_lo = a_lo * b_lo;
-
-    // Check if the high part of the result overflows
-    if (hi_hi || (hi_lo >> 32) || (lo_hi >> 32) || ((hi_lo + lo_hi) >> 32)) return 18446744073709551615ull;
-    return (hi_lo << 32) + (lo_hi << 32) + lo_lo;
-}
-
 /**
  *  @brief  SWAR population count for 64-bit integers.
  *
@@ -1249,48 +1180,6 @@ NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
         2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
         3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
     return lookup_table[x];
-}
-
-NK_PUBLIC nk_i8_t nk_i8_saturating_mul_serial(nk_i8_t a, nk_i8_t b) {
-    nk_i16_t result = (nk_i16_t)a * (nk_i16_t)b;
-    return (result > 127) ? 127 : (result < -128 ? -128 : (nk_i8_t)result);
-}
-
-NK_PUBLIC nk_i16_t nk_i16_saturating_mul_serial(nk_i16_t a, nk_i16_t b) {
-    nk_i32_t result = (nk_i32_t)a * (nk_i32_t)b;
-    return (result > 32767) ? 32767 : (result < -32768 ? -32768 : (nk_i16_t)result);
-}
-
-NK_PUBLIC nk_i32_t nk_i32_saturating_mul_serial(nk_i32_t a, nk_i32_t b) {
-    nk_i64_t result = (nk_i64_t)a * (nk_i64_t)b;
-    return (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (nk_i32_t)result);
-}
-
-NK_PUBLIC nk_i64_t nk_i64_saturating_mul_serial(nk_i64_t a, nk_i64_t b) {
-    int sign = ((a < 0) ^ (b < 0)) ? -1 : 1; // Track the sign of the result
-
-    // Take absolute values for easy multiplication and overflow detection
-    nk_u64_t abs_a = (a < 0) ? -a : a;
-    nk_u64_t abs_b = (b < 0) ? -b : b;
-
-    // Split the absolute values into high and low 32-bit parts
-    nk_u64_t a_hi = abs_a >> 32;
-    nk_u64_t a_lo = abs_a & 0xFFFFFFFF;
-    nk_u64_t b_hi = abs_b >> 32;
-    nk_u64_t b_lo = abs_b & 0xFFFFFFFF;
-
-    // Compute partial products
-    nk_u64_t hi_hi = a_hi * b_hi;
-    nk_u64_t hi_lo = a_hi * b_lo;
-    nk_u64_t lo_hi = a_lo * b_hi;
-    nk_u64_t lo_lo = a_lo * b_lo;
-
-    // Check for overflow and saturate based on sign
-    if (hi_hi || (hi_lo >> 32) || (lo_hi >> 32) || ((hi_lo + lo_hi) >> 32))
-        return (sign > 0) ? 9223372036854775807ll : (-9223372036854775807ll - 1ll);
-    // Combine parts if no overflow, then apply the sign
-    nk_u64_t result = (hi_lo << 32) + (lo_hi << 32) + lo_lo;
-    return (sign < 0) ? -((nk_i64_t)result) : (nk_i64_t)result;
 }
 
 /** @brief Divides the number rounding up to the next multiple of the given divisor. */
@@ -1339,50 +1228,6 @@ NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
     nk_fui16_t c;
     c.u = bits;
     return c.bf;
-}
-
-/** @brief Branchless sign-magnitude ordering for FP8 (sign in bit 7).
- *  Uses: mask = -sign, ordered = value ^ mask. The constant offset cancels in subtraction.
- *  Returns negative if a < b, 0 if equal, positive if a > b. NaN compares high.
- *  @sa std::strong_order, @sa Rust total_cmp */
-NK_PUBLIC int nk_e4m3_order_serial(nk_e4m3_t a, nk_e4m3_t b) {
-    int sign_a = a >> 7, sign_b = b >> 7;
-    return (a ^ -sign_a) - (b ^ -sign_b);
-}
-NK_PUBLIC int nk_e5m2_order_serial(nk_e5m2_t a, nk_e5m2_t b) {
-    int sign_a = a >> 7, sign_b = b >> 7;
-    return (a ^ -sign_a) - (b ^ -sign_b);
-}
-
-/** @brief Branchless sign-magnitude ordering for FP6 (sign in bit 5, 6-bit).
- *  @sa std::strong_order, @sa Rust total_cmp */
-NK_PUBLIC int nk_e2m3_order_serial(nk_e2m3_t a, nk_e2m3_t b) {
-    int value_a = a & 0x3F, value_b = b & 0x3F;
-    int sign_a = value_a >> 5, sign_b = value_b >> 5;
-    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
-}
-NK_PUBLIC int nk_e3m2_order_serial(nk_e3m2_t a, nk_e3m2_t b) {
-    int value_a = a & 0x3F, value_b = b & 0x3F;
-    int sign_a = value_a >> 5, sign_b = value_b >> 5;
-    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
-}
-
-/** @brief Branchless sign-magnitude ordering for bf16 (sign in bit 15).
- *  @sa std::strong_order, @sa Rust total_cmp */
-NK_PUBLIC int nk_bf16_order_serial(nk_bf16_t a, nk_bf16_t b) {
-    nk_fui16_t a_fui, b_fui;
-    a_fui.bf = a, b_fui.bf = b;
-    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
-    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
-}
-
-/** @brief Branchless sign-magnitude ordering for f16 (sign in bit 15).
- *  @sa std::strong_order, @sa Rust total_cmp */
-NK_PUBLIC int nk_f16_order_serial(nk_f16_t a, nk_f16_t b) {
-    nk_fui16_t a_fui, b_fui;
-    a_fui.f = a, b_fui.f = b;
-    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
-    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
 }
 
 /**
@@ -1454,36 +1299,6 @@ NK_INTERNAL void nk_f64_dot2_(nk_f64_t *sum, nk_f64_t *compensation, nk_f64_t a,
     nk_f64_t sum_error = (*sum - (running_sum - recovered_addend)) + (product - recovered_addend);
     *sum = running_sum;
     *compensation += sum_error + product_error;
-}
-
-/*  i4x2/u4x2 saturating arithmetic: unpack nibbles, operate, repack. */
-NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_add_serial(nk_i4x2_t a, nk_i4x2_t b) {
-    nk_i8_t lo = nk_i4x2_low_(a) + nk_i4x2_low_(b);
-    nk_i8_t hi = nk_i4x2_high_(a) + nk_i4x2_high_(b);
-    lo = (lo > 7) ? 7 : (lo < -8 ? -8 : lo);
-    hi = (hi > 7) ? 7 : (hi < -8 ? -8 : hi);
-    return (nk_i4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
-}
-NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_add_serial(nk_u4x2_t a, nk_u4x2_t b) {
-    nk_u8_t lo = nk_u4x2_low_(a) + nk_u4x2_low_(b);
-    nk_u8_t hi = nk_u4x2_high_(a) + nk_u4x2_high_(b);
-    lo = (lo > 15) ? 15 : lo;
-    hi = (hi > 15) ? 15 : hi;
-    return (nk_u4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
-}
-NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_mul_serial(nk_i4x2_t a, nk_i4x2_t b) {
-    nk_i8_t lo = nk_i4x2_low_(a) * nk_i4x2_low_(b);
-    nk_i8_t hi = nk_i4x2_high_(a) * nk_i4x2_high_(b);
-    lo = (lo > 7) ? 7 : (lo < -8 ? -8 : lo);
-    hi = (hi > 7) ? 7 : (hi < -8 ? -8 : hi);
-    return (nk_i4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
-}
-NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_mul_serial(nk_u4x2_t a, nk_u4x2_t b) {
-    nk_u8_t lo = nk_u4x2_low_(a) * nk_u4x2_low_(b);
-    nk_u8_t hi = nk_u4x2_high_(a) * nk_u4x2_high_(b);
-    lo = (lo > 15) ? 15 : lo;
-    hi = (hi > 15) ? 15 : hi;
-    return (nk_u4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
 }
 
 #ifdef __cplusplus

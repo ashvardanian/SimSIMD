@@ -58,6 +58,13 @@ NK_DYNAMIC nk_f32_t nk_f32_fma(nk_f32_t a, nk_f32_t b, nk_f32_t c);
 /** @copydoc nk_f32_fma */
 NK_DYNAMIC nk_f64_t nk_f64_fma(nk_f64_t a, nk_f64_t b, nk_f64_t c);
 
+/** @copydoc nk_f32_sqrt */
+NK_DYNAMIC nk_f16_t nk_f16_sqrt(nk_f16_t x);
+/** @copydoc nk_f32_rsqrt */
+NK_DYNAMIC nk_f16_t nk_f16_rsqrt(nk_f16_t x);
+/** @copydoc nk_f32_fma */
+NK_DYNAMIC nk_f16_t nk_f16_fma(nk_f16_t a, nk_f16_t b, nk_f16_t c);
+
 /**
  *  @brief Saturating addition clamped to the representable range of the type.
  *
@@ -113,11 +120,15 @@ NK_DYNAMIC nk_i4x2_t nk_i4x2_saturating_mul(nk_i4x2_t a, nk_i4x2_t b);
 NK_DYNAMIC nk_u4x2_t nk_u4x2_saturating_mul(nk_u4x2_t a, nk_u4x2_t b);
 
 /**
- *  @brief Three-way comparison for non-native floating-point scalars.
+ *  @brief Branchless sign-magnitude ordering for non-native floating-point scalars.
+ *
+ *  Uses `mask = -sign; ordered = value ^ mask` — the constant offset cancels in subtraction.
+ *  Returns negative if a < b, 0 if equal, positive if a > b. NaN compares high.
  *
  *  @param[in] a First operand.
  *  @param[in] b Second operand.
  *  @return Negative if `a < b`, zero if `a == b`, positive if `a > b`.
+ *  @sa std::strong_order, Rust total_cmp
  */
 NK_DYNAMIC int nk_f16_order(nk_f16_t a, nk_f16_t b);
 /** @copydoc nk_f16_order */
@@ -143,6 +154,13 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_serial(nk_f64_t x);
 NK_PUBLIC nk_f32_t nk_f32_fma_serial(nk_f32_t a, nk_f32_t b, nk_f32_t c);
 /** @copydoc nk_f64_fma */
 NK_PUBLIC nk_f64_t nk_f64_fma_serial(nk_f64_t a, nk_f64_t b, nk_f64_t c);
+
+/** @copydoc nk_f16_sqrt */
+NK_PUBLIC nk_f16_t nk_f16_sqrt_serial(nk_f16_t x);
+/** @copydoc nk_f16_rsqrt */
+NK_PUBLIC nk_f16_t nk_f16_rsqrt_serial(nk_f16_t x);
+/** @copydoc nk_f16_fma */
+NK_PUBLIC nk_f16_t nk_f16_fma_serial(nk_f16_t a, nk_f16_t b, nk_f16_t c);
 
 /** @copydoc nk_u8_saturating_add */
 NK_PUBLIC nk_u8_t nk_u8_saturating_add_serial(nk_u8_t a, nk_u8_t b);
@@ -228,7 +246,20 @@ NK_PUBLIC nk_i32_t nk_i32_saturating_add_neon(nk_i32_t a, nk_i32_t b);
 NK_PUBLIC nk_u64_t nk_u64_saturating_add_neon(nk_u64_t a, nk_u64_t b);
 /** @copydoc nk_u8_saturating_add */
 NK_PUBLIC nk_i64_t nk_i64_saturating_add_neon(nk_i64_t a, nk_i64_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u64_t nk_u64_saturating_mul_neon(nk_u64_t a, nk_u64_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i64_t nk_i64_saturating_mul_neon(nk_i64_t a, nk_i64_t b);
 #endif // NK_TARGET_NEON
+
+#if NK_TARGET_NEONHALF
+/** @copydoc nk_f16_sqrt */
+NK_PUBLIC nk_f16_t nk_f16_sqrt_neonhalf(nk_f16_t x);
+/** @copydoc nk_f16_rsqrt */
+NK_PUBLIC nk_f16_t nk_f16_rsqrt_neonhalf(nk_f16_t x);
+/** @copydoc nk_f16_fma */
+NK_PUBLIC nk_f16_t nk_f16_fma_neonhalf(nk_f16_t a, nk_f16_t b, nk_f16_t c);
+#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_f32_sqrt */
@@ -243,7 +274,36 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_haswell(nk_f64_t x);
 NK_PUBLIC nk_f32_t nk_f32_fma_haswell(nk_f32_t a, nk_f32_t b, nk_f32_t c);
 /** @copydoc nk_f64_fma */
 NK_PUBLIC nk_f64_t nk_f64_fma_haswell(nk_f64_t a, nk_f64_t b, nk_f64_t c);
+/** @copydoc nk_u8_saturating_add */
+NK_PUBLIC nk_u8_t nk_u8_saturating_add_haswell(nk_u8_t a, nk_u8_t b);
+/** @copydoc nk_u8_saturating_add */
+NK_PUBLIC nk_i8_t nk_i8_saturating_add_haswell(nk_i8_t a, nk_i8_t b);
+/** @copydoc nk_u8_saturating_add */
+NK_PUBLIC nk_u16_t nk_u16_saturating_add_haswell(nk_u16_t a, nk_u16_t b);
+/** @copydoc nk_u8_saturating_add */
+NK_PUBLIC nk_i16_t nk_i16_saturating_add_haswell(nk_i16_t a, nk_i16_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u64_t nk_u64_saturating_mul_haswell(nk_u64_t a, nk_u64_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i64_t nk_i64_saturating_mul_haswell(nk_i64_t a, nk_i64_t b);
+/** @copydoc nk_f16_sqrt */
+NK_PUBLIC nk_f16_t nk_f16_sqrt_haswell(nk_f16_t x);
+/** @copydoc nk_f16_rsqrt */
+NK_PUBLIC nk_f16_t nk_f16_rsqrt_haswell(nk_f16_t x);
+/** @copydoc nk_f16_fma */
+NK_PUBLIC nk_f16_t nk_f16_fma_haswell(nk_f16_t a, nk_f16_t b, nk_f16_t c);
 #endif // NK_TARGET_HASWELL
+
+#if NK_TARGET_SAPPHIRE
+/** @copydoc nk_f16_order */
+NK_PUBLIC int nk_f16_order_sapphire(nk_f16_t a, nk_f16_t b);
+/** @copydoc nk_f16_sqrt */
+NK_PUBLIC nk_f16_t nk_f16_sqrt_sapphire(nk_f16_t x);
+/** @copydoc nk_f16_rsqrt */
+NK_PUBLIC nk_f16_t nk_f16_rsqrt_sapphire(nk_f16_t x);
+/** @copydoc nk_f16_fma */
+NK_PUBLIC nk_f16_t nk_f16_fma_sapphire(nk_f16_t a, nk_f16_t b, nk_f16_t c);
+#endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
 /** @copydoc nk_f32_sqrt */
@@ -274,6 +334,22 @@ NK_PUBLIC nk_i32_t nk_i32_saturating_add_rvv(nk_i32_t a, nk_i32_t b);
 NK_PUBLIC nk_u64_t nk_u64_saturating_add_rvv(nk_u64_t a, nk_u64_t b);
 /** @copydoc nk_u8_saturating_add */
 NK_PUBLIC nk_i64_t nk_i64_saturating_add_rvv(nk_i64_t a, nk_i64_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u8_t nk_u8_saturating_mul_rvv(nk_u8_t a, nk_u8_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i8_t nk_i8_saturating_mul_rvv(nk_i8_t a, nk_i8_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u16_t nk_u16_saturating_mul_rvv(nk_u16_t a, nk_u16_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i16_t nk_i16_saturating_mul_rvv(nk_i16_t a, nk_i16_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u32_t nk_u32_saturating_mul_rvv(nk_u32_t a, nk_u32_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i32_t nk_i32_saturating_mul_rvv(nk_i32_t a, nk_i32_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_u64_t nk_u64_saturating_mul_rvv(nk_u64_t a, nk_u64_t b);
+/** @copydoc nk_u8_saturating_mul */
+NK_PUBLIC nk_i64_t nk_i64_saturating_mul_rvv(nk_i64_t a, nk_i64_t b);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
@@ -281,6 +357,14 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_add_rvv(nk_i64_t a, nk_i64_t b);
 NK_PUBLIC nk_f32_t nk_f32_sqrt_v128relaxed(nk_f32_t x);
 /** @copydoc nk_f64_sqrt */
 NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x);
+/** @copydoc nk_f32_rsqrt */
+NK_PUBLIC nk_f32_t nk_f32_rsqrt_v128relaxed(nk_f32_t x);
+/** @copydoc nk_f64_rsqrt */
+NK_PUBLIC nk_f64_t nk_f64_rsqrt_v128relaxed(nk_f64_t x);
+/** @copydoc nk_f32_fma */
+NK_PUBLIC nk_f32_t nk_f32_fma_v128relaxed(nk_f32_t a, nk_f32_t b, nk_f32_t c);
+/** @copydoc nk_f64_fma */
+NK_PUBLIC nk_f64_t nk_f64_fma_v128relaxed(nk_f64_t a, nk_f64_t b, nk_f64_t c);
 #endif // NK_TARGET_V128RELAXED
 
 #if defined(__cplusplus)
@@ -289,8 +373,9 @@ NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x);
 
 #include "numkong/scalar/serial.h"      // `nk_f32_rsqrt_serial`
 #include "numkong/scalar/neon.h"        // `nk_f32_sqrt_neon`
+#include "numkong/scalar/neonhalf.h"    // `nk_f16_sqrt_neonhalf`
 #include "numkong/scalar/haswell.h"     // `nk_f32_sqrt_haswell`
-#include "numkong/scalar/sapphire.h"    // (currently empty)
+#include "numkong/scalar/sapphire.h"    // `nk_f16_order_sapphire`
 #include "numkong/scalar/rvv.h"         // `nk_f32_rsqrt_rvv`
 #include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
 
@@ -335,6 +420,8 @@ NK_PUBLIC nk_f32_t nk_f32_rsqrt(nk_f32_t x) {
     return nk_f32_rsqrt_neon(x);
 #elif NK_TARGET_RVV
     return nk_f32_rsqrt_rvv(x);
+#elif NK_TARGET_V128RELAXED
+    return nk_f32_rsqrt_v128relaxed(x);
 #else
     return nk_f32_rsqrt_serial(x);
 #endif
@@ -347,6 +434,8 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt(nk_f64_t x) {
     return nk_f64_rsqrt_neon(x);
 #elif NK_TARGET_RVV
     return nk_f64_rsqrt_rvv(x);
+#elif NK_TARGET_V128RELAXED
+    return nk_f64_rsqrt_v128relaxed(x);
 #else
     return nk_f64_rsqrt_serial(x);
 #endif
@@ -359,6 +448,8 @@ NK_PUBLIC nk_f32_t nk_f32_fma(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
     return nk_f32_fma_neon(a, b, c);
 #elif NK_TARGET_RVV
     return nk_f32_fma_rvv(a, b, c);
+#elif NK_TARGET_V128RELAXED
+    return nk_f32_fma_v128relaxed(a, b, c);
 #else
     return nk_f32_fma_serial(a, b, c);
 #endif
@@ -371,13 +462,53 @@ NK_PUBLIC nk_f64_t nk_f64_fma(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
     return nk_f64_fma_neon(a, b, c);
 #elif NK_TARGET_RVV
     return nk_f64_fma_rvv(a, b, c);
+#elif NK_TARGET_V128RELAXED
+    return nk_f64_fma_v128relaxed(a, b, c);
 #else
     return nk_f64_fma_serial(a, b, c);
 #endif
 }
 
+NK_PUBLIC nk_f16_t nk_f16_sqrt(nk_f16_t x) {
+#if NK_TARGET_SAPPHIRE
+    return nk_f16_sqrt_sapphire(x);
+#elif NK_TARGET_NEONHALF
+    return nk_f16_sqrt_neonhalf(x);
+#elif NK_TARGET_HASWELL
+    return nk_f16_sqrt_haswell(x);
+#else
+    return nk_f16_sqrt_serial(x);
+#endif
+}
+
+NK_PUBLIC nk_f16_t nk_f16_rsqrt(nk_f16_t x) {
+#if NK_TARGET_SAPPHIRE
+    return nk_f16_rsqrt_sapphire(x);
+#elif NK_TARGET_NEONHALF
+    return nk_f16_rsqrt_neonhalf(x);
+#elif NK_TARGET_HASWELL
+    return nk_f16_rsqrt_haswell(x);
+#else
+    return nk_f16_rsqrt_serial(x);
+#endif
+}
+
+NK_PUBLIC nk_f16_t nk_f16_fma(nk_f16_t a, nk_f16_t b, nk_f16_t c) {
+#if NK_TARGET_SAPPHIRE
+    return nk_f16_fma_sapphire(a, b, c);
+#elif NK_TARGET_NEONHALF
+    return nk_f16_fma_neonhalf(a, b, c);
+#elif NK_TARGET_HASWELL
+    return nk_f16_fma_haswell(a, b, c);
+#else
+    return nk_f16_fma_serial(a, b, c);
+#endif
+}
+
 NK_PUBLIC nk_u8_t nk_u8_saturating_add(nk_u8_t a, nk_u8_t b) {
-#if NK_TARGET_NEON
+#if NK_TARGET_HASWELL
+    return nk_u8_saturating_add_haswell(a, b);
+#elif NK_TARGET_NEON
     return nk_u8_saturating_add_neon(a, b);
 #elif NK_TARGET_RVV
     return nk_u8_saturating_add_rvv(a, b);
@@ -386,7 +517,9 @@ NK_PUBLIC nk_u8_t nk_u8_saturating_add(nk_u8_t a, nk_u8_t b) {
 #endif
 }
 NK_PUBLIC nk_i8_t nk_i8_saturating_add(nk_i8_t a, nk_i8_t b) {
-#if NK_TARGET_NEON
+#if NK_TARGET_HASWELL
+    return nk_i8_saturating_add_haswell(a, b);
+#elif NK_TARGET_NEON
     return nk_i8_saturating_add_neon(a, b);
 #elif NK_TARGET_RVV
     return nk_i8_saturating_add_rvv(a, b);
@@ -395,7 +528,9 @@ NK_PUBLIC nk_i8_t nk_i8_saturating_add(nk_i8_t a, nk_i8_t b) {
 #endif
 }
 NK_PUBLIC nk_u16_t nk_u16_saturating_add(nk_u16_t a, nk_u16_t b) {
-#if NK_TARGET_NEON
+#if NK_TARGET_HASWELL
+    return nk_u16_saturating_add_haswell(a, b);
+#elif NK_TARGET_NEON
     return nk_u16_saturating_add_neon(a, b);
 #elif NK_TARGET_RVV
     return nk_u16_saturating_add_rvv(a, b);
@@ -404,7 +539,9 @@ NK_PUBLIC nk_u16_t nk_u16_saturating_add(nk_u16_t a, nk_u16_t b) {
 #endif
 }
 NK_PUBLIC nk_i16_t nk_i16_saturating_add(nk_i16_t a, nk_i16_t b) {
-#if NK_TARGET_NEON
+#if NK_TARGET_HASWELL
+    return nk_i16_saturating_add_haswell(a, b);
+#elif NK_TARGET_NEON
     return nk_i16_saturating_add_neon(a, b);
 #elif NK_TARGET_RVV
     return nk_i16_saturating_add_rvv(a, b);
@@ -451,18 +588,80 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_add(nk_i64_t a, nk_i64_t b) {
 NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_add(nk_i4x2_t a, nk_i4x2_t b) { return nk_i4x2_saturating_add_serial(a, b); }
 NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_add(nk_u4x2_t a, nk_u4x2_t b) { return nk_u4x2_saturating_add_serial(a, b); }
 
-NK_PUBLIC nk_u8_t nk_u8_saturating_mul(nk_u8_t a, nk_u8_t b) { return nk_u8_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_i8_t nk_i8_saturating_mul(nk_i8_t a, nk_i8_t b) { return nk_i8_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_u16_t nk_u16_saturating_mul(nk_u16_t a, nk_u16_t b) { return nk_u16_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_i16_t nk_i16_saturating_mul(nk_i16_t a, nk_i16_t b) { return nk_i16_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_u32_t nk_u32_saturating_mul(nk_u32_t a, nk_u32_t b) { return nk_u32_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_i32_t nk_i32_saturating_mul(nk_i32_t a, nk_i32_t b) { return nk_i32_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_u64_t nk_u64_saturating_mul(nk_u64_t a, nk_u64_t b) { return nk_u64_saturating_mul_serial(a, b); }
-NK_PUBLIC nk_i64_t nk_i64_saturating_mul(nk_i64_t a, nk_i64_t b) { return nk_i64_saturating_mul_serial(a, b); }
+NK_PUBLIC nk_u8_t nk_u8_saturating_mul(nk_u8_t a, nk_u8_t b) {
+#if NK_TARGET_RVV
+    return nk_u8_saturating_mul_rvv(a, b);
+#else
+    return nk_u8_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_i8_t nk_i8_saturating_mul(nk_i8_t a, nk_i8_t b) {
+#if NK_TARGET_RVV
+    return nk_i8_saturating_mul_rvv(a, b);
+#else
+    return nk_i8_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_u16_t nk_u16_saturating_mul(nk_u16_t a, nk_u16_t b) {
+#if NK_TARGET_RVV
+    return nk_u16_saturating_mul_rvv(a, b);
+#else
+    return nk_u16_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_i16_t nk_i16_saturating_mul(nk_i16_t a, nk_i16_t b) {
+#if NK_TARGET_RVV
+    return nk_i16_saturating_mul_rvv(a, b);
+#else
+    return nk_i16_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_u32_t nk_u32_saturating_mul(nk_u32_t a, nk_u32_t b) {
+#if NK_TARGET_RVV
+    return nk_u32_saturating_mul_rvv(a, b);
+#else
+    return nk_u32_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_i32_t nk_i32_saturating_mul(nk_i32_t a, nk_i32_t b) {
+#if NK_TARGET_RVV
+    return nk_i32_saturating_mul_rvv(a, b);
+#else
+    return nk_i32_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_u64_t nk_u64_saturating_mul(nk_u64_t a, nk_u64_t b) {
+#if NK_TARGET_HASWELL
+    return nk_u64_saturating_mul_haswell(a, b);
+#elif NK_TARGET_NEON
+    return nk_u64_saturating_mul_neon(a, b);
+#elif NK_TARGET_RVV
+    return nk_u64_saturating_mul_rvv(a, b);
+#else
+    return nk_u64_saturating_mul_serial(a, b);
+#endif
+}
+NK_PUBLIC nk_i64_t nk_i64_saturating_mul(nk_i64_t a, nk_i64_t b) {
+#if NK_TARGET_HASWELL
+    return nk_i64_saturating_mul_haswell(a, b);
+#elif NK_TARGET_NEON
+    return nk_i64_saturating_mul_neon(a, b);
+#elif NK_TARGET_RVV
+    return nk_i64_saturating_mul_rvv(a, b);
+#else
+    return nk_i64_saturating_mul_serial(a, b);
+#endif
+}
 NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_mul(nk_i4x2_t a, nk_i4x2_t b) { return nk_i4x2_saturating_mul_serial(a, b); }
 NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_mul(nk_u4x2_t a, nk_u4x2_t b) { return nk_u4x2_saturating_mul_serial(a, b); }
 
-NK_PUBLIC int nk_f16_order(nk_f16_t a, nk_f16_t b) { return nk_f16_order_serial(a, b); }
+NK_PUBLIC int nk_f16_order(nk_f16_t a, nk_f16_t b) {
+#if NK_TARGET_SAPPHIRE
+    return nk_f16_order_sapphire(a, b);
+#else
+    return nk_f16_order_serial(a, b);
+#endif
+}
 NK_PUBLIC int nk_bf16_order(nk_bf16_t a, nk_bf16_t b) { return nk_bf16_order_serial(a, b); }
 NK_PUBLIC int nk_e4m3_order(nk_e4m3_t a, nk_e4m3_t b) { return nk_e4m3_order_serial(a, b); }
 NK_PUBLIC int nk_e5m2_order(nk_e5m2_t a, nk_e5m2_t b) { return nk_e5m2_order_serial(a, b); }
