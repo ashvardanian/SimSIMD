@@ -24,7 +24,8 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // `nk_partial_load_b16x16_serial_`
+#include "numkong/scalars/haswell.h" // `nk_f32_to_f16_haswell`
+#include "numkong/cast/serial.h"     // `nk_partial_load_b16x16_serial_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -36,16 +37,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-/** @brief Convert f32 scalar to f16 bit pattern using F16C. */
-NK_PUBLIC void nk_f32_to_f16_haswell(nk_f32_t const *from, nk_f16_t *to) {
-    *to = _mm_cvtsi128_si32(_mm_cvtps_ph(_mm_set_ss(*from), _MM_FROUND_TO_NEAREST_INT));
-}
-
-/** @brief Convert f16 bit pattern to f32 scalar using F16C. */
-NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *from, nk_f32_t *to) {
-    *to = _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(*from)));
-}
 
 #pragma region - Type Punned Loads and Stores
 

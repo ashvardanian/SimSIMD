@@ -42,7 +42,7 @@ fn build_simsimd() -> HashMap<String, bool> {
         .file("c/dispatch_i64.c")
         .file("c/dispatch_u64.c")
         // Special dispatch files
-        .file("c/dispatch_cast.c")
+        .file("c/dispatch_other.c")
         .include("include")
         .define("NK_NATIVE_F16", "0")
         .define("NK_NATIVE_BF16", "0")
@@ -212,7 +212,7 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=c/dispatch_u32.c");
     println!("cargo:rerun-if-changed=c/dispatch_i64.c");
     println!("cargo:rerun-if-changed=c/dispatch_u64.c");
-    println!("cargo:rerun-if-changed=c/dispatch_cast.c");
+    println!("cargo:rerun-if-changed=c/dispatch_other.c");
     println!("cargo:rerun-if-changed=c/dispatch.h");
     println!("cargo:rerun-if-changed=rust/numkong.rs");
     // Top-level headers

@@ -53,7 +53,8 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
-#include "numkong/reduce/serial.h" // Serial fallbacks
+#include "numkong/scalars/neon.h"  // `nk_f16_to_f32_neon`
+#include "numkong/reduce/serial.h" // `nk_reduce_moments_f32_serial`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -941,24 +942,6 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e3m2x4_neon_(float32x4_t f32x4) {
 }
 
 #pragma endregion - Vectorized Conversions
-
-#pragma region - Scalar Conversions
-
-/** @brief Convert f16 to f32 scalar using NEON vector conversion. */
-NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest) {
-    float16x4_t f16vec = vld1_dup_f16((nk_f16_for_arm_simd_t const *)src);
-    float32x4_t f32vec = vcvt_f32_f16(f16vec);
-    *dest = vgetq_lane_f32(f32vec, 0);
-}
-
-/** @brief Convert f32 to f16 scalar using NEON vector conversion. */
-NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest) {
-    float32x4_t f32vec = vdupq_n_f32(*src);
-    float16x4_t f16vec = vcvt_f16_f32(f32vec);
-    vst1_lane_f16((nk_f16_for_arm_simd_t *)dest, f16vec, 0);
-}
-
-#pragma endregion - Scalar Conversions
 
 #pragma region - Public API
 

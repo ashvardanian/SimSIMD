@@ -11,22 +11,23 @@
 #ifndef NK_NUMKONG_H
 #define NK_NUMKONG_H
 
-#include "numkong/capabilities.h" // Runtime detection
-#include "numkong/cast.h"         // Type Conversions
-#include "numkong/set.h"          // Hamming, Jaccard
-#include "numkong/curved.h"       // Mahalanobis, Bilinear Forms
-#include "numkong/dot.h"          // Inner (dot) product, and its conjugate
-#include "numkong/dots.h"         // GEMM-style MxN batched dot-products
-#include "numkong/each.h"         // Weighted Sum, Fused-Multiply-Add
-#include "numkong/geospatial.h"   // Haversine and Vincenty
-#include "numkong/mesh.h"         // RMSD, Kabsch, Umeyama
-#include "numkong/probability.h"  // Kullback-Leibler, Jensen-Shannon
-#include "numkong/reduce.h"       // Horizontal MinMax & Moments reductions
-#include "numkong/sets.h"         // Hamming & Jaccard distances for binary sets
-#include "numkong/sparse.h"       // Set Intersections and Sparse Dot Products
-#include "numkong/spatial.h"      // Euclidean, Angular
-#include "numkong/spatials.h"     // Batched Angular & Euclidean distances
-#include "numkong/trigonometry.h" // Sin, Cos, Atan
+#include "numkong/capabilities.h" // Runtime detection, like `nk_capabilities_x86_`
+#include "numkong/scalars.h"      // Scalar math: sqrt, rsqrt, fma, saturating, order, like `nk_f32_sqrt`
+#include "numkong/cast.h"         // Type conversions, like `nk_cast`
+#include "numkong/set.h"          // Hamming, Jaccard, like `nk_hamming_u1`
+#include "numkong/curved.h"       // Mahalanobis, Bilinear Forms, like `nk_bilinear_f64`
+#include "numkong/dot.h"          // Inner (dot) product and its conjugate, like `nk_dot_f32`
+#include "numkong/dots.h"         // GEMM-style MxN batched dot-products, like `nk_dots_packed_size_bf16`
+#include "numkong/each.h"         // Weighted Sum, Fused-Multiply-Add, like `nk_each_scale_f64`
+#include "numkong/geospatial.h"   // Haversine and Vincenty, like `nk_haversine_f64`
+#include "numkong/mesh.h"         // RMSD, Kabsch, Umeyama, like `nk_rmsd_f64`
+#include "numkong/probability.h"  // Kullback-Leibler, Jensen-Shannon, like `nk_kld_f16`
+#include "numkong/reduce.h"       // Horizontal MinMax & Moments reductions, like `nk_reduce_moments_f64`
+#include "numkong/sets.h"         // Hamming & Jaccard for binary sets, like `nk_hammings_packed_u1`
+#include "numkong/sparse.h"       // Set Intersections and Sparse Dot Products, like `nk_sparse_intersect_u16`
+#include "numkong/spatial.h"      // Euclidean, Angular, like `nk_euclidean_f64`
+#include "numkong/spatials.h"     // Batched Angular & Euclidean distances, like `nk_angulars_packed_f32`
+#include "numkong/trigonometry.h" // Sin, Cos, Atan, like `nk_each_sin_f64`
 
 #if defined(__cplusplus)
 extern "C" {

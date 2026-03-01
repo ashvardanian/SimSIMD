@@ -390,7 +390,7 @@ set(NK_DTYPE_SOURCES
     c/dispatch_f64c.c c/dispatch_f32c.c c/dispatch_f16c.c c/dispatch_bf16c.c
     c/dispatch_i16.c c/dispatch_u16.c c/dispatch_i32.c c/dispatch_u32.c
     c/dispatch_i64.c c/dispatch_u64.c
-    c/dispatch_cast.c
+    c/dispatch_other.c
 )
 
 # Build tests

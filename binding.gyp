@@ -15,7 +15,7 @@
                 "c/dispatch_u1.c",
                 "c/dispatch_e4m3.c",
                 "c/dispatch_e5m2.c",
-                "c/dispatch_cast.c",
+                "c/dispatch_other.c",
                 "c/dispatch_f64c.c",
                 "c/dispatch_f32c.c",
                 "c/dispatch_f16c.c",

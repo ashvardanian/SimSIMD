@@ -32,6 +32,7 @@
 #if NK_TARGET_V128RELAXED
 
 #include "numkong/types.h"
+#include "numkong/scalars/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/cast/serial.h"
 #include "numkong/cast/v128relaxed.h"
@@ -43,14 +44,6 @@ extern "C" {
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
 #endif
-
-NK_PUBLIC nk_f32_t nk_f32_sqrt_v128relaxed(nk_f32_t x) {
-    return wasm_f32x4_extract_lane(wasm_f32x4_sqrt(wasm_f32x4_splat(x)), 0);
-}
-
-NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x) {
-    return wasm_f64x2_extract_lane(wasm_f64x2_sqrt(wasm_f64x2_splat(x)), 0);
-}
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_v128relaxed_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
     // Edge case: both vectors have zero magnitude

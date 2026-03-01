@@ -438,37 +438,27 @@ typedef struct {
     nk_f64_t (*f64_rsqrt)(nk_f64_t);
     nk_f32_t (*f32_fma)(nk_f32_t, nk_f32_t, nk_f32_t);
     nk_f64_t (*f64_fma)(nk_f64_t, nk_f64_t, nk_f64_t);
-    // Scalar saturating arithmetic (10 types × 3 ops = 30 pointers)
+    // Scalar saturating arithmetic (10 types × 2 ops = 20 pointers)
     nk_u8_t (*u8_saturating_add)(nk_u8_t, nk_u8_t);
     nk_u8_t (*u8_saturating_mul)(nk_u8_t, nk_u8_t);
-    nk_u8_t (*u8_saturating_fma)(nk_u8_t, nk_u8_t, nk_u8_t);
     nk_i8_t (*i8_saturating_add)(nk_i8_t, nk_i8_t);
     nk_i8_t (*i8_saturating_mul)(nk_i8_t, nk_i8_t);
-    nk_i8_t (*i8_saturating_fma)(nk_i8_t, nk_i8_t, nk_i8_t);
     nk_u16_t (*u16_saturating_add)(nk_u16_t, nk_u16_t);
     nk_u16_t (*u16_saturating_mul)(nk_u16_t, nk_u16_t);
-    nk_u16_t (*u16_saturating_fma)(nk_u16_t, nk_u16_t, nk_u16_t);
     nk_i16_t (*i16_saturating_add)(nk_i16_t, nk_i16_t);
     nk_i16_t (*i16_saturating_mul)(nk_i16_t, nk_i16_t);
-    nk_i16_t (*i16_saturating_fma)(nk_i16_t, nk_i16_t, nk_i16_t);
     nk_u32_t (*u32_saturating_add)(nk_u32_t, nk_u32_t);
     nk_u32_t (*u32_saturating_mul)(nk_u32_t, nk_u32_t);
-    nk_u32_t (*u32_saturating_fma)(nk_u32_t, nk_u32_t, nk_u32_t);
     nk_i32_t (*i32_saturating_add)(nk_i32_t, nk_i32_t);
     nk_i32_t (*i32_saturating_mul)(nk_i32_t, nk_i32_t);
-    nk_i32_t (*i32_saturating_fma)(nk_i32_t, nk_i32_t, nk_i32_t);
     nk_u64_t (*u64_saturating_add)(nk_u64_t, nk_u64_t);
     nk_u64_t (*u64_saturating_mul)(nk_u64_t, nk_u64_t);
-    nk_u64_t (*u64_saturating_fma)(nk_u64_t, nk_u64_t, nk_u64_t);
     nk_i64_t (*i64_saturating_add)(nk_i64_t, nk_i64_t);
     nk_i64_t (*i64_saturating_mul)(nk_i64_t, nk_i64_t);
-    nk_i64_t (*i64_saturating_fma)(nk_i64_t, nk_i64_t, nk_i64_t);
     nk_i4x2_t (*i4x2_saturating_add)(nk_i4x2_t, nk_i4x2_t);
     nk_i4x2_t (*i4x2_saturating_mul)(nk_i4x2_t, nk_i4x2_t);
-    nk_i4x2_t (*i4x2_saturating_fma)(nk_i4x2_t, nk_i4x2_t, nk_i4x2_t);
     nk_u4x2_t (*u4x2_saturating_add)(nk_u4x2_t, nk_u4x2_t);
     nk_u4x2_t (*u4x2_saturating_mul)(nk_u4x2_t, nk_u4x2_t);
-    nk_u4x2_t (*u4x2_saturating_fma)(nk_u4x2_t, nk_u4x2_t, nk_u4x2_t);
     // Scalar ordering (6 types)
     int (*f16_order)(nk_f16_t, nk_f16_t);
     int (*bf16_order)(nk_bf16_t, nk_bf16_t);

@@ -27,8 +27,9 @@
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
-#include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
-#include "numkong/dot/rvv.h"  // `nk_dot_stable_sum_f64m1_rvv_`
+#include "numkong/scalars/rvv.h" // `nk_f32_rsqrt_rvv`
+#include "numkong/cast/rvv.h"    // `nk_e4m3m1_to_f32m4_rvv_`
+#include "numkong/dot/rvv.h"     // `nk_dot_stable_sum_f64m1_rvv_`
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
@@ -40,77 +41,6 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/**
- *  @brief  Computes `1/√x` using RVV's `vfrsqrt7` instruction with Newton-Raphson refinement.
- *
- *  vfrsqrt7: 7-bit mantissa precision (±2⁻⁷ relative error).
- *  Two Newton-Raphson iterations refine this to ~28 bits, sufficient for f32's 23-bit mantissa.
- *  Formula: y' = y × (1.5 − 0.5 × x × y × y)
- */
-NK_PUBLIC nk_f32_t nk_f32_rsqrt_rvv(nk_f32_t number) {
-    vfloat32m1_t x = __riscv_vfmv_s_f_f32m1(number, 1);
-    vfloat32m1_t y = __riscv_vfrsqrt7_v_f32m1(x, 1);
-    // Newton-Raphson: y = y * (1.5 - 0.5 * x * y * y)
-    vfloat32m1_t half = __riscv_vfmv_s_f_f32m1(0.5f, 1);
-    vfloat32m1_t three_half = __riscv_vfmv_s_f_f32m1(1.5f, 1);
-    vfloat32m1_t half_x = __riscv_vfmul_vv_f32m1(half, x, 1);
-    // Iteration 1
-    vfloat32m1_t y_sq = __riscv_vfmul_vv_f32m1(y, y, 1);
-    vfloat32m1_t half_x_y_sq = __riscv_vfmul_vv_f32m1(half_x, y_sq, 1);
-    vfloat32m1_t factor = __riscv_vfsub_vv_f32m1(three_half, half_x_y_sq, 1);
-    y = __riscv_vfmul_vv_f32m1(y, factor, 1);
-    // Iteration 2
-    y_sq = __riscv_vfmul_vv_f32m1(y, y, 1);
-    half_x_y_sq = __riscv_vfmul_vv_f32m1(half_x, y_sq, 1);
-    factor = __riscv_vfsub_vv_f32m1(three_half, half_x_y_sq, 1);
-    y = __riscv_vfmul_vv_f32m1(y, factor, 1);
-    return __riscv_vfmv_f_s_f32m1_f32(y);
-}
-
-/** @brief  Computes `√x` using RVV's IEEE-754 compliant `vfsqrt` instruction. */
-NK_PUBLIC nk_f32_t nk_f32_sqrt_rvv(nk_f32_t number) {
-    vfloat32m1_t x = __riscv_vfmv_s_f_f32m1(number, 1);
-    return __riscv_vfmv_f_s_f32m1_f32(__riscv_vfsqrt_v_f32m1(x, 1));
-}
-
-/**
- *  @brief  Computes `1/√x` for f64 using RVV's `vfrsqrt7` with Newton-Raphson refinement.
- *
- *  The `vfrsqrt7` instruction provides a ~7-bit accurate initial estimate.
- *  Three Newton-Raphson iterations refine this to ~56 bits, sufficient for f64's 52-bit mantissa.
- *  Formula: y' = y × (1.5 − 0.5 × x × y × y)
- */
-NK_PUBLIC nk_f64_t nk_f64_rsqrt_rvv(nk_f64_t number) {
-    vfloat64m1_t x = __riscv_vfmv_s_f_f64m1(number, 1);
-    vfloat64m1_t y = __riscv_vfrsqrt7_v_f64m1(x, 1);
-    // Newton-Raphson: y = y * (1.5 - 0.5 * x * y * y)
-    vfloat64m1_t half = __riscv_vfmv_s_f_f64m1(0.5, 1);
-    vfloat64m1_t three_half = __riscv_vfmv_s_f_f64m1(1.5, 1);
-    vfloat64m1_t half_x = __riscv_vfmul_vv_f64m1(half, x, 1);
-    // Iteration 1
-    vfloat64m1_t y_sq = __riscv_vfmul_vv_f64m1(y, y, 1);
-    vfloat64m1_t half_x_y_sq = __riscv_vfmul_vv_f64m1(half_x, y_sq, 1);
-    vfloat64m1_t factor = __riscv_vfsub_vv_f64m1(three_half, half_x_y_sq, 1);
-    y = __riscv_vfmul_vv_f64m1(y, factor, 1);
-    // Iteration 2
-    y_sq = __riscv_vfmul_vv_f64m1(y, y, 1);
-    half_x_y_sq = __riscv_vfmul_vv_f64m1(half_x, y_sq, 1);
-    factor = __riscv_vfsub_vv_f64m1(three_half, half_x_y_sq, 1);
-    y = __riscv_vfmul_vv_f64m1(y, factor, 1);
-    // Iteration 3
-    y_sq = __riscv_vfmul_vv_f64m1(y, y, 1);
-    half_x_y_sq = __riscv_vfmul_vv_f64m1(half_x, y_sq, 1);
-    factor = __riscv_vfsub_vv_f64m1(three_half, half_x_y_sq, 1);
-    y = __riscv_vfmul_vv_f64m1(y, factor, 1);
-    return __riscv_vfmv_f_s_f64m1_f64(y);
-}
-
-/** @brief  Computes `√x` for f64 using RVV's IEEE-754 compliant `vfsqrt` instruction. */
-NK_PUBLIC nk_f64_t nk_f64_sqrt_rvv(nk_f64_t number) {
-    vfloat64m1_t x = __riscv_vfmv_s_f_f64m1(number, 1);
-    return __riscv_vfmv_f_s_f64m1_f64(__riscv_vfsqrt_v_f64m1(x, 1));
-}
 
 /**
  *  @brief  Vectorized `1/√x` for f32 m1 register group using `vfrsqrt7` + 2 Newton-Raphson steps.

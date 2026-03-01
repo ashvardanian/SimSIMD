@@ -96,9 +96,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
 #endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
-        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_neonsdot, *c = nk_cap_neonsdot_k; return;
+        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_neonsdot, *c = nk_cap_neonsdot_k;
+        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_neonsdot, *c = nk_cap_neonsdot_k; return;
+        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_neonsdot, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif
@@ -118,9 +118,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
 #endif
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
-        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_icelake, *c = nk_cap_icelake_k; return;
-        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_icelake, *c = nk_cap_icelake_k; return;
-        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_icelake, *c = nk_cap_icelake_k; return;
+        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_icelake, *c = nk_cap_icelake_k;
+        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_icelake, *c = nk_cap_icelake_k; return;
+        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_icelake, *c = nk_cap_icelake_k; return;
         default: break;
         }
 #endif
@@ -175,9 +175,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_f16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_haswell, *c = nk_cap_haswell_k; return;
+        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_haswell, *c = nk_cap_haswell_k;
+        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_haswell, *c = nk_cap_haswell_k; return;
+        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -243,9 +243,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_serial, *c = nk_cap_serial_k; return;
+        // case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_serial, *c = nk_cap_serial_k;
+        // return; case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_serial, *c = nk_cap_serial_k; return;
+        // case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 
@@ -284,7 +284,7 @@ void nk_dispatch_f16_init_(nk_capability_t caps) {
     nk_dispatch_f16_find_(caps, nk_kernel_each_sin_k, (nk_kernel_punned_t *)&t->each_sin_f16, &used);
     nk_dispatch_f16_find_(caps, nk_kernel_each_cos_k, (nk_kernel_punned_t *)&t->each_cos_f16, &used);
     nk_dispatch_f16_find_(caps, nk_kernel_each_atan_k, (nk_kernel_punned_t *)&t->each_atan_f16, &used);
-    nk_dispatch_f16_find_(caps, nk_kernel_maxsim_packed_size_k, (nk_kernel_punned_t *)&t->maxsim_packed_size_f16, &used);
-    nk_dispatch_f16_find_(caps, nk_kernel_maxsim_pack_k, (nk_kernel_punned_t *)&t->maxsim_pack_f16, &used);
-    nk_dispatch_f16_find_(caps, nk_kernel_maxsim_packed_k, (nk_kernel_punned_t *)&t->maxsim_packed_f16, &used);
+    // nk_dispatch_f16_find_(caps, nk_kernel_maxsim_packed_size_k, (nk_kernel_punned_t *)&t->maxsim_packed_size_f16,
+    // &used); nk_dispatch_f16_find_(caps, nk_kernel_maxsim_pack_k, (nk_kernel_punned_t *)&t->maxsim_pack_f16, &used);
+    // nk_dispatch_f16_find_(caps, nk_kernel_maxsim_packed_k, (nk_kernel_punned_t *)&t->maxsim_packed_f16, &used);
 }

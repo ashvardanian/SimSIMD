@@ -54,17 +54,72 @@ NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, voi
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 
+/** @brief Scalar conversion from f16 to f32. */
+NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
+/** @brief Scalar conversion from bf16 to f32. */
+NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
+/** @brief Scalar conversion from e4m3 to f32. */
+NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
+/** @brief Scalar conversion from e5m2 to f32. */
+NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
+/** @brief Scalar conversion from e2m3 to f32. */
+NK_DYNAMIC void nk_e2m3_to_f32(nk_e2m3_t const *src, nk_f32_t *dest);
+/** @brief Scalar conversion from e3m2 to f32. */
+NK_DYNAMIC void nk_e3m2_to_f32(nk_e3m2_t const *src, nk_f32_t *dest);
+
+/** @brief Scalar conversion from f32 to f16. */
+NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
+/** @brief Scalar conversion from f32 to bf16. */
+NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
+/** @brief Scalar conversion from f32 to e4m3. */
+NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
+/** @brief Scalar conversion from f32 to e5m2. */
+NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
+/** @brief Scalar conversion from f32 to e2m3. */
+NK_DYNAMIC void nk_f32_to_e2m3(nk_f32_t const *src, nk_e2m3_t *dest);
+/** @brief Scalar conversion from f32 to e3m2. */
+NK_DYNAMIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest);
+
+/** @copydoc nk_f16_to_f32 */
+NK_PUBLIC void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_f16 */
+NK_PUBLIC void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest);
+/** @copydoc nk_bf16_to_f32 */
+NK_PUBLIC void nk_bf16_to_f32_serial(nk_bf16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_bf16 */
+NK_PUBLIC void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest);
+/** @copydoc nk_e4m3_to_f32 */
+NK_PUBLIC void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_e4m3 */
+NK_PUBLIC void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest);
+/** @copydoc nk_e5m2_to_f32 */
+NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_e5m2 */
+NK_PUBLIC void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest);
+/** @copydoc nk_e2m3_to_f32 */
+NK_PUBLIC void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_e2m3 */
+NK_PUBLIC void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest);
+/** @copydoc nk_e3m2_to_f32 */
+NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_e3m2 */
+NK_PUBLIC void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest);
+
 #if NK_TARGET_NEON
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_f16_to_f32 */
 NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_f16 */
 NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_f16_to_f32 */
 NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_f16 */
 NK_PUBLIC void nk_f32_to_f16_haswell(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_HASWELL
 
@@ -81,7 +136,9 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_f16_to_f32 */
 NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_f16 */
 NK_PUBLIC void nk_f32_to_f16_sapphire(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_SAPPHIRE
 
@@ -138,12 +195,6 @@ NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) {
 #endif
 }
 
-NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_serial(src, dest); }
-NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_serial(src, dest); }
-NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_serial(src, dest); }
-NK_PUBLIC void nk_e2m3_to_f32(nk_e2m3_t const *src, nk_f32_t *dest) { nk_e2m3_to_f32_serial(src, dest); }
-NK_PUBLIC void nk_e3m2_to_f32(nk_e3m2_t const *src, nk_f32_t *dest) { nk_e3m2_to_f32_serial(src, dest); }
-
 NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) {
 #if NK_TARGET_SAPPHIRE
     nk_f32_to_f16_sapphire(src, dest);
@@ -156,10 +207,15 @@ NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) {
 #endif
 }
 
+NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_serial(src, dest); }
+NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_serial(src, dest); }
+NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_serial(src, dest); }
+NK_PUBLIC void nk_e2m3_to_f32(nk_e2m3_t const *src, nk_f32_t *dest) { nk_e2m3_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_e2m3(nk_f32_t const *src, nk_e2m3_t *dest) { nk_f32_to_e2m3_serial(src, dest); }
+NK_PUBLIC void nk_e3m2_to_f32(nk_e3m2_t const *src, nk_f32_t *dest) { nk_e3m2_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest) { nk_f32_to_e3m2_serial(src, dest); }
 
 #endif // !NK_DYNAMIC_DISPATCH

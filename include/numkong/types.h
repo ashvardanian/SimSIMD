@@ -480,7 +480,7 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) __builtin_memcpy((destination_ptr), (source_ptr), count)
 #else
-#include <string.h> // fallback for exotic compilers
+#include <string.h> // `memcpy`
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) memcpy((destination_ptr), (source_ptr), count)
 #endif
 
@@ -1456,46 +1456,6 @@ NK_INTERNAL void nk_f64_dot2_(nk_f64_t *sum, nk_f64_t *compensation, nk_f64_t a,
     *compensation += sum_error + product_error;
 }
 
-/*  Saturating FMA: saturate(a * b + c).
- *  @sa std::add_sat (C++26), @sa Rust saturating_add / saturating_mul */
-NK_PUBLIC nk_u8_t nk_u8_saturating_fma_serial(nk_u8_t a, nk_u8_t b, nk_u8_t c) {
-    nk_u32_t result = (nk_u32_t)a * (nk_u32_t)b + (nk_u32_t)c;
-    return (result > 255u) ? (nk_u8_t)255u : (nk_u8_t)result;
-}
-NK_PUBLIC nk_u16_t nk_u16_saturating_fma_serial(nk_u16_t a, nk_u16_t b, nk_u16_t c) {
-    nk_u64_t result = (nk_u64_t)a * (nk_u64_t)b + (nk_u64_t)c;
-    return (result > 65535u) ? (nk_u16_t)65535u : (nk_u16_t)result;
-}
-NK_PUBLIC nk_u32_t nk_u32_saturating_fma_serial(nk_u32_t a, nk_u32_t b, nk_u32_t c) {
-    nk_u64_t product = (nk_u64_t)a * (nk_u64_t)b;
-    if (product > 4294967295u) return 4294967295u;
-    nk_u64_t result = product + (nk_u64_t)c;
-    return (result > 4294967295u) ? (nk_u32_t)4294967295u : (nk_u32_t)result;
-}
-NK_PUBLIC nk_u64_t nk_u64_saturating_fma_serial(nk_u64_t a, nk_u64_t b, nk_u64_t c) {
-    nk_u64_t product = nk_u64_saturating_mul_serial(a, b);
-    return nk_u64_saturating_add_serial(product, c);
-}
-NK_PUBLIC nk_i8_t nk_i8_saturating_fma_serial(nk_i8_t a, nk_i8_t b, nk_i8_t c) {
-    nk_i32_t result = (nk_i32_t)a * (nk_i32_t)b + (nk_i32_t)c;
-    return (result > 127) ? 127 : (result < -128 ? -128 : (nk_i8_t)result);
-}
-NK_PUBLIC nk_i16_t nk_i16_saturating_fma_serial(nk_i16_t a, nk_i16_t b, nk_i16_t c) {
-    nk_i64_t result = (nk_i64_t)a * (nk_i64_t)b + (nk_i64_t)c;
-    return (result > 32767) ? 32767 : (result < -32768 ? -32768 : (nk_i16_t)result);
-}
-NK_PUBLIC nk_i32_t nk_i32_saturating_fma_serial(nk_i32_t a, nk_i32_t b, nk_i32_t c) {
-    nk_i64_t product = (nk_i64_t)a * (nk_i64_t)b;
-    if (product > 2147483647ll) return 2147483647ll;
-    if (product < -2147483648ll) return -2147483648ll;
-    nk_i64_t result = product + (nk_i64_t)c;
-    return (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (nk_i32_t)result);
-}
-NK_PUBLIC nk_i64_t nk_i64_saturating_fma_serial(nk_i64_t a, nk_i64_t b, nk_i64_t c) {
-    nk_i64_t product = nk_i64_saturating_mul_serial(a, b);
-    return nk_i64_saturating_add_serial(product, c);
-}
-
 /*  i4x2/u4x2 saturating arithmetic: unpack nibbles, operate, repack. */
 NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_add_serial(nk_i4x2_t a, nk_i4x2_t b) {
     nk_i8_t lo = nk_i4x2_low_(a) + nk_i4x2_low_(b);
@@ -1525,86 +1485,6 @@ NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_mul_serial(nk_u4x2_t a, nk_u4x2_t b) {
     hi = (hi > 15) ? 15 : hi;
     return (nk_u4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
 }
-NK_PUBLIC nk_i4x2_t nk_i4x2_saturating_fma_serial(nk_i4x2_t a, nk_i4x2_t b, nk_i4x2_t c) {
-    nk_i8_t lo = nk_i4x2_low_(a) * nk_i4x2_low_(b) + nk_i4x2_low_(c);
-    nk_i8_t hi = nk_i4x2_high_(a) * nk_i4x2_high_(b) + nk_i4x2_high_(c);
-    lo = (lo > 7) ? 7 : (lo < -8 ? -8 : lo);
-    hi = (hi > 7) ? 7 : (hi < -8 ? -8 : hi);
-    return (nk_i4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
-}
-NK_PUBLIC nk_u4x2_t nk_u4x2_saturating_fma_serial(nk_u4x2_t a, nk_u4x2_t b, nk_u4x2_t c) {
-    nk_u8_t lo = nk_u4x2_low_(a) * nk_u4x2_low_(b) + nk_u4x2_low_(c);
-    nk_u8_t hi = nk_u4x2_high_(a) * nk_u4x2_high_(b) + nk_u4x2_high_(c);
-    lo = (lo > 15) ? 15 : lo;
-    hi = (hi > 15) ? 15 : hi;
-    return (nk_u4x2_t)((lo & 0x0F) | ((hi & 0x0F) << 4));
-}
-
-#if NK_DYNAMIC_DISPATCH
-NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_e2m3_to_f32(nk_e2m3_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_e3m2_to_f32(nk_e3m2_t const *src, nk_f32_t *dest);
-
-NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
-NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
-NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
-NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
-NK_DYNAMIC void nk_f32_to_e2m3(nk_f32_t const *src, nk_e2m3_t *dest);
-NK_DYNAMIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest);
-
-// Scalar math
-NK_DYNAMIC nk_f32_t nk_f32_sqrt(nk_f32_t x);
-NK_DYNAMIC nk_f64_t nk_f64_sqrt(nk_f64_t x);
-NK_DYNAMIC nk_f32_t nk_f32_rsqrt(nk_f32_t x);
-NK_DYNAMIC nk_f64_t nk_f64_rsqrt(nk_f64_t x);
-NK_DYNAMIC nk_f32_t nk_f32_fma(nk_f32_t a, nk_f32_t b, nk_f32_t c);
-NK_DYNAMIC nk_f64_t nk_f64_fma(nk_f64_t a, nk_f64_t b, nk_f64_t c);
-
-// Scalar saturating arithmetic
-NK_DYNAMIC nk_u8_t nk_u8_saturating_add(nk_u8_t a, nk_u8_t b);
-NK_DYNAMIC nk_i8_t nk_i8_saturating_add(nk_i8_t a, nk_i8_t b);
-NK_DYNAMIC nk_u16_t nk_u16_saturating_add(nk_u16_t a, nk_u16_t b);
-NK_DYNAMIC nk_i16_t nk_i16_saturating_add(nk_i16_t a, nk_i16_t b);
-NK_DYNAMIC nk_u32_t nk_u32_saturating_add(nk_u32_t a, nk_u32_t b);
-NK_DYNAMIC nk_i32_t nk_i32_saturating_add(nk_i32_t a, nk_i32_t b);
-NK_DYNAMIC nk_u64_t nk_u64_saturating_add(nk_u64_t a, nk_u64_t b);
-NK_DYNAMIC nk_i64_t nk_i64_saturating_add(nk_i64_t a, nk_i64_t b);
-NK_DYNAMIC nk_i4x2_t nk_i4x2_saturating_add(nk_i4x2_t a, nk_i4x2_t b);
-NK_DYNAMIC nk_u4x2_t nk_u4x2_saturating_add(nk_u4x2_t a, nk_u4x2_t b);
-
-NK_DYNAMIC nk_u8_t nk_u8_saturating_mul(nk_u8_t a, nk_u8_t b);
-NK_DYNAMIC nk_i8_t nk_i8_saturating_mul(nk_i8_t a, nk_i8_t b);
-NK_DYNAMIC nk_u16_t nk_u16_saturating_mul(nk_u16_t a, nk_u16_t b);
-NK_DYNAMIC nk_i16_t nk_i16_saturating_mul(nk_i16_t a, nk_i16_t b);
-NK_DYNAMIC nk_u32_t nk_u32_saturating_mul(nk_u32_t a, nk_u32_t b);
-NK_DYNAMIC nk_i32_t nk_i32_saturating_mul(nk_i32_t a, nk_i32_t b);
-NK_DYNAMIC nk_u64_t nk_u64_saturating_mul(nk_u64_t a, nk_u64_t b);
-NK_DYNAMIC nk_i64_t nk_i64_saturating_mul(nk_i64_t a, nk_i64_t b);
-NK_DYNAMIC nk_i4x2_t nk_i4x2_saturating_mul(nk_i4x2_t a, nk_i4x2_t b);
-NK_DYNAMIC nk_u4x2_t nk_u4x2_saturating_mul(nk_u4x2_t a, nk_u4x2_t b);
-
-NK_DYNAMIC nk_u8_t nk_u8_saturating_fma(nk_u8_t a, nk_u8_t b, nk_u8_t c);
-NK_DYNAMIC nk_i8_t nk_i8_saturating_fma(nk_i8_t a, nk_i8_t b, nk_i8_t c);
-NK_DYNAMIC nk_u16_t nk_u16_saturating_fma(nk_u16_t a, nk_u16_t b, nk_u16_t c);
-NK_DYNAMIC nk_i16_t nk_i16_saturating_fma(nk_i16_t a, nk_i16_t b, nk_i16_t c);
-NK_DYNAMIC nk_u32_t nk_u32_saturating_fma(nk_u32_t a, nk_u32_t b, nk_u32_t c);
-NK_DYNAMIC nk_i32_t nk_i32_saturating_fma(nk_i32_t a, nk_i32_t b, nk_i32_t c);
-NK_DYNAMIC nk_u64_t nk_u64_saturating_fma(nk_u64_t a, nk_u64_t b, nk_u64_t c);
-NK_DYNAMIC nk_i64_t nk_i64_saturating_fma(nk_i64_t a, nk_i64_t b, nk_i64_t c);
-NK_DYNAMIC nk_i4x2_t nk_i4x2_saturating_fma(nk_i4x2_t a, nk_i4x2_t b, nk_i4x2_t c);
-NK_DYNAMIC nk_u4x2_t nk_u4x2_saturating_fma(nk_u4x2_t a, nk_u4x2_t b, nk_u4x2_t c);
-
-// Scalar ordering
-NK_DYNAMIC int nk_f16_order(nk_f16_t a, nk_f16_t b);
-NK_DYNAMIC int nk_bf16_order(nk_bf16_t a, nk_bf16_t b);
-NK_DYNAMIC int nk_e4m3_order(nk_e4m3_t a, nk_e4m3_t b);
-NK_DYNAMIC int nk_e5m2_order(nk_e5m2_t a, nk_e5m2_t b);
-NK_DYNAMIC int nk_e2m3_order(nk_e2m3_t a, nk_e2m3_t b);
-NK_DYNAMIC int nk_e3m2_order(nk_e3m2_t a, nk_e3m2_t b);
-#endif
 
 #ifdef __cplusplus
 } // extern "C"

@@ -131,7 +131,7 @@ uv pip install -e .             # build locally from source
 
 # to run GIL-related tests in a free-threaded environment:
 uv pip install pytest pytest-repeat tabulate numpy scipy
-PYTHON_GIL=0 python -m pytest scripts/test.py -s -x -Wd -k gil
+PYTHON_GIL=0 python -m pytest test/test.py -s -x -Wd -k gil
 ```
 
 Here, `-s` will output the logs.

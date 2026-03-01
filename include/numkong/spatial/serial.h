@@ -10,6 +10,7 @@
 #define NK_SPATIAL_SERIAL_H
 
 #include "numkong/types.h"
+#include "numkong/scalars/serial.h" // `nk_f32_rsqrt_serial`
 #include "numkong/cast/serial.h"
 #include "numkong/dot/serial.h" // `nk_dot_f64x2_state_serial_t`
 
@@ -105,78 +106,6 @@ extern "C" {
             *result = unclipped_distance > 0 ? unclipped_distance : 0;                                            \
         }                                                                                                         \
     }
-
-/**
- *  @brief  Computes `1/√x` using the trick from Quake 3,
- *          with three Newton-Raphson iterations for full f32 accuracy.
- *
- *  The initial guess uses bit manipulation exploiting IEEE 754 float representation.
- *  The magic constant `0x5F375A86` is an improved version of Lomont's constant.
- *  Three Newton-Raphson refinement steps yield ~34.9 correct bits, exceeding the
- *  23-bit f32 mantissa for near-correctly-rounded results.
- *
- *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
- *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
- *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
- *  square root algorithm, and had less error. Carmack's Magic Number `rsqrt` had an average error
- *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
- *
- *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
- *  https://stackoverflow.com/a/41460625/2766161
- */
-NK_PUBLIC nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
-    nk_fui32_t conv;
-    conv.f = number;
-    conv.u = 0x5F375A86 - (conv.u >> 1);
-    nk_f32_t y = conv.f;
-    y = y * (1.5f - 0.5f * number * y * y);
-    y = y * (1.5f - 0.5f * number * y * y);
-    y = y * (1.5f - 0.5f * number * y * y);
-    return y;
-}
-
-/**
- *  @brief  Approximates `√x` using the identity `√x = x × rsqrt(x)`.
- *
- *  Leverages the fast inverse square root approximation and multiplies by `number`.
- *  Inherits the ~0.0005% maximum relative error from the underlying `rsqrt` implementation.
- *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
- *  though modern hardware provides optimized alternatives like SSE `sqrtss`.
- */
-NK_PUBLIC nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) { return number > 0 ? number * nk_f32_rsqrt_serial(number) : 0; }
-
-/**
- *  @brief  Computes `1/√x` for double precision using the Quake 3 trick,
- *          with four Newton-Raphson iterations for full f64 accuracy.
- *
- *  The initial guess uses bit manipulation exploiting IEEE 754 double representation.
- *  The magic constant `0x5FE6EB50C7B537A9` is the 64-bit analog of Lomont's constant,
- *  derived using the same methodology but adjusted for the 11-bit exponent and 52-bit
- *  mantissa of doubles. Four Newton-Raphson iterations yield ~69.3 correct bits,
- *  exceeding the 52-bit f64 mantissa for near-correctly-rounded results.
- *
- *  For modern x86, the `sqrtsd` instruction followed by division, or `_mm_cvtsd_f64(_mm_rsqrt14_sd(...))`
- *  with AVX-512, may be preferable for production use.
- */
-NK_PUBLIC nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
-    nk_fui64_t conv;
-    conv.f = number;
-    conv.u = 0x5FE6EB50C7B537A9ULL - (conv.u >> 1);
-    nk_f64_t y = conv.f;
-    y = y * (1.5 - 0.5 * number * y * y);
-    y = y * (1.5 - 0.5 * number * y * y);
-    y = y * (1.5 - 0.5 * number * y * y);
-    y = y * (1.5 - 0.5 * number * y * y);
-    return y;
-}
-
-/**
- *  @brief  Approximates `√x` for double precision using `√x = x × rsqrt(x)`.
- *
- *  Leverages the fast inverse square root approximation and multiplies by `number`.
- *  Inherits near-full f64 precision from the underlying `rsqrt` implementation.
- */
-NK_PUBLIC nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number > 0 ? number * nk_f64_rsqrt_serial(number) : 0; }
 
 nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)       // nk_angular_f64_serial
 nk_define_sqeuclidean_(f64, f64, f64, nk_assign_from_to_)                        // nk_sqeuclidean_f64_serial
