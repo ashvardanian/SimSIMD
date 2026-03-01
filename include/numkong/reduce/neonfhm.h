@@ -548,10 +548,10 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_neonfhm(                           //
                                       &left_max_value, &left_max_index);
         nk_reduce_minmax_e4m3_neonfhm(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e4m3_compare_(right_min_value, left_min_value) < 0)
+        if (nk_e4m3_order_serial(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e4m3_compare_(right_max_value, left_max_value) > 0)
+        if (nk_e4m3_order_serial(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }
@@ -719,10 +719,10 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_neonfhm(                           //
                                       &left_max_value, &left_max_index);
         nk_reduce_minmax_e5m2_neonfhm(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e5m2_compare_(right_min_value, left_min_value) < 0)
+        if (nk_e5m2_order_serial(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e5m2_compare_(right_max_value, left_max_value) > 0)
+        if (nk_e5m2_order_serial(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }

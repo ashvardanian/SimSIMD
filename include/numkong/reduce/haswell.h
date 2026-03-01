@@ -1067,8 +1067,8 @@ NK_PUBLIC void nk_reduce_moments_i8_haswell(                          //
         nk_reduce_moments_i8_haswell(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i8_haswell(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                      &right_sum, &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i8_haswell_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -1263,8 +1263,8 @@ NK_PUBLIC void nk_reduce_moments_u8_haswell(                          //
         nk_reduce_moments_u8_haswell(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u8_haswell(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                      &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u8_haswell_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -1459,8 +1459,8 @@ NK_PUBLIC void nk_reduce_moments_i16_haswell(                          //
         nk_reduce_moments_i16_haswell(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i16_haswell(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i16_haswell_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -1655,8 +1655,8 @@ NK_PUBLIC void nk_reduce_moments_u16_haswell(                          //
         nk_reduce_moments_u16_haswell(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u16_haswell(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u16_haswell_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -2044,8 +2044,8 @@ NK_PUBLIC void nk_reduce_moments_u32_haswell(                          //
         nk_reduce_moments_u32_haswell(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u32_haswell(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u32_haswell_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else nk_reduce_moments_u32_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
@@ -2203,10 +2203,9 @@ NK_INTERNAL void nk_reduce_moments_i64_haswell_contiguous_( //
     else sumsq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
     for (; idx < count; ++idx) {
         nk_i64_t val = data_ptr[idx];
-        nk_i64_t product;
-        nk_i64_smul_(&val, &val, &product);
+        nk_i64_t product = nk_i64_saturating_mul_serial(val, val);
         nk_u64_t unsigned_product = (nk_u64_t)product;
-        nk_u64_sadd_(&sumsq, &unsigned_product, &sumsq);
+        sumsq = nk_u64_saturating_add_serial(sumsq, unsigned_product);
         nk_u64_t before = sum_lower;
         sum_lower += (nk_u64_t)val;
         if (sum_lower < before) sum_upper++;
@@ -2336,10 +2335,9 @@ NK_INTERNAL void nk_reduce_moments_u64_haswell_contiguous_( //
     nk_u64_t sumsq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
     for (; idx < count; ++idx) {
         nk_u64_t val = data_ptr[idx];
-        nk_u64_t product;
-        nk_u64_smul_(&val, &val, &product);
-        nk_u64_sadd_(&sum, &val, &sum);
-        nk_u64_sadd_(&sumsq, &product, &sumsq);
+        nk_u64_t product = nk_u64_saturating_mul_serial(val, val);
+        sum = nk_u64_saturating_add_serial(sum, val);
+        sumsq = nk_u64_saturating_add_serial(sumsq, product);
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
 }
@@ -2632,10 +2630,10 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_haswell(                           //
                                       &left_max_index);
         nk_reduce_minmax_e4m3_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e4m3_compare_(right_min, left_min) < 0)
+        if (nk_e4m3_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e4m3_compare_(right_max, left_max) > 0)
+        if (nk_e4m3_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -2828,10 +2826,10 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_haswell(                           //
                                       &left_max_index);
         nk_reduce_minmax_e5m2_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e5m2_compare_(right_min, left_min) < 0)
+        if (nk_e5m2_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e5m2_compare_(right_max, left_max) > 0)
+        if (nk_e5m2_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3037,10 +3035,10 @@ NK_PUBLIC void nk_reduce_minmax_e2m3_haswell(                           //
                                       &left_max_index);
         nk_reduce_minmax_e2m3_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e2m3_compare_(right_min, left_min) < 0)
+        if (nk_e2m3_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e2m3_compare_(right_max, left_max) > 0)
+        if (nk_e2m3_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3225,10 +3223,10 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_haswell(                           //
                                       &left_max_index);
         nk_reduce_minmax_e3m2_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e3m2_compare_(right_min, left_min) < 0)
+        if (nk_e3m2_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e3m2_compare_(right_max, left_max) > 0)
+        if (nk_e3m2_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3409,10 +3407,10 @@ NK_PUBLIC void nk_reduce_minmax_bf16_haswell(                           //
                                       &left_max_index);
         nk_reduce_minmax_bf16_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_bf16_compare_(right_min, left_min) < 0)
+        if (nk_bf16_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_bf16_compare_(right_max, left_max) > 0)
+        if (nk_bf16_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3587,10 +3585,10 @@ NK_PUBLIC void nk_reduce_minmax_f16_haswell(                           //
                                      &left_max_index);
         nk_reduce_minmax_f16_haswell(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                      &right_min_index, &right_max, &right_max_index);
-        if (nk_f16_compare_(right_min, left_min) < 0)
+        if (nk_f16_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_f16_compare_(right_max, left_max) > 0)
+        if (nk_f16_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }

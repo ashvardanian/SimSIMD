@@ -100,8 +100,8 @@ NK_PUBLIC void nk_reduce_moments_i8_sierra(                       //
         nk_reduce_moments_i8_sierra(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i8_sierra(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                     &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i8_sierra_contiguous_(data, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -196,8 +196,8 @@ NK_PUBLIC void nk_reduce_moments_u8_sierra(                       //
         nk_reduce_moments_u8_sierra(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u8_sierra(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                     &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u8_sierra_contiguous_(data, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -282,8 +282,8 @@ NK_PUBLIC void nk_reduce_moments_i16_sierra(                       //
         nk_reduce_moments_i16_sierra(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i16_sierra(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                      &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i16_sierra_contiguous_(data, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)
@@ -377,8 +377,8 @@ NK_PUBLIC void nk_reduce_moments_u16_sierra(                       //
         nk_reduce_moments_u16_sierra(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u16_sierra(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                      &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u16_sierra_contiguous_(data, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 8)

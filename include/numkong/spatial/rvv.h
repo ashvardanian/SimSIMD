@@ -48,7 +48,7 @@ extern "C" {
  *  Two Newton-Raphson iterations refine this to ~28 bits, sufficient for f32's 23-bit mantissa.
  *  Formula: y' = y × (1.5 − 0.5 × x × y × y)
  */
-NK_INTERNAL nk_f32_t nk_f32_rsqrt_rvv(nk_f32_t number) {
+NK_PUBLIC nk_f32_t nk_f32_rsqrt_rvv(nk_f32_t number) {
     vfloat32m1_t x = __riscv_vfmv_s_f_f32m1(number, 1);
     vfloat32m1_t y = __riscv_vfrsqrt7_v_f32m1(x, 1);
     // Newton-Raphson: y = y * (1.5 - 0.5 * x * y * y)
@@ -69,7 +69,7 @@ NK_INTERNAL nk_f32_t nk_f32_rsqrt_rvv(nk_f32_t number) {
 }
 
 /** @brief  Computes `√x` using RVV's IEEE-754 compliant `vfsqrt` instruction. */
-NK_INTERNAL nk_f32_t nk_f32_sqrt_rvv(nk_f32_t number) {
+NK_PUBLIC nk_f32_t nk_f32_sqrt_rvv(nk_f32_t number) {
     vfloat32m1_t x = __riscv_vfmv_s_f_f32m1(number, 1);
     return __riscv_vfmv_f_s_f32m1_f32(__riscv_vfsqrt_v_f32m1(x, 1));
 }
@@ -81,7 +81,7 @@ NK_INTERNAL nk_f32_t nk_f32_sqrt_rvv(nk_f32_t number) {
  *  Three Newton-Raphson iterations refine this to ~56 bits, sufficient for f64's 52-bit mantissa.
  *  Formula: y' = y × (1.5 − 0.5 × x × y × y)
  */
-NK_INTERNAL nk_f64_t nk_f64_rsqrt_rvv(nk_f64_t number) {
+NK_PUBLIC nk_f64_t nk_f64_rsqrt_rvv(nk_f64_t number) {
     vfloat64m1_t x = __riscv_vfmv_s_f_f64m1(number, 1);
     vfloat64m1_t y = __riscv_vfrsqrt7_v_f64m1(x, 1);
     // Newton-Raphson: y = y * (1.5 - 0.5 * x * y * y)
@@ -107,7 +107,7 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_rvv(nk_f64_t number) {
 }
 
 /** @brief  Computes `√x` for f64 using RVV's IEEE-754 compliant `vfsqrt` instruction. */
-NK_INTERNAL nk_f64_t nk_f64_sqrt_rvv(nk_f64_t number) {
+NK_PUBLIC nk_f64_t nk_f64_sqrt_rvv(nk_f64_t number) {
     vfloat64m1_t x = __riscv_vfmv_s_f_f64m1(number, 1);
     return __riscv_vfmv_f_s_f64m1_f64(__riscv_vfsqrt_v_f64m1(x, 1));
 }

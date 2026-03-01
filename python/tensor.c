@@ -933,8 +933,12 @@ static void accum_add(void *accum, void const *partial, nk_dtype_t accum_dtype) 
     switch (accum_dtype) {
     case nk_f64_k: *(nk_f64_t *)accum += *(nk_f64_t const *)partial; break;
     case nk_f32_k: *(nk_f32_t *)accum += *(nk_f32_t const *)partial; break;
-    case nk_i64_k: nk_i64_sadd_((nk_i64_t const *)accum, (nk_i64_t const *)partial, (nk_i64_t *)accum); break;
-    case nk_u64_k: nk_u64_sadd_((nk_u64_t const *)accum, (nk_u64_t const *)partial, (nk_u64_t *)accum); break;
+    case nk_i64_k:
+        *(nk_i64_t *)accum = nk_i64_saturating_add_serial(*(nk_i64_t const *)accum, *(nk_i64_t const *)partial);
+        break;
+    case nk_u64_k:
+        *(nk_u64_t *)accum = nk_u64_saturating_add_serial(*(nk_u64_t const *)accum, *(nk_u64_t const *)partial);
+        break;
     default: break;
     }
 }
@@ -1012,12 +1016,12 @@ static int minmax_less_than(nk_scalar_buffer_t const *a, nk_scalar_buffer_t cons
     case nk_u16_k: return a->u16 < b->u16;
     case nk_i8_k: return a->i8 < b->i8;
     case nk_u8_k: return a->u8 < b->u8;
-    case nk_f16_k: return nk_f16_compare_(a->f16, b->f16) < 0;
-    case nk_bf16_k: return nk_bf16_compare_(a->bf16, b->bf16) < 0;
-    case nk_e4m3_k: return nk_e4m3_compare_(a->u8, b->u8) < 0;
-    case nk_e5m2_k: return nk_e5m2_compare_(a->u8, b->u8) < 0;
-    case nk_e2m3_k: return nk_e2m3_compare_(a->u8, b->u8) < 0;
-    case nk_e3m2_k: return nk_e3m2_compare_(a->u8, b->u8) < 0;
+    case nk_f16_k: return nk_f16_order_serial(a->f16, b->f16) < 0;
+    case nk_bf16_k: return nk_bf16_order_serial(a->bf16, b->bf16) < 0;
+    case nk_e4m3_k: return nk_e4m3_order_serial(a->u8, b->u8) < 0;
+    case nk_e5m2_k: return nk_e5m2_order_serial(a->u8, b->u8) < 0;
+    case nk_e2m3_k: return nk_e2m3_order_serial(a->u8, b->u8) < 0;
+    case nk_e3m2_k: return nk_e3m2_order_serial(a->u8, b->u8) < 0;
     default: return 0;
     }
 }

@@ -97,7 +97,8 @@ static Py_hash_t NkBFloat16Scalar_hash(NkBFloat16ScalarObject *self) {
 static PyObject *NkBFloat16Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkBFloat16Scalar_Type && Py_TYPE(other) == &NkBFloat16Scalar_Type)
         return richcompare_from_int(
-            nk_bf16_compare_(((NkBFloat16ScalarObject *)self)->value, ((NkBFloat16ScalarObject *)other)->value), op);
+            nk_bf16_order_serial(((NkBFloat16ScalarObject *)self)->value, ((NkBFloat16ScalarObject *)other)->value),
+            op);
 
     nk_fui64_t a_fui64, b_fui64;
     nk_f32_t temporary_f32;
@@ -326,7 +327,7 @@ static Py_hash_t NkFloat8E4M3Scalar_hash(NkFloat8E4M3ScalarObject *self) {
 static PyObject *NkFloat8E4M3Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkFloat8E4M3Scalar_Type && Py_TYPE(other) == &NkFloat8E4M3Scalar_Type)
         return richcompare_from_int(
-            nk_e4m3_compare_(((NkFloat8E4M3ScalarObject *)self)->value, ((NkFloat8E4M3ScalarObject *)other)->value),
+            nk_e4m3_order_serial(((NkFloat8E4M3ScalarObject *)self)->value, ((NkFloat8E4M3ScalarObject *)other)->value),
             op);
 
     nk_fui64_t a_fui64, b_fui64;
@@ -556,7 +557,7 @@ static Py_hash_t NkFloat8E5M2Scalar_hash(NkFloat8E5M2ScalarObject *self) {
 static PyObject *NkFloat8E5M2Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkFloat8E5M2Scalar_Type && Py_TYPE(other) == &NkFloat8E5M2Scalar_Type)
         return richcompare_from_int(
-            nk_e5m2_compare_(((NkFloat8E5M2ScalarObject *)self)->value, ((NkFloat8E5M2ScalarObject *)other)->value),
+            nk_e5m2_order_serial(((NkFloat8E5M2ScalarObject *)self)->value, ((NkFloat8E5M2ScalarObject *)other)->value),
             op);
 
     nk_fui64_t a_fui64, b_fui64;
@@ -786,7 +787,7 @@ static Py_hash_t NkFloat16Scalar_hash(NkFloat16ScalarObject *self) {
 static PyObject *NkFloat16Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkFloat16Scalar_Type && Py_TYPE(other) == &NkFloat16Scalar_Type)
         return richcompare_from_int(
-            nk_f16_compare_(((NkFloat16ScalarObject *)self)->value, ((NkFloat16ScalarObject *)other)->value), op);
+            nk_f16_order_serial(((NkFloat16ScalarObject *)self)->value, ((NkFloat16ScalarObject *)other)->value), op);
 
     nk_fui64_t a_fui64, b_fui64;
     nk_f32_t temporary_f32;
@@ -1015,7 +1016,7 @@ static Py_hash_t NkFloat6E2M3Scalar_hash(NkFloat6E2M3ScalarObject *self) {
 static PyObject *NkFloat6E2M3Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkFloat6E2M3Scalar_Type && Py_TYPE(other) == &NkFloat6E2M3Scalar_Type)
         return richcompare_from_int(
-            nk_e2m3_compare_(((NkFloat6E2M3ScalarObject *)self)->value, ((NkFloat6E2M3ScalarObject *)other)->value),
+            nk_e2m3_order_serial(((NkFloat6E2M3ScalarObject *)self)->value, ((NkFloat6E2M3ScalarObject *)other)->value),
             op);
 
     nk_fui64_t a_fui64, b_fui64;
@@ -1245,7 +1246,7 @@ static Py_hash_t NkFloat6E3M2Scalar_hash(NkFloat6E3M2ScalarObject *self) {
 static PyObject *NkFloat6E3M2Scalar_richcompare(PyObject *self, PyObject *other, int op) {
     if (Py_TYPE(self) == &NkFloat6E3M2Scalar_Type && Py_TYPE(other) == &NkFloat6E3M2Scalar_Type)
         return richcompare_from_int(
-            nk_e3m2_compare_(((NkFloat6E3M2ScalarObject *)self)->value, ((NkFloat6E3M2ScalarObject *)other)->value),
+            nk_e3m2_order_serial(((NkFloat6E3M2ScalarObject *)self)->value, ((NkFloat6E3M2ScalarObject *)other)->value),
             op);
 
     nk_fui64_t a_fui64, b_fui64;

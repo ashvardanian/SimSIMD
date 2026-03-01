@@ -44,11 +44,11 @@ extern "C" {
 #pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
 #endif
 
-NK_INTERNAL nk_f32_t nk_f32_sqrt_v128relaxed_(nk_f32_t x) {
+NK_PUBLIC nk_f32_t nk_f32_sqrt_v128relaxed(nk_f32_t x) {
     return wasm_f32x4_extract_lane(wasm_f32x4_sqrt(wasm_f32x4_splat(x)), 0);
 }
 
-NK_INTERNAL nk_f64_t nk_f64_sqrt_v128relaxed_(nk_f64_t x) {
+NK_PUBLIC nk_f64_t nk_f64_sqrt_v128relaxed(nk_f64_t x) {
     return wasm_f64x2_extract_lane(wasm_f64x2_sqrt(wasm_f64x2_splat(x)), 0);
 }
 
@@ -124,13 +124,13 @@ nk_sqeuclidean_f64_v128relaxed_cycle:
 NK_PUBLIC void nk_euclidean_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_f32_t l2sq;
     nk_sqeuclidean_f32_v128relaxed(a, b, n, &l2sq);
-    *result = nk_f32_sqrt_v128relaxed_(l2sq);
+    *result = nk_f32_sqrt_v128relaxed(l2sq);
 }
 
 NK_PUBLIC void nk_euclidean_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_f64_t l2sq;
     nk_sqeuclidean_f64_v128relaxed(a, b, n, &l2sq);
-    *result = nk_f64_sqrt_v128relaxed_(l2sq);
+    *result = nk_f64_sqrt_v128relaxed(l2sq);
 }
 
 NK_PUBLIC void nk_angular_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -244,7 +244,7 @@ nk_sqeuclidean_f16_v128relaxed_cycle:
 NK_PUBLIC void nk_euclidean_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_f32_t l2sq;
     nk_sqeuclidean_f16_v128relaxed(a, b, n, &l2sq);
-    *result = nk_f32_sqrt_v128relaxed_(l2sq);
+    *result = nk_f32_sqrt_v128relaxed(l2sq);
 }
 
 NK_PUBLIC void nk_angular_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -322,7 +322,7 @@ nk_sqeuclidean_bf16_v128relaxed_cycle:
 NK_PUBLIC void nk_euclidean_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_f32_t l2sq;
     nk_sqeuclidean_bf16_v128relaxed(a, b, n, &l2sq);
-    *result = nk_f32_sqrt_v128relaxed_(l2sq);
+    *result = nk_f32_sqrt_v128relaxed(l2sq);
 }
 
 NK_PUBLIC void nk_angular_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {

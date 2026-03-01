@@ -42,8 +42,8 @@ extern "C" {
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-NK_INTERNAL nk_f32_t nk_f32_sqrt_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
-NK_INTERNAL nk_f64_t nk_f64_sqrt_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
+NK_PUBLIC nk_f32_t nk_f32_sqrt_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
+NK_PUBLIC nk_f64_t nk_f64_sqrt_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
 
 /** @brief Reciprocal square root of 4 floats with Newton-Raphson refinement. */
 NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {

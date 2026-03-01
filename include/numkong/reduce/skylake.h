@@ -1068,8 +1068,8 @@ NK_PUBLIC void nk_reduce_moments_i8_skylake(                          //
         nk_reduce_moments_i8_skylake(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i8_skylake(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                      &right_sum, &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i8_skylake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 32)
@@ -1251,8 +1251,8 @@ NK_PUBLIC void nk_reduce_moments_u8_skylake(                          //
         nk_reduce_moments_u8_skylake(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u8_skylake(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                      &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u8_skylake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 32)
@@ -1429,8 +1429,8 @@ NK_PUBLIC void nk_reduce_moments_i16_skylake(                          //
         nk_reduce_moments_i16_skylake(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i16_skylake(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_i64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i16_skylake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 16)
@@ -1618,8 +1618,8 @@ NK_PUBLIC void nk_reduce_moments_u16_skylake(                          //
         nk_reduce_moments_u16_skylake(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u16_skylake(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u16_skylake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 16)
@@ -2037,8 +2037,8 @@ NK_PUBLIC void nk_reduce_moments_u32_skylake(                          //
         nk_reduce_moments_u32_skylake(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_u32_skylake(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_sum, &right_sumsq);
-        nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
-        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
+        *sum_ptr = nk_u64_saturating_add_serial(left_sum, right_sum);
+        *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u32_skylake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else nk_reduce_moments_u32_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
@@ -2687,10 +2687,10 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e4m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e4m3_compare_(right_min, left_min) < 0)
+        if (nk_e4m3_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e4m3_compare_(right_max, left_max) > 0)
+        if (nk_e4m3_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3003,10 +3003,10 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e5m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e5m2_compare_(right_min, left_min) < 0)
+        if (nk_e5m2_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e5m2_compare_(right_max, left_max) > 0)
+        if (nk_e5m2_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3104,10 +3104,10 @@ NK_PUBLIC void nk_reduce_minmax_e2m3_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e2m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e2m3_compare_(right_min, left_min) < 0)
+        if (nk_e2m3_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e2m3_compare_(right_max, left_max) > 0)
+        if (nk_e2m3_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3205,10 +3205,10 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e3m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e3m2_compare_(right_min, left_min) < 0)
+        if (nk_e3m2_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e3m2_compare_(right_max, left_max) > 0)
+        if (nk_e3m2_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3567,10 +3567,10 @@ NK_PUBLIC void nk_reduce_minmax_bf16_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_bf16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_bf16_compare_(right_min, left_min) < 0)
+        if (nk_bf16_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_bf16_compare_(right_max, left_max) > 0)
+        if (nk_bf16_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }
@@ -3743,10 +3743,10 @@ NK_PUBLIC void nk_reduce_minmax_f16_skylake(                           //
                                      &left_max_index);
         nk_reduce_minmax_f16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                      &right_min_index, &right_max, &right_max_index);
-        if (nk_f16_compare_(right_min, left_min) < 0)
+        if (nk_f16_order_serial(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_f16_compare_(right_max, left_max) > 0)
+        if (nk_f16_order_serial(right_max, left_max) > 0)
             *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
     }

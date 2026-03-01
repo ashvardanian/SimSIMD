@@ -153,7 +153,7 @@ NK_PUBLIC void nk_each_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_i16_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_i16_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
@@ -220,7 +220,7 @@ NK_PUBLIC void nk_each_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_u16_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_u16_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
@@ -287,7 +287,7 @@ NK_PUBLIC void nk_each_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_i32_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_i32_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -354,7 +354,7 @@ NK_PUBLIC void nk_each_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_u32_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_u32_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -421,7 +421,7 @@ NK_PUBLIC void nk_each_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_i64_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_i64_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -488,7 +488,7 @@ NK_PUBLIC void nk_each_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_siz
     }
 
     // The tail:
-    for (; i < n; ++i) nk_u64_sadd_(a + i, b + i, result + i);
+    for (; i < n; ++i) result[i] = nk_u64_saturating_add_serial(a[i], b[i]);
 }
 
 NK_PUBLIC void nk_each_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,

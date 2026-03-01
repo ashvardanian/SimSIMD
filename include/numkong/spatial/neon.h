@@ -46,8 +46,8 @@ extern "C" {
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
-NK_INTERNAL nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
-NK_INTERNAL nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+NK_PUBLIC nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
+NK_PUBLIC nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
 
 /**
  *  @brief Reciprocal square root of 4 floats with Newton-Raphson refinement.

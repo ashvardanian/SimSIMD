@@ -705,6 +705,7 @@ void nk_dispatch_u32_init_(nk_capability_t caps);
 void nk_dispatch_i64_init_(nk_capability_t caps);
 void nk_dispatch_u64_init_(nk_capability_t caps);
 void nk_dispatch_cast_init_(nk_capability_t caps);
+void nk_dispatch_math_init_(nk_capability_t caps);
 
 NK_INTERNAL void nk_dispatch_table_update_implementation_(nk_capability_t caps) {
     nk_dispatch_f64_init_(caps);
@@ -731,6 +732,7 @@ NK_INTERNAL void nk_dispatch_table_update_implementation_(nk_capability_t caps) 
     nk_dispatch_i64_init_(caps);
     nk_dispatch_u64_init_(caps);
     nk_dispatch_cast_init_(caps);
+    nk_dispatch_math_init_(caps);
 }
 
 NK_INTERNAL void nk_dispatch_table_init(void) { nk_dispatch_table_update_implementation_(nk_capabilities()); }

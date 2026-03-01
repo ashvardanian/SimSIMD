@@ -194,7 +194,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_contiguous_( //
     nk_f16_t best_min = min_values_f16x8.f16s[0];
     nk_size_t min_index = (nk_size_t)min_iteration_indices_u16x8.u16s[0] * 8 + 0;
     for (int i = 1; i < 8; ++i) {
-        if (nk_f16_compare_(min_values_f16x8.f16s[i], best_min) < 0) {
+        if (nk_f16_order_serial(min_values_f16x8.f16s[i], best_min) < 0) {
             best_min = min_values_f16x8.f16s[i];
             min_index = (nk_size_t)min_iteration_indices_u16x8.u16s[i] * 8 + (nk_size_t)i;
         }
@@ -203,7 +203,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_contiguous_( //
     nk_f16_t best_max = max_values_f16x8.f16s[0];
     nk_size_t max_index = (nk_size_t)max_iteration_indices_u16x8.u16s[0] * 8 + 0;
     for (int i = 1; i < 8; ++i) {
-        if (nk_f16_compare_(max_values_f16x8.f16s[i], best_max) > 0) {
+        if (nk_f16_order_serial(max_values_f16x8.f16s[i], best_max) > 0) {
             best_max = max_values_f16x8.f16s[i];
             max_index = (nk_size_t)max_iteration_indices_u16x8.u16s[i] * 8 + (nk_size_t)i;
         }
@@ -298,7 +298,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_strided_(                  //
     nk_f16_t best_min = min_values_f16x8.f16s[0];
     nk_size_t min_index = (nk_size_t)min_iteration_indices_u16x8.u16s[0] * 8 + 0;
     for (int i = 1; i < 8; ++i) {
-        if (nk_f16_compare_(min_values_f16x8.f16s[i], best_min) < 0) {
+        if (nk_f16_order_serial(min_values_f16x8.f16s[i], best_min) < 0) {
             best_min = min_values_f16x8.f16s[i];
             min_index = (nk_size_t)min_iteration_indices_u16x8.u16s[i] * 8 + (nk_size_t)i;
         }
@@ -307,7 +307,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_strided_(                  //
     nk_f16_t best_max = max_values_f16x8.f16s[0];
     nk_size_t max_index = (nk_size_t)max_iteration_indices_u16x8.u16s[0] * 8 + 0;
     for (int i = 1; i < 8; ++i) {
-        if (nk_f16_compare_(max_values_f16x8.f16s[i], best_max) > 0) {
+        if (nk_f16_order_serial(max_values_f16x8.f16s[i], best_max) > 0) {
             best_max = max_values_f16x8.f16s[i];
             max_index = (nk_size_t)max_iteration_indices_u16x8.u16s[i] * 8 + (nk_size_t)i;
         }
@@ -337,10 +337,10 @@ NK_PUBLIC void nk_reduce_minmax_f16_neonhalf(                          //
                                       &left_max_value, &left_max_index);
         nk_reduce_minmax_f16_neonhalf(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                       &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_f16_compare_(right_min_value, left_min_value) < 0)
+        if (nk_f16_order_serial(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_f16_compare_(right_max_value, left_max_value) > 0)
+        if (nk_f16_order_serial(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }

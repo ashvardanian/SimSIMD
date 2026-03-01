@@ -123,16 +123,16 @@ NK_PUBLIC nk_f32_t nk_f32_atan(nk_f32_t const input) {
 
     // Polynomial evaluation using FMA for improved precision
     nk_f32_t polynomial = coeff_1;
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_2);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_3);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_4);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_5);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_6);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_7);
-    polynomial = nk_f32_fma_(polynomial, value_squared, coeff_8);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_2);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_3);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_4);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_5);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_6);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_7);
+    polynomial = nk_f32_fma_serial(polynomial, value_squared, coeff_8);
 
     // Adjust for quadrant
-    nk_f32_t result = nk_f32_fma_(polynomial, value_cubed, value);
+    nk_f32_t result = nk_f32_fma_serial(polynomial, value_cubed, value);
     nk_f32_t const pi_half = 1.5707963267948966f; // π/2
     if ((quadrant & 1) != 0) result = pi_half - result;
     if ((quadrant & 2) != 0) result = -result;
@@ -222,18 +222,18 @@ NK_PUBLIC nk_f32_t nk_f32_atan2(nk_f32_t const y_input, nk_f32_t const x_input) 
 
     // Polynomial evaluation using FMA for improved precision
     nk_f32_t polynomial = coeff_1;
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_2);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_3);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_4);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_5);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_6);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_7);
-    polynomial = nk_f32_fma_(polynomial, ratio_squared, coeff_8);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_2);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_3);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_4);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_5);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_6);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_7);
+    polynomial = nk_f32_fma_serial(polynomial, ratio_squared, coeff_8);
 
     // Compute the result using FMA
     nk_f32_t const pi_half = 1.5707963267948966f; // π/2
-    nk_f32_t result = nk_f32_fma_(polynomial, ratio_cubed, ratio);
-    result = nk_f32_fma_((nk_f32_t)quadrant, pi_half, result); // quadrant * (π/2)
+    nk_f32_t result = nk_f32_fma_serial(polynomial, ratio_cubed, ratio);
+    result = nk_f32_fma_serial((nk_f32_t)quadrant, pi_half, result); // quadrant * (π/2)
 
     // Adjust sign
     nk_i32_t const negative_zero = 0x80000000;
@@ -284,19 +284,19 @@ NK_PUBLIC nk_f64_t nk_f64_sin(nk_f64_t const angle_radians) {
     nk_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms using FMA
-    nk_f64_t const poly_67 = nk_f64_fma_(angle_squared, coeff_7, coeff_6);
-    nk_f64_t const poly_45 = nk_f64_fma_(angle_squared, coeff_5, coeff_4);
-    nk_f64_t const poly_4567 = nk_f64_fma_(angle_quartic, poly_67, poly_45);
+    nk_f64_t const poly_67 = nk_f64_fma_serial(angle_squared, coeff_7, coeff_6);
+    nk_f64_t const poly_45 = nk_f64_fma_serial(angle_squared, coeff_5, coeff_4);
+    nk_f64_t const poly_4567 = nk_f64_fma_serial(angle_quartic, poly_67, poly_45);
 
     // Compute lower-degree polynomial terms using FMA
-    nk_f64_t const poly_23 = nk_f64_fma_(angle_squared, coeff_3, coeff_2);
-    nk_f64_t const poly_01 = nk_f64_fma_(angle_squared, coeff_1, coeff_0);
-    nk_f64_t const poly_0123 = nk_f64_fma_(angle_quartic, poly_23, poly_01);
+    nk_f64_t const poly_23 = nk_f64_fma_serial(angle_squared, coeff_3, coeff_2);
+    nk_f64_t const poly_01 = nk_f64_fma_serial(angle_squared, coeff_1, coeff_0);
+    nk_f64_t const poly_0123 = nk_f64_fma_serial(angle_quartic, poly_23, poly_01);
 
     // Combine polynomial terms using FMA
-    nk_f64_t result = nk_f64_fma_(angle_octic, poly_4567, poly_0123);
-    result = nk_f64_fma_(result, angle_squared, coeff_8);
-    result = nk_f64_fma_(result, angle_cubed, angle);
+    nk_f64_t result = nk_f64_fma_serial(angle_octic, poly_4567, poly_0123);
+    result = nk_f64_fma_serial(result, angle_squared, coeff_8);
+    result = nk_f64_fma_serial(result, angle_cubed, angle);
 
     // Handle the special case of negative zero input
     nk_fui64_t converter;
@@ -344,19 +344,19 @@ NK_PUBLIC nk_f64_t nk_f64_cos(nk_f64_t const angle_radians) {
     nk_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms using FMA
-    nk_f64_t const poly_67 = nk_f64_fma_(angle_squared, coeff_7, coeff_6);
-    nk_f64_t const poly_45 = nk_f64_fma_(angle_squared, coeff_5, coeff_4);
-    nk_f64_t const poly_4567 = nk_f64_fma_(angle_quartic, poly_67, poly_45);
+    nk_f64_t const poly_67 = nk_f64_fma_serial(angle_squared, coeff_7, coeff_6);
+    nk_f64_t const poly_45 = nk_f64_fma_serial(angle_squared, coeff_5, coeff_4);
+    nk_f64_t const poly_4567 = nk_f64_fma_serial(angle_quartic, poly_67, poly_45);
 
     // Compute lower-degree polynomial terms using FMA
-    nk_f64_t const poly_23 = nk_f64_fma_(angle_squared, coeff_3, coeff_2);
-    nk_f64_t const poly_01 = nk_f64_fma_(angle_squared, coeff_1, coeff_0);
-    nk_f64_t const poly_0123 = nk_f64_fma_(angle_quartic, poly_23, poly_01);
+    nk_f64_t const poly_23 = nk_f64_fma_serial(angle_squared, coeff_3, coeff_2);
+    nk_f64_t const poly_01 = nk_f64_fma_serial(angle_squared, coeff_1, coeff_0);
+    nk_f64_t const poly_0123 = nk_f64_fma_serial(angle_quartic, poly_23, poly_01);
 
     // Combine polynomial terms using FMA
-    nk_f64_t result = nk_f64_fma_(angle_octic, poly_4567, poly_0123);
-    result = nk_f64_fma_(result, angle_squared, coeff_8);
-    result = nk_f64_fma_(result, angle_cubed, angle);
+    nk_f64_t result = nk_f64_fma_serial(angle_octic, poly_4567, poly_0123);
+    result = nk_f64_fma_serial(result, angle_squared, coeff_8);
+    result = nk_f64_fma_serial(result, angle_cubed, angle);
     return result;
 }
 
@@ -398,28 +398,28 @@ NK_PUBLIC nk_f64_t nk_f64_atan(nk_f64_t const input) {
 
     // Polynomial evaluation using FMA for improved precision
     nk_f64_t polynomial = coeff_19;
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_18);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_17);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_16);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_15);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_14);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_13);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_12);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_11);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_10);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_9);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_8);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_7);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_6);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_5);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_4);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_3);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_2);
-    polynomial = nk_f64_fma_(polynomial, value_squared, coeff_1);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_18);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_17);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_16);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_15);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_14);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_13);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_12);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_11);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_10);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_9);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_8);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_7);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_6);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_5);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_4);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_3);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_2);
+    polynomial = nk_f64_fma_serial(polynomial, value_squared, coeff_1);
 
     // Adjust for quadrant
     nk_f64_t const pi_half = 1.5707963267948966; // π/2
-    nk_f64_t result = nk_f64_fma_(polynomial, value_cubed, value);
+    nk_f64_t result = nk_f64_fma_serial(polynomial, value_cubed, value);
     if (quadrant & 1) result = pi_half - result;
     if (quadrant & 2) result = -result;
 
@@ -480,24 +480,24 @@ NK_PUBLIC nk_f64_t nk_f64_atan2(nk_f64_t const y_input, nk_f64_t const x_input) 
     nk_f64_t const ratio_cubed = ratio * ratio_squared;
 
     // Polynomial evaluation using FMA for improved precision
-    nk_f64_t polynomial = nk_f64_fma_(coeff_19, ratio_squared, coeff_18);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_17);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_16);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_15);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_14);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_13);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_12);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_11);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_10);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_9);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_8);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_7);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_6);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_5);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_4);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_3);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_2);
-    polynomial = nk_f64_fma_(polynomial, ratio_squared, coeff_1);
+    nk_f64_t polynomial = nk_f64_fma_serial(coeff_19, ratio_squared, coeff_18);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_17);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_16);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_15);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_14);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_13);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_12);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_11);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_10);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_9);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_8);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_7);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_6);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_5);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_4);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_3);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_2);
+    polynomial = nk_f64_fma_serial(polynomial, ratio_squared, coeff_1);
 
     // Adjust for quadrant
     nk_f64_t const pi = 3.14159265358979323846;     // π
@@ -506,8 +506,8 @@ NK_PUBLIC nk_f64_t nk_f64_atan2(nk_f64_t const y_input, nk_f64_t const x_input) 
     nk_u64_t const negative_zero = 0x8000000000000000ull;
     nk_u64_t const positive_infinity = 0x7FF0000000000000ull;
     nk_u64_t const negative_infinity = 0xFFF0000000000000ull;
-    nk_f64_t result = nk_f64_fma_(polynomial, ratio_cubed, ratio);
-    result = nk_f64_fma_((nk_f64_t)quadrant, pi_half, result);
+    nk_f64_t result = nk_f64_fma_serial(polynomial, ratio_cubed, ratio);
+    result = nk_f64_fma_serial((nk_f64_t)quadrant, pi_half, result);
 
     // Special cases handling using bit reinterpretation
     int const x_is_inf = (x_bits.u == positive_infinity) | (x_bits.u == negative_infinity);
