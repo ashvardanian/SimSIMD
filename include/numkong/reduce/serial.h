@@ -14,6 +14,7 @@
 #define NK_REDUCE_SERIAL_H
 
 #include "numkong/types.h"
+#include "numkong/scalar/serial.h"
 #include "numkong/cast/serial.h"
 #include "numkong/scalar/serial.h"
 

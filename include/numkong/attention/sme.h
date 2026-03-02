@@ -562,7 +562,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
                 svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 15));
 
             // Pre-apply correction once before P×V
-            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16_u64(0u, valid_query_count * 2);
             nk_bf16_t const *values_block_lower = v_packed + kv_block_index * dim_tile_count * 8 * 32;
             nk_bf16_t const *values_block_upper = v_packed + (kv_block_index + 1) * dim_tile_count * 8 * 32;
 
@@ -940,7 +940,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
             }
             svfloat32_t corr_f32x = svdup_f32(corrections[0]);
             for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
+                svbool_t predicate_f32x = svwhilelt_b32_u64(d, head_dim);
                 svfloat32_t acc_f32x = svmul_f32_x(predicate_f32x, svld1_f32(predicate_f32x, output_accumulator + d),
                                                    corr_f32x);
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
@@ -958,7 +958,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
         }
         else {
             // Prefill Bc=16: extract P columns, pre-apply correction, add-after P×V
-            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16_u64(0u, valid_query_count * 2);
 
             svbfloat16_t probability_column_0_f32x = svreinterpret_bf16_f32(
                 svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
@@ -1165,7 +1165,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
         svfloat32_t inv_sum_f32x = svdup_f32(inv_sum);
 
         for (nk_size_t dim_offset = 0; dim_offset < head_dim; dim_offset += svcntw()) {
-            svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)dim_offset, (nk_u32_t)head_dim);
+            svbool_t predicate_f32x = svwhilelt_b32_u64(dim_offset, head_dim);
             svfloat32_t output_f32x = svmul_f32_x(
                 predicate_f32x,
                 svld1_f32(predicate_f32x, output_accumulator + query_index * head_dim_padded + dim_offset),
@@ -1173,7 +1173,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
             svbfloat16_t output_bf16x = nk_f32_to_bf16_sve_(predicate_f32x, output_f32x);
             nk_size_t store_count = (head_dim - dim_offset) < (nk_size_t)svcntw() ? (head_dim - dim_offset)
                                                                                   : (nk_size_t)svcntw();
-            svbool_t store_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)store_count);
+            svbool_t store_predicate_f16x = svwhilelt_b16_u64(0u, store_count);
             svst1_bf16(store_predicate_f16x, (bfloat16_t *)(output + query_index * head_dim + dim_offset),
                        output_bf16x);
         }
@@ -1381,7 +1381,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
                 svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 15));
 
             // Pre-apply correction once before P×V
-            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16_u64(0u, valid_query_count * 2);
             nk_f16_t const *values_block_lower = v_packed + kv_block_index * dim_tile_count * 8 * 32;
             nk_f16_t const *values_block_upper = v_packed + (kv_block_index + 1) * dim_tile_count * 8 * 32;
 
@@ -1760,7 +1760,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
             }
             svfloat32_t corr_f32x = svdup_f32(corrections[0]);
             for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
+                svbool_t predicate_f32x = svwhilelt_b32_u64(d, head_dim);
                 svfloat32_t acc_f32x = svmul_f32_x(predicate_f32x, svld1_f32(predicate_f32x, output_accumulator + d),
                                                    corr_f32x);
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
@@ -1778,7 +1778,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
         }
         else {
             // Prefill Bc=16: extract P columns, pre-apply correction, add-after P×V
-            svbool_t query_predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)(valid_query_count * 2));
+            svbool_t query_predicate_f16x = svwhilelt_b16_u64(0u, valid_query_count * 2);
 
             svfloat16_t probability_column_0_f32x = svreinterpret_f16_f32(
                 svread_ver_za32_f32_m(svdup_f32(0), predicate_all_f32x, 0, 0));
@@ -1988,7 +1988,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
     for (nk_size_t query_index = 0; query_index < valid_query_count; query_index++) {
         svfloat32_t inv_sum_f32x = svdup_f32(inv_sums[query_index]);
         for (nk_size_t dim_offset = 0; dim_offset < head_dim; dim_offset += svcntw()) {
-            svbool_t predicate_f32x = svwhilelt_b32((nk_u32_t)dim_offset, (nk_u32_t)head_dim);
+            svbool_t predicate_f32x = svwhilelt_b32_u64(dim_offset, head_dim);
             svfloat32_t output_f32x = svmul_f32_x(
                 predicate_f32x,
                 svld1_f32(predicate_f32x, output_accumulator + query_index * head_dim_padded + dim_offset),
@@ -1996,7 +1996,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
             svfloat16_t output_f16x = svcvt_f16_f32_x(predicate_f32x, output_f32x);
             nk_size_t store_count = (head_dim - dim_offset) < (nk_size_t)svcntw() ? (head_dim - dim_offset)
                                                                                   : (nk_size_t)svcntw();
-            svbool_t predicate_f16x = svwhilelt_b16(0u, (nk_u32_t)store_count);
+            svbool_t predicate_f16x = svwhilelt_b16_u64(0u, store_count);
             svst1_f16(predicate_f16x, (float16_t *)(output + query_index * head_dim + dim_offset), output_f16x);
         }
     }

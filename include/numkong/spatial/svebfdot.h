@@ -57,13 +57,13 @@ NK_PUBLIC void nk_sqeuclidean_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t c
     nk_u16_t const *a = (nk_u16_t const *)(a_enum);
     nk_u16_t const *b = (nk_u16_t const *)(b_enum);
     do {
-        svbool_t predicate_bf16x = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_bf16x = svwhilelt_b16_u64(i, n);
         svuint16_t a_u16x = svld1_u16(predicate_bf16x, a + i);
         svuint16_t b_u16x = svld1_u16(predicate_bf16x, b + i);
 
         // There is no `bf16` subtraction in SVE, so we need to convert to `u32` and shift.
-        svbool_t predicate_low_f32x = svwhilelt_b32((unsigned int)(i), (unsigned int)n);
-        svbool_t predicate_high_f32x = svwhilelt_b32((unsigned int)(i + svcnth() / 2), (unsigned int)n);
+        svbool_t predicate_low_f32x = svwhilelt_b32_u64(i, n);
+        svbool_t predicate_high_f32x = svwhilelt_b32_u64(i + svcnth() / 2, n);
         svfloat32_t a_low_f32x = svreinterpret_f32_u32(svlsl_n_u32_x(predicate_low_f32x, svunpklo_u32(a_u16x), 16));
         svfloat32_t a_high_f32x = svreinterpret_f32_u32(svlsl_n_u32_x(predicate_high_f32x, svunpkhi_u32(a_u16x), 16));
         svfloat32_t b_low_f32x = svreinterpret_f32_u32(svlsl_n_u32_x(predicate_low_f32x, svunpklo_u32(b_u16x), 16));
@@ -92,7 +92,7 @@ NK_PUBLIC void nk_angular_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t const
     nk_bf16_for_arm_simd_t const *a = (nk_bf16_for_arm_simd_t const *)(a_enum);
     nk_bf16_for_arm_simd_t const *b = (nk_bf16_for_arm_simd_t const *)(b_enum);
     do {
-        svbool_t predicate_bf16x = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_bf16x = svwhilelt_b16_u64(i, n);
         svbfloat16_t a_bf16x = svld1_bf16(predicate_bf16x, a + i);
         svbfloat16_t b_bf16x = svld1_bf16(predicate_bf16x, b + i);
         ab_f32x = svbfdot_f32(ab_f32x, a_bf16x, b_bf16x);

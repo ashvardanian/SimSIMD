@@ -72,7 +72,7 @@ extern "C" {
  *  Uses TwoProd (svneg+svnmls) and TwoSum error-free transformations.
  */
 NK_INTERNAL void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_t *sum, svfloat64_t *comp,
-                                             svfloat64_t a_f64x, svfloat64_t b_f64x) {
+                                             svfloat64_t a_f64x, svfloat64_t b_f64x) __arm_streaming_compatible {
     svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
     svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                  svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
@@ -100,13 +100,13 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32_smef64_strea
 
     for (nk_size_t row = 0; row < n; row += tile_dimension) {
         nk_size_t rows_remaining = (row + tile_dimension <= n) ? tile_dimension : (n - row);
-        svbool_t row_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)rows_remaining);
+        svbool_t row_predicate_f64x = svwhilelt_b64_u64(0u, rows_remaining);
 
         svzero_mask_za(nk_sme_zero_za64_tile_1_);
 
         for (nk_size_t j = 0; j < n; j += tile_dimension) {
             nk_size_t batch_size = (j + tile_dimension <= n) ? tile_dimension : (n - j);
-            svbool_t batch_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)batch_size);
+            svbool_t batch_predicate_f64x = svwhilelt_b64_u64(0u, batch_size);
 
             svzero_mask_za(nk_sme_zero_za64_tile_0_);
             for (nk_size_t r = 0; r < rows_remaining; r++) {
@@ -149,13 +149,13 @@ __arm_locally_streaming __arm_new("za") static inline nk_f64_t
 
     for (nk_size_t row = 0; row < n; row += tile_dimension) {
         nk_size_t rows_remaining = (row + tile_dimension <= n) ? tile_dimension : (n - row);
-        svbool_t row_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)rows_remaining);
+        svbool_t row_predicate_f64x = svwhilelt_b64_u64(0u, rows_remaining);
 
         svzero_mask_za(nk_sme_zero_za64_tile_1_);
 
         for (nk_size_t j = 0; j < n; j += tile_dimension) {
             nk_size_t batch_size = (j + tile_dimension <= n) ? tile_dimension : (n - j);
-            svbool_t batch_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)batch_size);
+            svbool_t batch_predicate_f64x = svwhilelt_b64_u64(0u, batch_size);
 
             svzero_mask_za(nk_sme_zero_za64_tile_0_);
             for (nk_size_t r = 0; r < rows_remaining; r++) {
@@ -348,15 +348,15 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
 
     for (nk_size_t row = 0; row < n; row += tile_dimension) {
         nk_size_t rows_remaining = (row + tile_dimension <= n) ? tile_dimension : (n - row);
-        svbool_t row_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)rows_remaining);
+        svbool_t row_predicate_f64x = svwhilelt_b64_u64(0u, rows_remaining);
 
         svzero_mask_za(nk_sme_zero_za64_tile_1_);
         svzero_mask_za(nk_sme_zero_za64_tile_2_);
 
         for (nk_size_t j = 0; j < n; j += tile_dimension) {
             nk_size_t batch_size = (j + tile_dimension <= n) ? tile_dimension : (n - j);
-            svbool_t batch_predicate_f64x = svwhilelt_b64((uint64_t)0, (uint64_t)batch_size);
-            svbool_t batch_predicate_f32x = svwhilelt_b32((uint64_t)0, (uint64_t)(batch_size + batch_size));
+            svbool_t batch_predicate_f64x = svwhilelt_b64_u64(0u, batch_size);
+            svbool_t batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size + batch_size);
 
             // Pass 1: Stage C_real into ZA0
             svzero_mask_za(nk_sme_zero_za64_tile_0_);
@@ -397,7 +397,7 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
         svfloat64_t v_im_f64x = svread_ver_za64_f64_m(svdup_f64(0.0), row_predicate_f64x, 2, 0);
 
         // Deinterleave a[row:row+tile]
-        svbool_t row_predicate_f32x = svwhilelt_b32((uint64_t)0, (uint64_t)(rows_remaining + rows_remaining));
+        svbool_t row_predicate_f32x = svwhilelt_b32_u64(0u, rows_remaining + rows_remaining);
         svfloat32_t a_f32x = svld1_f32(row_predicate_f32x, (nk_f32_t const *)a_pairs + row * 2);
         svfloat64_t a_re_f64x = svcvt_f64_f32_x(row_predicate_f64x, svtrn1_f32(a_f32x, a_f32x));
         svfloat64_t a_im_f64x = svcvt_f64_f32_x(row_predicate_f64x, svtrn2_f32(a_f32x, a_f32x));

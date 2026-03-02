@@ -97,7 +97,7 @@ NK_INTERNAL nk_u32_t nk_sets_reduce_sumsq_u1_streaming_(nk_u1x8_t const *data, n
     svuint32_t acc_u32x = svdup_u32(0);
     svuint8_t const ones_u8x = svdup_u8(1);
     for (nk_size_t offset = 0; offset < n_bytes; offset += svcntb()) {
-        svbool_t predicate_u8x = svwhilelt_b8((nk_u32_t)offset, (nk_u32_t)n_bytes);
+        svbool_t predicate_u8x = svwhilelt_b8_u64(offset, n_bytes);
         acc_u32x = svdot_u32(acc_u32x, svcnt_u8_z(predicate_u8x, svld1_u8(predicate_u8x, data + offset)), ones_u8x);
     }
     return (nk_u32_t)svaddv_u32(svptrue_b32(), acc_u32x);
@@ -218,7 +218,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
         nk_size_t const row_start_a = row_tile_a * tile_dim;
         nk_size_t const rows_a_remaining = (row_start_a + tile_dim <= row_count_a) ? tile_dim
                                                                                    : (row_count_a - row_start_a);
-        svbool_t const row_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_a_remaining);
+        svbool_t const row_predicate_u32x = svwhilelt_b32_u64(0u, rows_a_remaining);
 
         // Fast path: 3 B column tiles using ZA1-ZA3 (ZA0.S = staging)
         nk_size_t row_tile_b = 0;
@@ -235,7 +235,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally as u32 words
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
@@ -285,7 +285,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
             nk_size_t const row_start_b = row_tile_b * tile_dim;
             nk_size_t const rows_b_remaining = (row_start_b + tile_dim <= row_count_b) ? tile_dim
                                                                                        : (row_count_b - row_start_b);
-            svbool_t const column_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_b_remaining);
+            svbool_t const column_predicate_u32x = svwhilelt_b32_u64(0u, rows_b_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -299,7 +299,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
@@ -365,7 +365,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
         nk_size_t const rows_remaining = (row_tile_start + tile_dim <= row_end) ? tile_dim : (row_end - row_tile_start);
         nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
                                                                                       : (n_vectors - row_tile_start);
-        svbool_t const row_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_clamped);
+        svbool_t const row_predicate_u32x = svwhilelt_b32_u64(0u, rows_clamped);
 
         nk_size_t column_tile_index = 0;
 
@@ -383,7 +383,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
 
                 // Load A rows into ZA0 horizontally
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
@@ -468,7 +468,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
             nk_size_t const col_tile_start = column_tile_index * tile_dim;
             nk_size_t const cols_remaining = (col_tile_start + tile_dim <= n_vectors) ? tile_dim
                                                                                       : (n_vectors - col_tile_start);
-            svbool_t const column_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)cols_remaining);
+            svbool_t const column_predicate_u32x = svwhilelt_b32_u64(0u, cols_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -481,7 +481,7 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0 horizontally
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
@@ -587,7 +587,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
         nk_size_t const row_start_a = row_tile_a * tile_dim;
         nk_size_t const rows_a_remaining = (row_start_a + tile_dim <= row_count_a) ? tile_dim
                                                                                    : (row_count_a - row_start_a);
-        svbool_t const row_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_a_remaining);
+        svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_a_remaining);
 
         // Compute A tile norms using streaming SVE popcount
         NK_ALIGN64 nk_f32_t a_tile_norms[16];
@@ -611,7 +611,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally as u32 words
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
@@ -711,7 +711,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
             nk_size_t const row_start_b = row_tile_b * tile_dim;
             nk_size_t const rows_b_remaining = (row_start_b + tile_dim <= row_count_b) ? tile_dim
                                                                                        : (row_count_b - row_start_b);
-            svbool_t const column_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_b_remaining);
+            svbool_t const column_predicate_f32x = svwhilelt_b32_u64(0u, rows_b_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -725,7 +725,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
@@ -808,7 +808,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
         nk_size_t const rows_remaining = (row_tile_start + tile_dim <= row_end) ? tile_dim : (row_end - row_tile_start);
         nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
                                                                                       : (n_vectors - row_tile_start);
-        svbool_t const row_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_clamped);
+        svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
         // Compute A tile norms
         NK_ALIGN64 nk_f32_t a_tile_norms[16];
@@ -835,7 +835,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
 
                 // Load A rows into ZA0 horizontally
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
@@ -994,7 +994,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
             nk_size_t const col_tile_start = column_tile_index * tile_dim;
             nk_size_t const cols_remaining = (col_tile_start + tile_dim <= n_vectors) ? tile_dim
                                                                                       : (n_vectors - col_tile_start);
-            svbool_t const column_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)cols_remaining);
+            svbool_t const column_predicate_f32x = svwhilelt_b32_u64(0u, cols_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -1007,7 +1007,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_f32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0 horizontally
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {

@@ -52,9 +52,9 @@ NK_PUBLIC void nk_sqeuclidean_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
     nk_f16_for_arm_simd_t const *b = (nk_f16_for_arm_simd_t const *)(b_enum);
     do {
-        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
-        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
+        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
+        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16_u64(i, n), a + i);
+        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16_u64(i, n), b + i);
         svfloat32_t a_f32x = svcvt_f32_f16_x(predicate_f32x, a_f16x);
         svfloat32_t b_f32x = svcvt_f32_f16_x(predicate_f32x, b_f16x);
         svfloat32_t diff_f32x = svsub_f32_x(predicate_f32x, a_f32x, b_f32x);
@@ -77,9 +77,9 @@ NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
     nk_f16_for_arm_simd_t const *b = (nk_f16_for_arm_simd_t const *)(b_enum);
     do {
-        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
-        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
+        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
+        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16_u64(i, n), a + i);
+        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16_u64(i, n), b + i);
         svfloat32_t a_f32x = svcvt_f32_f16_x(predicate_f32x, a_f16x);
         svfloat32_t b_f32x = svcvt_f32_f16_x(predicate_f32x, b_f16x);
         ab_f32x = svmla_f32_x(predicate_f32x, ab_f32x, a_f32x, b_f32x);
