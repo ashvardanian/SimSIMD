@@ -333,7 +333,7 @@ struct f32_t {
     inline f32_t clamp(f32_t lo, f32_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f32_t sadd(f32_t o) const noexcept {
+    constexpr f32_t saturating_add(f32_t o) const noexcept {
         float result = raw_ + o.raw_;
         if (result == std::numeric_limits<float>::infinity()) return finite_max();
         if (result == -std::numeric_limits<float>::infinity()) return finite_min();
@@ -595,7 +595,7 @@ struct f64_t {
     inline f64_t clamp(f64_t lo, f64_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f64_t sadd(f64_t o) const noexcept {
+    constexpr f64_t saturating_add(f64_t o) const noexcept {
         double result = raw_ + o.raw_;
         if (result == std::numeric_limits<double>::infinity()) return finite_max();
         if (result == -std::numeric_limits<double>::infinity()) return finite_min();
@@ -728,7 +728,9 @@ struct f32c_t {
     inline f32c_t &operator*=(f32c_t o) noexcept { return *this = *this * o; }
     inline f32c_t &operator/=(f32c_t o) noexcept { return *this = *this / o; }
 
-    constexpr f32c_t sadd(f32c_t o) const noexcept { return f32c_t(real().sadd(o.real()), imag().sadd(o.imag())); }
+    constexpr f32c_t saturating_add(f32c_t o) const noexcept {
+        return f32c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
+    }
 
     constexpr f32c_t operator*(f32_t s) const noexcept { return f32c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f32c_t operator/(f32_t s) const noexcept { return f32c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -976,7 +978,9 @@ struct f64c_t {
     inline f64c_t &operator*=(f64c_t o) noexcept { return *this = *this * o; }
     inline f64c_t &operator/=(f64c_t o) noexcept { return *this = *this / o; }
 
-    constexpr f64c_t sadd(f64c_t o) const noexcept { return f64c_t(real().sadd(o.real()), imag().sadd(o.imag())); }
+    constexpr f64c_t saturating_add(f64c_t o) const noexcept {
+        return f64c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
+    }
 
     constexpr f64c_t operator*(f64_t s) const noexcept { return f64c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f64c_t operator/(f64_t s) const noexcept { return f64c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -1342,7 +1346,7 @@ struct f16_t {
     inline f16_t clamp(f16_t lo, f16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline f16_t sadd(f16_t o) const noexcept {
+    inline f16_t saturating_add(f16_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -1592,7 +1596,7 @@ struct bf16_t {
     inline bf16_t clamp(bf16_t lo, bf16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline bf16_t sadd(bf16_t o) const noexcept {
+    inline bf16_t saturating_add(bf16_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2013,7 +2017,7 @@ struct e4m3_t {
     inline e4m3_t clamp(e4m3_t lo, e4m3_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline e4m3_t sadd(e4m3_t o) const noexcept {
+    inline e4m3_t saturating_add(e4m3_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2229,7 +2233,7 @@ struct e5m2_t {
     inline e5m2_t clamp(e5m2_t lo, e5m2_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
-    inline e5m2_t sadd(e5m2_t o) const noexcept {
+    inline e5m2_t saturating_add(e5m2_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2408,7 +2412,7 @@ struct e2m3_t {
     inline e2m3_t max(e2m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e2m3_t clamp(e2m3_t lo, e2m3_t hi) const noexcept { return max(lo).min(hi); }
 
-    inline e2m3_t sadd(e2m3_t o) const noexcept {
+    inline e2m3_t saturating_add(e2m3_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2586,7 +2590,7 @@ struct e3m2_t {
     inline e3m2_t max(e3m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e3m2_t clamp(e3m2_t lo, e3m2_t hi) const noexcept { return max(lo).min(hi); }
 
-    inline e3m2_t sadd(e3m2_t o) const noexcept {
+    inline e3m2_t saturating_add(e3m2_t o) const noexcept {
         float result = to_f32() + o.to_f32();
         if (result >= finite_max().to_f32()) return finite_max();
         if (result <= finite_min().to_f32()) return finite_min();
@@ -2736,7 +2740,7 @@ struct f118_t {
     }
 
     /** @brief Saturating addition - clamps to max finite value instead of infinity. */
-    constexpr f118_t sadd(f118_t o) const noexcept {
+    constexpr f118_t saturating_add(f118_t o) const noexcept {
         f118_t result = *this + o;
         if (result.is_infinite()) return result.high_ > 0 ? finite_max() : finite_min();
         return result;
@@ -2750,7 +2754,7 @@ struct f118_t {
     }
 
     /** @brief Saturating multiplication - forwards to operator* (no saturation semantics for double-double). */
-    constexpr f118_t smul(f118_t o) const noexcept { return *this * o; }
+    constexpr f118_t saturating_mul(f118_t o) const noexcept { return *this * o; }
 
     /** @brief Exact equality (both high_ and low_ must match). */
     constexpr bool operator==(f118_t const &o) const noexcept { return high_ == o.high_ && low_ == o.low_; }
@@ -3662,7 +3666,7 @@ struct i8_t {
     constexpr i8_t max(i8_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i8_t clamp(i8_t lo, i8_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i8_t sadd(i8_t o) const noexcept {
+    constexpr i8_t saturating_add(i8_t o) const noexcept {
         nk_i32_t result = nk_i32_t(raw_) + nk_i32_t(o.raw_);
         if (result > NK_I8_MAX) return i8_t::finite_max();
         if (result < NK_I8_MIN) return i8_t::finite_min();
@@ -3828,7 +3832,7 @@ struct u8_t {
     constexpr u8_t max(u8_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u8_t clamp(u8_t lo, u8_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u8_t sadd(u8_t o) const noexcept {
+    constexpr u8_t saturating_add(u8_t o) const noexcept {
         nk_u32_t result = nk_u32_t(raw_) + nk_u32_t(o.raw_);
         return result > NK_U8_MAX ? u8_t::finite_max() : u8_t {static_cast<raw_t>(result)};
     }
@@ -3976,7 +3980,7 @@ struct i32_t {
     constexpr i32_t max(i32_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i32_t clamp(i32_t lo, i32_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i32_t sadd(i32_t o) const noexcept {
+    constexpr i32_t saturating_add(i32_t o) const noexcept {
         nk_i64_t result = nk_i64_t(raw_) + nk_i64_t(o.raw_);
         if (result > NK_I32_MAX) return i32_t::finite_max();
         if (result < NK_I32_MIN) return i32_t::finite_min();
@@ -4120,7 +4124,7 @@ struct u32_t {
     constexpr u32_t max(u32_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u32_t clamp(u32_t lo, u32_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u32_t sadd(u32_t o) const noexcept {
+    constexpr u32_t saturating_add(u32_t o) const noexcept {
         nk_u64_t result = nk_u64_t(raw_) + nk_u64_t(o.raw_);
         return result > NK_U32_MAX ? u32_t::finite_max() : u32_t {static_cast<raw_t>(result)};
     }
@@ -4267,7 +4271,7 @@ struct i64_t {
     constexpr i64_t max(i64_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i64_t clamp(i64_t lo, i64_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i64_t sadd(i64_t o) const noexcept {
+    constexpr i64_t saturating_add(i64_t o) const noexcept {
         // Check for overflow: if signs match and result has different sign
         nk_i64_t result = raw_ + o.raw_;
         if (o.raw_ > 0 && raw_ > NK_I64_MAX - o.raw_) return i64_t::finite_max();
@@ -4411,7 +4415,7 @@ struct u64_t {
     constexpr u64_t max(u64_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u64_t clamp(u64_t lo, u64_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u64_t sadd(u64_t o) const noexcept {
+    constexpr u64_t saturating_add(u64_t o) const noexcept {
         nk_u64_t result = raw_ + o.raw_;
         return result < raw_ ? u64_t::finite_max() : u64_t {result}; // overflow check
     }
@@ -4554,7 +4558,7 @@ struct i16_t {
     constexpr i16_t max(i16_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr i16_t clamp(i16_t lo, i16_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr i16_t sadd(i16_t o) const noexcept {
+    constexpr i16_t saturating_add(i16_t o) const noexcept {
         nk_i32_t result = nk_i32_t(raw_) + nk_i32_t(o.raw_);
         if (result > NK_I16_MAX) return i16_t::finite_max();
         if (result < NK_I16_MIN) return i16_t::finite_min();
@@ -4698,7 +4702,7 @@ struct u16_t {
     constexpr u16_t max(u16_t o) const noexcept { return raw_ > o.raw_ ? *this : o; }
     constexpr u16_t clamp(u16_t lo, u16_t hi) const noexcept { return max(lo).min(hi); }
 
-    constexpr u16_t sadd(u16_t o) const noexcept {
+    constexpr u16_t saturating_add(u16_t o) const noexcept {
         nk_u32_t result = nk_u32_t(raw_) + nk_u32_t(o.raw_);
         return result > NK_U16_MAX ? u16_t::finite_max() : u16_t {static_cast<raw_t>(result)};
     }
