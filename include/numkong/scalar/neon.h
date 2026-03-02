@@ -50,8 +50,16 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_neon(nk_f64_t x) {
     r *= vrsqrtsd_f64(x * r, r);
     return r;
 }
-NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) { return vfmas_f32(c, a, b); }
-NK_PUBLIC nk_f64_t nk_f64_fma_neon(nk_f64_t a, nk_f64_t b, nk_f64_t c) { return vfmad_f64(c, a, b); }
+NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
+    nk_f32_t r;
+    __asm__("fmadd %s0, %s1, %s2, %s3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
+    return r;
+}
+NK_PUBLIC nk_f64_t nk_f64_fma_neon(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
+    nk_f64_t r;
+    __asm__("fmadd %d0, %d1, %d2, %d3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
+    return r;
+}
 
 NK_PUBLIC nk_u8_t nk_u8_saturating_add_neon(nk_u8_t a, nk_u8_t b) { return vqaddb_u8(a, b); }
 NK_PUBLIC nk_i8_t nk_i8_saturating_add_neon(nk_i8_t a, nk_i8_t b) { return vqaddb_s8(a, b); }
@@ -63,7 +71,7 @@ NK_PUBLIC nk_u64_t nk_u64_saturating_add_neon(nk_u64_t a, nk_u64_t b) { return v
 NK_PUBLIC nk_i64_t nk_i64_saturating_add_neon(nk_i64_t a, nk_i64_t b) { return vqaddd_s64(a, b); }
 
 NK_INTERNAL nk_u64_t nk_u64_mulhigh_neon_(nk_u64_t a, nk_u64_t b) {
-#if defined(_MSC_VER) || defined(__clang__)
+#if defined(_MSC_VER)
     return __umulh(a, b);
 #else
     nk_u64_t high;

@@ -72,7 +72,7 @@ extern "C" {
  *  Uses TwoProd (svneg+svnmls) and TwoSum error-free transformations.
  */
 NK_INTERNAL void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_t *sum, svfloat64_t *comp,
-                                             svfloat64_t a_f64x, svfloat64_t b_f64x) {
+                                             svfloat64_t a_f64x, svfloat64_t b_f64x) __arm_streaming_compatible {
     svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
     svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                  svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));

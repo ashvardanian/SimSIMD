@@ -829,12 +829,17 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n
  *
  *  All slices fit in f32 (24-bit significand). Products: max 19+19 = 38 ≤ 53, exact in f64.
  */
-NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_() { return 0xFFFFFFFC00000000ULL; } // keep top 19 sig bits
-NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_() { return 0xFFFFFFF000000000ULL; } // keep top 17 sig bits
+NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_(void) __arm_streaming_compatible {
+    return 0xFFFFFFFC00000000ULL; // keep top 19 sig bits
+}
+NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_(void) __arm_streaming_compatible {
+    return 0xFFFFFFF000000000ULL; // keep top 17 sig bits
+}
 
 /*  Split a scalar f64 into 3 non-overlapping Ozaki slices (19+17+17 mantissa bits).
  *  Each slice fits in f32. Outputs stored via pointers. */
-NK_INTERNAL void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1, nk_f64_t *slice_2) {
+NK_INTERNAL void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1,
+                                                nk_f64_t *slice_2) __arm_streaming_compatible {
     nk_fui64_t pun;
     pun.f = val;
     pun.u &= nk_f64_smef64_ozaki_mask_19_bits_();

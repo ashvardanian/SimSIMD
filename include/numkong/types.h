@@ -99,6 +99,12 @@
 #endif // defined(__aarch64__) || defined(_M_ARM64)
 #endif // !defined(NK_TARGET_ARM_)
 
+#if NK_TARGET_ARM_ && (defined(__clang__) || defined(__GNUC__))
+#define NK_STREAMING_COMPATIBLE_ __arm_streaming_compatible
+#else
+#define NK_STREAMING_COMPATIBLE_
+#endif
+
 // Compiling for x86: NK_TARGET_X86_
 #if !defined(NK_TARGET_X86_)
 #if defined(__x86_64__) || defined(_M_X64)
@@ -1183,7 +1189,7 @@ NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
 }
 
 /** @brief Divides the number rounding up to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) {
+NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) NK_STREAMING_COMPATIBLE_ {
     return (number + divisor - 1) / divisor;
 }
 
