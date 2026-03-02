@@ -46,13 +46,6 @@
 extern "C" void openblas_set_num_threads(int) __attribute__((weak));
 #endif
 
-// It's important to note, that out compression/decompression routines
-// are quite inaccurate. They are not meant to be used in production code.
-// So when benchmarking, if possible, please use the native types, if those
-// are implemented.
-#define NK_NATIVE_F16  1
-#define NK_NATIVE_BF16 1
-
 #include "numkong/types.hpp"
 #include "numkong/tensor.hpp"
 #include "numkong/random.hpp"

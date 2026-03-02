@@ -71,6 +71,8 @@
 #include <cblas.h> // Generic CBLAS (OpenBLAS, etc.)
 #endif
 
+// Intests we want to make sure our custom floating-point routines are used instead of
+// compiler-provided native types.
 #undef NK_NATIVE_F16
 #define NK_NATIVE_F16 0
 #undef NK_NATIVE_BF16

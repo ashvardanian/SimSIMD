@@ -94,4 +94,13 @@ void test_maxsim() {
     run_if_matches("maxsim_f16_neonsdot", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_neonsdot,
                    nk_maxsim_pack_f16_neonsdot, nk_maxsim_packed_f16_neonsdot);
 #endif
+
+#if NK_TARGET_SME
+    run_if_matches("maxsim_bf16_sme", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sme,
+                   nk_maxsim_pack_bf16_sme, nk_maxsim_packed_bf16_sme);
+    run_if_matches("maxsim_f32_sme", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sme, nk_maxsim_pack_f32_sme,
+                   nk_maxsim_packed_f32_sme);
+    run_if_matches("maxsim_f16_sme", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sme, nk_maxsim_pack_f16_sme,
+                   nk_maxsim_packed_f16_sme);
+#endif
 }

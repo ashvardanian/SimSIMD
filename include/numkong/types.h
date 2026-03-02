@@ -1321,7 +1321,7 @@ NK_PUBLIC nk_f32_t nk_f32_fma_serial(nk_f32_t multiplicand, nk_f32_t multiplier,
  *  Uses TwoProd (via FMA) and TwoSum error-free transformations.
  *  @see Ogita, T., Rump, S.M., Oishi, S. (2005). "Accurate Sum and Dot Product"
  */
-NK_INTERNAL void nk_f64_dot2_(nk_f64_t *sum, nk_f64_t *compensation, nk_f64_t a, nk_f64_t b) {
+NK_INTERNAL void nk_f64_dot2_(nk_f64_t *sum, nk_f64_t *compensation, nk_f64_t a, nk_f64_t b) NK_STREAMING_COMPATIBLE_ {
     nk_f64_t product = a * b;
     nk_f64_t product_error = nk_f64_fma_serial(a, b, -product);
     nk_f64_t running_sum = *sum + product;

@@ -31,6 +31,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f16_sme, *c = nk_cap_sme_k; return;
         case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f16_sme, *c = nk_cap_sme_k; return;
         case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_f16_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_sme, *c = nk_cap_sme_k; return;
         default: break;
         }
 #endif
