@@ -545,8 +545,19 @@ typedef unsigned long long nk_u64_t;
 typedef float nk_f32_t;
 typedef double nk_f64_t;
 
+#if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_
+#define NK_IS_64BIT_ 1
+#else
+#define NK_IS_64BIT_ 0
+#endif
+
+#if NK_IS_64BIT_
 typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
+#else
+typedef nk_u32_t nk_size_t;
+typedef nk_i32_t nk_ssize_t;
+#endif
 typedef nk_f64_t nk_fmax_t;
 
 #define NK_SIZE_MAX ((nk_size_t) - 1)

@@ -37,352 +37,349 @@ use core::ptr::NonNull;
 use crate::numerics::{Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum};
 use crate::scalar::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
-/// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
-type u64size = u64;
-
 #[link(name = "numkong")]
 extern "C" {
 
-    fn nk_dots_packed_size_f32(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_f32(b: *const f32, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_f32(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_f32(b: *const f32, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_f32(
         a: *const f32,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_f64(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_f64(b: *const f64, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_f64(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_f64(b: *const f64, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_f64(
         a: *const f64,
         packed: *const u8,
         c: *mut f64,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_f16(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_f16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_f16(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_f16(b: *const u16, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_f16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_bf16(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_bf16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_bf16(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_bf16(b: *const u16, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_bf16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_i8(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_i8(b: *const i8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_i8(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_i8(b: *const i8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_i8(
         a: *const i8,
         packed: *const u8,
         c: *mut i32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_u8(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_u8(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_u8(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_u8(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_e4m3(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_e4m3(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_e4m3(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_e4m3(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_e4m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_e5m2(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_e5m2(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_e5m2(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_e5m2(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_e5m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_e2m3(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_e2m3(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_e2m3(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_e2m3(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_e2m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_e3m2(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_e3m2(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_e3m2(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_e3m2(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_e3m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_u4(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_u4(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_u4(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_u4(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_u4(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
-    fn nk_dots_packed_size_i4(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_i4(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_size_i4(n: usize, k: usize) -> usize;
+    fn nk_dots_pack_i4(b: *const u8, n: usize, k: usize, b_stride: usize, packed: *mut u8);
     fn nk_dots_packed_i4(
         a: *const u8,
         packed: *const u8,
         c: *mut i32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
 
     // Symmetric Gram matrix (C = A × Aᵀ)
     fn nk_dots_symmetric_f32(
         vectors: *const f32,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_f64(
         vectors: *const f64,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f64,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_f16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_bf16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_i8(
         vectors: *const i8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut i32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_u8(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut u32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_e4m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_e5m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_e2m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_e3m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_u4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut u32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_dots_symmetric_i4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut i32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 
-    fn nk_dots_packed_size_u1(n: u64size, d: u64size) -> u64size;
-    fn nk_dots_pack_u1(q: *const u8, n: u64size, d: u64size, q_stride: u64size, q_packed: *mut u8);
+    fn nk_dots_packed_size_u1(n: usize, d: usize) -> usize;
+    fn nk_dots_pack_u1(q: *const u8, n: usize, d: usize, q_stride: usize, q_packed: *mut u8);
     fn nk_dots_packed_u1(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_dots_symmetric_u1(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut u32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_hammings_packed_u1(
         a: *const u8,
         q_packed: *const u8,
         result: *mut u32,
-        rows: u64size,
-        cols: u64size,
-        d: u64size,
-        v_stride: u64size,
-        r_stride: u64size,
+        rows: usize,
+        cols: usize,
+        d: usize,
+        v_stride: usize,
+        r_stride: usize,
     );
     fn nk_hammings_symmetric_u1(
         vectors: *const u8,
-        n_vectors: u64size,
-        d: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        d: usize,
+        stride: usize,
         result: *mut u32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 
     fn nk_jaccards_packed_u1(
         v: *const u8,
         q_packed: *const u8,
         result: *mut f32,
-        rows: u64size,
-        cols: u64size,
-        d: u64size,
-        v_stride: u64size,
-        r_stride: u64size,
+        rows: usize,
+        cols: usize,
+        d: usize,
+        v_stride: usize,
+        r_stride: usize,
     );
     fn nk_jaccards_symmetric_u1(
         vectors: *const u8,
-        n_vectors: u64size,
-        d: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        d: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 
     // Batched angular distances
@@ -390,241 +387,241 @@ extern "C" {
         a: *const f32,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_f32(
         vectors: *const f32,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_f64(
         a: *const f64,
         packed: *const u8,
         c: *mut f64,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_f64(
         vectors: *const f64,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f64,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_f16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_f16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_bf16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_bf16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_i8(
         a: *const i8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_i8(
         vectors: *const i8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_u8(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_e4m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_e4m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_e5m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_e5m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_e2m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_e2m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_e3m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_e3m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_i4(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_i4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_angulars_packed_u4(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_angulars_symmetric_u4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 
     // Batched euclidean distances
@@ -632,241 +629,241 @@ extern "C" {
         a: *const f32,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_f32(
         vectors: *const f32,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_f64(
         a: *const f64,
         packed: *const u8,
         c: *mut f64,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_f64(
         vectors: *const f64,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f64,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_f16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_f16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_bf16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_bf16(
         vectors: *const u16,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_i8(
         a: *const i8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_i8(
         vectors: *const i8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_u8(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_e4m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_e4m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_e5m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_e5m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_e2m3(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_e2m3(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_e3m2(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_e3m2(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_i4(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_i4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
     fn nk_euclideans_packed_u4(
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
     );
     fn nk_euclideans_symmetric_u4(
         vectors: *const u8,
-        n_vectors: u64size,
-        depth: u64size,
-        stride: u64size,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
         result: *mut f32,
-        result_stride: u64size,
-        row_start: u64size,
-        row_count: u64size,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 }
 
@@ -1090,11 +1087,11 @@ impl Dots for f32 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_f32(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f32(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_f32(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f32(b, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1107,16 +1104,7 @@ impl Dots for f32 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_f32(
-            a,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_f32(a, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1131,13 +1119,13 @@ impl Dots for f32 {
     ) {
         nk_dots_symmetric_f32(
             vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1146,11 +1134,11 @@ impl Dots for f64 {
     type Accumulator = f64;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_f64(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f64(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_f64(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f64(b, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1163,16 +1151,7 @@ impl Dots for f64 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_f64(
-            a,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_f64(a, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1187,13 +1166,13 @@ impl Dots for f64 {
     ) {
         nk_dots_symmetric_f64(
             vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1202,17 +1181,11 @@ impl Dots for f16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_f16(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f16(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_f16(
-            b as *const u16,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_f16(b as *const u16, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1225,16 +1198,7 @@ impl Dots for f16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_f16(
-            a as *const u16,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_f16(a as *const u16, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1249,13 +1213,13 @@ impl Dots for f16 {
     ) {
         nk_dots_symmetric_f16(
             vectors as *const u16,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1264,17 +1228,11 @@ impl Dots for bf16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_bf16(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_bf16(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_bf16(
-            b as *const u16,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_bf16(b as *const u16, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1287,16 +1245,7 @@ impl Dots for bf16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_bf16(
-            a as *const u16,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_bf16(a as *const u16, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1311,13 +1260,13 @@ impl Dots for bf16 {
     ) {
         nk_dots_symmetric_bf16(
             vectors as *const u16,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1326,11 +1275,11 @@ impl Dots for i8 {
     type Accumulator = i32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_i8(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_i8(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_i8(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_i8(b, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1343,16 +1292,7 @@ impl Dots for i8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_i8(
-            a,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_i8(a, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1367,13 +1307,13 @@ impl Dots for i8 {
     ) {
         nk_dots_symmetric_i8(
             vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1382,11 +1322,11 @@ impl Dots for u8 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u8(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_u8(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u8(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_u8(b, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1399,16 +1339,7 @@ impl Dots for u8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_u8(
-            a,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_u8(a, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1423,13 +1354,13 @@ impl Dots for u8 {
     ) {
         nk_dots_symmetric_u8(
             vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1438,17 +1369,11 @@ impl Dots for e4m3 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_e4m3(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_e4m3(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_e4m3(
-            b as *const u8,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_e4m3(b as *const u8, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1461,16 +1386,7 @@ impl Dots for e4m3 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_e4m3(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_e4m3(a as *const u8, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1485,13 +1401,13 @@ impl Dots for e4m3 {
     ) {
         nk_dots_symmetric_e4m3(
             vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1500,17 +1416,11 @@ impl Dots for e5m2 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_e5m2(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_e5m2(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_e5m2(
-            b as *const u8,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_e5m2(b as *const u8, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1523,16 +1433,7 @@ impl Dots for e5m2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_e5m2(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_e5m2(a as *const u8, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1547,13 +1448,13 @@ impl Dots for e5m2 {
     ) {
         nk_dots_symmetric_e5m2(
             vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1562,17 +1463,11 @@ impl Dots for e2m3 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_e2m3(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_e2m3(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_e2m3(
-            b as *const u8,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_e2m3(b as *const u8, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1585,16 +1480,7 @@ impl Dots for e2m3 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_e2m3(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_e2m3(a as *const u8, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1609,13 +1495,13 @@ impl Dots for e2m3 {
     ) {
         nk_dots_symmetric_e2m3(
             vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1624,17 +1510,11 @@ impl Dots for e3m2 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_e3m2(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_e3m2(n, k) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_e3m2(
-            b as *const u8,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_e3m2(b as *const u8, n, k, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1647,16 +1527,7 @@ impl Dots for e3m2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_e3m2(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_e3m2(a as *const u8, packed, c, m, n, k, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1671,13 +1542,13 @@ impl Dots for e3m2 {
     ) {
         nk_dots_symmetric_e3m2(
             vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
+            n_vectors,
+            depth,
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1686,17 +1557,11 @@ impl Dots for u4x2 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u4(n as u64size, (k * 2) as u64size) as usize }
+        unsafe { nk_dots_packed_size_u4(n, (k * 2)) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u4(
-            b as *const u8,
-            n as u64size,
-            (k * 2) as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_u4(b as *const u8, n, (k * 2), b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1709,16 +1574,7 @@ impl Dots for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_u4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1733,13 +1589,13 @@ impl Dots for u4x2 {
     ) {
         nk_dots_symmetric_u4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1748,17 +1604,11 @@ impl Dots for i4x2 {
     type Accumulator = i32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_i4(n as u64size, (k * 2) as u64size) as usize }
+        unsafe { nk_dots_packed_size_i4(n, (k * 2)) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_i4(
-            b as *const u8,
-            n as u64size,
-            (k * 2) as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_i4(b as *const u8, n, (k * 2), b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1771,16 +1621,7 @@ impl Dots for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_i4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1795,13 +1636,13 @@ impl Dots for i4x2 {
     ) {
         nk_dots_symmetric_i4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1810,17 +1651,11 @@ impl Dots for u1x8 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u1(n as u64size, (k * 8) as u64size) as usize }
+        unsafe { nk_dots_packed_size_u1(n, (k * 8)) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u1(
-            b as *const u8,
-            n as u64size,
-            (k * 8) as u64size,
-            b_stride as u64size,
-            packed,
-        )
+        nk_dots_pack_u1(b as *const u8, n, (k * 8), b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1833,16 +1668,7 @@ impl Dots for u1x8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_u1(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 8) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_dots_packed_u1(a as *const u8, packed, c, m, n, (k * 8), a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1857,13 +1683,13 @@ impl Dots for u1x8 {
     ) {
         nk_dots_symmetric_u1(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 8) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 8),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -1928,11 +1754,11 @@ impl Hammings for u1x8 {
             a as *const u8,
             q_packed,
             result,
-            rows as u64size,
-            cols as u64size,
-            (d * 8) as u64size,
-            v_stride as u64size,
-            r_stride as u64size,
+            rows,
+            cols,
+            (d * 8),
+            v_stride,
+            r_stride,
         )
     }
 
@@ -1948,13 +1774,13 @@ impl Hammings for u1x8 {
     ) {
         nk_hammings_symmetric_u1(
             vectors as *const u8,
-            n_vectors as u64size,
-            (d * 8) as u64size,
-            stride as u64size,
+            n_vectors,
+            (d * 8),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -2024,11 +1850,11 @@ impl Jaccards for u1x8 {
             a as *const u8,
             q_packed,
             result,
-            rows as u64size,
-            cols as u64size,
-            (d * 8) as u64size,
-            v_stride as u64size,
-            r_stride as u64size,
+            rows,
+            cols,
+            (d * 8),
+            v_stride,
+            r_stride,
         )
     }
 
@@ -2044,13 +1870,13 @@ impl Jaccards for u1x8 {
     ) {
         nk_jaccards_symmetric_u1(
             vectors as *const u8,
-            n_vectors as u64size,
-            (d * 8) as u64size,
-            stride as u64size,
+            n_vectors,
+            (d * 8),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -2163,16 +1989,7 @@ macro_rules! impl_spatial_traits {
                 a_stride: usize,
                 c_stride: usize,
             ) {
-                $ang_packed(
-                    $cast(a),
-                    packed,
-                    c,
-                    m as u64size,
-                    n as u64size,
-                    k as u64size,
-                    a_stride as u64size,
-                    c_stride as u64size,
-                )
+                $ang_packed($cast(a), packed, c, m, n, k, a_stride, c_stride)
             }
 
             unsafe fn angulars_symmetric(
@@ -2187,13 +2004,13 @@ macro_rules! impl_spatial_traits {
             ) {
                 $ang_sym(
                     $cast(vectors),
-                    n_vectors as u64size,
-                    depth as u64size,
-                    stride as u64size,
+                    n_vectors,
+                    depth,
+                    stride,
                     result,
-                    result_stride as u64size,
-                    row_start as u64size,
-                    row_count as u64size,
+                    result_stride,
+                    row_start,
+                    row_count,
                 )
             }
         }
@@ -2211,16 +2028,7 @@ macro_rules! impl_spatial_traits {
                 a_stride: usize,
                 c_stride: usize,
             ) {
-                $euc_packed(
-                    $cast(a),
-                    packed,
-                    c,
-                    m as u64size,
-                    n as u64size,
-                    k as u64size,
-                    a_stride as u64size,
-                    c_stride as u64size,
-                )
+                $euc_packed($cast(a), packed, c, m, n, k, a_stride, c_stride)
             }
 
             unsafe fn euclideans_symmetric(
@@ -2235,13 +2043,13 @@ macro_rules! impl_spatial_traits {
             ) {
                 $euc_sym(
                     $cast(vectors),
-                    n_vectors as u64size,
-                    depth as u64size,
-                    stride as u64size,
+                    n_vectors,
+                    depth,
+                    stride,
                     result,
-                    result_stride as u64size,
-                    row_start as u64size,
-                    row_count as u64size,
+                    result_stride,
+                    row_start,
+                    row_count,
                 )
             }
         }
@@ -2387,16 +2195,7 @@ impl Angulars for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_angulars_packed_u4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_angulars_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
     unsafe fn angulars_symmetric(
         vectors: *const Self,
@@ -2410,13 +2209,13 @@ impl Angulars for u4x2 {
     ) {
         nk_angulars_symmetric_u4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -2432,16 +2231,7 @@ impl Euclideans for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_euclideans_packed_u4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_euclideans_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
     unsafe fn euclideans_symmetric(
         vectors: *const Self,
@@ -2455,13 +2245,13 @@ impl Euclideans for u4x2 {
     ) {
         nk_euclideans_symmetric_u4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -2477,16 +2267,7 @@ impl Angulars for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_angulars_packed_i4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_angulars_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
     unsafe fn angulars_symmetric(
         vectors: *const Self,
@@ -2500,13 +2281,13 @@ impl Angulars for i4x2 {
     ) {
         nk_angulars_symmetric_i4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -2522,16 +2303,7 @@ impl Euclideans for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_euclideans_packed_i4(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            (k * 2) as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
-        )
+        nk_euclideans_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
     }
     unsafe fn euclideans_symmetric(
         vectors: *const Self,
@@ -2545,13 +2317,13 @@ impl Euclideans for i4x2 {
     ) {
         nk_euclideans_symmetric_i4(
             vectors as *const u8,
-            n_vectors as u64size,
-            (depth * 2) as u64size,
-            stride as u64size,
+            n_vectors,
+            (depth * 2),
+            stride,
             result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
+            result_stride,
+            row_start,
+            row_count,
         )
     }
 }
@@ -3467,12 +3239,12 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     let count = if step > 0 {
                         (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
                     } else {
-                        let abs_step = (-step) as usize;
+                        let abs_step = (-step);
                         (start.saturating_sub(end) + abs_step - 1) / abs_step
                     };
                     new_shape[new_ndim] = count;
                     // Stride can be negative for reversed views
-                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_strides[new_ndim] = (dim_stride as isize * step);
                     new_ndim += 1;
                     offset += start * dim_stride;
                 }
@@ -3556,11 +3328,11 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     let count = if step > 0 {
                         (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
                     } else {
-                        let abs_step = (-step) as usize;
+                        let abs_step = (-step);
                         (start.saturating_sub(end) + abs_step - 1) / abs_step
                     };
                     new_shape[new_ndim] = count;
-                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_strides[new_ndim] = (dim_stride as isize * step);
                     new_ndim += 1;
                     offset += start * dim_stride;
                 }
@@ -4176,7 +3948,7 @@ fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usiz
         let work_f64 = work_start as f64;
         let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
         let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
-        row_f64.floor() as usize
+        row_f64.floor()
     };
 
     let end_row = if work_end >= total_work {
@@ -4186,7 +3958,7 @@ fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usiz
         let work_f64 = work_end as f64;
         let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
         let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
-        row_f64.ceil() as usize
+        row_f64.ceil()
     };
 
     (start_row, end_row - start_row)
