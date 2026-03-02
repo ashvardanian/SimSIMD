@@ -30,24 +30,29 @@ extern "C" {
 
 NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     // Extract the exponent and mantissa
-    __m512h one_f16x32 = _mm512_set1_ph((nk_f16_t)1);
+    __m512h one_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(0x3C00)); // 1.0
     __m512h exponent_f16x32 = _mm512_getexp_ph(x);
     __m512h mantissa_f16x32 = _mm512_getmant_ph(x, _MM_MANT_NORM_1_2, _MM_MANT_SIGN_src);
 
     // Compute the polynomial using Horner's method
-    __m512h poly_f16x32 = _mm512_set1_ph((nk_f16_t)-3.4436006e-2f);
-    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)3.1821337e-1f));
-    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)-1.2315303f));
-    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)2.5988452f));
-    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)-3.3241990f));
-    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)3.1157899f));
+    __m512h poly_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0xA868)); // -3.4436006e-2
+    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32,
+                                  _mm512_castsi512_ph(_mm512_set1_epi16(0x3517))); // 3.1821337e-1
+    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32,
+                                  _mm512_castsi512_ph(_mm512_set1_epi16((short)0xBCED))); // -1.2315303
+    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32,
+                                  _mm512_castsi512_ph(_mm512_set1_epi16(0x4133))); // 2.5988452
+    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32,
+                                  _mm512_castsi512_ph(_mm512_set1_epi16((short)0xC2A6))); // -3.3241990
+    poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32,
+                                  _mm512_castsi512_ph(_mm512_set1_epi16(0x423B))); // 3.1157899
 
     return _mm512_fmadd_ph(poly_f16x32, _mm512_sub_ph(mantissa_f16x32, one_f16x32), exponent_f16x32);
 }
 
 NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512h sum_f16x32 = _mm512_setzero_ph();
-    __m512h epsilon_f16x32 = _mm512_set1_ph((nk_f16_t)NK_F16_DIVISION_EPSILON);
+    __m512h epsilon_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(0x1419)); // 1e-3
     __m512h a_f16x32, b_f16x32;
 
 nk_kld_f16_sapphire_cycle:
@@ -76,7 +81,7 @@ nk_kld_f16_sapphire_cycle:
 NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512h sum_a_f16x32 = _mm512_setzero_ph();
     __m512h sum_b_f16x32 = _mm512_setzero_ph();
-    __m512h epsilon_f16x32 = _mm512_set1_ph((nk_f16_t)NK_F16_DIVISION_EPSILON);
+    __m512h epsilon_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(0x1419)); // 1e-3
     __m512h a_f16x32, b_f16x32;
 
 nk_jsd_f16_sapphire_cycle:
@@ -91,7 +96,8 @@ nk_jsd_f16_sapphire_cycle:
         b_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
-    __m512h mean_f16x32 = _mm512_mul_ph(_mm512_add_ph(a_f16x32, b_f16x32), _mm512_set1_ph((nk_f16_t)0.5f));
+    __m512h mean_f16x32 = _mm512_mul_ph(_mm512_add_ph(a_f16x32, b_f16x32),
+                                        _mm512_castsi512_ph(_mm512_set1_epi16(0x3800))); // 0.5
     __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_f16x32, epsilon_f16x32, _CMP_GE_OQ);
     __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_f16x32, epsilon_f16x32, _CMP_GE_OQ);
     __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
