@@ -148,12 +148,10 @@ NK_INTERNAL void nk_reduce_minmax_bf16_neonbfdot_contiguous_( //
     nk_bf16_t const *data_ptr, nk_size_t count,               //
     nk_bf16_t *min_value_ptr, nk_size_t *min_index_ptr,       //
     nk_bf16_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    uint16x8_t first_raw_u16x8 = vld1q_u16((uint16_t const *)data_ptr);
-    int16x8_t first_comparable_i16x8 = nk_bf16x8_to_comparable_i16x8_neon_(first_raw_u16x8);
-    int16x8_t min_i16x8 = first_comparable_i16x8, max_i16x8 = first_comparable_i16x8;
+    int16x8_t min_i16x8 = vdupq_n_s16(NK_I16_MAX), max_i16x8 = vdupq_n_s16(NK_I16_MIN);
     uint16x8_t min_iter_u16x8 = vdupq_n_u16(0), max_iter_u16x8 = vdupq_n_u16(0);
-    uint16x8_t iter_u16x8 = vdupq_n_u16(1), one_u16x8 = vdupq_n_u16(1);
-    nk_size_t idx = 8;
+    uint16x8_t iter_u16x8 = vdupq_n_u16(0), one_u16x8 = vdupq_n_u16(1);
+    nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         uint16x8_t raw_u16x8 = vld1q_u16((uint16_t const *)(data_ptr + idx));
         int16x8_t comparable_i16x8 = nk_bf16x8_to_comparable_i16x8_neon_(raw_u16x8);
