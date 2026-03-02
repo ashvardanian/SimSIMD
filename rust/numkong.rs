@@ -124,8 +124,8 @@ pub use numerics::capabilities;
 // Re-export tensor types
 pub use tensor::{
     Allocator, Angulars, Dots, Euclideans, Global, Hammings, Jaccards, Matrix, MatrixView,
-    MatrixViewMut, ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView, TensorViewMut,
-    TransposedMatrixMultiplier, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    MatrixViewMut, PackedMatrix, ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView,
+    TensorViewMut, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // region: Tests
@@ -161,7 +161,7 @@ mod tests {
         capabilities::configure_thread();
         let queries = Tensor::<f32>::try_new(&[2, 4], 1.0).unwrap();
         let targets = Tensor::<f32>::try_new(&[3, 4], 1.0).unwrap();
-        let packed_targets = TransposedMatrixMultiplier::try_pack(&targets).unwrap();
+        let packed_targets = PackedMatrix::try_pack(&targets).unwrap();
         let products = queries.dots_packed(&packed_targets);
         assert_eq!(products.shape(), &[2, 3]);
         assert!((products.as_slice()[0] - 4.0).abs() < 0.01);

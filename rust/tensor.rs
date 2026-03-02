@@ -6,7 +6,7 @@
 //! - [`TensorView`]: Immutable view into a tensor
 //! - [`TensorViewMut`]: Mutable view into a tensor
 //! - [`Matrix`]: Type alias for 2D tensors
-//! - [`TransposedMatrixMultiplier`]: Pre-packed matrix for efficient GEMM
+//! - [`PackedMatrix`]: Pre-packed matrix for efficient GEMM
 //!
 //! ## Packed spatial operations
 //!
@@ -19,13 +19,13 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use numkong::{Tensor, TransposedMatrixMultiplier};
+//! use numkong::{Tensor, PackedMatrix};
 //!
 //! let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
 //! let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
 //!
 //! // Pack B once, multiply many times
-//! let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+//! let b_packed = PackedMatrix::try_pack(&b).unwrap();
 //! let c = a.dots_packed(&b_packed);  // Returns (1024 × 256)
 //! ```
 
@@ -878,7 +878,7 @@ pub const SIMD_ALIGNMENT: usize = 64;
 /// Memory allocator trait for custom allocation strategies.
 ///
 /// Implement this trait to use custom allocators (arena, pool, etc.) with
-/// [`Tensor`] and [`TransposedMatrixMultiplier`].
+/// [`Tensor`] and [`PackedMatrix`].
 ///
 /// # Safety
 ///
@@ -2338,7 +2338,7 @@ impl Euclideans for i4x2 {
 ///
 /// Supports:
 /// - Slicing and subviews (zero-copy)
-/// - Dot-product multiplication with [`TransposedMatrixMultiplier`]
+/// - Dot-product multiplication with [`PackedMatrix`]
 /// - Reductions (sum, min, max)
 /// - Elementwise ops (scale, sum, wsum, fma)
 /// - Trigonometry (sin, cos, atan)
@@ -2346,13 +2346,13 @@ impl Euclideans for i4x2 {
 /// # Example
 ///
 /// ```rust,ignore
-/// use numkong::{Tensor, TransposedMatrixMultiplier};
+/// use numkong::{Tensor, PackedMatrix};
 ///
 /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
 /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
 ///
 /// // Pack B once, multiply many times
-/// let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+/// let b_packed = PackedMatrix::try_pack(&b).unwrap();
 /// let c = a.dots_packed(&b_packed);  // Returns (1024 × 256)
 /// ```
 pub struct Tensor<T, A: Allocator = Global, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
@@ -2919,6 +2919,7 @@ impl<'a, T: Angulars, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 n_vectors,
             );
         }
+
         Ok(result)
     }
 }
@@ -2953,6 +2954,7 @@ impl<'a, T: Euclideans, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 n_vectors,
             );
         }
+
         Ok(result)
     }
 }
@@ -3431,7 +3433,7 @@ pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
 
 // endregion: Type Aliases
 
-// region: TransposedMatrixMultiplier
+// region: PackedMatrix
 
 /// Pre-packed B matrix for efficient repeated GEMM operations.
 ///
@@ -3444,16 +3446,16 @@ pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
 ///
 /// For C = A × Bᵀ where B is (n × k):
 /// ```rust,ignore
-/// let b_packed = TransposedMatrixMultiplier::try_pack(&b_array).unwrap();
+/// let b_packed = PackedMatrix::try_pack(&b_array).unwrap();
 /// let c = a_array.dots_packed(&b_packed);
 /// ```
 ///
 /// For C = A × B where B is (k × n) (standard GEMM layout):
 /// ```rust,ignore
-/// let b_packed = TransposedMatrixMultiplier::try_pack_transposed(&b_array).unwrap();
+/// let b_packed = PackedMatrix::try_pack_transposed(&b_array).unwrap();
 /// let c = a_array.dots_packed(&b_packed);
 /// ```
-pub struct TransposedMatrixMultiplier<T: Dots, A: Allocator = Global> {
+pub struct PackedMatrix<T: Dots, A: Allocator = Global> {
     /// Raw pointer to packed data buffer.
     data: NonNull<u8>,
     /// Size of the packed buffer in bytes.
@@ -3467,11 +3469,11 @@ pub struct TransposedMatrixMultiplier<T: Dots, A: Allocator = Global> {
     _marker: PhantomData<T>,
 }
 
-// Safety: TransposedMatrixMultiplier owns its data and is just bytes
-unsafe impl<T: Dots + Send, A: Allocator + Send> Send for TransposedMatrixMultiplier<T, A> {}
-unsafe impl<T: Dots + Sync, A: Allocator + Sync> Sync for TransposedMatrixMultiplier<T, A> {}
+// Safety: PackedMatrix owns its data and is just bytes
+unsafe impl<T: Dots + Send, A: Allocator + Send> Send for PackedMatrix<T, A> {}
+unsafe impl<T: Dots + Sync, A: Allocator + Sync> Sync for PackedMatrix<T, A> {}
 
-impl<T: Dots, A: Allocator> Drop for TransposedMatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator> Drop for PackedMatrix<T, A> {
     fn drop(&mut self) {
         if self.size > 0 {
             unsafe {
@@ -3483,7 +3485,7 @@ impl<T: Dots, A: Allocator> Drop for TransposedMatrixMultiplier<T, A> {
     }
 }
 
-impl<T: Dots, A: Allocator + Clone> Clone for TransposedMatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator + Clone> Clone for PackedMatrix<T, A> {
     fn clone(&self) -> Self {
         if self.size == 0 {
             return Self {
@@ -3517,7 +3519,7 @@ impl<T: Dots, A: Allocator + Clone> Clone for TransposedMatrixMultiplier<T, A> {
 }
 
 // Generic allocator-aware methods
-impl<T: Dots, A: Allocator> TransposedMatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
     /// Pack B matrix where B is (n × k) row-major using a custom allocator.
     ///
     /// Result computes: C = A × Bᵀ
@@ -3646,7 +3648,7 @@ impl<T: Dots, A: Allocator> TransposedMatrixMultiplier<T, A> {
 }
 
 // Convenience methods using Global allocator
-impl<T: Dots> TransposedMatrixMultiplier<T, Global> {
+impl<T: Dots> PackedMatrix<T, Global> {
     /// Pack B matrix where B is (n × k) row-major using the global allocator.
     ///
     /// Result computes: C = A × Bᵀ
@@ -3667,18 +3669,18 @@ impl<T: Dots> TransposedMatrixMultiplier<T, Global> {
 
     /// Convenience constructor that panics on error.
     pub fn pack<BA: Allocator, const MAX_RANK: usize>(b: &Tensor<T, BA, MAX_RANK>) -> Self {
-        Self::try_pack(b).expect("TransposedMatrixMultiplier::pack failed")
+        Self::try_pack(b).expect("PackedMatrix::pack failed")
     }
 
     /// Convenience constructor that panics on error.
     pub fn pack_transposed<BA: Allocator, const MAX_RANK: usize>(
         b: &Tensor<T, BA, MAX_RANK>,
     ) -> Self {
-        Self::try_pack_transposed(b).expect("TransposedMatrixMultiplier::pack_transposed failed")
+        Self::try_pack_transposed(b).expect("PackedMatrix::pack_transposed failed")
     }
 }
 
-// endregion: TransposedMatrixMultiplier
+// endregion: PackedMatrix
 
 // region: Tensor GEMM
 
@@ -3699,7 +3701,7 @@ where
     /// - output allocation fails
     pub fn try_dots_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Result<Tensor<T::Accumulator, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -3738,7 +3740,7 @@ where
     /// Convenience method that panics on error.
     pub fn dots_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Tensor<T::Accumulator, A, MAX_RANK> {
         self.try_dots_packed(packed_b).expect("dots_packed failed")
     }
@@ -3748,7 +3750,7 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Dot-product multiply into existing output (avoids allocation).
     pub fn try_dots_packed_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -3807,25 +3809,25 @@ where
     /// This is a non-allocating interface - you provide the output tensor.
     ///
     /// # Arguments
-    /// * `packed_b` - Pre-packed B matrix from `TransposedMatrixMultiplier::try_pack[_transposed]`
+    /// * `packed_b` - Pre-packed B matrix from `PackedMatrix::try_pack[_transposed]`
     /// * `c` - Pre-allocated output tensor (m × n)
     /// * `pool` - Pre-constructed thread pool
     ///
     /// # Example
     /// ```ignore
-    /// use numkong::{Tensor, TransposedMatrixMultiplier};
+    /// use numkong::{Tensor, PackedMatrix};
     /// use fork_union::ThreadPool;
     ///
     /// let mut pool = ThreadPool::try_spawn(4).unwrap();
     /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
     /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
-    /// let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+    /// let b_packed = PackedMatrix::try_pack(&b).unwrap();
     /// let mut c = Tensor::<f32>::try_new(&[1024, 256], 0.0).unwrap();
     /// a.try_dots_packed_parallel_into(&b_packed, &mut c, &mut pool).unwrap();
     /// ```
     pub fn try_dots_packed_parallel_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<(), TensorError> {
@@ -3902,7 +3904,7 @@ where
     /// Prefer `try_dots_packed_parallel_into` for performance-critical code.
     pub fn try_dots_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
@@ -3918,7 +3920,7 @@ where
     /// Convenience method that panics on error.
     pub fn dots_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Tensor<T::Accumulator, Global, MAX_RANK> {
         self.try_dots_packed_parallel(packed_b, pool)
@@ -4056,7 +4058,7 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Computes angular distances between rows of self and packed B matrix.
     pub fn try_angulars_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Result<Tensor<T::SpatialResult, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -4094,7 +4096,7 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Convenience method that panics on error.
     pub fn angulars_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Tensor<T::SpatialResult, A, MAX_RANK> {
         self.try_angulars_packed(packed_b)
             .expect("angulars_packed failed")
@@ -4105,7 +4107,7 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Computes angular distances into pre-allocated output.
     pub fn try_angulars_packed_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::SpatialResult, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -4184,7 +4186,7 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
     /// Computes euclidean distances between rows of self and packed B matrix.
     pub fn try_euclideans_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Result<Tensor<T::SpatialResult, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -4222,7 +4224,7 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
     /// Convenience method that panics on error.
     pub fn euclideans_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Tensor<T::SpatialResult, A, MAX_RANK> {
         self.try_euclideans_packed(packed_b)
             .expect("euclideans_packed failed")
@@ -4233,7 +4235,7 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
     /// Computes euclidean distances into pre-allocated output.
     pub fn try_euclideans_packed_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::SpatialResult, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -4322,7 +4324,7 @@ where
         const CA_MAX_RANK: usize,
     >(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::SpatialResult, CA, CA_MAX_RANK>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<(), TensorError> {
@@ -4387,7 +4389,7 @@ where
     /// Parallel angular distances with allocation.
     pub fn try_angulars_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
@@ -4403,7 +4405,7 @@ where
     /// Convenience method that panics on error.
     pub fn angulars_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Tensor<T::SpatialResult, Global, MAX_RANK> {
         self.try_angulars_packed_parallel(packed_b, pool)
@@ -4475,7 +4477,7 @@ where
         const CA_MAX_RANK: usize,
     >(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::SpatialResult, CA, CA_MAX_RANK>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<(), TensorError> {
@@ -4540,7 +4542,7 @@ where
     /// Parallel euclidean distances with allocation.
     pub fn try_euclideans_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
@@ -4556,7 +4558,7 @@ where
     /// Convenience method that panics on error.
     pub fn euclideans_packed_parallel<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Tensor<T::SpatialResult, Global, MAX_RANK> {
         self.try_euclideans_packed_parallel(packed_b, pool)
@@ -4623,7 +4625,7 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Computes Hamming distances between rows of self and packed B matrix.
     pub fn try_hammings_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Result<Tensor<u32, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -4661,7 +4663,7 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Convenience method that panics on error.
     pub fn hammings_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Tensor<u32, A, MAX_RANK> {
         self.try_hammings_packed(packed_b)
             .expect("hammings_packed failed")
@@ -4672,7 +4674,7 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Computes Hamming distances into pre-allocated output.
     pub fn try_hammings_packed_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<u32, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -4746,7 +4748,7 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Computes Jaccard distances between rows of self and packed B matrix.
     pub fn try_jaccards_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Result<Tensor<T::JaccardResult, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -4784,7 +4786,7 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Convenience method that panics on error.
     pub fn jaccards_packed<BA: Allocator>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
     ) -> Tensor<T::JaccardResult, A, MAX_RANK> {
         self.try_jaccards_packed(packed_b)
             .expect("jaccards_packed failed")
@@ -4795,7 +4797,7 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Computes Jaccard distances into pre-allocated output.
     pub fn try_jaccards_packed_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &TransposedMatrixMultiplier<T, BA>,
+        packed_b: &PackedMatrix<T, BA>,
         c: &mut Tensor<T::JaccardResult, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -5205,7 +5207,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
             let expected = T::dimensions_per_value() as f64 * k as f64;
@@ -5229,7 +5231,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b_t = Tensor::<T>::try_new(&[k, n], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+            let b_packed = PackedMatrix::try_pack_transposed(&b_t).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
             let expected = T::dimensions_per_value() as f64 * k as f64;
@@ -5254,7 +5256,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.angulars_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
             for (i, &v) in c.as_slice().iter().enumerate() {
@@ -5277,7 +5279,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.euclideans_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
             for (i, &v) in c.as_slice().iter().enumerate() {
@@ -5300,7 +5302,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.dots_packed(&b_packed);
             let parallel = a.dots_packed_parallel(&b_packed, &mut pool);
             assert_eq!(
@@ -5321,7 +5323,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.angulars_packed(&b_packed);
             let parallel = a.angulars_packed_parallel(&b_packed, &mut pool);
             assert_eq!(
@@ -5342,7 +5344,7 @@ mod tests {
         for &(m, n, k) in DIMS {
             let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
-            let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+            let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.euclideans_packed(&b_packed);
             let parallel = a.euclideans_packed_parallel(&b_packed, &mut pool);
             assert_eq!(
@@ -5638,7 +5640,7 @@ mod tests {
         let b = Tensor::<u1x8>::try_new(&[16, 8], u1x8(0xFF)).unwrap();
 
         // Dots
-        let b_packed = TransposedMatrixMultiplier::try_pack(&b).unwrap();
+        let b_packed = PackedMatrix::try_pack(&b).unwrap();
         let c = a.dots_packed(&b_packed);
         assert_eq!(c.shape(), &[4, 16]);
         assert_eq!(c.as_slice()[0], 64); // All bits set → popcount of AND = 64
