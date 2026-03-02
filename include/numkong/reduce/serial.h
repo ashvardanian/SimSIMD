@@ -15,6 +15,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h"
+#include "numkong/scalar/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {

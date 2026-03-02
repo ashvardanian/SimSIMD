@@ -23,6 +23,7 @@
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
+#include "numkong/cast/skylake.h"
 
 #if defined(__cplusplus)
 extern "C" {
