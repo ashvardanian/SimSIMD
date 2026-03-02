@@ -71,7 +71,9 @@
 #include <cblas.h> // Generic CBLAS (OpenBLAS, etc.)
 #endif
 
-#define NK_NATIVE_F16  0
+#undef NK_NATIVE_F16
+#define NK_NATIVE_F16 0
+#undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 0
 
 #include "numkong/types.hpp"
