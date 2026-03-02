@@ -472,8 +472,8 @@ NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
 nk_dot_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_i4x128 = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x128 = _mm512_maskz_loadu_epi8(mask, b);
+        a_i4x128 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, a);
+        b_i4x128 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, b);
         n_bytes = 0;
     }
     else {
