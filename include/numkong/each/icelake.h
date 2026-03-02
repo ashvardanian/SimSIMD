@@ -130,34 +130,16 @@ nk_each_sum_u16_icelake_cycle:
 }
 
 NK_INTERNAL __m512i _mm512_adds_epi32_icelake(__m512i a, __m512i b) {
-    // ! There are many flavors of addition with saturation in AVX-512: i8, u8, i16, and u16.
-    // ! But not for larger numeric types. We have to do it manually.
-    // ! https://stackoverflow.com/a/56531252/2766161
-    __m512i sum = _mm512_add_epi32(a, b);
-
-    // Set constants for overflow and underflow limits
-    __m512i max_val = _mm512_set1_epi32(2147483647);
-    __m512i min_val = _mm512_set1_epi32(-2147483648);
-
-    // TODO: Consider using ternary operator for performance.
-    // Detect positive overflow: (a > 0) && (b > 0) && (sum < 0)
-    __mmask16 a_is_positive = _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512());
-    __mmask16 b_is_positive = _mm512_cmpgt_epi32_mask(b, _mm512_setzero_si512());
-    __mmask16 sum_is_negative = _mm512_cmplt_epi32_mask(sum, _mm512_setzero_si512());
-    __mmask16 pos_overflow_mask = _kand_mask16(_kand_mask16(a_is_positive, b_is_positive), sum_is_negative);
-
-    // TODO: Consider using ternary operator for performance.
-    // Detect negative overflow: (a < 0) && (b < 0) && (sum >= 0)
-    __mmask16 a_is_negative = _mm512_cmplt_epi32_mask(a, _mm512_setzero_si512());
-    __mmask16 b_is_negative = _mm512_cmplt_epi32_mask(b, _mm512_setzero_si512());
-    __mmask16 sum_is_non_negative = _mm512_cmpge_epi32_mask(sum, _mm512_setzero_si512());
-    __mmask16 neg_overflow_mask = _kand_mask16(_kand_mask16(a_is_negative, b_is_negative), sum_is_non_negative);
-
-    // Apply saturation for positive overflow
-    sum = _mm512_mask_blend_epi32(pos_overflow_mask, sum, max_val);
-    // Apply saturation for negative overflow
-    sum = _mm512_mask_blend_epi32(neg_overflow_mask, sum, min_val);
-    return sum;
+    __m512i sum_i32x16 = _mm512_add_epi32(a, b);
+    __m512i sign_i32x16 = _mm512_set1_epi32((int)0x80000000);
+    // ~(a^b) & (sum^a): overflow iff same-sign inputs produce different-sign result
+    __m512i overflow_i32x16 = _mm512_ternarylogic_epi64(a, b, sum_i32x16, 0x42);
+    __mmask16 overflow_b32x16 = _mm512_test_epi32_mask(overflow_i32x16, sign_i32x16);
+    // Positive overflow → INT32_MAX, negative overflow → INT32_MIN
+    __m512i max_i32x16 = _mm512_set1_epi32(0x7FFFFFFF);
+    __m512i min_i32x16 = _mm512_set1_epi32((int)0x80000000);
+    __m512i saturated_i32x16 = _mm512_mask_blend_epi32(_mm512_movepi32_mask(a), max_i32x16, min_i32x16);
+    return _mm512_mask_blend_epi32(overflow_b32x16, sum_i32x16, saturated_i32x16);
 }
 
 NK_INTERNAL __m512i _mm512_adds_epu32_icelake(__m512i a, __m512i b) {
@@ -168,18 +150,16 @@ NK_INTERNAL __m512i _mm512_adds_epu32_icelake(__m512i a, __m512i b) {
 }
 
 NK_INTERNAL __m512i _mm512_adds_epi64_icelake(__m512i a, __m512i b) {
-    __m512i sum = _mm512_add_epi64(a, b);
-    __m512i sign_mask = _mm512_set1_epi64(0x8000000000000000);
-
-    __m512i overflow = _mm512_and_si512(_mm512_xor_si512(a, b), sign_mask);  // Same sign inputs
-    __m512i overflows = _mm512_or_si512(overflow, _mm512_xor_si512(sum, a)); // Overflow condition
-
-    __m512i max_val = _mm512_set1_epi64(9223372036854775807ll);
-    __m512i min_val = _mm512_set1_epi64(-9223372036854775807ll - 1);
-    __m512i overflow_result = _mm512_mask_blend_epi64(_mm512_cmp_epi64_mask(sum, min_val, _MM_CMPINT_LT), max_val,
-                                                      min_val);
-
-    return _mm512_mask_blend_epi64(_mm512_test_epi64_mask(overflows, overflows), sum, overflow_result);
+    __m512i sum_i64x8 = _mm512_add_epi64(a, b);
+    __m512i sign_i64x8 = _mm512_set1_epi64((long long)0x8000000000000000);
+    // ~(a^b) & (sum^a): overflow iff same-sign inputs produce different-sign result
+    __m512i overflow_i64x8 = _mm512_ternarylogic_epi64(a, b, sum_i64x8, 0x42);
+    __mmask8 overflow_b64x8 = _mm512_test_epi64_mask(overflow_i64x8, sign_i64x8);
+    // Positive overflow → INT64_MAX, negative overflow → INT64_MIN
+    __m512i max_i64x8 = _mm512_set1_epi64(9223372036854775807ll);
+    __m512i min_i64x8 = _mm512_set1_epi64(-9223372036854775807ll - 1);
+    __m512i saturated_i64x8 = _mm512_mask_blend_epi64(_mm512_movepi64_mask(a), max_i64x8, min_i64x8);
+    return _mm512_mask_blend_epi64(overflow_b64x8, sum_i64x8, saturated_i64x8);
 }
 
 NK_INTERNAL __m512i _mm512_adds_epu64_icelake(__m512i a, __m512i b) {

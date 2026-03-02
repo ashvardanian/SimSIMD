@@ -1036,24 +1036,16 @@ NK_PUBLIC void nk_each_fma_u16_haswell(                                   //
 }
 
 NK_INTERNAL __m256i _mm256_adds_epi32_haswell(__m256i a, __m256i b) {
-    // ! There are many flavors of addition with saturation in AVX2: i8, u8, i16, and u16.
-    // ! But not for larger numeric types. We have to do it manually.
-    // ! https://stackoverflow.com/a/56531252/2766161
-    __m256i result = _mm256_add_epi32(a, b);
-    // Detect positive overflow: (a > 0) && (b > 0) && (result < a)
-    __m256i positive_mask = _mm256_and_si256(_mm256_cmpgt_epi32(a, _mm256_setzero_si256()),
-                                             _mm256_cmpgt_epi32(b, _mm256_setzero_si256()));
-    __m256i overflow_mask = _mm256_and_si256(positive_mask, _mm256_cmpgt_epi32(a, result));
-
-    // Detect negative overflow: (a < 0) && (b < 0) && (result > a)
-    __m256i negative_mask = _mm256_and_si256(_mm256_cmpgt_epi32(_mm256_setzero_si256(), a),
-                                             _mm256_cmpgt_epi32(_mm256_setzero_si256(), b));
-    __m256i underflow_mask = _mm256_and_si256(negative_mask, _mm256_cmpgt_epi32(result, a));
-
-    // Apply saturation: Set 2147483647 for positive overflow, -2147483648 for negative overflow
-    result = _mm256_blendv_epi8(result, _mm256_set1_epi32(2147483647), overflow_mask);
-    result = _mm256_blendv_epi8(result, _mm256_set1_epi32(-2147483648), underflow_mask);
-    return result;
+    __m256i sum_i32x8 = _mm256_add_epi32(a, b);
+    __m256i a_xor_b_i32x8 = _mm256_xor_si256(a, b);
+    __m256i sum_xor_a_i32x8 = _mm256_xor_si256(sum_i32x8, a);
+    // ~(a^b) & (sum^a): overflow iff same-sign inputs produce different-sign result
+    __m256i overflow_i32x8 = _mm256_srai_epi32(_mm256_andnot_si256(a_xor_b_i32x8, sum_xor_a_i32x8), 31);
+    // Positive overflow → INT32_MAX, negative overflow → INT32_MIN
+    __m256i max_i32x8 = _mm256_set1_epi32(0x7FFFFFFF);
+    __m256i min_i32x8 = _mm256_set1_epi32((int)0x80000000);
+    __m256i saturated_i32x8 = _mm256_blendv_epi8(max_i32x8, min_i32x8, _mm256_srai_epi32(a, 31));
+    return _mm256_blendv_epi8(sum_i32x8, saturated_i32x8, overflow_i32x8);
 }
 
 NK_PUBLIC void nk_each_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result) {
@@ -1138,36 +1130,11 @@ NK_PUBLIC void nk_each_fma_i32_haswell(                                   //
 }
 
 NK_INTERNAL __m256i _mm256_adds_epu32_haswell(__m256i a, __m256i b) {
-    // TODO: Saturated addition of unsigned 32-bit integers in AVX2 isn't trivial.
-    // We don't have a `_mm256_adds_epu32` or `_mm256_add_epu32` instruction.
-    // We don't have a `_mm256_packus_epi64` to implement addition in 64-bit integers,
-    // which we need for subsequent downcasting opertaion.
-    nk_u32_t a_vals[8], b_vals[8], result_vals[8];
-    _mm256_storeu_si256((__m256i *)a_vals, a);
-    _mm256_storeu_si256((__m256i *)b_vals, b);
-
-    // Perform saturating addition for each element with separate sum variables
-    nk_u64_t sum0 = (nk_u64_t)a_vals[0] + (nk_u64_t)b_vals[0];
-    nk_u64_t sum1 = (nk_u64_t)a_vals[1] + (nk_u64_t)b_vals[1];
-    nk_u64_t sum2 = (nk_u64_t)a_vals[2] + (nk_u64_t)b_vals[2];
-    nk_u64_t sum3 = (nk_u64_t)a_vals[3] + (nk_u64_t)b_vals[3];
-    nk_u64_t sum4 = (nk_u64_t)a_vals[4] + (nk_u64_t)b_vals[4];
-    nk_u64_t sum5 = (nk_u64_t)a_vals[5] + (nk_u64_t)b_vals[5];
-    nk_u64_t sum6 = (nk_u64_t)a_vals[6] + (nk_u64_t)b_vals[6];
-    nk_u64_t sum7 = (nk_u64_t)a_vals[7] + (nk_u64_t)b_vals[7];
-
-    // Apply saturation
-    result_vals[0] = (sum0 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum0;
-    result_vals[1] = (sum1 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum1;
-    result_vals[2] = (sum2 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum2;
-    result_vals[3] = (sum3 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum3;
-    result_vals[4] = (sum4 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum4;
-    result_vals[5] = (sum5 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum5;
-    result_vals[6] = (sum6 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum6;
-    result_vals[7] = (sum7 > 0xFFFFFFFF) ? 0xFFFFFFFF : (nk_u32_t)sum7;
-
-    // Load results back into an AVX2 vector
-    return _mm256_loadu_si256((__m256i *)result_vals);
+    __m256i sum_u32x8 = _mm256_add_epi32(a, b);
+    __m256i max_u32x8 = _mm256_set1_epi32((int)0xFFFFFFFF);
+    // Overflow iff sum < a (unsigned wrapping). max_epu32(sum, a) != sum means overflow.
+    __m256i no_overflow_u32x8 = _mm256_cmpeq_epi32(_mm256_max_epu32(sum_u32x8, a), sum_u32x8);
+    return _mm256_blendv_epi8(max_u32x8, sum_u32x8, no_overflow_u32x8);
 }
 
 NK_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
