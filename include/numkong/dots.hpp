@@ -133,7 +133,7 @@ void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t
         for (size_t j = 0; j < column_count; j++) {
             in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
             result_type_ sum {};
-            for (size_t l = 0; l < depth_values; l++) sum = fma(sum, a_row[l], b_row[l]);
+            for (size_t l = 0; l < depth_values; l++) sum = fma(a_row[l], b_row[l], sum);
             c_row[j] = sum;
         }
     }
@@ -162,7 +162,7 @@ void dots_unpacked_conjugated(in_type_ const *a, in_type_ const *b, result_type_
         for (size_t j = 0; j < column_count; j++) {
             in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
             result_type_ sum {};
-            for (size_t l = 0; l < depth_values; l++) sum = fcma(sum, b_row[l], a_row[l]);
+            for (size_t l = 0; l < depth_values; l++) sum = fcma(b_row[l], a_row[l], sum);
             c_row[j] = sum;
         }
     }
@@ -297,7 +297,7 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
             for (std::size_t j = 0; j < n_vectors; j++) {
                 in_type_ const *a_j = reinterpret_cast<in_type_ const *>(a_bytes + j * a_stride_in_bytes);
                 result_type_ sum {};
-                for (std::size_t l = 0; l < depth_values; l++) sum = fma(sum, a_i[l], a_j[l]);
+                for (std::size_t l = 0; l < depth_values; l++) sum = fma(a_i[l], a_j[l], sum);
                 c_row[j] = sum;
             }
         }

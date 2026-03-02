@@ -83,7 +83,7 @@ void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_we
         while (i < a_length && j < b_length) {
             if (a[i] < b[j]) i++;
             else if (b[j] < a[i]) j++;
-            else sum = fma<weight_t, result_type_>(sum, a_weights[i], b_weights[j]), i++, j++;
+            else sum = fma<weight_t, result_type_>(a_weights[i], b_weights[j], sum), i++, j++;
         }
         *product = sum;
     }

@@ -332,21 +332,20 @@ struct f32_t {
     inline f32_t max(f32_t o) const noexcept { return f32_t {std::fmax(raw_, o.raw_)}; }
     inline f32_t clamp(f32_t lo, f32_t hi) const noexcept { return max(lo).min(hi); }
 
-    /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f32_t saturating_add(f32_t o) const noexcept {
-        float result = raw_ + o.raw_;
-        if (result == std::numeric_limits<float>::infinity()) return finite_max();
-        if (result == -std::numeric_limits<float>::infinity()) return finite_min();
-        return f32_t {result};
+    static f32_t clamped_to_finite_(float x) noexcept {
+        if (x == std::numeric_limits<float>::infinity()) return finite_max();
+        if (x == -std::numeric_limits<float>::infinity()) return finite_min();
+        return f32_t {x};
     }
 
+    /** @brief Saturating addition: clamps to finite range on overflow. */
+    constexpr f32_t saturating_add(f32_t o) const noexcept { return clamped_to_finite_(raw_ + o.raw_); }
+
     /** @brief Saturating subtraction: clamps to finite range on overflow. */
-    constexpr f32_t saturating_sub(f32_t o) const noexcept {
-        float result = raw_ - o.raw_;
-        if (result == std::numeric_limits<float>::infinity()) return finite_max();
-        if (result == -std::numeric_limits<float>::infinity()) return finite_min();
-        return f32_t {result};
-    }
+    constexpr f32_t saturating_sub(f32_t o) const noexcept { return clamped_to_finite_(raw_ - o.raw_); }
+
+    /** @brief Saturating multiplication: clamps to finite range on overflow. */
+    constexpr f32_t saturating_mul(f32_t o) const noexcept { return clamped_to_finite_(raw_ * o.raw_); }
 
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
@@ -594,21 +593,20 @@ struct f64_t {
     inline f64_t max(f64_t o) const noexcept { return f64_t {std::fmax(raw_, o.raw_)}; }
     inline f64_t clamp(f64_t lo, f64_t hi) const noexcept { return max(lo).min(hi); }
 
-    /** @brief Saturating addition: clamps to finite range on overflow. */
-    constexpr f64_t saturating_add(f64_t o) const noexcept {
-        double result = raw_ + o.raw_;
-        if (result == std::numeric_limits<double>::infinity()) return finite_max();
-        if (result == -std::numeric_limits<double>::infinity()) return finite_min();
-        return f64_t {result};
+    static f64_t clamped_to_finite_(double x) noexcept {
+        if (x == std::numeric_limits<double>::infinity()) return finite_max();
+        if (x == -std::numeric_limits<double>::infinity()) return finite_min();
+        return f64_t {x};
     }
 
+    /** @brief Saturating addition: clamps to finite range on overflow. */
+    constexpr f64_t saturating_add(f64_t o) const noexcept { return clamped_to_finite_(raw_ + o.raw_); }
+
     /** @brief Saturating subtraction: clamps to finite range on overflow. */
-    constexpr f64_t saturating_sub(f64_t o) const noexcept {
-        double result = raw_ - o.raw_;
-        if (result == std::numeric_limits<double>::infinity()) return finite_max();
-        if (result == -std::numeric_limits<double>::infinity()) return finite_min();
-        return f64_t {result};
-    }
+    constexpr f64_t saturating_sub(f64_t o) const noexcept { return clamped_to_finite_(raw_ - o.raw_); }
+
+    /** @brief Saturating multiplication: clamps to finite range on overflow. */
+    constexpr f64_t saturating_mul(f64_t o) const noexcept { return clamped_to_finite_(raw_ * o.raw_); }
 
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
@@ -5328,23 +5326,23 @@ enum allow_simd_t {
 };
 
 /** @brief FMA helper template for baseline dot-product implementations. */
-template <typename accumulator_type_, typename in_type_>
+template <typename in_type_, typename accumulator_type_>
     requires(dimensions_per_value<in_type_>() == 1)
-inline accumulator_type_ fma(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+inline accumulator_type_ fma(in_type_ a, in_type_ b, accumulator_type_ acc) noexcept {
     return acc + static_cast<accumulator_type_>(a) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief FMA helper template for baseline conjugate complex dot-product implementations. */
-template <typename accumulator_type_, typename in_type_>
+template <typename in_type_, typename accumulator_type_>
     requires(dimensions_per_value<in_type_>() == 1)
-inline accumulator_type_ fcma(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+inline accumulator_type_ fcma(in_type_ a, in_type_ b, accumulator_type_ acc) noexcept {
     return acc + static_cast<accumulator_type_>(a.conj()) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief Fused addition of squared differences for baseline L2 implementations. */
-template <typename accumulator_type_, typename in_type_>
+template <typename in_type_, typename accumulator_type_>
     requires(dimensions_per_value<in_type_>() == 1)
-constexpr accumulator_type_ fdsa(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+constexpr accumulator_type_ fdsa(in_type_ a, in_type_ b, accumulator_type_ acc) noexcept {
     auto d = static_cast<accumulator_type_>(a) - static_cast<accumulator_type_>(b);
     return acc + d * d;
 }
@@ -5353,44 +5351,44 @@ constexpr accumulator_type_ fdsa(accumulator_type_ acc, in_type_ a, in_type_ b) 
 template <typename accumulator_type_, typename in_type_>
     requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
 constexpr accumulator_type_ saturating_add(accumulator_type_ a, in_type_ b) noexcept {
-    return a.saturating_add(b);
+    return a.saturating_add(static_cast<accumulator_type_>(b));
 }
 
 /** @brief Free-standing saturating multiplication for baseline implementations. */
 template <typename accumulator_type_, typename in_type_>
     requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
 constexpr accumulator_type_ saturating_mul(accumulator_type_ a, in_type_ b) noexcept {
-    return a.saturating_mul(b);
+    return a.saturating_mul(static_cast<accumulator_type_>(b));
 }
 
 /** @brief Free-standing saturating FMA (a*b + c) for baseline implementations. */
-template <typename accumulator_type_, typename in_type_>
+template <typename in_type_, typename accumulator_type_>
     requires(dimensions_per_value<in_type_>() == 1 || std::is_same<accumulator_type_, in_type_>::value)
-constexpr in_type_ saturating_fma(in_type_ a, in_type_ b, in_type_ c) noexcept {
-    return saturating_add(saturating_mul(a, b), c);
+constexpr accumulator_type_ saturating_fma(in_type_ a, in_type_ b, accumulator_type_ acc) noexcept {
+    return saturating_add(acc, saturating_mul(static_cast<accumulator_type_>(a), static_cast<accumulator_type_>(b)));
 }
 
 /** @brief FMA specialization for i4x2_t (signed 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fma(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+constexpr accumulator_type_ fma(i4x2_t a, i4x2_t b, accumulator_type_ acc) noexcept {
     return acc + accumulator_type_(nk_i32_t(a.low()) * nk_i32_t(b.low()) + nk_i32_t(a.high()) * nk_i32_t(b.high()));
 }
 
 /** @brief FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fma(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+constexpr accumulator_type_ fma(u4x2_t a, u4x2_t b, accumulator_type_ acc) noexcept {
     return acc + accumulator_type_(nk_u32_t(a.low()) * nk_u32_t(b.low()) + nk_u32_t(a.high()) * nk_u32_t(b.high()));
 }
 
 /** @brief FMA specialization for u1x8_t (8 packed bits). Counts matching set bits (popcount of AND). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fma(accumulator_type_ acc, u1x8_t a, u1x8_t b) noexcept {
+constexpr accumulator_type_ fma(u1x8_t a, u1x8_t b, accumulator_type_ acc) noexcept {
     return acc + accumulator_type_(std::popcount(static_cast<unsigned>(a.raw() & b.raw())));
 }
 
 /** @brief Squared difference specialization for i4x2_t (signed 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fdsa(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+constexpr accumulator_type_ fdsa(i4x2_t a, i4x2_t b, accumulator_type_ acc) noexcept {
     nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
     nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
     return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
@@ -5398,10 +5396,36 @@ constexpr accumulator_type_ fdsa(accumulator_type_ acc, i4x2_t a, i4x2_t b) noex
 
 /** @brief Squared difference specialization for u4x2_t (unsigned 4-bit packed pairs). */
 template <typename accumulator_type_>
-constexpr accumulator_type_ fdsa(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+constexpr accumulator_type_ fdsa(u4x2_t a, u4x2_t b, accumulator_type_ acc) noexcept {
     nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
     nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
     return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
+}
+
+/** @brief Saturating addition specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ saturating_add(accumulator_type_ a, i4x2_t b) noexcept {
+    return saturating_add(saturating_add(a, b.low()), b.high());
+}
+
+/** @brief Saturating addition specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ saturating_add(accumulator_type_ a, u4x2_t b) noexcept {
+    return saturating_add(saturating_add(a, b.low()), b.high());
+}
+
+/** @brief Saturating FMA specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+    requires(!is_integer<accumulator_type_>())
+constexpr accumulator_type_ saturating_fma(i4x2_t a, i4x2_t b, accumulator_type_ acc) noexcept {
+    return fma(a, b, acc);
+}
+
+/** @brief Saturating FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+    requires(!is_integer<accumulator_type_>())
+constexpr accumulator_type_ saturating_fma(u4x2_t a, u4x2_t b, accumulator_type_ acc) noexcept {
+    return fma(a, b, acc);
 }
 
 #pragma endregion - SIMD Dispatch Helpers
