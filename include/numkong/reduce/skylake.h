@@ -3083,10 +3083,10 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_skylake_contiguous_( //
         __m512i data_i8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8(0x3F), tail_load, data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp6x64_to_u8x64_comparable_skylake_(data_i8x64);
         __mmask64 min_changed_mask = _mm512_mask_cmp_epu8_mask(tail_load, data_cmp_u8x64, min_vec.zmm, _MM_CMPINT_LT);
-        min_vec.zmm = _mm512_min_epu8(min_vec.zmm, data_cmp_u8x64);
+        min_vec.zmm = _mm512_mask_min_epu8(min_vec.zmm, tail_load, min_vec.zmm, data_cmp_u8x64);
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
         __mmask64 max_changed_mask = _mm512_mask_cmp_epu8_mask(tail_load, data_cmp_u8x64, max_vec.zmm, _MM_CMPINT_NLE);
-        max_vec.zmm = _mm512_max_epu8(max_vec.zmm, data_cmp_u8x64);
+        max_vec.zmm = _mm512_mask_max_epu8(max_vec.zmm, tail_load, max_vec.zmm, data_cmp_u8x64);
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
     }
 
@@ -3184,10 +3184,10 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_skylake_contiguous_( //
         __m512i data_i8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8(0x3F), tail_load, data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp6x64_to_u8x64_comparable_skylake_(data_i8x64);
         __mmask64 min_changed_mask = _mm512_mask_cmp_epu8_mask(tail_load, data_cmp_u8x64, min_vec.zmm, _MM_CMPINT_LT);
-        min_vec.zmm = _mm512_min_epu8(min_vec.zmm, data_cmp_u8x64);
+        min_vec.zmm = _mm512_mask_min_epu8(min_vec.zmm, tail_load, min_vec.zmm, data_cmp_u8x64);
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
         __mmask64 max_changed_mask = _mm512_mask_cmp_epu8_mask(tail_load, data_cmp_u8x64, max_vec.zmm, _MM_CMPINT_NLE);
-        max_vec.zmm = _mm512_max_epu8(max_vec.zmm, data_cmp_u8x64);
+        max_vec.zmm = _mm512_mask_max_epu8(max_vec.zmm, tail_load, max_vec.zmm, data_cmp_u8x64);
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
     }
 
