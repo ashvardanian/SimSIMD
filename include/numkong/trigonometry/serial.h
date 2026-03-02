@@ -11,7 +11,8 @@
 #define NK_TRIGONOMETRY_SERIAL_H
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // `nk_f16_to_f32_serial`
+#include "numkong/cast/serial.h"   // `nk_f16_to_f32_serial`
+#include "numkong/scalar/serial.h" // `nk_f32_fma_serial`, `nk_f64_fma_serial`
 
 #if defined(__cplusplus)
 extern "C" {

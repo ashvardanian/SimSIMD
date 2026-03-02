@@ -38,6 +38,7 @@ NK_DYNAMIC nk_f64_t nk_f64_sqrt(nk_f64_t x);
 
 /**
  *  @brief Scalar reciprocal square root: `1/√x`.
+ *  @sa std::rsqrt, @sa Rust f32::rsqrt
  *
  *  @param[in] x The input value.
  *  @return The reciprocal square root of @p x.
@@ -48,6 +49,7 @@ NK_DYNAMIC nk_f64_t nk_f64_rsqrt(nk_f64_t x);
 
 /**
  *  @brief Scalar fused multiply-add: `a × b + c`.
+ *  @sa std::fma, @sa Rust f32::mul_add
  *
  *  @param[in] a Multiplicand.
  *  @param[in] b Multiplier.
