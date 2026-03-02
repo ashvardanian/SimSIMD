@@ -377,8 +377,8 @@ NK_PUBLIC void nk_angular_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_
 nk_angular_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        a_i4_vec = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, a);
+        b_i4_vec = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, b);
         n_bytes = 0;
     }
     else {
@@ -434,8 +434,10 @@ nk_angular_i4_icelake_cycle:
     nk_i32_t ab_raw = _mm512_reduce_add_epi32(ab_i32x16);
     nk_i32_t ab = ab_raw - 8 * (nk_i32_t)(ax_sum + bx_sum) + 64 * (nk_i32_t)n;
 
-    nk_i32_t a2 = _mm512_reduce_add_epi32(a2_i32x16);
-    nk_i32_t b2 = _mm512_reduce_add_epi32(b2_i32x16);
+    nk_size_t n_bytes_total = nk_size_divide_round_up_(n, 2);
+    nk_i32_t norm_excess = 128 * (nk_i32_t)(nk_size_round_up_to_multiple_(n_bytes_total, 64) - n_bytes_total);
+    nk_i32_t a2 = _mm512_reduce_add_epi32(a2_i32x16) - norm_excess;
+    nk_i32_t b2 = _mm512_reduce_add_epi32(b2_i32x16) - norm_excess;
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
