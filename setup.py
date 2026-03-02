@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
 
 __lib_name__ = "numkong"
 __version__ = Path("VERSION").read_text().strip()
@@ -301,8 +302,16 @@ ext_modules = [
     )
 ]
 
+
+class ParallelBuildExt(build_ext):
+    def initialize_options(self):
+        super().initialize_options()
+        self.parallel = os.cpu_count()
+
+
 setup(
     name=__lib_name__,
+    cmdclass={"build_ext": ParallelBuildExt},
     version=__version__,
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
