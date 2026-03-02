@@ -65,7 +65,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_st
         nk_size_t const row_start_a = row_tile_a * tile_dim;
         nk_size_t const rows_a_remaining = (row_start_a + tile_dim <= row_count_a) ? tile_dim
                                                                                    : (row_count_a - row_start_a);
-        svbool_t const row_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_a_remaining);
+        svbool_t const row_predicate_u32x = svwhilelt_b32_u64(0u, rows_a_remaining);
 
         // Compute A row popcounts for this tile
         nk_u32_t a_popcounts[16];
@@ -89,7 +89,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_st
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
@@ -152,7 +152,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_st
             nk_size_t const row_start_b = row_tile_b * tile_dim;
             nk_size_t const rows_b_remaining = (row_start_b + tile_dim <= row_count_b) ? tile_dim
                                                                                        : (row_count_b - row_start_b);
-            svbool_t const column_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_b_remaining);
+            svbool_t const column_predicate_u32x = svwhilelt_b32_u64(0u, rows_b_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -166,7 +166,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_st
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
@@ -234,7 +234,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
         nk_size_t const rows_remaining = (row_tile_start + tile_dim <= row_end) ? tile_dim : (row_end - row_tile_start);
         nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
                                                                                       : (n_vectors - row_tile_start);
-        svbool_t const row_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_clamped);
+        svbool_t const row_predicate_u32x = svwhilelt_b32_u64(0u, rows_clamped);
 
         // Compute A tile popcounts
         NK_ALIGN64 nk_u32_t a_tile_pops[16];
@@ -259,7 +259,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
@@ -371,7 +371,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
             nk_size_t const col_tile_start = column_tile_index * tile_dim;
             nk_size_t const cols_remaining = (col_tile_start + tile_dim <= n_vectors) ? tile_dim
                                                                                       : (n_vectors - col_tile_start);
-            svbool_t const column_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)cols_remaining);
+            svbool_t const column_predicate_u32x = svwhilelt_b32_u64(0u, cols_remaining);
 
             svzero_mask_za(nk_sme_zero_za32_tile_1_);
 
@@ -384,7 +384,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                svbool_t const batch_predicate_u32x = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
+                svbool_t const batch_predicate_u32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
                     nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +

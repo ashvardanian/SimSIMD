@@ -96,7 +96,7 @@ NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_s
     svfloat64_t dist_sq_f64x = svdupq_n_f64(0.0, 0.0);
     svbool_t predicate_all_f64x = svptrue_b64();
     do {
-        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
         svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
         svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
         svfloat32_t diff_f32x = svsub_f32_x(predicate_f32x, a_f32x, b_f32x);
@@ -121,7 +121,7 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     svfloat64_t b2_f64x = svdupq_n_f64(0.0, 0.0);
     svbool_t predicate_all_f64x = svptrue_b64();
     do {
-        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
         svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
         svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
         // Widen lower half of f32 vectors to f64 and accumulate
@@ -146,7 +146,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_s
     svfloat64_t compensation_f64x = svdupq_n_f64(0.0, 0.0);
     svbool_t predicate_all_f64x = svptrue_b64();
     do {
-        svbool_t predicate_f64x = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
         svfloat64_t a_f64x = svld1_f64(predicate_f64x, a + i);
         svfloat64_t b_f64x = svld1_f64(predicate_f64x, b + i);
         svfloat64_t diff_f64x = svsub_f64_x(predicate_f64x, a_f64x, b_f64x);
@@ -184,7 +184,7 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     svfloat64_t b2_f64x = svdupq_n_f64(0.0, 0.0);
     svbool_t predicate_all_f64x = svptrue_b64();
     do {
-        svbool_t predicate_f64x = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
         svfloat64_t a_f64x = svld1_f64(predicate_f64x, a + i);
         svfloat64_t b_f64x = svld1_f64(predicate_f64x, b + i);
         // TwoProd for ab: product = a*b, error = fma(a,b,-product) = -(product - a*b)

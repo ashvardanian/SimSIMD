@@ -30,9 +30,8 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_siz
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64((uint32_t)i, (uint32_t)count);
-        svfloat64_t values_f64x = svcvt_f64_f32_x(predicate_f64x,
-                                                  svld1_f32(svwhilelt_b32((uint32_t)i, (uint32_t)count), data + i));
+        svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);
+        svfloat64_t values_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(svwhilelt_b32_u64(i, count), data + i));
         accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
     }
     return (nk_f32_t)svaddv_f64(svptrue_b64(), accumulator_f64x);
@@ -42,7 +41,7 @@ NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_siz
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64((uint32_t)i, (uint32_t)count);
+        svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);
         svfloat64_t values_f64x = svld1_f64(predicate_f64x, data + i);
         accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
     }

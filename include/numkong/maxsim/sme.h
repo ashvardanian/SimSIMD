@@ -95,10 +95,9 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
         nk_size_t const rows_remaining = (row_start + tile_dimension <= n_q) ? tile_dimension : (n_q - row_start);
         svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
                                                 ? svptrue_b16()
-                                                : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
-        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension)
-                                                ? svptrue_b32()
-                                                : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
+                                                : svwhilelt_b16_u64(0u, rows_remaining * 2);
+        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension) ? svptrue_b32()
+                                                                               : svwhilelt_b32_u64(0u, rows_remaining);
 
         // Running max vector: element i = max_j dot(q_{row_start+i}, d_j) seen so far
         svfloat32_t running_max_f32x = svdup_f32(NK_F32_MIN);
@@ -163,7 +162,7 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
             nk_size_t const cols_remaining = (col_start + tile_dimension <= n_d) ? tile_dimension : (n_d - col_start);
             svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
                                                        ? svptrue_b16()
-                                                       : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
+                                                       : svwhilelt_b16_u64(0u, cols_remaining * 2);
 
             svzero_mask_za(nk_sme_zero_za32_tile_0_); // Zero ZA0 only
 
@@ -237,10 +236,9 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
         nk_size_t const rows_remaining = (row_start + tile_dimension <= n_q) ? tile_dimension : (n_q - row_start);
         svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
                                                 ? svptrue_b16()
-                                                : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(rows_remaining * 2));
-        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension)
-                                                ? svptrue_b32()
-                                                : svwhilelt_b32((nk_u32_t)0, (nk_u32_t)rows_remaining);
+                                                : svwhilelt_b16_u64(0u, rows_remaining * 2);
+        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension) ? svptrue_b32()
+                                                                               : svwhilelt_b32_u64(0u, rows_remaining);
 
         // Running max vector: element i = max_j dot(q_{row_start+i}, d_j) seen so far
         svfloat32_t running_max_f32x = svdup_f32(NK_F32_MIN);
@@ -305,7 +303,7 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
             nk_size_t const cols_remaining = (col_start + tile_dimension <= n_d) ? tile_dimension : (n_d - col_start);
             svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
                                                        ? svptrue_b16()
-                                                       : svwhilelt_b16((nk_u32_t)0, (nk_u32_t)(cols_remaining * 2));
+                                                       : svwhilelt_b16_u64(0u, cols_remaining * 2);
 
             svzero_mask_za(nk_sme_zero_za32_tile_0_); // Zero ZA0 only
 
