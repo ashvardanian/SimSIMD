@@ -4711,16 +4711,18 @@ impl ReduceMoments for u1x8 {
 
 /// Find minimum and maximum values with their indices, with stride support.
 ///
-/// Returns `(min_value, min_index, max_value, max_index)` for all elements in a slice.
+/// Returns `Some((min_value, min_index, max_value, max_index))` for all elements in a slice,
+/// or `None` if all elements are NaN (for floating-point types).
 /// The value output type may be widened for half-precision types.
 pub trait ReduceMinMax: Sized {
     /// Output type for the min/max values — matches the C layer's native type.
     type Output;
-    /// Returns `(min_value, min_index, max_value, max_index)` for the given data with the specified stride.
+    /// Returns `Some((min_value, min_index, max_value, max_index))` for the given data with the
+    /// specified stride, or `None` if all elements are NaN.
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize);
+    ) -> Option<(Self::Output, usize, Self::Output, usize)>;
 }
 
 impl ReduceMinMax for f64 {
@@ -4728,7 +4730,7 @@ impl ReduceMinMax for f64 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: f64 = 0.0;
         let mut min_idx: usize = 0;
         let mut max_val: f64 = 0.0;
@@ -4744,7 +4746,10 @@ impl ReduceMinMax for f64 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4753,7 +4758,7 @@ impl ReduceMinMax for f32 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: f32 = 0.0;
         let mut min_idx: usize = 0;
         let mut max_val: f32 = 0.0;
@@ -4769,7 +4774,10 @@ impl ReduceMinMax for f32 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4778,7 +4786,7 @@ impl ReduceMinMax for i8 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: i8 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: i8 = 0;
@@ -4794,7 +4802,7 @@ impl ReduceMinMax for i8 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4803,7 +4811,7 @@ impl ReduceMinMax for u8 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u8 = 0;
@@ -4819,7 +4827,7 @@ impl ReduceMinMax for u8 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4828,7 +4836,7 @@ impl ReduceMinMax for i16 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: i16 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: i16 = 0;
@@ -4844,7 +4852,7 @@ impl ReduceMinMax for i16 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4853,7 +4861,7 @@ impl ReduceMinMax for u16 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u16 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u16 = 0;
@@ -4869,7 +4877,7 @@ impl ReduceMinMax for u16 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4878,7 +4886,7 @@ impl ReduceMinMax for i32 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: i32 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: i32 = 0;
@@ -4894,7 +4902,7 @@ impl ReduceMinMax for i32 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4903,7 +4911,7 @@ impl ReduceMinMax for u32 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u32 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u32 = 0;
@@ -4919,7 +4927,7 @@ impl ReduceMinMax for u32 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4928,7 +4936,7 @@ impl ReduceMinMax for i64 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: i64 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: i64 = 0;
@@ -4944,7 +4952,7 @@ impl ReduceMinMax for i64 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4953,7 +4961,7 @@ impl ReduceMinMax for u64 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u64 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u64 = 0;
@@ -4969,7 +4977,7 @@ impl ReduceMinMax for u64 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -4978,7 +4986,7 @@ impl ReduceMinMax for f16 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u16 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u16 = 0;
@@ -4994,7 +5002,10 @@ impl ReduceMinMax for f16 {
                 &mut max_idx,
             );
         }
-        (f16(min_raw), min_idx, f16(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((f16(min_raw), min_idx, f16(max_raw), max_idx))
     }
 }
 
@@ -5003,7 +5014,7 @@ impl ReduceMinMax for bf16 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u16 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u16 = 0;
@@ -5019,7 +5030,10 @@ impl ReduceMinMax for bf16 {
                 &mut max_idx,
             );
         }
-        (bf16(min_raw), min_idx, bf16(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((bf16(min_raw), min_idx, bf16(max_raw), max_idx))
     }
 }
 
@@ -5028,7 +5042,7 @@ impl ReduceMinMax for e4m3 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u8 = 0;
@@ -5044,7 +5058,10 @@ impl ReduceMinMax for e4m3 {
                 &mut max_idx,
             );
         }
-        (e4m3(min_raw), min_idx, e4m3(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((e4m3(min_raw), min_idx, e4m3(max_raw), max_idx))
     }
 }
 
@@ -5053,7 +5070,7 @@ impl ReduceMinMax for e5m2 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u8 = 0;
@@ -5069,7 +5086,10 @@ impl ReduceMinMax for e5m2 {
                 &mut max_idx,
             );
         }
-        (e5m2(min_raw), min_idx, e5m2(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((e5m2(min_raw), min_idx, e5m2(max_raw), max_idx))
     }
 }
 
@@ -5078,7 +5098,7 @@ impl ReduceMinMax for e2m3 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u8 = 0;
@@ -5094,7 +5114,10 @@ impl ReduceMinMax for e2m3 {
                 &mut max_idx,
             );
         }
-        (e2m3(min_raw), min_idx, e2m3(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((e2m3(min_raw), min_idx, e2m3(max_raw), max_idx))
     }
 }
 
@@ -5103,7 +5126,7 @@ impl ReduceMinMax for e3m2 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_raw: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_raw: u8 = 0;
@@ -5119,7 +5142,10 @@ impl ReduceMinMax for e3m2 {
                 &mut max_idx,
             );
         }
-        (e3m2(min_raw), min_idx, e3m2(max_raw), max_idx)
+        if min_idx == usize::MAX {
+            return None;
+        }
+        Some((e3m2(min_raw), min_idx, e3m2(max_raw), max_idx))
     }
 }
 
@@ -5128,7 +5154,7 @@ impl ReduceMinMax for i4x2 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: i8 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: i8 = 0;
@@ -5144,7 +5170,7 @@ impl ReduceMinMax for i4x2 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -5153,7 +5179,7 @@ impl ReduceMinMax for u4x2 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u8 = 0;
@@ -5169,7 +5195,7 @@ impl ReduceMinMax for u4x2 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -5178,7 +5204,7 @@ impl ReduceMinMax for u1x8 {
     fn reduce_minmax(
         data: &[Self],
         stride_bytes: usize,
-    ) -> (Self::Output, usize, Self::Output, usize) {
+    ) -> Option<(Self::Output, usize, Self::Output, usize)> {
         let mut min_val: u8 = 0;
         let mut min_idx: usize = 0;
         let mut max_val: u8 = 0;
@@ -5194,7 +5220,7 @@ impl ReduceMinMax for u1x8 {
                 &mut max_idx,
             );
         }
-        (min_val, min_idx, max_val, max_idx)
+        Some((min_val, min_idx, max_val, max_idx))
     }
 }
 
@@ -5736,7 +5762,7 @@ impl ComplexBilinear for f64 {
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
-                (n / 2),
+                n / 2,
                 result.as_mut_ptr(),
             );
         }
@@ -5758,7 +5784,7 @@ impl ComplexBilinear for f32 {
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
-                (n / 2),
+                n / 2,
                 result.as_mut_ptr(),
             );
         }
@@ -5780,7 +5806,7 @@ impl ComplexBilinear for f16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                (n / 2),
+                n / 2,
                 result.as_mut_ptr(),
             );
         }
@@ -5802,7 +5828,7 @@ impl ComplexBilinear for bf16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                (n / 2),
+                n / 2,
                 result.as_mut_ptr(),
             );
         }
@@ -7527,8 +7553,9 @@ mod tests {
     {
         let data: Vec<T> = input_values.iter().map(|&v| T::from_f32(v)).collect();
         let stride_bytes = core::mem::size_of::<T>();
-        let (actual_min, actual_min_idx, actual_max, actual_max_idx) =
-            T::reduce_minmax(&data, stride_bytes);
+        let result = T::reduce_minmax(&data, stride_bytes);
+        assert!(result.is_some(), "Expected Some for non-NaN input");
+        let (actual_min, actual_min_idx, actual_max, actual_max_idx) = result.unwrap();
         let (exp_min_idx, exp_min) = input_values
             .iter()
             .enumerate()
@@ -7589,6 +7616,66 @@ mod tests {
         check_reduce_minmax::<u16>(&[3.0, 1.0, 4.0, 5.0, 2.0]);
         check_reduce_minmax::<i64>(&[3.0, -1.0, 4.0, -5.0, 2.0]);
         check_reduce_minmax::<u64>(&[3.0, 1.0, 4.0, 5.0, 2.0]);
+    }
+
+    #[test]
+    fn reduce_minmax_all_nan() {
+        let nan_f64: Vec<f64> = vec![f64::NAN; 16];
+        assert_eq!(
+            f64::reduce_minmax(&nan_f64, core::mem::size_of::<f64>()),
+            None
+        );
+
+        let nan_f32: Vec<f32> = vec![f32::NAN; 16];
+        assert_eq!(
+            f32::reduce_minmax(&nan_f32, core::mem::size_of::<f32>()),
+            None
+        );
+
+        let nan_f16: Vec<f16> = vec![f16::NAN; 16];
+        assert_eq!(
+            f16::reduce_minmax(&nan_f16, core::mem::size_of::<f16>()),
+            None
+        );
+
+        let nan_bf16: Vec<bf16> = vec![bf16::NAN; 16];
+        assert_eq!(
+            bf16::reduce_minmax(&nan_bf16, core::mem::size_of::<bf16>()),
+            None
+        );
+
+        let nan_e4m3: Vec<e4m3> = vec![e4m3::NAN; 16];
+        assert_eq!(
+            e4m3::reduce_minmax(&nan_e4m3, core::mem::size_of::<e4m3>()),
+            None
+        );
+
+        let nan_e5m2: Vec<e5m2> = vec![e5m2::NAN; 16];
+        assert_eq!(
+            e5m2::reduce_minmax(&nan_e5m2, core::mem::size_of::<e5m2>()),
+            None
+        );
+    }
+
+    #[test]
+    fn reduce_minmax_mixed_nan() {
+        let data = vec![f64::NAN, 3.0, f64::NAN, 1.0, f64::NAN, 5.0];
+        let result = f64::reduce_minmax(&data, core::mem::size_of::<f64>());
+        assert!(result.is_some());
+        let (min_val, min_idx, max_val, max_idx) = result.unwrap();
+        assert_close(min_val, 1.0, 1e-10, 0.0, "mixed min");
+        assert_eq!(min_idx, 3);
+        assert_close(max_val, 5.0, 1e-10, 0.0, "mixed max");
+        assert_eq!(max_idx, 5);
+
+        let data_f32: Vec<f32> = vec![f32::NAN, 3.0, f32::NAN, 1.0, f32::NAN, 5.0];
+        let result_f32 = f32::reduce_minmax(&data_f32, core::mem::size_of::<f32>());
+        assert!(result_f32.is_some());
+        let (min_val, min_idx, max_val, max_idx) = result_f32.unwrap();
+        assert_close(min_val as f64, 1.0, 1e-5, 0.0, "mixed f32 min");
+        assert_eq!(min_idx, 3);
+        assert_close(max_val as f64, 5.0, 1e-5, 0.0, "mixed f32 max");
+        assert_eq!(max_idx, 5);
     }
 
     // endregion

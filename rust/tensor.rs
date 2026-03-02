@@ -1557,11 +1557,11 @@ impl Dots for u4x2 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u4(n, (k * 2)) }
+        unsafe { nk_dots_packed_size_u4(n, k * 2) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u4(b as *const u8, n, (k * 2), b_stride, packed)
+        nk_dots_pack_u4(b as *const u8, n, k * 2, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1574,7 +1574,7 @@ impl Dots for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_dots_packed_u4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1590,7 +1590,7 @@ impl Dots for u4x2 {
         nk_dots_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -1604,11 +1604,11 @@ impl Dots for i4x2 {
     type Accumulator = i32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_i4(n, (k * 2)) }
+        unsafe { nk_dots_packed_size_i4(n, k * 2) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_i4(b as *const u8, n, (k * 2), b_stride, packed)
+        nk_dots_pack_i4(b as *const u8, n, k * 2, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1621,7 +1621,7 @@ impl Dots for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_dots_packed_i4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1637,7 +1637,7 @@ impl Dots for i4x2 {
         nk_dots_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -1651,11 +1651,11 @@ impl Dots for u1x8 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u1(n, (k * 8)) }
+        unsafe { nk_dots_packed_size_u1(n, k * 8) }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u1(b as *const u8, n, (k * 8), b_stride, packed)
+        nk_dots_pack_u1(b as *const u8, n, k * 8, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1668,7 +1668,7 @@ impl Dots for u1x8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_packed_u1(a as *const u8, packed, c, m, n, (k * 8), a_stride, c_stride)
+        nk_dots_packed_u1(a as *const u8, packed, c, m, n, k * 8, a_stride, c_stride)
     }
 
     unsafe fn dots_symmetric(
@@ -1684,7 +1684,7 @@ impl Dots for u1x8 {
         nk_dots_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            (depth * 8),
+            depth * 8,
             stride,
             result,
             result_stride,
@@ -1756,7 +1756,7 @@ impl Hammings for u1x8 {
             result,
             rows,
             cols,
-            (d * 8),
+            d * 8,
             v_stride,
             r_stride,
         )
@@ -1775,7 +1775,7 @@ impl Hammings for u1x8 {
         nk_hammings_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            (d * 8),
+            d * 8,
             stride,
             result,
             result_stride,
@@ -1852,7 +1852,7 @@ impl Jaccards for u1x8 {
             result,
             rows,
             cols,
-            (d * 8),
+            d * 8,
             v_stride,
             r_stride,
         )
@@ -1871,7 +1871,7 @@ impl Jaccards for u1x8 {
         nk_jaccards_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            (d * 8),
+            d * 8,
             stride,
             result,
             result_stride,
@@ -2195,7 +2195,7 @@ impl Angulars for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_angulars_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_angulars_packed_u4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
     unsafe fn angulars_symmetric(
         vectors: *const Self,
@@ -2210,7 +2210,7 @@ impl Angulars for u4x2 {
         nk_angulars_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -2231,7 +2231,7 @@ impl Euclideans for u4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_euclideans_packed_u4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_euclideans_packed_u4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
     unsafe fn euclideans_symmetric(
         vectors: *const Self,
@@ -2246,7 +2246,7 @@ impl Euclideans for u4x2 {
         nk_euclideans_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -2267,7 +2267,7 @@ impl Angulars for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_angulars_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_angulars_packed_i4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
     unsafe fn angulars_symmetric(
         vectors: *const Self,
@@ -2282,7 +2282,7 @@ impl Angulars for i4x2 {
         nk_angulars_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -2303,7 +2303,7 @@ impl Euclideans for i4x2 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_euclideans_packed_i4(a as *const u8, packed, c, m, n, (k * 2), a_stride, c_stride)
+        nk_euclideans_packed_i4(a as *const u8, packed, c, m, n, k * 2, a_stride, c_stride)
     }
     unsafe fn euclideans_symmetric(
         vectors: *const Self,
@@ -2318,7 +2318,7 @@ impl Euclideans for i4x2 {
         nk_euclideans_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            (depth * 2),
+            depth * 2,
             stride,
             result,
             result_stride,
@@ -3241,12 +3241,12 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     let count = if step > 0 {
                         (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
                     } else {
-                        let abs_step = (-step);
+                        let abs_step = (-step) as usize;
                         (start.saturating_sub(end) + abs_step - 1) / abs_step
                     };
                     new_shape[new_ndim] = count;
                     // Stride can be negative for reversed views
-                    new_strides[new_ndim] = (dim_stride as isize * step);
+                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
                     new_ndim += 1;
                     offset += start * dim_stride;
                 }
@@ -3330,11 +3330,11 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     let count = if step > 0 {
                         (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
                     } else {
-                        let abs_step = (-step);
+                        let abs_step = (-step) as usize;
                         (start.saturating_sub(end) + abs_step - 1) / abs_step
                     };
                     new_shape[new_ndim] = count;
-                    new_strides[new_ndim] = (dim_stride as isize * step);
+                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
                     new_ndim += 1;
                     offset += start * dim_stride;
                 }

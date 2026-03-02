@@ -591,8 +591,11 @@ NK_PUBLIC void nk_reduce_minmax_f16_serial(                        //
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f16_t raw_value = *(nk_f16_t const *)ptr;
-        if (nk_f16_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
-        if (nk_f16_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
+        nk_fui16_t raw_fui;
+        raw_fui.f = raw_value;
+        if (nk_f16_is_nan_(raw_fui.u)) continue;
+        if (min_idx == NK_SIZE_MAX || nk_f16_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
+        if (max_idx == NK_SIZE_MAX || nk_f16_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
     }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
@@ -607,8 +610,13 @@ NK_PUBLIC void nk_reduce_minmax_bf16_serial(                        //
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_bf16_t raw_value = *(nk_bf16_t const *)ptr;
-        if (nk_bf16_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
-        if (nk_bf16_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
+        nk_fui16_t raw_fui;
+        raw_fui.bf = raw_value;
+        if (nk_bf16_is_nan_(raw_fui.u)) continue;
+        if (min_idx == NK_SIZE_MAX || nk_bf16_order_serial(raw_value, min_value) < 0)
+            min_value = raw_value, min_idx = i;
+        if (max_idx == NK_SIZE_MAX || nk_bf16_order_serial(raw_value, max_value) > 0)
+            max_value = raw_value, max_idx = i;
     }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
@@ -623,8 +631,11 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_serial(                        //
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e4m3_t raw_value = *(nk_e4m3_t const *)ptr;
-        if (nk_e4m3_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
-        if (nk_e4m3_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
+        if (nk_e4m3_is_nan_(raw_value)) continue;
+        if (min_idx == NK_SIZE_MAX || nk_e4m3_order_serial(raw_value, min_value) < 0)
+            min_value = raw_value, min_idx = i;
+        if (max_idx == NK_SIZE_MAX || nk_e4m3_order_serial(raw_value, max_value) > 0)
+            max_value = raw_value, max_idx = i;
     }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
@@ -639,8 +650,11 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_serial(                        //
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e5m2_t raw_value = *(nk_e5m2_t const *)ptr;
-        if (nk_e5m2_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
-        if (nk_e5m2_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
+        if (nk_e5m2_is_nan_(raw_value)) continue;
+        if (min_idx == NK_SIZE_MAX || nk_e5m2_order_serial(raw_value, min_value) < 0)
+            min_value = raw_value, min_idx = i;
+        if (max_idx == NK_SIZE_MAX || nk_e5m2_order_serial(raw_value, max_value) > 0)
+            max_value = raw_value, max_idx = i;
     }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;

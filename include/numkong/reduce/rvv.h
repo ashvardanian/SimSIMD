@@ -159,14 +159,18 @@ NK_INTERNAL void nk_reduce_minmax_f32_rvv_contiguous_( //
     }
     vfloat32m1_t id_max = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t mn = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmin_vs_f32m1_f32m1(min, id_max, vlmax));
+    vfloat32m1_t id_min = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(max, id_min, vlmax));
+    if (mn == NK_F32_MAX && mx == NK_F32_MIN) {
+        *min_value = NK_F32_MAX, *min_index = NK_SIZE_MAX, *max_value = NK_F32_MIN, *max_index = NK_SIZE_MAX;
+        return;
+    }
     vbool32_t min_match_b32 = __riscv_vmfeq_vf_f32m1_b32(min, mn, vlmax);
     vuint64m2_t sentinel = __riscv_vmv_v_x_u64m2(NK_U64_MAX, vlmax);
     vuint64m2_t min_cands = __riscv_vmerge_vvm_u64m2(sentinel, min_indices, min_match_b32, vlmax);
     vuint64m1_t id_umax = __riscv_vmv_v_x_u64m1(NK_U64_MAX, 1);
     *min_value = mn,
     *min_index = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(__riscv_vredminu_vs_u64m2_u64m1(min_cands, id_umax, vlmax));
-    vfloat32m1_t id_min = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(max, id_min, vlmax));
     vbool32_t max_match_b32 = __riscv_vmfeq_vf_f32m1_b32(max, mx, vlmax);
     vuint64m2_t max_cands = __riscv_vmerge_vvm_u64m2(sentinel, max_indices, max_match_b32, vlmax);
     *max_value = mx,
@@ -200,14 +204,18 @@ NK_INTERNAL void nk_reduce_minmax_f32_rvv_strided_(                //
     }
     vfloat32m1_t id_max = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t mn = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmin_vs_f32m1_f32m1(min, id_max, vlmax));
+    vfloat32m1_t id_min = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(max, id_min, vlmax));
+    if (mn == NK_F32_MAX && mx == NK_F32_MIN) {
+        *min_value = NK_F32_MAX, *min_index = NK_SIZE_MAX, *max_value = NK_F32_MIN, *max_index = NK_SIZE_MAX;
+        return;
+    }
     vbool32_t min_match_b32 = __riscv_vmfeq_vf_f32m1_b32(min, mn, vlmax);
     vuint64m2_t sentinel = __riscv_vmv_v_x_u64m2(NK_U64_MAX, vlmax);
     vuint64m2_t min_cands = __riscv_vmerge_vvm_u64m2(sentinel, min_indices, min_match_b32, vlmax);
     vuint64m1_t id_umax = __riscv_vmv_v_x_u64m1(NK_U64_MAX, 1);
     *min_value = mn,
     *min_index = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(__riscv_vredminu_vs_u64m2_u64m1(min_cands, id_umax, vlmax));
-    vfloat32m1_t id_min = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t mx = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredmax_vs_f32m1_f32m1(max, id_min, vlmax));
     vbool32_t max_match_b32 = __riscv_vmfeq_vf_f32m1_b32(max, mx, vlmax);
     vuint64m2_t max_cands = __riscv_vmerge_vvm_u64m2(sentinel, max_indices, max_match_b32, vlmax);
     *max_value = mx,
@@ -301,14 +309,18 @@ NK_INTERNAL void nk_reduce_minmax_f64_rvv_contiguous_( //
     }
     vfloat64m1_t id_max = __riscv_vfmv_v_f_f64m1(NK_F64_MAX, 1);
     nk_f64_t mn = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmin_vs_f64m1_f64m1(min, id_max, vlmax));
+    vfloat64m1_t id_min = __riscv_vfmv_v_f_f64m1(NK_F64_MIN, 1);
+    nk_f64_t mx = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmax_vs_f64m1_f64m1(max, id_min, vlmax));
+    if (mn == NK_F64_MAX && mx == NK_F64_MIN) {
+        *min_value = NK_F64_MAX, *min_index = NK_SIZE_MAX, *max_value = NK_F64_MIN, *max_index = NK_SIZE_MAX;
+        return;
+    }
     vbool64_t min_match_b64 = __riscv_vmfeq_vf_f64m1_b64(min, mn, vlmax);
     vuint64m1_t sentinel = __riscv_vmv_v_x_u64m1(NK_U64_MAX, vlmax);
     vuint64m1_t min_cands = __riscv_vmerge_vvm_u64m1(sentinel, min_indices, min_match_b64, vlmax);
     vuint64m1_t id_umax = __riscv_vmv_v_x_u64m1(NK_U64_MAX, 1);
     *min_value = mn,
     *min_index = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(__riscv_vredminu_vs_u64m1_u64m1(min_cands, id_umax, vlmax));
-    vfloat64m1_t id_min = __riscv_vfmv_v_f_f64m1(NK_F64_MIN, 1);
-    nk_f64_t mx = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmax_vs_f64m1_f64m1(max, id_min, vlmax));
     vbool64_t max_match_b64 = __riscv_vmfeq_vf_f64m1_b64(max, mx, vlmax);
     vuint64m1_t max_cands = __riscv_vmerge_vvm_u64m1(sentinel, max_indices, max_match_b64, vlmax);
     *max_value = mx,
@@ -342,14 +354,18 @@ NK_INTERNAL void nk_reduce_minmax_f64_rvv_strided_(                //
     }
     vfloat64m1_t id_max = __riscv_vfmv_v_f_f64m1(NK_F64_MAX, 1);
     nk_f64_t mn = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmin_vs_f64m1_f64m1(min, id_max, vlmax));
+    vfloat64m1_t id_min = __riscv_vfmv_v_f_f64m1(NK_F64_MIN, 1);
+    nk_f64_t mx = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmax_vs_f64m1_f64m1(max, id_min, vlmax));
+    if (mn == NK_F64_MAX && mx == NK_F64_MIN) {
+        *min_value = NK_F64_MAX, *min_index = NK_SIZE_MAX, *max_value = NK_F64_MIN, *max_index = NK_SIZE_MAX;
+        return;
+    }
     vbool64_t min_match_b64 = __riscv_vmfeq_vf_f64m1_b64(min, mn, vlmax);
     vuint64m1_t sentinel = __riscv_vmv_v_x_u64m1(NK_U64_MAX, vlmax);
     vuint64m1_t min_cands = __riscv_vmerge_vvm_u64m1(sentinel, min_indices, min_match_b64, vlmax);
     vuint64m1_t id_umax = __riscv_vmv_v_x_u64m1(NK_U64_MAX, 1);
     *min_value = mn,
     *min_index = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(__riscv_vredminu_vs_u64m1_u64m1(min_cands, id_umax, vlmax));
-    vfloat64m1_t id_min = __riscv_vfmv_v_f_f64m1(NK_F64_MIN, 1);
-    nk_f64_t mx = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredmax_vs_f64m1_f64m1(max, id_min, vlmax));
     vbool64_t max_match_b64 = __riscv_vmfeq_vf_f64m1_b64(max, mx, vlmax);
     vuint64m1_t max_cands = __riscv_vmerge_vvm_u64m1(sentinel, max_indices, max_match_b64, vlmax);
     *max_value = mx,
@@ -2162,6 +2178,15 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_contiguous_( //
     vfloat32m1_t init_max_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t min_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
         __riscv_vfredmin_vs_f32m2_f32m1(final_min_f32m2, init_max_f32m1, vlmax));
+    vfloat32m2_t final_max_f32m2 = nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax);
+    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
+    if (min_val_f32 == NK_F32_MAX && max_val_f32 == NK_F32_MIN) {
+        *min_value_ptr = NK_BF16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_BF16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
 
     vfloat32m2_t converted_f32m2 = nk_bf16m1_to_f32m2_rvv_(min_u16m1, vlmax);
     vbool16_t min_match_b16 = __riscv_vmfeq_vf_f32m2_b16(converted_f32m2, min_val_f32, vlmax);
@@ -2175,12 +2200,6 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_contiguous_( //
     *min_value_ptr = *(nk_bf16_t *)&min_raw;
     *min_index_ptr = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(
         __riscv_vredminu_vs_u64m4_u64m1(min_cands_u64m4, init_umax_u64m1, vlmax));
-
-    // Similar for max
-    vfloat32m2_t final_max_f32m2 = nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax);
-    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
 
     vbool16_t max_match_b16 = __riscv_vmfeq_vf_f32m2_b16(nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax), max_val_f32, vlmax);
     vuint64m4_t max_cands_u64m4 = __riscv_vmerge_vvm_u64m4(sentinel_u64m4, max_indices_u64m4, max_match_b16, vlmax);
@@ -2233,6 +2252,15 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_strided_(                    //
     vfloat32m1_t init_max_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t min_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
         __riscv_vfredmin_vs_f32m2_f32m1(final_min_f32m2, init_max_f32m1, vlmax));
+    vfloat32m2_t final_max_f32m2 = nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax);
+    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
+    if (min_val_f32 == NK_F32_MAX && max_val_f32 == NK_F32_MIN) {
+        *min_value_ptr = NK_BF16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_BF16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
 
     vfloat32m2_t converted_f32m2 = nk_bf16m1_to_f32m2_rvv_(min_u16m1, vlmax);
     vbool16_t min_match_b16 = __riscv_vmfeq_vf_f32m2_b16(converted_f32m2, min_val_f32, vlmax);
@@ -2246,11 +2274,6 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_strided_(                    //
     *min_value_ptr = *(nk_bf16_t *)&min_raw;
     *min_index_ptr = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(
         __riscv_vredminu_vs_u64m4_u64m1(min_cands_u64m4, init_umax_u64m1, vlmax));
-
-    vfloat32m2_t final_max_f32m2 = nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax);
-    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
 
     vbool16_t max_match_b16 = __riscv_vmfeq_vf_f32m2_b16(nk_bf16m1_to_f32m2_rvv_(max_u16m1, vlmax), max_val_f32, vlmax);
     vuint64m4_t max_cands_u64m4 = __riscv_vmerge_vvm_u64m4(sentinel_u64m4, max_indices_u64m4, max_match_b16, vlmax);
@@ -2392,6 +2415,15 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_contiguous_( //
     vfloat32m1_t init_max_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t min_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
         __riscv_vfredmin_vs_f32m2_f32m1(final_min_f32m2, init_max_f32m1, vlmax));
+    vfloat32m2_t final_max_f32m2 = nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax);
+    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
+    if (min_val_f32 == NK_F32_MAX && max_val_f32 == NK_F32_MIN) {
+        *min_value_ptr = NK_F16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
 
     vfloat32m2_t converted_f32m2 = nk_f16m1_to_f32m2_rvv_(min_u16m1, vlmax);
     vbool16_t min_match_b16 = __riscv_vmfeq_vf_f32m2_b16(converted_f32m2, min_val_f32, vlmax);
@@ -2405,12 +2437,6 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_contiguous_( //
     *min_value_ptr = *(nk_f16_t *)&min_raw;
     *min_index_ptr = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(
         __riscv_vredminu_vs_u64m4_u64m1(min_cands_u64m4, init_umax_u64m1, vlmax));
-
-    // Similar for max
-    vfloat32m2_t final_max_f32m2 = nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax);
-    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
 
     vbool16_t max_match_b16 = __riscv_vmfeq_vf_f32m2_b16(nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax), max_val_f32, vlmax);
     vuint64m4_t max_cands_u64m4 = __riscv_vmerge_vvm_u64m4(sentinel_u64m4, max_indices_u64m4, max_match_b16, vlmax);
@@ -2463,6 +2489,15 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_strided_(                    //
     vfloat32m1_t init_max_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MAX, 1);
     nk_f32_t min_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
         __riscv_vfredmin_vs_f32m2_f32m1(final_min_f32m2, init_max_f32m1, vlmax));
+    vfloat32m2_t final_max_f32m2 = nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax);
+    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
+    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
+    if (min_val_f32 == NK_F32_MAX && max_val_f32 == NK_F32_MIN) {
+        *min_value_ptr = NK_F16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
 
     vfloat32m2_t converted_f32m2 = nk_f16m1_to_f32m2_rvv_(min_u16m1, vlmax);
     vbool16_t min_match_b16 = __riscv_vmfeq_vf_f32m2_b16(converted_f32m2, min_val_f32, vlmax);
@@ -2476,11 +2511,6 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_strided_(                    //
     *min_value_ptr = *(nk_f16_t *)&min_raw;
     *min_index_ptr = (nk_size_t)__riscv_vmv_x_s_u64m1_u64(
         __riscv_vredminu_vs_u64m4_u64m1(min_cands_u64m4, init_umax_u64m1, vlmax));
-
-    vfloat32m2_t final_max_f32m2 = nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax);
-    vfloat32m1_t init_min_f32m1 = __riscv_vfmv_v_f_f32m1(NK_F32_MIN, 1);
-    nk_f32_t max_val_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredmax_vs_f32m2_f32m1(final_max_f32m2, init_min_f32m1, vlmax));
 
     vbool16_t max_match_b16 = __riscv_vmfeq_vf_f32m2_b16(nk_f16m1_to_f32m2_rvv_(max_u16m1, vlmax), max_val_f32, vlmax);
     vuint64m4_t max_cands_u64m4 = __riscv_vmerge_vvm_u64m4(sentinel_u64m4, max_indices_u64m4, max_match_b16, vlmax);
@@ -2598,13 +2628,20 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_contiguous_( //
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
-        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(comparable_u8m1, min_u8m1, vector_length);
-        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, comparable_u8m1, less_b8, vector_length);
+        // Detect E4M3 NaN: comparable == 0x00 (neg NaN) or comparable == 0xFF (pos NaN)
+        vbool8_t nan_low_b8 = __riscv_vmseq_vx_u8m1_b8(comparable_u8m1, 0x00, vector_length);
+        vbool8_t nan_high_b8 = __riscv_vmseq_vx_u8m1_b8(comparable_u8m1, 0xFF, vector_length);
+        vbool8_t is_nan_b8 = __riscv_vmor_mm_b8(nan_low_b8, nan_high_b8, vector_length);
+        vuint8m1_t data_min_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0xFF, is_nan_b8, vector_length);
+        vuint8m1_t data_max_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0x00, is_nan_b8, vector_length);
+
+        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(data_min_u8m1, min_u8m1, vector_length);
+        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, data_min_u8m1, less_b8, vector_length);
         min_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(min_indices_u64m8, min_indices_u64m8, pos_u64m8, less_b8,
                                                         vector_length);
 
-        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, comparable_u8m1, vector_length);
-        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, comparable_u8m1, greater_b8, vector_length);
+        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, data_max_u8m1, vector_length);
+        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, data_max_u8m1, greater_b8, vector_length);
         max_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(max_indices_u64m8, max_indices_u64m8, pos_u64m8, greater_b8,
                                                         vector_length);
     }
@@ -2612,6 +2649,14 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_contiguous_( //
     // Horizontal reduction + convert back
     vuint8m1_t init_max_u8m1 = __riscv_vmv_v_x_u8m1(0xFF, 1);
     nk_u8_t min_comparable = __riscv_vmv_x_s_u8m1_u8(__riscv_vredminu_vs_u8m1_u8m1(min_u8m1, init_max_u8m1, vlmax));
+
+    // All-NaN case
+    if (min_comparable == 0xFF) {
+        *min_value_ptr = (nk_e4m3_t)NK_E4M3_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e4m3_t)NK_E4M3_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
     vbool8_t min_match_b8 = __riscv_vmseq_vx_u8m1_b8(min_u8m1, min_comparable, vlmax);
     vuint64m8_t sentinel_u64m8 = __riscv_vmv_v_x_u64m8(NK_U64_MAX, vlmax);
     vuint64m8_t min_cands_u64m8 = __riscv_vmerge_vvm_u64m8(sentinel_u64m8, min_indices_u64m8, min_match_b8, vlmax);
@@ -2657,13 +2702,20 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_strided_(                    //
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
-        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(comparable_u8m1, min_u8m1, vector_length);
-        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, comparable_u8m1, less_b8, vector_length);
+        // Detect E4M3 NaN: comparable == 0x00 (neg NaN) or comparable == 0xFF (pos NaN)
+        vbool8_t nan_low_b8 = __riscv_vmseq_vx_u8m1_b8(comparable_u8m1, 0x00, vector_length);
+        vbool8_t nan_high_b8 = __riscv_vmseq_vx_u8m1_b8(comparable_u8m1, 0xFF, vector_length);
+        vbool8_t is_nan_b8 = __riscv_vmor_mm_b8(nan_low_b8, nan_high_b8, vector_length);
+        vuint8m1_t data_min_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0xFF, is_nan_b8, vector_length);
+        vuint8m1_t data_max_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0x00, is_nan_b8, vector_length);
+
+        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(data_min_u8m1, min_u8m1, vector_length);
+        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, data_min_u8m1, less_b8, vector_length);
         min_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(min_indices_u64m8, min_indices_u64m8, pos_u64m8, less_b8,
                                                         vector_length);
 
-        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, comparable_u8m1, vector_length);
-        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, comparable_u8m1, greater_b8, vector_length);
+        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, data_max_u8m1, vector_length);
+        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, data_max_u8m1, greater_b8, vector_length);
         max_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(max_indices_u64m8, max_indices_u64m8, pos_u64m8, greater_b8,
                                                         vector_length);
     }
@@ -2671,6 +2723,14 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_strided_(                    //
     // Horizontal reduction (same as contiguous)
     vuint8m1_t init_max_u8m1 = __riscv_vmv_v_x_u8m1(0xFF, 1);
     nk_u8_t min_comparable = __riscv_vmv_x_s_u8m1_u8(__riscv_vredminu_vs_u8m1_u8m1(min_u8m1, init_max_u8m1, vlmax));
+
+    // All-NaN case
+    if (min_comparable == 0xFF) {
+        *min_value_ptr = (nk_e4m3_t)NK_E4M3_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e4m3_t)NK_E4M3_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
     vbool8_t min_match_b8 = __riscv_vmseq_vx_u8m1_b8(min_u8m1, min_comparable, vlmax);
     vuint64m8_t sentinel_u64m8 = __riscv_vmv_v_x_u64m8(NK_U64_MAX, vlmax);
     vuint64m8_t min_cands_u64m8 = __riscv_vmerge_vvm_u64m8(sentinel_u64m8, min_indices_u64m8, min_match_b8, vlmax);
@@ -2798,13 +2858,20 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_contiguous_( //
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
-        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(comparable_u8m1, min_u8m1, vector_length);
-        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, comparable_u8m1, less_b8, vector_length);
+        // Detect E5M2 NaN: comparable <= 0x02 (neg NaN) or comparable >= 0xFD (pos NaN)
+        vbool8_t nan_low_b8 = __riscv_vmsleu_vx_u8m1_b8(comparable_u8m1, 0x02, vector_length);
+        vbool8_t nan_high_b8 = __riscv_vmsgeu_vx_u8m1_b8(comparable_u8m1, 0xFD, vector_length);
+        vbool8_t is_nan_b8 = __riscv_vmor_mm_b8(nan_low_b8, nan_high_b8, vector_length);
+        vuint8m1_t data_min_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0xFF, is_nan_b8, vector_length);
+        vuint8m1_t data_max_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0x00, is_nan_b8, vector_length);
+
+        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(data_min_u8m1, min_u8m1, vector_length);
+        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, data_min_u8m1, less_b8, vector_length);
         min_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(min_indices_u64m8, min_indices_u64m8, pos_u64m8, less_b8,
                                                         vector_length);
 
-        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, comparable_u8m1, vector_length);
-        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, comparable_u8m1, greater_b8, vector_length);
+        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, data_max_u8m1, vector_length);
+        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, data_max_u8m1, greater_b8, vector_length);
         max_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(max_indices_u64m8, max_indices_u64m8, pos_u64m8, greater_b8,
                                                         vector_length);
     }
@@ -2812,6 +2879,14 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_contiguous_( //
     // Horizontal reduction + convert back
     vuint8m1_t init_max_u8m1 = __riscv_vmv_v_x_u8m1(0xFF, 1);
     nk_u8_t min_comparable = __riscv_vmv_x_s_u8m1_u8(__riscv_vredminu_vs_u8m1_u8m1(min_u8m1, init_max_u8m1, vlmax));
+
+    // All-NaN case
+    if (min_comparable == 0xFF) {
+        *min_value_ptr = (nk_e5m2_t)NK_E5M2_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e5m2_t)NK_E5M2_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
     vbool8_t min_match_b8 = __riscv_vmseq_vx_u8m1_b8(min_u8m1, min_comparable, vlmax);
     vuint64m8_t sentinel_u64m8 = __riscv_vmv_v_x_u64m8(NK_U64_MAX, vlmax);
     vuint64m8_t min_cands_u64m8 = __riscv_vmerge_vvm_u64m8(sentinel_u64m8, min_indices_u64m8, min_match_b8, vlmax);
@@ -2856,13 +2931,20 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_strided_(                    //
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
-        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(comparable_u8m1, min_u8m1, vector_length);
-        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, comparable_u8m1, less_b8, vector_length);
+        // Detect E5M2 NaN: comparable <= 0x02 (neg NaN) or comparable >= 0xFD (pos NaN)
+        vbool8_t nan_low_b8 = __riscv_vmsleu_vx_u8m1_b8(comparable_u8m1, 0x02, vector_length);
+        vbool8_t nan_high_b8 = __riscv_vmsgeu_vx_u8m1_b8(comparable_u8m1, 0xFD, vector_length);
+        vbool8_t is_nan_b8 = __riscv_vmor_mm_b8(nan_low_b8, nan_high_b8, vector_length);
+        vuint8m1_t data_min_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0xFF, is_nan_b8, vector_length);
+        vuint8m1_t data_max_u8m1 = __riscv_vmerge_vxm_u8m1(comparable_u8m1, 0x00, is_nan_b8, vector_length);
+
+        vbool8_t less_b8 = __riscv_vmsltu_vv_u8m1_b8(data_min_u8m1, min_u8m1, vector_length);
+        min_u8m1 = __riscv_vmerge_vvm_u8m1_tu(min_u8m1, min_u8m1, data_min_u8m1, less_b8, vector_length);
         min_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(min_indices_u64m8, min_indices_u64m8, pos_u64m8, less_b8,
                                                         vector_length);
 
-        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, comparable_u8m1, vector_length);
-        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, comparable_u8m1, greater_b8, vector_length);
+        vbool8_t greater_b8 = __riscv_vmsltu_vv_u8m1_b8(max_u8m1, data_max_u8m1, vector_length);
+        max_u8m1 = __riscv_vmerge_vvm_u8m1_tu(max_u8m1, max_u8m1, data_max_u8m1, greater_b8, vector_length);
         max_indices_u64m8 = __riscv_vmerge_vvm_u64m8_tu(max_indices_u64m8, max_indices_u64m8, pos_u64m8, greater_b8,
                                                         vector_length);
     }
@@ -2870,6 +2952,14 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_strided_(                    //
     // Horizontal reduction (same as contiguous)
     vuint8m1_t init_max_u8m1 = __riscv_vmv_v_x_u8m1(0xFF, 1);
     nk_u8_t min_comparable = __riscv_vmv_x_s_u8m1_u8(__riscv_vredminu_vs_u8m1_u8m1(min_u8m1, init_max_u8m1, vlmax));
+
+    // All-NaN case
+    if (min_comparable == 0xFF) {
+        *min_value_ptr = (nk_e5m2_t)NK_E5M2_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e5m2_t)NK_E5M2_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
     vbool8_t min_match_b8 = __riscv_vmseq_vx_u8m1_b8(min_u8m1, min_comparable, vlmax);
     vuint64m8_t sentinel_u64m8 = __riscv_vmv_v_x_u64m8(NK_U64_MAX, vlmax);
     vuint64m8_t min_cands_u64m8 = __riscv_vmerge_vvm_u64m8(sentinel_u64m8, min_indices_u64m8, min_match_b8, vlmax);

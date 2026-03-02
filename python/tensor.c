@@ -1169,6 +1169,8 @@ PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
         return NULL;
     }
 
+    if (min_index == NK_SIZE_MAX) { Py_RETURN_NONE; }
+
     PyObject *min_obj = scalar_to_py_number(&min_buf, min_dtype);
     if (!min_obj) return NULL;
     PyObject *min_idx_obj = PyLong_FromSsize_t((Py_ssize_t)min_index);
@@ -1431,6 +1433,7 @@ static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t na
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "min not supported for dtype '%s'",
                                 dtype_to_python_string(tensor->dtype));
+        if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return scalar_to_py_number(&min_buf, min_dtype);
     }
     return reduce_axis_dispatch(tensor, &parsed, nk_reduce_minmax_value_dtype(tensor->dtype), min_slice);
@@ -1448,6 +1451,7 @@ static PyObject *Tensor_max(PyObject *self, PyObject *const *args, Py_ssize_t na
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "max not supported for dtype '%s'",
                                 dtype_to_python_string(tensor->dtype));
+        if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return scalar_to_py_number(&max_buf, max_dtype);
     }
     return reduce_axis_dispatch(tensor, &parsed, nk_reduce_minmax_value_dtype(tensor->dtype), max_slice);
@@ -1465,6 +1469,7 @@ static PyObject *Tensor_argmin(PyObject *self, PyObject *const *args, Py_ssize_t
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmin not supported for dtype '%s'",
                                 dtype_to_python_string(tensor->dtype));
+        if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)min_idx);
     }
     return reduce_axis_dispatch(tensor, &parsed, nk_i64_k, argmin_slice);
@@ -1482,6 +1487,7 @@ static PyObject *Tensor_argmax(PyObject *self, PyObject *const *args, Py_ssize_t
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmax not supported for dtype '%s'",
                                 dtype_to_python_string(tensor->dtype));
+        if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)max_idx);
     }
     return reduce_axis_dispatch(tensor, &parsed, nk_i64_k, argmax_slice);
@@ -2239,7 +2245,7 @@ char const doc_reduce_minmax[] =                                            //
     "Parameters:\n"                                                         //
     "    a: Input array.\n\n"                                               //
     "Returns:\n"                                                            //
-    "    tuple: (min_val, min_index, max_val, max_index).";
+    "    tuple: (min_val, min_index, max_val, max_index), or None if all elements are NaN.";
 
 PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;

@@ -130,9 +130,73 @@ def test_minmax(ndim, dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("ndim", [1, 7, 16, 97])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("float16", id="f16"),
+    ],
+)
+def test_minmax_all_nan(ndim, dtype):
+    """All-NaN input returns None from minmax."""
+    np_arr = np.full(ndim, np.nan, dtype=dtype)
+    nk_arr = make_nk(np_arr, dtype)
+    assert nk.minmax(nk_arr) is None
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("float16", id="f16"),
+    ],
+)
+def test_minmax_mixed_nan(dtype):
+    """Mixed NaN + valid values returns correct min/max."""
+    np_arr = np.array([np.nan, 3.0, np.nan, 1.0, np.nan, 5.0, np.nan], dtype=dtype)
+    nk_arr = make_nk(np_arr, dtype)
+    result = nk.minmax(nk_arr)
+    assert result is not None
+    nk_min, nk_argmin, nk_max, nk_argmax = result
+    assert float(nk_min) == pytest.approx(1.0, abs=0.1)
+    assert int(nk_argmin) == 3
+    assert float(nk_max) == pytest.approx(5.0, abs=0.1)
+    assert int(nk_argmax) == 5
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("ndim", [1, 7, 16, 97])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("float16", id="f16"),
+    ],
+)
+def test_individual_reductions_all_nan(ndim, dtype):
+    """All-NaN input returns None from min, max, argmin, argmax."""
+    np_arr = np.full(ndim, np.nan, dtype=dtype)
+    nk_arr = make_nk(np_arr, dtype)
+    assert nk.min(nk_arr) is None
+    assert nk.max(nk_arr) is None
+    assert nk.argmin(nk_arr) is None
+    assert nk.argmax(nk_arr) is None
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize(
-    "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("float16", id="f16")]
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("float16", id="f16"),
+    ],
 )
 def test_module_level_reductions(ndim, dtype):
     """Test nk.sum(), nk.min(), nk.max(), nk.argmin(), nk.argmax() module functions."""
@@ -170,7 +234,13 @@ def test_sum_axis(dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
 def test_min_max_axis(dtype):
     """min/max(axis=) on 2D tensors vs NumPy."""
     np_arr = np.random.randn(6, 8).astype(dtype)
@@ -181,7 +251,13 @@ def test_min_max_axis(dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
 def test_argmin_argmax_axis(dtype):
     """argmin/argmax(axis=) on 2D tensors vs NumPy."""
     np_arr = np.random.randn(6, 8).astype(dtype)
@@ -194,7 +270,13 @@ def test_argmin_argmax_axis(dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
 def test_norm_axis(dtype):
     """norm(axis=) vs np.linalg.norm(x, axis=)."""
     rtol = 1e-4 if dtype == "float32" else 1e-10
@@ -207,7 +289,13 @@ def test_norm_axis(dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
 def test_keepdims(dtype):
     """keepdims=True preserves rank with size-1 at reduced axis."""
     np_arr = np.random.randn(4, 5).astype(dtype)
@@ -222,7 +310,13 @@ def test_keepdims(dtype):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
 def test_out_parameter(dtype):
     """out= writes to pre-allocated tensor, returns it."""
     np_arr = np.random.randn(4, 5).astype(dtype)

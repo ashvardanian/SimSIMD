@@ -100,6 +100,8 @@ impl f16 {
     pub const ONE: Self = f16(0x3C00);
     /// Negative one.
     pub const NEG_ONE: Self = f16(0xBC00);
+    /// Quiet NaN (Not a Number).
+    pub const NAN: Self = f16(0x7E00);
 
     /// Converts an `f32` value to `f16`. Out-of-range values saturate.
     #[inline(always)]
@@ -248,6 +250,8 @@ impl bf16 {
 
     /// Negative one.
     pub const NEG_ONE: Self = bf16(0xBF80);
+    /// Quiet NaN (Not a Number).
+    pub const NAN: Self = bf16(0x7FC0);
 
     /// Converts an `f32` value to `bf16`. Out-of-range values saturate.
     #[inline(always)]
@@ -397,6 +401,8 @@ impl e4m3 {
     pub const ZERO: Self = e4m3(0x00);
     pub const ONE: Self = e4m3(0x38);
     pub const NEG_ONE: Self = e4m3(0xB8);
+    /// Quiet NaN (Not a Number).
+    pub const NAN: Self = e4m3(0x7F);
 
     /// Converts an `f32` value to `e4m3`. Out-of-range values saturate.
     #[inline(always)]
@@ -552,6 +558,8 @@ impl e5m2 {
 
     /// Negative one.
     pub const NEG_ONE: Self = e5m2(0xBC);
+    /// Quiet NaN (Not a Number).
+    pub const NAN: Self = e5m2(0x7F);
 
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {

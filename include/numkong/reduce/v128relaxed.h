@@ -357,6 +357,11 @@ NK_INTERNAL void nk_reduce_minmax_f32_v128relaxed_contiguous_( //
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
+    if (min_value == NK_F32_MAX && max_value == NK_F32_MIN) {
+        *min_value_ptr = NK_F32_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F32_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
 }
@@ -433,6 +438,11 @@ NK_INTERNAL void nk_reduce_minmax_f64_v128relaxed_contiguous_( //
         nk_f64_t val = data[idx];
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
+    }
+    if (min_value == NK_F64_MAX && max_value == NK_F64_MIN) {
+        *min_value_ptr = NK_F64_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F64_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
     }
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
@@ -514,6 +524,11 @@ NK_INTERNAL void nk_reduce_minmax_bf16_v128relaxed_contiguous_( //
         nk_i16_t comparable = (raw & 0x8000) ? (nk_i16_t)(raw ^ 0x7FFF) : (nk_i16_t)raw;
         if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
         if (comparable > max_comparable) max_comparable = comparable, max_idx = idx;
+    }
+    if (min_comparable == 0x7F80 && max_comparable == (nk_i16_t)0x807F) {
+        *min_value_ptr = NK_BF16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_BF16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
     }
     // Convert comparable back to raw bf16
     nk_i16_t min_sign = min_comparable >> 15;
@@ -603,6 +618,11 @@ NK_INTERNAL void nk_reduce_minmax_f16_v128relaxed_contiguous_( //
         nk_f16_to_f32_serial(data + idx, &val);
         if (val < min_value_f32) min_value_f32 = val, min_idx = idx;
         if (val > max_value_f32) max_value_f32 = val, max_idx = idx;
+    }
+    if (min_value_f32 == NK_F32_MAX && max_value_f32 == NK_F32_MIN) {
+        *min_value_ptr = nk_f16_from_u16_(NK_F16_MAX), *min_index_ptr = NK_SIZE_MAX,
+        *max_value_ptr = nk_f16_from_u16_(NK_F16_MIN), *max_index_ptr = NK_SIZE_MAX;
+        return;
     }
     *min_value_ptr = data[min_idx], *min_index_ptr = min_idx;
     *max_value_ptr = data[max_idx], *max_index_ptr = max_idx;
@@ -1902,10 +1922,17 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_v128relaxed_contiguous_( //
     for (; idx + 16 <= count; idx += 16) {
         v128_t raw_u8x16 = wasm_v128_load(data_ptr + idx);
         v128_t comparable_u8x16 = nk_fp8x16_to_comparable_v128relaxed_(raw_u8x16);
-        v128_t less_b8x16 = wasm_u8x16_lt(comparable_u8x16, min_u8x16);
-        v128_t greater_b8x16 = wasm_u8x16_gt(comparable_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(comparable_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(comparable_u8x16, max_u8x16, greater_b8x16);
+        // E4M3 NaN: comparable == 0x00 (negative NaN) or comparable == 0xFF (positive NaN)
+        v128_t is_nan_low_u8x16 = wasm_i8x16_eq(comparable_u8x16, wasm_i8x16_splat(0));
+        v128_t is_nan_high_u8x16 = wasm_i8x16_eq(comparable_u8x16, wasm_i8x16_splat((signed char)0xFF));
+        v128_t is_nan_u8x16 = wasm_v128_or(is_nan_low_u8x16, is_nan_high_u8x16);
+        v128_t data_min_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
+                                                    is_nan_u8x16);
+        v128_t data_max_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
+        v128_t less_b8x16 = wasm_u8x16_lt(data_min_u8x16, min_u8x16);
+        v128_t greater_b8x16 = wasm_u8x16_gt(data_max_u8x16, max_u8x16);
+        min_u8x16 = wasm_v128_bitselect(data_min_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_v128_bitselect(data_max_u8x16, max_u8x16, greater_b8x16);
         min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
         max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
@@ -1929,11 +1956,20 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_v128relaxed_contiguous_( //
         if (max_values_vec.u8s[i] > max_comparable || (max_values_vec.u8s[i] == max_comparable && abs_idx < max_idx))
             max_comparable = max_values_vec.u8s[i], max_idx = abs_idx;
     }
+    // Check if SIMD found only NaN (sentinels unchanged)
+    if (min_comparable == 0xFF) min_idx = NK_SIZE_MAX;
+    if (max_comparable == 0x00) max_idx = NK_SIZE_MAX;
     for (; idx < count; ++idx) {
         nk_u8_t raw = data_ptr[idx];
         nk_u8_t cmp = (raw & 0x80) ? (nk_u8_t)~raw : (raw ^ 0x80);
-        if (cmp < min_comparable) min_comparable = cmp, min_idx = idx;
-        if (cmp > max_comparable) max_comparable = cmp, max_idx = idx;
+        if (cmp == 0x00 || cmp == 0xFF) continue;
+        if (min_idx == NK_SIZE_MAX || cmp < min_comparable) min_comparable = cmp, min_idx = idx;
+        if (max_idx == NK_SIZE_MAX || cmp > max_comparable) max_comparable = cmp, max_idx = idx;
+    }
+    if (min_idx == NK_SIZE_MAX) {
+        *min_value_ptr = (nk_e4m3_t)NK_E4M3_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e4m3_t)NK_E4M3_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
     }
     *min_value_ptr = nk_comparable_to_fp8_v128relaxed_(min_comparable), *min_index_ptr = min_idx;
     *max_value_ptr = nk_comparable_to_fp8_v128relaxed_(max_comparable), *max_index_ptr = max_idx;
@@ -1959,12 +1995,16 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_v128relaxed(                       //
                                           &left_max_idx);
         nk_reduce_minmax_e4m3_v128relaxed(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                           &right_min, &right_min_idx, &right_max, &right_max_idx);
-        if (nk_e4m3_order_serial(right_min, left_min) < 0)
-            *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_idx;
-        else *min_value_ptr = left_min, *min_index_ptr = left_min_idx;
-        if (nk_e4m3_order_serial(right_max, left_max) > 0)
-            *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_idx;
-        else *max_value_ptr = left_max, *max_index_ptr = left_max_idx;
+        right_min_idx = (right_min_idx == NK_SIZE_MAX) ? NK_SIZE_MAX : left_count + right_min_idx;
+        right_max_idx = (right_max_idx == NK_SIZE_MAX) ? NK_SIZE_MAX : left_count + right_max_idx;
+        if (left_min_idx == NK_SIZE_MAX) *min_value_ptr = right_min, *min_index_ptr = right_min_idx;
+        else if (right_min_idx == NK_SIZE_MAX || nk_e4m3_order_serial(left_min, right_min) <= 0)
+            *min_value_ptr = left_min, *min_index_ptr = left_min_idx;
+        else *min_value_ptr = right_min, *min_index_ptr = right_min_idx;
+        if (left_max_idx == NK_SIZE_MAX) *max_value_ptr = right_max, *max_index_ptr = right_max_idx;
+        else if (right_max_idx == NK_SIZE_MAX || nk_e4m3_order_serial(left_max, right_max) >= 0)
+            *max_value_ptr = left_max, *max_index_ptr = left_max_idx;
+        else *max_value_ptr = right_max, *max_index_ptr = right_max_idx;
     }
     else if (stride_elements == 1)
         nk_reduce_minmax_e4m3_v128relaxed_contiguous_(data_ptr, count, min_value_ptr, min_index_ptr, max_value_ptr,
@@ -1985,10 +2025,19 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_v128relaxed_contiguous_( //
     for (; idx + 16 <= count; idx += 16) {
         v128_t raw_u8x16 = wasm_v128_load(data_ptr + idx);
         v128_t comparable_u8x16 = nk_fp8x16_to_comparable_v128relaxed_(raw_u8x16);
-        v128_t less_b8x16 = wasm_u8x16_lt(comparable_u8x16, min_u8x16);
-        v128_t greater_b8x16 = wasm_u8x16_gt(comparable_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(comparable_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(comparable_u8x16, max_u8x16, greater_b8x16);
+        // E5M2 NaN: comparable <= 0x02 or comparable >= 0xFD
+        v128_t low_bound_u8x16 = wasm_i8x16_splat(0x02);
+        v128_t high_bound_u8x16 = wasm_i8x16_splat((signed char)0xFD);
+        v128_t is_nan_low_u8x16 = wasm_u8x16_le(comparable_u8x16, low_bound_u8x16);
+        v128_t is_nan_high_u8x16 = wasm_u8x16_ge(comparable_u8x16, high_bound_u8x16);
+        v128_t is_nan_u8x16 = wasm_v128_or(is_nan_low_u8x16, is_nan_high_u8x16);
+        v128_t data_min_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
+                                                    is_nan_u8x16);
+        v128_t data_max_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
+        v128_t less_b8x16 = wasm_u8x16_lt(data_min_u8x16, min_u8x16);
+        v128_t greater_b8x16 = wasm_u8x16_gt(data_max_u8x16, max_u8x16);
+        min_u8x16 = wasm_v128_bitselect(data_min_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_v128_bitselect(data_max_u8x16, max_u8x16, greater_b8x16);
         min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
         max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
@@ -2012,11 +2061,20 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_v128relaxed_contiguous_( //
         if (max_values_vec.u8s[i] > max_comparable || (max_values_vec.u8s[i] == max_comparable && abs_idx < max_idx))
             max_comparable = max_values_vec.u8s[i], max_idx = abs_idx;
     }
+    // Check if SIMD found only NaN (sentinels unchanged)
+    if (min_comparable == 0xFF) min_idx = NK_SIZE_MAX;
+    if (max_comparable == 0x00) max_idx = NK_SIZE_MAX;
     for (; idx < count; ++idx) {
         nk_u8_t raw = data_ptr[idx];
         nk_u8_t cmp = (raw & 0x80) ? (nk_u8_t)~raw : (raw ^ 0x80);
-        if (cmp < min_comparable) min_comparable = cmp, min_idx = idx;
-        if (cmp > max_comparable) max_comparable = cmp, max_idx = idx;
+        if (cmp <= 0x02 || cmp >= 0xFD) continue;
+        if (min_idx == NK_SIZE_MAX || cmp < min_comparable) min_comparable = cmp, min_idx = idx;
+        if (max_idx == NK_SIZE_MAX || cmp > max_comparable) max_comparable = cmp, max_idx = idx;
+    }
+    if (min_idx == NK_SIZE_MAX) {
+        *min_value_ptr = (nk_e5m2_t)NK_E5M2_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = (nk_e5m2_t)NK_E5M2_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
     }
     *min_value_ptr = nk_comparable_to_fp8_v128relaxed_(min_comparable), *min_index_ptr = min_idx;
     *max_value_ptr = nk_comparable_to_fp8_v128relaxed_(max_comparable), *max_index_ptr = max_idx;
@@ -2042,12 +2100,16 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_v128relaxed(                       //
                                           &left_max_idx);
         nk_reduce_minmax_e5m2_v128relaxed(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                           &right_min, &right_min_idx, &right_max, &right_max_idx);
-        if (nk_e5m2_order_serial(right_min, left_min) < 0)
-            *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_idx;
-        else *min_value_ptr = left_min, *min_index_ptr = left_min_idx;
-        if (nk_e5m2_order_serial(right_max, left_max) > 0)
-            *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_idx;
-        else *max_value_ptr = left_max, *max_index_ptr = left_max_idx;
+        right_min_idx = (right_min_idx == NK_SIZE_MAX) ? NK_SIZE_MAX : left_count + right_min_idx;
+        right_max_idx = (right_max_idx == NK_SIZE_MAX) ? NK_SIZE_MAX : left_count + right_max_idx;
+        if (left_min_idx == NK_SIZE_MAX) *min_value_ptr = right_min, *min_index_ptr = right_min_idx;
+        else if (right_min_idx == NK_SIZE_MAX || nk_e5m2_order_serial(left_min, right_min) <= 0)
+            *min_value_ptr = left_min, *min_index_ptr = left_min_idx;
+        else *min_value_ptr = right_min, *min_index_ptr = right_min_idx;
+        if (left_max_idx == NK_SIZE_MAX) *max_value_ptr = right_max, *max_index_ptr = right_max_idx;
+        else if (right_max_idx == NK_SIZE_MAX || nk_e5m2_order_serial(left_max, right_max) >= 0)
+            *max_value_ptr = left_max, *max_index_ptr = left_max_idx;
+        else *max_value_ptr = right_max, *max_index_ptr = right_max_idx;
     }
     else if (stride_elements == 1)
         nk_reduce_minmax_e5m2_v128relaxed_contiguous_(data_ptr, count, min_value_ptr, min_index_ptr, max_value_ptr,

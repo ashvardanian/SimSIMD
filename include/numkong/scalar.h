@@ -121,14 +121,18 @@ NK_DYNAMIC nk_u4x2_t nk_u4x2_saturating_mul(nk_u4x2_t a, nk_u4x2_t b);
 
 /**
  *  @brief Branchless sign-magnitude ordering for non-native floating-point scalars.
+ *  @sa std::strong_order, Rust total_cmp
  *
  *  Uses `mask = -sign; ordered = value ^ mask` — the constant offset cancels in subtraction.
- *  Returns negative if a < b, 0 if equal, positive if a > b. NaN compares high.
+ *  Returns negative if a < b, 0 if equal, positive if a > b.
  *
  *  @param[in] a First operand.
  *  @param[in] b Second operand.
  *  @return Negative if `a < b`, zero if `a == b`, positive if `a > b`.
- *  @sa std::strong_order, Rust total_cmp
+ *
+ *  @note NaN values are ordered at the extremes per IEEE 754 totalOrder
+ *  (negative NaN < all finite < positive NaN). Callers requiring NaN-exclusion
+ *  semantics must filter NaN before calling.
  */
 NK_DYNAMIC int nk_f16_order(nk_f16_t a, nk_f16_t b);
 /** @copydoc nk_f16_order */

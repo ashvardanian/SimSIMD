@@ -209,6 +209,11 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_contiguous_( //
         }
     }
 
+    if (*(nk_u16_t *)&best_min == NK_F16_MAX && *(nk_u16_t *)&best_max == NK_F16_MIN) {
+        *min_value_ptr = best_min, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = best_max,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     *min_value_ptr = best_min, *min_index_ptr = min_index;
     *max_value_ptr = best_max, *max_index_ptr = max_index;
 }
@@ -313,6 +318,11 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_strided_(                  //
         }
     }
 
+    if (*(nk_u16_t *)&best_min == NK_F16_MAX && *(nk_u16_t *)&best_max == NK_F16_MIN) {
+        *min_value_ptr = best_min, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = best_max,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     *min_value_ptr = best_min, *min_index_ptr = min_index;
     *max_value_ptr = best_max, *max_index_ptr = max_index;
 }

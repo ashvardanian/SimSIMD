@@ -38,23 +38,34 @@
  *  - RISC-V: RVV
  *  - WASM: V128Relaxed
  *
- *  @section numerical_stability Numerical Stability
+ *  @section numerical_stability Numerical stability
  *
- *  reduce_moments f32: f64 accumulation for both sum and sumsq. f64: f64 with Neumaier.
- *  i8/u8: i64/u64 accumulators. i32/u32: u64 with overflow-detecting saturating helpers.
- *  f16/bf16/FP8: promoted to f32 for moments accumulation.
- *  reduce_minmax: comparison-based, exact. NaN comparisons return false — if all values
- *  are NaN, the initial sentinel (type max/min) is returned unchanged.
- *  u1: popcount sum in u64, exact.
+ *  All accumulations are performed with stable techniques and @b saturation in mind.
+ *  Single-precision inputs are aggregated in double-precision. Double-precision
+ *  inputs are handled with @b Neumaier-like compensated summation schemes. Mini-floats
+ *  are propagated to more hardware-friendly types. And integer are handled with
+ *  proper saturation logic, as opposed to simple pairwise saturation, meaning that
+ *  if several extremely large values are followed by equal negative values, the
+ *  sum will be zero.
+ *
+ *  @code{.c}
+ *
+ *  @endcode{.c}
+ *
+ *
+ *  All MinMax scans are performed with respect to NaN values beyond simple total ordering.
+ *  All positive and negative NaN values are masked out on the fly and can never be included
+ *  in the output. For empty or NaN-only inputs, the returned argmin/argmax positions will
+ *  be set to sentinel value @b `NK_SIZE_MAX`.
  *
  *  @section reduction_strategy Reduction Strategy
  *
  *  The key insight is that `_mm512_reduce_add_ps()` and similar intrinsics are
- *  actually SERIAL operations - they don't parallelize the reduction across lanes.
+ *  actually serial operations - they don't parallelize the reduction across lanes.
  *  The correct approach is:
  *
- *  1. Accumulate VERTICALLY in SIMD registers throughout the entire loop
- *  2. Perform ONE horizontal reduction at the very end
+ *  1. Accumulate vertically in SIMD registers throughout the entire loop
+ *  2. Perform a single horizontal reduction at the very end, reconstructing the lane positions
  *
  *  @code{.c}
  *  __m512 sum_f32x16 = _mm512_setzero_ps();

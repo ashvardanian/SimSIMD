@@ -179,22 +179,22 @@ class Tensor(memoryview):
 
     def min(
         self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, int, "Tensor"]:
-        """Return the minimum element."""
+    ) -> Union[float, int, None, "Tensor"]:
+        """Return the minimum element, or None if all elements are NaN."""
         ...
 
     def max(
         self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, int, "Tensor"]:
-        """Return the maximum element."""
+    ) -> Union[float, int, None, "Tensor"]:
+        """Return the maximum element, or None if all elements are NaN."""
         ...
 
-    def argmin(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, "Tensor"]:
-        """Return the index of the minimum element."""
+    def argmin(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, None, "Tensor"]:
+        """Return the index of the minimum element, or None if all elements are NaN."""
         ...
 
-    def argmax(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, "Tensor"]:
-        """Return the index of the maximum element."""
+    def argmax(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, None, "Tensor"]:
+        """Return the index of the maximum element, or None if all elements are NaN."""
         ...
 
 # region Capabilities
@@ -491,7 +491,7 @@ def full(
 # region Reductions
 
 def moments(a: _BufferType, /) -> tuple[float, float]: ...
-def minmax(a: _BufferType, /) -> tuple[float, int, float, int]: ...
+def minmax(a: _BufferType, /) -> Optional[tuple[float, int, float, int]]: ...
 def sum(
     a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
 ) -> Union[float, int, Tensor]: ...
@@ -500,12 +500,16 @@ def norm(
 ) -> Union[float, Tensor]: ...
 def min(
     a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, int, Tensor]: ...
+) -> Union[float, int, None, Tensor]: ...
 def max(
     a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, int, Tensor]: ...
-def argmin(a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None) -> Union[int, Tensor]: ...
-def argmax(a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None) -> Union[int, Tensor]: ...
+) -> Union[float, int, None, Tensor]: ...
+def argmin(
+    a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None
+) -> Union[int, None, Tensor]: ...
+def argmax(
+    a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None
+) -> Union[int, None, Tensor]: ...
 
 # endregion Reductions
 

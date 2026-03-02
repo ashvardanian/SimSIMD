@@ -531,40 +531,6 @@ NK_INTERNAL __m512i nk_u8x64_comparable_to_fp8x64_skylake_(__m512i cmp_i8x64) {
     return _mm512_xor_si512(cmp_i8x64, xor_i8x64);
 }
 
-NK_INTERNAL __mmask64 nk_min_mask_e4m3x64_skylake_( //
-    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_cmp_u8x64) {
-    __mmask64 a_nan_m64 = _mm512_cmpeq_epi8_mask(a_cmp_u8x64, nan_cmp_u8x64);
-    __mmask64 b_nan_m64 = _mm512_cmpeq_epi8_mask(b_cmp_u8x64, nan_cmp_u8x64);
-    __mmask64 lt_m64 = _mm512_cmplt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
-    // Select a if: a is not NaN AND (a < b OR b is NaN)
-    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(lt_m64, b_nan_m64));
-}
-
-NK_INTERNAL __mmask64 nk_max_mask_e4m3x64_skylake_( //
-    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_cmp_u8x64) {
-    __mmask64 a_nan_m64 = _mm512_cmpeq_epi8_mask(a_cmp_u8x64, nan_cmp_u8x64);
-    __mmask64 b_nan_m64 = _mm512_cmpeq_epi8_mask(b_cmp_u8x64, nan_cmp_u8x64);
-    __mmask64 gt_m64 = _mm512_cmpgt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
-    // Select a if: a is not NaN AND (a > b OR b is NaN)
-    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(gt_m64, b_nan_m64));
-}
-
-NK_INTERNAL __mmask64 nk_min_mask_e5m2x64_skylake_( //
-    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_threshold_cmp_u8x64) {
-    __mmask64 a_nan_m64 = _mm512_cmpge_epu8_mask(a_cmp_u8x64, nan_threshold_cmp_u8x64);
-    __mmask64 b_nan_m64 = _mm512_cmpge_epu8_mask(b_cmp_u8x64, nan_threshold_cmp_u8x64);
-    __mmask64 lt_m64 = _mm512_cmplt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
-    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(lt_m64, b_nan_m64));
-}
-
-NK_INTERNAL __mmask64 nk_max_mask_e5m2x64_skylake_( //
-    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_threshold_cmp_u8x64) {
-    __mmask64 a_nan_m64 = _mm512_cmpge_epu8_mask(a_cmp_u8x64, nan_threshold_cmp_u8x64);
-    __mmask64 b_nan_m64 = _mm512_cmpge_epu8_mask(b_cmp_u8x64, nan_threshold_cmp_u8x64);
-    __mmask64 gt_m64 = _mm512_cmpgt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
-    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(gt_m64, b_nan_m64));
-}
-
 /** @brief Horizontal argmin: returns index of first minimum unsigned byte in ZMM register. */
 NK_INTERNAL nk_size_t nk_argmin_u8x64_skylake_(__m512i data_u8x64) {
     nk_u8_t min_val = nk_reduce_min_u8x64_skylake_(data_u8x64);
@@ -753,6 +719,11 @@ NK_INTERNAL void nk_reduce_minmax_f32_skylake_contiguous_( //
 
     nk_f32_t min_value = nk_reduce_min_f32x16_skylake_(min_f32x16);
     nk_f32_t max_value = nk_reduce_max_f32x16_skylake_(max_f32x16);
+    if (min_value == NK_F32_MAX && max_value == NK_F32_MIN) {
+        *min_value_ptr = NK_F32_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F32_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     unsigned int min_lane, max_lane;
     {
         __mmask16 value_match_mask = _mm512_cmp_ps_mask(min_f32x16, _mm512_set1_ps(min_value), _CMP_EQ_OQ);
@@ -2480,6 +2451,11 @@ NK_INTERNAL void nk_reduce_minmax_f64_skylake_contiguous_( //
 
     nk_f64_t min_value = nk_reduce_min_f64x8_skylake_(min_f64x8);
     nk_f64_t max_value = nk_reduce_max_f64x8_skylake_(max_f64x8);
+    if (min_value == NK_F64_MAX && max_value == NK_F64_MIN) {
+        *min_value_ptr = NK_F64_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F64_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     unsigned int min_lane, max_lane;
     {
         __mmask8 value_match_mask = _mm512_cmp_pd_mask(min_f64x8, _mm512_set1_pd(min_value), _CMP_EQ_OQ);
@@ -2600,9 +2576,9 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
     nk_e4m3_t const *data_ptr, nk_size_t count,             //
     nk_e4m3_t *min_value_ptr, nk_size_t *min_index_ptr,     //
     nk_e4m3_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    __m512i nan_cmp_u8x64 = _mm512_set1_epi8((char)0xFF);
+    // E4M3 NaN: comparable 0x00 (neg NaN) and 0xFF (pos NaN). Replace with neutral values.
     nk_b512_vec_t min_vec, max_vec;
-    min_vec.zmm = nan_cmp_u8x64;
+    min_vec.zmm = _mm512_set1_epi8((char)0xFF);
     max_vec.zmm = _mm512_setzero_si512();
     __m512i min_loop_cycle_u8x64 = _mm512_setzero_si512();
     __m512i max_loop_cycle_u8x64 = _mm512_setzero_si512();
@@ -2613,13 +2589,17 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
     for (; idx + 64 <= count; idx += 64) {
         __m512i data_i8x64 = _mm512_loadu_si512(data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
-        __mmask64 min_mask_m64 = nk_min_mask_e4m3x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        min_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
-        __mmask64 min_changed_mask = ~min_mask_m64;
+        __mmask64 is_nan_m64 = _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_setzero_si512()) |
+                               _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFF));
+        __m512i data_min_u8x64 = _mm512_mask_blend_epi8(is_nan_m64, data_cmp_u8x64, _mm512_set1_epi8((char)0xFF));
+        __m512i data_max_u8x64 = _mm512_mask_blend_epi8(is_nan_m64, data_cmp_u8x64, _mm512_setzero_si512());
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_min_u8x64);
+        __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
+        min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __mmask64 max_mask_m64 = nk_max_mask_e4m3x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        max_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
-        __mmask64 max_changed_mask = ~max_mask_m64;
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_max_u8x64);
+        __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
+        max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
         current_loop_cycle_u8x64 = _mm512_add_epi8(current_loop_cycle_u8x64, one_u8x64);
     }
@@ -2627,22 +2607,36 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask64 tail_load = _bzhi_u64(0xFFFFFFFFFFFFFFFFull, (unsigned int)remaining);
-        __m512i data_i8x64 = _mm512_mask_loadu_epi8(nan_cmp_u8x64, tail_load, data_ptr + idx);
+        __m512i data_i8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0xFF), tail_load, data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
-        __mmask64 min_mask_m64 = nk_min_mask_e4m3x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        __mmask64 min_changed_mask = tail_load & ~min_mask_m64;
-        min_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
+        __mmask64 is_nan_m64 = _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_setzero_si512()) |
+                               _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFF));
+        __mmask64 valid_non_nan_m64 = tail_load & ~is_nan_m64;
+        __m512i data_cmp_min = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF), data_cmp_u8x64);
+        __m512i data_cmp_max = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min);
+        __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
+        min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __mmask64 max_mask_m64 = nk_max_mask_e4m3x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        __mmask64 max_changed_mask = tail_load & ~max_mask_m64;
-        max_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max);
+        __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
+        max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
     }
 
     nk_u8_t min_value_comparable = nk_reduce_min_u8x64_skylake_(min_vec.zmm);
     nk_u8_t max_value_comparable = nk_reduce_max_u8x64_skylake_(max_vec.zmm);
-    unsigned int min_lane, max_lane;
-    {
+
+    // All-NaN early return: both sentinels unchanged means no valid data was found
+    if (min_value_comparable == 0xFF && max_value_comparable == 0x00) {
+        *min_value_ptr = NK_E4M3_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = NK_E4M3_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
+    if (min_value_comparable == 0xFF) { *min_value_ptr = NK_E4M3_MAX, *min_index_ptr = NK_SIZE_MAX; }
+    else {
+        unsigned int min_lane;
         __mmask64 value_match_mask = _mm512_cmpeq_epi8_mask(min_vec.zmm, _mm512_set1_epi8((char)min_value_comparable));
         __m512i masked_cycle_u8x64 = _mm512_mask_blend_epi8(value_match_mask, _mm512_set1_epi8((char)NK_U8_MAX),
                                                             min_loop_cycle_u8x64);
@@ -2650,8 +2644,16 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
         __mmask64 cycle_match_mask = _mm512_cmpeq_epi8_mask(masked_cycle_u8x64,
                                                             _mm512_set1_epi8((char)earliest_loop_cycle));
         min_lane = (unsigned int)_tzcnt_u64(cycle_match_mask);
+        nk_b512_vec_t loop_cycle_vec;
+        loop_cycle_vec.zmm = min_loop_cycle_u8x64;
+        *min_index_ptr = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 64 + min_lane;
+        nk_b512_vec_t min_raw_vec;
+        min_raw_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
+        *min_value_ptr = min_raw_vec.e4m3s[min_lane];
     }
-    {
+    if (max_value_comparable == 0x00) { *max_value_ptr = NK_E4M3_MIN, *max_index_ptr = NK_SIZE_MAX; }
+    else {
+        unsigned int max_lane;
         __mmask64 value_match_mask = _mm512_cmpeq_epi8_mask(max_vec.zmm, _mm512_set1_epi8((char)max_value_comparable));
         __m512i masked_cycle_u8x64 = _mm512_mask_blend_epi8(value_match_mask, _mm512_set1_epi8((char)NK_U8_MAX),
                                                             max_loop_cycle_u8x64);
@@ -2659,16 +2661,13 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
         __mmask64 cycle_match_mask = _mm512_cmpeq_epi8_mask(masked_cycle_u8x64,
                                                             _mm512_set1_epi8((char)earliest_loop_cycle));
         max_lane = (unsigned int)_tzcnt_u64(cycle_match_mask);
+        nk_b512_vec_t loop_cycle_vec;
+        loop_cycle_vec.zmm = max_loop_cycle_u8x64;
+        *max_index_ptr = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 64 + max_lane;
+        nk_b512_vec_t max_raw_vec;
+        max_raw_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
+        *max_value_ptr = max_raw_vec.e4m3s[max_lane];
     }
-    nk_b512_vec_t loop_cycle_vec;
-    loop_cycle_vec.zmm = min_loop_cycle_u8x64;
-    *min_index_ptr = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 64 + min_lane;
-    loop_cycle_vec.zmm = max_loop_cycle_u8x64;
-    *max_index_ptr = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 64 + max_lane;
-    min_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
-    max_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
-    *min_value_ptr = min_vec.e4m3s[min_lane];
-    *max_value_ptr = max_vec.e4m3s[max_lane];
 }
 
 NK_PUBLIC void nk_reduce_minmax_e4m3_skylake(                           //
@@ -2687,12 +2686,18 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e4m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e4m3_order_serial(right_min, left_min) < 0)
-            *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
-        else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e4m3_order_serial(right_max, left_max) > 0)
-            *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
-        else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
+        if (left_min_index == NK_SIZE_MAX)
+            *min_value_ptr = right_min,
+            *min_index_ptr = right_min_index == NK_SIZE_MAX ? NK_SIZE_MAX : left_count + right_min_index;
+        else if (right_min_index == NK_SIZE_MAX || nk_e4m3_order_serial(left_min, right_min) <= 0)
+            *min_value_ptr = left_min, *min_index_ptr = left_min_index;
+        else *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
+        if (left_max_index == NK_SIZE_MAX)
+            *max_value_ptr = right_max,
+            *max_index_ptr = right_max_index == NK_SIZE_MAX ? NK_SIZE_MAX : left_count + right_max_index;
+        else if (right_max_index == NK_SIZE_MAX || nk_e4m3_order_serial(left_max, right_max) >= 0)
+            *max_value_ptr = left_max, *max_index_ptr = left_max_index;
+        else *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
     }
     else if (stride_elements == 1)
         nk_reduce_minmax_e4m3_skylake_contiguous_(data_ptr, count, min_value_ptr, min_index_ptr, max_value_ptr,
@@ -2916,9 +2921,9 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
     nk_e5m2_t const *data_ptr, nk_size_t count,             //
     nk_e5m2_t *min_value_ptr, nk_size_t *min_index_ptr,     //
     nk_e5m2_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    __m512i nan_cmp_u8x64 = _mm512_set1_epi8((char)0xFF);
+    // E5M2 NaN in comparable form: 0x00-0x02 (neg NaN) and 0xFD-0xFF (pos NaN).
     nk_b512_vec_t min_vec, max_vec;
-    min_vec.zmm = nan_cmp_u8x64;
+    min_vec.zmm = _mm512_set1_epi8((char)0xFF);
     max_vec.zmm = _mm512_setzero_si512();
     __m512i min_loop_cycle_u8x64 = _mm512_setzero_si512();
     __m512i max_loop_cycle_u8x64 = _mm512_setzero_si512();
@@ -2929,13 +2934,17 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
     for (; idx + 64 <= count; idx += 64) {
         __m512i data_i8x64 = _mm512_loadu_si512(data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
-        __mmask64 min_mask_m64 = nk_min_mask_e5m2x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        min_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
-        __mmask64 min_changed_mask = ~min_mask_m64;
+        __mmask64 is_nan_m64 = _mm512_cmple_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8(0x02)) |
+                               _mm512_cmpge_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFD));
+        __m512i data_min_u8x64 = _mm512_mask_blend_epi8(is_nan_m64, data_cmp_u8x64, _mm512_set1_epi8((char)0xFF));
+        __m512i data_max_u8x64 = _mm512_mask_blend_epi8(is_nan_m64, data_cmp_u8x64, _mm512_setzero_si512());
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_min_u8x64);
+        __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
+        min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __mmask64 max_mask_m64 = nk_max_mask_e5m2x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        max_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
-        __mmask64 max_changed_mask = ~max_mask_m64;
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_max_u8x64);
+        __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
+        max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
         current_loop_cycle_u8x64 = _mm512_add_epi8(current_loop_cycle_u8x64, one_u8x64);
     }
@@ -2943,22 +2952,36 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask64 tail_load = _bzhi_u64(0xFFFFFFFFFFFFFFFFull, (unsigned int)remaining);
-        __m512i data_i8x64 = _mm512_mask_loadu_epi8(nan_cmp_u8x64, tail_load, data_ptr + idx);
+        __m512i data_i8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0xFF), tail_load, data_ptr + idx);
         __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
-        __mmask64 min_mask_m64 = nk_min_mask_e5m2x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        __mmask64 min_changed_mask = tail_load & ~min_mask_m64;
-        min_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
+        __mmask64 is_nan_m64 = _mm512_cmple_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8(0x02)) |
+                               _mm512_cmpge_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFD));
+        __mmask64 valid_non_nan_m64 = tail_load & ~is_nan_m64;
+        __m512i data_cmp_min = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF), data_cmp_u8x64);
+        __m512i data_cmp_max = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min);
+        __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
+        min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __mmask64 max_mask_m64 = nk_max_mask_e5m2x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
-        __mmask64 max_changed_mask = tail_load & ~max_mask_m64;
-        max_vec.zmm = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max);
+        __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
+        max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
     }
 
     nk_u8_t min_value_comparable = nk_reduce_min_u8x64_skylake_(min_vec.zmm);
     nk_u8_t max_value_comparable = nk_reduce_max_u8x64_skylake_(max_vec.zmm);
-    unsigned int min_lane, max_lane;
-    {
+
+    // All-NaN early return: both sentinels unchanged means no valid data was found
+    if (min_value_comparable == 0xFF && max_value_comparable == 0x00) {
+        *min_value_ptr = NK_E5M2_MAX, *min_index_ptr = NK_SIZE_MAX;
+        *max_value_ptr = NK_E5M2_MIN, *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
+
+    if (min_value_comparable == 0xFF) { *min_value_ptr = NK_E5M2_MAX, *min_index_ptr = NK_SIZE_MAX; }
+    else {
+        unsigned int min_lane;
         __mmask64 value_match_mask = _mm512_cmpeq_epi8_mask(min_vec.zmm, _mm512_set1_epi8((char)min_value_comparable));
         __m512i masked_cycle_u8x64 = _mm512_mask_blend_epi8(value_match_mask, _mm512_set1_epi8((char)NK_U8_MAX),
                                                             min_loop_cycle_u8x64);
@@ -2966,8 +2989,16 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
         __mmask64 cycle_match_mask = _mm512_cmpeq_epi8_mask(masked_cycle_u8x64,
                                                             _mm512_set1_epi8((char)earliest_loop_cycle));
         min_lane = (unsigned int)_tzcnt_u64(cycle_match_mask);
+        nk_b512_vec_t loop_cycle_vec;
+        loop_cycle_vec.zmm = min_loop_cycle_u8x64;
+        *min_index_ptr = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 64 + min_lane;
+        nk_b512_vec_t min_raw_vec;
+        min_raw_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
+        *min_value_ptr = min_raw_vec.e5m2s[min_lane];
     }
-    {
+    if (max_value_comparable == 0x00) { *max_value_ptr = NK_E5M2_MIN, *max_index_ptr = NK_SIZE_MAX; }
+    else {
+        unsigned int max_lane;
         __mmask64 value_match_mask = _mm512_cmpeq_epi8_mask(max_vec.zmm, _mm512_set1_epi8((char)max_value_comparable));
         __m512i masked_cycle_u8x64 = _mm512_mask_blend_epi8(value_match_mask, _mm512_set1_epi8((char)NK_U8_MAX),
                                                             max_loop_cycle_u8x64);
@@ -2975,16 +3006,13 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
         __mmask64 cycle_match_mask = _mm512_cmpeq_epi8_mask(masked_cycle_u8x64,
                                                             _mm512_set1_epi8((char)earliest_loop_cycle));
         max_lane = (unsigned int)_tzcnt_u64(cycle_match_mask);
+        nk_b512_vec_t loop_cycle_vec;
+        loop_cycle_vec.zmm = max_loop_cycle_u8x64;
+        *max_index_ptr = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 64 + max_lane;
+        nk_b512_vec_t max_raw_vec;
+        max_raw_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
+        *max_value_ptr = max_raw_vec.e5m2s[max_lane];
     }
-    nk_b512_vec_t loop_cycle_vec;
-    loop_cycle_vec.zmm = min_loop_cycle_u8x64;
-    *min_index_ptr = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 64 + min_lane;
-    loop_cycle_vec.zmm = max_loop_cycle_u8x64;
-    *max_index_ptr = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 64 + max_lane;
-    min_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
-    max_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
-    *min_value_ptr = min_vec.e5m2s[min_lane];
-    *max_value_ptr = max_vec.e5m2s[max_lane];
 }
 
 NK_PUBLIC void nk_reduce_minmax_e5m2_skylake(                           //
@@ -3003,12 +3031,18 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_skylake(                           //
                                       &left_max_index);
         nk_reduce_minmax_e5m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
                                       &right_min_index, &right_max, &right_max_index);
-        if (nk_e5m2_order_serial(right_min, left_min) < 0)
-            *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
-        else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
-        if (nk_e5m2_order_serial(right_max, left_max) > 0)
-            *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
-        else *max_value_ptr = left_max, *max_index_ptr = left_max_index;
+        if (left_min_index == NK_SIZE_MAX)
+            *min_value_ptr = right_min,
+            *min_index_ptr = right_min_index == NK_SIZE_MAX ? NK_SIZE_MAX : left_count + right_min_index;
+        else if (right_min_index == NK_SIZE_MAX || nk_e5m2_order_serial(left_min, right_min) <= 0)
+            *min_value_ptr = left_min, *min_index_ptr = left_min_index;
+        else *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
+        if (left_max_index == NK_SIZE_MAX)
+            *max_value_ptr = right_max,
+            *max_index_ptr = right_max_index == NK_SIZE_MAX ? NK_SIZE_MAX : left_count + right_max_index;
+        else if (right_max_index == NK_SIZE_MAX || nk_e5m2_order_serial(left_max, right_max) >= 0)
+            *max_value_ptr = left_max, *max_index_ptr = left_max_index;
+        else *max_value_ptr = right_max, *max_index_ptr = left_count + right_max_index;
     }
     else if (stride_elements == 1)
         nk_reduce_minmax_e5m2_skylake_contiguous_(data_ptr, count, min_value_ptr, min_index_ptr, max_value_ptr,
@@ -3517,6 +3551,11 @@ NK_INTERNAL void nk_reduce_minmax_bf16_skylake_contiguous_( //
 
     nk_i16_t min_value_comparable = nk_reduce_min_i16x32_skylake_(min_cmp_i16x32);
     nk_i16_t max_value_comparable = nk_reduce_max_i16x32_skylake_(max_cmp_i16x32);
+    if (min_value_comparable == 0x7FFF && max_value_comparable == (nk_i16_t)0x8000) {
+        *min_value_ptr = NK_BF16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_BF16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     unsigned int min_lane, max_lane;
     {
         __mmask32 value_match_mask = _mm512_cmpeq_epi16_mask(min_cmp_i16x32, _mm512_set1_epi16(min_value_comparable));
@@ -3693,6 +3732,11 @@ NK_INTERNAL void nk_reduce_minmax_f16_skylake_contiguous_( //
 
     nk_i16_t min_value_comparable = nk_reduce_min_i16x32_skylake_(min_cmp_i16x32);
     nk_i16_t max_value_comparable = nk_reduce_max_i16x32_skylake_(max_cmp_i16x32);
+    if (min_value_comparable == 0x7FFF && max_value_comparable == (nk_i16_t)0x8000) {
+        *min_value_ptr = NK_F16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     unsigned int min_lane, max_lane;
     {
         __mmask32 value_match_mask = _mm512_cmpeq_epi16_mask(min_cmp_i16x32, _mm512_set1_epi16(min_value_comparable));

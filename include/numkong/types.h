@@ -1241,6 +1241,19 @@ NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
     return c.bf;
 }
 
+/** @brief E4M3: NaN when (raw & 0x7F) == 0x7F  (two NaN values: 0x7F, 0xFF). */
+NK_INTERNAL int nk_e4m3_is_nan_(nk_e4m3_t x) { return (x & 0x7F) == 0x7F; }
+
+/** @brief E5M2: NaN when exponent=31 and mantissa!=0, i.e. (raw & 0x7F) > 0x7C.
+ *  Values: 0x7D-0x7F (positive), 0xFD-0xFF (negative). Infinity = 0x7C/0xFC is NOT NaN. */
+NK_INTERNAL int nk_e5m2_is_nan_(nk_e5m2_t x) { return (x & 0x7F) > 0x7C; }
+
+/** @brief F16: NaN when (raw & 0x7FFF) > 0x7C00. */
+NK_INTERNAL int nk_f16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7C00; }
+
+/** @brief BF16: NaN when (raw & 0x7FFF) > 0x7F80. */
+NK_INTERNAL int nk_bf16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7F80; }
+
 /**
  *  @brief Software FMA (Fused Multiply-Add) emulation for f64.
  *  Computes (multiplicand × multiplier + addend) with improved precision
