@@ -55,27 +55,32 @@ extern "C" {
  */
 
 NK_INTERNAL float32x4_t nk_sin_f32x4_neon_(float32x4_t const angles_radians) {
-    // Constants for argument reduction
-    float32x4_t const pi = vdupq_n_f32(3.14159265358979323846f);
+    // Cody-Waite constants for argument reduction
+    float32x4_t const pi_hi_f32x4 = vdupq_n_f32(3.1415927f);
+    float32x4_t const pi_lo_f32x4 = vdupq_n_f32(-8.742278e-8f);
     float32x4_t const pi_reciprocal = vdupq_n_f32(0.31830988618379067154f);
-    float32x4_t const coeff_5 = vdupq_n_f32(-0.0001881748176f);
-    float32x4_t const coeff_3 = vdupq_n_f32(+0.008323502727f);
-    float32x4_t const coeff_1 = vdupq_n_f32(-0.1666651368f);
+    // Degree-9 minimax coefficients
+    float32x4_t const coeff_9 = vdupq_n_f32(+2.7557319224e-6f);
+    float32x4_t const coeff_7 = vdupq_n_f32(-1.9841269841e-4f);
+    float32x4_t const coeff_5 = vdupq_n_f32(+8.3333293855e-3f);
+    float32x4_t const coeff_3 = vdupq_n_f32(-1.6666666641e-1f);
 
     // Compute (multiples_of_pi) = round(angle / π) using vcvtnq which rounds to nearest
     float32x4_t quotients = vmulq_f32(angles_radians, pi_reciprocal);
     int32x4_t multiples_of_pi = vcvtnq_s32_f32(quotients);
     float32x4_t rounded_quotients = vcvtq_f32_s32(multiples_of_pi);
 
-    // Reduce the angle: angle - rounded_quotients * π
-    float32x4_t const angles = vfmsq_f32(angles_radians, rounded_quotients, pi);
+    // Cody-Waite range reduction
+    float32x4_t angles = vfmsq_f32(angles_radians, rounded_quotients, pi_hi_f32x4);
+    angles = vfmsq_f32(angles, rounded_quotients, pi_lo_f32x4);
     float32x4_t const angles_squared = vmulq_f32(angles, angles);
     float32x4_t const angles_cubed = vmulq_f32(angles, angles_squared);
 
-    // Compute the polynomial approximation
-    float32x4_t polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    float32x4_t polynomials = coeff_9;
+    polynomials = vfmaq_f32(coeff_7, polynomials, angles_squared);
+    polynomials = vfmaq_f32(coeff_5, polynomials, angles_squared);
     polynomials = vfmaq_f32(coeff_3, polynomials, angles_squared);
-    polynomials = vfmaq_f32(coeff_1, polynomials, angles_squared);
     float32x4_t results = vfmaq_f32(angles, angles_cubed, polynomials);
 
     // If multiples_of_pi is odd, flip the sign
@@ -87,29 +92,34 @@ NK_INTERNAL float32x4_t nk_sin_f32x4_neon_(float32x4_t const angles_radians) {
 }
 
 NK_INTERNAL float32x4_t nk_cos_f32x4_neon_(float32x4_t const angles_radians) {
-    // Constants for argument reduction
-    float32x4_t const pi = vdupq_n_f32(3.14159265358979323846f);
+    // Cody-Waite constants for argument reduction
+    float32x4_t const pi_hi_f32x4 = vdupq_n_f32(3.1415927f);
+    float32x4_t const pi_lo_f32x4 = vdupq_n_f32(-8.742278e-8f);
     float32x4_t const pi_half = vdupq_n_f32(1.57079632679489661923f);
     float32x4_t const pi_reciprocal = vdupq_n_f32(0.31830988618379067154f);
-    float32x4_t const coeff_5 = vdupq_n_f32(-0.0001881748176f);
-    float32x4_t const coeff_3 = vdupq_n_f32(+0.008323502727f);
-    float32x4_t const coeff_1 = vdupq_n_f32(-0.1666651368f);
+    // Degree-9 minimax coefficients
+    float32x4_t const coeff_9 = vdupq_n_f32(+2.7557319224e-6f);
+    float32x4_t const coeff_7 = vdupq_n_f32(-1.9841269841e-4f);
+    float32x4_t const coeff_5 = vdupq_n_f32(+8.3333293855e-3f);
+    float32x4_t const coeff_3 = vdupq_n_f32(-1.6666666641e-1f);
 
     // Compute round((angle / π) - 0.5)
     float32x4_t quotients = vsubq_f32(vmulq_f32(angles_radians, pi_reciprocal), vdupq_n_f32(0.5f));
     int32x4_t multiples_of_pi = vcvtnq_s32_f32(quotients);
     float32x4_t rounded_quotients = vcvtq_f32_s32(multiples_of_pi);
 
-    // Reduce the angle: (angle - π/2) - rounded_quotients * π
+    // Cody-Waite range reduction: angle = (angle - pi/2) - rounded * (pi_hi + pi_lo)
     float32x4_t shifted = vsubq_f32(angles_radians, pi_half);
-    float32x4_t const angles = vfmsq_f32(shifted, rounded_quotients, pi);
+    float32x4_t angles = vfmsq_f32(shifted, rounded_quotients, pi_hi_f32x4);
+    angles = vfmsq_f32(angles, rounded_quotients, pi_lo_f32x4);
     float32x4_t const angles_squared = vmulq_f32(angles, angles);
     float32x4_t const angles_cubed = vmulq_f32(angles, angles_squared);
 
-    // Compute the polynomial approximation
-    float32x4_t polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    float32x4_t polynomials = coeff_9;
+    polynomials = vfmaq_f32(coeff_7, polynomials, angles_squared);
+    polynomials = vfmaq_f32(coeff_5, polynomials, angles_squared);
     polynomials = vfmaq_f32(coeff_3, polynomials, angles_squared);
-    polynomials = vfmaq_f32(coeff_1, polynomials, angles_squared);
     float32x4_t results = vfmaq_f32(angles, angles_cubed, polynomials);
 
     // If multiples_of_pi is even, flip the sign

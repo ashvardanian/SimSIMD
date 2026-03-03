@@ -711,6 +711,7 @@ NK_PUBLIC void nk_sqeuclidean_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const
         4,  9,  16,  25,  36,  49,  64,  81,  36,  25,  16,  9,   4,   1,   0,  1,  //
         1,  4,  9,   16,  25,  36,  49,  64,  49,  36,  25,  16,  9,   4,   1,  0,  //
     };
+    count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
@@ -767,6 +768,7 @@ NK_PUBLIC void nk_angular_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_
         0, -1, -2,  -3,  -4,  -5,  -6,  -7,  8,   7,   6,   5,   4,   3,   2,   1,  //
     };
     static nk_u8_t const nk_i4_sq_lut_[16] = {0, 1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1};
+    count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vint32m4_t dot_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
@@ -848,6 +850,7 @@ NK_PUBLIC void nk_sqeuclidean_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const
         196, 169, 144, 121, 100, 81,  64, 49, 36, 25, 16,  9,   4,   1,   0,   1,   //
         225, 196, 169, 144, 121, 100, 81, 64, 49, 36, 25,  16,  9,   4,   1,   0,   //
     };
+    count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
@@ -904,6 +907,7 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
         0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, //
     };
     static nk_u8_t const nk_u4_sq_lut_[16] = {0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225};
+    count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vuint32m4_t dot_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);

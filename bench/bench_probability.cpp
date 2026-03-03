@@ -37,11 +37,8 @@ void bench_probability() {
     run_dense<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
     run_dense<f64_k, f64_k>("kld_f64_skylake", nk_kld_f64_skylake);
     run_dense<f64_k, f64_k>("jsd_f64_skylake", nk_jsd_f64_skylake);
-#endif
-
-#if NK_TARGET_SAPPHIRE
-    run_dense<f16_k, f32_k>("kld_f16_sapphire", nk_kld_f16_sapphire);
-    run_dense<f16_k, f32_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire);
+    run_dense<f16_k, f32_k>("kld_f16_skylake", nk_kld_f16_skylake);
+    run_dense<f16_k, f32_k>("jsd_f16_skylake", nk_jsd_f16_skylake);
 #endif
 
 #if NK_TARGET_RVV

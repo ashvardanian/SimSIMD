@@ -1589,14 +1589,14 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_contiguous_( //
         sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(sq_lo));
         result_biased = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
         before_biased = veorq_s64(vreinterpretq_s64_u64(sq_before), sign_bit_i64x2);
-        sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 0) |
-                           vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 1));
+        sumsq_overflow |= (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 0) |
+                           vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 1));
         sq_before = sumsq_u64x2;
         sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(sq_hi));
         result_biased = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
         before_biased = veorq_s64(vreinterpretq_s64_u64(sq_before), sign_bit_i64x2);
-        sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 0) |
-                           vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 1));
+        sumsq_overflow |= (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 0) |
+                           vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 1));
     }
     // Sumsq horizontal saturating reduction
     nk_u64_t sumsq;
@@ -1666,14 +1666,16 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_lo_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
             sq_before_u64x2 = sumsq_u64x2;
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_hi_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
         }
     }
     else if (stride_elements == 3) {
@@ -1702,14 +1704,16 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_lo_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
             sq_before_u64x2 = sumsq_u64x2;
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_hi_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
         }
     }
     else {
@@ -1738,14 +1742,16 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_lo_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
             sq_before_u64x2 = sumsq_u64x2;
             sumsq_u64x2 = vaddq_u64(sumsq_u64x2, vreinterpretq_u64_s64(squares_hi_i64x2));
             result_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
             before_biased_i64x2 = veorq_s64(vreinterpretq_s64_u64(sq_before_u64x2), sign_bit_i64x2);
-            sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 0) |
-                               vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
+            sumsq_overflow |=
+                (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 0) |
+                 vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2)), 1));
         }
     }
     nk_u64_t sumsq;
@@ -2244,8 +2250,8 @@ NK_INTERNAL void nk_reduce_moments_i64_neon_contiguous_( //
         sumsq_u64x2 = vaddq_u64(sumsq_u64x2, sq);
         int64x2_t result_biased = veorq_s64(vreinterpretq_s64_u64(sumsq_u64x2), sign_bit_i64x2);
         int64x2_t before_biased = veorq_s64(vreinterpretq_s64_u64(sq_before), sign_bit_i64x2);
-        sumsq_overflow |= (vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 0) |
-                           vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 1));
+        sumsq_overflow |= (vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 0) |
+                           vgetq_lane_s64(vreinterpretq_s64_u64(vcgtq_s64(before_biased, result_biased)), 1));
         // Vectorized 128-bit carry-propagating sum
         uint64x2_t sum_before_u64x2 = sum_lower_u64x2;
         sum_lower_u64x2 = vaddq_u64(sum_lower_u64x2, vreinterpretq_u64_s64(data_i64x2));

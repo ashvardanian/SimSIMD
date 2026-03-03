@@ -102,12 +102,9 @@ void bench_trigonometry() {
     run_trigonometry<f64_k>("each_sin_f64_skylake", nk_each_sin_f64_skylake);
     run_trigonometry<f64_k>("each_cos_f64_skylake", nk_each_cos_f64_skylake);
     run_trigonometry<f64_k>("each_atan_f64_skylake", nk_each_atan_f64_skylake);
-#endif
-
-#if NK_TARGET_SAPPHIRE
-    run_trigonometry<f16_k>("each_sin_f16_sapphire", nk_each_sin_f16_sapphire);
-    run_trigonometry<f16_k>("each_cos_f16_sapphire", nk_each_cos_f16_sapphire);
-    run_trigonometry<f16_k>("each_atan_f16_sapphire", nk_each_atan_f16_sapphire);
+    run_trigonometry<f16_k>("each_sin_f16_skylake", nk_each_sin_f16_skylake);
+    run_trigonometry<f16_k>("each_cos_f16_skylake", nk_each_cos_f16_skylake);
+    run_trigonometry<f16_k>("each_atan_f16_skylake", nk_each_atan_f16_skylake);
 #endif
 
     // STL baselines

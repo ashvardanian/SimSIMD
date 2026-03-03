@@ -99,12 +99,6 @@
 #endif // defined(__aarch64__) || defined(_M_ARM64)
 #endif // !defined(NK_TARGET_ARM_)
 
-#if NK_TARGET_ARM_ && (defined(__clang__) || defined(__GNUC__))
-#define NK_STREAMING_COMPATIBLE_ __arm_streaming_compatible
-#else
-#define NK_STREAMING_COMPATIBLE_
-#endif
-
 // Compiling for x86: NK_TARGET_X86_
 #if !defined(NK_TARGET_X86_)
 #if defined(__x86_64__) || defined(_M_X64)
@@ -516,11 +510,17 @@
 extern "C" {
 #endif
 
-/** @brief Eight boolean values packed in one byte */
+/** @brief Eight boolean values packed in one byte.
+ *  The number of dimensions passed to sub-byte kernels must be a multiple of 8.
+ *  Unused sub-elements in the final byte must be zeroed. */
 typedef unsigned char nk_u1x8_t;
-/** @brief Two 4-bit signed integers packed in one byte */
+/** @brief Two 4-bit signed integers packed in one byte.
+ *  The number of dimensions passed to sub-byte kernels must be a multiple of 2.
+ *  Unused sub-elements in the final byte must be zeroed. */
 typedef unsigned char nk_i4x2_t;
-/** @brief Two 4-bit unsigned integers packed in one byte */
+/** @brief Two 4-bit unsigned integers packed in one byte.
+ *  The number of dimensions passed to sub-byte kernels must be a multiple of 2.
+ *  Unused sub-elements in the final byte must be zeroed. */
 typedef unsigned char nk_u4x2_t;
 
 /** @brief FP8 E4M3FN (OCP v1.0): S EEEE MMM, bias=7, range ±448, no Inf, NaN at 0x7F/0xFF */
@@ -1200,7 +1200,7 @@ NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
 }
 
 /** @brief Divides the number rounding up to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) NK_STREAMING_COMPATIBLE_ {
+NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) {
     return (number + divisor - 1) / divisor;
 }
 

@@ -44,10 +44,12 @@ NK_PUBLIC void nk_sqeuclidean_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t co
         vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vector_length);
         vfloat16m1_t a_f16m1 = __riscv_vreinterpret_v_u16m1_f16m1(a_u16m1);
         vfloat16m1_t b_f16m1 = __riscv_vreinterpret_v_u16m1_f16m1(b_u16m1);
-        // Difference in f16
-        vfloat16m1_t diff_f16m1 = __riscv_vfsub_vv_f16m1(a_f16m1, b_f16m1, vector_length);
-        // Widening fused multiply-accumulate: sum += diff² (f16 → f32)
-        sum_f32m2 = __riscv_vfwmacc_vv_f32m2_tu(sum_f32m2, diff_f16m1, diff_f16m1, vector_length);
+        // Upcast to f32 before subtraction to avoid catastrophic cancellation in f16
+        vfloat32m2_t a_f32m2 = __riscv_vfwcvt_f_f_v_f32m2(a_f16m1, vector_length);
+        vfloat32m2_t b_f32m2 = __riscv_vfwcvt_f_f_v_f32m2(b_f16m1, vector_length);
+        vfloat32m2_t diff_f32m2 = __riscv_vfsub_vv_f32m2(a_f32m2, b_f32m2, vector_length);
+        // Accumulate diff² in f32
+        sum_f32m2 = __riscv_vfmacc_vv_f32m2_tu(sum_f32m2, diff_f32m2, diff_f32m2, vector_length);
     }
 
     // Single horizontal reduction after the loop

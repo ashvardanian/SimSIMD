@@ -194,7 +194,8 @@ NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_siz
     // Extract nibbles [0,15], sign-extend to i8 [-8,7] via shift trick, then SDOT.
     // No algebraic correction needed unlike x86 DPBUSD.
     //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     uint8x16_t const nibble_mask_u8x16 = vdupq_n_u8(0x0F);
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint8x16_t a_i4x32, b_i4x32;
@@ -246,7 +247,8 @@ NK_PUBLIC void nk_dot_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_siz
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Values are ∈ [0,15], so UDOT can be used directly.
     //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     uint8x16_t const nibble_mask_u8x16 = vdupq_n_u8(0x0F);
     uint32x4_t sum_u32x4 = vdupq_n_u32(0);
     uint8x16_t a_u4x32, b_u4x32;

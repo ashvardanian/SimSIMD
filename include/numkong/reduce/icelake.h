@@ -128,7 +128,7 @@ NK_PUBLIC void nk_reduce_moments_i8_icelake(                          //
         *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i8_icelake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
-    else if (stride_elements <= 32)
+    else if (stride_elements <= 16)
         nk_reduce_moments_i8_icelake_strided_(data_ptr, count, stride_elements, sum_ptr, sumsq_ptr);
     else nk_reduce_moments_i8_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
@@ -219,7 +219,7 @@ NK_PUBLIC void nk_reduce_moments_u8_icelake(                          //
         *sumsq_ptr = nk_u64_saturating_add_serial(left_sumsq, right_sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_u8_icelake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
-    else if (stride_elements <= 32)
+    else if (stride_elements <= 16)
         nk_reduce_moments_u8_icelake_strided_(data_ptr, count, stride_elements, sum_ptr, sumsq_ptr);
     else nk_reduce_moments_u8_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
@@ -417,7 +417,7 @@ NK_PUBLIC void nk_reduce_moments_e2m3_icelake(                          //
         *sumsq_ptr = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_e2m3_icelake_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
-    else if (stride_elements <= 32)
+    else if (stride_elements <= 16)
         nk_reduce_moments_e2m3_icelake_strided_(data_ptr, count, stride_elements, sum_ptr, sumsq_ptr);
     else nk_reduce_moments_e2m3_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }

@@ -258,6 +258,9 @@ void test_elementwise() {
     run_if_matches("each_wsum_f64c_skylake", test_wsum<f64c_t>, nk_each_blend_f64c_skylake);
     run_if_matches("each_fma_f32c_skylake", test_fma<f32c_t>, nk_each_fma_f32c_skylake);
     run_if_matches("each_fma_f64c_skylake", test_fma<f64c_t>, nk_each_fma_f64c_skylake);
+    run_if_matches("each_scale_f16_skylake", test_scale<f16_t>, nk_each_scale_f16_skylake);
+    run_if_matches("each_wsum_f16_skylake", test_wsum<f16_t>, nk_each_blend_f16_skylake);
+    run_if_matches("each_fma_f16_skylake", test_fma<f16_t>, nk_each_fma_f16_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
@@ -272,10 +275,7 @@ void test_elementwise() {
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("each_scale_f16_sapphire", test_scale<f16_t>, nk_each_scale_f16_sapphire);
     run_if_matches("each_sum_f16_sapphire", test_sum<f16_t>, nk_each_sum_f16_sapphire);
-    run_if_matches("each_wsum_f16_sapphire", test_wsum<f16_t>, nk_each_blend_f16_sapphire);
-    run_if_matches("each_fma_f16_sapphire", test_fma<f16_t>, nk_each_fma_f16_sapphire);
     run_if_matches("each_scale_u8_sapphire", test_scale<u8_t>, nk_each_scale_u8_sapphire);
     run_if_matches("each_wsum_u8_sapphire", test_wsum<u8_t>, nk_each_blend_u8_sapphire);
     run_if_matches("each_fma_u8_sapphire", test_fma<u8_t>, nk_each_fma_u8_sapphire);

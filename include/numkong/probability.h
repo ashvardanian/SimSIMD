@@ -220,14 +220,11 @@ NK_PUBLIC void nk_jsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 NK_PUBLIC void nk_kld_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f32 */
 NK_PUBLIC void nk_jsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_SKYLAKE
-
-#if NK_TARGET_SAPPHIRE
 /** @copydoc nk_kld_f16 */
-NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f16 */
-NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_SAPPHIRE
+NK_PUBLIC void nk_jsd_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_RVV
 /** @copydoc nk_kld_f32 */
@@ -267,7 +264,6 @@ NK_INTERNAL nk_dtype_t nk_probability_output_dtype(nk_dtype_t dtype) {
 #include "numkong/probability/neon.h"
 #include "numkong/probability/haswell.h"
 #include "numkong/probability/skylake.h"
-#include "numkong/probability/sapphire.h"
 #include "numkong/probability/rvv.h"
 
 #if defined(__cplusplus)
@@ -279,8 +275,8 @@ extern "C" {
 NK_PUBLIC void nk_kld_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
     nk_kld_f16_neonhalf(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_kld_f16_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_kld_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_kld_f16_haswell(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -325,8 +321,8 @@ NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
     nk_jsd_f16_neonhalf(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_jsd_f16_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_jsd_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jsd_f16_haswell(a, b, n, result);
 #elif NK_TARGET_RVV

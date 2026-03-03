@@ -112,11 +112,8 @@ NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
     return (nk_f64_t)exp * 0.6931471805599453 + log_m;
 }
 
-nk_define_kld_(f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_)
-nk_define_jsd_(f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_, nk_f64_sqrt_serial)
-
-nk_define_kld_(f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
-nk_define_jsd_(f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_, nk_f32_sqrt_serial)
+nk_define_kld_(f32, f64, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+nk_define_jsd_(f32, f64, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_, nk_f32_sqrt_serial)
 
 nk_define_kld_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
 nk_define_jsd_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
@@ -125,6 +122,36 @@ nk_define_jsd_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON
 nk_define_kld_(bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
 nk_define_jsd_(bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
                nk_f32_sqrt_serial)
+
+NK_PUBLIC void nk_kld_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_f64_t sum = 0, compensation = 0;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f64_t ai = a[i], bi = b[i];
+        nk_f64_t term = ai * nk_f64_log_serial_((ai + NK_F64_DIVISION_EPSILON) / (bi + NK_F64_DIVISION_EPSILON));
+        nk_f64_t t = sum + term;
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - t) + term) : ((term - t) + sum);
+        sum = t;
+    }
+    *result = sum + compensation;
+}
+
+NK_PUBLIC void nk_jsd_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_f64_t sum = 0, compensation = 0;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f64_t ai = a[i], bi = b[i];
+        nk_f64_t mi = (ai + bi) / 2;
+        nk_f64_t term_a = ai * nk_f64_log_serial_((ai + NK_F64_DIVISION_EPSILON) / (mi + NK_F64_DIVISION_EPSILON));
+        nk_f64_t t = sum + term_a;
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term_a)) ? ((sum - t) + term_a) : ((term_a - t) + sum);
+        sum = t;
+        nk_f64_t term_b = bi * nk_f64_log_serial_((bi + NK_F64_DIVISION_EPSILON) / (mi + NK_F64_DIVISION_EPSILON));
+        t = sum + term_b;
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term_b)) ? ((sum - t) + term_b) : ((term_b - t) + sum);
+        sum = t;
+    }
+    nk_f64_t d_half = (sum + compensation) / 2;
+    *result = d_half > 0 ? nk_f64_sqrt_serial(d_half) : 0;
+}
 
 #if defined(__cplusplus)
 } // extern "C"

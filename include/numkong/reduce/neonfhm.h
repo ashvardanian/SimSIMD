@@ -35,7 +35,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neonfhm_contiguous_( //
 
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
 
     for (; idx + 8 <= count; idx += 8) {
@@ -68,7 +68,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neonfhm_strided_(                  //
 
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -160,7 +160,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neonfhm_contiguous_( //
 
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
 
     for (; idx + 8 <= count; idx += 8) {
@@ -193,7 +193,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neonfhm_strided_(                  //
 
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -284,7 +284,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neonfhm_contiguous_( //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         uint8x8_t data_u8x8 = vld1_u8((uint8_t const *)(data_ptr + idx));
@@ -311,7 +311,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neonfhm_strided_(                  //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
-    float16x8_t ones_f16x8 = vdupq_n_f16(1.0f);
+    float16x8_t ones_f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0x3C00));
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {

@@ -413,7 +413,7 @@ NK_INTERNAL void nk_angulars_packed_f16_rvv_finalize_(nk_f16_t const *a, void co
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_f16_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_f16_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -455,7 +455,7 @@ NK_INTERNAL void nk_euclideans_packed_f16_rvv_finalize_(nk_f16_t const *a, void 
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_f16_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_f16_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -602,7 +602,7 @@ NK_INTERNAL void nk_angulars_packed_bf16_rvv_finalize_(nk_bf16_t const *a, void 
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_bf16_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_bf16_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -644,7 +644,7 @@ NK_INTERNAL void nk_euclideans_packed_bf16_rvv_finalize_(nk_bf16_t const *a, voi
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_bf16_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_bf16_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -980,7 +980,7 @@ NK_INTERNAL void nk_angulars_packed_e3m2_rvv_finalize_(nk_e3m2_t const *a, void 
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e3m2_t));
+                                                          sizeof(nk_i16_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e3m2_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -1022,7 +1022,7 @@ NK_INTERNAL void nk_euclideans_packed_e3m2_rvv_finalize_(nk_e3m2_t const *a, voi
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e3m2_t));
+                                                          sizeof(nk_i16_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e3m2_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -1169,7 +1169,7 @@ NK_INTERNAL void nk_angulars_packed_e4m3_rvv_finalize_(nk_e4m3_t const *a, void 
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e4m3_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e4m3_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -1211,7 +1211,7 @@ NK_INTERNAL void nk_euclideans_packed_e4m3_rvv_finalize_(nk_e4m3_t const *a, voi
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e4m3_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e4m3_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -1358,7 +1358,7 @@ NK_INTERNAL void nk_angulars_packed_e5m2_rvv_finalize_(nk_e5m2_t const *a, void 
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e5m2_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e5m2_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;
@@ -1400,7 +1400,7 @@ NK_INTERNAL void nk_euclideans_packed_e5m2_rvv_finalize_(nk_e5m2_t const *a, voi
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
     nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
-                                                          sizeof(nk_e5m2_t));
+                                                          sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_e5m2_t const *a_row = a + row_index * a_stride_elements;
         nk_f32_t *result_row = c + row_index * c_stride_elements;

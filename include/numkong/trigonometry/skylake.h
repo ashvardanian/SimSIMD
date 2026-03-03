@@ -41,27 +41,32 @@ extern "C" {
 #endif
 
 NK_INTERNAL __m512 nk_sin_f32x16_skylake_(__m512 const angles_radians) {
-    // Constants for argument reduction
-    __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
+    // Cody-Waite constants for argument reduction
+    __m512 const pi_hi_f32x16 = _mm512_set1_ps(3.1415927f);
+    __m512 const pi_lo_f32x16 = _mm512_set1_ps(-8.742278e-8f);
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
-    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
-    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x³ term
-    __m512 const coeff_1 = _mm512_set1_ps(-0.1666651368f);                // Coefficient for x term
+    // Degree-9 minimax coefficients
+    __m512 const coeff_9 = _mm512_set1_ps(+2.7557319224e-6f);
+    __m512 const coeff_7 = _mm512_set1_ps(-1.9841269841e-4f);
+    __m512 const coeff_5 = _mm512_set1_ps(+8.3333293855e-3f);
+    __m512 const coeff_3 = _mm512_set1_ps(-1.6666666641e-1f);
 
     // Compute (multiples_of_pi) = round(angle / π)
     __m512 quotients = _mm512_mul_ps(angles_radians, pi_reciprocal);
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (rounded_quotients * π)) ∈ [0, π]
-    __m512 const angles = _mm512_fnmadd_ps(rounded_quotients, pi, angles_radians);
+    // Cody-Waite range reduction
+    __m512 angles = _mm512_fnmadd_ps(rounded_quotients, pi_hi_f32x16, angles_radians);
+    angles = _mm512_fnmadd_ps(rounded_quotients, pi_lo_f32x16, angles);
     __m512 const angles_squared = _mm512_mul_ps(angles, angles);
     __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
 
-    // Compute the polynomial approximation
-    __m512 polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    __m512 polynomials = coeff_9;
+    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_7);
+    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_5);
     polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_3);
-    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_1);
 
     // If multiples_of_pi is odd, flip the sign of the results
     __mmask16 odd_mask = _mm512_test_epi32_mask(multiples_of_pi, _mm512_set1_epi32(1));
@@ -71,30 +76,34 @@ NK_INTERNAL __m512 nk_sin_f32x16_skylake_(__m512 const angles_radians) {
 }
 
 NK_INTERNAL __m512 nk_cos_f32x16_skylake_(__m512 const angles_radians) {
-    // Constants for argument reduction
-    __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
+    // Cody-Waite constants for argument reduction
+    __m512 const pi_hi_f32x16 = _mm512_set1_ps(3.1415927f);
+    __m512 const pi_lo_f32x16 = _mm512_set1_ps(-8.742278e-8f);
     __m512 const pi_half = _mm512_set1_ps(1.57079632679489661923f);       // π/2
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
-    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
-    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x³ term
-    __m512 const coeff_1 = _mm512_set1_ps(-0.1666651368f);                // Coefficient for x term
+    // Degree-9 minimax coefficients
+    __m512 const coeff_9 = _mm512_set1_ps(+2.7557319224e-6f);
+    __m512 const coeff_7 = _mm512_set1_ps(-1.9841269841e-4f);
+    __m512 const coeff_5 = _mm512_set1_ps(+8.3333293855e-3f);
+    __m512 const coeff_3 = _mm512_set1_ps(-1.6666666641e-1f);
 
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
     __m512 quotients = _mm512_fmsub_ps(angles_radians, pi_reciprocal, _mm512_set1_ps(0.5f));
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (multiples_of_pi * π + π/2)) in [-π/2, π/2]
-    // Note: Computing offset first avoids catastrophic cancellation
-    __m512 const offset = _mm512_fmadd_ps(rounded_quotients, pi, pi_half);
-    __m512 const angles = _mm512_sub_ps(angles_radians, offset);
+    // Cody-Waite range reduction: angle = angle_radians - (multiples * pi + pi/2)
+    __m512 const offset = _mm512_fmadd_ps(rounded_quotients, pi_hi_f32x16, pi_half);
+    __m512 angles = _mm512_sub_ps(angles_radians, offset);
+    angles = _mm512_fnmadd_ps(rounded_quotients, pi_lo_f32x16, angles);
     __m512 const angles_squared = _mm512_mul_ps(angles, angles);
     __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
 
-    // Compute the polynomials approximation
-    __m512 polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    __m512 polynomials = coeff_9;
+    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_7);
+    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_5);
     polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_3);
-    polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_1);
     __m512 results = _mm512_fmadd_ps(angles_cubed, polynomials, angles);
 
     // If multiples_of_pi is even, flip the sign of the results
@@ -540,6 +549,149 @@ NK_PUBLIC void nk_each_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
         __m512d results = nk_atan_f64x8_skylake_(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
+    }
+}
+
+/**
+ *  @brief Sine approximation for 16 f16 values via f32 upcasting.
+ *
+ *  Degree-5 polynomial with Cody-Waite range reduction in f32.
+ *  Takes __m256i (f16 data), returns __m256i (f16 result).
+ */
+NK_INTERNAL __m256i nk_sin_f16x16_skylake_(__m256i angles_f16x16) {
+    __m512 angles_f32x16 = _mm512_cvtph_ps(angles_f16x16);
+    // Cody-Waite range reduction constants
+    __m512 pi_hi_f32x16 = _mm512_set1_ps(3.1415927f);
+    __m512 pi_lo_f32x16 = _mm512_set1_ps(-8.742278e-8f);
+    __m512 pi_recip_f32x16 = _mm512_set1_ps(0.31830988618f);
+    __m512 c3_f32x16 = _mm512_set1_ps(-1.6666666641e-1f);
+    __m512 c5_f32x16 = _mm512_set1_ps(8.3333293855e-3f);
+
+    __m512 quotient_f32x16 = _mm512_mul_ps(angles_f32x16, pi_recip_f32x16);
+    __m512 rounded_f32x16 = _mm512_roundscale_ps(quotient_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    __m512i multiple_i32x16 = _mm512_cvtps_epi32(rounded_f32x16);
+
+    angles_f32x16 = _mm512_fnmadd_ps(rounded_f32x16, pi_hi_f32x16, angles_f32x16);
+    angles_f32x16 = _mm512_fnmadd_ps(rounded_f32x16, pi_lo_f32x16, angles_f32x16);
+
+    __m512 x2_f32x16 = _mm512_mul_ps(angles_f32x16, angles_f32x16);
+    __m512 poly_f32x16 = _mm512_fmadd_ps(c5_f32x16, x2_f32x16, c3_f32x16);
+    poly_f32x16 = _mm512_mul_ps(poly_f32x16, x2_f32x16);
+    __m512 result_f32x16 = _mm512_fmadd_ps(poly_f32x16, angles_f32x16, angles_f32x16);
+
+    __mmask16 odd_mask = _mm512_test_epi32_mask(multiple_i32x16, _mm512_set1_epi32(1));
+    result_f32x16 = _mm512_mask_sub_ps(result_f32x16, odd_mask, _mm512_setzero_ps(), result_f32x16);
+    return _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT);
+}
+
+/**
+ *  @brief Cosine approximation for 16 f16 values via f32 upcasting.
+ *
+ *  Uses cos(x) = sin(x + pi/2) with Cody-Waite range reduction in f32.
+ */
+NK_INTERNAL __m256i nk_cos_f16x16_skylake_(__m256i angles_f16x16) {
+    __m512 angles_f32x16 = _mm512_cvtph_ps(angles_f16x16);
+    __m512 pi_hi_f32x16 = _mm512_set1_ps(3.1415927f);
+    __m512 pi_lo_f32x16 = _mm512_set1_ps(-8.742278e-8f);
+    __m512 pi_half_f32x16 = _mm512_set1_ps(1.5707963268f);
+    __m512 pi_recip_f32x16 = _mm512_set1_ps(0.31830988618f);
+    __m512 half_f32x16 = _mm512_set1_ps(0.5f);
+    __m512 c3_f32x16 = _mm512_set1_ps(-1.6666666641e-1f);
+    __m512 c5_f32x16 = _mm512_set1_ps(8.3333293855e-3f);
+
+    __m512 quotient_f32x16 = _mm512_fmsub_ps(angles_f32x16, pi_recip_f32x16, half_f32x16);
+    __m512 rounded_f32x16 = _mm512_roundscale_ps(quotient_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    __m512i multiple_i32x16 = _mm512_cvtps_epi32(rounded_f32x16);
+
+    __m512 shift_f32x16 = _mm512_fmadd_ps(rounded_f32x16, pi_hi_f32x16, pi_half_f32x16);
+    angles_f32x16 = _mm512_sub_ps(angles_f32x16, shift_f32x16);
+    angles_f32x16 = _mm512_fnmadd_ps(rounded_f32x16, pi_lo_f32x16, angles_f32x16);
+
+    __m512 x2_f32x16 = _mm512_mul_ps(angles_f32x16, angles_f32x16);
+    __m512 poly_f32x16 = _mm512_fmadd_ps(c5_f32x16, x2_f32x16, c3_f32x16);
+    poly_f32x16 = _mm512_mul_ps(poly_f32x16, x2_f32x16);
+    __m512 result_f32x16 = _mm512_fmadd_ps(poly_f32x16, angles_f32x16, angles_f32x16);
+
+    __mmask16 even_mask = _mm512_testn_epi32_mask(multiple_i32x16, _mm512_set1_epi32(1));
+    result_f32x16 = _mm512_mask_sub_ps(result_f32x16, even_mask, _mm512_setzero_ps(), result_f32x16);
+    return _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT);
+}
+
+/**
+ *  @brief Arctangent approximation for 16 f16 values via f32 upcasting.
+ *
+ *  Degree-9 polynomial in f32 with quadrant adjustments.
+ */
+NK_INTERNAL __m256i nk_atan_f16x16_skylake_(__m256i values_f16x16) {
+    __m512 values_f32x16 = _mm512_cvtph_ps(values_f16x16);
+    __m512 c3_f32x16 = _mm512_set1_ps(-0.3333333333f);
+    __m512 c5_f32x16 = _mm512_set1_ps(0.2f);
+    __m512 c7_f32x16 = _mm512_set1_ps(-0.1428571429f);
+    __m512 c9_f32x16 = _mm512_set1_ps(0.1111111111f);
+    __m512 pi_half_f32x16 = _mm512_set1_ps(1.5707963268f);
+    __m512 one_f32x16 = _mm512_set1_ps(1.0f);
+
+    __mmask16 negative_mask = _mm512_cmp_ps_mask(values_f32x16, _mm512_setzero_ps(), _CMP_LT_OS);
+    values_f32x16 = _mm512_abs_ps(values_f32x16);
+    __mmask16 reciprocal_mask = _mm512_cmp_ps_mask(values_f32x16, one_f32x16, _CMP_GT_OS);
+    values_f32x16 = _mm512_mask_div_ps(values_f32x16, reciprocal_mask, one_f32x16, values_f32x16);
+
+    __m512 x2_f32x16 = _mm512_mul_ps(values_f32x16, values_f32x16);
+    __m512 x3_f32x16 = _mm512_mul_ps(values_f32x16, x2_f32x16);
+
+    __m512 poly_f32x16 = c9_f32x16;
+    poly_f32x16 = _mm512_fmadd_ps(poly_f32x16, x2_f32x16, c7_f32x16);
+    poly_f32x16 = _mm512_fmadd_ps(poly_f32x16, x2_f32x16, c5_f32x16);
+    poly_f32x16 = _mm512_fmadd_ps(poly_f32x16, x2_f32x16, c3_f32x16);
+
+    __m512 result_f32x16 = _mm512_fmadd_ps(x3_f32x16, poly_f32x16, values_f32x16);
+    result_f32x16 = _mm512_mask_sub_ps(result_f32x16, reciprocal_mask, pi_half_f32x16, result_f32x16);
+    result_f32x16 = _mm512_mask_sub_ps(result_f32x16, negative_mask, _mm512_setzero_ps(), result_f32x16);
+    return _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT);
+}
+
+NK_PUBLIC void nk_each_sin_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+    nk_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        __m256i angles_f16x16 = _mm256_loadu_si256((__m256i const *)(ins + i));
+        __m256i result_f16x16 = nk_sin_f16x16_skylake_(angles_f16x16);
+        _mm256_storeu_si256((__m256i *)(outs + i), result_f16x16);
+    }
+    if (i < n) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
+        __m256i angles_f16x16 = _mm256_maskz_loadu_epi16(mask, ins + i);
+        __m256i result_f16x16 = nk_sin_f16x16_skylake_(angles_f16x16);
+        _mm256_mask_storeu_epi16(outs + i, mask, result_f16x16);
+    }
+}
+
+NK_PUBLIC void nk_each_cos_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+    nk_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        __m256i angles_f16x16 = _mm256_loadu_si256((__m256i const *)(ins + i));
+        __m256i result_f16x16 = nk_cos_f16x16_skylake_(angles_f16x16);
+        _mm256_storeu_si256((__m256i *)(outs + i), result_f16x16);
+    }
+    if (i < n) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
+        __m256i angles_f16x16 = _mm256_maskz_loadu_epi16(mask, ins + i);
+        __m256i result_f16x16 = nk_cos_f16x16_skylake_(angles_f16x16);
+        _mm256_mask_storeu_epi16(outs + i, mask, result_f16x16);
+    }
+}
+
+NK_PUBLIC void nk_each_atan_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+    nk_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        __m256i values_f16x16 = _mm256_loadu_si256((__m256i const *)(ins + i));
+        __m256i result_f16x16 = nk_atan_f16x16_skylake_(values_f16x16);
+        _mm256_storeu_si256((__m256i *)(outs + i), result_f16x16);
+    }
+    if (i < n) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
+        __m256i values_f16x16 = _mm256_maskz_loadu_epi16(mask, ins + i);
+        __m256i result_f16x16 = nk_atan_f16x16_skylake_(values_f16x16);
+        _mm256_mask_storeu_epi16(outs + i, mask, result_f16x16);
     }
 }
 

@@ -398,8 +398,8 @@ NK_PUBLIC void nk_each_fma_f32_haswell(                      //
         __m256 b_f32x8 = _mm256_loadu_ps(b + i);
         __m256 c_f32x8 = _mm256_loadu_ps(c + i);
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
-        __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
+        __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);
         _mm256_storeu_ps(result + i, result_f32x8);
     }
 

@@ -1444,6 +1444,109 @@ NK_PUBLIC void nk_each_fma_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
     }
 }
 
+NK_PUBLIC void nk_each_scale_f16_skylake(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f16_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m512 a_f32x16;
+nk_each_scale_f16_skylake_cycle:
+    if (n < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
+        a_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, a));
+        __m512 result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+        _mm256_mask_storeu_epi16(result, mask, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        n = 0;
+    }
+    else {
+        a_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)a));
+        __m512 result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+        _mm256_storeu_si256((__m256i *)result, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        a += 16, result += 16, n -= 16;
+    }
+    if (n) goto nk_each_scale_f16_skylake_cycle;
+}
+
+NK_PUBLIC void nk_each_blend_f16_skylake(              //
+    nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
+    nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
+
+    nk_f32_t alpha_val = *alpha;
+    nk_f32_t beta_val = *beta;
+
+    // There are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha_val == 1 && beta_val == 1) {
+        // In this case we can avoid expensive multiplications.
+        nk_each_sum_f16_haswell(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha_val == 0 || beta_val == 0) {
+        // In this case we can avoid half of the load instructions.
+        nk_f32_t zero = 0;
+        if (beta_val == 0) { nk_each_scale_f16_skylake(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f16_skylake(b, n, beta, &zero, result); }
+        return;
+    }
+
+    // The general case: compute in f32 for precision (f16 products overflow at 127x127=16129)
+    __m512 alpha_f32x16 = _mm512_set1_ps(alpha_val);
+    __m512 beta_f32x16 = _mm512_set1_ps(beta_val);
+    __m512 a_f32x16, b_f32x16;
+nk_each_blend_f16_skylake_cycle:
+    if (n < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
+        a_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, a));
+        b_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, b));
+        __m512 a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
+        __m512 result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
+        _mm256_mask_storeu_epi16(result, mask, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        n = 0;
+    }
+    else {
+        a_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)a));
+        b_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)b));
+        __m512 a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
+        __m512 result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
+        _mm256_storeu_si256((__m256i *)result, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        a += 16, b += 16, result += 16, n -= 16;
+    }
+    if (n) goto nk_each_blend_f16_skylake_cycle;
+}
+
+NK_PUBLIC void nk_each_fma_f16_skylake(                                   //
+    nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, //
+    nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
+
+    // Compute in f32 for precision (f16 products overflow at 127x127=16129)
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m512 a_f32x16, b_f32x16, c_f32x16;
+nk_each_fma_f16_skylake_cycle:
+    if (n < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
+        a_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, a));
+        b_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, b));
+        c_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, c));
+        __m512 ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
+        __m512 ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
+        __m512 result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+        _mm256_mask_storeu_epi16(result, mask, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        n = 0;
+    }
+    else {
+        a_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)a));
+        b_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)b));
+        c_f32x16 = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)c));
+        __m512 ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
+        __m512 ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
+        __m512 result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+        _mm256_storeu_si256((__m256i *)result, _mm512_cvtps_ph(result_f32x16, _MM_FROUND_TO_NEAREST_INT));
+        a += 16, b += 16, c += 16, result += 16, n -= 16;
+    }
+    if (n) goto nk_each_fma_f16_skylake_cycle;
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

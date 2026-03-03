@@ -457,8 +457,8 @@ NK_PUBLIC void nk_each_blend_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_si
         vector_length = __riscv_vsetvl_e32m4(n);
         vfloat32m4_t a_f32m4 = __riscv_vle32_v_f32m4(a, vector_length);
         vfloat32m4_t b_f32m4 = __riscv_vle32_v_f32m4(b, vector_length);
-        vfloat32m4_t result_f32m4 = __riscv_vfmul_vf_f32m4(a_f32m4, alpha_val, vector_length);
-        result_f32m4 = __riscv_vfmacc_vf_f32m4(result_f32m4, beta_val, b_f32m4, vector_length);
+        vfloat32m4_t a_scaled_f32m4 = __riscv_vfmul_vf_f32m4(a_f32m4, alpha_val, vector_length);
+        vfloat32m4_t result_f32m4 = __riscv_vfmacc_vf_f32m4(a_scaled_f32m4, beta_val, b_f32m4, vector_length);
         __riscv_vse32_v_f32m4(result, result_f32m4, vector_length);
     }
 }

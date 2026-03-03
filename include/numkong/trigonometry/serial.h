@@ -26,28 +26,32 @@ extern "C" {
  */
 NK_PUBLIC nk_f32_t nk_f32_sin(nk_f32_t const angle_radians) {
 
-    // Constants for argument reduction
-    nk_f32_t const pi = 3.14159265358979323846f;            /// π
+    // Cody-Waite constants for argument reduction (pi split into hi + lo)
+    nk_f32_t const pi_hi = 3.1415927f;
+    nk_f32_t const pi_lo = -8.742278e-8f;
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
-    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x⁵ term
-    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x³ term
-    nk_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
+    // Degree-9 minimax coefficients: sin(x) ≈ x + c3*x³ + c5*x⁵ + c7*x⁷ + c9*x⁹
+    nk_f32_t const coeff_9 = +2.7557319224e-6f;
+    nk_f32_t const coeff_7 = -1.9841269841e-4f;
+    nk_f32_t const coeff_5 = +8.3333293855e-3f;
+    nk_f32_t const coeff_3 = -1.6666666641e-1f;
 
     // Compute (multiple_of_pi) = round(angle / π)
     nk_f32_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π)) ∈ [0, π]
-    nk_f32_t const angle = angle_radians - multiple_of_pi * pi;
+    // Cody-Waite range reduction: angle = angle_radians - multiple * (pi_hi + pi_lo)
+    nk_f32_t angle = angle_radians - multiple_of_pi * pi_hi;
+    angle -= multiple_of_pi * pi_lo;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 
-    // Compute the polynomial approximation
-    nk_f32_t polynomial = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    nk_f32_t polynomial = coeff_9;
+    polynomial = polynomial * angle_squared + coeff_7;
+    polynomial = polynomial * angle_squared + coeff_5;
     polynomial = polynomial * angle_squared + coeff_3;
-    polynomial = polynomial * angle_squared + coeff_1;
     nk_f32_t result = polynomial * angle_cubed + angle;
 
     // If multiple_of_pi is odd, flip the sign of the result
@@ -63,31 +67,34 @@ NK_PUBLIC nk_f32_t nk_f32_sin(nk_f32_t const angle_radians) {
  */
 NK_PUBLIC nk_f32_t nk_f32_cos(nk_f32_t const angle_radians) {
 
-    // Constants for argument reduction
-    nk_f32_t const pi = 3.14159265358979323846f;            /// π
+    // Cody-Waite constants for argument reduction (pi split into hi + lo)
+    nk_f32_t const pi_hi = 3.1415927f;
+    nk_f32_t const pi_lo = -8.742278e-8f;
     nk_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
-    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x⁵ term
-    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x³ term
-    nk_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
+    // Degree-9 minimax coefficients: sin(x) ≈ x + c3*x³ + c5*x⁵ + c7*x⁷ + c9*x⁹
+    nk_f32_t const coeff_9 = +2.7557319224e-6f;
+    nk_f32_t const coeff_7 = -1.9841269841e-4f;
+    nk_f32_t const coeff_5 = +8.3333293855e-3f;
+    nk_f32_t const coeff_3 = -1.6666666641e-1f;
 
     // Compute (multiple_of_pi) = round(angle / π - 0.5)
     nk_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π + π/2)) in [-π/2, π/2]
-    // Note: Computing offset first avoids catastrophic cancellation when subtracting separately
-    nk_f32_t const offset = pi_half + multiple_of_pi * pi;
-    nk_f32_t const angle = angle_radians - offset;
+    // Cody-Waite range reduction: angle = angle_radians - (multiple * pi + pi/2)
+    nk_f32_t const offset = pi_half + multiple_of_pi * pi_hi;
+    nk_f32_t angle = angle_radians - offset;
+    angle -= multiple_of_pi * pi_lo;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 
-    // Compute the polynomial approximation
-    nk_f32_t polynomial = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    nk_f32_t polynomial = coeff_9;
+    polynomial = polynomial * angle_squared + coeff_7;
+    polynomial = polynomial * angle_squared + coeff_5;
     polynomial = polynomial * angle_squared + coeff_3;
-    polynomial = polynomial * angle_squared + coeff_1;
     nk_f32_t result = polynomial * angle_cubed + angle;
 
     // If multiple_of_pi is even, flip the sign of the result
@@ -536,8 +543,9 @@ NK_PUBLIC nk_f64_t nk_f64_atan2(nk_f64_t const y_input, nk_f64_t const x_input) 
  */
 NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
 
-    // Constants for argument reduction
-    nk_f32_t const pi = 3.14159265358979323846f;            /// π
+    // Cody-Waite constants for argument reduction
+    nk_f32_t const pi_hi = 3.1415927f;
+    nk_f32_t const pi_lo = -8.742278e-8f;
     nk_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
     nk_f32_t const pi_quarter = 0.78539816339744830962f;    /// π/4
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
@@ -551,8 +559,9 @@ NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
     nk_f32_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
-    nk_f32_t angle = angle_radians - multiple_of_pi * pi;
+    // Cody-Waite range reduction
+    nk_f32_t angle = angle_radians - multiple_of_pi * pi_hi;
+    angle -= multiple_of_pi * pi_lo;
 
     // If |angle| > π/4, use tan(x) = 1/tan(π/2 - x) for better accuracy
     int reciprocal = 0;

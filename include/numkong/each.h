@@ -839,6 +839,9 @@ NK_PUBLIC void nk_each_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_
 /** @copydoc nk_each_scale_f32 */
 NK_PUBLIC void nk_each_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_f32_t *result);
+/** @copydoc nk_each_scale_f16 */
+NK_PUBLIC void nk_each_scale_f16_skylake(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f16_t *result);
 /** @copydoc nk_each_scale_bf16 */
 NK_PUBLIC void nk_each_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                           nk_bf16_t *result);
@@ -880,6 +883,9 @@ NK_PUBLIC void nk_each_blend_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, n
 /** @copydoc nk_each_blend_f32 */
 NK_PUBLIC void nk_each_blend_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f16 */
+NK_PUBLIC void nk_each_blend_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_blend_bf16 */
 NK_PUBLIC void nk_each_blend_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                           nk_f32_t const *beta, nk_bf16_t *result);
@@ -890,6 +896,9 @@ NK_PUBLIC void nk_each_fma_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_
 /** @copydoc nk_each_fma_f32 */
 NK_PUBLIC void nk_each_fma_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_f16 */
+NK_PUBLIC void nk_each_fma_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_fma_bf16 */
 NK_PUBLIC void nk_each_fma_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                         nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
@@ -980,9 +989,6 @@ NK_PUBLIC void nk_each_sum_u64_icelake(nk_u64_t const *a, nk_u64_t const *b, nk_
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
-/** @copydoc nk_each_scale_f16 */
-NK_PUBLIC void nk_each_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                          nk_f16_t *result);
 /** @copydoc nk_each_scale_i8 */
 NK_PUBLIC void nk_each_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_i8_t *result);
@@ -995,9 +1001,6 @@ NK_PUBLIC void nk_each_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk
 /** @copydoc nk_each_sum_e4m3 */
 NK_PUBLIC void nk_each_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
 
-/** @copydoc nk_each_blend_f16 */
-NK_PUBLIC void nk_each_blend_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                          nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_blend_i8 */
 NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_i8_t *result);
@@ -1005,9 +1008,6 @@ NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_
 NK_PUBLIC void nk_each_blend_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_u8_t *result);
 
-/** @copydoc nk_each_fma_f16 */
-NK_PUBLIC void nk_each_fma_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_fma_i8 */
 NK_PUBLIC void nk_each_fma_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
@@ -1430,8 +1430,8 @@ NK_PUBLIC void nk_each_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t cons
 
 NK_PUBLIC void nk_each_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                  nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_scale_f16_sapphire(a, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_scale_f16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_scale_f16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
@@ -1610,8 +1610,8 @@ NK_PUBLIC void nk_each_blend_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_siz
 
 NK_PUBLIC void nk_each_blend_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                  nk_f32_t const *beta, nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_blend_f16_sapphire(a, b, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_blend_f16_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_blend_f16_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
@@ -1700,8 +1700,8 @@ NK_PUBLIC void nk_each_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_
 
 NK_PUBLIC void nk_each_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_fma_f16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_fma_f16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF

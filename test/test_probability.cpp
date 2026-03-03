@@ -105,12 +105,9 @@ void test_probability() {
     run_if_matches("kld_f64_skylake", test_kld<f64_t>, nk_kld_f64_skylake);
     run_if_matches("jsd_f32_skylake", test_jsd<f32_t>, nk_jsd_f32_skylake);
     run_if_matches("jsd_f64_skylake", test_jsd<f64_t>, nk_jsd_f64_skylake);
+    run_if_matches("kld_f16_skylake", test_kld<f16_t>, nk_kld_f16_skylake);
+    run_if_matches("jsd_f16_skylake", test_jsd<f16_t>, nk_jsd_f16_skylake);
 #endif // NK_TARGET_SKYLAKE
-
-#if NK_TARGET_SAPPHIRE
-    run_if_matches("kld_f16_sapphire", test_kld<f16_t>, nk_kld_f16_sapphire);
-    run_if_matches("jsd_f16_sapphire", test_jsd<f16_t>, nk_jsd_f16_sapphire);
-#endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
     run_if_matches("kld_f32_rvv", test_kld<f32_t>, nk_kld_f32_rvv);

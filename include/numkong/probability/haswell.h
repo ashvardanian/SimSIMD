@@ -35,25 +35,22 @@ NK_INTERNAL __m256 nk_log2_f32x8_haswell_(__m256 x) {
     exponent_i32x8 = _mm256_sub_epi32(exponent_i32x8, _mm256_set1_epi32(127)); // removing the bias
     __m256 exponent_f32x8 = _mm256_cvtepi32_ps(exponent_i32x8);
 
-    // Extracting the mantissa
+    // Extracting the mantissa ∈ [1, 2)
     __m256 mantissa_f32x8 = _mm256_castsi256_ps(
         _mm256_or_si256(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x007FFFFF)), _mm256_set1_epi32(0x3F800000)));
 
-    // Constants for polynomial
+    // Compute log2(m) using the s-series: s = (m-1)/(m+1), s ∈ [0, 1/3] for m ∈ [1, 2)
+    // log2(m) = (2/ln2) × s × (1 + s²/3 + s⁴/5 + s⁶/7 + s⁸/9)
     __m256 one_f32x8 = _mm256_set1_ps(1.0f);
-    __m256 poly_f32x8 = _mm256_set1_ps(-3.4436006e-2f);
-
-    // Compute the polynomial using Horner's method
-    poly_f32x8 = _mm256_fmadd_ps(mantissa_f32x8, poly_f32x8, _mm256_set1_ps(3.1821337e-1f));
-    poly_f32x8 = _mm256_fmadd_ps(mantissa_f32x8, poly_f32x8, _mm256_set1_ps(-1.2315303f));
-    poly_f32x8 = _mm256_fmadd_ps(mantissa_f32x8, poly_f32x8, _mm256_set1_ps(2.5988452f));
-    poly_f32x8 = _mm256_fmadd_ps(mantissa_f32x8, poly_f32x8, _mm256_set1_ps(-3.3241990f));
-    poly_f32x8 = _mm256_fmadd_ps(mantissa_f32x8, poly_f32x8, _mm256_set1_ps(3.1157899f));
-
-    // Final computation
-    __m256 result_f32x8 = _mm256_add_ps(_mm256_mul_ps(poly_f32x8, _mm256_sub_ps(mantissa_f32x8, one_f32x8)),
-                                        exponent_f32x8);
-    return result_f32x8;
+    __m256 s_f32x8 = _mm256_div_ps(_mm256_sub_ps(mantissa_f32x8, one_f32x8), _mm256_add_ps(mantissa_f32x8, one_f32x8));
+    __m256 s2_f32x8 = _mm256_mul_ps(s_f32x8, s_f32x8);
+    __m256 series_f32x8 = _mm256_set1_ps(0.111111111f);                                   // 1/9
+    series_f32x8 = _mm256_fmadd_ps(series_f32x8, s2_f32x8, _mm256_set1_ps(0.142857143f)); // 1/7
+    series_f32x8 = _mm256_fmadd_ps(series_f32x8, s2_f32x8, _mm256_set1_ps(0.2f));         // 1/5
+    series_f32x8 = _mm256_fmadd_ps(series_f32x8, s2_f32x8, _mm256_set1_ps(0.333333333f)); // 1/3
+    series_f32x8 = _mm256_fmadd_ps(series_f32x8, s2_f32x8, one_f32x8);                    // 1
+    __m256 log2m_f32x8 = _mm256_mul_ps(_mm256_set1_ps(2.885390081777927f), _mm256_mul_ps(s_f32x8, series_f32x8));
+    return _mm256_add_ps(log2m_f32x8, exponent_f32x8);
 }
 
 NK_INTERNAL __m256d nk_log2_f64x4_haswell_(__m256d x) {
@@ -127,7 +124,7 @@ nk_kld_f16_haswell_cycle:
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_f32x8);
     if (n) goto nk_kld_f16_haswell_cycle;
 
-    nk_f32_t log2_normalizer = 0.693147181f;
+    nk_f32_t log2_normalizer = 0.6931471805599453f;
     nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
     sum *= log2_normalizer;
     *result = sum;
@@ -166,7 +163,7 @@ nk_jsd_f16_haswell_cycle:
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_b_f32x8);
     if (n) goto nk_jsd_f16_haswell_cycle;
 
-    nk_f32_t log2_normalizer = 0.693147181f;
+    nk_f32_t log2_normalizer = 0.6931471805599453f;
     nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
     sum *= log2_normalizer / 2;
     *result = sum > 0 ? nk_f32_sqrt_haswell(sum) : 0;
@@ -176,6 +173,7 @@ NK_PUBLIC void nk_kld_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_f64_t epsilon = NK_F64_DIVISION_EPSILON;
     __m256d epsilon_f64x4 = _mm256_set1_pd(epsilon);
     __m256d sum_f64x4 = _mm256_setzero_pd();
+    __m256d compensation_f64x4 = _mm256_setzero_pd();
     __m256d a_f64x4, b_f64x4;
 
 nk_kld_f64_haswell_cycle:
@@ -195,7 +193,11 @@ nk_kld_f64_haswell_cycle:
     __m256d ratio_f64x4 = _mm256_div_pd(_mm256_add_pd(a_f64x4, epsilon_f64x4), _mm256_add_pd(b_f64x4, epsilon_f64x4));
     __m256d log_ratio_f64x4 = nk_log2_f64x4_haswell_(ratio_f64x4);
     __m256d contribution_f64x4 = _mm256_mul_pd(a_f64x4, log_ratio_f64x4);
-    sum_f64x4 = _mm256_add_pd(sum_f64x4, contribution_f64x4);
+    // Kahan compensated summation
+    __m256d compensated_f64x4 = _mm256_sub_pd(contribution_f64x4, compensation_f64x4);
+    __m256d tentative_f64x4 = _mm256_add_pd(sum_f64x4, compensated_f64x4);
+    compensation_f64x4 = _mm256_sub_pd(_mm256_sub_pd(tentative_f64x4, sum_f64x4), compensated_f64x4);
+    sum_f64x4 = tentative_f64x4;
     if (n) goto nk_kld_f64_haswell_cycle;
 
     nk_f64_t log2_normalizer = 0.6931471805599453;
@@ -206,6 +208,7 @@ NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_f64_t epsilon = NK_F64_DIVISION_EPSILON;
     __m256d epsilon_f64x4 = _mm256_set1_pd(epsilon);
     __m256d sum_f64x4 = _mm256_setzero_pd();
+    __m256d compensation_f64x4 = _mm256_setzero_pd();
     __m256d a_f64x4, b_f64x4;
 
 nk_jsd_f64_haswell_cycle:
@@ -231,8 +234,16 @@ nk_jsd_f64_haswell_cycle:
     __m256d log_ratio_b_f64x4 = nk_log2_f64x4_haswell_(ratio_b_f64x4);
     __m256d contribution_a_f64x4 = _mm256_mul_pd(a_f64x4, log_ratio_a_f64x4);
     __m256d contribution_b_f64x4 = _mm256_mul_pd(b_f64x4, log_ratio_b_f64x4);
-    sum_f64x4 = _mm256_add_pd(sum_f64x4, contribution_a_f64x4);
-    sum_f64x4 = _mm256_add_pd(sum_f64x4, contribution_b_f64x4);
+    // Kahan compensated summation for contribution a
+    __m256d compensated_a_f64x4 = _mm256_sub_pd(contribution_a_f64x4, compensation_f64x4);
+    __m256d tentative_a_f64x4 = _mm256_add_pd(sum_f64x4, compensated_a_f64x4);
+    compensation_f64x4 = _mm256_sub_pd(_mm256_sub_pd(tentative_a_f64x4, sum_f64x4), compensated_a_f64x4);
+    sum_f64x4 = tentative_a_f64x4;
+    // Kahan compensated summation for contribution b
+    __m256d compensated_b_f64x4 = _mm256_sub_pd(contribution_b_f64x4, compensation_f64x4);
+    __m256d tentative_b_f64x4 = _mm256_add_pd(sum_f64x4, compensated_b_f64x4);
+    compensation_f64x4 = _mm256_sub_pd(_mm256_sub_pd(tentative_b_f64x4, sum_f64x4), compensated_b_f64x4);
+    sum_f64x4 = tentative_b_f64x4;
     if (n) goto nk_jsd_f64_haswell_cycle;
 
     nk_f64_t log2_normalizer = 0.6931471805599453;
