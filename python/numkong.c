@@ -488,8 +488,8 @@ int py_number_to_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_
         default: break;
         }
     }
-    double value = PyFloat_AsDouble(obj);
-    if (PyErr_Occurred()) return 0;
+    double value;
+    if (!get_scalar_value(obj, &value)) return 0;
     nk_scalar_buffer_set_f64(buf, value, dtype);
     return 1;
 }
