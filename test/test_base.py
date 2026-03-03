@@ -222,36 +222,53 @@ def f32_downcast_to_bf16(array):
     return array_f32_rounded, array_bf16
 
 
+def _pack_nibbles(array):
+    """Pack pairs of nibbles along the last axis, preserving leading dimensions.
+
+    Each pair of consecutive elements is packed into one byte:
+    low nibble = even index, high nibble = odd index.
+    Odd-length rows are zero-padded.  Returns a uint8 array.
+    """
+    shape = array.shape
+    if array.ndim >= 2:
+        rows = array.reshape(-1, shape[-1])
+        cols = shape[-1]
+        packed_cols = (cols + 1) // 2
+        if cols % 2:
+            rows = np.concatenate([rows, np.zeros((rows.shape[0], 1), dtype=np.uint8)], axis=1)
+        low = rows[:, 0::2].astype(np.uint8) & 0x0F
+        high = (rows[:, 1::2].astype(np.uint8) & 0x0F) << 4
+        packed = (low | high).astype(np.uint8)
+        return packed.reshape(*shape[:-1], packed_cols)
+    else:
+        flat = array.ravel()
+        if len(flat) % 2:
+            flat = np.append(flat, np.uint8(0))
+        low = flat[0::2].astype(np.uint8) & 0x0F
+        high = (flat[1::2].astype(np.uint8) & 0x0F) << 4
+        return (low | high).astype(np.uint8)
+
+
 def i8_downcast_to_i4(array):
     """Pack signed 8-bit integers into signed 4-bit pairs (2 per byte).
 
     Layout matches C ``nk_i4x2_t``: low nibble = even index, high nibble = odd index.
-    Input values must be in [-8, 7].
+    Input values must be in [-8, 7].  Preserves leading dimensions for 2-D+ inputs.
     """
     array = np.asarray(array, dtype=np.int8)
     assert np.all(array >= -8) and np.all(array <= 7), "values must be in [-8, 7]"
-    flat = array.ravel()
-    if len(flat) % 2:
-        flat = np.append(flat, np.int8(0))
-    low = flat[0::2].astype(np.uint8) & 0x0F
-    high = (flat[1::2].astype(np.uint8) & 0x0F) << 4
-    return (low | high).astype(np.uint8)
+    return _pack_nibbles(array)
 
 
 def u8_downcast_to_u4(array):
     """Pack unsigned 8-bit integers into unsigned 4-bit pairs (2 per byte).
 
     Layout matches C ``nk_u4x2_t``: low nibble = even index, high nibble = odd index.
-    Input values must be in [0, 15].
+    Input values must be in [0, 15].  Preserves leading dimensions for 2-D+ inputs.
     """
     array = np.asarray(array, dtype=np.uint8)
     assert np.all(array <= 15), "values must be in [0, 15]"
-    flat = array.ravel()
-    if len(flat) % 2:
-        flat = np.append(flat, np.uint8(0))
-    low = flat[0::2] & 0x0F
-    high = (flat[1::2] & 0x0F) << 4
-    return (low | high).astype(np.uint8)
+    return _pack_nibbles(array)
 
 
 def hex_array(arr):
