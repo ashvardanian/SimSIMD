@@ -634,8 +634,8 @@ NK_INTERNAL void nk_reduce_minmax_f32_haswell_contiguous_( //
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
 
     // Locate the minimum index
-    if (idx > 0) {
-        min_value = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    if (idx > 0) min_value = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    if (min_value < NK_F32_MAX) {
         __m256 value_match_b32x8 = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_value), _CMP_EQ_OQ);
         __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), min_loop_cycle_u32x8,
                                                         _mm256_castps_si256(value_match_b32x8));
@@ -646,9 +646,9 @@ NK_INTERNAL void nk_reduce_minmax_f32_haswell_contiguous_( //
         loop_cycle_vec.ymm = min_loop_cycle_u32x8;
         min_idx = (nk_size_t)loop_cycle_vec.u32s[min_lane] * 8 + min_lane;
     }
-    // Locate the minimum index
-    if (idx > 0) {
-        max_value = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    // Locate the maximum index
+    if (idx > 0) max_value = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    if (max_value > NK_F32_MIN) {
         __m256 value_match_b32x8 = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_value), _CMP_EQ_OQ);
         __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), max_loop_cycle_u32x8,
                                                         _mm256_castps_si256(value_match_b32x8));
