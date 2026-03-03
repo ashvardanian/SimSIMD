@@ -149,6 +149,8 @@ nk_define_each_fma_(u64, f64, nk_assign_from_to_, nk_f64_to_u64_serial)      // 
 #undef nk_define_each_blend_
 #undef nk_define_each_fma_
 
+NK_DYNAMIC void nk_each_sum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+
 NK_PUBLIC void nk_each_sum_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
     nk_each_sum_f32((nk_f32_t const *)a, (nk_f32_t const *)b, 2 * n, (nk_f32_t *)result);
 }
@@ -156,6 +158,8 @@ NK_PUBLIC void nk_each_sum_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, n
 NK_PUBLIC void nk_each_sum_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
     nk_each_sum_f64((nk_f64_t const *)a, (nk_f64_t const *)b, 2 * n, (nk_f64_t *)result);
 }
+
+NK_DYNAMIC void nk_each_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 
 NK_PUBLIC void nk_each_scale_f32c_serial(nk_f32c_t const *a, nk_size_t n, nk_f32c_t const *alpha, nk_f32c_t const *beta,
                                          nk_f32c_t *result) {
@@ -167,6 +171,7 @@ NK_PUBLIC void nk_each_scale_f32c_serial(nk_f32c_t const *a, nk_size_t n, nk_f32
         result[i].imag = alpha_real * a_imag + alpha_imag * a_real + beta_imag;
     }
 }
+
 NK_PUBLIC void nk_each_scale_f64c_serial(nk_f64c_t const *a, nk_size_t n, nk_f64c_t const *alpha, nk_f64c_t const *beta,
                                          nk_f64c_t *result) {
     nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
@@ -193,6 +198,7 @@ NK_PUBLIC void nk_each_blend_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b,
         result[i].imag = alpha_a_imag + beta_b_imag;
     }
 }
+
 NK_PUBLIC void nk_each_blend_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t const *alpha,
                                          nk_f64c_t const *beta, nk_f64c_t *result) {
     nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
@@ -227,6 +233,7 @@ NK_PUBLIC void nk_each_fma_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, n
         result[i].imag = alpha_product_imag + beta_c_imag;
     }
 }
+
 NK_PUBLIC void nk_each_fma_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
                                        nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result) {
     nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;

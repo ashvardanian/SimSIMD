@@ -15,7 +15,7 @@
  *      _mm256_cvtepi32_ps          VCVTDQ2PS (YMM, YMM)            4cy         1/cy        p01
  *      _mm256_cvtepi8_epi32        VPMOVSXBD (YMM, XMM)            3cy         1/cy        p5
  *
- *  Elementwise operations (sum, scale, wsum, fma) are compute-bound on FMA throughput. For mixed-
+ *  Elementwise operations (sum, scale, blend, fma) are compute-bound on FMA throughput. For mixed-
  *  precision operations, type conversion chains (e.g., i8->i32->f32) add ~7-10 cycles overhead.
  *  The FMA unit handles both multiply-add fusion and standalone multiply/add operations.
  */
@@ -1353,8 +1353,8 @@ NK_PUBLIC void nk_each_blend_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b
         nk_f32_t ai, bi;
         nk_e4m3_to_f32_serial(a + i, &ai);
         nk_e4m3_to_f32_serial(b + i, &bi);
-        nk_f32_t wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e4m3_serial(&wsum, result + i);
+        nk_f32_t blended = *alpha * ai + *beta * bi;
+        nk_f32_to_e4m3_serial(&blended, result + i);
     }
 }
 
@@ -1377,8 +1377,8 @@ NK_PUBLIC void nk_each_blend_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b
         nk_f32_t ai, bi;
         nk_e5m2_to_f32_serial(a + i, &ai);
         nk_e5m2_to_f32_serial(b + i, &bi);
-        nk_f32_t wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e5m2_serial(&wsum, result + i);
+        nk_f32_t blended = *alpha * ai + *beta * bi;
+        nk_f32_to_e5m2_serial(&blended, result + i);
     }
 }
 

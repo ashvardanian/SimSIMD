@@ -2340,7 +2340,7 @@ impl Euclideans for i4x2 {
 /// - Slicing and subviews (zero-copy)
 /// - Dot-product multiplication with [`PackedMatrix`]
 /// - Reductions (sum, min, max)
-/// - Elementwise ops (scale, sum, wsum, fma)
+/// - Elementwise ops (scale, sum, blend, fma)
 /// - Trigonometry (sin, cos, atan)
 ///
 /// # Example
@@ -4943,10 +4943,10 @@ impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 }
 
 impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Weighted sum: result\[i\] = α × self\[i\] + β × other\[i\]
+    /// Blend: result\[i\] = α × self\[i\] + β × other\[i\]
     ///
-    /// Returns a new array with the weighted sum.
-    pub fn wsum<const OTHER_MAX_RANK: usize>(
+    /// Returns a new array with the blend.
+    pub fn blend<const OTHER_MAX_RANK: usize>(
         &self,
         other: &Tensor<T, Global, OTHER_MAX_RANK>,
         alpha: T::Scalar,

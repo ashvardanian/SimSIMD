@@ -29,18 +29,18 @@ template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void sum(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ *c) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sum_f64(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sum_f32(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_sum_f16(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_sum_bf16(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_sum_i8(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_sum_u8(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_sum_i16(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_sum_u16(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_sum_i32(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_sum_u32(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_sum_i64(&a->raw_, &b->raw_, d, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_sum_u64(&a->raw_, &b->raw_, d, &c->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_each_sum_f64(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_each_sum_f32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_sum_f16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_each_sum_bf16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_each_sum_i8(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_each_sum_u8(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_each_sum_i16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_each_sum_u16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_each_sum_i32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_each_sum_u32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_each_sum_i64(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_each_sum_u64(&a->raw_, &b->raw_, d, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_each_sum_f32c(&a->raw_, &b->raw_, d, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_each_sum_f64c(&a->raw_, &b->raw_, d, &c->raw_);
     // Scalar fallback
@@ -65,18 +65,18 @@ void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *a
            typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_scale_f64(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_scale_f32(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_scale_f16(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_scale_bf16(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_scale_i8(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_scale_u8(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_scale_i16(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_scale_u16(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_scale_i32(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_scale_u32(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_scale_i64(&a->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_scale_u64(&a->raw_, d, alpha, beta, &c->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_each_scale_f64(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_each_scale_f32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_scale_f16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_each_scale_bf16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_each_scale_i8(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_each_scale_u8(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_each_scale_i16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_each_scale_u16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_each_scale_i32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_each_scale_u32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_each_scale_i64(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_each_scale_u64(&a->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_each_scale_f32c(&a->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_each_scale_f64c(&a->raw_, d, alpha, beta, &c->raw_);
     // Scalar fallback with high-precision intermediates
@@ -88,7 +88,7 @@ void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *a
 }
 
 /**
- *  @brief Weighted sum: cᵢ = α × aᵢ + β × bᵢ
+ *  @brief Blend: cᵢ = α × aᵢ + β × bᵢ
  *  @param[in] a,b Input vectors
  *  @param[in] d Number of dimensions in input vectors
  *  @param[in] alpha,beta Weight coefficients
@@ -99,31 +99,34 @@ void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *a
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-void wsum(in_type_ const *a, in_type_ const *b, std::size_t d, typename in_type_::scale_t const *alpha,
-          typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
+void blend(in_type_ const *a, in_type_ const *b, std::size_t d, typename in_type_::scale_t const *alpha,
+           typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_wsum_f64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
+        nk_each_blend_f64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_wsum_f32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_f32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_wsum_f16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_f16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_wsum_bf16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_wsum_i8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_wsum_u8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_bf16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
+        nk_each_blend_i8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
+        nk_each_blend_u8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_wsum_i16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_i16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_wsum_u16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_u16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_wsum_i32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_i32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_wsum_u32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_u32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_wsum_i64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_i64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_wsum_u64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+        nk_each_blend_u64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd)
         nk_each_blend_f32c(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd)
@@ -155,29 +158,29 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ const *c,
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_fma_f64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_f64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_fma_f32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_f32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_fma_f16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_f16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_fma_bf16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_bf16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_fma_i8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_i8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_fma_u8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_u8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_fma_i16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_i16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_fma_u16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_u16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_fma_i32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_i32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_fma_u32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_u32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_fma_i64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_i64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_fma_u64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+        nk_each_fma_u64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd)
         nk_each_fma_f32c(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd)

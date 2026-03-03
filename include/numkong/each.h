@@ -50,10 +50,10 @@
  *
  *  @section x86_instructions Relevant x86 Instructions
  *
- *  FP16 conversions (VCVTPH2PS/VCVTPS2PH) are used for f16 scale/sum/wsum/fma operations, converting
+ *  FP16 conversions (VCVTPH2PS/VCVTPS2PH) are used for f16 scale/sum/blend/fma operations, converting
  *  to f32 for arithmetic then back. The 6-7 cycle latency is amortized over vector-width elements.
  *  Saturating integer adds (VPADDSW/VPADDUSW) provide overflow protection for i16/u16 sums without
- *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and wsum (alpha*a+beta*b).
+ *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and blend (alpha*a+beta*b).
  *
  *      Intrinsic               Instruction                     Ice         Genoa
  *      _mm512_cvtph_ps         VCVTPH2PS (ZMM, YMM)            7c @ p0+p5  6c @ p12+p23
@@ -67,7 +67,7 @@
  *
  *  On ARM, i8/u8 elementwise operations convert to f16 intermediates using FCVT to maintain high
  *  vector throughput (8 elements per 128-bit register vs 4 for f32). Saturating adds (SQADD/UQADD)
- *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/wsum/fma.
+ *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/blend/fma.
  *
  *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
  *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
@@ -1177,7 +1177,7 @@ NK_PUBLIC void nk_each_fma_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_f
 #endif // NK_TARGET_RVV
 
 /**
- *  @brief  Returns the scalar parameter dtype for elementwise scale/wsum/fma operations.
+ *  @brief  Returns the scalar parameter dtype for elementwise scale/blend/fma operations.
  */
 NK_INTERNAL nk_dtype_t nk_each_scale_input_dtype(nk_dtype_t dtype) {
     switch (dtype) {

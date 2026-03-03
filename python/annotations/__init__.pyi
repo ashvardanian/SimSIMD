@@ -27,7 +27,7 @@ _MetricType = Literal[
     "bilinear",
     "mahalanobis",
     "fma",
-    "wsum",
+    "blend",
 ]
 _IntegralType = Literal[
     "uint1",
@@ -528,8 +528,8 @@ def fma(
     out: Optional[_BufferType] = None,
 ) -> Optional[Tensor]: ...
 
-# Vector-vector element-wise weighted sum.
-def wsum(
+# Vector-vector element-wise blend.
+def blend(
     a: _BufferType,
     b: _BufferType,
     /,
