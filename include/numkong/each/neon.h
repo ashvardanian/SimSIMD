@@ -753,11 +753,11 @@ NK_PUBLIC void nk_each_blend_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, n
         vst1_u8(result + i, vcreate_u8((nk_u64_t)low_vec.u32 | ((nk_u64_t)high_vec.u32 << 32)));
     }
     for (; i < n; ++i) {
-        nk_f32_t ai, bi, wsum;
+        nk_f32_t ai, bi, blended;
         nk_e4m3_to_f32_serial(a + i, &ai);
         nk_e4m3_to_f32_serial(b + i, &bi);
-        wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e4m3_serial(&wsum, result + i);
+        blended = *alpha * ai + *beta * bi;
+        nk_f32_to_e4m3_serial(&blended, result + i);
     }
 }
 
@@ -782,11 +782,11 @@ NK_PUBLIC void nk_each_blend_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, n
         vst1_u8(result + i, vcreate_u8((nk_u64_t)low_vec.u32 | ((nk_u64_t)high_vec.u32 << 32)));
     }
     for (; i < n; ++i) {
-        nk_f32_t ai, bi, wsum;
+        nk_f32_t ai, bi, blended;
         nk_e5m2_to_f32_serial(a + i, &ai);
         nk_e5m2_to_f32_serial(b + i, &bi);
-        wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e5m2_serial(&wsum, result + i);
+        blended = *alpha * ai + *beta * bi;
+        nk_f32_to_e5m2_serial(&blended, result + i);
     }
 }
 

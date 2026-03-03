@@ -1246,7 +1246,8 @@ NK_PUBLIC void nk_dot_i4_haswell(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     // Benchmark shows 16-byte approach is 2× faster than 8-byte (10.7 GB/s vs 5.3 GB/s).
     // Better ILP and amortized loop overhead with wider operations.
     //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     __m128i const nibble_mask_u8x16 = _mm_set1_epi8(0x0F);
     __m128i const xor_mask_u8x16 = _mm_set1_epi8(0x08);
     __m128i const zeros_u8x16 = _mm_setzero_si128();
@@ -1258,8 +1259,11 @@ NK_PUBLIC void nk_dot_i4_haswell(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
 nk_dot_i4_haswell_cycle:
     // Process 16 bytes (32 nibbles) per iteration
     if (n_bytes < 16) {
-        // Partial load using serial helper
+        // Partial load with 0x88 padding: each nibble XOR 8 = 0, contributing nothing.
+        // Sub-byte inputs must be zero-padded, so the last byte's unused nibble is 0.
         nk_b128_vec_t a_vec, b_vec;
+        a_vec.xmm = _mm_set1_epi8((char)0x88);
+        b_vec.xmm = _mm_set1_epi8((char)0x88);
         nk_partial_load_b8x16_serial_(a, &a_vec, n_bytes);
         nk_partial_load_b8x16_serial_(b, &b_vec, n_bytes);
         a_i4x32 = a_vec.xmm;
@@ -1321,7 +1325,8 @@ NK_PUBLIC void nk_dot_u4_haswell(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size
     // Optimization: Process 16 bytes (32 nibbles) per iteration for better ILP.
     // Benchmark shows 16-byte approach provides best performance.
     //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     __m128i const nibble_mask_u8x16 = _mm_set1_epi8(0x0F);
     __m256i sum_i32x8 = _mm256_setzero_si256();
     __m128i a_u4x32, b_u4x32;

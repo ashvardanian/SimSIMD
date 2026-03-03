@@ -97,7 +97,8 @@ typedef struct {
     nk_u32_t full_depth_tiles;       // Number of depth tiles (32 columns for BF16, 64 for I8)
     nk_u32_t column_remainder_count; // Remaining rows after full tiles (0-15)
     nk_u32_t column_edge_offset;     // Byte offset to edge data region
-    nk_u32_t reserved[12];           // Padding to 64 bytes
+    nk_u32_t norms_byte_offset;      // Byte offset to per-column norms (for angular/euclidean)
+    nk_u32_t reserved[11];           // Padding to 64 bytes
 } nk_dots_amx_packed_header_t;
 
 /*  Composable tile structures for AMX operations.
@@ -848,6 +849,9 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sapphireamx(nk_size_t column_count,
     // Column edge: remaining rows for ALL depth columns, stored row-major
     if (column_remainder_count > 0) size += column_remainder_count * depth * sizeof(nk_bf16_t);
 
+    // Per-column norms for angular/euclidean distance (4 bytes each: f32 or u32)
+    size += column_count * sizeof(nk_f32_t);
+
     return size;
 }
 
@@ -926,6 +930,14 @@ NK_PUBLIC void nk_dots_pack_bf16_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_bf16_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_f32_t *norms = (nk_f32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++)
+        norms[col] = nk_dots_reduce_sumsq_bf16_(b + col * b_stride_elements, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_bf16_sapphireamx(            //
@@ -1367,6 +1379,9 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sapphireamx(nk_size_t column_count, n
     // Column edge: remaining rows for ALL depth columns, stored row-major
     if (column_remainder_count > 0) size += column_remainder_count * depth * sizeof(nk_i8_t);
 
+    // Per-column norms for angular/euclidean distance (4 bytes each: f32 or u32)
+    size += column_count * sizeof(nk_u32_t);
+
     return size;
 }
 
@@ -1442,6 +1457,13 @@ NK_PUBLIC void nk_dots_pack_i8_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_i8_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_u32_t *norms = (nk_u32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++) norms[col] = nk_dots_reduce_sumsq_i8_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_i8_sapphireamx(            //
@@ -1989,6 +2011,13 @@ NK_PUBLIC void nk_dots_pack_u8_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_u8_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_u32_t *norms = (nk_u32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++) norms[col] = nk_dots_reduce_sumsq_u8_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_u8_sapphireamx(            //
@@ -2378,6 +2407,14 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_bf16_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_f32_t *norms = (nk_f32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++)
+        norms[col] = nk_dots_reduce_sumsq_e4m3_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_e4m3_sapphireamx(            //
@@ -2651,6 +2688,14 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_bf16_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_f32_t *norms = (nk_f32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++)
+        norms[col] = nk_dots_reduce_sumsq_e5m2_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_e5m2_sapphireamx(            //
@@ -3021,6 +3066,14 @@ NK_PUBLIC void nk_dots_pack_e2m3_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_i8_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_f32_t *norms = (nk_f32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++)
+        norms[col] = nk_dots_reduce_sumsq_e2m3_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_e2m3_sapphireamx(            //
@@ -3385,6 +3438,14 @@ NK_PUBLIC void nk_dots_pack_e3m2_sapphireamx(                    //
             }
         }
     }
+
+    // Compute and store per-column norms for angular/euclidean distance
+    nk_size_t norms_offset = column_edge_offset +
+                             (column_remainder_count > 0 ? column_remainder_count * depth * sizeof(nk_bf16_t) : 0);
+    header->norms_byte_offset = (nk_u32_t)norms_offset;
+    nk_f32_t *norms = (nk_f32_t *)((char *)b_packed + norms_offset);
+    for (nk_size_t col = 0; col < column_count; col++)
+        norms[col] = nk_dots_reduce_sumsq_e3m2_(b + col * b_stride, depth);
 }
 
 NK_PUBLIC void nk_dots_packed_e3m2_sapphireamx(            //

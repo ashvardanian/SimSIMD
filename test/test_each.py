@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Test elementwise operations: nk.scale, nk.add, nk.wsum, nk.fma, nk.multiply.
+"""Test elementwise operations: nk.scale, nk.add, nk.blend, nk.fma, nk.multiply.
 
 Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, int8, uint8 (core ops);
     mixed-dtype tuples for NumPy-like add/multiply interface.
@@ -11,7 +11,7 @@ Precision notes:
     Floating-point dtypes use NK_ATOL/NK_RTOL (0.1/0.1).
 
     Integer coefficients are kept small to prevent overflow:
-    - scale, wsum: abs(alpha)/2, abs(beta)/2
+    - scale, blend: abs(alpha)/2, abs(beta)/2
     - fma: abs(alpha)/512, abs(beta)/3 — because x*y magnifies values
 
     All assertions compare the SIMD result against the NumPy baseline at
@@ -100,7 +100,7 @@ def baseline_sum(x, y):
     return normalize_elementwise(result, x.dtype)
 
 
-def baseline_wsum(x, y, alpha, beta):
+def baseline_blend(x, y, alpha, beta):
     """Weighted sum: alpha * x + beta * y"""
     compute_dtype, _ = get_computation_dtypes(x, y)
     result = x.astype(compute_dtype) * alpha + y.astype(compute_dtype) * beta
@@ -135,7 +135,7 @@ def baseline_multiply(x, y, out=None):
 KERNELS_EACH = {
     "scale": (baseline_scale, nk.scale, None),
     "add": (baseline_add, nk.add, None),
-    "wsum": (baseline_wsum, nk.wsum, None),
+    "blend": (baseline_blend, nk.blend, None),
     "fma": (baseline_fma, nk.fma, None),
     "multiply": (baseline_multiply, nk.multiply, None),
 }
@@ -201,7 +201,7 @@ def test_add_random_accuracy(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_wsum_random_accuracy(ndim, dtype, capability):
+def test_blend_random_accuracy(ndim, dtype, capability):
     """Weighted sum (alpha * x + beta * y) across float and integer dtypes against NumPy baseline."""
     a_raw, a_baseline = make_random((ndim,), dtype)
     b_raw, b_baseline = make_random((ndim,), dtype)
@@ -210,7 +210,7 @@ def test_wsum_random_accuracy(ndim, dtype, capability):
     alpha, beta = random_coefficients(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_EACH["wsum"]
+    baseline_kernel, simd_kernel, _ = KERNELS_EACH["blend"]
 
     accurate_dt, accurate = profile(baseline_kernel, a_baseline, b_baseline, alpha=alpha, beta=beta)
     expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
@@ -218,7 +218,7 @@ def test_wsum_random_accuracy(ndim, dtype, capability):
     result = np.asarray(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors("wsum", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
+    collect_errors("blend", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -556,15 +556,15 @@ def test_multiply_numpy_buffer_protocol(dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_wsum_numpy_buffer_protocol(dtype):
-    """nk.wsum() accepts NumPy arrays directly via buffer protocol."""
+def test_blend_numpy_buffer_protocol(dtype):
+    """nk.blend() accepts NumPy arrays directly via buffer protocol."""
     a = np.random.randn(50).astype(dtype)
     b = np.random.randn(50).astype(dtype)
     alpha = 2.0
     beta = 0.5
 
     expected = alpha * a + beta * b
-    result = nk.wsum(a, b, alpha=alpha, beta=beta)
+    result = nk.blend(a, b, alpha=alpha, beta=beta)
     result_np = np.asarray(result)
 
     np.testing.assert_allclose(result_np, expected, rtol=1e-4)
@@ -611,13 +611,13 @@ def test_scale_identity(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_wsum_known(ndim, dtype, capability):
-    """wsum(full(a), full(b), alpha=2, beta=3) ~ 2a + 3b."""
+def test_blend_known(ndim, dtype, capability):
+    """blend(full(a), full(b), alpha=2, beta=3) ~ 2a + 3b."""
     keep_one_capability(capability)
     a_val, b_val = 4.0, 5.0
     a = nk.full((ndim,), a_val, dtype=dtype)
     b = nk.full((ndim,), b_val, dtype=dtype)
     expected = 2.0 * a_val + 3.0 * b_val  # 23.0
-    result = list(nk.wsum(a, b, alpha=2.0, beta=3.0))
+    result = list(nk.blend(a, b, alpha=2.0, beta=3.0))
     for i in range(ndim):
-        assert abs(result[i] - expected) < NK_ATOL, f"wsum[{i}] = {result[i]}, expected {expected}"
+        assert abs(result[i] - expected) < NK_ATOL, f"blend[{i}] = {result[i]}, expected {expected}"

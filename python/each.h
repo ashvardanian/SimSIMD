@@ -18,8 +18,8 @@ extern "C" {
 
 /** @brief Compute fused multiply-add: alpha*a*b + beta*c. */
 PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
-/** @brief Compute weighted sum (blend): alpha*a + beta*b. */
-PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief Compute blend: alpha*a + beta*b. */
+PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 /** @brief Scale a tensor: alpha*a + beta. */
 PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 /** @brief Elementwise addition of two tensors or a tensor and a scalar. */
@@ -35,7 +35,7 @@ PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
 PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
 extern char const doc_fma[];
-extern char const doc_wsum[];
+extern char const doc_blend[];
 extern char const doc_scale[];
 extern char const doc_add[];
 extern char const doc_multiply[];

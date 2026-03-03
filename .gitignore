@@ -1,4 +1,4 @@
-/build*
+/build*/
 _deps
 *.egg-info
 CMakeFiles

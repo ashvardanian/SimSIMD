@@ -408,10 +408,8 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/skylake.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/ice.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/sapphire.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/sierra.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonsdot.h");
 

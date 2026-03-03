@@ -127,7 +127,7 @@ jobs:
       - name: Test with PyTest
         run: |
           python -c "import numkong; print(numkong.get_capabilities())"
-          pytest test/test.py -s -x -Wd -v
+          pytest test/ -s -x -Wd -v
 
   test_nodejs:
     name: Test Node.js

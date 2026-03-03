@@ -5,11 +5,13 @@
  *  @date December 28, 2025
  */
 
-#if defined(_WIN32)
-#include <regex>
-#else
+#if __has_include(<regex.h>)
 #include <regex.h>
 #include <unistd.h>
+#define NK_HAS_POSIX_REGEX_ 1
+#else
+#include <regex>
+#define NK_HAS_POSIX_REGEX_ 0
 #endif
 
 #include "numkong/capabilities.h" // nk_capabilities, nk_configure_thread
@@ -71,7 +73,14 @@ test_config_t global_config;
 
 bool test_config_t::should_run(char const *test_name) const {
     if (!filter) return true;
-#if defined(_WIN32)
+#if NK_HAS_POSIX_REGEX_
+    regex_t pattern;
+    int return_code = regcomp(&pattern, filter, REG_EXTENDED | REG_NOSUB);
+    if (return_code != 0) return std::strstr(test_name, filter) != nullptr;
+    return_code = regexec(&pattern, test_name, 0, nullptr, 0);
+    regfree(&pattern);
+    return return_code == 0;
+#else
     try {
         std::regex pattern(filter);
         return std::regex_search(test_name, pattern);
@@ -79,13 +88,6 @@ bool test_config_t::should_run(char const *test_name) const {
     catch (std::regex_error const &) {
         return std::strstr(test_name, filter) != nullptr;
     }
-#else
-    regex_t pattern;
-    int rc = regcomp(&pattern, filter, REG_EXTENDED | REG_NOSUB);
-    if (rc != 0) return std::strstr(test_name, filter) != nullptr;
-    rc = regexec(&pattern, test_name, 0, nullptr, 0);
-    regfree(&pattern);
-    return rc == 0;
 #endif
 }
 

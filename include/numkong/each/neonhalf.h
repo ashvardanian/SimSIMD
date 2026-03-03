@@ -32,7 +32,7 @@
  *      vqaddq_s8                   SQADD (V.16B, V.16B, V.16B)     2cy         2/cy        4/cy
  *
  *  The ARMv8.2-FP16 extension enables native half-precision element-wise operations, processing 8
- *  F16 elements per instruction. Operations like sum, scale, wsum, and fma work directly in F16,
+ *  F16 elements per instruction. Operations like sum, scale, blend, and fma work directly in F16,
  *  avoiding conversion overhead while halving memory bandwidth vs F32.
  *
  *  For int8 element-wise operations, values are widened to F16 for arithmetic via UCVTF/SCVTF,

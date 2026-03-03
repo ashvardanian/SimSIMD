@@ -45,27 +45,32 @@ extern "C" {
  */
 
 NK_INTERNAL __m256 nk_sin_f32x8_haswell_(__m256 const angles_radians) {
-    // Constants for argument reduction
-    __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
+    // Cody-Waite constants for argument reduction
+    __m256 const pi_hi_f32x8 = _mm256_set1_ps(3.1415927f);
+    __m256 const pi_lo_f32x8 = _mm256_set1_ps(-8.742278e-8f);
     __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
-    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
-    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x³ term
-    __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
+    // Degree-9 minimax coefficients
+    __m256 const coeff_9 = _mm256_set1_ps(+2.7557319224e-6f);
+    __m256 const coeff_7 = _mm256_set1_ps(-1.9841269841e-4f);
+    __m256 const coeff_5 = _mm256_set1_ps(+8.3333293855e-3f);
+    __m256 const coeff_3 = _mm256_set1_ps(-1.6666666641e-1f);
 
     // Compute (multiples_of_pi) = round(angle / π)
     __m256 quotients = _mm256_mul_ps(angles_radians, pi_reciprocal);
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (rounded_quotients * π)) ∈ [0, π]
-    __m256 const angles = _mm256_fnmadd_ps(rounded_quotients, pi, angles_radians);
+    // Cody-Waite range reduction
+    __m256 angles = _mm256_fnmadd_ps(rounded_quotients, pi_hi_f32x8, angles_radians);
+    angles = _mm256_fnmadd_ps(rounded_quotients, pi_lo_f32x8, angles);
     __m256 const angles_squared = _mm256_mul_ps(angles, angles);
     __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
 
-    // Compute the polynomial approximation
-    __m256 polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    __m256 polynomials = coeff_9;
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_7);
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_5);
     polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_3);
-    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_1);
     __m256 results = _mm256_fmadd_ps(angles_cubed, polynomials, angles);
 
     // If multiples_of_pi is odd, flip the sign of the results
@@ -78,30 +83,34 @@ NK_INTERNAL __m256 nk_sin_f32x8_haswell_(__m256 const angles_radians) {
 }
 
 NK_INTERNAL __m256 nk_cos_f32x8_haswell_(__m256 const angles_radians) {
-    // Constants for argument reduction
-    __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
+    // Cody-Waite constants for argument reduction
+    __m256 const pi_hi_f32x8 = _mm256_set1_ps(3.1415927f);
+    __m256 const pi_lo_f32x8 = _mm256_set1_ps(-8.742278e-8f);
     __m256 const pi_half = _mm256_set1_ps(1.57079632679489661923f);       // π/2
     __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
-    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
-    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x³ term
-    __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
+    // Degree-9 minimax coefficients
+    __m256 const coeff_9 = _mm256_set1_ps(+2.7557319224e-6f);
+    __m256 const coeff_7 = _mm256_set1_ps(-1.9841269841e-4f);
+    __m256 const coeff_5 = _mm256_set1_ps(+8.3333293855e-3f);
+    __m256 const coeff_3 = _mm256_set1_ps(-1.6666666641e-1f);
 
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
     __m256 quotients = _mm256_fmsub_ps(angles_radians, pi_reciprocal, _mm256_set1_ps(0.5f));
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (multiples_of_pi * π + π/2)) in [-π/2, π/2]
-    // Note: Computing offset first avoids catastrophic cancellation
-    __m256 const offset = _mm256_fmadd_ps(rounded_quotients, pi, pi_half);
-    __m256 const angles = _mm256_sub_ps(angles_radians, offset);
+    // Cody-Waite range reduction: angle = angle_radians - (multiples * pi + pi/2)
+    __m256 const offset = _mm256_fmadd_ps(rounded_quotients, pi_hi_f32x8, pi_half);
+    __m256 angles = _mm256_sub_ps(angles_radians, offset);
+    angles = _mm256_fnmadd_ps(rounded_quotients, pi_lo_f32x8, angles);
     __m256 const angles_squared = _mm256_mul_ps(angles, angles);
     __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
 
-    // Compute the polynomial approximation
-    __m256 polynomials = coeff_5;
+    // Degree-9 polynomial via Horner's method
+    __m256 polynomials = coeff_9;
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_7);
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_5);
     polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_3);
-    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_1);
     __m256 results = _mm256_fmadd_ps(angles_cubed, polynomials, angles);
 
     // If multiples_of_pi is even, flip the sign of the results

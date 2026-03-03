@@ -458,9 +458,8 @@ NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     // We compute ax * bx using DPBUSD, then apply the correction:
     //   signed_dot = unsigned_dot - 8 * (sum_ax + sum_bx) + 64 * n
     //
-    // Note: When n is odd, the high nibble of the last byte should be zero-padded.
-    //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const xor_mask_u8x64 = _mm512_set1_epi8(0x08);
     __m512i const zeros_u8x64 = _mm512_setzero_si512();
@@ -472,8 +471,8 @@ NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
 nk_dot_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_i4x128 = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x128 = _mm512_maskz_loadu_epi8(mask, b);
+        a_i4x128 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, a);
+        b_i4x128 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, b);
         n_bytes = 0;
     }
     else {
@@ -517,9 +516,8 @@ NK_PUBLIC void nk_dot_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Values are ∈ [0,15], so DPBUSD can be used directly.
     //
-    // Note: When n is odd, the high nibble of the last byte should be zero-padded.
-    //
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i sum_i32x16 = _mm512_setzero_si512();
 

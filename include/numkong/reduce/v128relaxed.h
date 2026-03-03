@@ -1776,8 +1776,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_v128relaxed_contiguous_( //
     nk_e3m2_t const *data_ptr, nk_size_t count,                  //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     v128_t const lut_low_u8x16 = wasm_i8x16_const(0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28);
-    v128_t const lut_high_u8x16 = wasm_i8x16_const(32, 40, 48, 56, 64, 80, 96, 112, 128u - 256, 160u - 256, 192u - 256,
-                                                   224u - 256, 0, 64, 128u - 256, 192u - 256);
+    v128_t const lut_high_u8x16 = wasm_i8x16_const(32, 40, 48, 56, 64, 80, 96, 112, (nk_i8_t)-128, (nk_i8_t)-96,
+                                                   (nk_i8_t)-64, (nk_i8_t)-32, 0, 64, (nk_i8_t)-128, (nk_i8_t)-96);
     v128_t const magnitude_mask_u8x16 = wasm_i8x16_splat(0x1F);
     v128_t const sign_mask_u8x16 = wasm_i8x16_splat(0x20);
     v128_t const sixteen_u8x16 = wasm_i8x16_splat(16);

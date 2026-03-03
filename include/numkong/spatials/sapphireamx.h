@@ -192,10 +192,8 @@ NK_INTERNAL void nk_angulars_packed_bf16_sapphireamx_finalize_(nk_bf16_t const *
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_bf16_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_bf16_(a + row * a_stride_elements, depth);
         nk_angulars_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -217,10 +215,8 @@ NK_INTERNAL void nk_euclideans_packed_bf16_sapphireamx_finalize_(nk_bf16_t const
                                                                  nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                  nk_size_t a_stride_elements,
                                                                  nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_bf16_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_bf16_(a + row * a_stride_elements, depth);
         nk_euclideans_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -329,9 +325,8 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16_sapphireamx(                        
 NK_INTERNAL void nk_angulars_packed_i8_sapphireamx_finalize_(nk_i8_t const *a, void const *b_packed, nk_f32_t *c,
                                                              nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                              nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values * sizeof(nk_i8_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = (nk_f32_t)nk_dots_reduce_sumsq_i8_(a + row * a_stride_elements, depth);
         nk_angulars_row_i32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -354,9 +349,8 @@ NK_INTERNAL void nk_euclideans_packed_i8_sapphireamx_finalize_(nk_i8_t const *a,
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values * sizeof(nk_i8_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = (nk_f32_t)nk_dots_reduce_sumsq_i8_(a + row * a_stride_elements, depth);
         nk_euclideans_row_i32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -470,9 +464,8 @@ NK_PUBLIC void nk_euclideans_symmetric_i8_sapphireamx(                          
 NK_INTERNAL void nk_angulars_packed_u8_sapphireamx_finalize_(nk_u8_t const *a, void const *b_packed, nk_f32_t *c,
                                                              nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                              nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values * sizeof(nk_u8_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = (nk_f32_t)nk_dots_reduce_sumsq_u8_(a + row * a_stride_elements, depth);
         nk_angulars_row_u32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -495,9 +488,8 @@ NK_INTERNAL void nk_euclideans_packed_u8_sapphireamx_finalize_(nk_u8_t const *a,
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values * sizeof(nk_u8_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_u32_t const *b_norms = (nk_u32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = (nk_f32_t)nk_dots_reduce_sumsq_u8_(a + row * a_stride_elements, depth);
         nk_euclideans_row_u32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -524,10 +516,8 @@ NK_INTERNAL void nk_angulars_packed_e4m3_sapphireamx_finalize_(nk_e4m3_t const *
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e4m3_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e4m3_(a + row * a_stride_elements, depth);
         nk_angulars_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -549,10 +539,8 @@ NK_INTERNAL void nk_euclideans_packed_e4m3_sapphireamx_finalize_(nk_e4m3_t const
                                                                  nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                  nk_size_t a_stride_elements,
                                                                  nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e4m3_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e4m3_(a + row * a_stride_elements, depth);
         nk_euclideans_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -578,10 +566,8 @@ NK_INTERNAL void nk_angulars_packed_e5m2_sapphireamx_finalize_(nk_e5m2_t const *
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e5m2_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e5m2_(a + row * a_stride_elements, depth);
         nk_angulars_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -603,10 +589,8 @@ NK_INTERNAL void nk_euclideans_packed_e5m2_sapphireamx_finalize_(nk_e5m2_t const
                                                                  nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                  nk_size_t a_stride_elements,
                                                                  nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e5m2_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e5m2_(a + row * a_stride_elements, depth);
         nk_euclideans_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -632,10 +616,8 @@ NK_INTERNAL void nk_angulars_packed_e2m3_sapphireamx_finalize_(nk_e2m3_t const *
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e2m3_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e2m3_(a + row * a_stride_elements, depth);
         nk_angulars_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -657,10 +639,8 @@ NK_INTERNAL void nk_euclideans_packed_e2m3_sapphireamx_finalize_(nk_e2m3_t const
                                                                  nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                  nk_size_t a_stride_elements,
                                                                  nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e2m3_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e2m3_(a + row * a_stride_elements, depth);
         nk_euclideans_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -770,10 +750,8 @@ NK_INTERNAL void nk_angulars_packed_e3m2_sapphireamx_finalize_(nk_e3m2_t const *
                                                                nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                nk_size_t a_stride_elements,
                                                                nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e3m2_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e3m2_(a + row * a_stride_elements, depth);
         nk_angulars_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);
@@ -795,10 +773,8 @@ NK_INTERNAL void nk_euclideans_packed_e3m2_sapphireamx_finalize_(nk_e3m2_t const
                                                                  nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                                  nk_size_t a_stride_elements,
                                                                  nk_size_t c_stride_elements) {
-    nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
-                                                 header->column_count * header->depth_padded_values *
-                                                     sizeof(nk_e3m2_t));
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_f32_t const *b_norms = (nk_f32_t const *)((char const *)b_packed + header->norms_byte_offset);
     for (nk_size_t row = 0; row < rows; row++) {
         nk_f32_t query_norm_sq = nk_dots_reduce_sumsq_e3m2_(a + row * a_stride_elements, depth);
         nk_euclideans_row_f32dots_sapphireamx_(c + row * c_stride_elements, b_norms, query_norm_sq, columns);

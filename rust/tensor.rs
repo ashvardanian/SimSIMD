@@ -2340,7 +2340,7 @@ impl Euclideans for i4x2 {
 /// - Slicing and subviews (zero-copy)
 /// - Dot-product multiplication with [`PackedMatrix`]
 /// - Reductions (sum, min, max)
-/// - Elementwise ops (scale, sum, wsum, fma)
+/// - Elementwise ops (scale, sum, blend, fma)
 /// - Trigonometry (sin, cos, atan)
 ///
 /// # Example
@@ -4943,10 +4943,10 @@ impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 }
 
 impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Weighted sum: result\[i\] = α × self\[i\] + β × other\[i\]
+    /// Blend: result\[i\] = α × self\[i\] + β × other\[i\]
     ///
-    /// Returns a new array with the weighted sum.
-    pub fn wsum<const OTHER_MAX_RANK: usize>(
+    /// Returns a new array with the blend.
+    pub fn blend<const OTHER_MAX_RANK: usize>(
         &self,
         other: &Tensor<T, Global, OTHER_MAX_RANK>,
         alpha: T::Scalar,
@@ -5532,13 +5532,17 @@ mod tests {
             );
             let expected = T::dimensions_per_value() as f64 * depth as f64;
             let tolerance = T::atol() + T::rtol() * expected.abs();
-            // All-ones vectors: every entry = self-dot = expected
-            for (index, &value) in gram_matrix.as_slice().iter().enumerate() {
-                assert!(
-                    (value.to_f64() - expected).abs() <= tolerance,
-                    "({num_vectors},{depth})[{index}]: {} vs {expected}",
-                    value.to_f64()
-                );
+            // All-ones vectors: every upper-triangle entry = self-dot = expected.
+            // The C implementation only populates the upper triangle (j >= i).
+            for i in 0..num_vectors {
+                for j in i..num_vectors {
+                    let value = gram_matrix.as_slice()[i * num_vectors + j];
+                    assert!(
+                        (value.to_f64() - expected).abs() <= tolerance,
+                        "({num_vectors},{depth})[{i},{j}]: {} vs {expected}",
+                        value.to_f64()
+                    );
+                }
             }
         }
     }
@@ -5554,12 +5558,16 @@ mod tests {
             let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_angulars_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
-            for &value in gram_matrix.as_slice() {
-                assert!(
-                    value.to_f64().abs() <= tolerance,
-                    "angular symmetric: {}",
-                    value.to_f64()
-                );
+            // The C implementation only populates the upper triangle (j >= i).
+            for i in 0..num_vectors {
+                for j in i..num_vectors {
+                    let value = gram_matrix.as_slice()[i * num_vectors + j];
+                    assert!(
+                        value.to_f64().abs() <= tolerance,
+                        "angular symmetric [{i},{j}]: {}",
+                        value.to_f64()
+                    );
+                }
             }
         }
     }
@@ -5575,12 +5583,16 @@ mod tests {
             let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_euclideans_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
-            for &value in gram_matrix.as_slice() {
-                assert!(
-                    value.to_f64().abs() <= tolerance,
-                    "euclidean symmetric: {}",
-                    value.to_f64()
-                );
+            // The C implementation only populates the upper triangle (j >= i).
+            for i in 0..num_vectors {
+                for j in i..num_vectors {
+                    let value = gram_matrix.as_slice()[i * num_vectors + j];
+                    assert!(
+                        value.to_f64().abs() <= tolerance,
+                        "euclidean symmetric [{i},{j}]: {}",
+                        value.to_f64()
+                    );
+                }
             }
         }
     }

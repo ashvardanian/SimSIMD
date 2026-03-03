@@ -641,8 +641,13 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 #if NK_TARGET_WASM_
 
 #if defined(__EMSCRIPTEN__)
+#if NK_DYNAMIC_DISPATCH
 extern int nk_detect_v128_(void);
 extern int nk_detect_relaxed_(void);
+#else
+NK_PUBLIC int nk_detect_v128_(void) { return 0; }
+NK_PUBLIC int nk_detect_relaxed_(void) { return 0; }
+#endif // NK_DYNAMIC_DISPATCH
 #elif defined(__wasi__) && !defined(NK_WASI_STANDALONE)
 // When hosted (e.g. Node.js WASI polyfill), the host provides capability probes.
 __attribute__((__import_module__("env"), __import_name__("nk_has_v128"))) extern int nk_has_v128(void);

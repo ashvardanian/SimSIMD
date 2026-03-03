@@ -155,22 +155,16 @@ NK_PUBLIC void nk_sqeuclidean_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, 
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_i32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles (first dimension of pair)
-        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
-        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
-        nk_i32_t diff_lo = a_lo - b_lo;
-        sum += diff_lo * diff_lo;
-
-        // Extract high nibbles (second dimension of pair) - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
-            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
-            nk_i32_t diff_hi = a_hi - b_hi;
-            sum += diff_hi * diff_hi;
-        }
+        nk_i32_t a_low = (nk_i32_t)nk_i4x2_low_(a[i]);
+        nk_i32_t b_low = (nk_i32_t)nk_i4x2_low_(b[i]);
+        nk_i32_t a_high = (nk_i32_t)nk_i4x2_high_(a[i]);
+        nk_i32_t b_high = (nk_i32_t)nk_i4x2_high_(b[i]);
+        nk_i32_t diff_low = a_low - b_low, diff_high = a_high - b_high;
+        sum += diff_low * diff_low + diff_high * diff_high;
     }
     *result = (nk_u32_t)sum;
 }
@@ -182,24 +176,17 @@ NK_PUBLIC void nk_euclidean_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk
 }
 
 NK_PUBLIC void nk_angular_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_i32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles
-        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
-        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
-        dot_sum += a_lo * b_lo;
-        a_norm_sq += a_lo * a_lo;
-        b_norm_sq += b_lo * b_lo;
-
-        // Extract high nibbles - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
-            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
-            dot_sum += a_hi * b_hi;
-            a_norm_sq += a_hi * a_hi;
-            b_norm_sq += b_hi * b_hi;
-        }
+        nk_i32_t a_low = (nk_i32_t)nk_i4x2_low_(a[i]);
+        nk_i32_t b_low = (nk_i32_t)nk_i4x2_low_(b[i]);
+        nk_i32_t a_high = (nk_i32_t)nk_i4x2_high_(a[i]);
+        nk_i32_t b_high = (nk_i32_t)nk_i4x2_high_(b[i]);
+        dot_sum += a_low * b_low + a_high * b_high;
+        a_norm_sq += a_low * a_low + a_high * a_high;
+        b_norm_sq += b_low * b_low + b_high * b_high;
     }
     if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }
     else if (dot_sum == 0) { *result = 1; }
@@ -214,22 +201,16 @@ NK_PUBLIC void nk_sqeuclidean_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, 
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // No sign extension needed - values are in [0,15].
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_u32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles
-        nk_i32_t a_lo = (nk_i32_t)(a[i] & 0x0F);
-        nk_i32_t b_lo = (nk_i32_t)(b[i] & 0x0F);
-        nk_i32_t diff_lo = a_lo - b_lo;
-        sum += (nk_u32_t)(diff_lo * diff_lo);
-
-        // Extract high nibbles - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_i32_t a_hi = (nk_i32_t)((a[i] >> 4) & 0x0F);
-            nk_i32_t b_hi = (nk_i32_t)((b[i] >> 4) & 0x0F);
-            nk_i32_t diff_hi = a_hi - b_hi;
-            sum += (nk_u32_t)(diff_hi * diff_hi);
-        }
+        nk_i32_t a_low = (nk_i32_t)nk_u4x2_low_(a[i]);
+        nk_i32_t b_low = (nk_i32_t)nk_u4x2_low_(b[i]);
+        nk_i32_t a_high = (nk_i32_t)nk_u4x2_high_(a[i]);
+        nk_i32_t b_high = (nk_i32_t)nk_u4x2_high_(b[i]);
+        nk_i32_t diff_low = a_low - b_low, diff_high = a_high - b_high;
+        sum += (nk_u32_t)(diff_low * diff_low + diff_high * diff_high);
     }
     *result = sum;
 }
@@ -241,24 +222,17 @@ NK_PUBLIC void nk_euclidean_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk
 }
 
 NK_PUBLIC void nk_angular_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_u32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles
-        nk_u32_t a_lo = (nk_u32_t)(a[i] & 0x0F);
-        nk_u32_t b_lo = (nk_u32_t)(b[i] & 0x0F);
-        dot_sum += a_lo * b_lo;
-        a_norm_sq += a_lo * a_lo;
-        b_norm_sq += b_lo * b_lo;
-
-        // Extract high nibbles - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_u32_t a_hi = (nk_u32_t)((a[i] >> 4) & 0x0F);
-            nk_u32_t b_hi = (nk_u32_t)((b[i] >> 4) & 0x0F);
-            dot_sum += a_hi * b_hi;
-            a_norm_sq += a_hi * a_hi;
-            b_norm_sq += b_hi * b_hi;
-        }
+        nk_u32_t a_low = (nk_u32_t)nk_u4x2_low_(a[i]);
+        nk_u32_t b_low = (nk_u32_t)nk_u4x2_low_(b[i]);
+        nk_u32_t a_high = (nk_u32_t)nk_u4x2_high_(a[i]);
+        nk_u32_t b_high = (nk_u32_t)nk_u4x2_high_(b[i]);
+        dot_sum += a_low * b_low + a_high * b_high;
+        a_norm_sq += a_low * a_low + a_high * a_high;
+        b_norm_sq += b_low * b_low + b_high * b_high;
     }
     if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }
     else if (dot_sum == 0) { *result = 1; }

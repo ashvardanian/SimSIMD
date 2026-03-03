@@ -109,15 +109,7 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
 #endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_sapphire, *c = nk_cap_sapphire_k; return;
         default: break;
         }
 #endif
@@ -151,6 +143,11 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif

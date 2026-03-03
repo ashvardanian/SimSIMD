@@ -6,7 +6,7 @@
  */
 
 #include "test.hpp"
-#include "numkong/each.hpp" // `nk::sum`, `nk::scale`, `nk::wsum`, `nk::fma`
+#include "numkong/each.hpp" // `nk::sum`, `nk::scale`, `nk::blend`, `nk::fma`
 
 template <typename scalar_type_, typename generator_type_>
 typename scalar_type_::scale_t random_coef(generator_type_ &gen) {
@@ -81,10 +81,10 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
 }
 
 /**
- *  @brief Unified test for weighted sum: result[i] = alpha * a[i] + beta * b[i]
+ *  @brief Unified test for blend: result[i] = alpha * a[i] + beta * b[i]
  */
 template <typename scalar_type_>
-error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
+error_stats_t test_blend(typename scalar_type_::blend_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using scale_t = typename scalar_t::scale_t;
     using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
@@ -104,8 +104,8 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
 
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &alpha, &beta,
                result.raw_values_data());
-        nk::wsum<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                       &alpha, &beta, reference.values_data());
+        nk::blend<scalar_t, reference_t, nk::no_simd_k>(
+            a.values_data(), b.values_data(), global_config.dense_dimensions, &alpha, &beta, reference.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -154,22 +154,22 @@ void test_elementwise() {
     // Dynamic dispatch - only test the dispatcher itself
     run_if_matches("each_scale_f32", test_scale<f32_t>, nk_each_scale_f32);
     run_if_matches("each_sum_f32", test_sum<f32_t>, nk_each_sum_f32);
-    run_if_matches("each_wsum_f32", test_wsum<f32_t>, nk_each_blend_f32);
+    run_if_matches("each_blend_f32", test_blend<f32_t>, nk_each_blend_f32);
     run_if_matches("each_fma_f32", test_fma<f32_t>, nk_each_fma_f32);
     run_if_matches("each_scale_e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3);
     run_if_matches("each_scale_e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2);
     run_if_matches("each_sum_e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3);
     run_if_matches("each_sum_e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2);
-    run_if_matches("each_wsum_e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3);
-    run_if_matches("each_wsum_e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2);
+    run_if_matches("each_blend_e4m3", test_blend<e4m3_t>, nk_each_blend_e4m3);
+    run_if_matches("each_blend_e5m2", test_blend<e5m2_t>, nk_each_blend_e5m2);
     run_if_matches("each_fma_e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3);
     run_if_matches("each_fma_e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2);
     run_if_matches("each_sum_f32c", test_sum<f32c_t>, nk_each_sum_f32c);
     run_if_matches("each_sum_f64c", test_sum<f64c_t>, nk_each_sum_f64c);
     run_if_matches("each_scale_f32c", test_scale<f32c_t>, nk_each_scale_f32c);
     run_if_matches("each_scale_f64c", test_scale<f64c_t>, nk_each_scale_f64c);
-    run_if_matches("each_wsum_f32c", test_wsum<f32c_t>, nk_each_blend_f32c);
-    run_if_matches("each_wsum_f64c", test_wsum<f64c_t>, nk_each_blend_f64c);
+    run_if_matches("each_blend_f32c", test_blend<f32c_t>, nk_each_blend_f32c);
+    run_if_matches("each_blend_f64c", test_blend<f64c_t>, nk_each_blend_f64c);
     run_if_matches("each_fma_f32c", test_fma<f32c_t>, nk_each_fma_f32c);
     run_if_matches("each_fma_f64c", test_fma<f64c_t>, nk_each_fma_f64c);
 #else
@@ -178,20 +178,20 @@ void test_elementwise() {
 #if NK_TARGET_NEON
     run_if_matches("each_scale_f32_neon", test_scale<f32_t>, nk_each_scale_f32_neon);
     run_if_matches("each_sum_f32_neon", test_sum<f32_t>, nk_each_sum_f32_neon);
-    run_if_matches("each_wsum_f32_neon", test_wsum<f32_t>, nk_each_blend_f32_neon);
+    run_if_matches("each_blend_f32_neon", test_blend<f32_t>, nk_each_blend_f32_neon);
     run_if_matches("each_fma_f32_neon", test_fma<f32_t>, nk_each_fma_f32_neon);
     run_if_matches("each_scale_e4m3_neon", test_scale<e4m3_t>, nk_each_scale_e4m3_neon);
     run_if_matches("each_scale_e5m2_neon", test_scale<e5m2_t>, nk_each_scale_e5m2_neon);
     run_if_matches("each_sum_e4m3_neon", test_sum<e4m3_t>, nk_each_sum_e4m3_neon);
     run_if_matches("each_sum_e5m2_neon", test_sum<e5m2_t>, nk_each_sum_e5m2_neon);
-    run_if_matches("each_wsum_e4m3_neon", test_wsum<e4m3_t>, nk_each_blend_e4m3_neon);
-    run_if_matches("each_wsum_e5m2_neon", test_wsum<e5m2_t>, nk_each_blend_e5m2_neon);
+    run_if_matches("each_blend_e4m3_neon", test_blend<e4m3_t>, nk_each_blend_e4m3_neon);
+    run_if_matches("each_blend_e5m2_neon", test_blend<e5m2_t>, nk_each_blend_e5m2_neon);
     run_if_matches("each_fma_e4m3_neon", test_fma<e4m3_t>, nk_each_fma_e4m3_neon);
     run_if_matches("each_fma_e5m2_neon", test_fma<e5m2_t>, nk_each_fma_e5m2_neon);
     run_if_matches("each_scale_f32c_neon", test_scale<f32c_t>, nk_each_scale_f32c_neon);
     run_if_matches("each_scale_f64c_neon", test_scale<f64c_t>, nk_each_scale_f64c_neon);
-    run_if_matches("each_wsum_f32c_neon", test_wsum<f32c_t>, nk_each_blend_f32c_neon);
-    run_if_matches("each_wsum_f64c_neon", test_wsum<f64c_t>, nk_each_blend_f64c_neon);
+    run_if_matches("each_blend_f32c_neon", test_blend<f32c_t>, nk_each_blend_f32c_neon);
+    run_if_matches("each_blend_f64c_neon", test_blend<f64c_t>, nk_each_blend_f64c_neon);
     run_if_matches("each_fma_f32c_neon", test_fma<f32c_t>, nk_each_fma_f32c_neon);
     run_if_matches("each_fma_f64c_neon", test_fma<f64c_t>, nk_each_fma_f64c_neon);
 #endif // NK_TARGET_NEON
@@ -199,42 +199,42 @@ void test_elementwise() {
 #if NK_TARGET_NEONHALF
     run_if_matches("each_scale_f16_neonhalf", test_scale<f16_t>, nk_each_scale_f16_neonhalf);
     run_if_matches("each_sum_f16_neonhalf", test_sum<f16_t>, nk_each_sum_f16_neonhalf);
-    run_if_matches("each_wsum_f16_neonhalf", test_wsum<f16_t>, nk_each_blend_f16_neonhalf);
+    run_if_matches("each_blend_f16_neonhalf", test_blend<f16_t>, nk_each_blend_f16_neonhalf);
     run_if_matches("each_fma_f16_neonhalf", test_fma<f16_t>, nk_each_fma_f16_neonhalf);
     run_if_matches("each_scale_u8_neonhalf", test_scale<u8_t>, nk_each_scale_u8_neonhalf);
     run_if_matches("each_sum_u8_neonhalf", test_sum<u8_t>, nk_each_sum_u8_neonhalf);
-    run_if_matches("each_wsum_u8_neonhalf", test_wsum<u8_t>, nk_each_blend_u8_neonhalf);
+    run_if_matches("each_blend_u8_neonhalf", test_blend<u8_t>, nk_each_blend_u8_neonhalf);
     run_if_matches("each_fma_u8_neonhalf", test_fma<u8_t>, nk_each_fma_u8_neonhalf);
     run_if_matches("each_scale_i8_neonhalf", test_scale<i8_t>, nk_each_scale_i8_neonhalf);
     run_if_matches("each_sum_i8_neonhalf", test_sum<i8_t>, nk_each_sum_i8_neonhalf);
-    run_if_matches("each_wsum_i8_neonhalf", test_wsum<i8_t>, nk_each_blend_i8_neonhalf);
+    run_if_matches("each_blend_i8_neonhalf", test_blend<i8_t>, nk_each_blend_i8_neonhalf);
     run_if_matches("each_fma_i8_neonhalf", test_fma<i8_t>, nk_each_fma_i8_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     run_if_matches("each_scale_bf16_neonbfdot", test_scale<bf16_t>, nk_each_scale_bf16_neonbfdot);
     run_if_matches("each_sum_bf16_neonbfdot", test_sum<bf16_t>, nk_each_sum_bf16_neonbfdot);
-    run_if_matches("each_wsum_bf16_neonbfdot", test_wsum<bf16_t>, nk_each_blend_bf16_neonbfdot);
+    run_if_matches("each_blend_bf16_neonbfdot", test_blend<bf16_t>, nk_each_blend_bf16_neonbfdot);
     run_if_matches("each_fma_bf16_neonbfdot", test_fma<bf16_t>, nk_each_fma_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
     run_if_matches("each_scale_f32_haswell", test_scale<f32_t>, nk_each_scale_f32_haswell);
     run_if_matches("each_sum_f32_haswell", test_sum<f32_t>, nk_each_sum_f32_haswell);
-    run_if_matches("each_wsum_f32_haswell", test_wsum<f32_t>, nk_each_blend_f32_haswell);
+    run_if_matches("each_blend_f32_haswell", test_blend<f32_t>, nk_each_blend_f32_haswell);
     run_if_matches("each_fma_f32_haswell", test_fma<f32_t>, nk_each_fma_f32_haswell);
     run_if_matches("each_scale_e4m3_haswell", test_scale<e4m3_t>, nk_each_scale_e4m3_haswell);
     run_if_matches("each_scale_e5m2_haswell", test_scale<e5m2_t>, nk_each_scale_e5m2_haswell);
     run_if_matches("each_sum_e4m3_haswell", test_sum<e4m3_t>, nk_each_sum_e4m3_haswell);
     run_if_matches("each_sum_e5m2_haswell", test_sum<e5m2_t>, nk_each_sum_e5m2_haswell);
-    run_if_matches("each_wsum_e4m3_haswell", test_wsum<e4m3_t>, nk_each_blend_e4m3_haswell);
-    run_if_matches("each_wsum_e5m2_haswell", test_wsum<e5m2_t>, nk_each_blend_e5m2_haswell);
+    run_if_matches("each_blend_e4m3_haswell", test_blend<e4m3_t>, nk_each_blend_e4m3_haswell);
+    run_if_matches("each_blend_e5m2_haswell", test_blend<e5m2_t>, nk_each_blend_e5m2_haswell);
     run_if_matches("each_fma_e4m3_haswell", test_fma<e4m3_t>, nk_each_fma_e4m3_haswell);
     run_if_matches("each_fma_e5m2_haswell", test_fma<e5m2_t>, nk_each_fma_e5m2_haswell);
     run_if_matches("each_scale_f32c_haswell", test_scale<f32c_t>, nk_each_scale_f32c_haswell);
     run_if_matches("each_scale_f64c_haswell", test_scale<f64c_t>, nk_each_scale_f64c_haswell);
-    run_if_matches("each_wsum_f32c_haswell", test_wsum<f32c_t>, nk_each_blend_f32c_haswell);
-    run_if_matches("each_wsum_f64c_haswell", test_wsum<f64c_t>, nk_each_blend_f64c_haswell);
+    run_if_matches("each_blend_f32c_haswell", test_blend<f32c_t>, nk_each_blend_f32c_haswell);
+    run_if_matches("each_blend_f64c_haswell", test_blend<f64c_t>, nk_each_blend_f64c_haswell);
     run_if_matches("each_fma_f32c_haswell", test_fma<f32c_t>, nk_each_fma_f32c_haswell);
     run_if_matches("each_fma_f64c_haswell", test_fma<f64c_t>, nk_each_fma_f64c_haswell);
 #endif // NK_TARGET_HASWELL
@@ -242,22 +242,25 @@ void test_elementwise() {
 #if NK_TARGET_SKYLAKE
     run_if_matches("each_scale_f32_skylake", test_scale<f32_t>, nk_each_scale_f32_skylake);
     run_if_matches("each_sum_f32_skylake", test_sum<f32_t>, nk_each_sum_f32_skylake);
-    run_if_matches("each_wsum_f32_skylake", test_wsum<f32_t>, nk_each_blend_f32_skylake);
+    run_if_matches("each_blend_f32_skylake", test_blend<f32_t>, nk_each_blend_f32_skylake);
     run_if_matches("each_fma_f32_skylake", test_fma<f32_t>, nk_each_fma_f32_skylake);
     run_if_matches("each_scale_e4m3_skylake", test_scale<e4m3_t>, nk_each_scale_e4m3_skylake);
     run_if_matches("each_scale_e5m2_skylake", test_scale<e5m2_t>, nk_each_scale_e5m2_skylake);
     run_if_matches("each_sum_e4m3_skylake", test_sum<e4m3_t>, nk_each_sum_e4m3_skylake);
     run_if_matches("each_sum_e5m2_skylake", test_sum<e5m2_t>, nk_each_sum_e5m2_skylake);
-    run_if_matches("each_wsum_e4m3_skylake", test_wsum<e4m3_t>, nk_each_blend_e4m3_skylake);
-    run_if_matches("each_wsum_e5m2_skylake", test_wsum<e5m2_t>, nk_each_blend_e5m2_skylake);
+    run_if_matches("each_blend_e4m3_skylake", test_blend<e4m3_t>, nk_each_blend_e4m3_skylake);
+    run_if_matches("each_blend_e5m2_skylake", test_blend<e5m2_t>, nk_each_blend_e5m2_skylake);
     run_if_matches("each_fma_e4m3_skylake", test_fma<e4m3_t>, nk_each_fma_e4m3_skylake);
     run_if_matches("each_fma_e5m2_skylake", test_fma<e5m2_t>, nk_each_fma_e5m2_skylake);
     run_if_matches("each_scale_f32c_skylake", test_scale<f32c_t>, nk_each_scale_f32c_skylake);
     run_if_matches("each_scale_f64c_skylake", test_scale<f64c_t>, nk_each_scale_f64c_skylake);
-    run_if_matches("each_wsum_f32c_skylake", test_wsum<f32c_t>, nk_each_blend_f32c_skylake);
-    run_if_matches("each_wsum_f64c_skylake", test_wsum<f64c_t>, nk_each_blend_f64c_skylake);
+    run_if_matches("each_blend_f32c_skylake", test_blend<f32c_t>, nk_each_blend_f32c_skylake);
+    run_if_matches("each_blend_f64c_skylake", test_blend<f64c_t>, nk_each_blend_f64c_skylake);
     run_if_matches("each_fma_f32c_skylake", test_fma<f32c_t>, nk_each_fma_f32c_skylake);
     run_if_matches("each_fma_f64c_skylake", test_fma<f64c_t>, nk_each_fma_f64c_skylake);
+    run_if_matches("each_scale_f16_skylake", test_scale<f16_t>, nk_each_scale_f16_skylake);
+    run_if_matches("each_blend_f16_skylake", test_blend<f16_t>, nk_each_blend_f16_skylake);
+    run_if_matches("each_fma_f16_skylake", test_fma<f16_t>, nk_each_fma_f16_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
@@ -272,15 +275,12 @@ void test_elementwise() {
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("each_scale_f16_sapphire", test_scale<f16_t>, nk_each_scale_f16_sapphire);
     run_if_matches("each_sum_f16_sapphire", test_sum<f16_t>, nk_each_sum_f16_sapphire);
-    run_if_matches("each_wsum_f16_sapphire", test_wsum<f16_t>, nk_each_blend_f16_sapphire);
-    run_if_matches("each_fma_f16_sapphire", test_fma<f16_t>, nk_each_fma_f16_sapphire);
     run_if_matches("each_scale_u8_sapphire", test_scale<u8_t>, nk_each_scale_u8_sapphire);
-    run_if_matches("each_wsum_u8_sapphire", test_wsum<u8_t>, nk_each_blend_u8_sapphire);
+    run_if_matches("each_blend_u8_sapphire", test_blend<u8_t>, nk_each_blend_u8_sapphire);
     run_if_matches("each_fma_u8_sapphire", test_fma<u8_t>, nk_each_fma_u8_sapphire);
     run_if_matches("each_scale_i8_sapphire", test_scale<i8_t>, nk_each_scale_i8_sapphire);
-    run_if_matches("each_wsum_i8_sapphire", test_wsum<i8_t>, nk_each_blend_i8_sapphire);
+    run_if_matches("each_blend_i8_sapphire", test_blend<i8_t>, nk_each_blend_i8_sapphire);
     run_if_matches("each_fma_i8_sapphire", test_fma<i8_t>, nk_each_fma_i8_sapphire);
     run_if_matches("each_sum_e4m3_sapphire", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
@@ -288,14 +288,14 @@ void test_elementwise() {
 #if NK_TARGET_RVV
     run_if_matches("each_scale_f32_rvv", test_scale<f32_t>, nk_each_scale_f32_rvv);
     run_if_matches("each_sum_f32_rvv", test_sum<f32_t>, nk_each_sum_f32_rvv);
-    run_if_matches("each_wsum_f32_rvv", test_wsum<f32_t>, nk_each_blend_f32_rvv);
+    run_if_matches("each_blend_f32_rvv", test_blend<f32_t>, nk_each_blend_f32_rvv);
     run_if_matches("each_fma_f32_rvv", test_fma<f32_t>, nk_each_fma_f32_rvv);
     run_if_matches("each_scale_e4m3_rvv", test_scale<e4m3_t>, nk_each_scale_e4m3_rvv);
     run_if_matches("each_scale_e5m2_rvv", test_scale<e5m2_t>, nk_each_scale_e5m2_rvv);
     run_if_matches("each_sum_e4m3_rvv", test_sum<e4m3_t>, nk_each_sum_e4m3_rvv);
     run_if_matches("each_sum_e5m2_rvv", test_sum<e5m2_t>, nk_each_sum_e5m2_rvv);
-    run_if_matches("each_wsum_e4m3_rvv", test_wsum<e4m3_t>, nk_each_blend_e4m3_rvv);
-    run_if_matches("each_wsum_e5m2_rvv", test_wsum<e5m2_t>, nk_each_blend_e5m2_rvv);
+    run_if_matches("each_blend_e4m3_rvv", test_blend<e4m3_t>, nk_each_blend_e4m3_rvv);
+    run_if_matches("each_blend_e5m2_rvv", test_blend<e5m2_t>, nk_each_blend_e5m2_rvv);
     run_if_matches("each_fma_e4m3_rvv", test_fma<e4m3_t>, nk_each_fma_e4m3_rvv);
     run_if_matches("each_fma_e5m2_rvv", test_fma<e5m2_t>, nk_each_fma_e5m2_rvv);
 #endif // NK_TARGET_RVV
@@ -303,22 +303,22 @@ void test_elementwise() {
     // Serial always runs - baseline test
     run_if_matches("each_scale_f32_serial", test_scale<f32_t>, nk_each_scale_f32_serial);
     run_if_matches("each_sum_f32_serial", test_sum<f32_t>, nk_each_sum_f32_serial);
-    run_if_matches("each_wsum_f32_serial", test_wsum<f32_t>, nk_each_blend_f32_serial);
+    run_if_matches("each_blend_f32_serial", test_blend<f32_t>, nk_each_blend_f32_serial);
     run_if_matches("each_fma_f32_serial", test_fma<f32_t>, nk_each_fma_f32_serial);
     run_if_matches("each_scale_e4m3_serial", test_scale<e4m3_t>, nk_each_scale_e4m3_serial);
     run_if_matches("each_scale_e5m2_serial", test_scale<e5m2_t>, nk_each_scale_e5m2_serial);
     run_if_matches("each_sum_e4m3_serial", test_sum<e4m3_t>, nk_each_sum_e4m3_serial);
     run_if_matches("each_sum_e5m2_serial", test_sum<e5m2_t>, nk_each_sum_e5m2_serial);
-    run_if_matches("each_wsum_e4m3_serial", test_wsum<e4m3_t>, nk_each_blend_e4m3_serial);
-    run_if_matches("each_wsum_e5m2_serial", test_wsum<e5m2_t>, nk_each_blend_e5m2_serial);
+    run_if_matches("each_blend_e4m3_serial", test_blend<e4m3_t>, nk_each_blend_e4m3_serial);
+    run_if_matches("each_blend_e5m2_serial", test_blend<e5m2_t>, nk_each_blend_e5m2_serial);
     run_if_matches("each_fma_e4m3_serial", test_fma<e4m3_t>, nk_each_fma_e4m3_serial);
     run_if_matches("each_fma_e5m2_serial", test_fma<e5m2_t>, nk_each_fma_e5m2_serial);
     run_if_matches("each_sum_f32c_serial", test_sum<f32c_t>, nk_each_sum_f32c_serial);
     run_if_matches("each_sum_f64c_serial", test_sum<f64c_t>, nk_each_sum_f64c_serial);
     run_if_matches("each_scale_f32c_serial", test_scale<f32c_t>, nk_each_scale_f32c_serial);
     run_if_matches("each_scale_f64c_serial", test_scale<f64c_t>, nk_each_scale_f64c_serial);
-    run_if_matches("each_wsum_f32c_serial", test_wsum<f32c_t>, nk_each_blend_f32c_serial);
-    run_if_matches("each_wsum_f64c_serial", test_wsum<f64c_t>, nk_each_blend_f64c_serial);
+    run_if_matches("each_blend_f32c_serial", test_blend<f32c_t>, nk_each_blend_f32c_serial);
+    run_if_matches("each_blend_f64c_serial", test_blend<f64c_t>, nk_each_blend_f64c_serial);
     run_if_matches("each_fma_f32c_serial", test_fma<f32c_t>, nk_each_fma_f32c_serial);
     run_if_matches("each_fma_f64c_serial", test_fma<f64c_t>, nk_each_fma_f64c_serial);
 

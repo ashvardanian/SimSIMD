@@ -127,8 +127,9 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
     nk_f32_t sum_imag = 0;
 
     for (nk_size_t i = 0; i != n; ++i) {
-        nk_f32_t const a_i_real = a[i].real;
-        nk_f32_t const a_i_imag = a[i].imag;
+        nk_f32_t a_i_real, a_i_imag;
+        nk_bf16_to_f32_serial(&a[i].real, &a_i_real);
+        nk_bf16_to_f32_serial(&a[i].imag, &a_i_imag);
         __m512 cb_j_real_f32x16 = _mm512_setzero_ps();
         __m512 cb_j_imag_f32x16 = _mm512_setzero_ps();
         __m512i b_bf16x32, c_bf16x32;

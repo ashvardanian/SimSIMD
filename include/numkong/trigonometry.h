@@ -271,19 +271,13 @@ NK_PUBLIC void nk_each_sin_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_
 NK_PUBLIC void nk_each_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
 /** @copydoc nk_each_atan_f32 */
 NK_PUBLIC void nk_each_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
-#endif // NK_TARGET_SKYLAKE
-
-/*  SIMD-powered backends for Sapphire Rapids with native FP16 arithmetic.
- *  Processes 32 FP16 values per 512-bit register using AVX-512 FP16 instructions.
- */
-#if NK_TARGET_SAPPHIRE
 /** @copydoc nk_each_sin_f16 */
-NK_PUBLIC void nk_each_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+NK_PUBLIC void nk_each_sin_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
 /** @copydoc nk_each_cos_f16 */
-NK_PUBLIC void nk_each_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+NK_PUBLIC void nk_each_cos_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
 /** @copydoc nk_each_atan_f16 */
-NK_PUBLIC void nk_each_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
-#endif // NK_TARGET_SAPPHIRE
+NK_PUBLIC void nk_each_atan_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+#endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_V128RELAXED
 /** @copydoc nk_each_sin_f64 */
@@ -329,7 +323,6 @@ NK_PUBLIC void nk_each_atan_f16_rvv(nk_f16_t const *ins, nk_size_t n, nk_f16_t *
 #include "numkong/trigonometry/neon.h"
 #include "numkong/trigonometry/haswell.h"
 #include "numkong/trigonometry/skylake.h"
-#include "numkong/trigonometry/sapphire.h"
 #include "numkong/trigonometry/v128relaxed.h"
 #include "numkong/trigonometry/rvv.h"
 
@@ -436,8 +429,8 @@ NK_PUBLIC void nk_each_atan_f32(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs
 }
 
 NK_PUBLIC void nk_each_sin_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_sin_f16_sapphire(ins, n, outs);
+#if NK_TARGET_SKYLAKE
+    nk_each_sin_f16_skylake(ins, n, outs);
 #elif NK_TARGET_RVV
     nk_each_sin_f16_rvv(ins, n, outs);
 #else
@@ -446,8 +439,8 @@ NK_PUBLIC void nk_each_sin_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs)
 }
 
 NK_PUBLIC void nk_each_cos_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_cos_f16_sapphire(ins, n, outs);
+#if NK_TARGET_SKYLAKE
+    nk_each_cos_f16_skylake(ins, n, outs);
 #elif NK_TARGET_RVV
     nk_each_cos_f16_rvv(ins, n, outs);
 #else
@@ -456,8 +449,8 @@ NK_PUBLIC void nk_each_cos_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs)
 }
 
 NK_PUBLIC void nk_each_atan_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_atan_f16_sapphire(ins, n, outs);
+#if NK_TARGET_SKYLAKE
+    nk_each_atan_f16_skylake(ins, n, outs);
 #elif NK_TARGET_RVV
     nk_each_atan_f16_rvv(ins, n, outs);
 #else

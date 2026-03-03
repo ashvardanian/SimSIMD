@@ -923,7 +923,7 @@ static PyMethodDef nk_methods[] = {
 
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
-    {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
+    {"blend", (PyCFunction)api_blend, METH_FASTCALL | METH_KEYWORDS, doc_blend},
     {"scale", (PyCFunction)api_scale, METH_FASTCALL | METH_KEYWORDS, doc_scale},
     {"add", (PyCFunction)api_add, METH_FASTCALL | METH_KEYWORDS, doc_add},
     {"multiply", (PyCFunction)api_multiply, METH_FASTCALL | METH_KEYWORDS, doc_multiply},

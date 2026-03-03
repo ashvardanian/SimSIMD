@@ -126,12 +126,9 @@ void test_trigonometry() {
     run_if_matches("each_sin_f64_skylake", test_sin<f64_t>, nk_each_sin_f64_skylake);
     run_if_matches("each_cos_f64_skylake", test_cos<f64_t>, nk_each_cos_f64_skylake);
     run_if_matches("each_atan_f64_skylake", test_atan<f64_t>, nk_each_atan_f64_skylake);
-#endif
-
-#if NK_TARGET_SAPPHIRE
-    run_if_matches("each_sin_f16_sapphire", test_sin<f16_t>, nk_each_sin_f16_sapphire);
-    run_if_matches("each_cos_f16_sapphire", test_cos<f16_t>, nk_each_cos_f16_sapphire);
-    run_if_matches("each_atan_f16_sapphire", test_atan<f16_t>, nk_each_atan_f16_sapphire);
+    run_if_matches("each_sin_f16_skylake", test_sin<f16_t>, nk_each_sin_f16_skylake);
+    run_if_matches("each_cos_f16_skylake", test_cos<f16_t>, nk_each_cos_f16_skylake);
+    run_if_matches("each_atan_f16_skylake", test_atan<f16_t>, nk_each_atan_f16_skylake);
 #endif
 
 #if NK_TARGET_V128RELAXED

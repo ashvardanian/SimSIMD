@@ -128,32 +128,32 @@ NK_PUBLIC void nk_reduce_moments_bf16_neonbfdot(                        //
     else nk_reduce_moments_bf16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
-/** @brief Convert 8 raw bf16 sign-magnitude u16 to order-preserving comparable i16. */
+/** @brief Convert 8 raw bf16 sign-magnitude u16 to order-preserving comparable i16.
+ *  Positive bf16 values (sign=0) are left as-is: they already sort correctly as i16.
+ *  Negative bf16 values (sign=1) have their magnitude bits flipped (XOR 0x7FFF)
+ *  so that more-negative values map to more-negative i16 values. */
 NK_INTERNAL int16x8_t nk_bf16x8_to_comparable_i16x8_neon_(uint16x8_t raw_u16x8) {
-    uint16x8_t sign_mask_u16x8 = vdupq_n_u16(0x8000);
-    uint16x8_t is_negative_u16x8 = vtstq_u16(raw_u16x8, sign_mask_u16x8);
-    uint16x8_t flip_positive_u16x8 = veorq_u16(raw_u16x8, sign_mask_u16x8);
-    uint16x8_t flip_negative_u16x8 = vmvnq_u16(raw_u16x8);
-    return vreinterpretq_s16_u16(vbslq_u16(is_negative_u16x8, flip_negative_u16x8, flip_positive_u16x8));
+    int16x8_t raw_i16x8 = vreinterpretq_s16_u16(raw_u16x8);
+    uint16x8_t is_negative_u16x8 = vtstq_u16(raw_u16x8, vdupq_n_u16(0x8000));
+    int16x8_t flipped_i16x8 = veorq_s16(raw_i16x8, vdupq_n_s16(0x7FFF));
+    return vbslq_s16(is_negative_u16x8, flipped_i16x8, raw_i16x8);
 }
 
-/** @brief Convert a comparable i16 value back to raw bf16 u16 bits. */
+/** @brief Convert a comparable i16 value back to raw bf16 u16 bits.
+ *  Reverses the transformation from nk_bf16x8_to_comparable_i16x8_neon_. */
 NK_INTERNAL nk_u16_t nk_comparable_i16_to_bf16_raw_(nk_i16_t comparable) {
-    nk_u16_t unsigned_comparable = (nk_u16_t)comparable;
-    if (comparable >= 0) return unsigned_comparable ^ 0x8000;
-    else return ~unsigned_comparable;
+    if (comparable < 0) return (nk_u16_t)(comparable ^ 0x7FFF);
+    return (nk_u16_t)comparable;
 }
 
 NK_INTERNAL void nk_reduce_minmax_bf16_neonbfdot_contiguous_( //
     nk_bf16_t const *data_ptr, nk_size_t count,               //
     nk_bf16_t *min_value_ptr, nk_size_t *min_index_ptr,       //
     nk_bf16_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    uint16x8_t first_raw_u16x8 = vld1q_u16((uint16_t const *)data_ptr);
-    int16x8_t first_comparable_i16x8 = nk_bf16x8_to_comparable_i16x8_neon_(first_raw_u16x8);
-    int16x8_t min_i16x8 = first_comparable_i16x8, max_i16x8 = first_comparable_i16x8;
+    int16x8_t min_i16x8 = vdupq_n_s16(NK_I16_MAX), max_i16x8 = vdupq_n_s16(NK_I16_MIN);
     uint16x8_t min_iter_u16x8 = vdupq_n_u16(0), max_iter_u16x8 = vdupq_n_u16(0);
-    uint16x8_t iter_u16x8 = vdupq_n_u16(1), one_u16x8 = vdupq_n_u16(1);
-    nk_size_t idx = 8;
+    uint16x8_t iter_u16x8 = vdupq_n_u16(0), one_u16x8 = vdupq_n_u16(1);
+    nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         uint16x8_t raw_u16x8 = vld1q_u16((uint16_t const *)(data_ptr + idx));
         int16x8_t comparable_i16x8 = nk_bf16x8_to_comparable_i16x8_neon_(raw_u16x8);
@@ -184,6 +184,12 @@ NK_INTERNAL void nk_reduce_minmax_bf16_neonbfdot_contiguous_( //
     }
     // Horizontal reduction
     nk_i16_t min_comparable = vminvq_s16(min_i16x8), max_comparable = vmaxvq_s16(max_i16x8);
+    // All-NaN early return: both sentinels unchanged means no valid data was found
+    if (min_comparable == NK_I16_MAX && max_comparable == NK_I16_MIN) {
+        *(nk_u16_t *)min_value_ptr = nk_comparable_i16_to_bf16_raw_(min_comparable), *min_index_ptr = NK_SIZE_MAX;
+        *(nk_u16_t *)max_value_ptr = nk_comparable_i16_to_bf16_raw_(max_comparable), *max_index_ptr = NK_SIZE_MAX;
+        return;
+    }
     uint16x8_t min_value_match_u16x8 = vceqq_s16(min_i16x8, vdupq_n_s16(min_comparable));
     uint16x8_t masked_min_iter_u16x8 = vbslq_u16(min_value_match_u16x8, min_iter_u16x8, vdupq_n_u16(0xFFFF));
     nk_u16_t earliest_min_cycle = vminvq_u16(masked_min_iter_u16x8);
@@ -257,27 +263,30 @@ NK_INTERNAL void nk_reduce_minmax_bf16_neonbfdot_strided_(                 //
     }
     // Horizontal reduction from SIMD lanes
     nk_i16_t min_value = vminvq_s16(min_i16x8), max_value = vmaxvq_s16(max_i16x8);
-    uint16x8_t min_value_match_u16x8 = vceqq_s16(min_i16x8, vdupq_n_s16(min_value));
-    uint16x8_t masked_min_iter_u16x8 = vbslq_u16(min_value_match_u16x8, min_iter_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t earliest_min_cycle = vminvq_u16(masked_min_iter_u16x8);
-    uint16x8_t max_value_match_u16x8 = vceqq_s16(max_i16x8, vdupq_n_s16(max_value));
-    uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
-    uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
-    uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
-    uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
-    uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t min_lane_offset = vminvq_u16(min_masked_lanes_u16x8);
-    nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 8 + (nk_size_t)min_lane_offset;
-    uint16x8_t max_cycle_match_u16x8 = vceqq_u16(max_iter_u16x8, vdupq_n_u16(earliest_max_cycle));
-    uint16x8_t max_both_match_u16x8 = vandq_u16(max_value_match_u16x8, max_cycle_match_u16x8);
-    uint16x8_t max_masked_lanes_u16x8 = vbslq_u16(max_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
-    nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
+    nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
+    if (!(min_value == NK_I16_MAX && max_value == NK_I16_MIN)) {
+        uint16x8_t min_value_match_u16x8 = vceqq_s16(min_i16x8, vdupq_n_s16(min_value));
+        uint16x8_t masked_min_iter_u16x8 = vbslq_u16(min_value_match_u16x8, min_iter_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t earliest_min_cycle = vminvq_u16(masked_min_iter_u16x8);
+        uint16x8_t max_value_match_u16x8 = vceqq_s16(max_i16x8, vdupq_n_s16(max_value));
+        uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
+        uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
+        uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
+        uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t min_lane_offset = vminvq_u16(min_masked_lanes_u16x8);
+        min_idx = (nk_size_t)earliest_min_cycle * 8 + (nk_size_t)min_lane_offset;
+        uint16x8_t max_cycle_match_u16x8 = vceqq_u16(max_iter_u16x8, vdupq_n_u16(earliest_max_cycle));
+        uint16x8_t max_both_match_u16x8 = vandq_u16(max_value_match_u16x8, max_cycle_match_u16x8);
+        uint16x8_t max_masked_lanes_u16x8 = vbslq_u16(max_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
+        max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
+    }
     // Scalar tail: process remaining elements one by one
     for (; idx < count; ++idx) {
         nk_u16_t raw = *(nk_u16_t const *)(data_ptr + idx * stride_elements);
-        nk_i16_t comparable = (raw & 0x8000) ? (nk_i16_t)(~raw) : (nk_i16_t)(raw ^ 0x8000);
+        nk_i16_t comparable = (raw & 0x8000) ? (nk_i16_t)(raw ^ 0x7FFF) : (nk_i16_t)raw;
         if (comparable < min_value) min_value = comparable, min_idx = idx;
         if (comparable > max_value) max_value = comparable, max_idx = idx;
     }

@@ -50,10 +50,10 @@
  *
  *  @section x86_instructions Relevant x86 Instructions
  *
- *  FP16 conversions (VCVTPH2PS/VCVTPS2PH) are used for f16 scale/sum/wsum/fma operations, converting
+ *  FP16 conversions (VCVTPH2PS/VCVTPS2PH) are used for f16 scale/sum/blend/fma operations, converting
  *  to f32 for arithmetic then back. The 6-7 cycle latency is amortized over vector-width elements.
  *  Saturating integer adds (VPADDSW/VPADDUSW) provide overflow protection for i16/u16 sums without
- *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and wsum (alpha*a+beta*b).
+ *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and blend (alpha*a+beta*b).
  *
  *      Intrinsic               Instruction                     Ice         Genoa
  *      _mm512_cvtph_ps         VCVTPH2PS (ZMM, YMM)            7c @ p0+p5  6c @ p12+p23
@@ -67,7 +67,7 @@
  *
  *  On ARM, i8/u8 elementwise operations convert to f16 intermediates using FCVT to maintain high
  *  vector throughput (8 elements per 128-bit register vs 4 for f32). Saturating adds (SQADD/UQADD)
- *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/wsum/fma.
+ *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/blend/fma.
  *
  *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
  *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
@@ -839,6 +839,9 @@ NK_PUBLIC void nk_each_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_
 /** @copydoc nk_each_scale_f32 */
 NK_PUBLIC void nk_each_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_f32_t *result);
+/** @copydoc nk_each_scale_f16 */
+NK_PUBLIC void nk_each_scale_f16_skylake(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f16_t *result);
 /** @copydoc nk_each_scale_bf16 */
 NK_PUBLIC void nk_each_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                           nk_bf16_t *result);
@@ -880,6 +883,9 @@ NK_PUBLIC void nk_each_blend_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, n
 /** @copydoc nk_each_blend_f32 */
 NK_PUBLIC void nk_each_blend_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f16 */
+NK_PUBLIC void nk_each_blend_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_blend_bf16 */
 NK_PUBLIC void nk_each_blend_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                           nk_f32_t const *beta, nk_bf16_t *result);
@@ -890,6 +896,9 @@ NK_PUBLIC void nk_each_fma_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_
 /** @copydoc nk_each_fma_f32 */
 NK_PUBLIC void nk_each_fma_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_f16 */
+NK_PUBLIC void nk_each_fma_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_fma_bf16 */
 NK_PUBLIC void nk_each_fma_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                         nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
@@ -980,9 +989,6 @@ NK_PUBLIC void nk_each_sum_u64_icelake(nk_u64_t const *a, nk_u64_t const *b, nk_
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
-/** @copydoc nk_each_scale_f16 */
-NK_PUBLIC void nk_each_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                          nk_f16_t *result);
 /** @copydoc nk_each_scale_i8 */
 NK_PUBLIC void nk_each_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_i8_t *result);
@@ -995,9 +1001,6 @@ NK_PUBLIC void nk_each_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk
 /** @copydoc nk_each_sum_e4m3 */
 NK_PUBLIC void nk_each_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
 
-/** @copydoc nk_each_blend_f16 */
-NK_PUBLIC void nk_each_blend_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                          nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_blend_i8 */
 NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_i8_t *result);
@@ -1005,9 +1008,6 @@ NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_
 NK_PUBLIC void nk_each_blend_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_u8_t *result);
 
-/** @copydoc nk_each_fma_f16 */
-NK_PUBLIC void nk_each_fma_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_each_fma_i8 */
 NK_PUBLIC void nk_each_fma_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
@@ -1177,7 +1177,7 @@ NK_PUBLIC void nk_each_fma_f64c_rvv(nk_f64c_t const *a, nk_f64c_t const *b, nk_f
 #endif // NK_TARGET_RVV
 
 /**
- *  @brief  Returns the scalar parameter dtype for elementwise scale/wsum/fma operations.
+ *  @brief  Returns the scalar parameter dtype for elementwise scale/blend/fma operations.
  */
 NK_INTERNAL nk_dtype_t nk_each_scale_input_dtype(nk_dtype_t dtype) {
     switch (dtype) {
@@ -1430,8 +1430,8 @@ NK_PUBLIC void nk_each_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t cons
 
 NK_PUBLIC void nk_each_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                  nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_scale_f16_sapphire(a, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_scale_f16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_scale_f16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
@@ -1610,8 +1610,8 @@ NK_PUBLIC void nk_each_blend_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_siz
 
 NK_PUBLIC void nk_each_blend_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                  nk_f32_t const *beta, nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_blend_f16_sapphire(a, b, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_blend_f16_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_blend_f16_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
@@ -1700,8 +1700,8 @@ NK_PUBLIC void nk_each_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_
 
 NK_PUBLIC void nk_each_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
+#if NK_TARGET_SKYLAKE
+    nk_each_fma_f16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_fma_f16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF

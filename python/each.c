@@ -4,7 +4,7 @@
  *  @author Ash Vardanian
  *  @date February 19, 2026
  *
- *  Implements fma, wsum, scale, add, multiply, and trigonometric (sin, cos, atan)
+ *  Implements fma, blend, scale, add, multiply, and trigonometric (sin, cos, atan)
  *  element-wise operations extracted from numkong.c.
  */
 #include "each.h"
@@ -185,8 +185,8 @@ cleanup:
     return return_obj;
 }
 
-char const doc_wsum[] =                                                                                //
-    "Weighted Sum of 2 input vectors.\n\n"                                                             //
+char const doc_blend[] =                                                                               //
+    "Blend of 2 input vectors.\n\n"                                                                    //
     "Parameters:\n"                                                                                    //
     "    a (Tensor): First vector.\n"                                                                  //
     "    b (Tensor): Second vector.\n"                                                                 //
@@ -199,10 +199,10 @@ char const doc_wsum[] =                                                         
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"                        //
     "Equivalent to: `alpha * a + beta * b`.\n"                                                         //
     "Signature:\n"                                                                                     //
-    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
+    "    >>> def blend(a, b, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
 
-PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                   PyObject *args_names_tuple) {
+PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                    PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
 

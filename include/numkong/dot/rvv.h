@@ -27,6 +27,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
+#include "numkong/set/rvv.h"  // `nk_popcount_u8m4_rvv_`
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
@@ -340,16 +341,8 @@ NK_PUBLIC void nk_dot_e3m2_rvv(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_sc
 NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_dimensions,
                              nk_i32_t *result) {
     // count_dimensions = number of 4-bit values, not bytes
+    count_dimensions = nk_size_round_up_to_multiple_(count_dimensions, 2);
     nk_size_t n_full_bytes = count_dimensions / 2;
-    nk_i32_t tail_contribution = 0;
-
-    // Handle odd tail: only low nibble of last byte contributes
-    if (count_dimensions & 1) {
-        nk_size_t last_byte = n_full_bytes;
-        nk_i32_t a_low = (nk_i32_t)((a_scalars[last_byte] & 0x0F) ^ 8) - 8;
-        nk_i32_t b_low = (nk_i32_t)((b_scalars[last_byte] & 0x0F) ^ 8) - 8;
-        tail_contribution = a_low * b_low;
-    }
 
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vint32m4_t sum_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
@@ -385,23 +378,14 @@ NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scal
     }
     // Single horizontal reduction at the end
     vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
-    *result = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax)) +
-              tail_contribution;
+    *result = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax));
 }
 
 NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_dimensions,
                              nk_u32_t *result) {
     // count_dimensions = number of 4-bit values, not bytes
+    count_dimensions = nk_size_round_up_to_multiple_(count_dimensions, 2);
     nk_size_t n_full_bytes = count_dimensions / 2;
-    nk_u32_t tail_contribution = 0;
-
-    // Handle odd tail: only low nibble of last byte contributes
-    if (count_dimensions & 1) {
-        nk_size_t last_byte = n_full_bytes;
-        nk_u32_t a_low = (nk_u32_t)(a_scalars[last_byte] & 0x0F);
-        nk_u32_t b_low = (nk_u32_t)(b_scalars[last_byte] & 0x0F);
-        tail_contribution = a_low * b_low;
-    }
 
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
     vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
@@ -427,8 +411,7 @@ NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scal
     }
     // Single horizontal reduction at the end
     vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
-    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, vlmax)) +
-              tail_contribution;
+    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, vlmax));
 }
 
 NK_PUBLIC void nk_dot_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {

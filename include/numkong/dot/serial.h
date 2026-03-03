@@ -177,20 +177,15 @@ NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_i32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles
-        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
-        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
-        sum += a_lo * b_lo;
-
-        // Extract high nibbles - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
-            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
-            sum += a_hi * b_hi;
-        }
+        nk_i32_t a_low = (nk_i32_t)nk_i4x2_low_(a[i]);
+        nk_i32_t b_low = (nk_i32_t)nk_i4x2_low_(b[i]);
+        nk_i32_t a_high = (nk_i32_t)nk_i4x2_high_(a[i]);
+        nk_i32_t b_high = (nk_i32_t)nk_i4x2_high_(b[i]);
+        sum += a_low * b_low + a_high * b_high;
     }
     *result = sum;
 }
@@ -199,20 +194,15 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // No sign extension needed - values are ∈ [0,15].
-    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    n = nk_size_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = n / 2;
     nk_u32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
-        // Extract low nibbles
-        nk_u32_t a_lo = (nk_u32_t)(a[i] & 0x0F);
-        nk_u32_t b_lo = (nk_u32_t)(b[i] & 0x0F);
-        sum += a_lo * b_lo;
-
-        // Extract high nibbles - skip if n is odd and this is last byte
-        if (2 * i + 1 < n) {
-            nk_u32_t a_hi = (nk_u32_t)((a[i] >> 4) & 0x0F);
-            nk_u32_t b_hi = (nk_u32_t)((b[i] >> 4) & 0x0F);
-            sum += a_hi * b_hi;
-        }
+        nk_u32_t a_low = (nk_u32_t)nk_u4x2_low_(a[i]);
+        nk_u32_t b_low = (nk_u32_t)nk_u4x2_low_(b[i]);
+        nk_u32_t a_high = (nk_u32_t)nk_u4x2_high_(a[i]);
+        nk_u32_t b_high = (nk_u32_t)nk_u4x2_high_(b[i]);
+        sum += a_low * b_low + a_high * b_high;
     }
     *result = sum;
 }
