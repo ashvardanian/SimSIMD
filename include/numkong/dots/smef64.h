@@ -294,6 +294,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
 
             // Extract from ZA1-7: narrow f64→f32 with svuzp1_u32 packing recipe
             svbool_t const predicate_tile_f32x = svwhilelt_b32_u64(0u, tile_dimension);
+            // The 7th tile (index 6) may be partial when it's the last column tile
+            nk_size_t const last_fast_col_start = (column_tile_index + 6) * tile_dimension;
+            nk_size_t const last_fast_cols = (last_fast_col_start + tile_dimension <= columns)
+                                                 ? tile_dimension
+                                                 : (columns - last_fast_col_start);
+            svbool_t const last_tile_pred_f32x = svwhilelt_b32_u64(0u, last_fast_cols);
             for (nk_size_t row_idx = 0; row_idx < rows_remaining; row_idx++) {
                 nk_f32_t *c_row = c + (row_start + row_idx) * c_stride_elements;
 
@@ -338,7 +344,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
                 za_row_narrowed_f32x = svcvt_f32_f64_x(predicate_all_f64x, za_row_f64x);
                 za_row_packed_f32x = svreinterpret_f32_u32(svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32x),
                                                                       svreinterpret_u32_f32(za_row_narrowed_f32x)));
-                svst1_f32(predicate_tile_f32x, c_row + (column_tile_index + 6) * tile_dimension, za_row_packed_f32x);
+                svst1_f32(last_tile_pred_f32x, c_row + (column_tile_index + 6) * tile_dimension, za_row_packed_f32x);
             }
         }
 
@@ -634,6 +640,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
 
             // Extract results: narrow f64→f32 with svuzp1_u32 recipe (unrolled)
             svbool_t const predicate_tile_f32x = svwhilelt_b32_u64(0u, tile_dimension);
+            // The 7th tile (index 6) may be partial when it's the last column tile
+            nk_size_t const last_fast_col_start = (column_tile_index + 6) * tile_dimension;
+            nk_size_t const last_fast_cols = (last_fast_col_start + tile_dimension <= n_vectors)
+                                                 ? tile_dimension
+                                                 : (n_vectors - last_fast_col_start);
+            svbool_t const last_tile_pred_f32x = svwhilelt_b32_u64(0u, last_fast_cols);
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 nk_f32_t *result_row = result + row_abs * result_stride_elements;
@@ -684,7 +696,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                 za_row_narrowed_f32x = svcvt_f32_f64_x(predicate_all_f64x, za_row_f64x);
                 za_row_packed_f32x = svreinterpret_f32_u32(svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32x),
                                                                       svreinterpret_u32_f32(za_row_narrowed_f32x)));
-                svst1_f32(predicate_tile_f32x, result_row + (column_tile_index + 6) * tile_dimension,
+                svst1_f32(last_tile_pred_f32x, result_row + (column_tile_index + 6) * tile_dimension,
                           za_row_packed_f32x);
             }
         }
