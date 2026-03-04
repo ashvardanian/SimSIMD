@@ -131,6 +131,21 @@ else()
     message(WARNING "Unknown CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
+# Detect target OS for platform-specific optimizations
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    set(NK_IS_FREEBSD TRUE)
+    message(STATUS "NumKong OS: FreeBSD")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(NK_IS_LINUX TRUE)
+    message(STATUS "NumKong OS: Linux")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(NK_IS_MACOS TRUE)
+    message(STATUS "NumKong OS: macOS")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR WIN32)
+    set(NK_IS_WINDOWS TRUE)
+    message(STATUS "NumKong OS: Windows")
+endif()
+
 # Global compiler flags for debug and release
 include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
@@ -150,15 +165,18 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 # Compiler-specific flags
 if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    if(NOT APPLE AND NOT CMAKE_CROSSCOMPILING)
+    # Enable -march=native for Linux and FreeBSD (not for macOS or cross-compilation)
+    if((NK_IS_LINUX OR NK_IS_FREEBSD) AND NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
     endif()
 
     add_compile_options(-pedantic -ferror-limit=1 -Wno-typedef-redefinition)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(NOT CMAKE_CROSSCOMPILING)
+    # Enable -march=native for native builds on Linux/FreeBSD
+    if((NK_IS_LINUX OR NK_IS_FREEBSD) AND NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
     endif()
+
     add_compile_options(-pedantic -fmax-errors=1 -Wno-tautological-constant-compare -Wno-psabi)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1)

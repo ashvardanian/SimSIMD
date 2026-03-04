@@ -46,13 +46,15 @@
 #define _GNU_SOURCE
 #endif
 
-// Inferring target OS: Windows, macOS, or Linux
+// Inferring target OS: Windows, macOS, Linux, or FreeBSD
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define NK_DEFINED_WINDOWS_ 1
 #elif defined(__APPLE__) && defined(__MACH__)
 #define NK_DEFINED_APPLE_ 1
 #elif defined(__linux__)
 #define NK_DEFINED_LINUX_ 1
+#elif defined(__FreeBSD__)
+#define NK_DEFINED_FREEBSD_ 1
 #endif
 
 // Annotation for the public API symbols:

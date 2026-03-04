@@ -179,6 +179,67 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
+def freebsd_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+    """Build settings for FreeBSD."""
+    compile_args = [
+        "-std=c11",
+        "-O3",
+        "-fdiagnostics-color=always",
+        "-fvisibility=default",
+        "-fPIC",
+        "-w",  # Hush warnings
+    ]
+    link_args = [
+        "-shared",
+        "-lm",  # Math library
+    ]
+    # FreeBSD: Similar to Linux, enable all SIMD targets for detected architecture
+    macros = [
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
+        # x86 targets
+        ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX may not be available on FreeBSD
+        ("NK_TARGET_GRANITEAMX", "0"),
+        # ARM NEON targets
+        ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        # ARM SVE targets
+        ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVESDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2P1", "1" if is_64bit_arm() else "0"),
+        # ARM SME targets (may require newer FreeBSD)
+        ("NK_TARGET_SME", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SME2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SME2P1", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEF64", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEBF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEBI32", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMELUT2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEFA64", "1" if is_64bit_arm() else "0"),
+        # RISC-V targets
+        ("NK_TARGET_RVV", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBB", "1" if is_64bit_riscv() else "0"),
+    ]
+    return compile_args, link_args, macros
+
+
 def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     """Build settings for Windows."""
     compile_args = [
@@ -245,11 +306,15 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
 
 if sys.platform == "linux":
     compile_args, link_args, macros = linux_settings()
+elif sys.platform.startswith("freebsd"):
+    # FreeBSD platform strings can be "freebsd11", "freebsd12", etc.
+    compile_args, link_args, macros = freebsd_settings()
 elif sys.platform == "darwin":
     compile_args, link_args, macros = darwin_settings()
 elif sys.platform == "win32":
     compile_args, link_args, macros = windows_settings()
 else:
+    # Default to minimal settings for unknown platforms
     compile_args, link_args, macros = [], [], []
 
 
