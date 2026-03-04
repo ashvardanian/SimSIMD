@@ -293,39 +293,48 @@
 #endif // !defined(NK_TARGET_SVE2P1) || ...
 
 // Compiling for Arm: NK_TARGET_SME (Scalable Matrix Extension)
-#if !defined(NK_TARGET_SME)
+#if !defined(NK_TARGET_SME) || (NK_TARGET_SME && !NK_TARGET_ARM_)
+#undef NK_TARGET_SME
 #define NK_TARGET_SME 0
 #endif
 
-#if !defined(NK_TARGET_SME2)
+#if !defined(NK_TARGET_SME2) || (NK_TARGET_SME2 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SME2
 #define NK_TARGET_SME2 0
 #endif
 
-#if !defined(NK_TARGET_SME2P1)
+#if !defined(NK_TARGET_SME2P1) || (NK_TARGET_SME2P1 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SME2P1
 #define NK_TARGET_SME2P1 0
 #endif
 
-#if !defined(NK_TARGET_SMEF64)
+#if !defined(NK_TARGET_SMEF64) || (NK_TARGET_SMEF64 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMEF64
 #define NK_TARGET_SMEF64 0
 #endif
 
-#if !defined(NK_TARGET_SMEHALF)
+#if !defined(NK_TARGET_SMEHALF) || (NK_TARGET_SMEHALF && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMEHALF
 #define NK_TARGET_SMEHALF 0
 #endif
 
-#if !defined(NK_TARGET_SMEBF16)
+#if !defined(NK_TARGET_SMEBF16) || (NK_TARGET_SMEBF16 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMEBF16
 #define NK_TARGET_SMEBF16 0
 #endif
 
-#if !defined(NK_TARGET_SMELUT2)
+#if !defined(NK_TARGET_SMELUT2) || (NK_TARGET_SMELUT2 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMELUT2
 #define NK_TARGET_SMELUT2 0
 #endif
 
-#if !defined(NK_TARGET_SMEFA64)
+#if !defined(NK_TARGET_SMEFA64) || (NK_TARGET_SMEFA64 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMEFA64
 #define NK_TARGET_SMEFA64 0
 #endif
 
-#if !defined(NK_TARGET_SMEBI32)
+#if !defined(NK_TARGET_SMEBI32) || (NK_TARGET_SMEBI32 && !NK_TARGET_ARM_)
+#undef NK_TARGET_SMEBI32
 #define NK_TARGET_SMEBI32 0
 #endif
 
