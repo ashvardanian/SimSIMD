@@ -9,6 +9,7 @@
  * - TypedArray type detection and dispatch
  * - Result extraction from WASM heap
  * - Error handling
+ * - Both wasm32 and wasm64 (memory64) modes
  */
 
 import { TensorBase, DType, dtypeToString } from './dtypes.js';
@@ -16,72 +17,72 @@ import { TensorBase, DType, dtypeToString } from './dtypes.js';
 /* #region Emscripten Interface */
 
 /**
- * Emscripten module interface
+ * Emscripten module interface.
+ * In wasm64 (memory64) mode, pointer/size params and returns become bigint.
+ * We use `any` for pointer arguments to support both modes uniformly.
  */
 interface EmscriptenModule {
-  _malloc(size: number): number;
-  _free(ptr: number): void;
+  _malloc(size: any): any;
+  _free(ptr: any): void;
   wasmMemory: { buffer: ArrayBuffer };
 
-  // Distance functions - f32
-  _nk_dot_f32(a: number, b: number, n: number, result: number): void;
-  _nk_angular_f32(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_f32(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_f32(a: number, b: number, n: number, result: number): void;
+  // Distance functions - all use `any` for pointer/size args to support wasm32 (number) and wasm64 (bigint)
+  _nk_dot_f32(a: any, b: any, n: any, result: any): void;
+  _nk_angular_f32(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_f32(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_f32(a: any, b: any, n: any, result: any): void;
+  _nk_dot_f64(a: any, b: any, n: any, result: any): void;
+  _nk_angular_f64(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_f64(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_f64(a: any, b: any, n: any, result: any): void;
+  _nk_dot_f16(a: any, b: any, n: any, result: any): void;
+  _nk_angular_f16(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_f16(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_f16(a: any, b: any, n: any, result: any): void;
+  _nk_dot_bf16(a: any, b: any, n: any, result: any): void;
+  _nk_angular_bf16(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_bf16(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_bf16(a: any, b: any, n: any, result: any): void;
+  _nk_dot_i8(a: any, b: any, n: any, result: any): void;
+  _nk_angular_i8(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_i8(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_i8(a: any, b: any, n: any, result: any): void;
+  _nk_dot_u8(a: any, b: any, n: any, result: any): void;
+  _nk_angular_u8(a: any, b: any, n: any, result: any): void;
+  _nk_sqeuclidean_u8(a: any, b: any, n: any, result: any): void;
+  _nk_euclidean_u8(a: any, b: any, n: any, result: any): void;
+  _nk_hamming_u1(a: any, b: any, n: any, result: any): void;
+  _nk_hamming_u8(a: any, b: any, n: any, result: any): void;
+  _nk_jaccard_u1(a: any, b: any, n: any, result: any): void;
+  _nk_jaccard_u16(a: any, b: any, n: any, result: any): void;
+  _nk_kld_f32(a: any, b: any, n: any, result: any): void;
+  _nk_kld_f64(a: any, b: any, n: any, result: any): void;
+  _nk_jsd_f32(a: any, b: any, n: any, result: any): void;
+  _nk_jsd_f64(a: any, b: any, n: any, result: any): void;
+  _nk_capabilities(): any;
 
-  // Distance functions - f64
-  _nk_dot_f64(a: number, b: number, n: number, result: number): void;
-  _nk_angular_f64(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_f64(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_f64(a: number, b: number, n: number, result: number): void;
-
-  // Distance functions - f16 (store as u16, result in f32)
-  _nk_dot_f16(a: number, b: number, n: number, result: number): void;
-  _nk_angular_f16(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_f16(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_f16(a: number, b: number, n: number, result: number): void;
-
-  // Distance functions - bf16 (store as u16, result in f32)
-  _nk_dot_bf16(a: number, b: number, n: number, result: number): void;
-  _nk_angular_bf16(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_bf16(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_bf16(a: number, b: number, n: number, result: number): void;
-
-  // Distance functions - i8 (result in i32)
-  _nk_dot_i8(a: number, b: number, n: number, result: number): void;
-  _nk_angular_i8(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_i8(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_i8(a: number, b: number, n: number, result: number): void;
-
-  // Distance functions - u8 (result in u32)
-  _nk_dot_u8(a: number, b: number, n: number, result: number): void;
-  _nk_angular_u8(a: number, b: number, n: number, result: number): void;
-  _nk_sqeuclidean_u8(a: number, b: number, n: number, result: number): void;
-  _nk_euclidean_u8(a: number, b: number, n: number, result: number): void;
-
-  // Binary distances
-  _nk_hamming_u1(a: number, b: number, n: number, result: number): void;
-  _nk_hamming_u8(a: number, b: number, n: number, result: number): void;
-  _nk_jaccard_u1(a: number, b: number, n: number, result: number): void;
-  _nk_jaccard_u16(a: number, b: number, n: number, result: number): void;
-
-  // Probability divergences
-  _nk_kld_f32(a: number, b: number, n: number, result: number): void;
-  _nk_kld_f64(a: number, b: number, n: number, result: number): void;
-  _nk_jsd_f32(a: number, b: number, n: number, result: number): void;
-  _nk_jsd_f64(a: number, b: number, n: number, result: number): void;
-
-  // Capabilities
-  _nk_capabilities(): number;
+  [key: string]: any;
 }
 
 /* #endregion Emscripten Interface */
 
 /* #region Heap Management */
 
+/** Pointer type passed to raw C functions: number in wasm32, bigint in wasm64 */
+type WasmPtr = number | bigint;
+
 let Module: EmscriptenModule | null = null;
 
+/**
+ * Whether the WASM module uses memory64.
+ * In memory64 mode, Emscripten wraps _malloc/_free to accept/return number,
+ * but raw C function exports expect BigInt (i64) for pointer parameters.
+ * nk_size_t is always i32 (number) in WASM since NK_IS_64BIT_=0.
+ */
+let isMemory64 = false;
+
 // Pre-allocated 8-byte result buffer (covers f64/f32/i32/u32), allocated once in initWasm()
+// Always a number (from Emscripten-wrapped _malloc), converted to WasmPtr for C calls
 let resultPtr: number = 0;
 
 // Heap views (created from wasmMemory buffer)
@@ -93,6 +94,14 @@ let HEAPU16: Uint16Array;
 let HEAPU32: Uint32Array;
 let HEAPF32: Float32Array;
 let HEAPF64: Float64Array;
+
+/**
+ * Convert a number (e.g. from _malloc or byteOffset) to the pointer type
+ * expected by raw C function exports. In wasm64, pointers are i64 (BigInt).
+ */
+function toCPtr(n: number): WasmPtr {
+  return isMemory64 ? BigInt(n) : n;
+}
 
 /**
  * Initialize the WASM module
@@ -111,7 +120,21 @@ export function initWasm(wasmModule: EmscriptenModule): void {
   HEAPF32 = new Float32Array(buffer);
   HEAPF64 = new Float64Array(buffer);
 
+  // Detect memory64 mode by probing whether raw C functions expect BigInt pointers.
+  // Emscripten wraps _malloc/_free to always use number, but raw C exports use i64
+  // (BigInt) for pointers in memory64 mode. We probe by calling a distance function
+  // with BigInt(0) args — if it doesn't throw, we're in memory64 mode.
+  try {
+    const probe = wasmModule._malloc(8);
+    wasmModule._nk_dot_f32(BigInt(probe), BigInt(probe), 0, BigInt(probe));
+    isMemory64 = true;
+    wasmModule._free(probe);
+  } catch {
+    isMemory64 = false;
+  }
+
   // Pre-allocate an 8-byte result buffer (never freed during module lifetime)
+  // _malloc always returns number (Emscripten-wrapped in both modes)
   resultPtr = wasmModule._malloc(8);
 }
 
@@ -214,7 +237,7 @@ function resolveInput(a: TensorBase | any): ResolvedInput {
 /* #region Distance Helpers */
 
 /**
- * Write TypedArray to WASM heap
+ * Write TypedArray to WASM heap. ptr is a number byte-offset from _malloc.
  */
 function writeArray(ptr: number, arr: any, typeInfo: TypeInfo): void {
   if (!Module) throw new Error('WASM module not initialized');
@@ -235,7 +258,8 @@ function writeArray(ptr: number, arr: any, typeInfo: TypeInfo): void {
 }
 
 /**
- * Allocate WASM memory and copy array data into it. Returns the pointer.
+ * Allocate WASM memory and copy array data into it.
+ * Returns a number byte-offset (from Emscripten-wrapped _malloc).
  */
 function allocAndCopy(arr: any, typeInfo: TypeInfo): number {
   if (!Module) throw new Error('WASM module not initialized');
@@ -245,7 +269,8 @@ function allocAndCopy(arr: any, typeInfo: TypeInfo): number {
 }
 
 /**
- * Allocate WASM memory and copy data into it. Returns the pointer.
+ * Allocate WASM memory and copy data into it.
+ * Returns a number byte-offset (from Emscripten-wrapped _malloc).
  */
 function allocAndCopyResolved(buffer: ArrayBuffer, byteOffset: number, byteLength: number): number {
   if (!Module) throw new Error('WASM module not initialized');
@@ -256,7 +281,7 @@ function allocAndCopyResolved(buffer: ArrayBuffer, byteOffset: number, byteLengt
 }
 
 /**
- * Read result from WASM heap
+ * Read result from WASM heap. ptr is a number byte-offset.
  */
 function readResult(ptr: number, resultType: 'f32' | 'f64' | 'i32' | 'u32'): number {
   if (!Module) throw new Error('WASM module not initialized');
@@ -295,11 +320,12 @@ function distance(metric: string, a: TensorBase | any, b: TensorBase | any): num
 
   const n = ra.length;
 
-  // Zero-copy: if the buffer IS the WASM memory, byteOffset is the pointer
+  // Zero-copy: if the buffer IS the WASM memory, byteOffset is the pointer (number)
   const onHeapA = ra.buffer === Module.wasmMemory.buffer;
   const onHeapB = rb.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
-  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
+  // aNum/bNum are number byte-offsets for _free and heap indexing
+  const aNum = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bNum = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
     // Call C function
@@ -310,15 +336,15 @@ function distance(metric: string, a: TensorBase | any, b: TensorBase | any): num
       throw new Error(`Function ${fnName} not available in WASM module`);
     }
 
-    // WASM expects BigInt for size_t (64-bit); resultPtr is pre-allocated
-    fn(aPtr, bPtr, BigInt(n), resultPtr);
+    // In wasm64, raw C exports expect BigInt for pointer args; nk_size_t is always i32 (number)
+    fn(toCPtr(aNum), toCPtr(bNum), n, toCPtr(resultPtr));
 
     // Read result
     return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
-    // Only free memory that we allocated (not zero-copy pointers)
-    if (!onHeapA) Module._free(aPtr);
-    if (!onHeapB) Module._free(bPtr);
+    // _free is Emscripten-wrapped: always takes number
+    if (!onHeapA) Module._free(aNum);
+    if (!onHeapB) Module._free(bNum);
   }
 }
 
@@ -378,8 +404,8 @@ export function hamming(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8A
 
   const onHeapA = bufA === Module.wasmMemory.buffer;
   const onHeapB = bufB === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
-  const bPtr = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
+  const aNum = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
+  const bNum = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
 
   try {
     const fn = Module._nk_hamming_u1 as any;
@@ -388,13 +414,12 @@ export function hamming(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8A
       throw new Error('Function _nk_hamming_u1 not available in WASM module');
     }
 
-    // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(lenA), resultPtr);
+    fn(toCPtr(aNum), toCPtr(bNum), lenA, toCPtr(resultPtr));
 
     return readResult(resultPtr, 'u32');
   } finally {
-    if (!onHeapA) Module._free(aPtr);
-    if (!onHeapB) Module._free(bPtr);
+    if (!onHeapA) Module._free(aNum);
+    if (!onHeapB) Module._free(bNum);
   }
 }
 
@@ -421,8 +446,8 @@ export function jaccard(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8A
 
   const onHeapA = bufA === Module.wasmMemory.buffer;
   const onHeapB = bufB === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
-  const bPtr = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
+  const aNum = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
+  const bNum = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
 
   try {
     const fn = Module._nk_jaccard_u1 as any;
@@ -431,13 +456,12 @@ export function jaccard(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8A
       throw new Error('Function _nk_jaccard_u1 not available in WASM module');
     }
 
-    // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(lenA), resultPtr);
+    fn(toCPtr(aNum), toCPtr(bNum), lenA, toCPtr(resultPtr));
 
     return readResult(resultPtr, 'f32');
   } finally {
-    if (!onHeapA) Module._free(aPtr);
-    if (!onHeapB) Module._free(bPtr);
+    if (!onHeapA) Module._free(aNum);
+    if (!onHeapB) Module._free(bNum);
   }
 }
 
@@ -459,8 +483,8 @@ export function kullbackleibler(a: TensorBase | Float64Array | Float32Array, b: 
   const n = ra.length;
   const onHeapA = ra.buffer === Module.wasmMemory.buffer;
   const onHeapB = rb.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
-  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
+  const aNum = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bNum = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
     const fnName = `_nk_kld_${dtypeToString(ra.typeInfo.dtype)}` as keyof EmscriptenModule;
@@ -470,13 +494,12 @@ export function kullbackleibler(a: TensorBase | Float64Array | Float32Array, b: 
       throw new Error(`Function ${fnName} not available in WASM module`);
     }
 
-    // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(n), resultPtr);
+    fn(toCPtr(aNum), toCPtr(bNum), n, toCPtr(resultPtr));
 
     return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
-    if (!onHeapA) Module._free(aPtr);
-    if (!onHeapB) Module._free(bPtr);
+    if (!onHeapA) Module._free(aNum);
+    if (!onHeapB) Module._free(bNum);
   }
 }
 
@@ -498,8 +521,8 @@ export function jensenshannon(a: TensorBase | Float64Array | Float32Array, b: Te
   const n = ra.length;
   const onHeapA = ra.buffer === Module.wasmMemory.buffer;
   const onHeapB = rb.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
-  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
+  const aNum = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bNum = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
     const fnName = `_nk_jsd_${dtypeToString(ra.typeInfo.dtype)}` as keyof EmscriptenModule;
@@ -509,13 +532,12 @@ export function jensenshannon(a: TensorBase | Float64Array | Float32Array, b: Te
       throw new Error(`Function ${fnName} not available in WASM module`);
     }
 
-    // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(n), resultPtr);
+    fn(toCPtr(aNum), toCPtr(bNum), n, toCPtr(resultPtr));
 
     return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
-    if (!onHeapA) Module._free(aPtr);
-    if (!onHeapB) Module._free(bPtr);
+    if (!onHeapA) Module._free(aNum);
+    if (!onHeapB) Module._free(bNum);
   }
 }
 
@@ -532,11 +554,10 @@ export function getCapabilities(): bigint {
   }
 
   // nk_capabilities returns a 64-bit value
-  // In WASM/JS, we need to handle this as two 32-bit parts or use BigInt
   const caps = Module._nk_capabilities();
 
-  // For now, return as BigInt (capability_t is nk_u64_t)
-  return BigInt(caps);
+  // In wasm64, caps is already bigint; in wasm32, it's a number
+  return typeof caps === 'bigint' ? caps : BigInt(caps);
 }
 
 /**

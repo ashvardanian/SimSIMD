@@ -27,6 +27,15 @@ async function loadNumKong(runtime) {
             wasmWrapper.initWasm(wasmInstance);
             return wasmWrapper;
 
+        case 'emscripten64': {
+            // Load Emscripten wasm64 (memory64) build
+            const wasmWrapper64 = await import('../javascript/dist/esm/numkong-wasm.js');
+            const EmModule64 = await import('../build-wasm64/numkong64.js');
+            const wasmInstance64 = await EmModule64.default();
+            wasmWrapper64.initWasm(wasmInstance64);
+            return wasmWrapper64;
+        }
+
         case 'wasi-node':
             // Load WASI via Node.js built-in WASI support (node:wasi)
             // Host provides capability detection imports (nk_has_v128, nk_has_relaxed)
