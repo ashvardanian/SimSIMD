@@ -650,6 +650,10 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphireamx(nk_e5m2_t const *b, nk_size_t n, nk
 /** @copydoc nk_dots_packed_e5m2 */
 NK_PUBLIC void nk_dots_packed_e5m2_sapphireamx(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
                                                nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e5m2 */
+NK_PUBLIC void nk_dots_symmetric_e5m2_sapphireamx(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                  nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_dots_packed_size_e2m3 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_sapphireamx(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_pack_e2m3 */
@@ -684,6 +688,10 @@ NK_PUBLIC void nk_dots_pack_u8_sapphireamx(nk_u8_t const *b, nk_size_t n, nk_siz
 /** @copydoc nk_dots_packed_u8 */
 NK_PUBLIC void nk_dots_packed_u8_sapphireamx(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m,
                                              nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u8 */
+NK_PUBLIC void nk_dots_symmetric_u8_sapphireamx(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                                nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SAPPHIREAMX
 
 /*  ARM SME backends using Scalable Matrix Extension.
@@ -2293,6 +2301,8 @@ NK_PUBLIC void nk_dots_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors,
                                     nk_size_t row_count) {
 #if NK_TARGET_SME
     nk_dots_symmetric_u8_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_dots_symmetric_u8_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
     nk_dots_symmetric_u8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
@@ -2335,6 +2345,8 @@ NK_PUBLIC void nk_dots_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e5m2_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONFHM
     nk_dots_symmetric_e5m2_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_dots_symmetric_e5m2_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_GENOA
     nk_dots_symmetric_e5m2_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE

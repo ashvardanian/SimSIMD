@@ -12,7 +12,7 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 
-#include "numkong/spatial/serial.h"
+#include "numkong/spatial/haswell.h"
 #include "numkong/dots/sierra.h"
 
 #if defined(__cplusplus)
@@ -27,11 +27,20 @@ extern "C" {
 #endif
 
 nk_define_cross_normalized_packed_(angular, i8, sierra, i8, i8, i32, /*norm_value_type=*/u32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_i8_sierra, nk_angular_through_i32_from_dot_serial_,
+                                   nk_dots_packed_i8_sierra, nk_angular_through_i32_from_dot_haswell_,
                                    nk_dots_reduce_sumsq_i8_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                                    nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(angular, i8, sierra, i8, i32, /*norm_value_type=*/u32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_i8_sierra, nk_angular_through_i32_from_dot_serial_,
+                                      nk_dots_symmetric_i8_sierra, nk_angular_through_i32_from_dot_haswell_,
+                                      nk_dots_reduce_sumsq_i8_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                                      nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+
+nk_define_cross_normalized_packed_(euclidean, i8, sierra, i8, i8, i32, /*norm_value_type=*/u32, f32, nk_b128_vec_t,
+                                   nk_dots_packed_i8_sierra, nk_euclidean_through_i32_from_dot_haswell_,
+                                   nk_dots_reduce_sumsq_i8_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                                   nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+nk_define_cross_normalized_symmetric_(euclidean, i8, sierra, i8, i32, /*norm_value_type=*/u32, f32, nk_b128_vec_t,
+                                      nk_dots_symmetric_i8_sierra, nk_euclidean_through_i32_from_dot_haswell_,
                                       nk_dots_reduce_sumsq_i8_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                                       nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
 

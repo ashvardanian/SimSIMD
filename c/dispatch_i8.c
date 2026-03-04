@@ -97,6 +97,10 @@ void nk_dispatch_i8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i8_sierra, *c = nk_cap_sierra_k; return;
         case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i8_sierra, *c = nk_cap_sierra_k; return;
         case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_i8_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i8_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_i8_sierra, *c = nk_cap_sierra_k;
+            return;
         default: break;
         }
 #endif

@@ -72,6 +72,15 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_euclideans_packed_k:
             *m = (m_t)&nk_euclideans_packed_e5m2_sapphireamx, *c = nk_cap_sapphireamx_k;
             return;
+        case nk_kernel_dots_symmetric_k:
+            *m = (m_t)&nk_dots_symmetric_e5m2_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_e5m2_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_e5m2_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
         default: break;
         }
 #endif

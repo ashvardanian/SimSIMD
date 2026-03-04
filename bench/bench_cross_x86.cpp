@@ -73,6 +73,8 @@ void bench_cross_x86() {
                               nk_jaccards_packed_u1_haswell);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_haswell", nk_jaccards_symmetric_u1_haswell);
 
+    run_angulars_packed<f64_k>("angulars_packed_f64_haswell", nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
+                               nk_angulars_packed_f64_haswell);
     run_angulars_packed<f32_k>("angulars_packed_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
                                nk_angulars_packed_f32_haswell);
     run_angulars_packed<f16_k>("angulars_packed_f16_haswell", nk_dots_packed_size_f16_haswell, nk_dots_pack_f16_haswell,
@@ -87,6 +89,7 @@ void bench_cross_x86() {
                                 nk_dots_pack_e2m3_haswell, nk_angulars_packed_e2m3_haswell);
     run_angulars_packed<e3m2_k>("angulars_packed_e3m2_haswell", nk_dots_packed_size_e3m2_haswell,
                                 nk_dots_pack_e3m2_haswell, nk_angulars_packed_e3m2_haswell);
+    run_angulars_symmetric<f64_k>("angulars_symmetric_f64_haswell", nk_angulars_symmetric_f64_haswell);
     run_angulars_symmetric<f32_k>("angulars_symmetric_f32_haswell", nk_angulars_symmetric_f32_haswell);
     run_angulars_symmetric<f16_k>("angulars_symmetric_f16_haswell", nk_angulars_symmetric_f16_haswell);
     run_angulars_symmetric<bf16_k>("angulars_symmetric_bf16_haswell", nk_angulars_symmetric_bf16_haswell);
@@ -94,6 +97,8 @@ void bench_cross_x86() {
     run_angulars_symmetric<e5m2_k>("angulars_symmetric_e5m2_haswell", nk_angulars_symmetric_e5m2_haswell);
     run_angulars_symmetric<e2m3_k>("angulars_symmetric_e2m3_haswell", nk_angulars_symmetric_e2m3_haswell);
     run_angulars_symmetric<e3m2_k>("angulars_symmetric_e3m2_haswell", nk_angulars_symmetric_e3m2_haswell);
+    run_euclideans_packed<f64_k>("euclideans_packed_f64_haswell", nk_dots_packed_size_f64_haswell,
+                                 nk_dots_pack_f64_haswell, nk_euclideans_packed_f64_haswell);
     run_euclideans_packed<f32_k>("euclideans_packed_f32_haswell", nk_dots_packed_size_f32_haswell,
                                  nk_dots_pack_f32_haswell, nk_euclideans_packed_f32_haswell);
     run_euclideans_packed<f16_k>("euclideans_packed_f16_haswell", nk_dots_packed_size_f16_haswell,
@@ -108,6 +113,7 @@ void bench_cross_x86() {
                                   nk_dots_pack_e2m3_haswell, nk_euclideans_packed_e2m3_haswell);
     run_euclideans_packed<e3m2_k>("euclideans_packed_e3m2_haswell", nk_dots_packed_size_e3m2_haswell,
                                   nk_dots_pack_e3m2_haswell, nk_euclideans_packed_e3m2_haswell);
+    run_euclideans_symmetric<f64_k>("euclideans_symmetric_f64_haswell", nk_euclideans_symmetric_f64_haswell);
     run_euclideans_symmetric<f32_k>("euclideans_symmetric_f32_haswell", nk_euclideans_symmetric_f32_haswell);
     run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_haswell", nk_euclideans_symmetric_f16_haswell);
     run_euclideans_symmetric<bf16_k>("euclideans_symmetric_bf16_haswell", nk_euclideans_symmetric_bf16_haswell);
@@ -319,6 +325,10 @@ void bench_cross_x86() {
                               nk_angulars_packed_i8_sierra);
     run_angulars_symmetric<i8_k>("angulars_symmetric_i8_sierra", nk_angulars_symmetric_i8_sierra);
 
+    run_euclideans_packed<i8_k>("euclideans_packed_i8_sierra", nk_dots_packed_size_i8_sierra, nk_dots_pack_i8_sierra,
+                                nk_euclideans_packed_i8_sierra);
+    run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_sierra", nk_euclideans_symmetric_i8_sierra);
+
 #endif
 
 #if NK_TARGET_SAPPHIREAMX
@@ -342,6 +352,8 @@ void bench_cross_x86() {
     run_angulars_symmetric<i8_k>("angulars_symmetric_i8_sapphireamx", nk_angulars_symmetric_i8_sapphireamx);
     run_angulars_symmetric<e2m3_k>("angulars_symmetric_e2m3_sapphireamx", nk_angulars_symmetric_e2m3_sapphireamx);
     run_angulars_symmetric<e3m2_k>("angulars_symmetric_e3m2_sapphireamx", nk_angulars_symmetric_e3m2_sapphireamx);
+    run_angulars_symmetric<e5m2_k>("angulars_symmetric_e5m2_sapphireamx", nk_angulars_symmetric_e5m2_sapphireamx);
+    run_angulars_symmetric<u8_k>("angulars_symmetric_u8_sapphireamx", nk_angulars_symmetric_u8_sapphireamx);
 
     run_euclideans_packed<bf16_k>("euclideans_packed_bf16_sapphireamx", nk_dots_packed_size_bf16_sapphireamx,
                                   nk_dots_pack_bf16_sapphireamx, nk_euclideans_packed_bf16_sapphireamx);
@@ -362,6 +374,8 @@ void bench_cross_x86() {
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_sapphireamx", nk_euclideans_symmetric_i8_sapphireamx);
     run_euclideans_symmetric<e2m3_k>("euclideans_symmetric_e2m3_sapphireamx", nk_euclideans_symmetric_e2m3_sapphireamx);
     run_euclideans_symmetric<e3m2_k>("euclideans_symmetric_e3m2_sapphireamx", nk_euclideans_symmetric_e3m2_sapphireamx);
+    run_euclideans_symmetric<e5m2_k>("euclideans_symmetric_e5m2_sapphireamx", nk_euclideans_symmetric_e5m2_sapphireamx);
+    run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_sapphireamx", nk_euclideans_symmetric_u8_sapphireamx);
 
 #endif
 }
