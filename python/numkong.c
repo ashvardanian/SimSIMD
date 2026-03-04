@@ -224,10 +224,22 @@ nk_dtype_info_t const nk_dtype_table[] = {
     {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
     {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
     {nk_u16_k, "uint16", "H", "<u2", sizeof(nk_u16_t), 0},
-    {nk_i32_k, "int32", "i", "<i4", sizeof(nk_i32_t), 0},
-    {nk_u32_k, "uint32", "I", "<u4", sizeof(nk_u32_t), 0},
+#if defined(_MSC_VER) || defined(__i386__)
+    // On Windows/i386 C `long` is 32-bit so NumPy uses 'l'/'L' for int32/uint32
+    // and 'q'/'Q' for int64/uint64. On LP64 (Linux, macOS) C `long` is 64-bit
+    // so NumPy uses 'i'/'I' for int32/uint32 and 'l'/'L' for int64/uint64.
+    // These must match `python_string_to_dtype` so round-tripping through
+    // the buffer protocol works correctly.
+    {nk_i32_k, "int32", "l", "<i4", sizeof(nk_i32_t), 0},
+    {nk_u32_k, "uint32", "L", "<u4", sizeof(nk_u32_t), 0},
     {nk_i64_k, "int64", "q", "<i8", sizeof(nk_i64_t), 0},
     {nk_u64_k, "uint64", "Q", "<u8", sizeof(nk_u64_t), 0},
+#else
+    {nk_i32_k, "int32", "i", "<i4", sizeof(nk_i32_t), 0},
+    {nk_u32_k, "uint32", "I", "<u4", sizeof(nk_u32_t), 0},
+    {nk_i64_k, "int64", "l", "<i8", sizeof(nk_i64_t), 0},
+    {nk_u64_k, "uint64", "L", "<u8", sizeof(nk_u64_t), 0},
+#endif
 };
 
 size_t const nk_dtype_table_size = sizeof(nk_dtype_table) / sizeof(nk_dtype_table[0]);
