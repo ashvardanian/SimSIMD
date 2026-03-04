@@ -446,7 +446,7 @@ if (NK_BUILD_SHARED)
     set(NK_SOURCES ${NK_SOURCES} c/numkong.c ${NK_DTYPE_SOURCES})
 
     # Emscripten requires building as executable to generate JS bindings
-    if (EMSCRIPTEN)
+    if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         # Create a minimal main() wrapper for Emscripten
         file(WRITE "${CMAKE_BINARY_DIR}/emscripten_stub.c"
              "// Stub main for Emscripten to generate JS bindings\nint main() { return 0; }\n"
