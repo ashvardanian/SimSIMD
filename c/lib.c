@@ -274,7 +274,7 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
     typedef double largest_scalar_t;
-    largest_scalar_t dummy_input[1];
+    largest_scalar_t dummy_input[1] = {0};
     void *x = &dummy_input[0];
 
     // Dense:
