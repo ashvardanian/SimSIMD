@@ -6,12 +6,14 @@ This file configures wheels compilation for NumKong CPython bindings.
 The architecture detection uses environment variable overrides (set via cibuildwheel)
 to support cross-compilation scenarios like building ARM64 wheels on x64 hosts.
 """
+
 from __future__ import annotations
 
 import os
 import sys
 import platform
 import glob
+import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
@@ -53,6 +55,22 @@ def is_64bit_riscv() -> bool:
         return override == "1"
     arch = platform.machine().lower()
     return (arch in ("riscv64",)) and (sys.maxsize > 2**32)
+
+
+def detect_apple_clang_version() -> Tuple[int, int]:
+    """Detect Apple Clang version for SME support (AppleClang 16+ / Clang 18+)."""
+    import re
+
+    try:
+        result = subprocess.run(["clang", "--version"], capture_output=True, text=True)
+        for line in result.stdout.split("\n"):
+            if "version" in line.lower():
+                match = re.search(r"version\s+(\d+)\.(\d+)", line)
+                if match:
+                    return (int(match.group(1)), int(match.group(2)))
+    except Exception:
+        pass
+    return (0, 0)
 
 
 def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
@@ -132,7 +150,10 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-w",  # Hush warnings
     ]
     link_args: List[str] = []
-    # macOS: no SVE/SME, conservative AVX-512 (not widely available)
+    # SME available on M4+ with AppleClang 16+ (Xcode 16) or upstream Clang 18+
+    clang_major, _ = detect_apple_clang_version()
+    has_sme = is_64bit_arm() and clang_major >= 16
+    # macOS: no SVE, conservative AVX-512 (not widely available)
     macros = [
         ("NK_DYNAMIC_DISPATCH", "1"),
         ("NK_NATIVE_F16", "0"),
@@ -147,7 +168,7 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SIERRA", "0"),
         ("NK_TARGET_SAPPHIREAMX", "0"),
         ("NK_TARGET_GRANITEAMX", "0"),
-        # ARM NEON targets - NEON only, no SVE/SME on Apple Silicon
+        # ARM NEON targets - NEON only on Apple Silicon
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
@@ -160,16 +181,16 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SVESDOT", "0"),
         ("NK_TARGET_SVE2", "0"),
         ("NK_TARGET_SVE2P1", "0"),
-        # ARM SME targets - not available on Apple Silicon
-        ("NK_TARGET_SME", "0"),
-        ("NK_TARGET_SME2", "0"),
-        ("NK_TARGET_SME2P1", "0"),
-        ("NK_TARGET_SMEF64", "0"),
-        ("NK_TARGET_SMEHALF", "0"),
-        ("NK_TARGET_SMEBF16", "0"),
-        ("NK_TARGET_SMEBI32", "0"),
-        ("NK_TARGET_SMELUT2", "0"),
-        ("NK_TARGET_SMEFA64", "0"),
+        # ARM SME targets - M4+ with AppleClang 16+ (Xcode 16)
+        ("NK_TARGET_SME", "1" if has_sme else "0"),
+        ("NK_TARGET_SME2", "1" if has_sme else "0"),
+        ("NK_TARGET_SME2P1", "1" if has_sme else "0"),
+        ("NK_TARGET_SMEF64", "1" if has_sme else "0"),
+        ("NK_TARGET_SMEHALF", "1" if has_sme else "0"),
+        ("NK_TARGET_SMEBF16", "1" if has_sme else "0"),
+        ("NK_TARGET_SMEBI32", "1" if has_sme else "0"),
+        ("NK_TARGET_SMELUT2", "1" if has_sme else "0"),
+        ("NK_TARGET_SMEFA64", "1" if has_sme else "0"),
         # RISC-V targets - not available on macOS
         ("NK_TARGET_RVV", "0"),
         ("NK_TARGET_RVVHALF", "0"),
@@ -240,6 +261,34 @@ def freebsd_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
+def detect_msvc_version() -> Tuple[int, int]:
+    """Detect MSVC version from cl.exe or environment variables."""
+    try:
+        result = subprocess.run(["cl"], capture_output=True, text=True, shell=True)
+        # Parse version from output like "Microsoft (R) C/C++ Optimizing Compiler Version 19.30.30705"
+        for line in result.stderr.split("\n"):
+            if "Version" in line:
+                parts = line.split()
+                for i, part in enumerate(parts):
+                    if part == "Version" and i + 1 < len(parts):
+                        version_str = parts[i + 1]
+                        # Version format is like 19.30.30705
+                        version_parts = version_str.split(".")
+                        if len(version_parts) >= 2:
+                            major = int(version_parts[0])
+                            minor = int(version_parts[1])
+                            print(f"[NumKong] Detected MSVC version {major}.{minor}")
+                            return (major, minor)
+    except:
+        pass
+
+    # Fallback to checking _MSC_VER from environment or defaults
+    # MSVC 2019: 19.20-19.29
+    # MSVC 2022: 19.30-19.39
+    print("[NumKong] MSVC version detection failed, using conservative defaults (MSVC 2019)")
+    return (19, 20)  # Conservative default to MSVC 2019
+
+
 def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     """Build settings for Windows."""
     compile_args = [
@@ -251,17 +300,26 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "/w",
     ]
     link_args: List[str] = []
-    # Windows: no SVE/SME, conservative x86 SIMD, as MSVC lacks BF16/FP16 intrinsics support
+
+    # Detect MSVC version for feature support
+    msvc_major, msvc_minor = detect_msvc_version()
+    is_msvc_2022_17_2_plus = msvc_major >= 19 and msvc_minor >= 32  # VS 2022 17.2+
+
+    # Windows: SVE/SME not supported, x86 SIMD support varies by MSVC version
     macros = [
         ("NK_DYNAMIC_DISPATCH", "1"),
         ("NK_NATIVE_F16", "0"),
         ("NK_NATIVE_BF16", "0"),
-        # x86 targets - conservative for MSVC compatibility
+        # x86 targets - base support
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
-        ("NK_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
+        # Advanced x86 targets - conditional on MSVC version
+        ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics still problematic in MSVC
+        (
+            "NK_TARGET_SAPPHIRE",
+            "1" if (is_64bit_x86() and is_msvc_2022_17_2_plus) else "0",
+        ),  # FP16 support in MSVC 2022 17.2+
         ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
         ("NK_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
         ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX not well supported in MSVC

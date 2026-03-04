@@ -497,6 +497,19 @@ if(NK_BUILD_SHARED)
             OUTPUT_NAME "numkong"
             SUFFIX ".js" # Generates numkong.js + numkong.wasm
         )
+        target_compile_definitions(nk_shared PRIVATE
+            NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+            NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0
+            NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
+            NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0
+            NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+            NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+            NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+            NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0
+            NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+            NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0
+            NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
+            NK_TARGET_V128RELAXED=1)
 
         target_link_options(nk_shared PRIVATE
             "SHELL:-s EXPORT_ES6=1" # Generate ES6 module
@@ -516,6 +529,112 @@ if(NK_BUILD_SHARED)
         add_library(nk_shared SHARED ${NK_SOURCES})
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
         set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
+
+        # NK_TARGET_* defines — match the OS×arch matrix from setup.py
+        # x86-64
+        if(NK_IS_64BIT_X86_)
+            target_compile_definitions(nk_shared PRIVATE
+                NK_TARGET_HASWELL=1 NK_TARGET_NEON=0 NK_TARGET_SVE=0 NK_TARGET_SVE2=0
+                NK_TARGET_SVE2P1=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0
+                NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+                NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
+                NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
+                NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0
+                NK_TARGET_RVVBB=0)
+
+            if(NK_IS_LINUX)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1
+                    NK_TARGET_SAPPHIRE=1 NK_TARGET_TURIN=1 NK_TARGET_SIERRA=1
+                    NK_TARGET_SAPPHIREAMX=1 NK_TARGET_GRANITEAMX=1)
+            elseif(NK_IS_FREEBSD)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1
+                    NK_TARGET_SAPPHIRE=1 NK_TARGET_TURIN=1 NK_TARGET_SIERRA=1
+                    NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0)
+            elseif(NK_IS_WINDOWS)
+                # MSVC: no Genoa (BF16), no Turin (VP2INTERSECT), no Sierra (VNNI), no AMX
+                # Sapphire FP16 requires /arch:AVX512 which CMake doesn't set per-file
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=0
+                    NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0
+                    NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0)
+            elseif(NK_IS_MACOS)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                    NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0
+                    NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0)
+            endif()
+
+        # ARM64
+        elseif(NK_IS_64BIT_ARM_)
+            target_compile_definitions(nk_shared PRIVATE
+                NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0
+                NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
+                NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0)
+
+            if(NK_IS_LINUX OR NK_IS_FREEBSD)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1
+                    NK_TARGET_NEONBFDOT=1 NK_TARGET_NEONFHM=1
+                    NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1 NK_TARGET_SVEBFDOT=1
+                    NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1
+                    NK_TARGET_SME=1 NK_TARGET_SME2=1 NK_TARGET_SME2P1=1
+                    NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1 NK_TARGET_SMEBF16=1
+                    NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1)
+            elseif(NK_IS_MACOS)
+                # SME requires AppleClang 16+ (Xcode 16, based on Clang 18) or Clang 18+
+                if((CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND
+                    CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "16.0") OR
+                    (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+                    CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "18.0"))
+                    set(_NK_SME 1)
+                else()
+                    set(_NK_SME 0)
+                endif()
+
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1
+                    NK_TARGET_NEONBFDOT=1 NK_TARGET_NEONFHM=1
+                    NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                    NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+                    NK_TARGET_SME=${_NK_SME} NK_TARGET_SME2=${_NK_SME} NK_TARGET_SME2P1=${_NK_SME}
+                    NK_TARGET_SMEF64=${_NK_SME} NK_TARGET_SMEHALF=${_NK_SME} NK_TARGET_SMEBF16=${_NK_SME}
+                    NK_TARGET_SMEBI32=${_NK_SME} NK_TARGET_SMELUT2=${_NK_SME} NK_TARGET_SMEFA64=${_NK_SME})
+            elseif(NK_IS_WINDOWS)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_NEON=1 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=1
+                    NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+                    NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                    NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+                    NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0
+                    NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+                    NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0)
+            endif()
+
+        # RISC-V 64
+        elseif(NK_IS_64BIT_RISCV_)
+            target_compile_definitions(nk_shared PRIVATE
+                NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0
+                NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
+                NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0
+                NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+                NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+                NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0
+                NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+                NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0)
+
+            if(NK_IS_LINUX OR NK_IS_FREEBSD)
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_RVV=1 NK_TARGET_RVVHALF=1 NK_TARGET_RVVBF16=1 NK_TARGET_RVVBB=1)
+            else()
+                target_compile_definitions(nk_shared PRIVATE
+                    NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0)
+            endif()
+        endif()
     endif()
 
     install(
