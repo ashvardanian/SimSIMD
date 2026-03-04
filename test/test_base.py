@@ -42,6 +42,8 @@ Stats:
     NK_REPETITIONS        Override randomized test repeat count (default: 10)
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import math
