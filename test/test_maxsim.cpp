@@ -45,7 +45,7 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
         pack_fn(documents.raw_values_data(), document_count, depth, stride, document_packed.raw_values_data());
         result_t result;
         maxsim_fn(query_packed.raw_values_data(), document_packed.raw_values_data(), query_count, document_count, depth,
-                  &result->raw_);
+                  &result.raw_);
 
         // Exhaustive scalar reference
         result_t reference;

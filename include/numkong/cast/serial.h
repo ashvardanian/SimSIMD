@@ -1774,6 +1774,29 @@ NK_INTERNAL void nk_scalar_buffers_fill_i64_(                          //
             to_buffers[i * 2 + 1].i64 = (lo ^ 8) - 8;
         }
     } break;
+    case nk_u64_k: {
+        nk_u64_t const *p = (nk_u64_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i) to_buffers[i].i64 = (nk_i64_t)p[i];
+    } break;
+    case nk_u32_k: {
+        nk_u32_t const *p = (nk_u32_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i) to_buffers[i].i64 = (nk_i64_t)p[i];
+    } break;
+    case nk_u16_k: {
+        nk_u16_t const *p = (nk_u16_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i) to_buffers[i].i64 = (nk_i64_t)p[i];
+    } break;
+    case nk_u8_k: {
+        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i) to_buffers[i].i64 = (nk_i64_t)p[i];
+    } break;
+    case nk_u4_k: {
+        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        for (i = 0; i < 4; ++i) {
+            to_buffers[i * 2].i64 = (nk_i64_t)(p[i] >> 4);
+            to_buffers[i * 2 + 1].i64 = (nk_i64_t)(p[i] & 0xF);
+        }
+    } break;
     default: break;
     }
 }

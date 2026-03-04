@@ -133,8 +133,8 @@ void fill_lognormal(generator_type_ &generator, value_type_ *values_ptr, std::si
         std::lognormal_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(mean),
                                                                        static_cast<distribution_float_t>(stddev));
         std::bernoulli_distribution sign_distribution(0.5);
-        distribution_float_t const clamp_max = finite_max<value_type_>();
-        distribution_float_t const clamp_min = finite_min<value_type_>();
+        distribution_float_t const clamp_max = static_cast<distribution_float_t>(finite_max<value_type_>());
+        distribution_float_t const clamp_min = static_cast<distribution_float_t>(finite_min<value_type_>());
         constexpr distribution_float_t signs[] = {1, -1};
         for (std::size_t i = 0; i < values_count; ++i) {
             distribution_float_t val = distribution(generator);
@@ -186,8 +186,8 @@ void fill_cauchy(generator_type_ &generator, value_type_ *values_ptr, std::size_
         using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
         std::cauchy_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(location),
                                                                     static_cast<distribution_float_t>(scale));
-        distribution_float_t const clamp_max = finite_max<value_type_>();
-        distribution_float_t const clamp_min = finite_min<value_type_>();
+        distribution_float_t const clamp_max = static_cast<distribution_float_t>(finite_max<value_type_>());
+        distribution_float_t const clamp_min = static_cast<distribution_float_t>(finite_min<value_type_>());
         for (std::size_t i = 0; i < values_count; ++i)
             values_ptr[i] = static_cast<value_type_>(clamp(distribution(generator), clamp_min, clamp_max));
     }
