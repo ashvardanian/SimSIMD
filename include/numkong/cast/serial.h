@@ -919,44 +919,44 @@ NK_INTERNAL void nk_f64_to_bf16_serial(nk_f64_t const *x, nk_bf16_t *y) {
  *  In C, using the standard library: `*x = fminf(fmaxf(roundf(*x), -128), 127)`.
  */
 NK_INTERNAL void nk_f32_to_i8_serial(nk_f32_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    *y = (nk_i8_t)(*x > 127.0f ? 127 : (*x < -128.0f ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
 NK_INTERNAL void nk_f32_to_u8_serial(nk_f32_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    *y = (nk_u8_t)(*x > 255.0f ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
 NK_INTERNAL void nk_f32_to_i16_serial(nk_f32_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_i16_t)(*x > 32767.0f ? 32767 : (*x < -32768.0f ? -32768 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
 NK_INTERNAL void nk_f32_to_u16_serial(nk_f32_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_u16_t)(*x > 65535.0f ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
 NK_INTERNAL void nk_f64_to_i8_serial(nk_f64_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_i8_t)(*x > 127.0 ? 127 : (*x < -128.0 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_u8_serial(nk_f64_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_u8_t)(*x > 255.0 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_i16_serial(nk_f64_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_i16_t)(*x > 32767.0 ? 32767 : (*x < -32768.0 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_u16_serial(nk_f64_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_u16_t)(*x > 65535.0 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_i32_serial(nk_f64_t const *x, nk_i32_t *y) {
-    *y = (nk_i32_t)(*x > 2147483647 ? 2147483647
-                                    : (*x < -2147483648 ? -2147483648 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_i32_t)(*x > 2147483647.0 ? 2147483647
+                                      : (*x < -2147483648.0 ? (-2147483647 - 1) : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_u32_serial(nk_f64_t const *x, nk_u32_t *y) {
-    *y = (nk_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    *y = (nk_u32_t)(*x > 4294967295.0 ? 4294967295u : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
 NK_INTERNAL void nk_f64_to_i64_serial(nk_f64_t const *x, nk_i64_t *y) {
