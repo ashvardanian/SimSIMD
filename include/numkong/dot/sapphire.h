@@ -81,7 +81,7 @@ NK_INTERNAL __m512h nk_e2m3x32_to_f16x32_sapphire_(__m256i e2m3x32) {
         (short)0xBB00, (short)0xBA00, (short)0xB900, (short)0xB800,  //
         (short)0xB600, (short)0xB400, (short)0xB000, (short)0x8000); // [7-0] exp=0
 
-    return (__m512h)_mm512_permutex2var_epi16(lut_pos_i16x32, idx_i16x32, lut_neg_i16x32);
+    return nk_m512h_from_m512i_(_mm512_permutex2var_epi16(lut_pos_i16x32, idx_i16x32, lut_neg_i16x32));
 }
 
 /** @brief Convert 32x e3m2 → 32x f16 via 64-entry signed LUT lookup (AVX-512BW).
@@ -114,13 +114,13 @@ NK_INTERNAL __m512h nk_e3m2x32_to_f16x32_sapphire_(__m256i e3m2x32) {
         (short)0xB700, (short)0xB600, (short)0xB500, (short)0xB400,  // [7-4] exp=1
         (short)0xB200, (short)0xB000, (short)0xAC00, (short)0x8000); // [3-0] exp=0
 
-    return (__m512h)_mm512_permutex2var_epi16(lut_pos_i16x32, idx_i16x32, lut_neg_i16x32);
+    return nk_m512h_from_m512i_(_mm512_permutex2var_epi16(lut_pos_i16x32, idx_i16x32, lut_neg_i16x32));
 }
 
 /** @brief Flush 32 FP16 values to FP32 accumulator by splitting into 2x16 halves. */
 NK_INTERNAL __m512 nk_flush_f16_to_f32_sapphire_(__m512h acc_f16x32, __m512 sum_f32x16) {
-    __m256i low_f16x16 = _mm512_castsi512_si256((__m512i)acc_f16x32);
-    __m256i high_f16x16 = _mm512_extracti64x4_epi64((__m512i)acc_f16x32, 1);
+    __m256i low_f16x16 = _mm512_castsi512_si256(nk_m512i_from_m512h_(acc_f16x32));
+    __m256i high_f16x16 = _mm512_extracti64x4_epi64(nk_m512i_from_m512h_(acc_f16x32), 1);
     sum_f32x16 = _mm512_add_ps(sum_f32x16, _mm512_cvtph_ps(low_f16x16));
     sum_f32x16 = _mm512_add_ps(sum_f32x16, _mm512_cvtph_ps(high_f16x16));
     return sum_f32x16;

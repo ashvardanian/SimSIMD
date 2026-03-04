@@ -380,11 +380,17 @@ NK_PUBLIC int nk_configure_thread_x86_(nk_capability_t capabilities) {
     __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
 #endif
 
-#if defined(NK_DEFINED_LINUX_) && NK_TARGET_SAPPHIRE
+#if NK_TARGET_SAPPHIREAMX
     if (capabilities & nk_cap_sapphireamx_k) {
+#if defined(NK_DEFINED_LINUX_)
+        // Linux requires explicit permission for AMX tile state via arch_prctl syscall
         int const ARCH_REQ_XCOMP_PERM = 0x1023;
         unsigned long const XFEATURE_XTILEDATA = 18;
         syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
+#endif
+        // On Windows, AMX tile state is automatically enabled by the OS if hardware supports it.
+        // On FreeBSD, no explicit request is needed either.
+        (void)capabilities;
     }
 #else
     (void)capabilities;

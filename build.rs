@@ -148,9 +148,9 @@ fn build_simsimd() -> HashMap<String, bool> {
         "x86_64" => {
             let mut flags = Vec::new();
 
-            // AMX requires OS kernel support (Linux: arch_prctl).
-            // Windows MSVC lacks AMX intrinsics; FreeBSD and macOS lack tile permission support.
-            if is_linux {
+            // AMX requires OS kernel support: Linux uses arch_prctl, Windows enables automatically.
+            // FreeBSD and macOS lack tile permission support.
+            if is_linux || is_windows {
                 flags.extend_from_slice(&["NK_TARGET_GRANITEAMX", "NK_TARGET_SAPPHIREAMX"]);
             }
 

@@ -478,6 +478,27 @@
 #define NK_ALIGN64 __attribute__((aligned(64)))
 #endif
 
+/**
+ *  @brief  Portable casts between SIMD vector types.
+ *          MSVC typedefs `__m512bh`, `__m512h`, `__m256bh` as aliases for `__m512i`/`__m256i`,
+ *          but rejects C-style casts between them. GCC/Clang define them as distinct types.
+ */
+#if NK_TARGET_X86_
+#if defined(_MSC_VER)
+#define nk_m512bh_from_m512i_(x) (x)
+#define nk_m512h_from_m512i_(x) (x)
+#define nk_m512i_from_m512h_(x) (x)
+#define nk_m256bh_from_m256i_(x) (x)
+#define nk_m256i_from_m256bh_(x) (x)
+#else
+#define nk_m512bh_from_m512i_(x) ((__m512bh)(x))
+#define nk_m512h_from_m512i_(x) ((__m512h)(x))
+#define nk_m512i_from_m512h_(x) ((__m512i)(x))
+#define nk_m256bh_from_m256i_(x) ((__m256bh)(x))
+#define nk_m256i_from_m256bh_(x) ((__m256i)(x))
+#endif
+#endif
+
 /** Copy 16 bits (2 bytes) from source to destination */
 #if defined(__GNUC__) || defined(__clang__)
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) __builtin_memcpy((destination_ptr), (source_ptr), count)

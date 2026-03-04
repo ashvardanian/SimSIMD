@@ -91,7 +91,8 @@ nk_sqeuclidean_bf16_genoa_cycle:
         a += 32, b += 32, n -= 32;
     }
     diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
-    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, nk_m512bh_from_m512i_(diff_bf16x32),
+                                          nk_m512bh_from_m512i_(diff_bf16x32));
     if (n) goto nk_sqeuclidean_bf16_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
@@ -120,9 +121,12 @@ nk_angular_bf16_genoa_cycle:
         b_bf16x32 = _mm512_loadu_epi16(b);
         a += 32, b += 32, n -= 32;
     }
-    dot_product_f32x16 = _mm512_dpbf16_ps(dot_product_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
-    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    dot_product_f32x16 = _mm512_dpbf16_ps(dot_product_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                          nk_m512bh_from_m512i_(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                        nk_m512bh_from_m512i_(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, nk_m512bh_from_m512i_(b_bf16x32),
+                                        nk_m512bh_from_m512i_(b_bf16x32));
     if (n) goto nk_angular_bf16_genoa_cycle;
 
     nk_f32_t dot_product_f32 = nk_reduce_add_f32x16_skylake_(dot_product_f32x16);
@@ -150,7 +154,8 @@ nk_sqeuclidean_e4m3_genoa_cycle:
     __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
     __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
-    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, nk_m512bh_from_m512i_(diff_bf16x32),
+                                          nk_m512bh_from_m512i_(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e4m3_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
@@ -181,9 +186,11 @@ nk_angular_e4m3_genoa_cycle:
     }
     __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
     __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
-    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
-    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                        nk_m512bh_from_m512i_(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, nk_m512bh_from_m512i_(b_bf16x32),
+                                        nk_m512bh_from_m512i_(b_bf16x32));
     if (n) goto nk_angular_e4m3_genoa_cycle;
 
     nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
@@ -211,7 +218,8 @@ nk_sqeuclidean_e5m2_genoa_cycle:
     __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
     __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
-    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, nk_m512bh_from_m512i_(diff_bf16x32),
+                                          nk_m512bh_from_m512i_(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e5m2_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
@@ -242,9 +250,11 @@ nk_angular_e5m2_genoa_cycle:
     }
     __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
     __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
-    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
-    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                        nk_m512bh_from_m512i_(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, nk_m512bh_from_m512i_(b_bf16x32),
+                                        nk_m512bh_from_m512i_(b_bf16x32));
     if (n) goto nk_angular_e5m2_genoa_cycle;
 
     nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
@@ -272,7 +282,8 @@ nk_sqeuclidean_e2m3_genoa_cycle:
     __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
     __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
-    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, nk_m512bh_from_m512i_(diff_bf16x32),
+                                          nk_m512bh_from_m512i_(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e2m3_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
@@ -303,9 +314,11 @@ nk_angular_e2m3_genoa_cycle:
     }
     __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
     __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
-    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
-    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                        nk_m512bh_from_m512i_(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, nk_m512bh_from_m512i_(b_bf16x32),
+                                        nk_m512bh_from_m512i_(b_bf16x32));
     if (n) goto nk_angular_e2m3_genoa_cycle;
 
     nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
@@ -333,7 +346,8 @@ nk_sqeuclidean_e3m2_genoa_cycle:
     __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
     __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
-    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, nk_m512bh_from_m512i_(diff_bf16x32),
+                                          nk_m512bh_from_m512i_(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e3m2_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
@@ -364,9 +378,11 @@ nk_angular_e3m2_genoa_cycle:
     }
     __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
     __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
-    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
-    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                        nk_m512bh_from_m512i_(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, nk_m512bh_from_m512i_(b_bf16x32),
+                                        nk_m512bh_from_m512i_(b_bf16x32));
     if (n) goto nk_angular_e3m2_genoa_cycle;
 
     nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
