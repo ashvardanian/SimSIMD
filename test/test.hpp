@@ -36,12 +36,14 @@
 #include <cmath>   // `std::fabs`, `std::isnan`, `std::isinf`
 #include <cstdint> // `std::uint64_t`, `std::int32_t`, `std::int64_t`
 #include <cstdio>  // `std::printf`, `std::fflush`
+#include <cstdlib> // `std::abort`
 #include <cstring> // `std::memcpy`, `std::strstr`
 
 #include <algorithm> // `std::min`, `std::max`
 #include <chrono>    // `std::chrono::steady_clock`, `std::chrono::duration_cast`
 #include <complex>   // `std::complex`
 #include <limits>    // `std::numeric_limits`
+#include <new>       // `std::bad_alloc`
 
 #if NK_TEST_USE_OPENMP
 #include <omp.h>
@@ -372,7 +374,11 @@ void print_stats_header() noexcept;
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t n) {
     nk::vector<type_> result;
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
     if (!result.resize(n)) throw std::bad_alloc();
+#else
+    if (!result.resize(n)) std::abort();
+#endif
     return result;
 }
 
