@@ -162,7 +162,7 @@ jobs:
       - name: Build and Test
         run: |
           npm ci --ignore-scripts
-          npm run install
+          npm run prebuild-single
           npm run build-js
           npm test
 
@@ -407,7 +407,7 @@ jobs:
       - name: Build and Test with Node
         run: |
           npm ci --ignore-scripts
-          npm run install
+          npm run prebuild-single
           npm run build-js
           npm test
 
