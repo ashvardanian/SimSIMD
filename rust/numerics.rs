@@ -345,6 +345,54 @@ extern "C" {
         beta: *const f32,
         result: *mut u8,
     );
+    fn nk_each_blend_i16(
+        a: *const i16,
+        b: *const i16,
+        n: usize,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut i16,
+    );
+    fn nk_each_blend_u16(
+        a: *const u16,
+        b: *const u16,
+        n: usize,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u16,
+    );
+    fn nk_each_blend_i32(
+        a: *const i32,
+        b: *const i32,
+        n: usize,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut i32,
+    );
+    fn nk_each_blend_u32(
+        a: *const u32,
+        b: *const u32,
+        n: usize,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut u32,
+    );
+    fn nk_each_blend_i64(
+        a: *const i64,
+        b: *const i64,
+        n: usize,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut i64,
+    );
+    fn nk_each_blend_u64(
+        a: *const u64,
+        b: *const u64,
+        n: usize,
+        alpha: *const f64,
+        beta: *const f64,
+        result: *mut u64,
+    );
 
     fn nk_each_fma_f64(
         a: *const f64,
@@ -3586,7 +3634,7 @@ impl EachSum for e3m2 {
 /// Returns `None` if lengths differ.
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
-/// `e4m3`, `e5m2`, `e2m3`, `e3m2`.
+/// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachBlend: Sized {
     type Scalar;
     fn each_blend(
@@ -3742,6 +3790,162 @@ impl EachBlend for u8 {
         }
         unsafe {
             nk_each_blend_u8(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for i16 {
+    type Scalar = f32;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_i16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for u16 {
+    type Scalar = f32;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_u16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for i32 {
+    type Scalar = f64;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f64,
+        beta: f64,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_i32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for u32 {
+    type Scalar = f64;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f64,
+        beta: f64,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_u32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for i64 {
+    type Scalar = f64;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f64,
+        beta: f64,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_i64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len(),
+                &alpha,
+                &beta,
+                result.as_mut_ptr(),
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for u64 {
+    type Scalar = f64;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f64,
+        beta: f64,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_u64(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len(),

@@ -195,6 +195,24 @@ NK_DYNAMIC void nk_each_blend_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
 /** @copydoc nk_each_blend_f64 */
 NK_DYNAMIC void nk_each_blend_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                  nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                  nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                  nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                  nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                  nk_f64_t const *beta, nk_u64_t *result);
 
 /**
  *  @brief Fused multiply-add: result[i] = alpha * a[i] * b[i] + beta * c[i].
@@ -1651,6 +1669,36 @@ NK_PUBLIC void nk_each_blend_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n,
 #else
     nk_each_blend_u8_serial(a, b, n, alpha, beta, r);
 #endif
+}
+
+NK_PUBLIC void nk_each_blend_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_i16_t *r) {
+    nk_each_blend_i16_serial(a, b, n, alpha, beta, r);
+}
+
+NK_PUBLIC void nk_each_blend_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_u16_t *r) {
+    nk_each_blend_u16_serial(a, b, n, alpha, beta, r);
+}
+
+NK_PUBLIC void nk_each_blend_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                 nk_f64_t const *beta, nk_i32_t *r) {
+    nk_each_blend_i32_serial(a, b, n, alpha, beta, r);
+}
+
+NK_PUBLIC void nk_each_blend_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                 nk_f64_t const *beta, nk_u32_t *r) {
+    nk_each_blend_u32_serial(a, b, n, alpha, beta, r);
+}
+
+NK_PUBLIC void nk_each_blend_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                 nk_f64_t const *beta, nk_i64_t *r) {
+    nk_each_blend_i64_serial(a, b, n, alpha, beta, r);
+}
+
+NK_PUBLIC void nk_each_blend_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                 nk_f64_t const *beta, nk_u64_t *r) {
+    nk_each_blend_u64_serial(a, b, n, alpha, beta, r);
 }
 
 NK_PUBLIC void nk_each_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
