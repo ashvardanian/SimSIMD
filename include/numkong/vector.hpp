@@ -75,11 +75,19 @@ struct aligned_allocator {
         std::size_t bytes = n * sizeof(value_type);
         // Round up to alignment boundary (required by aligned_alloc)
         std::size_t aligned_bytes = ((bytes + alignment_ - 1) / alignment_) * alignment_;
+#if defined(_MSC_VER)
+        return static_cast<value_type *>(::_aligned_malloc(aligned_bytes, alignment_));
+#else
         return static_cast<value_type *>(std::aligned_alloc(alignment_, aligned_bytes));
+#endif
     }
 
     void deallocate(value_type *p, std::size_t) noexcept {
+#if defined(_MSC_VER)
+        if (p) ::_aligned_free(p);
+#else
         if (p) std::free(p);
+#endif
     }
 
     template <typename other_type_>
