@@ -204,8 +204,12 @@ NK_INTERNAL void nk_amx_tile_configure_sapphireamx_(void) {
     _tile_loadconfig(tile_config);
 }
 
-/* Compiler memory barrier to ensure stores complete before AMX tile loads */
+/** @brief Compiler memory barrier to ensure stores complete before AMX tile loads */
+#if defined(_MSC_VER)
+NK_INTERNAL void nk_compiler_barrier_sapphireamx_(void) { _ReadWriteBarrier(); }
+#else
 NK_INTERNAL void nk_compiler_barrier_sapphireamx_(void) { __asm__ volatile("" ::: "memory"); }
+#endif
 
 /* Initialize BF16 output state to zero */
 NK_INTERNAL void nk_dots_bf16_init_sapphireamx_(nk_dots_bf16_state_sapphireamx_t *state) {
@@ -1303,7 +1307,7 @@ NK_PUBLIC void nk_dots_compact_bf16_sapphireamx( //
         for (; column_idx + 16 <= column_count; column_idx += 16) {
             __m512 f32_vec = _mm512_loadu_ps(src_row + column_idx);
             __m256bh bf16_vec = _mm512_cvtneps_pbh(f32_vec);
-            _mm256_storeu_si256((__m256i *)(dst_row + column_idx), (__m256i)bf16_vec);
+            _mm256_storeu_si256((__m256i *)(dst_row + column_idx), nk_m256i_from_m256bh_(bf16_vec));
         }
 
         // Handle remaining elements with masked operations
@@ -1311,7 +1315,7 @@ NK_PUBLIC void nk_dots_compact_bf16_sapphireamx( //
             __mmask16 tail_mask = (__mmask16)((1u << (column_count - column_idx)) - 1);
             __m512 f32_vec = _mm512_maskz_loadu_ps(tail_mask, src_row + column_idx);
             __m256bh bf16_vec = _mm512_cvtneps_pbh(f32_vec);
-            _mm256_mask_storeu_epi16(dst_row + column_idx, tail_mask, (__m256i)bf16_vec);
+            _mm256_mask_storeu_epi16(dst_row + column_idx, tail_mask, nk_m256i_from_m256bh_(bf16_vec));
         }
     }
 }

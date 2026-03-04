@@ -336,8 +336,15 @@
 // are supported on all CPUs starting with Jaguar 2009.
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
+//
+// On MSVC, GCC-style ISA macros (__AVX512FP16__, __AVX512BF16__, etc.) are never defined.
+// Instead, MSVC makes all intrinsics available once the toolset version supports them,
+// without requiring `/arch:AVX512`. We gate on _MSC_VER to auto-enable targets:
+//   - _MSC_VER >= 1900 (VS 2015+): AVX2/FMA/F16C (Haswell)
+//   - _MSC_VER >= 1920 (VS 2019+): AVX-512 base (Skylake, Icelake)
+//   - _MSC_VER >= 1944 (VS 2022 17.14+): BF16, FP16, VP2INTERSECT, VNNI, AMX
 #if !defined(NK_TARGET_HASWELL) || (NK_TARGET_HASWELL && !NK_TARGET_X86_)
-#if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
+#if (defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #define NK_TARGET_HASWELL 1
 #else
 #undef NK_TARGET_HASWELL
@@ -353,8 +360,9 @@
 // On Arm machines you may want to check for other flags:
 //      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
 #if !defined(NK_TARGET_SKYLAKE) || (NK_TARGET_SKYLAKE && !NK_TARGET_X86_)
-#if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) && \
-    defined(__AVX512BW__)
+#if (defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) && \
+     defined(__AVX512BW__)) ||                                                                          \
+    (defined(_MSC_VER) && _MSC_VER >= 1920)
 #define NK_TARGET_SKYLAKE 1
 #else
 #undef NK_TARGET_SKYLAKE
@@ -363,8 +371,9 @@
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
 
 #if !defined(NK_TARGET_ICELAKE) || (NK_TARGET_ICELAKE && !NK_TARGET_X86_)
-#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI__) && \
-    defined(__AVX512VBMI2__) && defined(__AVX512VPOPCNTDQ__)
+#if (defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI__) && \
+     defined(__AVX512VBMI2__) && defined(__AVX512VPOPCNTDQ__)) ||                                                  \
+    (defined(_MSC_VER) && _MSC_VER >= 1920)
 #define NK_TARGET_ICELAKE 1
 #else
 #undef NK_TARGET_ICELAKE
@@ -373,7 +382,7 @@
 #endif // !defined(NK_TARGET_ICELAKE) || ...
 
 #if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !NK_TARGET_X86_)
-#if defined(__AVX512BF16__)
+#if defined(__AVX512BF16__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_GENOA 1
 #else
 #undef NK_TARGET_GENOA
@@ -382,7 +391,7 @@
 #endif // !defined(NK_TARGET_GENOA) || ...
 
 #if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !NK_TARGET_X86_)
-#if defined(__AVX512FP16__)
+#if defined(__AVX512FP16__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_SAPPHIRE 1
 #else
 #undef NK_TARGET_SAPPHIRE
@@ -391,7 +400,7 @@
 #endif // !defined(NK_TARGET_SAPPHIRE) || ...
 
 #if !defined(NK_TARGET_SAPPHIREAMX) || (NK_TARGET_SAPPHIREAMX && !NK_TARGET_X86_)
-#if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)
+#if (defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_SAPPHIREAMX 1
 #else
 #undef NK_TARGET_SAPPHIREAMX
@@ -400,7 +409,7 @@
 #endif // !defined(NK_TARGET_SAPPHIREAMX) || ...
 
 #if !defined(NK_TARGET_GRANITEAMX) || (NK_TARGET_GRANITEAMX && !NK_TARGET_X86_)
-#if defined(__AMX_TILE__) && defined(__AMX_FP16__)
+#if (defined(__AMX_TILE__) && defined(__AMX_FP16__)) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_GRANITEAMX 1
 #else
 #undef NK_TARGET_GRANITEAMX
@@ -409,7 +418,7 @@
 #endif // !defined(NK_TARGET_GRANITEAMX) || ...
 
 #if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
-#if defined(__AVX512VP2INTERSECT__)
+#if defined(__AVX512VP2INTERSECT__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_TURIN 1
 #else
 #undef NK_TARGET_TURIN
@@ -418,7 +427,7 @@
 #endif // !defined(NK_TARGET_TURIN) || ...
 
 #if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !NK_TARGET_X86_)
-#if defined(__AVXVNNIINT8__)
+#if defined(__AVXVNNIINT8__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_SIERRA 1
 #else
 #undef NK_TARGET_SIERRA
@@ -476,6 +485,27 @@
 #define NK_ALIGN64 __declspec(align(64))
 #elif defined(__GNUC__) || defined(__clang__)
 #define NK_ALIGN64 __attribute__((aligned(64)))
+#endif
+
+/**
+ *  @brief  Portable casts between SIMD vector types.
+ *          MSVC typedefs `__m512bh`, `__m512h`, `__m256bh` as aliases for `__m512i`/`__m256i`,
+ *          but rejects C-style casts between them. GCC/Clang define them as distinct types.
+ */
+#if NK_TARGET_X86_
+#if defined(_MSC_VER)
+#define nk_m512bh_from_m512i_(x) (x)
+#define nk_m512h_from_m512i_(x)  (x)
+#define nk_m512i_from_m512h_(x)  (x)
+#define nk_m256bh_from_m256i_(x) (x)
+#define nk_m256i_from_m256bh_(x) (x)
+#else
+#define nk_m512bh_from_m512i_(x) ((__m512bh)(x))
+#define nk_m512h_from_m512i_(x)  ((__m512h)(x))
+#define nk_m512i_from_m512h_(x)  ((__m512i)(x))
+#define nk_m256bh_from_m256i_(x) ((__m256bh)(x))
+#define nk_m256i_from_m256bh_(x) ((__m256i)(x))
+#endif
 #endif
 
 /** Copy 16 bits (2 bytes) from source to destination */

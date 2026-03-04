@@ -55,7 +55,7 @@ NK_PUBLIC void nk_bilinear_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk
             b_bf16x32 = _mm512_maskz_loadu_epi16(tail_mask, b + tail_start);
             c_bf16x32 = _mm512_maskz_loadu_epi16(tail_mask, c + i * n + tail_start);
         }
-        cb_j_f32x16 = _mm512_dpbf16_ps(cb_j_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(c_bf16x32));
+        cb_j_f32x16 = _mm512_dpbf16_ps(cb_j_f32x16, nk_m512bh_from_m512i_(b_bf16x32), nk_m512bh_from_m512i_(c_bf16x32));
         j += 32;
         if (j < n) goto nk_bilinear_bf16_genoa_cycle;
         sum_f32x16 = _mm512_fmadd_ps(a_f32x16, cb_j_f32x16, sum_f32x16);
@@ -93,7 +93,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b,
             c_bf16x32 = _mm512_maskz_loadu_epi16(tail_mask, c + i * n + tail_start);
         }
         diff_j_bf16x32 = nk_substract_bf16x32_genoa_(a_j_bf16x32, b_j_bf16x32);
-        cdiff_j_f32x16 = _mm512_dpbf16_ps(cdiff_j_f32x16, (__m512bh)(diff_j_bf16x32), (__m512bh)(c_bf16x32));
+        cdiff_j_f32x16 = _mm512_dpbf16_ps(cdiff_j_f32x16, nk_m512bh_from_m512i_(diff_j_bf16x32),
+                                          nk_m512bh_from_m512i_(c_bf16x32));
         j += 32;
         if (j < n) goto nk_mahalanobis_bf16_genoa_cycle;
         sum_f32x16 = _mm512_fmadd_ps(diff_i_f32x16, cdiff_j_f32x16, sum_f32x16);
@@ -144,14 +145,14 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
             b_bf16x32 = _mm512_maskz_loadu_epi16(tail_mask, (nk_i16_t const *)(b + tail_start));
             c_bf16x32 = _mm512_maskz_loadu_epi16(tail_mask, (nk_i16_t const *)(c + i * n + tail_start));
         }
-        cb_j_real_f32x16 = _mm512_dpbf16_ps(                           //
-            cb_j_real_f32x16,                                          //
-            (__m512bh)(_mm512_xor_si512(c_bf16x32, sign_flip_i32x16)), //
-            (__m512bh)b_bf16x32);
-        cb_j_imag_f32x16 = _mm512_dpbf16_ps(                                 //
-            cb_j_imag_f32x16,                                                //
-            (__m512bh)(_mm512_shuffle_epi8(c_bf16x32, swap_adjacent_i8x64)), //
-            (__m512bh)b_bf16x32);
+        cb_j_real_f32x16 = _mm512_dpbf16_ps(                                      //
+            cb_j_real_f32x16,                                                     //
+            nk_m512bh_from_m512i_(_mm512_xor_si512(c_bf16x32, sign_flip_i32x16)), //
+            nk_m512bh_from_m512i_(b_bf16x32));
+        cb_j_imag_f32x16 = _mm512_dpbf16_ps(                                            //
+            cb_j_imag_f32x16,                                                           //
+            nk_m512bh_from_m512i_(_mm512_shuffle_epi8(c_bf16x32, swap_adjacent_i8x64)), //
+            nk_m512bh_from_m512i_(b_bf16x32));
         j += 16;
         if (j < n) goto nk_bilinear_bf16c_skylake_cycle;
         // Horizontal sums are the expensive part of the computation:

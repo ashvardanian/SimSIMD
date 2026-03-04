@@ -516,12 +516,11 @@ if (NK_BUILD_SHARED)
                             NK_TARGET_TURIN=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
                 )
             elseif (NK_IS_WINDOWS_)
-                # MSVC: no Genoa (BF16), no Turin (VP2INTERSECT), no Sierra (VNNI), no AMX
-                # Sapphire FP16 requires /arch:AVX512 which CMake doesn't set per-file
+                # MSVC 19.44+ (VS 2022 17.14+): all AVX-512 intrinsics available without /arch:AVX512
                 target_compile_definitions(
                     nk_shared
-                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
-                            NK_TARGET_TURIN=0 NK_TARGET_SIERRA=0 NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
+                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_SAPPHIRE=1
+                            NK_TARGET_TURIN=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIREAMX=1 NK_TARGET_GRANITEAMX=1
                 )
             elseif (NK_IS_MACOS_)
                 target_compile_definitions(

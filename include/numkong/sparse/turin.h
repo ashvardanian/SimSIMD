@@ -208,7 +208,8 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
             a_weights_bf16x16 = _mm256_maskz_compress_epi16(a_matches_any_in_b, a_weights_bf16x16);
             __m256i b_weights_bf16x16 = _mm256_loadu_si256((__m256i const *)b_weights);
             b_weights_bf16x16 = _mm256_maskz_compress_epi16(b_matches_any_in_a, b_weights_bf16x16);
-            product_f32x8 = _mm256_dpbf16_ps(product_f32x8, (__m256bh)a_weights_bf16x16, (__m256bh)b_weights_bf16x16);
+            product_f32x8 = _mm256_dpbf16_ps(product_f32x8, nk_m256bh_from_m256i_(a_weights_bf16x16),
+                                             nk_m256bh_from_m256i_(b_weights_bf16x16));
         }
 
         __m256i a_max_u16x16 = _mm256_permutexvar_epi16(last_idx, a_vec.ymm);

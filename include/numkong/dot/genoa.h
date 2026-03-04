@@ -114,7 +114,7 @@ nk_dot_bf16_genoa_cycle:
         b_bf16x32 = _mm512_loadu_epi16(b_scalars);
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
     if (count_scalars) goto nk_dot_bf16_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -151,10 +151,12 @@ nk_dot_bf16c_genoa_cycle:
         b_bf16x32 = _mm512_loadu_epi16((nk_i16_t const *)b_pairs);
         a_pairs += 16, b_pairs += 16, count_pairs -= 16;
     }
-    sum_real_f32x16 = _mm512_dpbf16_ps(sum_real_f32x16, (__m512bh)(_mm512_xor_si512(b_bf16x32, sign_flip_bf16x32)),
-                                       (__m512bh)(a_bf16x32));
-    sum_imag_f32x16 = _mm512_dpbf16_ps(
-        sum_imag_f32x16, (__m512bh)(_mm512_shuffle_epi8(b_bf16x32, swap_adjacent_bf16x32)), (__m512bh)(a_bf16x32));
+    sum_real_f32x16 = _mm512_dpbf16_ps(sum_real_f32x16,
+                                       nk_m512bh_from_m512i_(_mm512_xor_si512(b_bf16x32, sign_flip_bf16x32)),
+                                       nk_m512bh_from_m512i_(a_bf16x32));
+    sum_imag_f32x16 = _mm512_dpbf16_ps(sum_imag_f32x16,
+                                       nk_m512bh_from_m512i_(_mm512_shuffle_epi8(b_bf16x32, swap_adjacent_bf16x32)),
+                                       nk_m512bh_from_m512i_(a_bf16x32));
     if (count_pairs) goto nk_dot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
@@ -193,10 +195,12 @@ nk_vdot_bf16c_genoa_cycle:
         b_bf16x32 = _mm512_loadu_epi16((nk_i16_t const *)b_pairs);
         a_pairs += 16, b_pairs += 16, count_pairs -= 16;
     }
-    sum_real_f32x16 = _mm512_dpbf16_ps(sum_real_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_real_f32x16 = _mm512_dpbf16_ps(sum_real_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                       nk_m512bh_from_m512i_(b_bf16x32));
     a_bf16x32 = _mm512_xor_si512(a_bf16x32, sign_flip_bf16x32);
     b_bf16x32 = _mm512_shuffle_epi8(b_bf16x32, swap_adjacent_bf16x32);
-    sum_imag_f32x16 = _mm512_dpbf16_ps(sum_imag_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_imag_f32x16 = _mm512_dpbf16_ps(sum_imag_f32x16, nk_m512bh_from_m512i_(a_bf16x32),
+                                       nk_m512bh_from_m512i_(b_bf16x32));
     if (count_pairs) goto nk_vdot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
@@ -224,7 +228,7 @@ nk_dot_e4m3_genoa_cycle:
     // Convert E4M3 to BF16 and compute dot product
     __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
     __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
     if (count_scalars) goto nk_dot_e4m3_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -250,7 +254,7 @@ nk_dot_e5m2_genoa_cycle:
     // Convert E5M2 to BF16 and compute dot product
     __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
     __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
     if (count_scalars) goto nk_dot_e5m2_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -276,7 +280,7 @@ nk_dot_e2m3_genoa_cycle:
     // Convert E2M3 to BF16 and compute dot product
     __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
     __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
     if (count_scalars) goto nk_dot_e2m3_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -302,7 +306,7 @@ nk_dot_e3m2_genoa_cycle:
     // Convert E3M2 to BF16 and compute dot product
     __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
     __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
     if (count_scalars) goto nk_dot_e3m2_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -319,7 +323,7 @@ NK_INTERNAL void nk_dot_through_bf16_update_genoa_(nk_dot_through_bf16_state_gen
                                                    nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a.zmm), (__m512bh)(b.zmm));
+    state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, nk_m512bh_from_m512i_(a.zmm), nk_m512bh_from_m512i_(b.zmm));
 }
 
 NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                                                     //

@@ -303,7 +303,8 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
 
     # Detect MSVC version for feature support
     msvc_major, msvc_minor = detect_msvc_version()
-    is_msvc_2022_17_2_plus = msvc_major >= 19 and msvc_minor >= 32  # VS 2022 17.2+
+    # MSVC 19.44+ (VS 2022 17.14+): all AVX-512 intrinsics available without /arch:AVX512
+    has_full_avx512 = msvc_major >= 19 and msvc_minor >= 44
 
     # Windows: SVE/SME not supported, x86 SIMD support varies by MSVC version
     macros = [
@@ -314,16 +315,13 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
-        # Advanced x86 targets - conditional on MSVC version
-        ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics still problematic in MSVC
-        (
-            "NK_TARGET_SAPPHIRE",
-            "1" if (is_64bit_x86() and is_msvc_2022_17_2_plus) else "0",
-        ),  # FP16 support in MSVC 2022 17.2+
-        ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
-        ("NK_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
-        ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX not well supported in MSVC
-        ("NK_TARGET_GRANITEAMX", "0"),  # AMX not well supported in MSVC
+        # Advanced x86 targets - require MSVC 19.44+ for full AVX-512 FP16/BF16/VNNI
+        ("NK_TARGET_GENOA", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_TURIN", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_SIERRA", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_SAPPHIREAMX", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_GRANITEAMX", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "0"),  # MSVC lacks `float16_t` intrinsics
