@@ -4147,7 +4147,7 @@ fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usiz
         let work_f64 = work_start as f64;
         let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
         let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
-        row_f64.floor()
+        row_f64.floor() as usize
     };
 
     let end_row = if work_end >= total_work {
@@ -4157,7 +4157,7 @@ fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usiz
         let work_f64 = work_end as f64;
         let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
         let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
-        row_f64.ceil()
+        row_f64.ceil() as usize
     };
 
     (start_row, end_row - start_row)
