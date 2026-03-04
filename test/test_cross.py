@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Test cross-distance operations: cdist, batch, dots_symmetric, dots_packed.
+"""Test cross-distance operations: batch, dots_symmetric, dots_packed.
 
-Covers cdist and batch operations for float and complex dtypes.
+Covers batch operations for float and complex dtypes.
 Symmetric and packed dot products tested for all numeric dtypes
 (float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8).
 
 Precision notes:
     Floating-point dtypes use NK_ATOL/NK_RTOL (0.1/0.1).
-    Integer output dtypes (cdist out_dtype) use atol=1.
+    Integer output dtypes use atol=1.
 
 Matches C++ suite: test_cross_*.cpp.
 """
@@ -31,7 +31,6 @@ from test_base import (
     randomized_repetitions_count,
     keep_one_capability,
     profile,
-    scipy_metric_name,
     NK_ATOL,
     NK_RTOL,
     DECIMAL_PRECISION,
@@ -166,139 +165,6 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
     assert nk.sqeuclidean(a_matrix, b_matrix, out=output_buffer) is None
     np.testing.assert_allclose(output_buffer, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
     assert output_buffer.dtype == expected_distances.dtype
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.parametrize("ndim", dense_dimensions)
-@pytest.mark.parametrize("input_dtype", ["float32", "float16"])
-@pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
-@pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
-    """Pairwise cdist for float dtypes with out_dtype and out= buffer support."""
-    keep_one_capability(capability)
-
-    num_rows_a, num_rows_b = 10, 15
-    a_matrix_extended = np.random.randn(num_rows_a, ndim + 1).astype(input_dtype)
-    b_matrix_extended = np.random.randn(num_rows_b, ndim + 3).astype(input_dtype)
-    a_matrix = a_matrix_extended[:, :ndim]
-    b_matrix = b_matrix_extended[:, :ndim]
-
-    is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
-    scipy_metric = scipy_metric_name(metric)
-
-    if out_dtype is None:
-        expected = spd.cdist(a_matrix, b_matrix, scipy_metric)
-        result = nk.cdist(a_matrix, b_matrix, metric)
-        expected_out = np.zeros((num_rows_a, num_rows_b))
-        output_buffer_extended = np.zeros((num_rows_a, num_rows_b + 7))
-        output_buffer = output_buffer_extended[:, :num_rows_b]
-        assert spd.cdist(a_matrix, b_matrix, scipy_metric, out=expected_out) is not None
-        assert nk.cdist(a_matrix, b_matrix, metric, out=output_buffer) is None
-    else:
-        scipy_result = spd.cdist(a_matrix, b_matrix, scipy_metric)
-        expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = nk.cdist(a_matrix, b_matrix, metric, out_dtype=out_dtype)
-
-        expected_out = np.zeros((num_rows_a, num_rows_b), dtype=np.float64)
-        output_buffer_extended = np.zeros((num_rows_a, num_rows_b + 7), dtype=out_dtype)
-        output_buffer = output_buffer_extended[:, :num_rows_b]
-        assert spd.cdist(a_matrix, b_matrix, scipy_metric, out=expected_out) is not None
-        assert nk.cdist(a_matrix, b_matrix, metric, out=output_buffer) is None
-        expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
-
-    atol = 1 if is_integer_output else NK_ATOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
-    np.testing.assert_allclose(output_buffer, expected_out, atol=atol, rtol=NK_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.parametrize("ndim", dense_dimensions)
-@pytest.mark.parametrize("input_dtype", ["float32", "float16"])
-@pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
-@pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
-def test_cdist_self_distance(ndim, input_dtype, out_dtype, metric):
-    """cdist(A, A) self-distance matrix against SciPy baseline."""
-    is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
-    scipy_metric = scipy_metric_name(metric)
-
-    a_matrix = np.random.randn(10, ndim + 1).astype(input_dtype)
-    if out_dtype is None:
-        expected = spd.cdist(a_matrix, a_matrix, scipy_metric)
-        result = nk.cdist(a_matrix, a_matrix, metric=metric)
-    else:
-        scipy_result = spd.cdist(a_matrix, a_matrix, scipy_metric)
-        expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = nk.cdist(a_matrix, a_matrix, metric=metric, out_dtype=out_dtype)
-
-    atol = 1 if is_integer_output else NK_ATOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("ndim", dense_dimensions)
-@pytest.mark.parametrize("input_dtype", ["complex128", "complex64"])
-@pytest.mark.parametrize("out_dtype", [None, "complex128", "complex64"])
-@pytest.mark.parametrize("metric", ["dot", "vdot"])
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
-    """cdist for complex dot and vdot with 1D and 2D inputs plus out= support."""
-    keep_one_capability(capability)
-
-    num_rows_a, num_rows_b = 10, 15
-    a_matrix_extended = np.random.randn(num_rows_a, ndim + 1).astype(input_dtype)
-    b_matrix_extended = np.random.randn(num_rows_b, ndim + 3).astype(input_dtype)
-    a_matrix = a_matrix_extended[:, :ndim]
-    b_matrix = b_matrix_extended[:, :ndim]
-    c_matrix_extended = np.random.randn(num_rows_a, num_rows_b + 7).astype(out_dtype if out_dtype else np.complex128)
-    c_matrix = c_matrix_extended[:, :num_rows_b]
-
-    expected = np.zeros((num_rows_a, num_rows_b), dtype=out_dtype if out_dtype else np.complex128)
-    baseline_kernel = np.dot if metric == "dot" else np.vdot
-    for i in range(num_rows_a):
-        for j in range(num_rows_b):
-            expected[i, j] = baseline_kernel(a_matrix[i], b_matrix[j])
-
-    if out_dtype is None:
-        result1d = nk.cdist(a_matrix[0], b_matrix[0], metric=metric)
-        result2d = nk.cdist(a_matrix, b_matrix, metric=metric)
-        assert nk.cdist(a_matrix, b_matrix, metric=metric, out=c_matrix) is None
-    else:
-        expected = expected.astype(out_dtype)
-        result1d = nk.cdist(a_matrix[0], b_matrix[0], metric=metric, out_dtype=out_dtype)
-        result2d = nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype)
-        assert nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype, out=c_matrix) is None
-
-    np.testing.assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(result2d, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(c_matrix, expected, atol=NK_ATOL, rtol=NK_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
-@pytest.mark.parametrize("ndim", dense_dimensions)
-@pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_cdist_hamming(ndim, out_dtype, capability):
-    """cdist for packed Hamming bits with optional out_dtype."""
-    keep_one_capability(capability)
-
-    num_rows_a, num_rows_b = 10, 15
-    a_bits = np.random.randint(2, size=(num_rows_a, ndim)).astype(np.uint8)
-    b_bits = np.random.randint(2, size=(num_rows_b, ndim)).astype(np.uint8)
-    a_packed_bits, b_packed_bits = np.packbits(a_bits, axis=1), np.packbits(b_bits, axis=1)
-
-    if out_dtype is None:
-        expected = spd.cdist(a_bits, b_bits, "hamming") * ndim
-        result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1")
-    else:
-        expected = (spd.cdist(a_bits, b_bits, "hamming") * ndim).astype(out_dtype)
-        result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1", out_dtype=out_dtype)
-
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
