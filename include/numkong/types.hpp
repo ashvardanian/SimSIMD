@@ -63,6 +63,12 @@
 #include "numkong/scalar.h"
 #include "numkong/cast.h"
 
+#if defined(__cpp_lib_constexpr_cmath) && __cpp_lib_constexpr_cmath >= 202202L
+#define NK_CMATH_CONSTEXPR_ constexpr
+#else
+#define NK_CMATH_CONSTEXPR_ inline
+#endif
+
 namespace ashvardanian::numkong {
 
 struct f32_t;
@@ -332,7 +338,7 @@ struct f32_t {
     inline f32_t max(f32_t o) const noexcept { return f32_t {std::fmax(raw_, o.raw_)}; }
     inline f32_t clamp(f32_t lo, f32_t hi) const noexcept { return max(lo).min(hi); }
 
-    static f32_t clamped_to_finite_(float x) noexcept {
+    static constexpr f32_t clamped_to_finite_(float x) noexcept {
         if (x == std::numeric_limits<float>::infinity()) return finite_max();
         if (x == -std::numeric_limits<float>::infinity()) return finite_min();
         return f32_t {x};
@@ -593,7 +599,7 @@ struct f64_t {
     inline f64_t max(f64_t o) const noexcept { return f64_t {std::fmax(raw_, o.raw_)}; }
     inline f64_t clamp(f64_t lo, f64_t hi) const noexcept { return max(lo).min(hi); }
 
-    static f64_t clamped_to_finite_(double x) noexcept {
+    static constexpr f64_t clamped_to_finite_(double x) noexcept {
         if (x == std::numeric_limits<double>::infinity()) return finite_max();
         if (x == -std::numeric_limits<double>::infinity()) return finite_min();
         return f64_t {x};
@@ -2704,9 +2710,9 @@ struct f118_t {
     /** @brief In-place subtraction. */
     constexpr f118_t &operator-=(f118_t const &o) noexcept { return *this = *this - o; }
     /** @brief In-place multiplication. */
-    constexpr f118_t &operator*=(f118_t const &o) noexcept { return *this = *this * o; }
+    inline f118_t &operator*=(f118_t const &o) noexcept { return *this = *this * o; }
     /** @brief In-place division. */
-    constexpr f118_t &operator/=(f118_t const &o) noexcept { return *this = *this / o; }
+    inline f118_t &operator/=(f118_t const &o) noexcept { return *this = *this / o; }
 
     /** @brief Subtraction with ~93 bits precision (max rel err: 7.4e-29 vs __float128). */
     constexpr f118_t operator-(f118_t const &o) const noexcept {
@@ -2716,7 +2722,7 @@ struct f118_t {
     }
 
     /** @brief Multiplication with ~104 bits precision (max rel err: 2.5e-32 vs __float128, ~105 bits vs Boost). */
-    constexpr f118_t operator*(f118_t const &o) const noexcept {
+    inline f118_t operator*(f118_t const &o) const noexcept {
         double p1 = high_ * o.high_;
         double p2 = std::fma(high_, o.high_, -p1);
         p2 += high_ * o.low_;
@@ -2726,7 +2732,7 @@ struct f118_t {
     }
 
     /** @brief Division with ~105 bits precision (max rel err: 2.4e-32 vs __float128, ~106 bits vs Boost). */
-    constexpr f118_t operator/(f118_t const &o) const noexcept {
+    inline f118_t operator/(f118_t const &o) const noexcept {
         double q1 = high_ / o.high_;
         f118_t r = *this - o * f118_t(q1);
 
@@ -2752,7 +2758,7 @@ struct f118_t {
     }
 
     /** @brief Saturating multiplication - forwards to operator* (no saturation semantics for double-double). */
-    constexpr f118_t saturating_mul(f118_t o) const noexcept { return *this * o; }
+    NK_CMATH_CONSTEXPR_ f118_t saturating_mul(f118_t o) const noexcept { return *this * o; }
 
     /** @brief Exact equality (both high_ and low_ must match). */
     constexpr bool operator==(f118_t const &o) const noexcept { return high_ == o.high_ && low_ == o.low_; }
@@ -2788,7 +2794,7 @@ struct f118_t {
     }
 
     /** @brief Square root with ~103 bits precision (max rel err: 6.8e-32 vs __float128, ~103 bits vs Boost). */
-    constexpr f118_t sqrt() const noexcept {
+    inline f118_t sqrt() const noexcept {
         if (high_ <= 0) return f118_t(std::sqrt(high_));
         double inv_sqrt_approx = 1.0 / std::sqrt(high_);
         double sqrt_approx = high_ * inv_sqrt_approx;
@@ -2798,10 +2804,10 @@ struct f118_t {
     }
 
     /** @brief Reciprocal square root (1/sqrt). */
-    constexpr f118_t rsqrt() const noexcept { return f118_t(1.0) / sqrt(); }
+    inline f118_t rsqrt() const noexcept { return f118_t(1.0) / sqrt(); }
 
     /** @brief Exponential with ~101 bits precision (max rel err: 2.2e-31 vs __float128, ~102 bits vs Boost). */
-    constexpr f118_t exp() const noexcept {
+    inline f118_t exp() const noexcept {
         // High-precision ln(2)
         constexpr double ln2_high = 0.6931471805599453;
         constexpr double ln2_low = 2.3190468138462996e-17;
@@ -2824,7 +2830,7 @@ struct f118_t {
     }
 
     /** @brief Natural logarithm with ~105 bits precision (max rel err: 2.2e-32 vs __float128, ~105 bits vs Boost). */
-    constexpr f118_t log() const noexcept {
+    inline f118_t log() const noexcept {
         if (high_ <= 0) return f118_t(std::log(high_)); // NaN or -inf
 
         // High-precision ln(2)
@@ -2862,7 +2868,7 @@ struct f118_t {
      *  @brief Sine with ~103 bits precision (max rel err: 6.8e-32 vs __float128) for |x| < 10.
      *  @note Uses quad-double π/2 with staged error-free reduction. Precision degrades for |x| > 1000.
      */
-    constexpr f118_t sin() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t sin() const noexcept {
         if (is_nan() || is_infinite()) return f118_t(std::sin(high_));
 
         f118_t reduced_angle;
@@ -2883,7 +2889,7 @@ struct f118_t {
      *  @brief Cosine with ~103 bits precision (max rel err: 7.8e-32 vs __float128) for |x| < 10.
      *  @note Uses quad-double π/2 with staged error-free reduction. Precision degrades for |x| > 1000.
      */
-    constexpr f118_t cos() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t cos() const noexcept {
         if (is_nan() || is_infinite()) return f118_t(std::cos(high_));
 
         f118_t reduced_angle;
@@ -2915,44 +2921,44 @@ struct f118_t {
     }
 
     /** @brief Returns true if the value is neither infinite nor NaN. */
-    constexpr bool is_finite() const noexcept { return std::isfinite(high_); }
+    inline bool is_finite() const noexcept { return std::isfinite(high_); }
 
     /** @brief Returns true if the sign bit is positive (includes +0). */
-    constexpr bool is_sign_positive() const noexcept { return high_ > 0.0 || (high_ == 0.0 && !std::signbit(high_)); }
+    inline bool is_sign_positive() const noexcept { return high_ > 0.0 || (high_ == 0.0 && !std::signbit(high_)); }
 
     /** @brief Returns true if the sign bit is negative (includes -0). */
-    constexpr bool is_sign_negative() const noexcept { return high_ < 0.0 || (high_ == 0.0 && std::signbit(high_)); }
+    inline bool is_sign_negative() const noexcept { return high_ < 0.0 || (high_ == 0.0 && std::signbit(high_)); }
 
     /** @brief Largest integer less than or equal to self. */
-    constexpr f118_t floor() const noexcept {
+    inline f118_t floor() const noexcept {
         double floor_high = std::floor(high_);
         if (floor_high != high_) return f118_t(floor_high);
         return quick_two_sum_(floor_high, std::floor(low_));
     }
 
     /** @brief Smallest integer greater than or equal to self. */
-    constexpr f118_t ceil() const noexcept {
+    inline f118_t ceil() const noexcept {
         double ceil_high = std::ceil(high_);
         if (ceil_high != high_) return f118_t(ceil_high);
         return quick_two_sum_(ceil_high, std::ceil(low_));
     }
 
     /** @brief Nearest integer, rounding half away from zero. */
-    constexpr f118_t round() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t round() const noexcept {
         double round_high = std::round(high_);
         if (round_high != high_) return f118_t(round_high);
         return quick_two_sum_(round_high, std::round(low_));
     }
 
     /** @brief Integer part (truncate toward zero). */
-    constexpr f118_t trunc() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t trunc() const noexcept {
         double trunc_high = std::trunc(high_);
         if (trunc_high != high_) return f118_t(trunc_high);
         return quick_two_sum_(trunc_high, std::trunc(low_));
     }
 
     /** @brief Fractional part (self - trunc(self)). */
-    constexpr f118_t fract() const noexcept { return *this - trunc(); }
+    NK_CMATH_CONSTEXPR_ f118_t fract() const noexcept { return *this - trunc(); }
 
     /** @brief Returns the minimum of self and other. */
     constexpr f118_t min(f118_t o) const noexcept { return *this < o ? *this : o; }
@@ -2964,7 +2970,7 @@ struct f118_t {
     constexpr f118_t clamp(f118_t lower, f118_t upper) const noexcept { return max(lower).min(upper); }
 
     /** @brief Total ordering: -NaN < -Inf < ... < -0 < +0 < ... < +Inf < +NaN. Returns -1, 0, or 1. */
-    constexpr int order(f118_t o) const noexcept {
+    NK_CMATH_CONSTEXPR_ int order(f118_t o) const noexcept {
         // Handle NaN cases first
         bool this_nan = is_nan(), o_nan = o.is_nan();
         if (this_nan && o_nan) return 0;
@@ -2982,7 +2988,7 @@ struct f118_t {
         return 0;
     }
     /** @brief Alias for order() (Rust-style). */
-    constexpr int total_cmp(f118_t o) const noexcept { return order(o); }
+    NK_CMATH_CONSTEXPR_ int total_cmp(f118_t o) const noexcept { return order(o); }
 
     /** @brief Returns -1, 0, or 1 based on sign. */
     constexpr f118_t signum() const noexcept {
@@ -2993,7 +2999,7 @@ struct f118_t {
     }
 
     /** @brief Returns value with magnitude of self and sign of `sign`. */
-    constexpr f118_t copysign(f118_t sign) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t copysign(f118_t sign) const noexcept {
         bool this_neg = is_sign_negative();
         bool sign_neg = sign.is_sign_negative();
         if (this_neg == sign_neg) return *this;
@@ -3001,17 +3007,17 @@ struct f118_t {
     }
 
     /** @brief Returns 1 / self. */
-    constexpr f118_t recip() const noexcept { return f118_t(1.0) / *this; }
+    inline f118_t recip() const noexcept { return f118_t(1.0) / *this; }
 
     /** @brief xʸ with ~99 bits precision (max rel err: 1.0e-30 vs __float128). */
-    constexpr f118_t powf(f118_t y) const noexcept {
+    inline f118_t powf(f118_t y) const noexcept {
         if (high_ == 0.0) return f118_t(0.0);
         if (y.high_ == 0.0) return f118_t(1.0);
         return (y * log()).exp();
     }
 
     /** @brief Integer power via binary exponentiation. */
-    constexpr f118_t powi(int exponent) const noexcept {
+    inline f118_t powi(int exponent) const noexcept {
         if (exponent == 0) return f118_t(1.0);
         f118_t result(1.0), base = *this;
         bool is_negative = exponent < 0;
@@ -3025,7 +3031,7 @@ struct f118_t {
     }
 
     /** @brief Cube root with ~101 bits precision (max rel err: 2.4e-31 vs __float128). */
-    constexpr f118_t cbrt() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t cbrt() const noexcept {
         if (high_ == 0.0) return f118_t(0.0);
         double cbrt_approx = std::cbrt(high_);
         // One Newton-Raphson iteration: x′ = x − (x³ − a) / (3x²) = (2x + a/x²) / 3
@@ -3035,28 +3041,28 @@ struct f118_t {
     }
 
     /** @brief 2ˣ. */
-    constexpr f118_t exp2() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t exp2() const noexcept {
         constexpr double ln2_high = 0.6931471805599453;
         constexpr double ln2_low = 2.3190468138462996e-17;
         return (*this * f118_t(ln2_high, ln2_low)).exp();
     }
 
     /** @brief Base-2 logarithm. */
-    constexpr f118_t log2() const noexcept {
+    inline f118_t log2() const noexcept {
         constexpr double log2e_high = 1.4426950408889634;
         constexpr double log2e_low = 2.0355273740931033e-17;
         return log() * f118_t(log2e_high, log2e_low);
     }
 
     /** @brief Base-10 logarithm. */
-    constexpr f118_t log10() const noexcept {
+    inline f118_t log10() const noexcept {
         constexpr double log10e_high = 0.4342944819032518;
         constexpr double log10e_low = 1.098319650216765e-17;
         return log() * f118_t(log10e_high, log10e_low);
     }
 
     /** @brief eˣ − 1, accurate for small x. */
-    constexpr f118_t exp_m1() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t exp_m1() const noexcept {
         // For small x, use Taylor series directly for accuracy
         if (std::abs(high_) < 0.5) {
             f118_t series_sum(0.0), current_term(1.0);
@@ -3071,7 +3077,7 @@ struct f118_t {
     }
 
     /** @brief ln(1 + x), accurate for small x. */
-    constexpr f118_t ln_1p() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t ln_1p() const noexcept {
         // For small x, use series: ln(1+x) = x − x²/2 + x³/3 − …
         if (std::abs(high_) < 0.5) {
             f118_t x_squared = *this * *this;
@@ -3087,10 +3093,10 @@ struct f118_t {
     }
 
     /** @brief Tangent with ~103 bits precision (max rel err: 9.4e-32 vs __float128). */
-    constexpr f118_t tan() const noexcept { return sin() / cos(); }
+    NK_CMATH_CONSTEXPR_ f118_t tan() const noexcept { return sin() / cos(); }
 
     /** @brief Arcsine (inverse sine). */
-    constexpr f118_t asin() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t asin() const noexcept {
         // asin(x) = atan(x / sqrt(1 − x²))
         if (std::abs(high_) >= 1.0) return f118_t(std::asin(high_));
         f118_t x_squared = *this * *this;
@@ -3098,7 +3104,7 @@ struct f118_t {
     }
 
     /** @brief Arccosine (inverse cosine). */
-    constexpr f118_t acos() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t acos() const noexcept {
         // acos(x) = pi/2 - asin(x)
         constexpr double half_pi_high = 1.5707963267948966;
         constexpr double half_pi_low = 6.123233995736766e-17;
@@ -3106,7 +3112,7 @@ struct f118_t {
     }
 
     /** @brief Arctangent (inverse tangent). */
-    constexpr f118_t atan() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t atan() const noexcept {
         constexpr double half_pi_high = 1.5707963267948966;
         constexpr double half_pi_low = 6.123233995736766e-17;
         f118_t half_pi(half_pi_high, half_pi_low);
@@ -3162,7 +3168,7 @@ struct f118_t {
     }
 
     /** @brief Four-quadrant arctangent: atan2(y, x) where this = y. */
-    constexpr f118_t atan2(f118_t x) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t atan2(f118_t x) const noexcept {
         constexpr double pi_high = 3.141592653589793;
         constexpr double pi_low = 1.2246467991473532e-16;
         f118_t pi(pi_high, pi_low);
@@ -3179,13 +3185,13 @@ struct f118_t {
     }
 
     /** @brief Computes both sin(x) and cos(x), returning them in an array. */
-    constexpr void sin_cos(f118_t &out_sin, f118_t &out_cos) const noexcept {
+    NK_CMATH_CONSTEXPR_ void sin_cos(f118_t &out_sin, f118_t &out_cos) const noexcept {
         out_sin = sin();
         out_cos = cos();
     }
 
     /** @brief Hyperbolic sine with ~102 bits precision (max rel err: ~1.4e-31 vs __float128). */
-    constexpr f118_t sinh() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t sinh() const noexcept {
         // Use Taylor series for |x| < 1 to avoid catastrophic cancellation
         if (std::abs(high_) < 1.0) {
             // Taylor: sinh(x) = x + x³/3! + x⁵/5! + x⁷/7! + …
@@ -3208,35 +3214,35 @@ struct f118_t {
     }
 
     /** @brief Hyperbolic cosine with ~102 bits precision (max rel err: 1.5e-31 vs __float128). */
-    constexpr f118_t cosh() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t cosh() const noexcept {
         f118_t exp_x = exp();
         return (exp_x + exp_x.recip()) / f118_t(2.0);
     }
 
     /** @brief Hyperbolic tangent with ~102 bits precision (max rel err: ~1e-31 vs __float128). */
-    constexpr f118_t tanh() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t tanh() const noexcept {
         if (std::abs(high_) > 20.0) return high_ > 0 ? f118_t(1.0) : f118_t(-1.0);
         // Use sinh/cosh which are optimized with Taylor series for small args
         return sinh() / cosh();
     }
 
     /** @brief Inverse hyperbolic sine: ln(x + √(x² + 1)). */
-    constexpr f118_t asinh() const noexcept { return (*this + (*this * *this + f118_t(1.0)).sqrt()).log(); }
+    NK_CMATH_CONSTEXPR_ f118_t asinh() const noexcept { return (*this + (*this * *this + f118_t(1.0)).sqrt()).log(); }
 
     /** @brief Inverse hyperbolic cosine: ln(x + √(x² − 1)). */
-    constexpr f118_t acosh() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t acosh() const noexcept {
         if (high_ < 1.0) return f118_t(std::numeric_limits<double>::quiet_NaN());
         return (*this + (*this * *this - f118_t(1.0)).sqrt()).log();
     }
 
     /** @brief Inverse hyperbolic tangent: ½ · ln((1+x)/(1−x)). */
-    constexpr f118_t atanh() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t atanh() const noexcept {
         if (std::abs(high_) >= 1.0) return f118_t(std::atanh(high_));
         return ((f118_t(1.0) + *this) / (f118_t(1.0) - *this)).log() / f118_t(2.0);
     }
 
     /** @brief √(x² + y²) without overflow. */
-    constexpr f118_t hypot(f118_t y) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t hypot(f118_t y) const noexcept {
         f118_t abs_x = abs(), abs_y = y.abs();
         if (abs_x < abs_y) std::swap(abs_x, abs_y);
         if (abs_x.high_ == 0.0) return f118_t(0.0);
@@ -3246,17 +3252,17 @@ struct f118_t {
 
     /** @brief Fused multiply-add: self · a + b. */
     /** @brief Fused multiply-add: self * a + b. */
-    constexpr f118_t fma(f118_t a, f118_t b) const noexcept { return *this * a + b; }
+    NK_CMATH_CONSTEXPR_ f118_t fma(f118_t a, f118_t b) const noexcept { return *this * a + b; }
 
     /** @brief Convert degrees to radians. */
-    constexpr f118_t to_radians() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t to_radians() const noexcept {
         constexpr double deg_to_rad_high = 0.017453292519943295;
         constexpr double deg_to_rad_low = 2.9486522708701687e-19;
         return *this * f118_t(deg_to_rad_high, deg_to_rad_low);
     }
 
     /** @brief Convert radians to degrees. */
-    constexpr f118_t to_degrees() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t to_degrees() const noexcept {
         constexpr double rad_to_deg_high = 57.29577951308232;
         constexpr double rad_to_deg_low = -1.9878495670576283e-15;
         return *this * f118_t(rad_to_deg_high, rad_to_deg_low);
@@ -3273,7 +3279,7 @@ struct f118_t {
      *  @param[out] quadrant Quadrant index (0-3) for sign/function selection
      *  @note Precision: ~106 bits for |x| < 2⁵² using staged error-free subtraction
      */
-    constexpr void reduce_trig_arg_(f118_t &reduced_angle, int &quadrant) const noexcept {
+    NK_CMATH_CONSTEXPR_ void reduce_trig_arg_(f118_t &reduced_angle, int &quadrant) const noexcept {
         // Quad-double π/2 for ~212 bits of precision (more than we need)
         // π/2 = 1.5707963267948966192313216916397514420985846996875529...
         // Split into 4 parts to ensure exact representation of each chunk
@@ -3327,7 +3333,7 @@ struct f118_t {
      *  @param angle Input angle in radians (must be small)
      *  @return sin(angle) with ~106 bits precision
      */
-    constexpr f118_t sin_taylor_(f118_t angle) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t sin_taylor_(f118_t angle) const noexcept {
         f118_t angle_squared = angle * angle;
         f118_t series_sum = angle;
         f118_t current_term = angle;
@@ -3347,7 +3353,7 @@ struct f118_t {
      *  @param angle Input angle in radians (must be small)
      *  @return cos(angle) with ~106 bits precision
      */
-    constexpr f118_t cos_taylor_(f118_t angle) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t cos_taylor_(f118_t angle) const noexcept {
         f118_t angle_squared = angle * angle;
         f118_t series_sum(1.0);
         f118_t current_term(1.0);
@@ -3405,14 +3411,14 @@ struct f118_t {
      *  @param b Second operand
      *  @return f118_t where `high_ == a*b` (rounded), `low_ == rounding error`
      */
-    static constexpr f118_t two_prod_(double a, double b) noexcept {
+    static NK_CMATH_CONSTEXPR_ f118_t two_prod_(double a, double b) noexcept {
         double product = a * b;
         double error = std::fma(a, b, -product);
         return f118_t(product, error);
     }
 
     /** @brief Multiply double-double by scalar with extended precision. */
-    constexpr f118_t mul_scalar_(double k) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t mul_scalar_(double k) const noexcept {
         f118_t p = two_prod_(high_, k);
         p.low_ += low_ * k;
         return quick_two_sum_(p.high_, p.low_);
@@ -3469,27 +3475,27 @@ struct f118c_t {
 
     constexpr f118c_t operator+(f118c_t o) const noexcept { return {real_ + o.real_, imag_ + o.imag_}; }
     constexpr f118c_t operator-(f118c_t o) const noexcept { return {real_ - o.real_, imag_ - o.imag_}; }
-    constexpr f118c_t operator*(f118c_t o) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118c_t operator*(f118c_t o) const noexcept {
         return {real_ * o.real_ - imag_ * o.imag_, real_ * o.imag_ + imag_ * o.real_};
     }
-    constexpr f118c_t operator/(f118c_t o) const noexcept {
+    NK_CMATH_CONSTEXPR_ f118c_t operator/(f118c_t o) const noexcept {
         f118_t denom = o.real_ * o.real_ + o.imag_ * o.imag_;
         return {(real_ * o.real_ + imag_ * o.imag_) / denom, (imag_ * o.real_ - real_ * o.imag_) / denom};
     }
 
     constexpr f118c_t &operator+=(f118c_t o) noexcept { return *this = *this + o; }
     constexpr f118c_t &operator-=(f118c_t o) noexcept { return *this = *this - o; }
-    constexpr f118c_t &operator*=(f118c_t o) noexcept { return *this = *this * o; }
-    constexpr f118c_t &operator/=(f118c_t o) noexcept { return *this = *this / o; }
+    NK_CMATH_CONSTEXPR_ f118c_t &operator*=(f118c_t o) noexcept { return *this = *this * o; }
+    NK_CMATH_CONSTEXPR_ f118c_t &operator/=(f118c_t o) noexcept { return *this = *this / o; }
 
     constexpr f118c_t operator-() const noexcept { return {-real_, -imag_}; }
     constexpr f118c_t conj() const noexcept { return {real_, -imag_}; }
 
     /** @brief Squared magnitude: |z|² = real² + imag² */
-    constexpr f118_t norm_sq() const noexcept { return real_ * real_ + imag_ * imag_; }
+    NK_CMATH_CONSTEXPR_ f118_t norm_sq() const noexcept { return real_ * real_ + imag_ * imag_; }
 
     /** @brief Magnitude: |z| = sqrt(real² + imag²) */
-    constexpr f118_t abs() const noexcept { return norm_sq().sqrt(); }
+    NK_CMATH_CONSTEXPR_ f118_t abs() const noexcept { return norm_sq().sqrt(); }
 
     constexpr bool operator==(f118c_t const &o) const noexcept { return real_ == o.real_ && imag_ == o.imag_; }
     constexpr bool operator!=(f118c_t const &o) const noexcept { return !(*this == o); }
@@ -5434,8 +5440,8 @@ constexpr accumulator_type_ saturating_fma(u4x2_t a, u4x2_t b, accumulator_type_
 
 constexpr f118_t operator+(double a, f118_t b) noexcept { return f118_t(a) + b; }
 constexpr f118_t operator-(double a, f118_t b) noexcept { return f118_t(a) - b; }
-constexpr f118_t operator*(double a, f118_t b) noexcept { return f118_t(a) * b; }
-constexpr f118_t operator/(double a, f118_t b) noexcept { return f118_t(a) / b; }
+inline f118_t operator*(double a, f118_t b) noexcept { return f118_t(a) * b; }
+inline f118_t operator/(double a, f118_t b) noexcept { return f118_t(a) / b; }
 
 constexpr bool operator==(double a, f118_t b) noexcept { return f118_t(a) == b; }
 constexpr bool operator!=(double a, f118_t b) noexcept { return f118_t(a) != b; }
