@@ -1,6 +1,6 @@
 # NumKong for Swift
 
-To install, simply add the following dependency to your `Package.swift`:
+Add NumKong to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -8,15 +8,41 @@ dependencies: [
 ]
 ```
 
-The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
+The Swift binding exposes:
+
+- Vector APIs (`dot`, `angular`, `euclidean`, `sqeuclidean`)
+- Packed matrix APIs (`dots_packed`, `angulars_packed`, `euclideans_packed`)
+- Symmetric matrix APIs (`dots_symmetric`, `angulars_symmetric`, `euclideans_symmetric`)
+- Low-precision numeric wrappers (`BFloat16`, `E4M3`, `E5M2`, `E2M3`, `E3M2`)
+
+## Vector Example
 
 ```swift
 import NumKong
 
-let vectorA: [Int8] = [1, 2, 3]
-let vectorB: [Int8] = [4, 5, 6]
+let a: [Float32] = [1, 2, 3]
+let b: [Float32] = [4, 5, 6]
+let value = a.dot(b)
+```
 
-let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
-let angularDistance = vectorA.angular(vectorB)  // Computes the angular distance
-let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
+## Packed Matrix Example
+
+```swift
+import NumKong
+
+let a: [Float32] = [1, 2, 3, 4, 5, 6] // 2x3
+let b: [Float32] = [7, 8, 9, 1, 0, 1] // 2x3
+var out = Array(repeating: Float32(0), count: 4) // 2x2
+
+try a.withUnsafeBufferPointer { aPtr in
+    try b.withUnsafeBufferPointer { bPtr in
+        try out.withUnsafeMutableBufferPointer { outPtr in
+            let aMatrix = Matrix(baseAddress: aPtr.baseAddress!, rows: 2, cols: 3)
+            let bMatrix = Matrix(baseAddress: bPtr.baseAddress!, rows: 2, cols: 3)
+            var outMatrix = MutableMatrix(baseAddress: outPtr.baseAddress!, rows: 2, cols: 2)
+            let packed = try PackedMatrix<Float32>(packing: bMatrix)
+            try dots_packed(aMatrix, packed, &outMatrix)
+        }
+    }
+}
 ```

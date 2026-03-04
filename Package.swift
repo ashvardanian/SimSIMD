@@ -13,7 +13,7 @@ let package = Package(
             name: "Test",
             dependencies: ["NumKong"],
             path: "swift",
-            exclude: ["NumKong.swift"]
+            exclude: ["NumKong.swift", "Numerics.swift", "Scalar.swift", "Matrix.swift"]
         ),
         .target(
             name: "NumKong",

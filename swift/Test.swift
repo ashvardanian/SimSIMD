@@ -244,4 +244,78 @@ class NumKongTests: XCTestCase {
         XCTAssertTrue(success)
         XCTAssertEqual(result[0], 5_570_000, accuracy: 50000)
     }
+
+    // MARK: - New Low-Precision Types
+
+    func testBFloat16Roundtrip() throws {
+        let x = BFloat16(float: 1.5)
+        XCTAssertEqual(x.float, 1.5, accuracy: 0.02)
+    }
+
+    func testE4M3Dot() throws {
+        let a: [E4M3] = [E4M3(float: 1), E4M3(float: 2), E4M3(float: 3)]
+        let b: [E4M3] = [E4M3(float: 4), E4M3(float: 5), E4M3(float: 6)]
+        let result = try XCTUnwrap(a.dot(b))
+        XCTAssertEqual(result, 32.0, accuracy: 1.5)
+    }
+
+    // MARK: - Packed Matrix APIs
+
+    func testDotsPackedFloat32() throws {
+        let a: [Float32] = [
+            1, 2, 3,
+            4, 5, 6,
+        ] // 2x3
+        let b: [Float32] = [
+            7, 8, 9,
+            1, 0, 1,
+        ] // 2x3
+        var c = Array(repeating: Float32(0), count: 4) // 2x2
+
+        try a.withUnsafeBufferPointer { aPtr in
+            try b.withUnsafeBufferPointer { bPtr in
+                try c.withUnsafeMutableBufferPointer { cPtr in
+                    let aMatrix = Matrix(baseAddress: aPtr.baseAddress!, rows: 2, cols: 3)
+                    let bMatrix = Matrix(baseAddress: bPtr.baseAddress!, rows: 2, cols: 3)
+                    var cMatrix = MutableMatrix(baseAddress: cPtr.baseAddress!, rows: 2, cols: 2)
+                    let packed = try PackedMatrix<Float32>(packing: bMatrix)
+                    try dots_packed(aMatrix, packed, &cMatrix)
+                }
+            }
+        }
+
+        XCTAssertEqual(c[0], 50, accuracy: 0.01) // [1,2,3] · [7,8,9]
+        XCTAssertEqual(c[1], 4, accuracy: 0.01) // [1,2,3] · [1,0,1]
+        XCTAssertEqual(c[2], 122, accuracy: 0.01) // [4,5,6] · [7,8,9]
+        XCTAssertEqual(c[3], 10, accuracy: 0.01) // [4,5,6] · [1,0,1]
+    }
+
+    func testAngularsPackedFloat32() throws {
+        let a: [Float32] = [
+            1, 0, 0,
+            0, 1, 0,
+        ] // 2x3
+        let b: [Float32] = [
+            1, 0, 0,
+            0, 1, 0,
+        ] // 2x3
+        var out = Array(repeating: Float32(0), count: 4) // 2x2
+
+        try a.withUnsafeBufferPointer { aPtr in
+            try b.withUnsafeBufferPointer { bPtr in
+                try out.withUnsafeMutableBufferPointer { outPtr in
+                    let aMatrix = Matrix(baseAddress: aPtr.baseAddress!, rows: 2, cols: 3)
+                    let bMatrix = Matrix(baseAddress: bPtr.baseAddress!, rows: 2, cols: 3)
+                    var outMatrix = MutableMatrix(baseAddress: outPtr.baseAddress!, rows: 2, cols: 2)
+                    let packed = try PackedMatrix<Float32>(packing: bMatrix)
+                    try angulars_packed(aMatrix, packed, &outMatrix)
+                }
+            }
+        }
+
+        XCTAssertEqual(out[0], 0, accuracy: 0.01)
+        XCTAssertEqual(out[1], 1, accuracy: 0.05)
+        XCTAssertEqual(out[2], 1, accuracy: 0.05)
+        XCTAssertEqual(out[3], 0, accuracy: 0.01)
+    }
 }
