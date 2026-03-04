@@ -1259,15 +1259,14 @@ NK_PUBLIC void nk_dot_i4_haswell(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
 nk_dot_i4_haswell_cycle:
     // Process 16 bytes (32 nibbles) per iteration
     if (n_bytes < 16) {
-        // Partial load with 0x88 padding: each nibble XOR 8 = 0, contributing nothing.
-        // Sub-byte inputs must be zero-padded, so the last byte's unused nibble is 0.
+        // Zero-padded partial load: zero nibbles XOR 8 = 8, which contributes to cd_dot
+        // and correction sums. Extend `n` to cover padding so `+64*n` cancels it out.
         nk_b128_vec_t a_vec, b_vec;
-        a_vec.xmm = _mm_set1_epi8((char)0x88);
-        b_vec.xmm = _mm_set1_epi8((char)0x88);
         nk_partial_load_b8x16_serial_(a, &a_vec, n_bytes);
         nk_partial_load_b8x16_serial_(b, &b_vec, n_bytes);
         a_i4x32 = a_vec.xmm;
         b_i4x32 = b_vec.xmm;
+        n += (16 - n_bytes) * 2;
         n_bytes = 0;
     }
     else {
