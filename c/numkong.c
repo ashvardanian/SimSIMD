@@ -14,6 +14,14 @@ extern "C" {
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 
+// EM_JS expands to an empty-parameter-list declaration `()` and a trailing `;`,
+// which trigger `-Wstrict-prototypes` and `-Wextra-semi` under Clang/Emscripten.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
+#pragma clang diagnostic ignored "-Wextra-semi"
+#endif
+
 EM_JS(int, nk_detect_v128_, (), {
     var test = new Uint8Array([
         0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
@@ -40,6 +48,10 @@ EM_JS(int, nk_detect_relaxed_, (), {
         return 0;
     }
 });
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #endif // defined(__EMSCRIPTEN__)
 
 /**
