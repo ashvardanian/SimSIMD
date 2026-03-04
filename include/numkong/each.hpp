@@ -82,8 +82,7 @@ void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *a
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++)
-            c[i] = (precision_type_(a[i]) * precision_type_(in_type_(*alpha)) + precision_type_(in_type_(*beta)))
-                       .template to<in_type_>();
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(*beta)).template to<in_type_>();
     }
 }
 
@@ -134,8 +133,7 @@ void blend(in_type_ const *a, in_type_ const *b, std::size_t d, typename in_type
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++) {
-            c[i] = (precision_type_(a[i]) * precision_type_(in_type_(*alpha)) +
-                    precision_type_(b[i]) * precision_type_(in_type_(*beta)))
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(b[i]) * precision_type_(*beta))
                        .template to<in_type_>();
         }
     }
@@ -188,8 +186,8 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ const *c,
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++) {
-            out[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(in_type_(*alpha)) +
-                      precision_type_(c[i]) * precision_type_(in_type_(*beta)))
+            out[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(*alpha) +
+                      precision_type_(c[i]) * precision_type_(*beta))
                          .template to<in_type_>();
         }
     }
