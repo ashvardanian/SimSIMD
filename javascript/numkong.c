@@ -7,11 +7,11 @@
  *  @see NodeJS docs: https://nodejs.org/api/n-api.html
  */
 
-#include <numkong/numkong.h> // `nk_*` functions — must be first to bring `_GNU_SOURCE`
-#include <string.h>          // `strcmp` function
+#include <string.h> // `strcmp` function
 
-#define NAPI_VERSION 6 // Required for `napi_create_bigint_{u,}int64`
-#include <node_api.h>  // `napi_*` functions
+#include <node_api.h> // `napi_*` functions — N-API v6+ for BigInt (Node ≥ 10.20)
+
+#include <numkong/numkong.h> // `nk_*` functions — must be first to bring `_GNU_SOURCE`
 
 /** @brief Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded. */
 nk_capability_t static_capabilities = nk_cap_serial_k;

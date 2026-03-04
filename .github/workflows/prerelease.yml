@@ -157,7 +157,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build and Test
         run: |
@@ -197,7 +197,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build JavaScript bindings
         run: |
@@ -239,7 +239,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Test WASI runtime
         env:
@@ -278,7 +278,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build JavaScript bindings
         run: |
@@ -402,7 +402,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Build and Test with Node
         run: |
@@ -418,6 +418,52 @@ jobs:
 
       - name: Test with Deno
         run: deno test -A --no-check
+
+  test_bun:
+    name: Test Bun
+    runs-on: ubuntu-24.04
+    env:
+      CC: gcc-14
+      CXX: g++-14
+      PREBUILDS_ONLY: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || true
+          free -h 2>/dev/null || true
+          echo "::endgroup::"
+
+      - name: Update compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Build prebuilds and JS
+        run: |
+          npm ci --ignore-scripts
+          npm run prebuild-single
+          npm run build-js
+
+      - name: Test with Node
+        run: npm test
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Test with Bun
+        run: bun test ./test/test.mjs
 
   test_rust:
     name: Test Rust
