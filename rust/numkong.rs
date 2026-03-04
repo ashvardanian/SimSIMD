@@ -255,22 +255,24 @@ mod wasm_runtime_tests {
         println!("Instantiating WASM module...");
         let instance = linker.instantiate(&mut store, &module)?;
 
-        // Get main function
-        let main = instance.get_typed_func::<(), i32>(&mut store, "main")?;
+        // Get _start entry point (WASI convention; exit code comes via proc_exit trap)
+        let start = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
 
-        // Run tests
+        // Run tests — _start calls exit(0) which triggers proc_exit(0).
+        // Wasmtime reports proc_exit as an I32Exit error; exit code 0 means success.
         println!("Running WASM tests...");
-        let exit_code = main.call(&mut store, ())?;
+        match start.call(&mut store, ()) {
+            Ok(()) => {}
+            Err(e) => {
+                if let Some(exit) = e.downcast_ref::<wasmtime_wasi::I32Exit>() {
+                    assert_eq!(exit.0, 0, "WASI tests failed with exit code {}", exit.0);
+                } else {
+                    return Err(e);
+                }
+            }
+        }
 
-        println!("WASM tests completed with exit code: {}", exit_code);
-
-        // Assert tests passed
-        assert_eq!(
-            exit_code, 0,
-            "WASI tests failed with exit code {}",
-            exit_code
-        );
-
+        println!("WASM tests completed successfully");
         Ok(())
     }
 
