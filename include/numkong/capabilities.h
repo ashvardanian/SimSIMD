@@ -124,17 +124,22 @@
 #define NK_HAS_POSIX_EXTENSIONS_ 0
 #endif
 
-// On Linux x86, we need syscall for AMX permission request
-#if defined(NK_DEFINED_LINUX_) && NK_TARGET_X86_
+// On Linux, `syscall()` from `<unistd.h>` requires `_GNU_SOURCE` with `-std=c11`.
+// Scope it narrowly: define before including, then undef to avoid leaking.
+#if defined(NK_DEFINED_LINUX_) && (NK_TARGET_X86_ || NK_TARGET_RISCV_)
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#define NK_DEFINED_GNU_SOURCE_ 1
+#endif
 #include <sys/syscall.h> // `syscall`, `SYS_arch_prctl`
 #include <unistd.h>      // `syscall`
+#if NK_TARGET_RISCV_
+#include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
 #endif
-
-// On Linux RISC-V, we use getauxval and hwprobe syscall for capability detection
-#if defined(NK_DEFINED_LINUX_) && NK_TARGET_RISCV_
-#include <sys/auxv.h>    // `getauxval`, `AT_HWCAP`
-#include <sys/syscall.h> // `syscall`
-#include <unistd.h>      // `syscall`
+#if defined(NK_DEFINED_GNU_SOURCE_)
+#undef _GNU_SOURCE
+#undef NK_DEFINED_GNU_SOURCE_
+#endif
 #endif
 
 // On FreeBSD RISC-V, we use elf_aux_info for capability detection
