@@ -9,7 +9,7 @@ on:
 env:
   BUILD_TYPE: Release
   GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
-  SWIFT_VERSION: 5.9
+  SWIFT_VERSION: 6.2
   PYTHONUTF8: 1
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -86,8 +86,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2022]
-        python-version: ["3.13", "3.9"]
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        python-version: ["3.14", "3.10"]
         architecture: [x64, arm64]
 
     steps:
@@ -293,7 +293,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
@@ -512,7 +512,7 @@ jobs:
   test_ubuntu_swift:
     name: Swift on Linux
     runs-on: ubuntu-24.04
-    container: swift:5.9
+    container: swift:${{ env.SWIFT_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -538,7 +538,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -546,13 +546,13 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Install Toolchain
         run: |
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp39-manylinux_x86_64` and `cp39-musllinux_x86_64`
+          # Matches: `cp310-manylinux_x86_64` and `cp310-musllinux_x86_64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -566,7 +566,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -586,13 +586,13 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Install Toolchain
         run: |
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp39-manylinux_aarch64` and `cp39-musllinux_aarch64`
+          # Matches: `cp310-manylinux_aarch64` and `cp310-musllinux_aarch64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -604,7 +604,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -612,7 +612,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Install Toolchain
         run: |
           python -m pip install cibuildwheel
@@ -629,7 +629,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -637,7 +637,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Install Toolchain
         run: |
           python -m pip install cibuildwheel
@@ -650,15 +650,13 @@ jobs:
 
   build_wheels_windows:
     name: Build Python Wheels (Windows)
-    runs-on: windows-2022
+    runs-on: windows-2025
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
         include:
-          - python-version: "39"
-            architecture: ARM64
           - python-version: "310"
             architecture: ARM64
           - python-version: "311"
@@ -680,7 +678,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
         with:
@@ -700,7 +698,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -708,7 +706,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
       - name: Install Toolchain
@@ -728,7 +726,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -736,7 +734,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
       - name: Install Toolchain
