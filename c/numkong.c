@@ -318,6 +318,12 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                       row_start, row_count);                                    \
     }
 
+#define nk_dispatch_maxsim_packed_(name, input_type)                                                                  \
+    NK_DYNAMIC void nk_maxsim_packed_##name(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d, \
+                                            nk_size_t depth, nk_f32_t *result) {                                      \
+        nk_dispatch_table.maxsim_packed_##name(q_packed, d_packed, n_q, n_d, depth, (void *)result);                  \
+    }
+
 // Dot products
 nk_dispatch_dense_(dot, f64c, f64c, f64c)
 nk_dispatch_dense_(dot, f32c, f32c, f32c)
@@ -687,7 +693,22 @@ nk_dispatch_cross_symmetric_(euclideans, i4, i4x2, f32)
 nk_dispatch_cross_symmetric_(euclideans, u8, u8, f32)
 nk_dispatch_cross_symmetric_(euclideans, u4, u4x2, f32)
 
-NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
+// MaxSim packed sizes
+nk_dispatch_cross_packed_size_(maxsim, f32, f32, f32)
+nk_dispatch_cross_packed_size_(maxsim, bf16, bf16, f32)
+nk_dispatch_cross_packed_size_(maxsim, f16, f16, f32)
+
+// MaxSim packing
+nk_dispatch_cross_pack_(maxsim, f32, f32, f32)
+nk_dispatch_cross_pack_(maxsim, bf16, bf16, f32)
+nk_dispatch_cross_pack_(maxsim, f16, f16, f32)
+
+// MaxSim packed scoring
+nk_dispatch_maxsim_packed_(f32, f32) nk_dispatch_maxsim_packed_(bf16, bf16) nk_dispatch_maxsim_packed_(f16, f16)
+
+    NK_DYNAMIC int nk_uses_dynamic_dispatch(void) {
+    return 1;
+}
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
 NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {

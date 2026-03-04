@@ -435,9 +435,9 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_haswell_(        //
     }
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_haswell( //
+NK_PUBLIC void nk_maxsim_packed_bf16_haswell( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
-    nk_size_t depth) {
+    nk_size_t depth, nk_f32_t *result) {
 
     nk_maxsim_packed_regions_t regions = nk_maxsim_extract_packed_regions_(query_packed, document_packed);
     nk_f64_t total_angular_distance = 0.0;
@@ -466,12 +466,12 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_haswell( //
         }
     }
 
-    return (nk_f32_t)total_angular_distance;
+    *result = (nk_f32_t)total_angular_distance;
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_haswell( //
+NK_PUBLIC void nk_maxsim_packed_f32_haswell( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
-    nk_size_t depth) {
+    nk_size_t depth, nk_f32_t *result) {
 
     nk_maxsim_packed_regions_t regions = nk_maxsim_extract_packed_regions_(query_packed, document_packed);
     nk_f64_t total_angular_distance = 0.0;
@@ -500,12 +500,12 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_haswell( //
         }
     }
 
-    return (nk_f32_t)total_angular_distance;
+    *result = (nk_f32_t)total_angular_distance;
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_haswell( //
+NK_PUBLIC void nk_maxsim_packed_f16_haswell( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
-    nk_size_t depth) {
+    nk_size_t depth, nk_f32_t *result) {
 
     nk_maxsim_packed_regions_t regions = nk_maxsim_extract_packed_regions_(query_packed, document_packed);
     nk_f64_t total_angular_distance = 0.0;
@@ -534,7 +534,7 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_haswell( //
         }
     }
 
-    return (nk_f32_t)total_angular_distance;
+    *result = (nk_f32_t)total_angular_distance;
 }
 
 #if defined(__clang__)

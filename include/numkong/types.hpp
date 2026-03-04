@@ -156,7 +156,7 @@ struct f32_t {
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
     using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
     using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
-    using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
+    using maxsim_packed_kernel_t = void (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
     static constexpr char const *dtype_name() noexcept { return "f32"; }
@@ -1175,7 +1175,7 @@ struct f16_t {
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
     using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
     using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
-    using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
+    using maxsim_packed_kernel_t = void (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16_k; }
     static constexpr char const *dtype_name() noexcept { return "f16"; }
@@ -1425,7 +1425,7 @@ struct bf16_t {
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
     using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
     using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
-    using maxsim_packed_kernel_t = nk_f32_t (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
+    using maxsim_packed_kernel_t = void (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_bf16_k; }
     static constexpr char const *dtype_name() noexcept { return "bf16"; }

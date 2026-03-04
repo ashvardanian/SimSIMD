@@ -21,6 +21,8 @@ void measure_maxsim_packed(                                                     
 
     using input_t = typename nk::type_for<input_dtype_>::type;
     using raw_input_t = typename input_t::raw_t;
+    using result_t = typename input_t::maxsim_result_t;
+    using raw_result_t = typename result_t::raw_t;
 
     nk_size_t stride = depth * sizeof(raw_input_t);
     nk_size_t query_packed_bytes = packed_size_fn(query_count, depth);
@@ -50,7 +52,8 @@ void measure_maxsim_packed(                                                     
     std::size_t iterations = 0;
     for (auto _ : state) {
         auto &s = sets[iterations & (sets_count - 1)];
-        auto result = maxsim_fn(s.query_packed.data(), s.document_packed.data(), query_count, document_count, depth);
+        raw_result_t result;
+        maxsim_fn(s.query_packed.data(), s.document_packed.data(), query_count, document_count, depth, &result);
         bm::DoNotOptimize(result);
         ++iterations;
     }

@@ -29,7 +29,8 @@
  *  nk_maxsim_pack_bf16(documents, n_d, depth, depth * sizeof(nk_bf16_t), d_packed);
  *
  *  // Compute MaxSim score
- *  nk_f32_t score = nk_maxsim_packed_bf16(q_packed, d_packed, n_q, n_d, depth);
+ *  nk_f32_t score;
+ *  nk_maxsim_packed_bf16(q_packed, d_packed, n_q, n_d, depth, &score);
  *  @endcode
  *
  *  @section maxsim_packed_layout Packed Buffer Layout
@@ -93,16 +94,16 @@ NK_DYNAMIC void nk_maxsim_pack_f16(nk_f16_t const *vectors, nk_size_t n, nk_size
  *  @param[in] n_q Number of query vectors.
  *  @param[in] n_d Number of document vectors.
  *  @param[in] depth Number of dimensions per vector.
- *  @return Sum of per-query minimum angular distances.
+ *  @param[out] result Pointer to store the sum of per-query minimum angular distances.
  */
-NK_DYNAMIC nk_f32_t nk_maxsim_packed_bf16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                          nk_size_t depth);
+NK_DYNAMIC void nk_maxsim_packed_bf16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                      nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_DYNAMIC nk_f32_t nk_maxsim_packed_f32(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                         nk_size_t depth);
+NK_DYNAMIC void nk_maxsim_packed_f32(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                     nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_DYNAMIC nk_f32_t nk_maxsim_packed_f16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                         nk_size_t depth);
+NK_DYNAMIC void nk_maxsim_packed_f16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                     nk_size_t depth, nk_f32_t *result);
 
 // Serial (always available)
 /** @copydoc nk_maxsim_packed_size_bf16 */
@@ -121,14 +122,14 @@ NK_PUBLIC void nk_maxsim_pack_f32_serial(nk_f32_t const *vectors, nk_size_t n, n
 NK_PUBLIC void nk_maxsim_pack_f16_serial(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                          void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_serial(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_bf16_serial(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                            nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_serial(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                               nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f32_serial(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                           nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_serial(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                               nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f16_serial(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                           nk_size_t depth, nk_f32_t *result);
 
 #if NK_TARGET_ICELAKE
 /** @copydoc nk_maxsim_packed_size_bf16 */
@@ -142,11 +143,11 @@ NK_PUBLIC void nk_maxsim_pack_f32_icelake(nk_f32_t const *vectors, nk_size_t n, 
 NK_PUBLIC void nk_maxsim_pack_f16_icelake(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                           void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_icelake(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f32_icelake(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                            nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_icelake(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f16_icelake(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                            nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -156,8 +157,8 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_genoa(nk_size_t n, nk_size_t k);
 NK_PUBLIC void nk_maxsim_pack_bf16_genoa(nk_bf16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                          void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_genoa(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                               nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_bf16_genoa(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                           nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_HASWELL
@@ -177,14 +178,14 @@ NK_PUBLIC void nk_maxsim_pack_f32_haswell(nk_f32_t const *vectors, nk_size_t n, 
 NK_PUBLIC void nk_maxsim_pack_f16_haswell(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                           void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                 nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_bf16_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                             nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f32_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                            nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f16_haswell(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                            nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_NEONSDOT
@@ -204,14 +205,14 @@ NK_PUBLIC void nk_maxsim_pack_f32_neonsdot(nk_f32_t const *vectors, nk_size_t n,
 NK_PUBLIC void nk_maxsim_pack_f16_neonsdot(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                            void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                  nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_bf16_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                              nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                 nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f32_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                             nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q,
-                                                 nk_size_t n_d, nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f16_neonsdot(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                             nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_SME
@@ -231,14 +232,14 @@ NK_PUBLIC void nk_maxsim_pack_f16_sme(nk_f16_t const *vectors, nk_size_t n, nk_s
 NK_PUBLIC void nk_maxsim_pack_f32_sme(nk_f32_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
                                       void *packed);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                             nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_bf16_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                         nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                            nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f16_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                        nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                            nk_size_t depth);
+NK_PUBLIC void nk_maxsim_packed_f32_sme(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                        nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_SME
 
 #if defined(__cplusplus)
@@ -342,48 +343,48 @@ NK_PUBLIC void nk_maxsim_pack_f16(nk_f16_t const *vectors, nk_size_t n, nk_size_
 #endif
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                         nk_size_t depth) {
+NK_PUBLIC void nk_maxsim_packed_bf16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                     nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
-    return nk_maxsim_packed_bf16_sme(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_bf16_sme(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_GENOA
-    return nk_maxsim_packed_bf16_genoa(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_bf16_genoa(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_HASWELL
-    return nk_maxsim_packed_bf16_haswell(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_bf16_haswell(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_NEONSDOT
-    return nk_maxsim_packed_bf16_neonsdot(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_bf16_neonsdot(q_packed, d_packed, n_q, n_d, depth, result);
 #else
-    return nk_maxsim_packed_bf16_serial(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_bf16_serial(q_packed, d_packed, n_q, n_d, depth, result);
 #endif
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                        nk_size_t depth) {
+NK_PUBLIC void nk_maxsim_packed_f32(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                    nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
-    return nk_maxsim_packed_f32_sme(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f32_sme(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ICELAKE
-    return nk_maxsim_packed_f32_icelake(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f32_icelake(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_HASWELL
-    return nk_maxsim_packed_f32_haswell(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f32_haswell(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_NEONSDOT
-    return nk_maxsim_packed_f32_neonsdot(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f32_neonsdot(q_packed, d_packed, n_q, n_d, depth, result);
 #else
-    return nk_maxsim_packed_f32_serial(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f32_serial(q_packed, d_packed, n_q, n_d, depth, result);
 #endif
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
-                                        nk_size_t depth) {
+NK_PUBLIC void nk_maxsim_packed_f16(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d,
+                                    nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
-    return nk_maxsim_packed_f16_sme(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f16_sme(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ICELAKE
-    return nk_maxsim_packed_f16_icelake(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f16_icelake(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_HASWELL
-    return nk_maxsim_packed_f16_haswell(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f16_haswell(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_NEONSDOT
-    return nk_maxsim_packed_f16_neonsdot(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f16_neonsdot(q_packed, d_packed, n_q, n_d, depth, result);
 #else
-    return nk_maxsim_packed_f16_serial(q_packed, d_packed, n_q, n_d, depth);
+    nk_maxsim_packed_f16_serial(q_packed, d_packed, n_q, n_d, depth, result);
 #endif
 }
 

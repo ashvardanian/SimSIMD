@@ -43,14 +43,17 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
         // Pack and compute with kernel under test
         pack_fn(queries.raw_values_data(), query_count, depth, stride, query_packed.raw_values_data());
         pack_fn(documents.raw_values_data(), document_count, depth, stride, document_packed.raw_values_data());
-        auto result = maxsim_fn(query_packed.raw_values_data(), document_packed.raw_values_data(), query_count,
-                                document_count, depth);
+        result_t result;
+        maxsim_fn(query_packed.raw_values_data(), document_packed.raw_values_data(), query_count, document_count, depth,
+                  &result->raw_);
 
         // Exhaustive scalar reference
-        result_t reference = nk::maxsim_reference<scalar_t, result_t>(
-            queries.raw_values_data(), query_count, stride, documents.raw_values_data(), document_count, stride, depth);
+        result_t reference;
+        nk::maxsim_reference<scalar_t, result_t>(queries.raw_values_data(), query_count, stride,
+                                                 documents.raw_values_data(), document_count, stride, depth,
+                                                 &reference);
 
-        stats.accumulate(result_t::from_raw(result), reference);
+        stats.accumulate(result, reference);
     }
     return stats;
 }

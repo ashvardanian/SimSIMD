@@ -352,7 +352,7 @@ typedef void (*nk_euclideans_symmetric_punned_t)(void const *vectors, nk_size_t 
                                                  nk_size_t stride, void *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
 
-typedef nk_f32_t (*nk_maxsim_packed_punned_t)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t);
+typedef void (*nk_maxsim_packed_punned_t)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, void *);
 
 typedef void (*nk_kernel_cast_punned_t)(void const *from, nk_dtype_t from_type, nk_size_t n, void *to,
                                         nk_dtype_t to_type);

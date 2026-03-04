@@ -90,10 +90,10 @@ NK_STATIC_ASSERT(sizeof(nk_maxsim_sme_packed_header_t) == 64, nk_maxsim_sme_pack
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_streaming_( //
-    void const *query_packed, void const *document_packed,                               //
-    nk_size_t query_count, nk_size_t document_count,                                     //
-    nk_size_t depth) {
+__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streaming_( //
+    void const *query_packed, void const *document_packed,                           //
+    nk_size_t query_count, nk_size_t document_count,                                 //
+    nk_size_t depth, nk_f32_t *result) {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -261,14 +261,15 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_str
         total_angular_distance += svaddv_f32(row_predicate_f32x, angular_distance_f32x);
     }
 
-    return total_angular_distance;
+    *result = total_angular_distance;
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_sme(                            //
-    void const *query_packed, void const *document_packed,              //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth) { //
+NK_PUBLIC void nk_maxsim_packed_f16_sme(                              //
+    void const *query_packed, void const *document_packed,            //
+    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
+    nk_f32_t *result) {                                               //
 
-    return nk_maxsim_packed_f16_streaming_(query_packed, document_packed, query_count, document_count, depth);
+    nk_maxsim_packed_f16_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
 }
 
 /**
@@ -280,10 +281,10 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_sme(                            //
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_streaming_( //
-    void const *query_packed, void const *document_packed,                                //
-    nk_size_t query_count, nk_size_t document_count,                                      //
-    nk_size_t depth) {
+__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_streaming_( //
+    void const *query_packed, void const *document_packed,                            //
+    nk_size_t query_count, nk_size_t document_count,                                  //
+    nk_size_t depth, nk_f32_t *result) {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -456,14 +457,15 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_st
         total_angular_distance += svaddv_f32(row_predicate_f32x, angular_distance_f32x);
     }
 
-    return total_angular_distance;
+    *result = total_angular_distance;
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_sme(                           //
-    void const *query_packed, void const *document_packed,              //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth) { //
+NK_PUBLIC void nk_maxsim_packed_bf16_sme(                             //
+    void const *query_packed, void const *document_packed,            //
+    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
+    nk_f32_t *result) {                                               //
 
-    return nk_maxsim_packed_bf16_streaming_(query_packed, document_packed, query_count, document_count, depth);
+    nk_maxsim_packed_bf16_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
 }
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sme(nk_size_t n, nk_size_t k) { //
@@ -647,9 +649,10 @@ NK_INTERNAL nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                            
  *  Refinement: tile-wide interleaved f64 dot products for the winning (query, document) pairs.
  *  Angular distance: 1 - dot / sqrt(||q||^2 * ||d||^2), accumulated with f64.
  */
-__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f32_streaming_( //
-    void const *query_packed, void const *document_packed,                               //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth) {
+__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streaming_( //
+    void const *query_packed, void const *document_packed,                           //
+    nk_size_t query_count, nk_size_t document_count, nk_size_t depth,                //
+    nk_f32_t *result) {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -900,14 +903,15 @@ __arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f32_str
         }
     }
 
-    return (nk_f32_t)total_angular_distance_f64;
+    *result = (nk_f32_t)total_angular_distance_f64;
 }
 
-NK_PUBLIC nk_f32_t nk_maxsim_packed_f32_sme(                            //
-    void const *query_packed, void const *document_packed,              //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth) { //
+NK_PUBLIC void nk_maxsim_packed_f32_sme(                              //
+    void const *query_packed, void const *document_packed,            //
+    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
+    nk_f32_t *result) {                                               //
 
-    return nk_maxsim_packed_f32_streaming_(query_packed, document_packed, query_count, document_count, depth);
+    nk_maxsim_packed_f32_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
 }
 
 #if defined(__clang__)
