@@ -9,7 +9,9 @@
 
 #include <numkong/numkong.h> // `nk_*` functions — must be first to bring `_GNU_SOURCE`
 #include <string.h>          // `strcmp` function
-#include <node_api.h>        // `napi_*` functions
+
+#define NAPI_VERSION 6 // Required for `napi_create_bigint_{u,}int64`
+#include <node_api.h>  // `napi_*` functions
 
 /** @brief Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded. */
 nk_capability_t static_capabilities = nk_cap_serial_k;
