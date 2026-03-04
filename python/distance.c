@@ -790,18 +790,17 @@ char const doc_cdist[] =                                                        
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"                       //
     "    out (Tensor, optional): Output matrix to store the result.\n"                                            //
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n" //
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"               //
-    "    threads (int, optional): Number of threads to use (default is 1).\n\n"                                   //
+    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"             //
     "Returns:\n"                                                                                                  //
     "    Tensor: Pairwise distances between all inputs.\n\n"                                                      //
     "Equivalent to: `scipy.spatial.distance.cdist`.\n"                                                            //
     "Signature:\n"                                                                                                //
-    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[Tensor]: ...";
+    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype) -> Optional[Tensor]: ...";
 
 PyObject *api_cdist( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
-    // This function accepts up to seven arguments, more than SciPy:
+    // This function accepts up to six arguments, more than SciPy:
     // https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html
     PyObject *a_obj = NULL;         // Required object, positional-only
     PyObject *b_obj = NULL;         // Required object, positional-only
@@ -809,10 +808,8 @@ PyObject *api_cdist( //
     PyObject *out_obj = NULL;       // Optional object, "out" keyword-only
     PyObject *dtype_obj = NULL;     // Optional string, "dtype" keyword-only
     PyObject *out_dtype_obj = NULL; // Optional string, "out_dtype" keyword-only
-    PyObject *threads_obj = NULL;   // Optional integer, "threads" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    unsigned long long threads = 1;
     char const *dtype_str = NULL, *out_dtype_str = NULL;
     nk_dtype_t dtype = nk_dtype_unknown_k, out_dtype = nk_dtype_unknown_k;
 
@@ -824,8 +821,8 @@ PyObject *api_cdist( //
     // Parse the arguments
     Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
     Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 7) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-7 arguments, got %zd", args_count);
+    if (args_count < 2 || args_count > 6) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
         return NULL;
     }
     if (positional_args_count > 3) {
@@ -848,7 +845,6 @@ PyObject *api_cdist( //
         if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
         else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
         else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0 && !out_dtype_obj) { out_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "threads") == 0 && !threads_obj) { threads_obj = value; }
         else if (PyUnicode_CompareWithASCIIString(key, "metric") == 0 && !metric_obj) { metric_obj = value; }
         else {
             PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
@@ -868,13 +864,6 @@ PyObject *api_cdist( //
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
-    }
-
-    // Convert `threads_obj` to `threads` integer
-    if (threads_obj) threads = PyLong_AsSize_t(threads_obj);
-    if (PyErr_Occurred()) {
-        PyErr_SetString(PyExc_TypeError, "Expected 'threads' to be an unsigned integer");
-        return NULL;
     }
 
     // Convert `dtype_obj` to `dtype_str` and to `dtype`
@@ -905,7 +894,7 @@ PyObject *api_cdist( //
         }
     }
 
-    return implement_cdist(a_obj, b_obj, out_obj, metric_kind, threads, dtype, out_dtype);
+    return implement_cdist(a_obj, b_obj, out_obj, metric_kind, dtype, out_dtype);
 }
 
 char const doc_euclidean_pointer[] = "Return an integer pointer to the `numkong.euclidean` kernel.";
