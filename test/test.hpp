@@ -373,11 +373,11 @@ void print_stats_header() noexcept;
  */
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t n) {
-    nk::vector<type_> result;
+    auto result = nk::vector<type_>::try_with_dimensions(n);
 #if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
-    if (!result.resize(n)) throw std::bad_alloc();
+    if (result.empty() && n > 0) throw std::bad_alloc();
 #else
-    if (!result.resize(n)) std::abort();
+    if (result.empty() && n > 0) std::abort();
 #endif
     return result;
 }

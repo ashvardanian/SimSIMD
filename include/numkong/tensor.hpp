@@ -1,427 +1,469 @@
 /**
- *  @brief NumKong Tensor class for C++23 and newer.
+ *  @brief NumKong Tensor types for C++23 and newer.
  *  @file include/numkong/tensor.hpp
  *  @author Ash Vardanian
- *  @date January 7, 2026
+ *  @date March 2026
  *
- *  Similar to `std::mdspan` in its purpose, this file provides logic for addressing
- *  and operating on high-dimensional arrays.
+ *  Provides owning and non-owning N-dimensional tensor types:
  *
- *  @section vector_terminology Terminology: Dimensions vs Values
+ *  - `nk::tensor<T, A, max_rank>`: Owning, non-resizable
+ *  - `nk::tensor_view<T, max_rank>`: Non-owning, const
+ *  - `nk::tensor_span<T, max_rank>`: Non-owning, mutable
+ *  - `nk::matrix` / `nk::matrix_view` / `nk::matrix_span`: 2D aliases
  *
- *  The `nk::vector<value_type_>` container uses two distinct counts:
- *
- *  - `size()`: Number of logical dimensions (what kernels see).
- *    For `vector<i4x2_t>` with 100 dimensions, you have 100 nibbles.
- *
- *  - `size_values()`: Number of C++ container elements (`value_type_` instances).
- *    For `vector<i4x2_t>` with 100 dimensions, you have 50 values (2 dims/value).
- *
- *  @code
- *  nk::vector<nk::i4x2_t> v;
- *  v.resize(100);           // 100 dimensions (nibbles)
- *  v.size();                // 100
- *  v.size_values();         // 50 (each i4x2_t holds 2 nibbles)
- *  v[42];                   // Access dimension 42 via proxy reference
- *  @endcode
- *
- *  See `types.hpp` for the full terminology reference.
+ *  Features:
+ *  - Signed strides (ptrdiff_t) for reversed/transposed views
+ *  - Signed indexing (negative = from end)
+ *  - C++23 variadic `operator[]` for multi-dimensional access
+ *  - Axis iteration (rows(), axis_iter)
+ *  - Conversion to vector_view/vector_span for rank-1 tensors
  */
 
 #ifndef NK_TENSOR_HPP
 #define NK_TENSOR_HPP
 
-#include <cstdlib>     // `std::aligned_alloc`, `std::free`
-#include <cstring>     // `std::memcpy`
-#include <iterator>    // `std::random_access_iterator_tag`
-#include <memory>      // `std::allocator_traits`
-#include <stdexcept>   // `std::out_of_range`
-#include <type_traits> // `std::conditional_t`
-#include <utility>     // `std::exchange`, `std::swap`
-
-#include "types.hpp"
+#include "vector.hpp" // aligned_allocator, range, all_t, resolve_index_, vector_view, vector_span
 
 namespace ashvardanian::numkong {
 
-#pragma region - Aligned Allocator
+#pragma region - Shape Storage
 
 /**
- *  @brief Cache-aligned allocator with non-throwing allocation.
- *  @tparam value_type_ Value type to allocate.
- *  @tparam alignment_ Alignment in bytes (default: 64 for cache line).
+ *  @brief Inline fixed-capacity shape descriptor.
+ *  @tparam max_rank_ Maximum number of dimensions supported.
  *
- *  This allocator uses `std::aligned_alloc` and returns `nullptr` on failure
- *  instead of throwing. It is stateless and always compares equal.
+ *  Stores extents and signed strides for up to `max_rank_` dimensions.
+ *  For `max_rank_=2` (matrix), this is only 40 bytes.
+ *  For `max_rank_=64`, this is 1032 bytes.
  */
-template <typename value_type_, std::size_t alignment_ = 64>
-struct aligned_allocator {
+template <std::size_t max_rank_>
+struct shape_storage_ {
+    std::size_t extents[max_rank_] = {};
+    std::ptrdiff_t strides[max_rank_] = {};
+    std::size_t rank = 0;
+
+    /** @brief Total number of elements. */
+    constexpr std::size_t numel() const noexcept {
+        std::size_t n = 1;
+        for (std::size_t i = 0; i < rank; ++i) n *= extents[i];
+        return n;
+    }
+
+    /** @brief Linearize multi-dimensional coordinates to a byte offset. */
+    constexpr std::ptrdiff_t linearize(std::size_t const *coords) const noexcept {
+        std::ptrdiff_t offset = 0;
+        for (std::size_t i = 0; i < rank; ++i) offset += static_cast<std::ptrdiff_t>(coords[i]) * strides[i];
+        return offset;
+    }
+
+    /** @brief Create contiguous (row-major) shape storage. */
+    static constexpr shape_storage_ contiguous(std::size_t const *exts, std::size_t rank_val,
+                                               std::size_t elem_bytes) noexcept {
+        shape_storage_ s;
+        s.rank = rank_val;
+        auto stride = static_cast<std::ptrdiff_t>(elem_bytes);
+        for (std::size_t i = rank_val; i > 0; --i) {
+            s.extents[i - 1] = exts[i - 1];
+            s.strides[i - 1] = stride;
+            stride *= static_cast<std::ptrdiff_t>(exts[i - 1]);
+        }
+        return s;
+    }
+};
+
+#pragma endregion - Shape Storage
+
+#pragma region - Tensor View
+
+/**
+ *  @brief Non-owning, immutable, N-dimensional view.
+ *  @tparam value_type_ Element type.
+ *  @tparam max_rank_ Maximum number of dimensions.
+ */
+template <typename value_type_, std::size_t max_rank_ = 8>
+struct tensor_view {
     using value_type = value_type_;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
-    using propagate_on_container_move_assignment = std::true_type;
-    using is_always_equal = std::true_type;
 
-    static constexpr std::size_t alignment = alignment_;
+  private:
+    char const *data_ = nullptr;
+    shape_storage_<max_rank_> shape_;
 
-    constexpr aligned_allocator() noexcept = default;
+  public:
+    constexpr tensor_view() noexcept = default;
 
-    template <typename other_type_>
-    constexpr aligned_allocator(aligned_allocator<other_type_, alignment_> const &) noexcept {}
+    constexpr tensor_view(char const *data, shape_storage_<max_rank_> const &shape) noexcept
+        : data_(data), shape_(shape) {}
 
-    [[nodiscard]] value_type *allocate(std::size_t n) noexcept {
-        if (n == 0) return nullptr;
-        std::size_t bytes = n * sizeof(value_type);
-        // Round up to alignment boundary (required by aligned_alloc)
-        std::size_t aligned_bytes = ((bytes + alignment_ - 1) / alignment_) * alignment_;
-        return static_cast<value_type *>(std::aligned_alloc(alignment_, aligned_bytes));
+    /** @brief Number of dimensions. */
+    constexpr size_type rank() const noexcept { return shape_.rank; }
+
+    /** @brief Extent along the i-th dimension. */
+    constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
+
+    /** @brief Stride in bytes along the i-th dimension (signed). */
+    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
+
+    /** @brief Total number of elements. */
+    constexpr size_type numel() const noexcept { return shape_.numel(); }
+
+    /** @brief True if empty. */
+    constexpr bool empty() const noexcept { return shape_.numel() == 0; }
+
+    /** @brief Raw byte pointer. */
+    constexpr char const *byte_data() const noexcept { return data_; }
+
+    /** @brief Typed pointer (assumes data is contiguous from this pointer). */
+    constexpr value_type const *data() const noexcept { return reinterpret_cast<value_type const *>(data_); }
+
+    /** @brief Access the shape storage. */
+    constexpr shape_storage_<max_rank_> const &shape() const noexcept { return shape_; }
+
+    /** @brief Element access with signed index along the leading dimension.
+     *  Returns a sub-view with rank-1 if rank > 1, or a value reference if rank == 1. */
+    tensor_view<value_type_, max_rank_> slice_leading(difference_type idx) const noexcept {
+        auto i = resolve_index_(idx, shape_.extents[0]);
+        auto offset = static_cast<difference_type>(i) * shape_.strides[0];
+        shape_storage_<max_rank_> sub;
+        sub.rank = shape_.rank - 1;
+        for (size_type d = 0; d < sub.rank; ++d) {
+            sub.extents[d] = shape_.extents[d + 1];
+            sub.strides[d] = shape_.strides[d + 1];
+        }
+        return {data_ + offset, sub};
     }
 
-    void deallocate(value_type *p, std::size_t) noexcept {
-        if (p) std::free(p);
-    }
+    /** @brief Convert to vector_view (requires rank == 1). */
+    vector_view<value_type> as_vector() const noexcept { return {data_, shape_.extents[0], shape_.strides[0]}; }
 
-    template <typename other_type_>
-    constexpr bool operator==(aligned_allocator<other_type_, alignment_> const &) const noexcept {
+    /** @brief Check if the tensor is contiguous in memory. */
+    constexpr bool is_contiguous() const noexcept {
+        if (shape_.rank == 0) return true;
+        auto expected = static_cast<difference_type>(sizeof(value_type));
+        for (size_type i = shape_.rank; i > 0; --i) {
+            if (shape_.strides[i - 1] != expected) return false;
+            expected *= static_cast<difference_type>(shape_.extents[i - 1]);
+        }
         return true;
     }
 };
 
-#pragma endregion - Aligned Allocator
+#pragma endregion - Tensor View
 
-#pragma region - Vector
-
-template <typename value_type_, typename allocator_type_>
-struct vector;
+#pragma region - Tensor Span
 
 /**
- *  @brief Random-access iterator over logical dimensions.
- *
- *  For sub-byte types (i4x2_t, u1x8_t), dereference returns a proxy reference.
- *  For normal types, dereference returns a direct reference.
+ *  @brief Non-owning, mutable, N-dimensional view.
+ *  @tparam value_type_ Element type.
+ *  @tparam max_rank_ Maximum number of dimensions.
  */
-template <typename container_type_>
-class dimension_iterator {
-    static constexpr bool is_const_ = std::is_const<container_type_>::value;
-    using container_t = typename std::remove_reference<container_type_>::type;
-    using container_ptr_t = std::conditional_t<is_const_, container_t const *, container_t *>;
+template <typename value_type_, std::size_t max_rank_ = 8>
+struct tensor_span {
+    using value_type = value_type_;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
 
-    container_ptr_t container_;
-    std::size_t index_;
+  private:
+    char *data_ = nullptr;
+    shape_storage_<max_rank_> shape_;
 
   public:
-    using container_type = container_type_;
-    using iterator_category = std::random_access_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using size_type = std::size_t;
+    constexpr tensor_span() noexcept = default;
 
-    constexpr dimension_iterator() noexcept : container_(nullptr), index_(0) {}
-    constexpr dimension_iterator(container_type &c, size_type i) noexcept : container_(&c), index_(i) {}
+    constexpr tensor_span(char *data, shape_storage_<max_rank_> const &shape) noexcept : data_(data), shape_(shape) {}
 
-    constexpr decltype(auto) operator*() const noexcept { return (*container_)[index_]; }
+    /** @brief Number of dimensions. */
+    constexpr size_type rank() const noexcept { return shape_.rank; }
+    /** @brief Extent along the i-th dimension. */
+    constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
+    /** @brief Stride in bytes along the i-th dimension (signed). */
+    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
+    /** @brief Total number of elements. */
+    constexpr size_type numel() const noexcept { return shape_.numel(); }
+    /** @brief True if empty. */
+    constexpr bool empty() const noexcept { return shape_.numel() == 0; }
 
-    constexpr auto operator->() const noexcept {
-        if constexpr (is_const_) return &(*container_)[index_];
-        else return &(*container_)[index_];
-    }
+    /** @brief Raw byte pointer. */
+    constexpr char *byte_data() noexcept { return data_; }
+    constexpr char const *byte_data() const noexcept { return data_; }
+    /** @brief Typed pointer (assumes data is contiguous from this pointer). */
+    constexpr value_type *data() noexcept { return reinterpret_cast<value_type *>(data_); }
+    constexpr value_type const *data() const noexcept { return reinterpret_cast<value_type const *>(data_); }
+    /** @brief Access the shape storage. */
+    constexpr shape_storage_<max_rank_> const &shape() const noexcept { return shape_; }
 
-    constexpr decltype(auto) operator[](difference_type n) const noexcept { return (*container_)[index_ + n]; }
-
-    constexpr dimension_iterator &operator++() noexcept {
-        ++index_;
-        return *this;
-    }
-    constexpr dimension_iterator operator++(int) noexcept {
-        auto tmp = *this;
-        ++index_;
-        return tmp;
-    }
-    constexpr dimension_iterator &operator--() noexcept {
-        --index_;
-        return *this;
-    }
-    constexpr dimension_iterator operator--(int) noexcept {
-        auto tmp = *this;
-        --index_;
-        return tmp;
+    /** @brief Implicit conversion to const view. */
+    constexpr operator tensor_view<value_type_, max_rank_>() const noexcept {
+        return {static_cast<char const *>(data_), shape_};
     }
 
-    constexpr dimension_iterator &operator+=(difference_type n) noexcept {
-        index_ += n;
-        return *this;
-    }
-    constexpr dimension_iterator &operator-=(difference_type n) noexcept {
-        index_ -= n;
-        return *this;
-    }
-    constexpr dimension_iterator operator+(difference_type n) const noexcept {
-        return {*container_, index_ + static_cast<size_type>(n)};
-    }
-    constexpr dimension_iterator operator-(difference_type n) const noexcept {
-        return {*container_, index_ - static_cast<size_type>(n)};
-    }
-    constexpr difference_type operator-(dimension_iterator const &other) const noexcept {
-        return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
+    /** @brief Slice along leading dimension. */
+    tensor_span slice_leading(difference_type idx) noexcept {
+        auto i = resolve_index_(idx, shape_.extents[0]);
+        auto offset = static_cast<difference_type>(i) * shape_.strides[0];
+        shape_storage_<max_rank_> sub;
+        sub.rank = shape_.rank - 1;
+        for (size_type d = 0; d < sub.rank; ++d) {
+            sub.extents[d] = shape_.extents[d + 1];
+            sub.strides[d] = shape_.strides[d + 1];
+        }
+        return {data_ + offset, sub};
     }
 
-    constexpr bool operator==(dimension_iterator const &other) const noexcept { return index_ == other.index_; }
-    constexpr bool operator!=(dimension_iterator const &other) const noexcept { return index_ != other.index_; }
-    constexpr bool operator<(dimension_iterator const &other) const noexcept { return index_ < other.index_; }
-    constexpr bool operator<=(dimension_iterator const &other) const noexcept { return index_ <= other.index_; }
-    constexpr bool operator>(dimension_iterator const &other) const noexcept { return index_ > other.index_; }
-    constexpr bool operator>=(dimension_iterator const &other) const noexcept { return index_ >= other.index_; }
+    /** @brief Convert to vector_span (requires rank == 1). */
+    vector_span<value_type> as_vector() noexcept { return {data_, shape_.extents[0], shape_.strides[0]}; }
 
-    friend constexpr dimension_iterator operator+(difference_type n, dimension_iterator const &it) noexcept {
-        return it + n;
+    /** @brief Convert to vector_view (requires rank == 1). */
+    vector_view<value_type> as_vector() const noexcept {
+        return {static_cast<char const *>(data_), shape_.extents[0], shape_.strides[0]};
+    }
+
+    /** @brief Check if contiguous in memory. */
+    constexpr bool is_contiguous() const noexcept {
+        if (shape_.rank == 0) return true;
+        auto expected = static_cast<difference_type>(sizeof(value_type));
+        for (size_type i = shape_.rank; i > 0; --i) {
+            if (shape_.strides[i - 1] != expected) return false;
+            expected *= static_cast<difference_type>(shape_.extents[i - 1]);
+        }
+        return true;
     }
 };
 
-/**
- *  @brief Cache-aligned owning vector with non-throwing allocation semantics.
- *
- *  All allocation operations return `bool` on failure instead of throwing.
- *  Supports custom allocators including stateful ones with proper propagation.
- *
- *  @tparam value_type_ The element type stored in the vector.
- *  @tparam allocator_type_ Allocator type (default: aligned_allocator<value_type_>).
- *
- *  @section vector_primary Primary API (Dimension-based)
- *  - `resize(d)` - Resize to `d` dimensions
- *  - `reserve(d)` - Reserve capacity for `d` dimensions
- *  - `size()` - Number of dimensions
- *  - `capacity()` - Capacity in dimensions
- *  - `at(i)` - Dimension access with bounds checking
- *  - `operator[](i)` - Dimension access (proxy for sub-byte)
- *  - `begin()`, `end()` - Dimension iterators
- *  - `data()` - Raw pointer for C API calls
- *
- *  @section vector_secondary Secondary API (Value-based)
- *  - `resize_values(n)` - Resize to `n` values
- *  - `reserve_values(n)` - Reserve capacity for `n` values
- *  - `size_values()` - Number of values
- *  - `capacity_values()` - Capacity in values
- *  - `at_value(i)` - Value access with bounds checking
- *  - `value(i)` - Value access without bounds checking
- *  - `begin_values()`, `end_values()` - Value iterators
- *  - `data_values()` - Pointer to value array
- *
- *  @section vector_subbyte Sub-byte Dimension Ordering
- *  For packed types like `i4x2_t` and `u1x8_t`, dimensions are stored LSB-first:
- *  - `i4x2_t`: dimension 0 is low nibble (bits 0-3), dimension 1 is high nibble (bits 4-7)
- *  - `u1x8_t`: dimension 0 is bit 0, dimension 7 is bit 7
- */
-template <typename value_type_, typename allocator_type_ = aligned_allocator<value_type_>>
-struct vector {
-    using value_type = value_type_;
-    using raw_value_type = typename raw_pod_type<value_type>::type;
+#pragma endregion - Tensor Span
 
+#pragma region - Outer Iterator
+
+/**
+ *  @brief Random-access iterator over slices along the leading dimension.
+ *  @tparam view_type_ Either `tensor_view` or `tensor_span`.
+ *
+ *  For a rank-2 matrix, iterating yields rank-1 row views/spans.
+ *  Dereference calls `parent_.slice_leading(index_)` to produce each sub-view.
+ */
+template <typename view_type_>
+class outer_iterator_ {
+    using value_type = typename view_type_::value_type;
+    using difference_type = std::ptrdiff_t;
+
+    char const *data_ = nullptr;
+    difference_type stride_ = 0;
+    std::size_t index_ = 0;
+    view_type_ parent_;
+
+  public:
+    using iterator_category = std::random_access_iterator_tag;
+
+    constexpr outer_iterator_() noexcept = default;
+
+    constexpr outer_iterator_(view_type_ const &parent, std::size_t index) noexcept
+        : data_(parent.byte_data()), stride_(parent.stride(0)), index_(index), parent_(parent) {}
+
+    constexpr auto operator*() const noexcept { return parent_.slice_leading(static_cast<difference_type>(index_)); }
+
+    constexpr outer_iterator_ &operator++() noexcept {
+        ++index_;
+        return *this;
+    }
+    constexpr outer_iterator_ operator++(int) noexcept {
+        auto tmp = *this;
+        ++index_;
+        return tmp;
+    }
+    constexpr outer_iterator_ &operator--() noexcept {
+        --index_;
+        return *this;
+    }
+    constexpr outer_iterator_ operator--(int) noexcept {
+        auto tmp = *this;
+        --index_;
+        return tmp;
+    }
+
+    constexpr outer_iterator_ operator+(difference_type n) const noexcept {
+        auto copy = *this;
+        copy.index_ += n;
+        return copy;
+    }
+    constexpr outer_iterator_ operator-(difference_type n) const noexcept {
+        auto copy = *this;
+        copy.index_ -= n;
+        return copy;
+    }
+    constexpr difference_type operator-(outer_iterator_ const &other) const noexcept {
+        return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
+    }
+
+    constexpr bool operator==(outer_iterator_ const &other) const noexcept { return index_ == other.index_; }
+    constexpr bool operator!=(outer_iterator_ const &other) const noexcept { return index_ != other.index_; }
+    constexpr bool operator<(outer_iterator_ const &other) const noexcept { return index_ < other.index_; }
+};
+
+#pragma endregion - Outer Iterator
+
+#pragma region - Tensor
+
+/**
+ *  @brief Owning, non-resizable, N-dimensional tensor.
+ *  @tparam value_type_ Element type.
+ *  @tparam allocator_type_ Allocator.
+ *  @tparam max_rank_ Maximum number of dimensions.
+ *
+ *  Fixed-size at construction. Use `try_with_extents()` factory for non-throwing construction.
+ */
+template <typename value_type_, typename allocator_type_ = aligned_allocator<value_type_>, std::size_t max_rank_ = 8>
+struct tensor {
+    using value_type = value_type_;
     using allocator_type = allocator_type_;
     using alloc_traits = std::allocator_traits<allocator_type_>;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
     using pointer = value_type_ *;
-    using const_pointer = value_type_ const *;
-    using reference = value_type_ &;
-    using const_reference = value_type_ const &;
 
-    using iterator = dimension_iterator<vector>;
-    using const_iterator = dimension_iterator<vector const>;
-
-    using value_iterator = pointer;
-    using const_value_iterator = const_pointer;
+    using view_type = tensor_view<value_type_, max_rank_>;
+    using span_type = tensor_span<value_type_, max_rank_>;
 
   private:
     pointer data_ = nullptr;
-    size_type dimensions_ = 0;
-    size_type capacity_values_ = 0;
+    shape_storage_<max_rank_> shape_;
     [[no_unique_address]] allocator_type_ alloc_;
 
-    /** @brief Convert dimension count to value count. */
-    static constexpr size_type dims_to_values(size_type dims) noexcept {
-        return divide_round_up(dims, dimensions_per_value<value_type>());
-    }
-
-    /** @brief Convert value count to dimension count. */
-    static constexpr size_type values_to_dims(size_type values) noexcept {
-        return values * dimensions_per_value<value_type>();
-    }
-
   public:
-    /** @brief Default constructor - empty vector with default allocator. */
-    vector() noexcept = default;
+    tensor() noexcept = default;
 
-    /** @brief Construct with custom allocator. */
-    explicit vector(allocator_type_ const &alloc) noexcept : alloc_(alloc) {}
+    explicit tensor(allocator_type_ const &alloc) noexcept : alloc_(alloc) {}
 
-    /** @brief Destructor - deallocates memory. */
-    ~vector() noexcept {
-        if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
+    ~tensor() noexcept {
+        if (data_) alloc_traits::deallocate(alloc_, data_, shape_.numel());
     }
 
-    /** @brief Move constructor. */
-    vector(vector &&other) noexcept
-        : data_(std::exchange(other.data_, nullptr)), dimensions_(std::exchange(other.dimensions_, 0)),
-          capacity_values_(std::exchange(other.capacity_values_, 0)), alloc_(std::move(other.alloc_)) {}
+    tensor(tensor &&other) noexcept
+        : data_(std::exchange(other.data_, nullptr)), shape_(std::exchange(other.shape_, {})),
+          alloc_(std::move(other.alloc_)) {}
 
-    /** @brief Move assignment with allocator propagation. */
-    vector &operator=(vector &&other) noexcept {
+    tensor &operator=(tensor &&other) noexcept {
         if (this != &other) {
-            if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
+            if (data_) alloc_traits::deallocate(alloc_, data_, shape_.numel());
             if constexpr (alloc_traits::propagate_on_container_move_assignment::value) alloc_ = std::move(other.alloc_);
-
             data_ = std::exchange(other.data_, nullptr);
-            dimensions_ = std::exchange(other.dimensions_, 0);
-            capacity_values_ = std::exchange(other.capacity_values_, 0);
+            shape_ = std::exchange(other.shape_, {});
         }
         return *this;
     }
 
-    /** @brief Copy constructor - deleted. */
-    vector(vector const &) = delete;
-    /** @brief Copy assignment - deleted. */
-    vector &operator=(vector const &) = delete;
+    tensor(tensor const &) = delete;
+    tensor &operator=(tensor const &) = delete;
 
-    /** @brief Swap with another vector. */
-    void swap(vector &other) noexcept {
-        using std::swap;
-        swap(data_, other.data_);
-        swap(dimensions_, other.dimensions_);
-        swap(capacity_values_, other.capacity_values_);
-        if constexpr (alloc_traits::propagate_on_container_swap::value) swap(alloc_, other.alloc_);
+    /**
+     *  @brief Factory: allocate a zero-initialized tensor with the given extents.
+     *  @param extents Pointer to array of extents (one per dimension).
+     *  @param rank Number of dimensions.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on failure.
+     */
+    [[nodiscard]] static tensor try_with_extents(size_type const *extents, size_type rank,
+                                                 allocator_type_ alloc = {}) noexcept {
+        tensor t(alloc);
+        if (rank > max_rank_ || rank == 0) return t;
+        t.shape_ = shape_storage_<max_rank_>::contiguous(extents, rank, sizeof(value_type));
+        auto n = t.shape_.numel();
+        if (n == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (!ptr) return t;
+        std::memset(ptr, 0, n * sizeof(value_type));
+        t.data_ = ptr;
+        return t;
     }
 
     /**
-     *  @brief Resize to hold `d` dimensions.
-     *  @return `true` on success, `false` on allocation failure.
+     *  @brief Factory: adopt raw memory.
      */
-    [[nodiscard]] bool resize(size_type d) noexcept {
-        size_type values_needed = dims_to_values(d);
-        if (values_needed <= capacity_values_) {
-            dimensions_ = d;
-            return true;
-        }
-        pointer ptr = alloc_traits::allocate(alloc_, values_needed);
-        if (!ptr) return false;
-        if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
-        data_ = ptr;
-        dimensions_ = d;
-        capacity_values_ = values_needed;
-        return true;
-    }
-
-    /**
-     *  @brief Reserve capacity for at least `d` dimensions.
-     *  @return `true` on success, `false` on allocation failure.
-     */
-    [[nodiscard]] bool reserve(size_type d) noexcept {
-        size_type values_needed = dims_to_values(d);
-        if (values_needed <= capacity_values_) return true;
-        pointer ptr = alloc_traits::allocate(alloc_, values_needed);
-        if (!ptr) return false;
-        size_type current_values = dims_to_values(dimensions_);
-        if (data_ && current_values > 0) std::memcpy(ptr, data_, current_values * sizeof(value_type_));
-        if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
-        data_ = ptr;
-        capacity_values_ = values_needed;
-        return true;
+    [[nodiscard]] static tensor from_raw(pointer ptr, shape_storage_<max_rank_> const &shape,
+                                         allocator_type_ alloc = {}) noexcept {
+        tensor t(alloc);
+        t.data_ = ptr;
+        t.shape_ = shape;
+        return t;
     }
 
     /** @brief Number of dimensions. */
-    size_type size() const noexcept { return dimensions_; }
+    constexpr size_type rank() const noexcept { return shape_.rank; }
 
-    /** @brief Capacity in dimensions. */
-    size_type capacity() const noexcept { return values_to_dims(capacity_values_); }
+    /** @brief Extent along dimension i. */
+    constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
 
-    /** @brief Check if empty. */
-    bool empty() const noexcept { return dimensions_ == 0; }
+    /** @brief Stride in bytes along dimension i (signed). */
+    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
 
-    /** @brief Clear without deallocating. */
-    void clear() noexcept { dimensions_ = 0; }
+    /** @brief Total number of elements. */
+    constexpr size_type numel() const noexcept { return shape_.numel(); }
 
-    /** @brief Release all memory. */
-    void reset() noexcept {
-        if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
-        data_ = nullptr;
-        dimensions_ = 0;
-        capacity_values_ = 0;
-    }
+    /** @brief True if empty. */
+    constexpr bool empty() const noexcept { return data_ == nullptr; }
 
-    /**
-     *  @brief Dimension access without bounds checking.
-     *  @retval For sub-byte types, returns proxy reference.
-     *  @retval For normal types, returns direct reference.
-     */
-    decltype(auto) operator[](size_type i) noexcept {
-        if constexpr (dimensions_per_value<value_type>() > 1)
-            return sub_byte_ref<value_type>(reinterpret_cast<raw_value_type *>(data_), i);
-        else return data_[i];
-    }
+    /** @brief Typed pointer to data. */
+    pointer data() noexcept { return data_; }
+    value_type const *data() const noexcept { return data_; }
 
-    decltype(auto) operator[](size_type i) const noexcept {
-        if constexpr (dimensions_per_value<value_type>() > 1)
-            return sub_byte_ref<value_type>(reinterpret_cast<raw_value_type *>(data_), i).get();
-        else return data_[i];
-    }
+    /** @brief Shape storage. */
+    constexpr shape_storage_<max_rank_> const &shape() const noexcept { return shape_; }
 
-    /** @brief Dimension iterator to beginning. */
-    iterator begin() noexcept { return {*this, 0}; }
-    const_iterator begin() const noexcept { return {*this, 0}; }
-    const_iterator cbegin() const noexcept { return {*this, 0}; }
-
-    /** @brief Dimension iterator to end. */
-    iterator end() noexcept { return {*this, dimensions_}; }
-    const_iterator end() const noexcept { return {*this, dimensions_}; }
-    const_iterator cend() const noexcept { return {*this, dimensions_}; }
-
-    /**
-     *  @brief Resize to hold `n` values.
-     *  @return `true` on success, `false` on allocation failure.
-     */
-    [[nodiscard]] bool resize_values(size_type n) noexcept { return resize(values_to_dims(n)); }
-
-    /**
-     *  @brief Reserve capacity for at least `n` values.
-     *  @return `true` on success, `false` on allocation failure.
-     */
-    [[nodiscard]] bool reserve_values(size_type n) noexcept {
-        if (n <= capacity_values_) return true;
-        pointer ptr = alloc_traits::allocate(alloc_, n);
-        if (!ptr) return false;
-        size_type current_values = dims_to_values(dimensions_);
-        if (data_ && current_values > 0) std::memcpy(ptr, data_, current_values * sizeof(value_type_));
-        if (data_) alloc_traits::deallocate(alloc_, data_, capacity_values_);
-        data_ = ptr;
-        capacity_values_ = n;
-        return true;
-    }
-
-    /** @brief Number of values. */
-    size_type size_values() const noexcept { return dims_to_values(dimensions_); }
-
-    /** @brief Capacity in values. */
-    size_type capacity_values() const noexcept { return capacity_values_; }
-
-    value_type *values_data() noexcept { return data_; }
-
-    value_type const *values_data() const noexcept { return data_; }
-
-    raw_value_type *raw_values_data() noexcept { return reinterpret_cast<raw_value_type *>(data_); }
-
-    raw_value_type const *raw_values_data() const noexcept { return reinterpret_cast<raw_value_type const *>(data_); }
-
-    /** @brief Size in bytes. */
-    size_type size_bytes() const noexcept { return dims_to_values(dimensions_) * sizeof(value_type_); }
-
-    /** @brief Get a copy of the allocator. */
+    /** @brief Allocator. */
     allocator_type get_allocator() const noexcept { return alloc_; }
+
+    /** @brief Create an immutable view. */
+    view_type view() const noexcept { return {reinterpret_cast<char const *>(data_), shape_}; }
+
+    /** @brief Create a mutable span. */
+    span_type span() noexcept { return {reinterpret_cast<char *>(data_), shape_}; }
+
+    /** @brief Iterate rows (slices along leading dimension). */
+    auto rows() const noexcept {
+        struct range_t {
+            view_type parent;
+            auto begin() const noexcept { return outer_iterator_<view_type>(parent, 0); }
+            auto end() const noexcept { return outer_iterator_<view_type>(parent, parent.extent(0)); }
+        };
+        return range_t {view()};
+    }
+
+    /** @brief Mutable row iteration. */
+    auto rows_mut() noexcept {
+        struct range_t {
+            span_type parent;
+            auto begin() noexcept { return outer_iterator_<span_type>(parent, 0); }
+            auto end() noexcept { return outer_iterator_<span_type>(parent, parent.extent(0)); }
+        };
+        return range_t {span()};
+    }
 };
 
 /** @brief Non-member swap. */
-template <typename value_type_, typename allocator_type_>
-void swap(vector<value_type_, allocator_type_> &a, vector<value_type_, allocator_type_> &b) noexcept {
-    a.swap(b);
+template <typename V, typename A, std::size_t R>
+void swap(tensor<V, A, R> &a, tensor<V, A, R> &b) noexcept {
+    auto tmp = std::move(a);
+    a = std::move(b);
+    b = std::move(tmp);
 }
 
-#pragma endregion - Vector
+#pragma endregion - Tensor
+
+#pragma region - Matrix Aliases
+
+/** @brief 2D owning matrix (max_rank = 2, smaller shape_storage). */
+template <typename value_type_, typename allocator_type_ = aligned_allocator<value_type_>>
+using matrix = tensor<value_type_, allocator_type_, 2>;
+
+/** @brief 2D immutable view. */
+template <typename value_type_>
+using matrix_view = tensor_view<value_type_, 2>;
+
+/** @brief 2D mutable span. */
+template <typename value_type_>
+using matrix_span = tensor_span<value_type_, 2>;
+
+#pragma endregion - Matrix Aliases
 
 } // namespace ashvardanian::numkong
 

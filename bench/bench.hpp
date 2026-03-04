@@ -107,8 +107,8 @@ inline std::size_t bench_input_count(std::size_t bytes_per_set) {
 /** @brief Factory function to allocate vectors, potentially raising bad-allocs. */
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t count) {
-    nk::vector<type_> result;
-    if (!result.resize(count)) throw std::bad_alloc();
+    auto result = nk::vector<type_>::try_with_dimensions(count);
+    if (result.empty() && count > 0) throw std::bad_alloc();
     return result;
 }
 
@@ -134,8 +134,9 @@ template <nk_dtype_t dtype_>
     nk_size_t bytes_per_row = nk::divide_round_up(bits_per_row, NK_BITS_PER_BYTE);
     nk_size_t total_values = rows * bytes_per_row / sizeof(raw_t);
 
-    nk::vector<type_> result;
-    if (!result.resize_values(total_values)) throw std::bad_alloc();
+    std::size_t total_dims = total_values * nk::dimensions_per_value<type_>();
+    auto result = nk::vector<type_>::try_with_dimensions(total_dims);
+    if (result.empty() && total_dims > 0) throw std::bad_alloc();
     return result;
 }
 

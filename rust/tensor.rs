@@ -4,7 +4,7 @@
 //!
 //! - [`Tensor`]: N-dimensional array with customizable rank and allocator
 //! - [`TensorView`]: Immutable view into a tensor
-//! - [`TensorViewMut`]: Mutable view into a tensor
+//! - [`TensorSpan`]: Mutable view into a tensor
 //! - [`Matrix`]: Type alias for 2D tensors
 //! - [`PackedMatrix`]: Pre-packed matrix for efficient GEMM
 //!
@@ -19,6 +19,7 @@
 //! # Example
 //!
 //! ```rust,ignore
+//! // Requires linking against libnumkong C library
 //! use numkong::{Tensor, PackedMatrix};
 //!
 //! let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
@@ -2346,6 +2347,7 @@ impl Euclideans for i4x2 {
 /// # Example
 ///
 /// ```rust,ignore
+/// // Requires linking against libnumkong C library
 /// use numkong::{Tensor, PackedMatrix};
 ///
 /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
@@ -2363,7 +2365,7 @@ pub struct Tensor<T, A: Allocator = Global, const MAX_RANK: usize = DEFAULT_MAX_
     /// Shape dimensions.
     shape: [usize; MAX_RANK],
     /// Strides in bytes.
-    strides: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
     /// Number of dimensions.
     ndim: usize,
     /// Allocator instance.
@@ -2443,7 +2445,7 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let mut shape_arr = [0usize; MAX_RANK];
         shape_arr[..shape.len()].copy_from_slice(shape);
 
-        let mut strides_arr = [0usize; MAX_RANK];
+        let mut strides_arr = [0isize; MAX_RANK];
         Self::compute_strides_into(shape, &mut strides_arr);
 
         Ok(Self {
@@ -2494,7 +2496,7 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let mut shape_arr = [0usize; MAX_RANK];
         shape_arr[..shape.len()].copy_from_slice(shape);
 
-        let mut strides_arr = [0usize; MAX_RANK];
+        let mut strides_arr = [0isize; MAX_RANK];
         Self::compute_strides_into(shape, &mut strides_arr);
 
         Ok(Self {
@@ -2507,16 +2509,16 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         })
     }
 
-    fn compute_strides_into(shape: &[usize], strides: &mut [usize; MAX_RANK]) {
+    fn compute_strides_into(shape: &[usize], strides: &mut [isize; MAX_RANK]) {
         let elem_size = core::mem::size_of::<T>();
         if shape.is_empty() {
             return;
         }
 
-        let mut stride = elem_size;
+        let mut stride = elem_size as isize;
         for i in (0..shape.len()).rev() {
             strides[i] = stride;
-            stride *= shape[i];
+            stride *= shape[i] as isize;
         }
     }
 
@@ -2549,7 +2551,7 @@ impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> usize {
+    pub fn stride(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -2579,7 +2581,7 @@ impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             return false;
         }
         // Last dimension stride should be element size
-        self.strides[1] == core::mem::size_of::<T>()
+        self.strides[1] == core::mem::size_of::<T>() as isize
     }
 
     /// Returns a row of a 2D array.
@@ -2695,7 +2697,7 @@ pub struct TensorView<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     /// Shape of the view.
     shape: [usize; MAX_RANK],
     /// Strides in bytes.
-    strides: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
     /// Number of dimensions.
     ndim: usize,
     /// Lifetime marker.
@@ -2724,7 +2726,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> usize {
+    pub fn stride(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -2738,7 +2740,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         if self.ndim != 2 {
             return false;
         }
-        self.strides[1] == core::mem::size_of::<T>()
+        self.strides[1] == core::mem::size_of::<T>() as isize
     }
 
     /// Check if the entire view is contiguous in memory.
@@ -2746,13 +2748,13 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         if self.ndim == 0 {
             return true;
         }
-        let elem_size = core::mem::size_of::<T>();
+        let elem_size = core::mem::size_of::<T>() as isize;
         let mut expected_stride = elem_size;
         for i in (0..self.ndim).rev() {
             if self.strides[i] != expected_stride {
                 return false;
             }
-            expected_stride *= self.shape[i];
+            expected_stride *= self.shape[i] as isize;
         }
         true
     }
@@ -2798,10 +2800,12 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
             let col_stride = self.strides[1];
             let mut dest_idx = 0;
             for r in 0..rows {
-                let row_ptr = unsafe { (self.data as *const u8).add(r * row_stride) as *const T };
+                let row_ptr =
+                    unsafe { (self.data as *const u8).offset(r as isize * row_stride) as *const T };
                 for c in 0..cols {
-                    let elem_ptr =
-                        unsafe { (row_ptr as *const u8).add(c * col_stride) as *const T };
+                    let elem_ptr = unsafe {
+                        (row_ptr as *const u8).offset(c as isize * col_stride) as *const T
+                    };
                     dest[dest_idx] = unsafe { (*elem_ptr).clone() };
                     dest_idx += 1;
                 }
@@ -2811,11 +2815,11 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
             let mut indices = [0usize; MAX_RANK];
             for dest_idx in 0..self.len {
                 // Compute pointer offset
-                let mut offset = 0usize;
+                let mut offset = 0isize;
                 for d in 0..self.ndim {
-                    offset += indices[d] * self.strides[d];
+                    offset += indices[d] as isize * self.strides[d];
                 }
-                let elem_ptr = unsafe { (self.data as *const u8).add(offset) as *const T };
+                let elem_ptr = unsafe { (self.data as *const u8).offset(offset) as *const T };
                 dest[dest_idx] = unsafe { (*elem_ptr).clone() };
 
                 // Increment indices (row-major order)
@@ -2877,9 +2881,9 @@ where
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2912,9 +2916,9 @@ impl<'a, T: Angulars, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2947,9 +2951,9 @@ impl<'a, T: Euclideans, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2978,9 +2982,9 @@ impl<'a, T: Hammings, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n_vectors,
             );
@@ -3012,9 +3016,9 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n_vectors,
             );
@@ -3025,10 +3029,10 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
 
 // endregion: TensorView
 
-// region: TensorViewMut
+// region: TensorSpan
 
 /// A mutable view into a Tensor.
-pub struct TensorViewMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+pub struct TensorSpan<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     /// Pointer to first element of view.
     data: *mut T,
     /// Number of elements accessible via this view.
@@ -3036,14 +3040,14 @@ pub struct TensorViewMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     /// Shape of the view.
     shape: [usize; MAX_RANK],
     /// Strides in bytes.
-    strides: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
     /// Number of dimensions.
     ndim: usize,
     /// Lifetime marker.
     _marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T, const MAX_RANK: usize> TensorViewMut<'a, T, MAX_RANK> {
+impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
     /// Returns the shape of the view.
     pub fn shape(&self) -> &[usize] {
         &self.shape[..self.ndim]
@@ -3065,7 +3069,7 @@ impl<'a, T, const MAX_RANK: usize> TensorViewMut<'a, T, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> usize {
+    pub fn stride(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -3084,7 +3088,7 @@ impl<'a, T, const MAX_RANK: usize> TensorViewMut<'a, T, MAX_RANK> {
         if self.ndim != 2 {
             return false;
         }
-        self.strides[1] == core::mem::size_of::<T>()
+        self.strides[1] == core::mem::size_of::<T>() as isize
     }
 
     /// Check if the entire view is contiguous in memory.
@@ -3092,13 +3096,13 @@ impl<'a, T, const MAX_RANK: usize> TensorViewMut<'a, T, MAX_RANK> {
         if self.ndim == 0 {
             return true;
         }
-        let elem_size = core::mem::size_of::<T>();
+        let elem_size = core::mem::size_of::<T>() as isize;
         let mut expected_stride = elem_size;
         for i in (0..self.ndim).rev() {
             if self.strides[i] != expected_stride {
                 return false;
             }
-            expected_stride *= self.shape[i];
+            expected_stride *= self.shape[i] as isize;
         }
         true
     }
@@ -3134,7 +3138,194 @@ impl<'a, T, const MAX_RANK: usize> TensorViewMut<'a, T, MAX_RANK> {
     }
 }
 
-// endregion: TensorViewMut
+// endregion: TensorSpan
+
+// region: AxisIter
+
+/// Iterator over sub-tensor views along a given axis.
+///
+/// Each item is a `TensorView` with the iterated dimension removed (rank - 1).
+/// For a rank-2 matrix, `axis_iter(0)` yields row views.
+pub struct AxisIter<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    data: *const T,
+    shape: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
+    ndim: usize,
+    axis: usize,
+    axis_size: usize,
+    axis_stride: isize,
+    current: usize,
+    _marker: PhantomData<&'a T>,
+}
+
+impl<'a, T, const MAX_RANK: usize> Iterator for AxisIter<'a, T, MAX_RANK> {
+    type Item = TensorView<'a, T, MAX_RANK>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.axis_size {
+            return None;
+        }
+        let offset = self.current as isize * self.axis_stride;
+        let sub_ptr = unsafe { (self.data as *const u8).offset(offset) as *const T };
+
+        // Build sub-shape/strides with the axis dimension removed
+        let mut sub_shape = [0usize; MAX_RANK];
+        let mut sub_strides = [0isize; MAX_RANK];
+        let mut j = 0;
+        for i in 0..self.ndim {
+            if i != self.axis {
+                sub_shape[j] = self.shape[i];
+                sub_strides[j] = self.strides[i];
+                j += 1;
+            }
+        }
+        let sub_ndim = self.ndim - 1;
+        let sub_len: usize = sub_shape[..sub_ndim].iter().product();
+
+        self.current += 1;
+        Some(TensorView {
+            data: sub_ptr,
+            len: sub_len,
+            shape: sub_shape,
+            strides: sub_strides,
+            ndim: sub_ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.axis_size - self.current;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIter<'a, T, MAX_RANK> {}
+
+/// Mutable iterator over sub-tensor spans along a given axis.
+///
+/// Each item is a `TensorSpan` with the iterated dimension removed (rank - 1).
+/// For a rank-2 matrix, `axis_iter_mut(0)` yields mutable row spans.
+pub struct AxisIterMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    data: *mut T,
+    shape: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
+    ndim: usize,
+    axis: usize,
+    axis_size: usize,
+    axis_stride: isize,
+    current: usize,
+    _marker: PhantomData<&'a mut T>,
+}
+
+impl<'a, T, const MAX_RANK: usize> Iterator for AxisIterMut<'a, T, MAX_RANK> {
+    type Item = TensorSpan<'a, T, MAX_RANK>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.axis_size {
+            return None;
+        }
+        let offset = self.current as isize * self.axis_stride;
+        let sub_ptr = unsafe { (self.data as *mut u8).offset(offset) as *mut T };
+
+        let mut sub_shape = [0usize; MAX_RANK];
+        let mut sub_strides = [0isize; MAX_RANK];
+        let mut j = 0;
+        for i in 0..self.ndim {
+            if i != self.axis {
+                sub_shape[j] = self.shape[i];
+                sub_strides[j] = self.strides[i];
+                j += 1;
+            }
+        }
+        let sub_ndim = self.ndim - 1;
+        let sub_len: usize = sub_shape[..sub_ndim].iter().product();
+
+        self.current += 1;
+        Some(TensorSpan {
+            data: sub_ptr,
+            len: sub_len,
+            shape: sub_shape,
+            strides: sub_strides,
+            ndim: sub_ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.axis_size - self.current;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIterMut<'a, T, MAX_RANK> {}
+
+impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Iterate along the given axis, yielding sub-tensor views with rank-1.
+    pub fn axis_iter(&self, axis: usize) -> Result<AxisIter<'a, T, MAX_RANK>, TensorError> {
+        if axis >= self.ndim {
+            return Err(TensorError::IndexOutOfBounds {
+                index: axis,
+                size: self.ndim,
+            });
+        }
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        Ok(AxisIter {
+            data: self.data,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            axis,
+            axis_size: self.shape[axis],
+            axis_stride: self.strides[axis],
+            current: 0,
+            _marker: PhantomData,
+        })
+    }
+}
+
+impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+    /// Iterate along the given axis, yielding sub-tensor views with rank-1.
+    pub fn axis_iter(&self, axis: usize) -> Result<AxisIter<'_, T, MAX_RANK>, TensorError> {
+        self.view().axis_iter(axis)
+    }
+
+    /// Iterate mutably along the given axis, yielding sub-tensor spans with rank-1.
+    pub fn axis_iter_mut(
+        &mut self,
+        axis: usize,
+    ) -> Result<AxisIterMut<'_, T, MAX_RANK>, TensorError> {
+        if axis >= self.ndim {
+            return Err(TensorError::IndexOutOfBounds {
+                index: axis,
+                size: self.ndim,
+            });
+        }
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        Ok(AxisIterMut {
+            data: self.data.as_ptr(),
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            axis,
+            axis_size: self.shape[axis],
+            axis_stride: self.strides[axis],
+            current: 0,
+            _marker: PhantomData,
+        })
+    }
+}
+
+// endregion: AxisIter
 
 // region: Tensor View and Slice Methods
 
@@ -3152,8 +3343,8 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 
     /// Create a mutable view of the entire array.
-    pub fn view_mut(&mut self) -> TensorViewMut<'_, T, MAX_RANK> {
-        TensorViewMut {
+    pub fn view_mut(&mut self) -> TensorSpan<'_, T, MAX_RANK> {
+        TensorSpan {
             data: self.data.as_ptr(),
             len: self.len,
             shape: self.shape,
@@ -3189,9 +3380,9 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         }
 
         let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
         let mut new_ndim = 0usize;
-        let mut offset = 0usize;
+        let mut offset = 0isize;
 
         for (dim, range) in ranges.iter().enumerate() {
             let dim_size = self.shape[dim];
@@ -3211,7 +3402,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                         });
                     }
                     // Single index reduces dimension (doesn't add to new shape)
-                    offset += i * dim_stride;
+                    offset += i as isize * dim_stride;
                 }
                 SliceRange::Range { start, end } => {
                     if start > end || end > dim_size {
@@ -3223,7 +3414,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     new_shape[new_ndim] = end - start;
                     new_strides[new_ndim] = dim_stride;
                     new_ndim += 1;
-                    offset += start * dim_stride;
+                    offset += start as isize * dim_stride;
                 }
                 SliceRange::RangeStep { start, end, step } => {
                     if start >= dim_size || (end > dim_size && step > 0) {
@@ -3246,15 +3437,15 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     };
                     new_shape[new_ndim] = count;
                     // Stride can be negative for reversed views
-                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_strides[new_ndim] = dim_stride * step;
                     new_ndim += 1;
-                    offset += start * dim_stride;
+                    offset += start as isize * dim_stride;
                 }
             }
         }
 
         let new_len: usize = new_shape[..new_ndim].iter().product();
-        let new_ptr = unsafe { (self.data.as_ptr() as *const u8).add(offset) as *const T };
+        let new_ptr = unsafe { (self.data.as_ptr() as *const u8).offset(offset) as *const T };
 
         Ok(TensorView {
             data: new_ptr,
@@ -3267,10 +3458,14 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 
     /// Slice the array mutably along multiple dimensions.
+    ///
+    /// Each range selects a sub-range along the corresponding axis. The resulting
+    /// span has the same rank, with extents and strides adjusted per the ranges.
+    /// Strided ranges produce non-contiguous spans.
     pub fn slice_mut(
         &mut self,
         ranges: &[SliceRange],
-    ) -> Result<TensorViewMut<'_, T, MAX_RANK>, TensorError> {
+    ) -> Result<TensorSpan<'_, T, MAX_RANK>, TensorError> {
         if ranges.len() != self.ndim {
             return Err(TensorError::DimensionMismatch {
                 expected: self.ndim,
@@ -3279,9 +3474,9 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         }
 
         let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
         let mut new_ndim = 0usize;
-        let mut offset = 0usize;
+        let mut offset = 0isize;
 
         for (dim, range) in ranges.iter().enumerate() {
             let dim_size = self.shape[dim];
@@ -3300,7 +3495,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                             size: dim_size,
                         });
                     }
-                    offset += i * dim_stride;
+                    offset += i as isize * dim_stride;
                 }
                 SliceRange::Range { start, end } => {
                     if start > end || end > dim_size {
@@ -3312,7 +3507,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                     new_shape[new_ndim] = end - start;
                     new_strides[new_ndim] = dim_stride;
                     new_ndim += 1;
-                    offset += start * dim_stride;
+                    offset += start as isize * dim_stride;
                 }
                 SliceRange::RangeStep { start, end, step } => {
                     if start >= dim_size || (end > dim_size && step > 0) {
@@ -3334,17 +3529,17 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                         (start.saturating_sub(end) + abs_step - 1) / abs_step
                     };
                     new_shape[new_ndim] = count;
-                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_strides[new_ndim] = dim_stride * step;
                     new_ndim += 1;
-                    offset += start * dim_stride;
+                    offset += start as isize * dim_stride;
                 }
             }
         }
 
         let new_len: usize = new_shape[..new_ndim].iter().product();
-        let new_ptr = unsafe { (self.data.as_ptr() as *mut u8).add(offset) as *mut T };
+        let new_ptr = unsafe { (self.data.as_ptr() as *mut u8).offset(offset) as *mut T };
 
-        Ok(TensorViewMut {
+        Ok(TensorSpan {
             data: new_ptr,
             len: new_len,
             shape: new_shape,
@@ -3364,7 +3559,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         }
 
         let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
         new_shape[0] = self.shape[1];
         new_shape[1] = self.shape[0];
         new_strides[0] = self.strides[1];
@@ -3404,7 +3599,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         let mut shape_arr = [0usize; MAX_RANK];
         shape_arr[..new_shape.len()].copy_from_slice(new_shape);
 
-        let mut strides_arr = [0usize; MAX_RANK];
+        let mut strides_arr = [0isize; MAX_RANK];
         Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
 
         Ok(TensorView {
@@ -3429,7 +3624,7 @@ pub type Matrix<T, A = Global> = Tensor<T, A, 2>;
 pub type MatrixView<'a, T> = TensorView<'a, T, 2>;
 
 /// Type alias for a mutable 2D matrix view.
-pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
+pub type MatrixSpan<'a, T> = TensorSpan<'a, T, 2>;
 
 // endregion: Type Aliases
 
@@ -3446,12 +3641,14 @@ pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
 ///
 /// For C = A × Bᵀ where B is (n × k):
 /// ```rust,ignore
+/// // Requires linking against libnumkong C library
 /// let b_packed = PackedMatrix::try_pack(&b_array).unwrap();
 /// let c = a_array.dots_packed(&b_packed);
 /// ```
 ///
 /// For C = A × B where B is (k × n) (standard GEMM layout):
 /// ```rust,ignore
+/// // Requires linking against libnumkong C library
 /// let b_packed = PackedMatrix::try_pack_transposed(&b_array).unwrap();
 /// let c = a_array.dots_packed(&b_packed);
 /// ```
@@ -3558,7 +3755,7 @@ impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
 
         if size > 0 {
             unsafe {
-                T::dots_pack(b.as_ptr(), n, k, b.stride(0), data.as_ptr());
+                T::dots_pack(b.as_ptr(), n, k, b.stride(0) as usize, data.as_ptr());
             }
         }
 
@@ -3730,8 +3927,8 @@ where
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(c)
@@ -3788,8 +3985,8 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(())
@@ -3861,8 +4058,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0);
-        let c_stride = c.stride(0);
+        let a_stride = self.stride(0) as usize;
+        let c_stride = c.stride(0) as usize;
 
         // Get actual thread count from pool
         let num_threads = pool.threads().max(1);
@@ -4010,8 +4207,8 @@ where
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0);
-        let result_stride = result.stride(0);
+        let stride = self.stride(0) as usize;
+        let result_stride = result.stride(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4086,8 +4283,8 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(c)
@@ -4144,8 +4341,8 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(())
@@ -4171,9 +4368,9 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n,
             );
@@ -4214,8 +4411,8 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(c)
@@ -4272,8 +4469,8 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(())
@@ -4299,9 +4496,9 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n,
             );
@@ -4358,8 +4555,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0);
-        let c_stride = c.stride(0);
+        let a_stride = self.stride(0) as usize;
+        let c_stride = c.stride(0) as usize;
         let num_threads = pool.threads().max(1);
         let rows_per_thread = (m + num_threads - 1) / num_threads;
 
@@ -4431,8 +4628,8 @@ where
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0);
-        let result_stride = result.stride(0);
+        let stride = self.stride(0) as usize;
+        let result_stride = result.stride(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4511,8 +4708,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0);
-        let c_stride = c.stride(0);
+        let a_stride = self.stride(0) as usize;
+        let c_stride = c.stride(0) as usize;
         let num_threads = pool.threads().max(1);
         let rows_per_thread = (m + num_threads - 1) / num_threads;
 
@@ -4584,8 +4781,8 @@ where
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0);
-        let result_stride = result.stride(0);
+        let stride = self.stride(0) as usize;
+        let result_stride = result.stride(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4653,8 +4850,8 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(c)
@@ -4711,8 +4908,8 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(())
@@ -4733,9 +4930,9 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n,
             );
@@ -4776,8 +4973,8 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(c)
@@ -4834,8 +5031,8 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0),
-                c.stride(0),
+                self.stride(0) as usize,
+                c.stride(0) as usize,
             );
         }
         Ok(())
@@ -4861,9 +5058,9 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0),
+                self.stride(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0),
+                result.stride(0) as usize,
                 0,
                 n,
             );

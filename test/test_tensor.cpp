@@ -9,152 +9,148 @@
 
 #include "test.hpp"
 
+template <typename value_type_>
+void test_vector_basics() {
+    constexpr std::size_t dims_per_value = nk::dimensions_per_value<value_type_>();
+    constexpr std::size_t test_dims = 64 * dims_per_value;
+    auto v = make_vector<value_type_>(test_dims);
+    assert(v.size() == test_dims);
+    assert(v.size_values() == test_dims / dims_per_value);
+    std::size_t count = 0;
+    for (auto it = v.begin(); it != v.end(); ++it) ++count;
+    assert(count == test_dims);
+}
+
+void test_signed_indexing() {
+    auto v = make_vector<float>(100);
+    v[50] = 3.14f;
+    assert(v[50] == 3.14f && "float operator[] failed");
+    v[-1] = 42.0f;
+    assert(v[99] == 42.0f && "float signed indexing failed");
+}
+
+void test_move_semantics() {
+    auto v1 = make_vector<nk::f32_t>(100);
+    v1[50] = nk::f32_t(42.0f);
+
+    nk::vector<nk::f32_t> v2 = std::move(v1);
+    assert(v2.size() == 100 && "move ctor size mismatch");
+    assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
+    assert(v1.size() == 0 && "moved-from vector not empty");
+
+    nk::vector<nk::f32_t> v3;
+    v3 = std::move(v2);
+    assert(v3.size() == 100 && "move assign size mismatch");
+    assert(v3[50] == nk::f32_t(42.0f) && "move assign value mismatch");
+}
+
+void test_swap() {
+    auto v1 = make_vector<nk::i8_t>(10);
+    auto v2 = make_vector<nk::i8_t>(20);
+    v1[0] = nk::i8_t(1);
+    v2[0] = nk::i8_t(2);
+
+    swap(v1, v2);
+    assert(v1.size() == 20 && "swap v1 size mismatch");
+    assert(v2.size() == 10 && "swap v2 size mismatch");
+    assert(v1[0] == nk::i8_t(2) && "swap v1 value mismatch");
+    assert(v2[0] == nk::i8_t(1) && "swap v2 value mismatch");
+}
+
+void test_view_span_rev() {
+    auto v = make_vector<float>(5);
+    v[0] = 1.0f;
+    v[1] = 2.0f;
+    v[2] = 3.0f;
+    v[3] = 4.0f;
+    v[4] = 5.0f;
+
+    auto view = v.view();
+    assert(view.size() == 5 && "view size mismatch");
+    assert(view[-1] == 5.0f && "view signed indexing failed");
+
+    auto span = v.span();
+    span[0] = 10.0f;
+    assert(v[0] == 10.0f && "span write-through failed");
+
+    auto rev = view.rev();
+    assert(rev[0] == 5.0f && "reversed view first element mismatch");
+    assert(rev[4] == 10.0f && "reversed view last element mismatch");
+}
+
+void test_range_slicing() {
+    auto v = make_vector<float>(5);
+    v[0] = 1.0f;
+    v[1] = 2.0f;
+    v[2] = 3.0f;
+    v[3] = 4.0f;
+    v[4] = 5.0f;
+
+    auto sub = v[nk::range(1, 4)];
+    assert(sub.size() == 3 && "range slice size mismatch");
+    assert(sub[0] == 2.0f && "range slice first element mismatch");
+    assert(sub[2] == 4.0f && "range slice last element mismatch");
+}
+
+void test_sub_byte_i4x2() {
+    auto v = make_vector<nk::i4x2_t>(100);
+    assert(v.size() == 100 && "i4x2_t size mismatch");
+    assert(v.size_values() == 50 && "i4x2_t size_values mismatch (should be dims/2)");
+
+    v[0] = 5, v[1] = -3;
+    assert(v[0] == 5 && "i4x2_t dim 0 mismatch");
+    assert(v[1] == -3 && "i4x2_t dim 1 mismatch");
+}
+
+void test_sub_byte_u1x8() {
+    auto v = make_vector<nk::u1x8_t>(64);
+    assert(v.size() == 64 && "u1x8_t size mismatch");
+    assert(v.size_values() == 8 && "u1x8_t size_values mismatch (should be dims/8)");
+
+    v[0] = true, v[1] = false, v[7] = true;
+    assert(v[0] == true && "u1x8_t dim 0 mismatch");
+    assert(v[1] == false && "u1x8_t dim 1 mismatch");
+    assert(v[7] == true && "u1x8_t dim 7 mismatch");
+}
+
+void test_custom_allocator() {
+    using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
+    auto v = nk::vector<nk::f32_t, custom_alloc_t>::try_with_dimensions(256);
+    assert(v.size() == 256 && "custom allocator size mismatch");
+    v[128] = nk::f32_t(99.0f);
+    assert(v[128] == nk::f32_t(99.0f) && "custom allocator value mismatch");
+}
+
 void test_vector_types() {
     std::printf("Testing vector type instantiations...\n");
 
-    // Test: float (primitive, 1 dim per value)
-    {
-        nk::vector<float> v;
-        assert(v.resize(100) && "float resize failed");
-        assert(v.size() == 100 && "float size mismatch");
-        assert(v.size_values() == 100 && "float size_values mismatch");
-        v[50] = 3.14f;
-        assert(v[50] == 3.14f && "float operator[] failed");
-        std::size_t count = 0;
-        for (auto it = v.begin(); it != v.end(); ++it) ++count;
-        assert(count == 100 && "float iterator count mismatch");
-    }
+    // Template-based type coverage
+    test_vector_basics<float>();
+    test_vector_basics<double>();
+    test_vector_basics<nk::f16_t>();
+    test_vector_basics<nk::bf16_t>();
+    test_vector_basics<nk::i8_t>();
+    test_vector_basics<nk::f32c_t>();
+    test_vector_basics<std::complex<double>>();
+    test_vector_basics<nk::i4x2_t>();
+    test_vector_basics<nk::u1x8_t>();
 
-    // Test: std::complex<double> (primitive complex, 1 dim per value)
-    {
-        nk::vector<std::complex<double>> v;
-        assert(v.resize(50) && "complex<double> resize failed");
-        assert(v.size() == 50 && "complex<double> size mismatch");
-        assert(v.size_values() == 50 && "complex<double> size_values mismatch");
-        v[25] = std::complex<double>(1.0, 2.0);
-        assert(v[25] == std::complex<double>(1.0, 2.0) && "complex<double> operator[] failed");
-        std::size_t count = 0;
-        for (auto &elem : v) {
-            (void)elem;
-            ++count;
-        }
-        assert(count == 50 && "complex<double> range-for count mismatch");
-    }
+    // Feature tests (non-template, using specific types)
+    test_signed_indexing();
+    test_move_semantics();
+    test_swap();
+    test_view_span_rev();
+    test_range_slicing();
+    test_sub_byte_i4x2();
+    test_sub_byte_u1x8();
+    test_custom_allocator();
 
-    // Test: f32c_t (NumKong complex wrapper, 1 dim per value)
-    {
-        nk::vector<nk::f32c_t> v;
-        assert(v.resize(64) && "f32c_t resize failed");
-        assert(v.size() == 64 && "f32c_t size mismatch");
-        assert(v.size_values() == 64 && "f32c_t size_values mismatch");
-        v[32] = nk::f32c_t(1.5f, -2.5f);
-        assert(v[32] == nk::f32c_t(1.5f, -2.5f) && "f32c_t operator[] failed");
-    }
-
-    // Test: i8_t (NumKong integer wrapper, 1 dim per value)
-    {
-        nk::vector<nk::i8_t> v;
-        assert(v.resize(128) && "i8_t resize failed");
-        assert(v.size() == 128 && "i8_t size mismatch");
-        assert(v.size_values() == 128 && "i8_t size_values mismatch");
-        v[64] = nk::i8_t(-42);
-        assert(v[64] == nk::i8_t(-42) && "i8_t operator[] failed");
-    }
-
-    // Test: i4x2_t (sub-byte, 2 dims per value, LSB-first)
-    {
-        nk::vector<nk::i4x2_t> v;
-        assert(v.resize(100) && "i4x2_t resize failed");
-        assert(v.size() == 100 && "i4x2_t size mismatch");
-        assert(v.size_values() == 50 && "i4x2_t size_values mismatch (should be dims/2)");
-
-        v[0] = 5, v[1] = -3;
-        assert(v[0] == 5 && "i4x2_t dim 0 mismatch");
-        assert(v[1] == -3 && "i4x2_t dim 1 mismatch");
-
-        // Test iterator returns correct count
-        std::size_t count = 0;
-        for (auto it = v.begin(); it != v.end(); ++it) ++count;
-        assert(count == 100 && "i4x2_t iterator count mismatch");
-    }
-
-    // Test: u1x8_t (sub-byte, 8 dims per value, LSB-first)
-    {
-        nk::vector<nk::u1x8_t> v;
-        assert(v.resize(64) && "u1x8_t resize failed");
-        assert(v.size() == 64 && "u1x8_t size mismatch");
-        assert(v.size_values() == 8 && "u1x8_t size_values mismatch (should be dims/8)");
-
-        v[0] = true, v[1] = false, v[7] = true;
-        assert(v[0] == true && "u1x8_t dim 0 mismatch");
-        assert(v[1] == false && "u1x8_t dim 1 mismatch");
-        assert(v[7] == true && "u1x8_t dim 7 mismatch");
-
-        // Test iterator returns correct count
-        std::size_t count = 0;
-        for (auto it = v.begin(); it != v.end(); ++it) ++count;
-        assert(count == 64 && "u1x8_t iterator count mismatch");
-    }
-
-    // Test: Custom allocator (stateless)
-    {
-        using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
-        nk::vector<nk::f32_t, custom_alloc_t> v;
-        assert(v.resize(256) && "custom allocator resize failed");
-        assert(v.size() == 256 && "custom allocator size mismatch");
-        v[128] = nk::f32_t(99.0f);
-        assert(v[128] == nk::f32_t(99.0f) && "custom allocator value mismatch");
-    }
-
-    // Test: Reserve and capacity
-    {
-        nk::vector<nk::f64_t> v;
-        assert(v.reserve(1000) && "reserve failed");
-        assert(v.capacity() >= 1000 && "capacity < reserved");
-        assert(v.resize(500) && "resize after reserve failed");
-        assert(v.size() == 500 && "size after reserve mismatch");
-        assert(v.capacity() >= 1000 && "capacity shrunk after resize");
-    }
-
-    // Test: Move semantics
-    {
-        nk::vector<nk::f32_t> v1;
-        assert(v1.resize(100) && "v1 resize failed");
-        v1[50] = nk::f32_t(42.0f);
-
-        nk::vector<nk::f32_t> v2 = std::move(v1);
-        assert(v2.size() == 100 && "move ctor size mismatch");
-        assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
-        assert(v1.size() == 0 && "moved-from vector not empty");
-
-        nk::vector<nk::f32_t> v3;
-        v3 = std::move(v2);
-        assert(v3.size() == 100 && "move assign size mismatch");
-        assert(v3[50] == nk::f32_t(42.0f) && "move assign value mismatch");
-    }
-
-    // Test: Swap
-    {
-        nk::vector<nk::i8_t> v1, v2;
-        assert(v1.resize(10) && v2.resize(20));
-        v1[0] = nk::i8_t(1);
-        v2[0] = nk::i8_t(2);
-
-        swap(v1, v2);
-        assert(v1.size() == 20 && "swap v1 size mismatch");
-        assert(v2.size() == 10 && "swap v2 size mismatch");
-        assert(v1[0] == nk::i8_t(2) && "swap v1 value mismatch");
-        assert(v2[0] == nk::i8_t(1) && "swap v2 value mismatch");
-    }
-
-    std::printf("  vector<float>:                OK\n");
-    std::printf("  vector<std::complex<double>>: OK\n");
-    std::printf("  vector<f32c_t>:               OK\n");
-    std::printf("  vector<i8_t>:                 OK\n");
-    std::printf("  vector<i4x2_t>:               OK (sub-byte proxy, LSB-first)\n");
-    std::printf("  vector<u1x8_t>:               OK (sub-byte proxy, LSB-first)\n");
-    std::printf("  custom allocator:             OK\n");
-    std::printf("  reserve/capacity:             OK\n");
+    std::printf("  vector basics (9 types):      OK\n");
+    std::printf("  signed indexing:              OK\n");
     std::printf("  move semantics:               OK\n");
     std::printf("  swap:                         OK\n");
+    std::printf("  view/span/rev:                OK\n");
+    std::printf("  range slicing:                OK\n");
+    std::printf("  sub-byte i4x2/u1x8:          OK\n");
+    std::printf("  custom allocator:             OK\n");
 }

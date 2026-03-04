@@ -394,7 +394,7 @@ impl core::cmp::PartialOrd for bf16 {
 /// let float = fp8.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct e4m3(pub u8);
 
 impl e4m3 {
@@ -546,7 +546,7 @@ impl core::cmp::PartialOrd for e4m3 {
 /// let float = fp8.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct e5m2(pub u8);
 
 impl e5m2 {
@@ -705,7 +705,7 @@ impl core::cmp::PartialOrd for e5m2 {
 /// let float = fp6.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct e2m3(pub u8);
 
 impl e2m3 {
@@ -860,7 +860,7 @@ impl core::cmp::PartialOrd for e2m3 {
 /// let float = fp6.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct e3m2(pub u8);
 
 impl e3m2 {
@@ -1257,6 +1257,12 @@ pub trait FloatLike: Sized + Copy + Clone {
     }
     fn min_positive() -> f32 {
         f32::MIN_POSITIVE
+    }
+
+    /// Number of logical dimensions packed into one storage value.
+    /// Default: 1 for all normal types. Override for sub-byte packed types.
+    fn dimensions_per_value() -> usize {
+        1
     }
 }
 
@@ -1720,6 +1726,9 @@ impl FloatLike for i4x2 {
     fn zero() -> Self {
         i4x2::from((0i8, 0i8))
     }
+    fn dimensions_per_value() -> usize {
+        2
+    }
 }
 
 impl FloatLike for u4x2 {
@@ -1737,6 +1746,9 @@ impl FloatLike for u4x2 {
     }
     fn zero() -> Self {
         u4x2::from((0u8, 0u8))
+    }
+    fn dimensions_per_value() -> usize {
+        2
     }
 }
 
@@ -1757,9 +1769,294 @@ impl FloatLike for u1x8 {
     fn zero() -> Self {
         u1x8(0x00)
     }
+    fn dimensions_per_value() -> usize {
+        8
+    }
 }
 
 // endregion: FloatLike Trait
+
+// region: FloatConvertible Trait
+
+/// Trait for types that can unpack/pack logical sub-dimensions.
+///
+/// For normal scalar types (`dimensions_per_value() == 1`), `DimScalar = Self` and
+/// `Unpacked = [Self; 1]`. For packed sub-byte types, `DimScalar` is the natural
+/// scalar type for individual sub-dimensions (e.g., `i8` for `i4x2`).
+pub trait FloatConvertible: FloatLike {
+    /// Scalar type for individual sub-dimensions.
+    type DimScalar: Copy + Default + FloatLike;
+
+    /// Fixed-size array holding all unpacked sub-dimensions.
+    type Unpacked: AsRef<[Self::DimScalar]> + AsMut<[Self::DimScalar]> + Copy + Default;
+
+    /// Unpack all logical sub-dimensions from this packed value.
+    fn unpack(self) -> Self::Unpacked;
+
+    /// Pack sub-dimension scalars into a single storage value.
+    fn pack(dims: Self::Unpacked) -> Self;
+}
+
+impl FloatConvertible for f32 {
+    type DimScalar = f32;
+    type Unpacked = [f32; 1];
+    #[inline(always)]
+    fn unpack(self) -> [f32; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [f32; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for f64 {
+    type DimScalar = f64;
+    type Unpacked = [f64; 1];
+    #[inline(always)]
+    fn unpack(self) -> [f64; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [f64; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for f16 {
+    type DimScalar = f16;
+    type Unpacked = [f16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [f16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [f16; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for bf16 {
+    type DimScalar = bf16;
+    type Unpacked = [bf16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [bf16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [bf16; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for e4m3 {
+    type DimScalar = e4m3;
+    type Unpacked = [e4m3; 1];
+    #[inline(always)]
+    fn unpack(self) -> [e4m3; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [e4m3; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for e5m2 {
+    type DimScalar = e5m2;
+    type Unpacked = [e5m2; 1];
+    #[inline(always)]
+    fn unpack(self) -> [e5m2; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [e5m2; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for e2m3 {
+    type DimScalar = e2m3;
+    type Unpacked = [e2m3; 1];
+    #[inline(always)]
+    fn unpack(self) -> [e2m3; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [e2m3; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for e3m2 {
+    type DimScalar = e3m2;
+    type Unpacked = [e3m2; 1];
+    #[inline(always)]
+    fn unpack(self) -> [e3m2; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [e3m2; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for i8 {
+    type DimScalar = i8;
+    type Unpacked = [i8; 1];
+    #[inline(always)]
+    fn unpack(self) -> [i8; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [i8; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for u8 {
+    type DimScalar = u8;
+    type Unpacked = [u8; 1];
+    #[inline(always)]
+    fn unpack(self) -> [u8; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [u8; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for i16 {
+    type DimScalar = i16;
+    type Unpacked = [i16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [i16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [i16; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for u16 {
+    type DimScalar = u16;
+    type Unpacked = [u16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [u16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [u16; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for i32 {
+    type DimScalar = i32;
+    type Unpacked = [i32; 1];
+    #[inline(always)]
+    fn unpack(self) -> [i32; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [i32; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for u32 {
+    type DimScalar = u32;
+    type Unpacked = [u32; 1];
+    #[inline(always)]
+    fn unpack(self) -> [u32; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [u32; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for i64 {
+    type DimScalar = i64;
+    type Unpacked = [i64; 1];
+    #[inline(always)]
+    fn unpack(self) -> [i64; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [i64; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for u64 {
+    type DimScalar = u64;
+    type Unpacked = [u64; 1];
+    #[inline(always)]
+    fn unpack(self) -> [u64; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [u64; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl FloatConvertible for i4x2 {
+    type DimScalar = i8;
+    type Unpacked = [i8; 2];
+    #[inline(always)]
+    fn unpack(self) -> [i8; 2] {
+        let (lo, hi) = self.to_i8s();
+        [lo, hi]
+    }
+    #[inline(always)]
+    fn pack(dims: [i8; 2]) -> Self {
+        i4x2::from_i8s(dims[0], dims[1])
+    }
+}
+
+impl FloatConvertible for u4x2 {
+    type DimScalar = u8;
+    type Unpacked = [u8; 2];
+    #[inline(always)]
+    fn unpack(self) -> [u8; 2] {
+        let (lo, hi) = self.to_u8s();
+        [lo, hi]
+    }
+    #[inline(always)]
+    fn pack(dims: [u8; 2]) -> Self {
+        u4x2::from_u8s(dims[0], dims[1])
+    }
+}
+
+impl FloatConvertible for u1x8 {
+    type DimScalar = u8;
+    type Unpacked = [u8; 8];
+    #[inline(always)]
+    fn unpack(self) -> [u8; 8] {
+        let mut out = [0u8; 8];
+        for i in 0..8 {
+            out[i] = (self.0 >> i) & 1;
+        }
+        out
+    }
+    #[inline(always)]
+    fn pack(dims: [u8; 8]) -> Self {
+        let mut byte = 0u8;
+        for i in 0..8 {
+            if dims[i] != 0 {
+                byte |= 1 << i;
+            }
+        }
+        u1x8(byte)
+    }
+}
+
+// endregion: FloatConvertible Trait
 
 // region: TestableType Trait (test-only)
 
@@ -1769,9 +2066,6 @@ pub(crate) trait TestableType: FloatLike {
     fn atol() -> f64;
     /// Base relative tolerance for this type.
     fn rtol() -> f64;
-    fn dimensions_per_value() -> usize {
-        1
-    }
 }
 
 #[cfg(test)]
@@ -1941,9 +2235,6 @@ impl TestableType for i4x2 {
     fn rtol() -> f64 {
         0.0
     }
-    fn dimensions_per_value() -> usize {
-        2
-    }
 }
 #[cfg(test)]
 impl TestableType for u4x2 {
@@ -1953,9 +2244,6 @@ impl TestableType for u4x2 {
     fn rtol() -> f64 {
         0.0
     }
-    fn dimensions_per_value() -> usize {
-        2
-    }
 }
 #[cfg(test)]
 impl TestableType for u1x8 {
@@ -1964,9 +2252,6 @@ impl TestableType for u1x8 {
     }
     fn rtol() -> f64 {
         0.0
-    }
-    fn dimensions_per_value() -> usize {
-        8
     }
 }
 

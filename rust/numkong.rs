@@ -94,12 +94,16 @@
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
 // Module declarations
+pub mod maxsim;
 pub mod numerics;
 pub mod scalar;
 pub mod tensor;
+pub mod vector;
 
 // Re-export scalar types at crate root
-pub use scalar::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, FloatLike};
+pub use scalar::{
+    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, FloatConvertible, FloatLike,
+};
 
 // Re-export complex product types
 pub use numerics::{ComplexProductF32, ComplexProductF64};
@@ -123,10 +127,16 @@ pub use numerics::capabilities;
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Angulars, Dots, Euclideans, Global, Hammings, Jaccards, Matrix, MatrixView,
-    MatrixViewMut, PackedMatrix, ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView,
-    TensorViewMut, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Allocator, Angulars, AxisIter, AxisIterMut, Dots, Euclideans, Global, Hammings, Jaccards,
+    Matrix, MatrixSpan, MatrixView, PackedMatrix, ShapeDescriptor, SliceRange, Tensor, TensorError,
+    TensorSpan, TensorView, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
+
+// Re-export vector types
+pub use vector::{DimIter, VecIndex, Vector, VectorSpan, VectorView};
+
+// Re-export maxsim types
+pub use maxsim::{MaxSim, MaxSimPackedMatrix};
 
 // region: Tests
 
@@ -154,6 +164,22 @@ mod tests {
         let first = [0.0_f32, 0.0, 0.0];
         let second = [3.0_f32, 4.0, 0.0];
         assert!((f32::euclidean(&first, &second).unwrap() - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn smoke_maxsim_f32() {
+        capabilities::configure_thread();
+        let queries = Tensor::<f32>::try_new(&[4, 16], 1.0).unwrap();
+        let documents = Tensor::<f32>::try_new(&[8, 16], 1.0).unwrap();
+        let packed_q = MaxSimPackedMatrix::try_pack(&queries).unwrap();
+        let packed_d = MaxSimPackedMatrix::try_pack(&documents).unwrap();
+        assert_eq!(packed_q.dims(), (4, 16));
+        assert_eq!(packed_d.dims(), (8, 16));
+        let score = packed_q.score(&packed_d);
+        assert!(
+            score.is_finite(),
+            "MaxSim score must be finite, got {score}"
+        );
     }
 
     #[test]
