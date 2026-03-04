@@ -11,43 +11,21 @@
 #define NK_NATIVE_F16       0
 #define NK_NATIVE_BF16      0
 
-/*  Depending on the Operating System, the following intrinsics are available
- *  on recent compiler toolchains:
+/*  NK_TARGET_* defines are set by the build system:
+ *  - Python: setup.py
+ *  - Rust: build.rs
+ *  - Node.js: binding.gyp
+ *  - CMake: CMakeLists.txt
  *
- *  - Linux: everything is available in GCC 12+ and Clang 16+.
- *  - Windows - MSVC: everything except Sapphire Rapids and ARM SVE.
- *  - macOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
+ *  For header-only usage without a build system, types.h provides
+ *  compiler-intrinsic-based fallback detection.
+ *
+ *  OS/compiler capabilities summary:
+ *  - Linux: everything available in GCC 12+ and Clang 16+.
+ *  - FreeBSD: same as Linux, except AMX (no kernel tile permission support).
+ *  - Windows - MSVC: Haswell/Skylake/Icelake, plus Sapphire FP16 (MSVC 2022 17.2+).
+ *  - macOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions.
  */
-#if !defined(NK_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__))
-#define NK_TARGET_NEON 1
-#endif
-#if !defined(NK_TARGET_SVE) && (defined(__linux__))
-#define NK_TARGET_SVE 1
-#endif
-#if !defined(NK_TARGET_SVE2) && (defined(__linux__))
-#define NK_TARGET_SVE2 1
-#endif
-#if !defined(NK_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__))
-#define NK_TARGET_HASWELL 1
-#endif
-#if !defined(NK_TARGET_SKYLAKE) && (defined(_MSC_VER) || defined(__linux__))
-#define NK_TARGET_SKYLAKE 1
-#endif
-#if !defined(NK_TARGET_ICELAKE) && (defined(_MSC_VER) || defined(__linux__))
-#define NK_TARGET_ICELAKE 1
-#endif
-#if !defined(NK_TARGET_GENOA) && (defined(__linux__))
-#define NK_TARGET_GENOA 1
-#endif
-#if !defined(NK_TARGET_SAPPHIRE) && (defined(__linux__))
-#define NK_TARGET_SAPPHIRE 1
-#endif
-#if !defined(NK_TARGET_TURIN) && (defined(__linux__))
-#define NK_TARGET_TURIN 1
-#endif
-#if !defined(NK_TARGET_SIERRA) && (defined(__linux__))
-#define NK_TARGET_SIERRA 1
-#endif
 
 #include <numkong/numkong.h>
 

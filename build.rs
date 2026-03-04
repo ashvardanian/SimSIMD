@@ -94,57 +94,97 @@ fn build_simsimd() -> HashMap<String, bool> {
         flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
     }
 
-    // Determine which backends to try based on target architecture.
+    // Detect target OS for platform-specific optimizations
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let is_freebsd = target_os == "freebsd";
+    let is_linux = target_os == "linux";
+    let is_windows = target_os == "windows";
+    let is_macos = target_os == "macos";
+
+    // Determine which backends to try based on target architecture and OS.
     // The fallback mechanism will disable unsupported targets one by one.
     let flags_to_try = match target_arch.as_str() {
-        "arm" | "aarch64" => vec![
-            // SME family
-            "NK_TARGET_SMELUT2",
-            "NK_TARGET_SMEBF16",
-            "NK_TARGET_SMEBI32",
-            "NK_TARGET_SMEHALF",
-            "NK_TARGET_SMEFA64",
-            "NK_TARGET_SMEF64",
-            "NK_TARGET_SME2P1",
-            "NK_TARGET_SME2",
-            "NK_TARGET_SME",
-            // SVE family
-            "NK_TARGET_SVE2P1",
-            "NK_TARGET_SVE2",
-            "NK_TARGET_SVESDOT",
-            "NK_TARGET_SVEBFDOT",
-            "NK_TARGET_SVEHALF",
-            "NK_TARGET_SVE",
-            // NEON family
-            "NK_TARGET_NEONFHM",
-            "NK_TARGET_NEONBFDOT",
-            "NK_TARGET_NEONSDOT",
-            "NK_TARGET_NEONHALF",
-            "NK_TARGET_NEON",
-        ],
-        "x86_64" => vec![
-            // Most advanced first
-            "NK_TARGET_GRANITEAMX",
-            "NK_TARGET_SAPPHIREAMX",
-            "NK_TARGET_SIERRA",
-            "NK_TARGET_TURIN",
-            "NK_TARGET_SAPPHIRE",
-            "NK_TARGET_GENOA",
-            "NK_TARGET_ICELAKE",
-            "NK_TARGET_SKYLAKE",
-            "NK_TARGET_HASWELL",
-        ],
-        "riscv64" => vec![
-            // Most advanced first
-            "NK_TARGET_RVVBB",
-            "NK_TARGET_RVVBF16",
-            "NK_TARGET_RVVHALF",
-            "NK_TARGET_RVV",
-        ],
-        "wasm32" | "wasm64" => vec![
-            //
-            "NK_TARGET_V128RELAXED",
-        ],
+        "arm" | "aarch64" => {
+            let mut flags = Vec::new();
+
+            // SME is available on Linux, FreeBSD, and macOS (M4+ with Clang 18+)
+            if is_linux || is_freebsd || is_macos {
+                flags.extend_from_slice(&[
+                    "NK_TARGET_SMELUT2",
+                    "NK_TARGET_SMEBF16",
+                    "NK_TARGET_SMEBI32",
+                    "NK_TARGET_SMEHALF",
+                    "NK_TARGET_SMEFA64",
+                    "NK_TARGET_SMEF64",
+                    "NK_TARGET_SME2P1",
+                    "NK_TARGET_SME2",
+                    "NK_TARGET_SME",
+                ]);
+            }
+
+            // SVE is only available on Linux and FreeBSD (not on Apple Silicon)
+            if is_linux || is_freebsd {
+                flags.extend_from_slice(&[
+                    "NK_TARGET_SVE2P1",
+                    "NK_TARGET_SVE2",
+                    "NK_TARGET_SVESDOT",
+                    "NK_TARGET_SVEBFDOT",
+                    "NK_TARGET_SVEHALF",
+                    "NK_TARGET_SVE",
+                ]);
+            }
+
+            // NEON is available on all ARM platforms
+            flags.extend_from_slice(&[
+                "NK_TARGET_NEONFHM",
+                "NK_TARGET_NEONBFDOT",
+                "NK_TARGET_NEONSDOT",
+                "NK_TARGET_NEONHALF",
+                "NK_TARGET_NEON",
+            ]);
+
+            flags
+        }
+        "x86_64" => {
+            let mut flags = Vec::new();
+
+            // AMX requires OS kernel support (Linux: arch_prctl).
+            // Windows MSVC lacks AMX intrinsics; FreeBSD and macOS lack tile permission support.
+            if is_linux {
+                flags.extend_from_slice(&["NK_TARGET_GRANITEAMX", "NK_TARGET_SAPPHIREAMX"]);
+            }
+
+            // Advanced AVX-512 features available on Linux, FreeBSD, and Windows
+            if is_linux || is_freebsd || is_windows {
+                flags.extend_from_slice(&[
+                    "NK_TARGET_SIERRA",
+                    "NK_TARGET_TURIN",
+                    "NK_TARGET_SAPPHIRE",
+                    "NK_TARGET_GENOA",
+                    "NK_TARGET_ICELAKE",
+                    "NK_TARGET_SKYLAKE",
+                ]);
+            }
+
+            // Haswell (AVX2) is available on all x86_64 platforms
+            flags.push("NK_TARGET_HASWELL");
+
+            flags
+        }
+        "riscv64" => {
+            // RISC-V is primarily Linux and FreeBSD
+            if is_linux || is_freebsd {
+                vec![
+                    "NK_TARGET_RVVBB",
+                    "NK_TARGET_RVVBF16",
+                    "NK_TARGET_RVVHALF",
+                    "NK_TARGET_RVV",
+                ]
+            } else {
+                vec![]
+            }
+        }
+        "wasm32" | "wasm64" => vec!["NK_TARGET_V128RELAXED"],
         _ => vec![],
     };
 

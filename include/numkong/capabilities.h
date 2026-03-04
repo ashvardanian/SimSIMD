@@ -116,7 +116,7 @@
 // Detect POSIX extensions availability for signal handling.
 // POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
 // These are needed on Linux ARM for safely testing `mrs` instruction availability.
-#if defined(NK_DEFINED_LINUX_) && defined(_POSIX_VERSION)
+#if (defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)) && defined(_POSIX_VERSION)
 #include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
 #include <signal.h> // `sigaction`, `SIGILL`
 #define NK_HAS_POSIX_EXTENSIONS_ 1
@@ -135,6 +135,11 @@
 #include <sys/auxv.h>    // `getauxval`, `AT_HWCAP`
 #include <sys/syscall.h> // `syscall`
 #include <unistd.h>      // `syscall`
+#endif
+
+// On FreeBSD RISC-V, we use elf_aux_info for capability detection
+#if defined(NK_DEFINED_FREEBSD_) && NK_TARGET_RISCV_
+#include <sys/auxv.h> // `elf_aux_info`, `AT_HWCAP`
 #endif
 
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
@@ -473,7 +478,7 @@ NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
 #if defined(NK_DEFINED_APPLE_)
     int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
     return is_success;
-#elif defined(NK_DEFINED_LINUX_)
+#elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
     uint64_t fpcr;
     __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
     fpcr |= (1 << 19);
@@ -511,7 +516,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
                              (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
                              (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_serial_k));
 
-#elif defined(NK_DEFINED_LINUX_)
+#elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
 
 #if NK_HAS_POSIX_EXTENSIONS_
     struct sigaction action_new, action_old;
@@ -629,6 +634,16 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
             if (pairs[0].value & (1ULL << 54)) caps |= nk_cap_rvvbf16_k;
             if (pairs[0].value & (1ULL << 48)) caps |= nk_cap_rvvbb_k; // Zvbb
         }
+    }
+    return caps;
+#elif defined(NK_DEFINED_FREEBSD_)
+    unsigned long hwcap = 0;
+    elf_aux_info(AT_HWCAP, &hwcap, sizeof(hwcap));
+    nk_capability_t caps = nk_cap_serial_k;
+    if (hwcap & (1UL << 21)) {
+        caps |= nk_cap_rvv_k;
+        // FreeBSD lacks the Linux hwprobe syscall (258),
+        // so zvfh/zvfbfwma/zvbb are compile-time only.
     }
     return caps;
 #else
