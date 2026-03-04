@@ -1,8 +1,6 @@
 name: Pre-Release
 
 on:
-  push:
-    branches: ["main-*"]
   pull_request:
     branches: ["main", "main-*"]
 
