@@ -130,7 +130,11 @@
 // Forward-declare `syscall` directly — it always exists in glibc.
 #if defined(NK_DEFINED_LINUX_) && (NK_TARGET_X86_ || NK_TARGET_RISCV_)
 #include <sys/syscall.h> // `SYS_arch_prctl`, `SYS_riscv_hwprobe`
+#ifdef __cplusplus
+extern "C" long syscall(long, ...);
+#else
 extern long syscall(long, ...);
+#endif
 #if NK_TARGET_RISCV_
 #include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
 #endif
