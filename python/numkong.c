@@ -472,6 +472,8 @@ PyObject *scalar_to_py_number(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
     }
 }
 
+int get_scalar_value(PyObject *obj, double *value); // forward declaration
+
 int py_number_to_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_t dtype) {
     memset(buf, 0, sizeof(*buf));
     if (is_complex(dtype) && PyComplex_Check(obj)) {

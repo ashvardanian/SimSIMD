@@ -582,9 +582,122 @@ cleanup:
     return return_obj;
 }
 
+/**
+ *  @brief Map a pairwise metric kind to its batch (packed + symmetric) kernel kinds.
+ *  @return 1 if batch kernels exist for this metric, 0 otherwise.
+ */
+static int metric_to_batch_kinds( //
+    nk_kernel_kind_t metric_kind, //
+    nk_kernel_kind_t *packed_kind, nk_kernel_kind_t *symmetric_kind) {
+    switch (metric_kind) {
+    case nk_kernel_dot_k:
+        *packed_kind = nk_kernel_dots_packed_k;
+        *symmetric_kind = nk_kernel_dots_symmetric_k;
+        return 1;
+    case nk_kernel_angular_k:
+        *packed_kind = nk_kernel_angulars_packed_k;
+        *symmetric_kind = nk_kernel_angulars_symmetric_k;
+        return 1;
+    case nk_kernel_euclidean_k:
+        *packed_kind = nk_kernel_euclideans_packed_k;
+        *symmetric_kind = nk_kernel_euclideans_symmetric_k;
+        return 1;
+    case nk_kernel_hamming_k:
+        *packed_kind = nk_kernel_hammings_packed_k;
+        *symmetric_kind = nk_kernel_hammings_symmetric_k;
+        return 1;
+    case nk_kernel_jaccard_k:
+        *packed_kind = nk_kernel_jaccards_packed_k;
+        *symmetric_kind = nk_kernel_jaccards_symmetric_k;
+        return 1;
+    default: return 0;
+    }
+}
+
+/**
+ *  @brief Pairwise loop fallback: compute one pair at a time via a scalar metric kernel.
+ */
+static void cdist_pairwise_loop(                          //
+    nk_metric_dense_punned_t metric,                      //
+    char const *a_start, size_t a_count, size_t a_stride, //
+    char const *b_start, size_t b_count, size_t b_stride, //
+    size_t dimensions,                                    //
+    nk_dtype_t kernel_out_dtype, nk_dtype_t out_dtype,    //
+    char *out, size_t out_row_stride, size_t out_col_stride, int const is_symmetric) {
+    for (size_t i = 0; i < a_count; ++i)
+        for (size_t j = 0; j < b_count; ++j) {
+            if (is_symmetric && i > j) continue;
+            nk_scalar_buffer_t result;
+            metric(a_start + i * a_stride, b_start + j * b_stride, dimensions, &result);
+            char *ptr_ij = out + i * out_row_stride + j * out_col_stride;
+            cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ij);
+            if (is_symmetric) {
+                char *ptr_ji = out + j * out_row_stride + i * out_col_stride;
+                cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ji);
+            }
+        }
+}
+
+/**
+ *  @brief Batch symmetric path: compute A x A^T via a SIMD-optimized symmetric kernel.
+ *  @return 0 on success, -1 if the kernel was not found.
+ */
+static int cdist_batch_symmetric(                             //
+    nk_kernel_kind_t symmetric_kind, nk_dtype_t dtype,        //
+    char const *vectors, size_t n_vectors, size_t dimensions, //
+    size_t stride, char *out, size_t out_row_stride) {
+    nk_dots_symmetric_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(symmetric_kind, dtype, static_capabilities, nk_cap_any_k, //
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) return -1;
+    kernel(vectors, n_vectors, dimensions, stride, out, out_row_stride, 0, n_vectors);
+    return 0;
+}
+
+/**
+ *  @brief Batch packed path: pack B, then compute A x B_packed via a SIMD-optimized kernel.
+ *  @return 0 on success, -1 on allocation failure, -2 if a kernel was not found.
+ */
+static int cdist_batch_packed(                                               //
+    nk_kernel_kind_t packed_kind, nk_dtype_t dtype,                          //
+    char const *a_start, size_t a_count, size_t a_stride,                    //
+    char const *b_start, size_t b_count, size_t b_stride, size_t dimensions, //
+    char *out, size_t out_row_stride) {
+
+    // All metric families reuse the dots pack_size / pack kernels
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_dots_pack_punned_t pack_fn = NULL;
+    nk_dots_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
+    if (!size_fn) return -2;
+
+    cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_pack_k, dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&pack_fn, &cap);
+    if (!pack_fn) return -2;
+
+    cap = nk_cap_serial_k;
+    nk_find_kernel_punned(packed_kind, dtype, static_capabilities, nk_cap_any_k, //
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) return -2;
+
+    nk_size_t packed_size = size_fn(b_count, dimensions);
+    void *b_packed = malloc(packed_size);
+    if (!b_packed) return -1;
+
+    pack_fn(b_start, b_count, dimensions, b_stride, b_packed);
+    kernel(a_start, b_packed, out, a_count, b_count, dimensions, a_stride, out_row_stride);
+    free(b_packed);
+    return 0;
+}
+
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
-    nk_kernel_kind_t metric_kind, size_t threads,        //
+    nk_kernel_kind_t metric_kind,                        //
     nk_dtype_t dtype, nk_dtype_t out_dtype) {
 
     PyObject *return_obj = NULL;
@@ -720,34 +833,44 @@ static PyObject *implement_cdist(                        //
         Py_INCREF(Py_None);
     }
 
-    // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
+    // Release the GIL for the compute-intensive section.
     PyThreadState *save = PyEval_SaveThread();
 
-    // Assuming most of our kernels are symmetric, we only need to compute the upper triangle
-    // if we are computing all pairwise distances within the same set.
     int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.start == b_parsed.start &&
                              a_parsed.stride == b_parsed.stride && a_parsed.count == b_parsed.count;
-    for (size_t i = 0; i < a_parsed.count; ++i)
-        for (size_t j = 0; j < b_parsed.count; ++j) {
-            if (is_symmetric && i > j) continue;
 
-            // Export into an on-stack buffer and then copy to the output
-            nk_scalar_buffer_t result;
-            metric(                                   //
-                a_parsed.start + i * a_parsed.stride, //
-                b_parsed.start + j * b_parsed.stride, //
-                a_parsed.dimensions,                  //
-                &result                               //
-            );
+    // Batch kernels write typed values directly into the output buffer, so we can only use them
+    // when the output dtype matches the kernel's native output dtype exactly.
+    nk_kernel_kind_t packed_kind = nk_kernel_unknown_k, symmetric_kind = nk_kernel_unknown_k;
+    int const has_batch = metric_to_batch_kinds(metric_kind, &packed_kind, &symmetric_kind);
+    int const dtype_ok = (out_dtype == kernel_out_dtype);
+    int batch_result = -1;
 
-            // Export into both the lower and upper triangle
-            char *ptr_ij = distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes;
-            cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ij);
-            if (is_symmetric) {
-                char *ptr_ji = distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes;
-                cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ji);
-            }
-        }
+    // Try symmetric batch path first (A x A^T, no packing needed)
+    if (has_batch && dtype_ok && is_symmetric)
+        batch_result = cdist_batch_symmetric(symmetric_kind, dtype, a_parsed.start, a_parsed.count, a_parsed.dimensions,
+                                             a_parsed.stride, distances_start, distances_rows_stride_bytes);
+
+    // Symmetric kernel only writes upper triangle; mirror to lower.
+    if (batch_result == 0 && is_symmetric) {
+        size_t const elem_size = bytes_per_dtype(out_dtype);
+        for (size_t i = 1; i < a_parsed.count; ++i)
+            for (size_t j = 0; j < i; ++j)
+                memcpy(distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes,
+                       distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, elem_size);
+    }
+
+    // Try packed batch path (A x B_packed)
+    if (has_batch && dtype_ok && !is_symmetric && batch_result != 0)
+        batch_result = cdist_batch_packed(packed_kind, dtype, a_parsed.start, a_parsed.count, a_parsed.stride,
+                                          b_parsed.start, b_parsed.count, b_parsed.stride, a_parsed.dimensions,
+                                          distances_start, distances_rows_stride_bytes);
+
+    // Fall back to scalar pairwise loop
+    if (batch_result != 0)
+        cdist_pairwise_loop(metric, a_parsed.start, a_parsed.count, a_parsed.stride, b_parsed.start, b_parsed.count,
+                            b_parsed.stride, a_parsed.dimensions, kernel_out_dtype, out_dtype, distances_start,
+                            distances_rows_stride_bytes, distances_cols_stride_bytes, is_symmetric);
 
     PyEval_RestoreThread(save);
 
