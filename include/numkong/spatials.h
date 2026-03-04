@@ -2098,6 +2098,9 @@ NK_PUBLIC void nk_angulars_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t n_
     nk_angulars_symmetric_e4m3_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONFHM
     nk_angulars_symmetric_e4m3_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_angulars_symmetric_e4m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                           row_count);
 #elif NK_TARGET_GENOA
     nk_angulars_symmetric_e4m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
@@ -2139,6 +2142,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t 
 #elif NK_TARGET_NEONFHM
     nk_euclideans_symmetric_e4m3_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                          row_count);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_euclideans_symmetric_e4m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                             row_count);
 #elif NK_TARGET_GENOA
     nk_euclideans_symmetric_e4m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE

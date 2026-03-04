@@ -364,6 +364,8 @@ void test_cross_x86() {
                    nk_angulars_symmetric_e2m3_sapphireamx);
     run_if_matches("angulars_symmetric_e3m2_sapphireamx", test_angulars_symmetric<e3m2_t>,
                    nk_angulars_symmetric_e3m2_sapphireamx);
+    run_if_matches("angulars_symmetric_e4m3_sapphireamx", test_angulars_symmetric<e4m3_t>,
+                   nk_angulars_symmetric_e4m3_sapphireamx);
     run_if_matches("angulars_symmetric_e5m2_sapphireamx", test_angulars_symmetric<e5m2_t>,
                    nk_angulars_symmetric_e5m2_sapphireamx);
     run_if_matches("angulars_symmetric_u8_sapphireamx", test_angulars_symmetric<u8_t>,
@@ -392,6 +394,8 @@ void test_cross_x86() {
                    nk_euclideans_symmetric_e2m3_sapphireamx);
     run_if_matches("euclideans_symmetric_e3m2_sapphireamx", test_euclideans_symmetric<e3m2_t>,
                    nk_euclideans_symmetric_e3m2_sapphireamx);
+    run_if_matches("euclideans_symmetric_e4m3_sapphireamx", test_euclideans_symmetric<e4m3_t>,
+                   nk_euclideans_symmetric_e4m3_sapphireamx);
     run_if_matches("euclideans_symmetric_e5m2_sapphireamx", test_euclideans_symmetric<e5m2_t>,
                    nk_euclideans_symmetric_e5m2_sapphireamx);
     run_if_matches("euclideans_symmetric_u8_sapphireamx", test_euclideans_symmetric<u8_t>,

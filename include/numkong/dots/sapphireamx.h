@@ -3057,6 +3057,74 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sapphireamx(                  //
     }
 }
 
+NK_PUBLIC void nk_dots_symmetric_e4m3_sapphireamx(                  //
+    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, //
+    nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,    //
+    nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+
+    // Handle row slicing: compute rows [row_start, row_end)
+    nk_size_t const row_end = (row_count == 0)
+                                  ? n_vectors
+                                  : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
+
+    // Round depth up to multiple of 96 (3 tiles × 32 elements)
+    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 32);
+    nk_size_t const depth_tile_groups = nk_size_divide_round_up_(depth_tiles, 3);
+
+    nk_dots_bf16_a16x32_sapphireamx_t a_tiles[3];
+    nk_dots_bf16_a16x32_sapphireamx_t b_src_tiles[3];
+    nk_dots_bf16_b32x16_sapphireamx_t b_tiles[3];
+    nk_dots_bf16_state_sapphireamx_t state;
+
+    nk_amx_tile_configure_sapphireamx_();
+
+    for (nk_size_t row_tile = row_start; row_tile < row_end; row_tile += 16) {
+        nk_size_t const valid_rows = (row_tile + 16 <= row_end) ? 16 : (row_end - row_tile);
+
+        for (nk_size_t col_tile = 0; col_tile < n_vectors; col_tile += 16) {
+            nk_size_t const valid_cols = (col_tile + 16 <= n_vectors) ? 16 : (n_vectors - col_tile);
+
+            nk_dots_bf16_init_sapphireamx_(&state);
+
+            for (nk_size_t depth_group_idx = 0; depth_group_idx < depth_tile_groups; depth_group_idx++) {
+                nk_size_t const depth_base = depth_group_idx * 96;
+
+                for (int tile_idx = 0; tile_idx < 3; tile_idx++) {
+                    nk_size_t const depth_start = depth_base + tile_idx * 32;
+                    nk_size_t const valid_depth = (depth_start + 32 <= depth)
+                                                      ? 32
+                                                      : (depth > depth_start ? depth - depth_start : 0);
+
+                    nk_dots_e4m3_load_a_sapphireamx_(              //
+                        &a_tiles[tile_idx],                        //
+                        vectors + row_tile * stride + depth_start, //
+                        stride, valid_rows, valid_depth);
+
+                    if (row_tile == col_tile) {
+                        nk_dots_pack_bf16_transposed_sapphireamx_(&a_tiles[tile_idx], &b_tiles[tile_idx]);
+                    }
+                    else {
+                        nk_dots_e4m3_load_a_sapphireamx_(              //
+                            &b_src_tiles[tile_idx],                    //
+                            vectors + col_tile * stride + depth_start, //
+                            stride, valid_cols, valid_depth);
+                        nk_dots_pack_bf16_transposed_sapphireamx_(&b_src_tiles[tile_idx], &b_tiles[tile_idx]);
+                    }
+                }
+
+                nk_dots_bf16_update_sapphireamx_( //
+                    &state, &a_tiles[0], &a_tiles[1], &a_tiles[2], &b_tiles[0], &b_tiles[1], &b_tiles[2]);
+            }
+
+            nk_dots_bf16_store_sapphireamx_(                                   //
+                &state, result + row_tile * result_stride_elements + col_tile, //
+                result_stride_elements, valid_rows, valid_cols);
+        }
+    }
+}
+
 #pragma endregion // Quarter Precision E5M2
 
 #pragma region Micro Precision E2M3

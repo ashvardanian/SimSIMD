@@ -352,6 +352,7 @@ void bench_cross_x86() {
     run_angulars_symmetric<i8_k>("angulars_symmetric_i8_sapphireamx", nk_angulars_symmetric_i8_sapphireamx);
     run_angulars_symmetric<e2m3_k>("angulars_symmetric_e2m3_sapphireamx", nk_angulars_symmetric_e2m3_sapphireamx);
     run_angulars_symmetric<e3m2_k>("angulars_symmetric_e3m2_sapphireamx", nk_angulars_symmetric_e3m2_sapphireamx);
+    run_angulars_symmetric<e4m3_k>("angulars_symmetric_e4m3_sapphireamx", nk_angulars_symmetric_e4m3_sapphireamx);
     run_angulars_symmetric<e5m2_k>("angulars_symmetric_e5m2_sapphireamx", nk_angulars_symmetric_e5m2_sapphireamx);
     run_angulars_symmetric<u8_k>("angulars_symmetric_u8_sapphireamx", nk_angulars_symmetric_u8_sapphireamx);
 
@@ -374,6 +375,7 @@ void bench_cross_x86() {
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_sapphireamx", nk_euclideans_symmetric_i8_sapphireamx);
     run_euclideans_symmetric<e2m3_k>("euclideans_symmetric_e2m3_sapphireamx", nk_euclideans_symmetric_e2m3_sapphireamx);
     run_euclideans_symmetric<e3m2_k>("euclideans_symmetric_e3m2_sapphireamx", nk_euclideans_symmetric_e3m2_sapphireamx);
+    run_euclideans_symmetric<e4m3_k>("euclideans_symmetric_e4m3_sapphireamx", nk_euclideans_symmetric_e4m3_sapphireamx);
     run_euclideans_symmetric<e5m2_k>("euclideans_symmetric_e5m2_sapphireamx", nk_euclideans_symmetric_e5m2_sapphireamx);
     run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_sapphireamx", nk_euclideans_symmetric_u8_sapphireamx);
 
