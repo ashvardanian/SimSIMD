@@ -542,7 +542,7 @@ def collect_errors(
 ):
     """Calculates and aggregates errors for a given test."""
     accurate_result = np.asarray(accurate_result)
-    eps = np.finfo(accurate_result.dtype).resolution
+    eps = np.finfo(accurate_result.dtype).resolution if np.issubdtype(accurate_result.dtype, np.inexact) else 1.0
     absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
     relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
     absolute_nk_error = np.max(np.abs(nk_result - accurate_result))
