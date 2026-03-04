@@ -299,7 +299,7 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     targets_f32x4 = vsetq_lane_f32(target_popcount_d, targets_f32x4, 3);
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
-    // Handle zero-union edge case (empty vectors → distance = 1.0)
+    // Handle zero-union edge case (empty vectors → distance = 0.0, matching scipy convention)
     float32x4_t one_f32x4 = vdupq_n_f32(1.0f);
     uint32x4_t zero_union_mask = vceqq_f32(union_f32x4, vdupq_n_f32(0.0f));
     float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);
@@ -316,7 +316,7 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     // Compute Jaccard distance = 1 - intersection ÷ union
     float32x4_t ratio_f32x4 = vmulq_f32(intersection_f32x4, union_reciprocal_f32x4);
     float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
-    result->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
+    result->f32x4 = vbslq_f32(zero_union_mask, vdupq_n_f32(0.0f), jaccard_f32x4);
 }
 
 /** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (NEON). */
@@ -345,7 +345,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t qu
 
     float32x4_t ratio_f32x4 = vmulq_f32(dot_f32x4, union_reciprocal_f32x4);
     float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
-    results->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
+    results->f32x4 = vbslq_f32(zero_union_mask, vdupq_n_f32(0.0f), jaccard_f32x4);
 }
 
 #pragma endregion - Stateful Streaming
