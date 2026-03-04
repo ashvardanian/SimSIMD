@@ -116,8 +116,8 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
         nk_f64_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f64_t tan_reduced_first = (1.0 - flattening) * nk_f64_tan(first_latitude);
-        nk_f64_t tan_reduced_second = (1.0 - flattening) * nk_f64_tan(second_latitude);
+        nk_f64_t tan_reduced_first = (1.0 - flattening) * (nk_f64_sin(first_latitude) / nk_f64_cos(first_latitude));
+        nk_f64_t tan_reduced_second = (1.0 - flattening) * (nk_f64_sin(second_latitude) / nk_f64_cos(second_latitude));
         nk_f64_t cos_reduced_first = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_first * tan_reduced_first);
         nk_f64_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
         nk_f64_t cos_reduced_second = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_second * tan_reduced_second);
@@ -216,8 +216,8 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
         nk_f32_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f32_t tan_reduced_first = (1.0f - flattening) * nk_f32_tan(first_latitude);
-        nk_f32_t tan_reduced_second = (1.0f - flattening) * nk_f32_tan(second_latitude);
+        nk_f32_t tan_reduced_first = (1.0f - flattening) * (nk_f32_sin(first_latitude) / nk_f32_cos(first_latitude));
+        nk_f32_t tan_reduced_second = (1.0f - flattening) * (nk_f32_sin(second_latitude) / nk_f32_cos(second_latitude));
         nk_f32_t cos_reduced_first = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_first * tan_reduced_first);
         nk_f32_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
         nk_f32_t cos_reduced_second = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_second * tan_reduced_second);
