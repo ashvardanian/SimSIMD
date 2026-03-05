@@ -86,8 +86,8 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     # On RISC-V, GCC needs `-march` with V extension for vector types to be
     # available at translation-unit scope (`#pragma GCC target` only affects
     # codegen, not type declarations).
-    # We install binutils 2.43+ from Fedora 41 repos in the manylinux_2_39
-    # container, enabling zvfh, zvfbfwma, and zvbb extensions.
+    # In manylinux_2_39 riscv64 CI we build with Clang + LLD to support
+    # zvfh/zvfbfwma/zvbb in this target string.
     if is_64bit_riscv():
         compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
     link_args = [
@@ -134,7 +134,6 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SMELUT2", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMEFA64", "1" if is_64bit_arm() else "0"),
         # RISC-V targets
-        # Binutils 2.43+ installed from Fedora 41 repos enables zvfh, zvfbfwma, zvbb.
         ("NK_TARGET_RVV", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
