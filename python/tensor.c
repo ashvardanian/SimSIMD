@@ -76,12 +76,13 @@ void each_sum_recursive(                                           //
     // Iterate over the outermost non-contiguous dimension, then recurse
     size_t const dim_extent = (size_t)shape[0];
     for (size_t position = 0; position < dim_extent; ++position) {
-        each_sum_recursive(kernel,                                     //
-                           a_data + position * a_strides[0],           //
-                           b_data + position * b_strides[0],           //
-                           result_data + position * result_strides[0], //
-                           shape + 1, a_strides + 1,                   //
-                           b_strides + 1, result_strides + 1,          //
+        Py_ssize_t const signed_position = (Py_ssize_t)position;
+        each_sum_recursive(kernel,                                            //
+                           a_data + signed_position * a_strides[0],           //
+                           b_data + signed_position * b_strides[0],           //
+                           result_data + signed_position * result_strides[0], //
+                           shape + 1, a_strides + 1,                          //
+                           b_strides + 1, result_strides + 1,                 //
                            remaining_dims - 1, contiguous_tail_dims);
     }
 }
@@ -104,12 +105,13 @@ void each_scale_recursive(                                           //
 
     size_t const dim_extent = (size_t)shape[0];
     for (size_t position = 0; position < dim_extent; ++position) {
-        each_scale_recursive(kernel,                                     //
-                             a_data + position * a_strides[0],           //
-                             result_data + position * result_strides[0], //
-                             alpha, beta,                                //
-                             shape + 1, a_strides + 1,                   //
-                             result_strides + 1,                         //
+        Py_ssize_t const signed_position = (Py_ssize_t)position;
+        each_scale_recursive(kernel,                                            //
+                             a_data + signed_position * a_strides[0],           //
+                             result_data + signed_position * result_strides[0], //
+                             alpha, beta,                                       //
+                             shape + 1, a_strides + 1,                          //
+                             result_strides + 1,                                //
                              remaining_dims - 1, contiguous_tail_dims);
     }
 }
@@ -133,15 +135,16 @@ void each_fma_recursive(                                                        
 
     size_t const dim_extent = (size_t)shape[0];
     for (size_t position = 0; position < dim_extent; ++position) {
-        each_fma_recursive(kernel,                                     //
-                           a_data + position * a_strides[0],           //
-                           b_data + position * b_strides[0],           //
-                           c_data + position * c_strides[0],           //
-                           result_data + position * result_strides[0], //
-                           alpha, beta,                                //
-                           shape + 1, a_strides + 1,                   //
-                           b_strides + 1, c_strides + 1,               //
-                           result_strides + 1,                         //
+        Py_ssize_t const signed_position = (Py_ssize_t)position;
+        each_fma_recursive(kernel,                                            //
+                           a_data + signed_position * a_strides[0],           //
+                           b_data + signed_position * b_strides[0],           //
+                           c_data + signed_position * c_strides[0],           //
+                           result_data + signed_position * result_strides[0], //
+                           alpha, beta,                                       //
+                           shape + 1, a_strides + 1,                          //
+                           b_strides + 1, c_strides + 1,                      //
+                           result_strides + 1,                                //
                            remaining_dims - 1, contiguous_tail_dims);
     }
 }
@@ -164,13 +167,14 @@ void each_blend_recursive(                                           //
 
     size_t const dim_extent = (size_t)shape[0];
     for (size_t position = 0; position < dim_extent; ++position) {
-        each_blend_recursive(kernel,                                     //
-                             a_data + position * a_strides[0],           //
-                             b_data + position * b_strides[0],           //
-                             result_data + position * result_strides[0], //
-                             alpha, beta,                                //
-                             shape + 1, a_strides + 1,                   //
-                             b_strides + 1, result_strides + 1,          //
+        Py_ssize_t const signed_position = (Py_ssize_t)position;
+        each_blend_recursive(kernel,                                            //
+                             a_data + signed_position * a_strides[0],           //
+                             b_data + signed_position * b_strides[0],           //
+                             result_data + signed_position * result_strides[0], //
+                             alpha, beta,                                       //
+                             shape + 1, a_strides + 1,                          //
+                             b_strides + 1, result_strides + 1,                 //
                              remaining_dims - 1, contiguous_tail_dims);
     }
 }
