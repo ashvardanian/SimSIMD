@@ -1475,28 +1475,23 @@ NK_INTERNAL void nk_dot_u8x16_finalize_haswell(                                 
  *  Processes 32 nibbles (16 bytes) per update iteration for optimal ILP.
  */
 typedef struct nk_dot_i4x32_state_haswell_t {
-    __m256i product_sum_i32x8; // Main product accumulator: c×d products
-    __m128i sum_cx_i64x2;      // Correction term: sum(c) where c = a ^ 8
-    __m128i sum_dx_i64x2;      // Correction term: sum(d) where d = b ^ 8
+    __m256i biased_product_sum_i32x8; // Single accumulator: (a^8)×(b^8) products
 } nk_dot_i4x32_state_haswell_t;
 
 NK_INTERNAL void nk_dot_i4x32_init_haswell(nk_dot_i4x32_state_haswell_t *state) {
-    state->product_sum_i32x8 = _mm256_setzero_si256();
-    state->sum_cx_i64x2 = _mm_setzero_si128();
-    state->sum_dx_i64x2 = _mm_setzero_si128();
+    state->biased_product_sum_i32x8 = _mm256_setzero_si256();
 }
 
 NK_INTERNAL void nk_dot_i4x32_update_haswell(nk_dot_i4x32_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
     // Process 32 nibbles (16 bytes) from the full 128-bit vector
-    // Algebraic transformation: a×b = (a_biased - 8)×(b_biased - 8)
-    //                                = a_biased×b_biased - 8×(a_biased + b_biased) + 64
+    // Algebraic transformation: a×b = (a^8)×(b^8) − 8×(Σa + Σb) − 64×n
+    // Correction applied at finalize time using precomputed sums.
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
 
     __m128i const nibble_mask_u8x16 = _mm_set1_epi8(0x0F);
     __m128i const xor_mask_u8x16 = _mm_set1_epi8(0x08);
-    __m128i const zeros_u8x16 = _mm_setzero_si128();
 
     __m128i a_i4x32 = a.xmm;
     __m128i b_i4x32 = b.xmm;
@@ -1519,78 +1514,51 @@ NK_INTERNAL void nk_dot_i4x32_update_haswell(nk_dot_i4x32_state_haswell_t *state
     __m256i d_lo_i16x16 = _mm256_cvtepu8_epi16(d_lo_u8x16);
     __m256i d_hi_i16x16 = _mm256_cvtepu8_epi16(d_hi_u8x16);
 
-    // Multiply and accumulate
-    state->product_sum_i32x8 = _mm256_add_epi32(state->product_sum_i32x8, _mm256_madd_epi16(c_lo_i16x16, d_lo_i16x16));
-    state->product_sum_i32x8 = _mm256_add_epi32(state->product_sum_i32x8, _mm256_madd_epi16(c_hi_i16x16, d_hi_i16x16));
-
-    // Use SAD for correction sums (5cy vs 24cy)
-    state->sum_cx_i64x2 = _mm_add_epi64(state->sum_cx_i64x2, _mm_sad_epu8(c_lo_u8x16, zeros_u8x16));
-    state->sum_cx_i64x2 = _mm_add_epi64(state->sum_cx_i64x2, _mm_sad_epu8(c_hi_u8x16, zeros_u8x16));
-    state->sum_dx_i64x2 = _mm_add_epi64(state->sum_dx_i64x2, _mm_sad_epu8(d_lo_u8x16, zeros_u8x16));
-    state->sum_dx_i64x2 = _mm_add_epi64(state->sum_dx_i64x2, _mm_sad_epu8(d_hi_u8x16, zeros_u8x16));
+    // Multiply and accumulate (no SAD — correction deferred to finalize)
+    state->biased_product_sum_i32x8 = _mm256_add_epi32(state->biased_product_sum_i32x8,
+                                                       _mm256_madd_epi16(c_lo_i16x16, d_lo_i16x16));
+    state->biased_product_sum_i32x8 = _mm256_add_epi32(state->biased_product_sum_i32x8,
+                                                       _mm256_madd_epi16(c_hi_i16x16, d_hi_i16x16));
 }
 
 NK_INTERNAL void nk_dot_i4x32_finalize_haswell(                                               //
     nk_dot_i4x32_state_haswell_t const *state_a, nk_dot_i4x32_state_haswell_t const *state_b, //
     nk_dot_i4x32_state_haswell_t const *state_c, nk_dot_i4x32_state_haswell_t const *state_d, //
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_size_t total_dimensions,                                                               //
+    nk_i32_t a_sum, /* A row sum (signed sum of i4 values) */                                 //
+    nk_b128_vec_t b_sums, /* 4 × i32 B column sums */                                         //
+    nk_b128_vec_t *result) {
 
-    // 4-way ILP-optimized reduction with algebraic correction
-    // Formula: result = product_sum - 8×(sum_cx + sum_dx) + 64×depth_nibbles
+    // Compensated 4-way reduction with external correction sums.
+    // Formula: result = biased_product − 8×(Σa + Σb) − 64×depth_padded
     nk_size_t depth_nibbles = nk_size_round_up_to_multiple_(total_dimensions, 32);
 
     // Reduce main products from ymm (i32x8) to xmm (i32x4)
-    __m128i product_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->product_sum_i32x8),
-                                            _mm256_extracti128_si256(state_a->product_sum_i32x8, 1));
-    __m128i product_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->product_sum_i32x8),
-                                            _mm256_extracti128_si256(state_b->product_sum_i32x8, 1));
-    __m128i product_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->product_sum_i32x8),
-                                            _mm256_extracti128_si256(state_c->product_sum_i32x8, 1));
-    __m128i product_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->product_sum_i32x8),
-                                            _mm256_extracti128_si256(state_d->product_sum_i32x8, 1));
+    __m128i product_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->biased_product_sum_i32x8),
+                                            _mm256_extracti128_si256(state_a->biased_product_sum_i32x8, 1));
+    __m128i product_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->biased_product_sum_i32x8),
+                                            _mm256_extracti128_si256(state_b->biased_product_sum_i32x8, 1));
+    __m128i product_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->biased_product_sum_i32x8),
+                                            _mm256_extracti128_si256(state_c->biased_product_sum_i32x8, 1));
+    __m128i product_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->biased_product_sum_i32x8),
+                                            _mm256_extracti128_si256(state_d->biased_product_sum_i32x8, 1));
 
     // 4-way transpose to get [a,b,c,d] in lanes
     __m128i transpose_ab_low = _mm_unpacklo_epi32(product_a_i32x4, product_b_i32x4);
     __m128i transpose_cd_low = _mm_unpacklo_epi32(product_c_i32x4, product_d_i32x4);
     __m128i transpose_ab_high = _mm_unpackhi_epi32(product_a_i32x4, product_b_i32x4);
     __m128i transpose_cd_high = _mm_unpackhi_epi32(product_c_i32x4, product_d_i32x4);
-    __m128i product_lane0 = _mm_unpacklo_epi64(transpose_ab_low, transpose_cd_low);
-    __m128i product_lane1 = _mm_unpackhi_epi64(transpose_ab_low, transpose_cd_low);
-    __m128i product_lane2 = _mm_unpacklo_epi64(transpose_ab_high, transpose_cd_high);
-    __m128i product_lane3 = _mm_unpackhi_epi64(transpose_ab_high, transpose_cd_high);
+    __m128i biased_i32x4 = _mm_add_epi32(_mm_add_epi32(_mm_unpacklo_epi64(transpose_ab_low, transpose_cd_low),
+                                                       _mm_unpackhi_epi64(transpose_ab_low, transpose_cd_low)),
+                                         _mm_add_epi32(_mm_unpacklo_epi64(transpose_ab_high, transpose_cd_high),
+                                                       _mm_unpackhi_epi64(transpose_ab_high, transpose_cd_high)));
 
-    // Sum product lanes
-    __m128i product_sum_i32x4 = _mm_add_epi32(_mm_add_epi32(product_lane0, product_lane1),
-                                              _mm_add_epi32(product_lane2, product_lane3));
-
-    // Reduce correction sums from i64x2 to scalar and back to i32x4
-    // Extract both lanes and sum them
-    nk_i64_t cx_a = (nk_i64_t)_mm_extract_epi64(state_a->sum_cx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_a->sum_cx_i64x2, 1);
-    nk_i64_t cx_b = (nk_i64_t)_mm_extract_epi64(state_b->sum_cx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_b->sum_cx_i64x2, 1);
-    nk_i64_t cx_c = (nk_i64_t)_mm_extract_epi64(state_c->sum_cx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_c->sum_cx_i64x2, 1);
-    nk_i64_t cx_d = (nk_i64_t)_mm_extract_epi64(state_d->sum_cx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_d->sum_cx_i64x2, 1);
-
-    nk_i64_t dx_a = (nk_i64_t)_mm_extract_epi64(state_a->sum_dx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_a->sum_dx_i64x2, 1);
-    nk_i64_t dx_b = (nk_i64_t)_mm_extract_epi64(state_b->sum_dx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_b->sum_dx_i64x2, 1);
-    nk_i64_t dx_c = (nk_i64_t)_mm_extract_epi64(state_c->sum_dx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_c->sum_dx_i64x2, 1);
-    nk_i64_t dx_d = (nk_i64_t)_mm_extract_epi64(state_d->sum_dx_i64x2, 0) +
-                    (nk_i64_t)_mm_extract_epi64(state_d->sum_dx_i64x2, 1);
-
-    // Apply algebraic correction: result = product - 8×(cx + dx) + 64×depth
-    nk_i64_t offset_term = 64 * (nk_i64_t)depth_nibbles;
-    nk_i32_t result_a = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 0) - 8 * (cx_a + dx_a) + offset_term);
-    nk_i32_t result_b = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 1) - 8 * (cx_b + dx_b) + offset_term);
-    nk_i32_t result_c = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 2) - 8 * (cx_c + dx_c) + offset_term);
-    nk_i32_t result_d = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 3) - 8 * (cx_d + dx_d) + offset_term);
-
-    result->xmm = _mm_set_epi32(result_d, result_c, result_b, result_a);
+    // Apply compensation: result = biased − 8×(Σa + Σb) − 64×depth_padded
+    __m128i a_sum_broadcast_i32x4 = _mm_set1_epi32(a_sum);
+    __m128i ab_sums_i32x4 = _mm_add_epi32(a_sum_broadcast_i32x4, b_sums.xmm);
+    __m128i correction_i32x4 = _mm_slli_epi32(ab_sums_i32x4, 3); // × 8
+    __m128i offset_i32x4 = _mm_set1_epi32((nk_i32_t)(-64LL * (nk_i64_t)depth_nibbles));
+    result->xmm = _mm_add_epi32(_mm_sub_epi32(biased_i32x4, correction_i32x4), offset_i32x4);
 }
 
 /**
