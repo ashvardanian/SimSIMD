@@ -258,7 +258,7 @@ if (NK_BUILD_TEST OR NK_BUILD_BENCH)
                                      ${MKL_ROOT}/lib/libmkl_core.so pthread m dl
                 )
             elseif (EXISTS "${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a")
-                # Fallback to static libraries
+                # Fallback to static libraries (Linux/FreeBSD)
                 message(STATUS "MKL found at: ${MKL_ROOT} (static)")
                 set(NK_MKL_FOUND TRUE)
                 set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
@@ -266,6 +266,14 @@ if (NK_BUILD_TEST OR NK_BUILD_BENCH)
                     -Wl,--start-group ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
                     ${MKL_ROOT}/lib/intel64/libmkl_sequential.a ${MKL_ROOT}/lib/intel64/libmkl_core.a -Wl,--end-group
                     pthread m dl
+                )
+            elseif (EXISTS "${MKL_ROOT}/lib/mkl_intel_lp64_dll.lib")
+                # Windows import libraries
+                message(STATUS "MKL found at: ${MKL_ROOT} (Windows)")
+                set(NK_MKL_FOUND TRUE)
+                set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
+                set(NK_MKL_LIBRARIES ${MKL_ROOT}/lib/mkl_intel_lp64_dll.lib ${MKL_ROOT}/lib/mkl_sequential_dll.lib
+                                     ${MKL_ROOT}/lib/mkl_core_dll.lib
                 )
             elseif (NK_COMPARE_TO_MKL STREQUAL "ON")
                 message(FATAL_ERROR "MKL libraries not found at ${MKL_ROOT}/lib/")
