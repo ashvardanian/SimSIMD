@@ -168,20 +168,19 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 # Compiler-specific flags
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    # Enable -march=native for Linux and FreeBSD (not for macOS or cross-compilation)
+if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # Enable -march=native for native builds on Linux/FreeBSD (not macOS or cross-compilation)
     if ((NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
     endif ()
 
-    add_compile_options(-pedantic -ferror-limit=1 -Wno-typedef-redefinition)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Enable -march=native for native builds on Linux/FreeBSD
-    if ((NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
-        add_compile_options(-march=native)
-    endif ()
+    add_compile_options(-pedantic)
 
-    add_compile_options(-pedantic -fmax-errors=1 -Wno-tautological-constant-compare -Wno-psabi)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        add_compile_options(-ferror-limit=1 -Wno-typedef-redefinition)
+    else ()
+        add_compile_options(-fmax-errors=1 -Wno-tautological-constant-compare -Wno-psabi)
+    endif ()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1)
 endif ()
