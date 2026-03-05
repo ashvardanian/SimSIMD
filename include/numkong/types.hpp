@@ -3544,6 +3544,9 @@ struct i8_t {
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -3717,6 +3720,9 @@ struct u8_t {
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
