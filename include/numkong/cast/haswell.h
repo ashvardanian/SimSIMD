@@ -52,9 +52,19 @@ NK_INTERNAL void nk_load_b256_haswell_(void const *src, nk_b256_vec_t *dst) {
     dst->ymm = _mm256_loadu_si256((const __m256i *)src);
 }
 
+/** @brief Type-agnostic 256-bit full store (Haswell AVX2). */
+NK_INTERNAL void nk_store_b256_haswell_(nk_b256_vec_t const *src, void *dst) {
+    _mm256_storeu_si256((__m256i *)dst, src->ymm);
+}
+
 /** @brief Type-agnostic 128-bit full load (Haswell AVX2). */
 NK_INTERNAL void nk_load_b128_haswell_(void const *src, nk_b128_vec_t *dst) {
     dst->xmm = _mm_loadu_si128((const __m128i *)src);
+}
+
+/** @brief Type-agnostic 128-bit full store (SSE2). */
+NK_INTERNAL void nk_store_b128_haswell_(nk_b128_vec_t const *src, void *dst) {
+    _mm_storeu_si128((__m128i *)dst, src->xmm);
 }
 
 #pragma endregion - Type Punned Loads and Stores

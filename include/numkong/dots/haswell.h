@@ -220,7 +220,7 @@ nk_define_cross_compensated_symmetric_(dots, i4, haswell, i4x2, i32,
                                        nk_dot_i4x32_state_haswell_t, nk_b128_vec_t, nk_dot_i4x32_init_haswell,
                                        nk_load_b128_haswell_, nk_partial_load_b4x32_serial_,
                                        nk_dot_i4x32_update_haswell, nk_dot_i4x32_finalize_haswell,
-                                       nk_partial_store_b32x4_serial_, nk_load_b128_serial_,
+                                       nk_partial_store_b32x4_serial_, nk_load_b128_haswell_,
                                        nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i4_,
                                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 nk_define_cross_compensated_packed_(dots, i4, haswell, i4x2, i4x2, i32,
@@ -228,8 +228,8 @@ nk_define_cross_compensated_packed_(dots, i4, haswell, i4x2, i4x2, i32,
                                     nk_dot_i4x32_state_haswell_t, nk_b128_vec_t, nk_dot_i4x32_init_haswell,
                                     nk_load_b128_haswell_, nk_partial_load_b4x32_serial_, nk_load_b128_haswell_,
                                     nk_partial_load_b4x32_serial_, nk_dot_i4x32_update_haswell,
-                                    nk_dot_i4x32_finalize_haswell, nk_partial_store_b32x4_serial_, nk_load_b128_serial_,
-                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i4_,
+                                    nk_dot_i4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
+                                    nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i4_,
                                     /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 
 /* U4 GEMM: depth_simd_dimensions=32 (32 nibbles = 16 bytes = 128-bit input)
