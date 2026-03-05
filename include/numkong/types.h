@@ -337,12 +337,13 @@
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
 //
-// On MSVC, GCC-style ISA macros (__AVX512FP16__, __AVX512BF16__, etc.) are never defined.
+// On MSVC, most GCC-style ISA macros are unavailable. MSVC defines __AVX__, __AVX2__,
+// __AVX512F/BW/CD/DQ/VL__, and __AVX10_VER__, but NOT __AVXVNNI__, __AVX512VNNI__,
+// __AVX512BF16__, __AVX512FP16__, __AMX_*__, etc.
 // Instead, MSVC makes all intrinsics available once the toolset version supports them,
 // without requiring `/arch:AVX512`. We gate on _MSC_VER to auto-enable targets:
 //   - _MSC_VER >= 1900 (VS 2015+): AVX2/FMA/F16C (Haswell)
-//   - _MSC_VER >= 1920 (VS 2019+): AVX-512 base (Skylake, Icelake)
-//   - _MSC_VER >= 1944 (VS 2022 17.14+): BF16, FP16, VP2INTERSECT, VNNI, AMX
+//   - _MSC_VER >= 1920 (VS 2019+): AVX-512 base (Skylake, Icelake), AVX-VNNI (Alder)//   - _MSC_VER >= 1944 (VS 2022 17.14+): BF16, FP16, VP2INTERSECT, VNNI-INT8 (Sierra), AMX
 #if !defined(NK_TARGET_HASWELL) || (NK_TARGET_HASWELL && !NK_TARGET_X86_)
 #if (defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #define NK_TARGET_HASWELL 1

@@ -318,6 +318,10 @@ if (NK_BUILD_TEST OR NK_BUILD_BENCH)
     endif ()
 endif ()
 
+# x86 ISA runtime probes — detect host CPU capabilities at configure time.
+# See cmake/nk_x86_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_x86_isa_probes.cmake)
+
 # Build benchmarks
 if (NK_BUILD_BENCH)
     # Fetch external dependencies
@@ -377,6 +381,10 @@ if (NK_BUILD_BENCH)
         target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_MKL=1)
         target_include_directories(nk_bench PRIVATE ${NK_MKL_INCLUDE_DIRS})
         target_link_libraries(nk_bench ${NK_MKL_LIBRARIES})
+    endif ()
+
+    if (nk_x86_isa_defs_)
+        target_compile_definitions(nk_bench PRIVATE ${nk_x86_isa_defs_})
     endif ()
 endif ()
 
@@ -439,6 +447,10 @@ if (NK_BUILD_TEST)
         target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_MKL=1)
         target_include_directories(nk_test PRIVATE ${NK_MKL_INCLUDE_DIRS})
         target_link_libraries(nk_test ${NK_MKL_LIBRARIES})
+    endif ()
+
+    if (nk_x86_isa_defs_)
+        target_compile_definitions(nk_test PRIVATE ${nk_x86_isa_defs_})
     endif ()
 
     add_test(NAME nk_test COMMAND nk_test)
