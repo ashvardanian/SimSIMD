@@ -5311,7 +5311,7 @@ struct raw_pod_type<value_type_, std::void_t<typename value_type_::raw_t>> {
  *  zero-initialize a single POD field.
  */
 template <typename value_type_, typename = void>
-struct is_memset_zero_safe : std::bool_constant<std::is_trivially_default_constructible_v<value_type_>> {};
+struct is_memset_zero_safe : std::is_trivially_default_constructible<value_type_> {};
 
 template <typename value_type_>
 struct is_memset_zero_safe<value_type_, std::void_t<typename value_type_::raw_t>> : std::true_type {};
