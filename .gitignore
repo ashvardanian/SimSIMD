@@ -46,6 +46,8 @@ CMakeCache.txt
 *.so
 *.dylib
 *.dll
+*.pyd
+*.node
 
 # Fortran module files
 *.smod
@@ -77,6 +79,9 @@ target/
 # perfplot charts
 *.png
 \n
+
+# Python wheel archives
+*.whl
 
 # Library crate: don't commit lockfile
 Cargo.lock

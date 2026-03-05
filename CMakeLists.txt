@@ -95,6 +95,11 @@ option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF
 option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
 option(NK_WASI_STANDALONE "Build for standalone WASI runtimes (no host imports)" OFF)
 
+# `add_test()` entries are only generated when testing is enabled.
+if (NK_BUILD_TEST OR NK_BUILD_SHARED_TEST)
+    enable_testing()
+endif ()
+
 # BLAS/MKL options: ON (require), OFF (disable), AUTO (detect if available)
 set(NK_COMPARE_TO_BLAS "AUTO" CACHE STRING "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks")
 set(NK_COMPARE_TO_MKL "AUTO" CACHE STRING "Include Intel MKL in tests and benchmarks")
@@ -164,8 +169,13 @@ else ()
     message(STATUS "AddressSanitizer not available, Debug builds without ASAN")
 endif ()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+if (MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "/O2 /DNDEBUG")
+else ()
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+    set(CMAKE_C_FLAGS_RELEASE "-O3")
+endif ()
 
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -448,7 +458,6 @@ if (NK_BUILD_TEST)
     endif ()
 
     add_test(NAME nk_test COMMAND nk_test)
-    enable_testing()
 endif ()
 
 # Shared library (or Emscripten JS module)
