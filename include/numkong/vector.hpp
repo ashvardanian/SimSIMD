@@ -22,7 +22,7 @@
  *    For `vector<i4x2_t>` with 100 dimensions, you have 50 values (2 dims/value).
  *
  *  @code
- *  auto v = nk::vector<float>::try_with_dimensions(5);
+ *  auto v = nk::vector<float>::try_zeros(5);
  *  v.size();          // 5
  *  v[-1];             // last element (signed indexing)
  *  v[nk::range(0,3)]; // view of first 3 elements
@@ -147,7 +147,7 @@ struct vector_span;
 
 #pragma endregion - Forward Declarations
 
-#pragma region - Dimension Iterator
+#pragma region - Dim Iterator
 
 template <typename value_type_, typename allocator_type_>
 struct vector;
@@ -159,7 +159,7 @@ struct vector;
  *  For normal types, dereference returns a direct reference.
  */
 template <typename container_type_>
-class dimension_iterator {
+class dim_iterator {
     static constexpr bool is_const_ = std::is_const<container_type_>::value;
     using container_t = typename std::remove_reference<container_type_>::type;
     using container_ptr_t = std::conditional_t<is_const_, container_t const *, container_t *>;
@@ -173,8 +173,8 @@ class dimension_iterator {
     using difference_type = std::ptrdiff_t;
     using size_type = std::size_t;
 
-    constexpr dimension_iterator() noexcept : container_(nullptr), index_(0) {}
-    constexpr dimension_iterator(container_type &c, size_type i) noexcept : container_(&c), index_(i) {}
+    constexpr dim_iterator() noexcept : container_(nullptr), index_(0) {}
+    constexpr dim_iterator(container_type &c, size_type i) noexcept : container_(&c), index_(i) {}
 
     constexpr decltype(auto) operator*() const noexcept { return (*container_)[static_cast<difference_type>(index_)]; }
 
@@ -184,56 +184,54 @@ class dimension_iterator {
         return (*container_)[static_cast<difference_type>(index_) + n];
     }
 
-    constexpr dimension_iterator &operator++() noexcept {
+    constexpr dim_iterator &operator++() noexcept {
         ++index_;
         return *this;
     }
-    constexpr dimension_iterator operator++(int) noexcept {
+    constexpr dim_iterator operator++(int) noexcept {
         auto tmp = *this;
         ++index_;
         return tmp;
     }
-    constexpr dimension_iterator &operator--() noexcept {
+    constexpr dim_iterator &operator--() noexcept {
         --index_;
         return *this;
     }
-    constexpr dimension_iterator operator--(int) noexcept {
+    constexpr dim_iterator operator--(int) noexcept {
         auto tmp = *this;
         --index_;
         return tmp;
     }
 
-    constexpr dimension_iterator &operator+=(difference_type n) noexcept {
+    constexpr dim_iterator &operator+=(difference_type n) noexcept {
         index_ += n;
         return *this;
     }
-    constexpr dimension_iterator &operator-=(difference_type n) noexcept {
+    constexpr dim_iterator &operator-=(difference_type n) noexcept {
         index_ -= n;
         return *this;
     }
-    constexpr dimension_iterator operator+(difference_type n) const noexcept {
+    constexpr dim_iterator operator+(difference_type n) const noexcept {
         return {*container_, index_ + static_cast<size_type>(n)};
     }
-    constexpr dimension_iterator operator-(difference_type n) const noexcept {
+    constexpr dim_iterator operator-(difference_type n) const noexcept {
         return {*container_, index_ - static_cast<size_type>(n)};
     }
-    constexpr difference_type operator-(dimension_iterator const &other) const noexcept {
+    constexpr difference_type operator-(dim_iterator const &other) const noexcept {
         return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
     }
 
-    constexpr bool operator==(dimension_iterator const &other) const noexcept { return index_ == other.index_; }
-    constexpr bool operator!=(dimension_iterator const &other) const noexcept { return index_ != other.index_; }
-    constexpr bool operator<(dimension_iterator const &other) const noexcept { return index_ < other.index_; }
-    constexpr bool operator<=(dimension_iterator const &other) const noexcept { return index_ <= other.index_; }
-    constexpr bool operator>(dimension_iterator const &other) const noexcept { return index_ > other.index_; }
-    constexpr bool operator>=(dimension_iterator const &other) const noexcept { return index_ >= other.index_; }
+    constexpr bool operator==(dim_iterator const &other) const noexcept { return index_ == other.index_; }
+    constexpr bool operator!=(dim_iterator const &other) const noexcept { return index_ != other.index_; }
+    constexpr bool operator<(dim_iterator const &other) const noexcept { return index_ < other.index_; }
+    constexpr bool operator<=(dim_iterator const &other) const noexcept { return index_ <= other.index_; }
+    constexpr bool operator>(dim_iterator const &other) const noexcept { return index_ > other.index_; }
+    constexpr bool operator>=(dim_iterator const &other) const noexcept { return index_ >= other.index_; }
 
-    friend constexpr dimension_iterator operator+(difference_type n, dimension_iterator const &it) noexcept {
-        return it + n;
-    }
+    friend constexpr dim_iterator operator+(difference_type n, dim_iterator const &it) noexcept { return it + n; }
 };
 
-#pragma endregion - Dimension Iterator
+#pragma endregion - Dim Iterator
 
 #pragma region - Vector View
 
@@ -290,8 +288,13 @@ struct vector_view {
     decltype(auto) operator[](difference_type idx) const noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1) {
+            constexpr auto dims_per_value = dimensions_per_value<value_type>();
+            auto value_index = i / dims_per_value;
+            auto sub_index = i % dims_per_value;
             using raw_type = typename raw_pod_type<value_type>::type;
-            return sub_byte_ref<value_type>(const_cast<raw_type *>(reinterpret_cast<raw_type const *>(data_)), i).get();
+            auto *base = const_cast<raw_type *>(
+                reinterpret_cast<raw_type const *>(data_ + static_cast<difference_type>(value_index) * stride_bytes_));
+            return sub_byte_ref<value_type>(base, sub_index).get();
         }
         else { return *reinterpret_cast<value_type const *>(data_ + static_cast<difference_type>(i) * stride_bytes_); }
     }
@@ -378,8 +381,13 @@ struct vector_span {
     decltype(auto) operator[](difference_type idx) noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1) {
+            constexpr auto dims_per_value = dimensions_per_value<value_type>();
+            auto value_index = i / dims_per_value;
+            auto sub_index = i % dims_per_value;
             using raw_type = typename raw_pod_type<value_type>::type;
-            return sub_byte_ref<value_type>(reinterpret_cast<raw_type *>(data_), i);
+            auto *base = reinterpret_cast<raw_type *>(data_ +
+                                                      static_cast<difference_type>(value_index) * stride_bytes_);
+            return sub_byte_ref<value_type>(base, sub_index);
         }
         else { return *reinterpret_cast<value_type *>(data_ + static_cast<difference_type>(i) * stride_bytes_); }
     }
@@ -413,7 +421,7 @@ struct vector_span {
 /**
  *  @brief Owning, non-resizable, SIMD-aligned vector.
  *
- *  Size is fixed at construction. Use `try_with_dimensions()` factory for
+ *  Size is fixed at construction. Use `try_zeros()` factory for
  *  non-throwing construction, or `from_raw()` to adopt existing memory.
  *
  *  Supports signed indexing (`v[-1]`), sub-byte types via proxy references,
@@ -434,8 +442,8 @@ struct vector {
     using pointer = value_type_ *;
     using const_pointer = value_type_ const *;
 
-    using iterator = dimension_iterator<vector>;
-    using const_iterator = dimension_iterator<vector const>;
+    using iterator = dim_iterator<vector>;
+    using const_iterator = dim_iterator<vector const>;
 
   private:
     pointer data_ = nullptr;
@@ -482,13 +490,53 @@ struct vector {
      *  @brief Factory: allocate a zero-initialized vector with `dims` dimensions.
      *  @return Non-empty vector on success, empty vector on allocation failure.
      */
-    [[nodiscard]] static vector try_with_dimensions(size_type dims, allocator_type_ alloc = {}) noexcept {
+    [[nodiscard]] static vector try_zeros(size_type dims, allocator_type_ alloc = {}) noexcept {
         vector v(alloc);
         size_type values = dims_to_values(dims);
         if (values == 0) return v;
         pointer ptr = alloc_traits::allocate(v.alloc_, values);
         if (!ptr) return v;
         std::memset(ptr, 0, values * sizeof(value_type_));
+        v.data_ = ptr;
+        v.dimensions_ = dims;
+        return v;
+    }
+
+    /**
+     *  @brief Factory: allocate a vector filled with ones.
+     *  @return Non-empty vector on success, empty vector on allocation failure.
+     */
+    [[nodiscard]] static vector try_ones(size_type dims, allocator_type_ alloc = {}) noexcept {
+        return try_full(dims, value_type_ {1}, alloc);
+    }
+
+    /**
+     *  @brief Factory: allocate a vector filled with `val`.
+     *  @return Non-empty vector on success, empty vector on allocation failure.
+     */
+    [[nodiscard]] static vector try_full(size_type dims, value_type_ val, allocator_type_ alloc = {}) noexcept {
+        vector v(alloc);
+        size_type values = dims_to_values(dims);
+        if (values == 0) return v;
+        pointer ptr = alloc_traits::allocate(v.alloc_, values);
+        if (!ptr) return v;
+        for (size_type i = 0; i < values; ++i) ptr[i] = val;
+        v.data_ = ptr;
+        v.dimensions_ = dims;
+        return v;
+    }
+
+    /**
+     *  @brief Factory: allocate an uninitialized vector.
+     *  @return Non-empty vector on success, empty vector on allocation failure.
+     *  @warning Contents are uninitialized. Caller must fill before reading.
+     */
+    [[nodiscard]] static vector try_empty(size_type dims, allocator_type_ alloc = {}) noexcept {
+        vector v(alloc);
+        size_type values = dims_to_values(dims);
+        if (values == 0) return v;
+        pointer ptr = alloc_traits::allocate(v.alloc_, values);
+        if (!ptr) return v;
         v.data_ = ptr;
         v.dimensions_ = dims;
         return v;

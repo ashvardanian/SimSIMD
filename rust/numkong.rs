@@ -102,7 +102,8 @@ pub mod vector;
 
 // Re-export scalar types at crate root
 pub use scalar::{
-    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, FloatConvertible, FloatLike,
+    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, Complex32, Complex64, FloatConvertible,
+    FloatLike, NumberLike, StorageElement,
 };
 
 // Re-export complex product types
@@ -127,13 +128,13 @@ pub use numerics::capabilities;
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Angulars, AxisIter, AxisIterMut, Dots, Euclideans, Global, Hammings, Jaccards,
-    Matrix, MatrixSpan, MatrixView, PackedMatrix, ShapeDescriptor, SliceRange, Tensor, TensorError,
-    TensorSpan, TensorView, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Allocator, Angulars, AxisIterator, AxisIteratorMut, Dots, Euclideans, Global, Hammings,
+    Jaccards, Matrix, MatrixSpan, MatrixView, PackedMatrix, ShapeDescriptor, SliceRange, Tensor,
+    TensorError, TensorSpan, TensorView, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // Re-export vector types
-pub use vector::{DimIter, VecIndex, Vector, VectorSpan, VectorView};
+pub use vector::{DimIterator, VecIndex, Vector, VectorSpan, VectorView};
 
 // Re-export maxsim types
 pub use maxsim::{MaxSim, MaxSimPackedMatrix};
@@ -169,8 +170,8 @@ mod tests {
     #[test]
     fn smoke_maxsim_f32() {
         capabilities::configure_thread();
-        let queries = Tensor::<f32>::try_new(&[4, 16], 1.0).unwrap();
-        let documents = Tensor::<f32>::try_new(&[8, 16], 1.0).unwrap();
+        let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
+        let documents = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
         let packed_q = MaxSimPackedMatrix::try_pack(&queries).unwrap();
         let packed_d = MaxSimPackedMatrix::try_pack(&documents).unwrap();
         assert_eq!(packed_q.dims(), (4, 16));
@@ -185,8 +186,8 @@ mod tests {
     #[test]
     fn smoke_tensor_dots() {
         capabilities::configure_thread();
-        let queries = Tensor::<f32>::try_new(&[2, 4], 1.0).unwrap();
-        let targets = Tensor::<f32>::try_new(&[3, 4], 1.0).unwrap();
+        let queries = Tensor::<f32>::try_full(&[2, 4], 1.0).unwrap();
+        let targets = Tensor::<f32>::try_full(&[3, 4], 1.0).unwrap();
         let packed_targets = PackedMatrix::try_pack(&targets).unwrap();
         let products = queries.dots_packed(&packed_targets);
         assert_eq!(products.shape(), &[2, 3]);

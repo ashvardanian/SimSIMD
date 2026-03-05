@@ -31,7 +31,7 @@ test-command = """
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
     python -m pip install ml_dtypes --only-binary=:all: || (echo "Failed to install ml_dtypes" && exit 0) &&
     python -c "import numkong; print(numkong.get_capabilities())" &&
-    pytest {project}/scripts/test.py -s -x -Wd
+    pytest {project}/test/ -s -x -Wd
 """
 
 # We need to build for all platforms:
@@ -112,7 +112,7 @@ test-command = """
     cmd /c "python -m pip install numpy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
     python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! &
     python -m pip install ml_dtypes & if errorlevel 1 echo Failed to install ml_dtypes... Nothing can stop me, I'm all the way up! &
-    pytest {project}/scripts/test.py -s -x -Wd"
+    pytest {project}/test/ -s -x -Wd"
 """
 
 # These environment variables allow setup.py to detect the target architecture

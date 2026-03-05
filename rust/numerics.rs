@@ -6416,7 +6416,7 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::{assert_close, FloatLike, TestableType};
+    use crate::scalar::{assert_close, FloatLike, NumberLike, TestableType};
 
     // region: Core Test Helpers
 
@@ -7390,14 +7390,14 @@ mod tests {
         let result = T::kabsch(&cloud_t, &cloud_t).unwrap();
         let tol = T::atol() + T::rtol();
         assert_close(
-            FloatLike::to_f64(result.scale),
+            NumberLike::to_f64(result.scale),
             1.0,
             tol,
             0.0,
             &format!("kabsch<{}> scale", core::any::type_name::<T>()),
         );
         assert_close(
-            FloatLike::to_f64(result.rmsd),
+            NumberLike::to_f64(result.rmsd),
             0.0,
             tol,
             0.0,
@@ -7413,7 +7413,7 @@ mod tests {
         let cloud_t = convert_cloud::<T>(cloud);
         let scaled_t = convert_cloud::<T>(scaled);
         let result = T::umeyama(&cloud_t, &scaled_t).unwrap();
-        let scale = FloatLike::to_f64(result.scale);
+        let scale = NumberLike::to_f64(result.scale);
         assert!(
             scale > 1.0 && scale < 3.0,
             "umeyama<{}> scale: expected ~2.0, got {}",
@@ -7431,14 +7431,14 @@ mod tests {
         let result = T::rmsd(&cloud_t, &cloud_t).unwrap();
         let tol = T::atol() + T::rtol();
         assert_close(
-            FloatLike::to_f64(result.scale),
+            NumberLike::to_f64(result.scale),
             1.0,
             tol,
             0.0,
             &format!("rmsd<{}> scale", core::any::type_name::<T>()),
         );
         assert_close(
-            FloatLike::to_f64(result.rmsd),
+            NumberLike::to_f64(result.rmsd),
             0.0,
             tol,
             0.0,
