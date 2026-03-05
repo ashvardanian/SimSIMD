@@ -131,7 +131,7 @@
 #if defined(NK_DEFINED_LINUX_) && (NK_TARGET_X86_ || NK_TARGET_RISCV_)
 #include <sys/syscall.h> // `SYS_arch_prctl`, `SYS_riscv_hwprobe`
 #ifdef __cplusplus
-extern "C" long syscall(long, ...);
+extern "C" long syscall(long, ...) noexcept;
 #else
 extern long syscall(long, ...);
 #endif
