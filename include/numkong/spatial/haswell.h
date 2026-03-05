@@ -120,6 +120,28 @@ NK_INTERNAL void nk_euclidean_through_i32_from_dot_haswell_(nk_b128_vec_t dots, 
     results->xmm_ps = nk_safe_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
+/** @brief Angular from_dot for u32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
+NK_INTERNAL void nk_angular_through_u32_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                          nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+    __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
+    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 rsqrt_f32x4 = nk_rsqrt_f32x4_haswell_(products_f32x4);
+    __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
+    __m128 angular_f32x4 = _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4);
+    results->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
+}
+
+/** @brief Euclidean from_dot for u32 accumulators: cast to f32, then √(a² + b² − 2ab). 4 pairs. */
+NK_INTERNAL void nk_euclidean_through_u32_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                            nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+    __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
+    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
+    results->xmm_ps = nk_safe_sqrt_f32x4_haswell_(dist_sq_f32x4);
+}
+
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.

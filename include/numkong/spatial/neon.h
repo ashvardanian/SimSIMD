@@ -34,7 +34,7 @@
 
 #include "numkong/types.h"
 #include "numkong/scalar/neon.h" // `nk_f32_sqrt_neon`
-#include "numkong/dot/neon.h"     // `nk_dot_stable_sum_f64x2_neon_`
+#include "numkong/dot/neon.h"    // `nk_dot_stable_sum_f64x2_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -689,6 +689,52 @@ NK_INTERNAL void nk_euclidean_through_f32_from_dot_neon_(nk_b128_vec_t dots, nk_
     // dist_sq = sum_sq − 2 × dot
     float32x4_t dist_sq_f32x4 = vfmsq_f32(sum_sq_f32x4, vdupq_n_f32(2.0f), dots_f32x4);
     // Clamp and sqrt
+    dist_sq_f32x4 = vmaxq_f32(dist_sq_f32x4, vdupq_n_f32(0.0f));
+    results->f32x4 = vsqrtq_f32(dist_sq_f32x4);
+}
+
+/** @brief Angular from_dot for i32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
+NK_INTERNAL void nk_angular_through_i32_from_dot_neon_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
+                                                       nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    float32x4_t dots_f32x4 = vcvtq_f32_s32(dots.i32x4);
+    float32x4_t query_sumsq_f32x4 = vdupq_n_f32((nk_f32_t)query_sumsq);
+    float32x4_t products_f32x4 = vmulq_f32(query_sumsq_f32x4, vcvtq_f32_s32(target_sumsqs.i32x4));
+    float32x4_t rsqrt_f32x4 = nk_rsqrt_f32x4_neon_(products_f32x4);
+    float32x4_t normalized_f32x4 = vmulq_f32(dots_f32x4, rsqrt_f32x4);
+    float32x4_t angular_f32x4 = vsubq_f32(vdupq_n_f32(1.0f), normalized_f32x4);
+    results->f32x4 = vmaxq_f32(angular_f32x4, vdupq_n_f32(0.0f));
+}
+
+/** @brief Euclidean from_dot for i32 accumulators: cast to f32, then √(a² + b² − 2ab). 4 pairs. */
+NK_INTERNAL void nk_euclidean_through_i32_from_dot_neon_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
+                                                         nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    float32x4_t dots_f32x4 = vcvtq_f32_s32(dots.i32x4);
+    float32x4_t query_sumsq_f32x4 = vdupq_n_f32((nk_f32_t)query_sumsq);
+    float32x4_t sum_sq_f32x4 = vaddq_f32(query_sumsq_f32x4, vcvtq_f32_s32(target_sumsqs.i32x4));
+    float32x4_t dist_sq_f32x4 = vfmsq_f32(sum_sq_f32x4, vdupq_n_f32(2.0f), dots_f32x4);
+    dist_sq_f32x4 = vmaxq_f32(dist_sq_f32x4, vdupq_n_f32(0.0f));
+    results->f32x4 = vsqrtq_f32(dist_sq_f32x4);
+}
+
+/** @brief Angular from_dot for u32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
+NK_INTERNAL void nk_angular_through_u32_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                       nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    float32x4_t dots_f32x4 = vcvtq_f32_u32(dots.u32x4);
+    float32x4_t query_sumsq_f32x4 = vdupq_n_f32((nk_f32_t)query_sumsq);
+    float32x4_t products_f32x4 = vmulq_f32(query_sumsq_f32x4, vcvtq_f32_u32(target_sumsqs.u32x4));
+    float32x4_t rsqrt_f32x4 = nk_rsqrt_f32x4_neon_(products_f32x4);
+    float32x4_t normalized_f32x4 = vmulq_f32(dots_f32x4, rsqrt_f32x4);
+    float32x4_t angular_f32x4 = vsubq_f32(vdupq_n_f32(1.0f), normalized_f32x4);
+    results->f32x4 = vmaxq_f32(angular_f32x4, vdupq_n_f32(0.0f));
+}
+
+/** @brief Euclidean from_dot for u32 accumulators: cast to f32, then √(a² + b² − 2ab). 4 pairs. */
+NK_INTERNAL void nk_euclidean_through_u32_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                         nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    float32x4_t dots_f32x4 = vcvtq_f32_u32(dots.u32x4);
+    float32x4_t query_sumsq_f32x4 = vdupq_n_f32((nk_f32_t)query_sumsq);
+    float32x4_t sum_sq_f32x4 = vaddq_f32(query_sumsq_f32x4, vcvtq_f32_u32(target_sumsqs.u32x4));
+    float32x4_t dist_sq_f32x4 = vfmsq_f32(sum_sq_f32x4, vdupq_n_f32(2.0f), dots_f32x4);
     dist_sq_f32x4 = vmaxq_f32(dist_sq_f32x4, vdupq_n_f32(0.0f));
     results->f32x4 = vsqrtq_f32(dist_sq_f32x4);
 }
