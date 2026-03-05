@@ -627,6 +627,27 @@ def hammings_symmetric(
     dtype: Optional[_IntegralType] = None,
     out: Optional[_BufferType] = None,
 ) -> Tensor: ...
+def jaccards_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[_IntegralType] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+def angulars_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+def euclideans_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
 
 # endregion Symmetric Pairwise Operations
 
@@ -637,7 +658,8 @@ class PackedMatrix:
     """Opaque pre-packed matrix for repeated matrix multiplication or Hamming distance.
 
     Created by dots_pack() or hammings_pack() and used with
-    dots_packed(), hammings_packed(), or the @ operator.
+    dots_packed(), hammings_packed(), jaccards_packed(), angulars_packed(),
+    euclideans_packed(), or the @ operator.
     """
 
     @property
@@ -706,6 +728,33 @@ def hammings_pack(
 
 # Hamming distance computation with a pre-packed B matrix.
 def hammings_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Jaccard distance computation with a pre-packed B matrix.
+def jaccards_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Angular distance computation with a pre-packed B matrix.
+def angulars_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Euclidean distance computation with a pre-packed B matrix.
+def euclideans_packed(
     a: _BufferType,
     b: PackedMatrix,
     /,

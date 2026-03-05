@@ -332,7 +332,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-    // Platform-specific integer formats (Windows vs Unix):
+        // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -913,6 +913,10 @@ static PyMethodDef nk_methods[] = {
     // Symmetric pairwise operations
     {"dots_symmetric", (PyCFunction)api_dots_symmetric, METH_FASTCALL | METH_KEYWORDS, doc_dots_symmetric},
     {"hammings_symmetric", (PyCFunction)api_hammings_symmetric, METH_FASTCALL | METH_KEYWORDS, doc_hammings_symmetric},
+    {"jaccards_symmetric", (PyCFunction)api_jaccards_symmetric, METH_FASTCALL | METH_KEYWORDS, doc_jaccards_symmetric},
+    {"angulars_symmetric", (PyCFunction)api_angulars_symmetric, METH_FASTCALL | METH_KEYWORDS, doc_angulars_symmetric},
+    {"euclideans_symmetric", (PyCFunction)api_euclideans_symmetric, METH_FASTCALL | METH_KEYWORDS,
+     doc_euclideans_symmetric},
 
     // Curved spaces
     {"bilinear", (PyCFunction)api_bilinear, METH_FASTCALL | METH_KEYWORDS, doc_bilinear},
@@ -960,6 +964,9 @@ static PyMethodDef nk_methods[] = {
     {"dots_packed", (PyCFunction)api_dots_packed, METH_FASTCALL | METH_KEYWORDS, doc_dots_packed},
     {"hammings_pack", (PyCFunction)api_hammings_pack, METH_FASTCALL | METH_KEYWORDS, doc_hammings_pack},
     {"hammings_packed", (PyCFunction)api_hammings_packed, METH_FASTCALL | METH_KEYWORDS, doc_hammings_packed},
+    {"jaccards_packed", (PyCFunction)api_jaccards_packed, METH_FASTCALL | METH_KEYWORDS, doc_jaccards_packed},
+    {"angulars_packed", (PyCFunction)api_angulars_packed, METH_FASTCALL | METH_KEYWORDS, doc_angulars_packed},
+    {"euclideans_packed", (PyCFunction)api_euclideans_packed, METH_FASTCALL | METH_KEYWORDS, doc_euclideans_packed},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
