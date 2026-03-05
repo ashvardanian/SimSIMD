@@ -382,11 +382,11 @@ static void linearize_cast_recursive(                                         //
     size_t const dest_row_bytes = inner_elements * dest_element_size;
 
     for (size_t position = 0; position < dim_extent; ++position) {
-        linearize_cast_recursive(                              //
-            src_data + position * strides[0], src_dtype,       //
-            dest_data + position * dest_row_bytes, dest_dtype, //
-            src_element_size, dest_element_size,               //
-            shape + 1, strides + 1,                            //
+        linearize_cast_recursive(                                          //
+            src_data + (Py_ssize_t)position * strides[0], src_dtype,       //
+            dest_data + (Py_ssize_t)position * (Py_ssize_t)dest_row_bytes, //
+            dest_dtype, src_element_size, dest_element_size,               //
+            shape + 1, strides + 1,                                        //
             remaining_dims - 1, contiguous_tail_dims);
     }
 }
