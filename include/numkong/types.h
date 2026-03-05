@@ -343,7 +343,8 @@
 // Instead, MSVC makes all intrinsics available once the toolset version supports them,
 // without requiring `/arch:AVX512`. We gate on _MSC_VER to auto-enable targets:
 //   - _MSC_VER >= 1900 (VS 2015+): AVX2/FMA/F16C (Haswell)
-//   - _MSC_VER >= 1920 (VS 2019+): AVX-512 base (Skylake, Icelake), AVX-VNNI (Alder)//   - _MSC_VER >= 1944 (VS 2022 17.14+): BF16, FP16, VP2INTERSECT, VNNI-INT8 (Sierra), AMX
+//   - _MSC_VER >= 1920 (VS 2019+): AVX-512 base (Skylake, Icelake), AVX-VNNI (Alder)
+//   - _MSC_VER >= 1944 (VS 2022 17.14+): BF16, FP16, VP2INTERSECT, VNNI-INT8 (Sierra), AMX
 #if !defined(NK_TARGET_HASWELL) || (NK_TARGET_HASWELL && !NK_TARGET_X86_)
 #if (defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #define NK_TARGET_HASWELL 1
@@ -426,6 +427,15 @@
 #define NK_TARGET_TURIN 0
 #endif
 #endif // !defined(NK_TARGET_TURIN) || ...
+
+#if !defined(NK_TARGET_ALDER) || (NK_TARGET_ALDER && !NK_TARGET_X86_)
+#if defined(__AVXVNNI__) || (defined(_MSC_VER) && _MSC_VER >= 1920)
+#define NK_TARGET_ALDER 1
+#else
+#undef NK_TARGET_ALDER
+#define NK_TARGET_ALDER 0
+#endif
+#endif // !defined(NK_TARGET_ALDER) || ...
 
 #if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !NK_TARGET_X86_)
 #if defined(__AVXVNNIINT8__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
@@ -1064,8 +1074,7 @@ typedef union nk_b256_vec_t {
  *  member of the union, which in our case is a register-based calling convention for SIMD types.
  */
 typedef union nk_b512_vec_t {
-#if NK_TARGET_SKYLAKE || NK_TARGET_ICELAKE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN || \
-    NK_TARGET_SIERRA
+#if NK_TARGET_SKYLAKE
     __m512i zmm;
     __m512d zmm_pd;
     __m512 zmm_ps;

@@ -1170,6 +1170,46 @@ NK_PUBLIC void nk_dots_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t 
                                             nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_ICELAKE
 
+/*  Alder backends using AMX with TDPB[SU]SD / TDPBF16PS.
+ *  Optimized for I8/U8 via AMX integer tiles, E2M3 via AMX BF16 tiles.
+ */
+#if NK_TARGET_ALDER
+/** @copydoc nk_dots_packed_size_i8 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_i8_alder(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_i8 */
+NK_PUBLIC void nk_dots_pack_i8_alder(nk_i8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_i8 */
+NK_PUBLIC void nk_dots_packed_i8_alder(nk_i8_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m, nk_size_t n,
+                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_i8 */
+NK_PUBLIC void nk_dots_symmetric_i8_alder(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_i32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_u8 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u8_alder(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_u8 */
+NK_PUBLIC void nk_dots_pack_u8_alder(nk_u8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_u8 */
+NK_PUBLIC void nk_dots_packed_u8_alder(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u8 */
+NK_PUBLIC void nk_dots_symmetric_u8_alder(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_e2m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_alder(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e2m3 */
+NK_PUBLIC void nk_dots_pack_e2m3_alder(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_e2m3 */
+NK_PUBLIC void nk_dots_packed_e2m3_alder(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e2m3 */
+NK_PUBLIC void nk_dots_symmetric_e2m3_alder(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
+#endif // NK_TARGET_ALDER
+
 /*  Sierra backends using AVX10.2 with VMPSADBW.
  *  Optimized for I8/U8 via VMPSADBW (vector multiply-sum of absolute differences).
  */
@@ -1496,6 +1536,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
 #include "numkong/dots/haswell.h"
 #include "numkong/dots/skylake.h"
 #include "numkong/dots/icelake.h"
+#include "numkong/dots/alder.h"
 #include "numkong/dots/sierra.h"
 #include "numkong/dots/genoa.h"
 #include "numkong/dots/sapphireamx.h"
@@ -1750,6 +1791,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_i8_icelake(n, k);
 #elif NK_TARGET_SIERRA
     return nk_dots_packed_size_i8_sierra(n, k);
+#elif NK_TARGET_ALDER
+    return nk_dots_packed_size_i8_alder(n, k);
 #elif NK_TARGET_HASWELL
     return nk_dots_packed_size_i8_haswell(n, k);
 #elif NK_TARGET_RVV
@@ -1770,6 +1813,8 @@ NK_PUBLIC void nk_dots_pack_i8(nk_i8_t const *b, nk_size_t n, nk_size_t k, nk_si
     nk_dots_pack_i8_icelake(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SIERRA
     nk_dots_pack_i8_sierra(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_ALDER
+    nk_dots_pack_i8_alder(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
     nk_dots_pack_i8_haswell(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_RVV
@@ -1791,6 +1836,8 @@ NK_PUBLIC void nk_dots_packed_i8(nk_i8_t const *a, void const *b_packed, nk_i32_
     nk_dots_packed_i8_icelake(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SIERRA
     nk_dots_packed_i8_sierra(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_ALDER
+    nk_dots_packed_i8_alder(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
     nk_dots_packed_i8_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_RVV
@@ -1820,6 +1867,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_u8(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_u8_icelake(n, k);
 #elif NK_TARGET_SIERRA
     return nk_dots_packed_size_u8_sierra(n, k);
+#elif NK_TARGET_ALDER
+    return nk_dots_packed_size_u8_alder(n, k);
 #elif NK_TARGET_HASWELL
     return nk_dots_packed_size_u8_haswell(n, k);
 #elif NK_TARGET_RVV
@@ -1840,6 +1889,8 @@ NK_PUBLIC void nk_dots_pack_u8(nk_u8_t const *b, nk_size_t n, nk_size_t k, nk_si
     nk_dots_pack_u8_icelake(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SIERRA
     nk_dots_pack_u8_sierra(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_ALDER
+    nk_dots_pack_u8_alder(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
     nk_dots_pack_u8_haswell(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_RVV
@@ -1861,6 +1912,8 @@ NK_PUBLIC void nk_dots_packed_u8(nk_u8_t const *a, void const *b_packed, nk_u32_
     nk_dots_packed_u8_icelake(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SIERRA
     nk_dots_packed_u8_sierra(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_ALDER
+    nk_dots_packed_u8_alder(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
     nk_dots_packed_u8_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_RVV
@@ -2003,6 +2056,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_e2m3_genoa(n, k);
 #elif NK_TARGET_SIERRA
     return nk_dots_packed_size_e2m3_sierra(n, k);
+#elif NK_TARGET_ALDER
+    return nk_dots_packed_size_e2m3_alder(n, k);
 #elif NK_TARGET_SKYLAKE
     return nk_dots_packed_size_e2m3_skylake(n, k);
 #elif NK_TARGET_HASWELL
@@ -2025,6 +2080,8 @@ NK_PUBLIC void nk_dots_pack_e2m3(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, n
     nk_dots_pack_e2m3_genoa(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SIERRA
     nk_dots_pack_e2m3_sierra(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_ALDER
+    nk_dots_pack_e2m3_alder(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
     nk_dots_pack_e2m3_skylake(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
@@ -2048,6 +2105,8 @@ NK_PUBLIC void nk_dots_packed_e2m3(nk_e2m3_t const *a, void const *b_packed, nk_
     nk_dots_packed_e2m3_genoa(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SIERRA
     nk_dots_packed_e2m3_sierra(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_ALDER
+    nk_dots_packed_e2m3_alder(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
     nk_dots_packed_e2m3_skylake(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
@@ -2292,6 +2351,8 @@ NK_PUBLIC void nk_dots_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_vectors,
     nk_dots_symmetric_i8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_dots_symmetric_i8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_dots_symmetric_i8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_dots_symmetric_i8_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
@@ -2312,6 +2373,8 @@ NK_PUBLIC void nk_dots_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors,
     nk_dots_symmetric_u8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_dots_symmetric_u8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_dots_symmetric_u8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONSDOT
     nk_dots_symmetric_u8_neonsdot(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
@@ -2380,6 +2443,8 @@ NK_PUBLIC void nk_dots_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_dots_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_dots_symmetric_e2m3_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_dots_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL

@@ -111,6 +111,24 @@ void bench_spatial() {
     run_dense<e3m2_k, f32_k>("euclidean_e3m2_skylake", nk_euclidean_e3m2_skylake);
 #endif
 
+#if NK_TARGET_ALDER
+    run_dense<i8_k, f32_k>("angular_i8_alder", nk_angular_i8_alder);
+    run_dense<i8_k, u32_k>("sqeuclidean_i8_alder", nk_sqeuclidean_i8_alder);
+    run_dense<i8_k, f32_k>("euclidean_i8_alder", nk_euclidean_i8_alder);
+    run_dense<u8_k, f32_k>("angular_u8_alder", nk_angular_u8_alder);
+    run_dense<u8_k, u32_k>("sqeuclidean_u8_alder", nk_sqeuclidean_u8_alder);
+    run_dense<u8_k, f32_k>("euclidean_u8_alder", nk_euclidean_u8_alder);
+#endif
+
+#if NK_TARGET_SIERRA
+    run_dense<i8_k, f32_k>("angular_i8_sierra", nk_angular_i8_sierra);
+    run_dense<i8_k, u32_k>("sqeuclidean_i8_sierra", nk_sqeuclidean_i8_sierra);
+    run_dense<i8_k, f32_k>("euclidean_i8_sierra", nk_euclidean_i8_sierra);
+    run_dense<u8_k, f32_k>("angular_u8_sierra", nk_angular_u8_sierra);
+    run_dense<u8_k, u32_k>("sqeuclidean_u8_sierra", nk_sqeuclidean_u8_sierra);
+    run_dense<u8_k, f32_k>("euclidean_u8_sierra", nk_euclidean_u8_sierra);
+#endif
+
 #if NK_TARGET_ICELAKE
     run_dense<i8_k, f32_k>("angular_i8_icelake", nk_angular_i8_icelake);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_icelake", nk_sqeuclidean_i8_icelake);

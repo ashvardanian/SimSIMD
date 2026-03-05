@@ -474,6 +474,15 @@ NK_PUBLIC void nk_dot_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size
 NK_PUBLIC void nk_dot_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_ALDER
+/** @copydoc nk_dot_i8 */
+NK_PUBLIC void nk_dot_i8_alder(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u8_alder(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_ALDER
+
 #if NK_TARGET_SIERRA
 /** @copydoc nk_dot_i8 */
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
@@ -607,6 +616,7 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/icelake.h"
 #include "numkong/dot/genoa.h"
 #include "numkong/dot/sapphire.h"
+#include "numkong/dot/alder.h"
 #include "numkong/dot/sierra.h"
 #include "numkong/dot/rvv.h"
 #include "numkong/dot/rvvbb.h"
@@ -631,6 +641,8 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_icelake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_i8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_dot_i8_alder(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -649,6 +661,10 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_dot_u8_icelake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_dot_u8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_dot_u8_alder(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -791,6 +807,8 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
     nk_dot_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_e2m3_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_dot_e2m3_alder(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE

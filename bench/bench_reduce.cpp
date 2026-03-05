@@ -254,13 +254,17 @@ void bench_reduce() {
     run_reduce_moments<e3m2_k>("reduce_moments_e3m2_genoa", nk_reduce_moments_e3m2_genoa);
 #endif
 
+#if NK_TARGET_ALDER
+    run_reduce_moments<u8_k>("reduce_moments_u8_alder", nk_reduce_moments_u8_alder);
+    run_reduce_moments<i16_k>("reduce_moments_i16_alder", nk_reduce_moments_i16_alder);
+    run_reduce_moments<u16_k>("reduce_moments_u16_alder", nk_reduce_moments_u16_alder);
+    run_reduce_moments<e3m2_k>("reduce_moments_e3m2_alder", nk_reduce_moments_e3m2_alder);
+#endif
+
 #if NK_TARGET_SIERRA
     run_reduce_moments<i8_k>("reduce_moments_i8_sierra", nk_reduce_moments_i8_sierra);
     run_reduce_moments<u8_k>("reduce_moments_u8_sierra", nk_reduce_moments_u8_sierra);
-    run_reduce_moments<i16_k>("reduce_moments_i16_sierra", nk_reduce_moments_i16_sierra);
-    run_reduce_moments<u16_k>("reduce_moments_u16_sierra", nk_reduce_moments_u16_sierra);
     run_reduce_moments<e2m3_k>("reduce_moments_e2m3_sierra", nk_reduce_moments_e2m3_sierra);
-    run_reduce_moments<e3m2_k>("reduce_moments_e3m2_sierra", nk_reduce_moments_e3m2_sierra);
 #endif
 
 #if NK_TARGET_RVV

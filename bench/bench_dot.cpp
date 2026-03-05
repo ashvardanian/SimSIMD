@@ -199,6 +199,12 @@ void bench_dot() {
     run_dense<e3m2_k, f32_k>("dot_e3m2_icelake", nk_dot_e3m2_icelake);
 #endif
 
+#if NK_TARGET_ALDER
+    run_dense<i8_k, i32_k>("dot_i8_alder", nk_dot_i8_alder);
+    run_dense<u8_k, u32_k>("dot_u8_alder", nk_dot_u8_alder);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_alder", nk_dot_e2m3_alder);
+#endif
+
 #if NK_TARGET_SIERRA
     run_dense<i8_k, i32_k>("dot_i8_sierra", nk_dot_i8_sierra);
     run_dense<u8_k, u32_k>("dot_u8_sierra", nk_dot_u8_sierra);

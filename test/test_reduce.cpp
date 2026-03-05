@@ -391,19 +391,24 @@ void test_reduce() {
                    nk_reduce_moments_e3m2_serial);
 #endif
 
+#if NK_TARGET_ALDER
+    run_if_matches("reduce_moments_u8_alder", test_reduce_moments<u8_t>, nk_reduce_moments_u8_alder,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_alder", test_reduce_moments<i16_t>, nk_reduce_moments_i16_alder,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_alder", test_reduce_moments<u16_t>, nk_reduce_moments_u16_alder,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_e3m2_alder", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_alder,
+                   nk_reduce_moments_e3m2_serial);
+#endif
+
 #if NK_TARGET_SIERRA
     run_if_matches("reduce_moments_i8_sierra", test_reduce_moments<i8_t>, nk_reduce_moments_i8_sierra,
                    nk_reduce_moments_i8_serial);
     run_if_matches("reduce_moments_u8_sierra", test_reduce_moments<u8_t>, nk_reduce_moments_u8_sierra,
                    nk_reduce_moments_u8_serial);
-    run_if_matches("reduce_moments_i16_sierra", test_reduce_moments<i16_t>, nk_reduce_moments_i16_sierra,
-                   nk_reduce_moments_i16_serial);
-    run_if_matches("reduce_moments_u16_sierra", test_reduce_moments<u16_t>, nk_reduce_moments_u16_sierra,
-                   nk_reduce_moments_u16_serial);
     run_if_matches("reduce_moments_e2m3_sierra", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_sierra,
                    nk_reduce_moments_e2m3_serial);
-    run_if_matches("reduce_moments_e3m2_sierra", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_sierra,
-                   nk_reduce_moments_e3m2_serial);
 #endif
 
 #if NK_TARGET_RVV

@@ -33,7 +33,8 @@
  *  4. Intel Sapphire Rapids (2023+): advanced mixed-precision float processing.
  *  5. AMD Turin (2024+): advanced sparse algorithms.
  *
- *  Beyond those, we support AVX2 for old Haswell generation CPUs, and AVX2+VNNI for modern Sierra generation.
+ *  Beyond those, we support AVX2 for old Haswell generation CPUs, AVX2+VNNI for Alder Lake (12th/13th gen),
+ *  and AVX2+VNNI-INT8 for Sierra Forest (adds native signed×signed and unsigned×unsigned 8-bit dot products).
  *
  *  To list all available macros for x86, take a recent compiler, like GCC 12 and run:
  *       gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -265,7 +266,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_sve_k         ((nk_capability_t)1 << 10)
 #define nk_cap_svehalf_k     ((nk_capability_t)1 << 11)
 #define nk_cap_svesdot_k     ((nk_capability_t)1 << 12)
-#define nk_cap_sierra_k      ((nk_capability_t)1 << 13)
+#define nk_cap_alder_k       ((nk_capability_t)1 << 13)
 #define nk_cap_svebfdot_k    ((nk_capability_t)1 << 14)
 #define nk_cap_sve2_k        ((nk_capability_t)1 << 15)
 #define nk_cap_v128relaxed_k ((nk_capability_t)1 << 16)
@@ -286,6 +287,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_smebf16_k     ((nk_capability_t)1 << 31)
 #define nk_cap_smelut2_k     ((nk_capability_t)1 << 32)
 #define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
+#define nk_cap_sierra_k      ((nk_capability_t)1 << 34)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -446,6 +448,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_amx_int8 = (info7.named.edx & 0x02000000) != 0;
     unsigned supports_amx_fp16 = (info7sub1.named.eax & 0x00200000) != 0;
     unsigned supports_avxvnni = (info7sub1.named.eax & 0x00000010) != 0;
+    unsigned supports_avxvnniint8 = (info7sub1.named.edx & 0x00000010) != 0;
 
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
     unsigned supports_skylake = supports_avx512f;
@@ -454,14 +457,16 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
-    unsigned supports_sierra = supports_haswell && supports_avxvnni && !supports_avx512f;
+    unsigned supports_sierra = supports_haswell && supports_avxvnniint8 && !supports_avx512f;
+    unsigned supports_alder = supports_haswell && supports_avxvnni && !supports_avx512f;
     unsigned supports_sapphireamx = supports_amx_tile && supports_amx_bf16 && supports_amx_int8;
     unsigned supports_graniteamx = supports_sapphireamx && supports_amx_fp16;
 
     return (nk_capability_t)((nk_cap_haswell_k * supports_haswell) | (nk_cap_skylake_k * supports_skylake) |
                              (nk_cap_icelake_k * supports_icelake) | (nk_cap_genoa_k * supports_genoa) |
                              (nk_cap_sapphire_k * supports_sapphire) | (nk_cap_turin_k * supports_turin) |
-                             (nk_cap_sierra_k * supports_sierra) | (nk_cap_sapphireamx_k * supports_sapphireamx) |
+                             (nk_cap_sierra_k * supports_sierra) | (nk_cap_alder_k * supports_alder) |
+                             (nk_cap_sapphireamx_k * supports_sapphireamx) |
                              (nk_cap_graniteamx_k * supports_graniteamx) | (nk_cap_serial_k));
 }
 

@@ -276,6 +276,7 @@ int main(int argc, char **argv) {
     print_isa("Sapphire AMX", NK_TARGET_SAPPHIREAMX, nk_cap_sapphireamx_k, runtime_caps);
     print_isa("Granite AMX", NK_TARGET_GRANITEAMX, nk_cap_graniteamx_k, runtime_caps);
     print_isa("Turin", NK_TARGET_TURIN, nk_cap_turin_k, runtime_caps);
+    print_isa("Alder", NK_TARGET_ALDER, nk_cap_alder_k, runtime_caps);
     print_isa("Sierra", NK_TARGET_SIERRA, nk_cap_sierra_k, runtime_caps);
     // Arm
     print_isa("NEON", NK_TARGET_NEON, nk_cap_neon_k, runtime_caps);

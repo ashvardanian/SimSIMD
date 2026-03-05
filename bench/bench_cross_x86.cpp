@@ -309,6 +309,28 @@ void bench_cross_x86() {
 
 #endif
 
+#if NK_TARGET_ALDER
+
+    run_dots_packed<e2m3_k>("dots_packed_e2m3_alder", nk_dots_packed_size_e2m3_alder, nk_dots_pack_e2m3_alder,
+                            nk_dots_packed_e2m3_alder);
+    run_dots_packed<i8_k>("dots_packed_i8_alder", nk_dots_packed_size_i8_alder, nk_dots_pack_i8_alder,
+                          nk_dots_packed_i8_alder);
+    run_dots_packed<u8_k>("dots_packed_u8_alder", nk_dots_packed_size_u8_alder, nk_dots_pack_u8_alder,
+                          nk_dots_packed_u8_alder);
+    run_dots_symmetric<e2m3_k>("dots_symmetric_e2m3_alder", nk_dots_symmetric_e2m3_alder);
+    run_dots_symmetric<i8_k>("dots_symmetric_i8_alder", nk_dots_symmetric_i8_alder);
+    run_dots_symmetric<u8_k>("dots_symmetric_u8_alder", nk_dots_symmetric_u8_alder);
+
+    run_angulars_packed<i8_k>("angulars_packed_i8_alder", nk_dots_packed_size_i8_alder, nk_dots_pack_i8_alder,
+                              nk_angulars_packed_i8_alder);
+    run_angulars_symmetric<i8_k>("angulars_symmetric_i8_alder", nk_angulars_symmetric_i8_alder);
+
+    run_euclideans_packed<i8_k>("euclideans_packed_i8_alder", nk_dots_packed_size_i8_alder, nk_dots_pack_i8_alder,
+                                nk_euclideans_packed_i8_alder);
+    run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_alder", nk_euclideans_symmetric_i8_alder);
+
+#endif
+
 #if NK_TARGET_SIERRA
 
     run_dots_packed<e2m3_k>("dots_packed_e2m3_sierra", nk_dots_packed_size_e2m3_sierra, nk_dots_pack_e2m3_sierra,

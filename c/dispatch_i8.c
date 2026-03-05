@@ -104,6 +104,17 @@ void nk_dispatch_i8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
+#if NK_TARGET_ALDER
+    if (v & nk_cap_alder_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_i8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_i8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_i8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_i8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_i8_alder, *c = nk_cap_alder_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_i8_sapphire, *c = nk_cap_sapphire_k; return;

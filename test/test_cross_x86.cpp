@@ -318,6 +318,44 @@ void test_cross_x86() {
                    nk_euclideans_symmetric_e3m2_genoa);
 #endif
 
+#if NK_TARGET_ALDER
+    run_if_matches("dots_e2m3_alder", test_dots_packed<e2m3_t>, nk_dots_packed_size_e2m3_alder, nk_dots_pack_e2m3_alder,
+                   nk_dots_packed_e2m3_alder);
+    run_if_matches("dots_i8_alder", test_dots_packed<i8_t>, nk_dots_packed_size_i8_alder, nk_dots_pack_i8_alder,
+                   nk_dots_packed_i8_alder);
+    run_if_matches("dots_u8_alder", test_dots_packed<u8_t>, nk_dots_packed_size_u8_alder, nk_dots_pack_u8_alder,
+                   nk_dots_packed_u8_alder);
+
+    run_if_matches("dots_symmetric_e2m3_alder", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_alder);
+    run_if_matches("dots_symmetric_i8_alder", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_alder);
+    run_if_matches("dots_symmetric_u8_alder", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_alder);
+
+    run_if_matches("angulars_i8_alder", test_angulars_packed<i8_t>, nk_dots_packed_size_i8_alder, nk_dots_pack_i8_alder,
+                   nk_angulars_packed_i8_alder);
+    run_if_matches("angulars_symmetric_i8_alder", test_angulars_symmetric<i8_t>, nk_angulars_symmetric_i8_alder);
+
+    run_if_matches("euclideans_i8_alder", test_euclideans_packed<i8_t>, nk_dots_packed_size_i8_alder,
+                   nk_dots_pack_i8_alder, nk_euclideans_packed_i8_alder);
+    run_if_matches("euclideans_symmetric_i8_alder", test_euclideans_symmetric<i8_t>, nk_euclideans_symmetric_i8_alder);
+
+    run_if_matches("angulars_u8_alder", test_angulars_packed<u8_t>, nk_dots_packed_size_u8_alder, nk_dots_pack_u8_alder,
+                   nk_angulars_packed_u8_alder);
+    run_if_matches("angulars_symmetric_u8_alder", test_angulars_symmetric<u8_t>, nk_angulars_symmetric_u8_alder);
+
+    run_if_matches("euclideans_u8_alder", test_euclideans_packed<u8_t>, nk_dots_packed_size_u8_alder,
+                   nk_dots_pack_u8_alder, nk_euclideans_packed_u8_alder);
+    run_if_matches("euclideans_symmetric_u8_alder", test_euclideans_symmetric<u8_t>, nk_euclideans_symmetric_u8_alder);
+
+    run_if_matches("angulars_e2m3_alder", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_alder,
+                   nk_dots_pack_e2m3_alder, nk_angulars_packed_e2m3_alder);
+    run_if_matches("angulars_symmetric_e2m3_alder", test_angulars_symmetric<e2m3_t>, nk_angulars_symmetric_e2m3_alder);
+
+    run_if_matches("euclideans_e2m3_alder", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_alder,
+                   nk_dots_pack_e2m3_alder, nk_euclideans_packed_e2m3_alder);
+    run_if_matches("euclideans_symmetric_e2m3_alder", test_euclideans_symmetric<e2m3_t>,
+                   nk_euclideans_symmetric_e2m3_alder);
+#endif
+
 #if NK_TARGET_SIERRA
     run_if_matches("dots_e2m3_sierra", test_dots_packed<e2m3_t>, nk_dots_packed_size_e2m3_sierra,
                    nk_dots_pack_e2m3_sierra, nk_dots_packed_e2m3_sierra);
@@ -338,6 +376,25 @@ void test_cross_x86() {
                    nk_dots_pack_i8_sierra, nk_euclideans_packed_i8_sierra);
     run_if_matches("euclideans_symmetric_i8_sierra", test_euclideans_symmetric<i8_t>,
                    nk_euclideans_symmetric_i8_sierra);
+
+    run_if_matches("angulars_u8_sierra", test_angulars_packed<u8_t>, nk_dots_packed_size_u8_sierra,
+                   nk_dots_pack_u8_sierra, nk_angulars_packed_u8_sierra);
+    run_if_matches("angulars_symmetric_u8_sierra", test_angulars_symmetric<u8_t>, nk_angulars_symmetric_u8_sierra);
+
+    run_if_matches("euclideans_u8_sierra", test_euclideans_packed<u8_t>, nk_dots_packed_size_u8_sierra,
+                   nk_dots_pack_u8_sierra, nk_euclideans_packed_u8_sierra);
+    run_if_matches("euclideans_symmetric_u8_sierra", test_euclideans_symmetric<u8_t>,
+                   nk_euclideans_symmetric_u8_sierra);
+
+    run_if_matches("angulars_e2m3_sierra", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_sierra,
+                   nk_dots_pack_e2m3_sierra, nk_angulars_packed_e2m3_sierra);
+    run_if_matches("angulars_symmetric_e2m3_sierra", test_angulars_symmetric<e2m3_t>,
+                   nk_angulars_symmetric_e2m3_sierra);
+
+    run_if_matches("euclideans_e2m3_sierra", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_sierra,
+                   nk_dots_pack_e2m3_sierra, nk_euclideans_packed_e2m3_sierra);
+    run_if_matches("euclideans_symmetric_e2m3_sierra", test_euclideans_symmetric<e2m3_t>,
+                   nk_euclideans_symmetric_e2m3_sierra);
 #endif
 
 #if NK_TARGET_SAPPHIREAMX

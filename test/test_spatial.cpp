@@ -202,6 +202,30 @@ void test_spatial() {
     run_if_matches("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_ALDER
+    run_if_matches("sqeuclidean_i8_alder", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_alder);
+    run_if_matches("sqeuclidean_u8_alder", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_alder);
+    run_if_matches("sqeuclidean_e2m3_alder", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_alder);
+    run_if_matches("euclidean_i8_alder", test_euclidean<i8_t>, nk_euclidean_i8_alder);
+    run_if_matches("euclidean_u8_alder", test_euclidean<u8_t>, nk_euclidean_u8_alder);
+    run_if_matches("euclidean_e2m3_alder", test_euclidean<e2m3_t>, nk_euclidean_e2m3_alder);
+    run_if_matches("angular_i8_alder", test_angular<i8_t>, nk_angular_i8_alder);
+    run_if_matches("angular_u8_alder", test_angular<u8_t>, nk_angular_u8_alder);
+    run_if_matches("angular_e2m3_alder", test_angular<e2m3_t>, nk_angular_e2m3_alder);
+#endif // NK_TARGET_ALDER
+
+#if NK_TARGET_SIERRA
+    run_if_matches("sqeuclidean_i8_sierra", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_sierra);
+    run_if_matches("sqeuclidean_u8_sierra", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_sierra);
+    run_if_matches("sqeuclidean_e2m3_sierra", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sierra);
+    run_if_matches("euclidean_i8_sierra", test_euclidean<i8_t>, nk_euclidean_i8_sierra);
+    run_if_matches("euclidean_u8_sierra", test_euclidean<u8_t>, nk_euclidean_u8_sierra);
+    run_if_matches("euclidean_e2m3_sierra", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sierra);
+    run_if_matches("angular_i8_sierra", test_angular<i8_t>, nk_angular_i8_sierra);
+    run_if_matches("angular_u8_sierra", test_angular<u8_t>, nk_angular_u8_sierra);
+    run_if_matches("angular_e2m3_sierra", test_angular<e2m3_t>, nk_angular_e2m3_sierra);
+#endif // NK_TARGET_SIERRA
+
 #if NK_TARGET_RVV
     run_if_matches("sqeuclidean_f32_rvv", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_rvv);
     run_if_matches("sqeuclidean_f64_rvv", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_rvv);

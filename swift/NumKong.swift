@@ -153,7 +153,7 @@ public enum Capabilities {
     public static let sve: UInt64 = 1 << 10
     public static let sveHalf: UInt64 = 1 << 11
     public static let sveSDot: UInt64 = 1 << 12
-    public static let sierra: UInt64 = 1 << 13
+    public static let alder: UInt64 = 1 << 13
     public static let sveBfDot: UInt64 = 1 << 14
     public static let sve2: UInt64 = 1 << 15
     public static let v128Relaxed: UInt64 = 1 << 16
@@ -173,4 +173,6 @@ public enum Capabilities {
     public static let smeHalf: UInt64 = 1 << 30
     public static let smeBf16: UInt64 = 1 << 31
     public static let smeLut2: UInt64 = 1 << 32
+    public static let rvvBB: UInt64 = 1 << 33
+    public static let sierra: UInt64 = 1 << 34
 }

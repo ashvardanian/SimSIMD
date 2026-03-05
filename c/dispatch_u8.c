@@ -101,7 +101,13 @@ void nk_dispatch_u8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #if NK_TARGET_SIERRA
     if (v & nk_cap_sierra_k) switch (k) {
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u8_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u8_sierra, *c = nk_cap_sierra_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_ALDER
+    if (v & nk_cap_alder_k) switch (k) {
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u8_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u8_alder, *c = nk_cap_alder_k; return;
         default: break;
         }
 #endif

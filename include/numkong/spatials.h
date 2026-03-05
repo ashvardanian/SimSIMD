@@ -1297,6 +1297,57 @@ NK_PUBLIC void nk_euclideans_symmetric_u4_icelake(nk_u4x2_t const *vectors, nk_s
                                                   nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_ALDER
+/** @copydoc nk_angulars_packed_i8 */
+NK_PUBLIC void nk_angulars_packed_i8_alder(nk_i8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                           nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                           nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_i8 */
+NK_PUBLIC void nk_angulars_symmetric_i8_alder(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_i8 */
+NK_PUBLIC void nk_euclideans_packed_i8_alder(nk_i8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                             nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_i8 */
+NK_PUBLIC void nk_euclideans_symmetric_i8_alder(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_u8 */
+NK_PUBLIC void nk_angulars_packed_u8_alder(nk_u8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                           nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                           nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_u8 */
+NK_PUBLIC void nk_angulars_symmetric_u8_alder(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_u8 */
+NK_PUBLIC void nk_euclideans_packed_u8_alder(nk_u8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                             nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_u8 */
+NK_PUBLIC void nk_euclideans_symmetric_u8_alder(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_e2m3 */
+NK_PUBLIC void nk_angulars_packed_e2m3_alder(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                             nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_e2m3 */
+NK_PUBLIC void nk_angulars_symmetric_e2m3_alder(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_e2m3 */
+NK_PUBLIC void nk_euclideans_packed_e2m3_alder(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result,
+                                               nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                               nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_e2m3 */
+NK_PUBLIC void nk_euclideans_symmetric_e2m3_alder(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                  nk_size_t row_start, nk_size_t row_count);
+#endif // NK_TARGET_ALDER
+
 /*  Sierra backends using AVX10.2 with VMPSADBW.
  *  Optimized for I8/U8 via VMPSADBW (vector multiply-sum of absolute differences).
  */
@@ -1317,6 +1368,38 @@ NK_PUBLIC void nk_euclideans_packed_i8_sierra(nk_i8_t const *a, void const *b_pa
 NK_PUBLIC void nk_euclideans_symmetric_i8_sierra(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_u8 */
+NK_PUBLIC void nk_angulars_packed_u8_sierra(nk_u8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                            nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                            nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_u8 */
+NK_PUBLIC void nk_angulars_symmetric_u8_sierra(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                               nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                               nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_u8 */
+NK_PUBLIC void nk_euclideans_packed_u8_sierra(nk_u8_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                              nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                              nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_u8 */
+NK_PUBLIC void nk_euclideans_symmetric_u8_sierra(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                 nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_e2m3 */
+NK_PUBLIC void nk_angulars_packed_e2m3_sierra(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result,
+                                              nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                              nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_e2m3 */
+NK_PUBLIC void nk_angulars_symmetric_e2m3_sierra(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                 nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_e2m3 */
+NK_PUBLIC void nk_euclideans_packed_e2m3_sierra(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result,
+                                                nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                                nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_e2m3 */
+NK_PUBLIC void nk_euclideans_symmetric_e2m3_sierra(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                   nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                   nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SIERRA
 
 /*  ARM NEON backends (base NEON with F32/F64 support).
@@ -1751,6 +1834,7 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t 
 #include "numkong/spatials/skylake.h"
 #include "numkong/spatials/genoa.h"
 #include "numkong/spatials/icelake.h"
+#include "numkong/spatials/alder.h"
 #include "numkong/spatials/sierra.h"
 #include "numkong/spatials/sapphireamx.h"
 #include "numkong/spatials/rvv.h"
@@ -2261,6 +2345,10 @@ NK_PUBLIC void nk_angulars_packed_e2m3(nk_e2m3_t const *a, void const *b_packed,
     nk_angulars_packed_e2m3_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_GENOA
     nk_angulars_packed_e2m3_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_SIERRA
+    nk_angulars_packed_e2m3_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_angulars_packed_e2m3_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
     nk_angulars_packed_e2m3_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
@@ -2283,6 +2371,10 @@ NK_PUBLIC void nk_angulars_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_
                                            row_count);
 #elif NK_TARGET_GENOA
     nk_angulars_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SIERRA
+    nk_angulars_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_angulars_symmetric_e2m3_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_angulars_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
@@ -2304,6 +2396,10 @@ NK_PUBLIC void nk_euclideans_packed_e2m3(nk_e2m3_t const *a, void const *b_packe
     nk_euclideans_packed_e2m3_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_GENOA
     nk_euclideans_packed_e2m3_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_SIERRA
+    nk_euclideans_packed_e2m3_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_euclideans_packed_e2m3_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
     nk_euclideans_packed_e2m3_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
@@ -2327,6 +2423,10 @@ NK_PUBLIC void nk_euclideans_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t 
                                              row_count);
 #elif NK_TARGET_GENOA
     nk_euclideans_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SIERRA
+    nk_euclideans_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_euclideans_symmetric_e2m3_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_euclideans_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                          row_count);
@@ -2441,6 +2541,8 @@ NK_PUBLIC void nk_angulars_packed_i8(nk_i8_t const *a, void const *b_packed, nk_
     nk_angulars_packed_i8_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SIERRA
     nk_angulars_packed_i8_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_angulars_packed_i8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ICELAKE
     nk_angulars_packed_i8_icelake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
@@ -2461,6 +2563,8 @@ NK_PUBLIC void nk_angulars_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_vect
                                          row_count);
 #elif NK_TARGET_SIERRA
     nk_angulars_symmetric_i8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_angulars_symmetric_i8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
     nk_angulars_symmetric_i8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
@@ -2480,6 +2584,8 @@ NK_PUBLIC void nk_euclideans_packed_i8(nk_i8_t const *a, void const *b_packed, n
     nk_euclideans_packed_i8_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SIERRA
     nk_euclideans_packed_i8_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_euclideans_packed_i8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ICELAKE
     nk_euclideans_packed_i8_icelake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
@@ -2500,6 +2606,8 @@ NK_PUBLIC void nk_euclideans_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_ve
                                            row_count);
 #elif NK_TARGET_SIERRA
     nk_euclideans_symmetric_i8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_euclideans_symmetric_i8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
     nk_euclideans_symmetric_i8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
@@ -2518,6 +2626,10 @@ NK_PUBLIC void nk_angulars_packed_u8(nk_u8_t const *a, void const *b_packed, nk_
     nk_angulars_packed_u8_neonsdot(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_packed_u8_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_SIERRA
+    nk_angulars_packed_u8_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_angulars_packed_u8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ICELAKE
     nk_angulars_packed_u8_icelake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
@@ -2536,6 +2648,10 @@ NK_PUBLIC void nk_angulars_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vect
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_symmetric_u8_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                          row_count);
+#elif NK_TARGET_SIERRA
+    nk_angulars_symmetric_u8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_angulars_symmetric_u8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
     nk_angulars_symmetric_u8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
@@ -2553,6 +2669,10 @@ NK_PUBLIC void nk_euclideans_packed_u8(nk_u8_t const *a, void const *b_packed, n
     nk_euclideans_packed_u8_neonsdot(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_packed_u8_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_SIERRA
+    nk_euclideans_packed_u8_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ALDER
+    nk_euclideans_packed_u8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ICELAKE
     nk_euclideans_packed_u8_icelake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
@@ -2571,6 +2691,10 @@ NK_PUBLIC void nk_euclideans_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_ve
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_symmetric_u8_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                            row_count);
+#elif NK_TARGET_SIERRA
+    nk_euclideans_symmetric_u8_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ALDER
+    nk_euclideans_symmetric_u8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
     nk_euclideans_symmetric_u8_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV

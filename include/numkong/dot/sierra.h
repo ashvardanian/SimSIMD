@@ -6,30 +6,25 @@
  *
  *  @sa include/numkong/dot.h
  *
- *  @section dot_sierra_instructions AVX-VNNI Instructions Performance
+ *  @section dot_sierra_instructions AVX-VNNI-INT8 Instructions
  *
- *      Intrinsic                   Instruction                     Alder Lake  Raptor Lake
- *      _mm256_dpbusd_epi32         VPDPBUSD (YMM, YMM, YMM)        4cy @ p05   4cy @ p05
- *      _mm256_madd_epi16           VPMADDWD (YMM, YMM, YMM)        4cy @ p05   4cy @ p05
- *      _mm256_sad_epu8             VPSADBW (YMM, YMM, YMM)         3cy @ p5    3cy @ p5
+ *      Intrinsic                   Instruction
+ *      _mm256_dpbssd_epi32         VPDPBSSD (YMM, YMM, YMM)   i8 x i8 -> i32
+ *      _mm256_dpbuud_epi32         VPDPBUUD (YMM, YMM, YMM)   u8 x u8 -> u32
  *
- *  Sierra Forest and mainstream Intel CPUs (Alder Lake, Raptor Lake) support AVX-VNNI (256-bit VNNI)
- *  for accelerated integer dot products. This is the 256-bit variant of AVX-512 VNNI found on Ice Lake.
- *  We use VPDPBUSD for asymmetric unsigned×signed multiplication with algebraic transformations to
- *  handle signed×signed (i8) and unsigned×unsigned (u8) cases.
- *
- *  Performance improvements over previous approaches:
- *    - i8×i8: 1.3-1.4× speedup using dpbusd with XOR transformation (a+128)×b - 128×sum(b)
- *    - u8×u8: 1.8-2.0× speedup using dpbusd with XOR transformation a×(b-128) + 128×sum(a)
- *  These match the speedups achieved on Ice Lake (AVX-512 VNNI) but with 256-bit vectors.
+ *  Sierra Forest CPUs support AVX-VNNI-INT8, adding native signed*signed and
+ *  unsigned*unsigned 8-bit dot products. This eliminates the algebraic sign
+ *  transformations required on Alder Lake (AVX-VNNI only).
  *
  *  @section dot_sierra_stateful Stateful Streaming Logic
  *
  *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
  *  `NK_INTERNAL` functions:
  *
- *  - nk_dot_i8x32 for 8-bit signed integer inputs using DPBUSD with algebraic transformation,
- *  - nk_dot_u8x32 for 8-bit unsigned integer inputs using DPBUSD with algebraic transformation.
+ *  - nk_dot_i8x32 for 8-bit signed integer inputs using native DPBSSD (no algebraic transform),
+ *  - nk_dot_u8x32 for 8-bit unsigned integer inputs using native DPBUUD (no algebraic transform).
+ *
+ *  Each state struct contains only a single accumulator field (no correction terms needed).
  *
  *  @code{c}
  *  nk_dot_i8x32_state_sierra_t state_first, state_second, state_third, state_fourth;
@@ -100,31 +95,10 @@ extern "C" {
 
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                 nk_i32_t *result) {
-    // Optimized i8×i8 dot product using algebraic transformation with DPBUSD
-    //
-    // Algebraic transformation:
-    //   Let a' = a XOR 0x80 (interpreted as unsigned, gives a+128 mod 256)
-    //   dpbusd(a', b) computes: (a+128) × b  [unsigned × signed]
-    //   Therefore: a×b = (a+128)×b - 128×sum(b)
-    //
-    // Where:
-    //   - XOR with 0x80 converts signed i8 [-128,127] to unsigned [0,255]
-    //   - dpbusd performs unsigned×signed multiply-accumulate
-    //   - Correction term 128×sum(b) is computed and subtracted at the end
-    //
-    // Performance: ~1.3-1.4× speedup expected over cvtepi8_epi16 + dpwssd approach
-    //   - Processes 32 elements/iteration (AVX2 width)
-    //   - Lower latency per iteration: 4 cy (VPDPBUSD @ p05) vs 3+4 = 7 cy (VPMOVSXBW @ p5 + VPMADDWD @ p05)
-    //   - Better port utilization: VPDPBUSD (p05) runs in parallel with VPMOVSXBW (p5) + VPMADDWD (p05) for
-    //     correction term, enabling dual-issue execution on p0 and p5 simultaneously. Old approach bottlenecked
-    //     on p5 for sign extension.
-    //
-    __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i const zeros_u8x32 = _mm256_setzero_si256();
-    __m256i sum_ab_i32x8 = _mm256_setzero_si256();
-    __m256i sum_b_biased_i64x4 = _mm256_setzero_si256();
+    // Native i8*i8 dot product using DPBSSD (signed * signed -> i32)
+    // No algebraic transformation needed - dpbssd handles signed*signed directly.
+    __m256i sum_i32x8 = _mm256_setzero_si256();
     __m256i a_i8x32, b_i8x32;
-    nk_size_t total_elements = count_scalars;
 
 nk_dot_i8_sierra_cycle:
     if (count_scalars < 32) {
@@ -141,155 +115,62 @@ nk_dot_i8_sierra_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
 
-    // Convert a to unsigned [0,255] by XOR with 0x80: a_unsigned = a + 128
-    __m256i a_unsigned_u8x32 = _mm256_xor_si256(a_i8x32, xor_mask_u8x32);
-
-    // Compute (a+128) × b using dpbusd: unsigned × signed
-    sum_ab_i32x8 = _mm256_dpbusd_epi32(sum_ab_i32x8, a_unsigned_u8x32, b_i8x32);
-
-    // Accumulate sum(b+128) using SAD (replaces cvtepi8_epi16 + madd)
-    __m256i b_biased_u8x32 = _mm256_xor_si256(b_i8x32, xor_mask_u8x32);
-    sum_b_biased_i64x4 = _mm256_add_epi64(sum_b_biased_i64x4, _mm256_sad_epu8(b_biased_u8x32, zeros_u8x32));
+    // VPDPBSSD: signed i8 * signed i8 -> i32 accumulation
+    sum_i32x8 = _mm256_dpbssd_epi32(sum_i32x8, a_i8x32, b_i8x32);
 
     if (count_scalars) goto nk_dot_i8_sierra_cycle;
 
-    // Apply algebraic correction: a×b = (a+128)×b - 128×sum(b)
-    // With biased accumulator: sum(b) = sum_b_biased - 128×count
-    // So: correction = 128×sum(b) = 128×sum_b_biased - 16384×count
-    nk_i32_t ab_sum = nk_reduce_add_i32x8_haswell_(sum_ab_i32x8);
-    nk_i64_t sum_b_biased = nk_reduce_add_i64x4_haswell_(sum_b_biased_i64x4);
-    nk_size_t elements_rounded = nk_size_round_up_to_multiple_(total_elements, 32);
-    nk_i64_t correction = 128LL * sum_b_biased - 16384LL * (nk_i64_t)elements_rounded;
-
-    *result = (nk_i32_t)(ab_sum - correction);
+    *result = nk_reduce_add_i32x8_haswell_(sum_i32x8);
 }
 
 typedef struct nk_dot_i8x32_state_sierra_t {
-    __m256i sum_ab_i32x8;       // Main dot product sum: (a+128)×b
-    __m256i sum_b_biased_i64x4; // Correction term: sum(b+128) for algebraic transform
+    __m256i sum_i32x8; // DPBSSD accumulator: i8 * i8 -> i32
 } nk_dot_i8x32_state_sierra_t;
 
 NK_INTERNAL void nk_dot_i8x32_init_sierra(nk_dot_i8x32_state_sierra_t *state) {
-    state->sum_ab_i32x8 = _mm256_setzero_si256();
-    state->sum_b_biased_i64x4 = _mm256_setzero_si256();
+    state->sum_i32x8 = _mm256_setzero_si256();
 }
 
 NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Optimized i8×i8 using DPBUSD with algebraic transformation
-    // Transform: a×b = (a+128)×b - 128×sum(b)
-    __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i const zeros_u8x32 = _mm256_setzero_si256();
-
-    // Load 32 i8 values
-    __m256i a_i8x32 = a.ymm;
-    __m256i b_i8x32 = b.ymm;
-
-    // Convert a to unsigned: a_unsigned = a + 128
-    __m256i a_unsigned_u8x32 = _mm256_xor_si256(a_i8x32, xor_mask_u8x32);
-
-    // Compute (a+128) × b using dpbusd
-    state->sum_ab_i32x8 = _mm256_dpbusd_epi32(state->sum_ab_i32x8, a_unsigned_u8x32, b_i8x32);
-
-    // Accumulate sum(b+128) using SAD (replaces cvtepi8_epi16 + madd)
-    // SAD computes sum of absolute differences and accumulates in i64
-    __m256i b_biased_u8x32 = _mm256_xor_si256(b_i8x32, xor_mask_u8x32);
-    state->sum_b_biased_i64x4 = _mm256_add_epi64(state->sum_b_biased_i64x4,
-                                                 _mm256_sad_epu8(b_biased_u8x32, zeros_u8x32));
+    state->sum_i32x8 = _mm256_dpbssd_epi32(state->sum_i32x8, a.ymm, b.ymm);
 }
 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                              //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *results) {
+    nk_unused_(total_dimensions);
 
-    // ILP-optimized 4-way horizontal reduction for i32 with algebraic correction
-    // For each accumulator: result = sum_ab - 128 × sum_b
-    nk_size_t depth_elements_rounded = nk_size_round_up_to_multiple_(total_dimensions, 32);
+    // ILP-optimized 4-way horizontal reduction: i32x8 -> scalar i32
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
+                                        _mm256_extracti128_si256(state_a->sum_i32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_i32x8),
+                                        _mm256_extracti128_si256(state_b->sum_i32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->sum_i32x8),
+                                        _mm256_extracti128_si256(state_c->sum_i32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
+                                        _mm256_extracti128_si256(state_d->sum_i32x8, 1));
 
-    // Reduce main dot products (a+128)×b
-    __m128i sum_ab_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_a->sum_ab_i32x8, 1));
-    __m128i sum_ab_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_b->sum_ab_i32x8, 1));
-    __m128i sum_ab_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_c->sum_ab_i32x8, 1));
-    __m128i sum_ab_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_d->sum_ab_i32x8, 1));
-
-    // Reduce correction sums sum(b+128) from i64x4 → i64x2
-    __m128i sum_b_a_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_a->sum_b_biased_i64x4),
-                                          _mm256_extracti128_si256(state_a->sum_b_biased_i64x4, 1));
-    __m128i sum_b_b_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_b->sum_b_biased_i64x4),
-                                          _mm256_extracti128_si256(state_b->sum_b_biased_i64x4, 1));
-    __m128i sum_b_c_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_c->sum_b_biased_i64x4),
-                                          _mm256_extracti128_si256(state_c->sum_b_biased_i64x4, 1));
-    __m128i sum_b_d_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_d->sum_b_biased_i64x4),
-                                          _mm256_extracti128_si256(state_d->sum_b_biased_i64x4, 1));
-
-    // Horizontal add i64x2 → single i64 in lane 0
-    __m128i sum_b_a_i64x1 = _mm_add_epi64(sum_b_a_i64x2, _mm_shuffle_epi32(sum_b_a_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_b_b_i64x1 = _mm_add_epi64(sum_b_b_i64x2, _mm_shuffle_epi32(sum_b_b_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_b_c_i64x1 = _mm_add_epi64(sum_b_c_i64x2, _mm_shuffle_epi32(sum_b_c_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_b_d_i64x1 = _mm_add_epi64(sum_b_d_i64x2, _mm_shuffle_epi32(sum_b_d_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-
-    // Pack 4 i64 sum(b+128) values into __m256i: [sum_a, sum_b, sum_c, sum_d]
-    __m256i sum_b_biased_i64x4 = _mm256_set_m128i(_mm_unpacklo_epi64(sum_b_c_i64x1, sum_b_d_i64x1),
-                                                  _mm_unpacklo_epi64(sum_b_a_i64x1, sum_b_b_i64x1));
-
-    // Compute correction: result = sum_ab - 128×sum_b = sum_ab - 128×(sum_b_biased - 128×count)
-    //                            = sum_ab - 128×sum_b_biased + 16384×count
-    __m256i correction_i64x4 = _mm256_slli_epi64(sum_b_biased_i64x4, 7);               // ×128
-    __m256i offset_i64x4 = _mm256_set1_epi64x((nk_i64_t)depth_elements_rounded << 14); // 16384×count
-    correction_i64x4 = _mm256_sub_epi64(correction_i64x4, offset_i64x4);
-
-    // Truncate i64 → i32 (just take low 32 bits from each i64)
-    __m128i correction_i32x4 = _mm256_castsi256_si128(
-        _mm256_permutevar8x32_epi32(correction_i64x4, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7)));
-
-    // Transpose for SIMD reduction
-    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_ab_a_i32x4, sum_ab_b_i32x4);
-    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_ab_c_i32x4, sum_ab_d_i32x4);
-    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_ab_a_i32x4, sum_ab_b_i32x4);
-    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_ab_c_i32x4, sum_ab_d_i32x4);
-    __m128i sum_ab_lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
-    __m128i sum_ab_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
-    __m128i sum_ab_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    __m128i sum_ab_lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    __m128i sum_ab_final_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_ab_lane0_i32x4, sum_ab_lane1_i32x4),
-                                               _mm_add_epi32(sum_ab_lane2_i32x4, sum_ab_lane3_i32x4));
-
-    // Apply algebraic correction: result = sum_ab - correction
-    results->xmm = _mm_sub_epi32(sum_ab_final_i32x4, correction_i32x4);
+    // Transpose and reduce
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    results->xmm = _mm_add_epi32(_mm_add_epi32(lane0_i32x4, lane1_i32x4), _mm_add_epi32(lane2_i32x4, lane3_i32x4));
 }
 
 NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
                                 nk_u32_t *result) {
-    // Optimized u8×u8 dot product using algebraic transformation with DPBUSD
-    //
-    // Algebraic transformation:
-    //   Let b' = b XOR 0x80 (converts unsigned to signed: b' = b - 128)
-    //   dpbusd(a, b') computes: a × (b-128)  [unsigned × signed]
-    //   Therefore: a×b = a×(b-128) + 128×sum(a)
-    //
-    // Where:
-    //   - XOR with 0x80 converts unsigned u8 [0,255] to signed [-128,127]
-    //   - dpbusd performs unsigned×signed multiply-accumulate
-    //   - sad_epu8 computes sum(a) as correction term
-    //   - Correction term 128×sum(a) is added at the end
-    //
-    // Performance: ~1.8-2.0× speedup expected over unpack + dpwssd approach
-    //   - Processes 32 elements/iteration
-    //   - Lower latency per iteration
-    //   - Eliminates unpack operations
-    //   - dpbusd runs in parallel with sad
-    //
-    __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i const zeros_u8x32 = _mm256_setzero_si256();
-    __m256i sum_ab_i32x8 = _mm256_setzero_si256();
-    __m256i sum_a_i64x4 = _mm256_setzero_si256();
+    // Native u8*u8 dot product using DPBUUD (unsigned * unsigned -> u32)
+    // No algebraic transformation needed - dpbuud handles unsigned*unsigned directly.
+    __m256i sum_u32x8 = _mm256_setzero_si256();
     __m256i a_u8x32, b_u8x32;
 
 nk_dot_u8_sierra_cycle:
@@ -307,63 +188,28 @@ nk_dot_u8_sierra_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
 
-    // Convert b to signed [-128,127] by XOR with 0x80: b_signed = b - 128
-    __m256i b_signed_i8x32 = _mm256_xor_si256(b_u8x32, xor_mask_u8x32);
-
-    // Compute a × (b-128) using dpbusd: unsigned × signed
-    sum_ab_i32x8 = _mm256_dpbusd_epi32(sum_ab_i32x8, a_u8x32, b_signed_i8x32);
-
-    // Accumulate sum(a) for correction term using sad_epu8 (1cy @ p5)
-    sum_a_i64x4 = _mm256_add_epi64(sum_a_i64x4, _mm256_sad_epu8(a_u8x32, zeros_u8x32));
+    // VPDPBUUD: unsigned u8 * unsigned u8 -> u32 accumulation
+    sum_u32x8 = _mm256_dpbuud_epi32(sum_u32x8, a_u8x32, b_u8x32);
 
     if (count_scalars) goto nk_dot_u8_sierra_cycle;
 
-    // Apply algebraic correction: a×b = a×(b-128) + 128×sum(a)
-    nk_i32_t ab_dot_signed = nk_reduce_add_i32x8_haswell_(sum_ab_i32x8);
-
-    // Reduce sum_a from 4 i64 values to scalar
-    __m128i sum_a_low_i64x2 = _mm256_castsi256_si128(sum_a_i64x4);
-    __m128i sum_a_high_i64x2 = _mm256_extracti128_si256(sum_a_i64x4, 1);
-    __m128i sum_a_i64x2 = _mm_add_epi64(sum_a_low_i64x2, sum_a_high_i64x2);
-    __m128i sum_a_shuffled = _mm_shuffle_epi32(sum_a_i64x2, _MM_SHUFFLE(1, 0, 3, 2));
-    __m128i sum_a_final = _mm_add_epi64(sum_a_i64x2, sum_a_shuffled);
-    nk_i64_t sum_a = _mm_cvtsi128_si64(sum_a_final);
-
-    nk_i64_t correction = 128LL * sum_a;
-
-    *result = (nk_u32_t)(ab_dot_signed + correction);
+    // Reduce u32x8 to scalar - reinterpret as i32 for reduction, cast back
+    *result = (nk_u32_t)(nk_i32_t)nk_reduce_add_i32x8_haswell_(sum_u32x8);
 }
 
 typedef struct nk_dot_u8x32_state_sierra_t {
-    __m256i sum_ab_i32x8; // Main dot product sum: a×(b-128)
-    __m256i sum_a_i64x4;  // Correction term: sum(a) for algebraic transform
+    __m256i sum_u32x8; // DPBUUD accumulator: u8 * u8 -> u32
 } nk_dot_u8x32_state_sierra_t;
 
 NK_INTERNAL void nk_dot_u8x32_init_sierra(nk_dot_u8x32_state_sierra_t *state) {
-    state->sum_ab_i32x8 = _mm256_setzero_si256();
-    state->sum_a_i64x4 = _mm256_setzero_si256();
+    state->sum_u32x8 = _mm256_setzero_si256();
 }
 
 NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Optimized u8×u8 using DPBUSD with algebraic transformation
-    // Transform: a×b = a×(b-128) + 128×sum(a)
-    __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i const zeros_u8x32 = _mm256_setzero_si256();
-
-    __m256i a_u8x32 = a.ymm;
-    __m256i b_u8x32 = b.ymm;
-
-    // Convert b to signed: b_signed = b - 128
-    __m256i b_signed_i8x32 = _mm256_xor_si256(b_u8x32, xor_mask_u8x32);
-
-    // Compute a × (b-128) using dpbusd
-    state->sum_ab_i32x8 = _mm256_dpbusd_epi32(state->sum_ab_i32x8, a_u8x32, b_signed_i8x32);
-
-    // Accumulate sum(a) for correction term using sad_epu8
-    state->sum_a_i64x4 = _mm256_add_epi64(state->sum_a_i64x4, _mm256_sad_epu8(a_u8x32, zeros_u8x32));
+    state->sum_u32x8 = _mm256_dpbuud_epi32(state->sum_u32x8, a.ymm, b.ymm);
 }
 
 NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                              //
@@ -371,81 +217,41 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
     nk_dot_u8x32_state_sierra_t const *state_c, nk_dot_u8x32_state_sierra_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    // ILP-optimized 4-way horizontal reduction for u32 with algebraic correction
-    // For each accumulator: result = sum_ab + 128 × sum_a
 
-    // Reduce main dot products a×(b-128)
-    __m128i sum_ab_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_a->sum_ab_i32x8, 1));
-    __m128i sum_ab_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_b->sum_ab_i32x8, 1));
-    __m128i sum_ab_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_c->sum_ab_i32x8, 1));
-    __m128i sum_ab_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_ab_i32x8),
-                                           _mm256_extracti128_si256(state_d->sum_ab_i32x8, 1));
+    // Same transpose+reduce pattern but simpler - no correction term
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_u32x8),
+                                        _mm256_extracti128_si256(state_a->sum_u32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_u32x8),
+                                        _mm256_extracti128_si256(state_b->sum_u32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->sum_u32x8),
+                                        _mm256_extracti128_si256(state_c->sum_u32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_u32x8),
+                                        _mm256_extracti128_si256(state_d->sum_u32x8, 1));
 
-    // Reduce correction sums sum(a) - i64 to i32 conversion
-    __m128i sum_a_a_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_a->sum_a_i64x4),
-                                          _mm256_extracti128_si256(state_a->sum_a_i64x4, 1));
-    __m128i sum_a_b_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_b->sum_a_i64x4),
-                                          _mm256_extracti128_si256(state_b->sum_a_i64x4, 1));
-    __m128i sum_a_c_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_c->sum_a_i64x4),
-                                          _mm256_extracti128_si256(state_c->sum_a_i64x4, 1));
-    __m128i sum_a_d_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(state_d->sum_a_i64x4),
-                                          _mm256_extracti128_si256(state_d->sum_a_i64x4, 1));
-
-    // Horizontal add each i64x2 to get single i64 value in lane 0 (stays in SIMD)
-    __m128i sum_a_a_i64x1 = _mm_add_epi64(sum_a_a_i64x2, _mm_shuffle_epi32(sum_a_a_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_a_b_i64x1 = _mm_add_epi64(sum_a_b_i64x2, _mm_shuffle_epi32(sum_a_b_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_a_c_i64x1 = _mm_add_epi64(sum_a_c_i64x2, _mm_shuffle_epi32(sum_a_c_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-    __m128i sum_a_d_i64x1 = _mm_add_epi64(sum_a_d_i64x2, _mm_shuffle_epi32(sum_a_d_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
-
-    // Pack 4 i64 values into __m128i x 2: [sum_a, sum_b] and [sum_c, sum_d]
-    __m128i sum_a_ab_i64x2 = _mm_unpacklo_epi64(sum_a_a_i64x1, sum_a_b_i64x1);
-    __m128i sum_a_cd_i64x2 = _mm_unpacklo_epi64(sum_a_c_i64x1, sum_a_d_i64x1);
-
-    // Multiply by 128 using shift left (stays in i64)
-    __m128i correction_ab_i64x2 = _mm_slli_epi64(sum_a_ab_i64x2, 7);
-    __m128i correction_cd_i64x2 = _mm_slli_epi64(sum_a_cd_i64x2, 7);
-
-    // Continue reduction to scalar for main sums
-    // Transpose for SIMD reduction
-    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_ab_a_i32x4, sum_ab_b_i32x4);
-    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_ab_c_i32x4, sum_ab_d_i32x4);
-    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_ab_a_i32x4, sum_ab_b_i32x4);
-    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_ab_c_i32x4, sum_ab_d_i32x4);
-    __m128i sum_ab_lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
-    __m128i sum_ab_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
-    __m128i sum_ab_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    __m128i sum_ab_lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    __m128i sum_ab_final_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_ab_lane0_i32x4, sum_ab_lane1_i32x4),
-                                               _mm_add_epi32(sum_ab_lane2_i32x4, sum_ab_lane3_i32x4));
-
-    // Apply algebraic correction: result = sum_ab + 128 × sum_a
-    // Extract low 32 bits from each i64 to form i32x4 correction term
-    // Use shuffle to pack: [i64.lo, i64.lo, i64.lo, i64.lo] from 4 i64 values
-    __m128i correction_i32x4_ab = _mm_shuffle_epi32(correction_ab_i64x2, _MM_SHUFFLE(2, 0, 2, 0));
-    __m128i correction_i32x4_cd = _mm_shuffle_epi32(correction_cd_i64x2, _MM_SHUFFLE(2, 0, 2, 0));
-    __m128i correction_i32x4 = _mm_unpacklo_epi64(correction_i32x4_ab, correction_i32x4_cd);
-    __m128i final_u32x4 = _mm_add_epi32(sum_ab_final_i32x4, correction_i32x4);
-    result->xmm = final_u32x4;
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    result->xmm = _mm_add_epi32(_mm_add_epi32(lane0_i32x4, lane1_i32x4), _mm_add_epi32(lane2_i32x4, lane3_i32x4));
 }
 
 NK_PUBLIC void nk_dot_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
-    // Integer dot product for e2m3 using dual-VPSHUFB (LUT) + VPDPBUSD (unsigned×signed).
-    // Every e2m3 value × 16 is an exact integer in [-120, +120].
+    // Integer dot product for e2m3 using dual-VPSHUFB (LUT) + VPDPBSSD (signed*signed).
+    // Every e2m3 value * 16 is an exact integer in [-120, +120].
     // Result = i32_dot / 256.0f (exact, no rounding error).
     //
-    // This is the Sierra (256-bit AVX-VNNI) variant of the Ice Lake kernel.
-    // DPBUSD replaces MADDUBS+MADD (2 instructions → 1), accumulating u8×i8→i32 directly.
+    // Uses dpbssd instead of dpbusd -- both operands are already signed i8 after
+    // LUT + sign application, so no unsigned conversion is needed.
     //
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(               //
-        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
-        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(                       //
-        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
-        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
+                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -468,39 +274,39 @@ nk_dot_e2m3_sierra_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
 
-    // Extract 5-bit magnitude, then split into low 4 bits (VPSHUFB index) and bit 4 (hi/lo select)
+    // Decode a: extract magnitude, dual-VPSHUFB LUT, apply sign
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
     __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
                                                      half_select_u8x32);
-    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-
-    // Dual VPSHUFB: lookup in both halves, blend based on bit 4
     __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
                                                   _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
                                                   a_upper_select_u8x32);
+    __m256i a_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i a_signed_i8x32 = _mm256_blendv_epi8(
+        a_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate_mask_u8x32);
+
+    // Decode b: same LUT decode + sign
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
     __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
                                                   _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
                                                   b_upper_select_u8x32);
+    __m256i b_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i b_signed_i8x32 = _mm256_blendv_epi8(
+        b_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate_mask_u8x32);
 
-    // Combined sign: (a ^ b) & 0x20, negate b where signs differ
-    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e2m3_u8x32, b_e2m3_u8x32), sign_mask_u8x32);
-    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
-    __m256i b_negated_u8x32 = _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32);
-    __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32, b_negated_u8x32, negate_mask_u8x32);
-
-    // VPDPBUSD: a_unsigned[u8] × b_signed[i8] → i32 (replaces VPMADDUBSW + VPMADDWD)
-    sum_i32x8 = _mm256_dpbusd_epi32(sum_i32x8, a_unsigned_u8x32, b_signed_i8x32);
+    // VPDPBSSD: signed i8 * signed i8 -> i32
+    sum_i32x8 = _mm256_dpbssd_epi32(sum_i32x8, a_signed_i8x32, b_signed_i8x32);
 
     if (count_scalars) goto nk_dot_e2m3_sierra_cycle;
     *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
 }
 
 typedef struct nk_dot_e2m3x32_state_sierra_t {
-    __m256i sum_i32x8; // DPBUSD accumulator: u8_magnitude × i8_signed → i32
+    __m256i sum_i32x8; // DPBSSD accumulator: i8_signed * i8_signed -> i32
 } nk_dot_e2m3x32_state_sierra_t;
 
 NK_INTERNAL void nk_dot_e2m3x32_init_sierra(nk_dot_e2m3x32_state_sierra_t *state) {
@@ -511,12 +317,11 @@ NK_INTERNAL void nk_dot_e2m3x32_update_sierra(nk_dot_e2m3x32_state_sierra_t *sta
                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(               //
-        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
-        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(                       //
-        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
-        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    // Same LUT constants...
+    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
+                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -525,32 +330,32 @@ NK_INTERNAL void nk_dot_e2m3x32_update_sierra(nk_dot_e2m3x32_state_sierra_t *sta
     __m256i a_e2m3_u8x32 = a.ymm;
     __m256i b_e2m3_u8x32 = b.ymm;
 
-    // Extract 5-bit magnitude, split into low 4 bits and bit 4
+    // Decode a
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
     __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
                                                      half_select_u8x32);
-    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-
-    // Dual VPSHUFB + blend
     __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
                                                   _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
                                                   a_upper_select_u8x32);
+    __m256i a_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i a_signed_i8x32 = _mm256_blendv_epi8(
+        a_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate_mask_u8x32);
+
+    // Decode b
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
     __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
                                                   _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
                                                   b_upper_select_u8x32);
+    __m256i b_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i b_signed_i8x32 = _mm256_blendv_epi8(
+        b_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate_mask_u8x32);
 
-    // Combined sign + conditional negate
-    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e2m3_u8x32, b_e2m3_u8x32), sign_mask_u8x32);
-    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
-    __m256i b_negated_u8x32 = _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32);
-    __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32, b_negated_u8x32, negate_mask_u8x32);
-
-    // VPDPBUSD: u8 × i8 → i32
-    state->sum_i32x8 = _mm256_dpbusd_epi32(state->sum_i32x8, a_unsigned_u8x32, b_signed_i8x32);
+    // VPDPBSSD: signed * signed -> i32
+    state->sum_i32x8 = _mm256_dpbssd_epi32(state->sum_i32x8, a_signed_i8x32, b_signed_i8x32);
 }
 
 NK_INTERNAL void nk_dot_e2m3x32_finalize_sierra(                                                //
@@ -559,7 +364,7 @@ NK_INTERNAL void nk_dot_e2m3x32_finalize_sierra(                                
     nk_size_t total_dimensions, nk_b128_vec_t *results) {
     nk_unused_(total_dimensions);
 
-    // ILP-optimized 4-way horizontal reduction: i32x8 → scalar i32, then → f32 with ÷256
+    // ILP-optimized 4-way horizontal reduction: i32x8 -> scalar i32, then -> f32 with /256
     __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
                                         _mm256_extracti128_si256(state_a->sum_i32x8, 1));
     __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_i32x8),
@@ -580,7 +385,7 @@ NK_INTERNAL void nk_dot_e2m3x32_finalize_sierra(                                
     __m128i lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
     __m128i sum_i32x4 = _mm_add_epi32(_mm_add_epi32(lane0_i32x4, lane1_i32x4), _mm_add_epi32(lane2_i32x4, lane3_i32x4));
 
-    // Convert i32 → f32 and scale by 1/256
+    // Convert i32 -> f32 and scale by 1/256
     __m128 sum_f32x4 = _mm_mul_ps(_mm_cvtepi32_ps(sum_i32x4), _mm_set1_ps(1.0f / 256.0f));
     results->xmm = _mm_castps_si128(sum_f32x4);
 }

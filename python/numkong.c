@@ -332,7 +332,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-        // Platform-specific integer formats (Windows vs Unix):
+    // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -663,6 +663,7 @@ static struct {
     {"sapphireamx", nk_cap_sapphireamx_k},
     {"graniteamx", nk_cap_graniteamx_k},
     {"turin", nk_cap_turin_k},
+    {"alder", nk_cap_alder_k},
     {"sierra", nk_cap_sierra_k},
     // RISC-V
     {"rvv", nk_cap_rvv_k},
@@ -730,14 +731,16 @@ PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) {
     return NULL;
 }
 
-char const doc_get_capabilities[] =                                                                        //
-    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n\n"                     //
-    "The dictionary maps capability names to booleans. Available capabilities:\n"                          //
-    "  x86: serial, haswell, skylake, icelake, genoa, sapphire, sapphireamx, graniteamx, turin, sierra.\n" //
-    "  ARM NEON: neon, neonhalf, neonfhm, neonbfdot, neonsdot.\n"                                          //
-    "  ARM SVE: sve, svehalf, svebfdot, svesdot, sve2, sve2p1.\n"                                          //
-    "  ARM SME: sme, sme2, sme2p1, smef64, smehalf, smebf16, smelut2, smefa64.\n"                          //
-    "  RISC-V: rvv, rvvhalf, rvvbf16, rvvbb.\n"                                                            //
+char const doc_get_capabilities[] =                                                               //
+    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n\n"            //
+    "The dictionary maps capability names to booleans. Available capabilities (beyond serial):\n" //
+    "  x86 AVX2: haswell, alder, sierra.\n"                                                       //
+    "  x86 AVX512: skylake, icelake, genoa, sapphire, turin.\n"                                   //
+    "  x86 AMX: sapphireamx, graniteamx.\n"                                                       //
+    "  ARM NEON: neon, neonhalf, neonfhm, neonbfdot, neonsdot.\n"                                 //
+    "  ARM SVE: sve, svehalf, svebfdot, svesdot, sve2, sve2p1.\n"                                 //
+    "  ARM SME: sme, sme2, sme2p1, smef64, smehalf, smebf16, smelut2, smefa64.\n"                 //
+    "  RISC-V: rvv, rvvhalf, rvvbf16, rvvbb.\n"                                                   //
     "  WASM: v128relaxed.\n";
 
 PyObject *api_get_capabilities(PyObject *self) {

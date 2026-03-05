@@ -26,7 +26,7 @@ const (
 	CapSve         uint64 = 1 << 10 // 2020: ARM SVE
 	CapSveHalf     uint64 = 1 << 11 // 2020: ARM SVE FP16
 	CapSveSdot     uint64 = 1 << 12 // 2020: ARM SVE i8 dot
-	CapSierra      uint64 = 1 << 13 // 2021: Intel AVX2+VNNI
+	CapAlder       uint64 = 1 << 13 // 2021: Intel AVX2+VNNI
 	CapSveBfDot    uint64 = 1 << 14 // 2021: ARM SVE BF16
 	CapSve2        uint64 = 1 << 15 // 2022: ARM SVE2
 	CapV128Relaxed uint64 = 1 << 16 // 2022: WASM Relaxed SIMD
@@ -46,6 +46,8 @@ const (
 	CapSmeHalf     uint64 = 1 << 30 // 2025+: ARM SME F16F16
 	CapSmeBf16     uint64 = 1 << 31 // 2025+: ARM SME B16B16
 	CapSmeLut2     uint64 = 1 << 32 // 2025+: ARM SME LUTv2
+	CapRvvBB       uint64 = 1 << 33 // RISC-V: Byte-Byte extensions
+	CapSierra      uint64 = 1 << 34 // 2024: Intel AVXVNNIINT8
 )
 
 // region Dot Product

@@ -178,6 +178,12 @@ void test_dot() {
     run_if_matches("dot_e3m2_icelake", test_dot<e3m2_t>, nk_dot_e3m2_icelake);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_ALDER
+    run_if_matches("dot_i8_alder", test_dot<i8_t>, nk_dot_i8_alder);
+    run_if_matches("dot_u8_alder", test_dot<u8_t>, nk_dot_u8_alder);
+    run_if_matches("dot_e2m3_alder", test_dot<e2m3_t>, nk_dot_e2m3_alder);
+#endif // NK_TARGET_ALDER
+
 #if NK_TARGET_SIERRA
     run_if_matches("dot_i8_sierra", test_dot<i8_t>, nk_dot_i8_sierra);
     run_if_matches("dot_u8_sierra", test_dot<u8_t>, nk_dot_u8_sierra);

@@ -448,7 +448,9 @@ available_capabilities: dict[str, str] = nk.get_capabilities()
 
 # fmt: off
 possible_x86_capabilities: list[str] = [
-    "haswell", "skylake", "icelake", "genoa", "sapphire", "sapphireamx", "graniteamx", "turin", "sierra",
+    "haswell", "alder", "sierra",
+    "skylake", "icelake", "genoa", "sapphire", "turin",
+    "sapphireamx", "graniteamx",
 ]
 possible_arm_capabilities: list[str] = [
     "neon", "neonhalf", "neonfhm", "neonbfdot", "neonsdot",

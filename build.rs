@@ -157,6 +157,7 @@ fn build_simsimd() -> HashMap<String, bool> {
             // Advanced AVX-512 features available on Linux, FreeBSD, and Windows
             if is_linux || is_freebsd || is_windows {
                 flags.extend_from_slice(&[
+                    "NK_TARGET_ALDER",
                     "NK_TARGET_SIERRA",
                     "NK_TARGET_TURIN",
                     "NK_TARGET_SAPPHIRE",
