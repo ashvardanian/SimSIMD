@@ -323,14 +323,18 @@ if (NK_BUILD_BENCH)
     # Fetch external dependencies
     include(FetchContent)
 
-    # Suppress building tests of Google Benchmark
-    set(BENCHMARK_ENABLE_TESTING OFF)
-    set(BENCHMARK_ENABLE_INSTALL OFF)
-    set(BENCHMARK_ENABLE_DOXYGEN OFF)
-    set(BENCHMARK_INSTALL_DOCS OFF)
-    set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
-    set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
-    set(BENCHMARK_USE_BUNDLED_GTEST ON)
+    # We only need the core parts of Google Benchmark — disable tests, docs, and
+    # force std::regex so the regex-backend detection (which uses try_run) doesn't
+    # fail when ASAN is enabled and the sanitizer DLL isn't on PATH at configure time.
+    # All variables are CACHE entries scoped to the benchmark sub-project via FetchContent.
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_DOXYGEN OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_INSTALL_DOCS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_USE_BUNDLED_GTEST ON CACHE BOOL "" FORCE)
+    set(HAVE_STD_REGEX ON CACHE BOOL "Force std::regex for Google Benchmark" FORCE)
 
     FetchContent_Declare(benchmark GIT_REPOSITORY https://github.com/google/benchmark.git GIT_TAG v1.9.4)
     FetchContent_MakeAvailable(benchmark)
