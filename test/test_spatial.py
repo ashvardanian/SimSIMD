@@ -91,6 +91,8 @@ def precise_angular(a, b):
             aa += dx * dx
             bb += dy * dy
         denom = (aa * bb).sqrt()
+        if aa == 0 and bb == 0:
+            return 0.0
         if denom == 0:
             return 1.0
         return float(1 - ab / denom)
