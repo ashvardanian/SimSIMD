@@ -222,6 +222,14 @@ if (CMAKE_CROSSCOMPILING)
     endif ()
 endif ()
 
+# Probe whether C++ test executables need an explicit math library (`-lm`) on this toolchain.
+set(NK_CXX_MATH_LIB_ "")
+if (NK_BUILD_TEST OR NK_BUILD_SHARED_TEST)
+    include(cmake/nk_math_lib.cmake)
+    nk_detect_cxx_math_lib_(NK_CXX_MATH_LIB_)
+    message(STATUS "NumKong: Explicit libm for C++ tests: ${NK_CXX_MATH_LIB_}")
+endif ()
+
 # Only attempt detection if building tests or benchmarks
 if (NK_BUILD_TEST OR NK_BUILD_BENCH)
     # MKL detection
@@ -402,7 +410,7 @@ if (NK_BUILD_TEST)
         test/test_cross_sme.cpp test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_maxsim.cpp
         test/test_tensor.cpp
     )
-    target_link_libraries(nk_test numkong m)
+    target_link_libraries(nk_test numkong ${NK_CXX_MATH_LIB_})
 
     # WASI-specific configuration
     if (NK_IS_WASI_PROJECT_)
@@ -642,7 +650,7 @@ if (NK_BUILD_SHARED_TEST)
     )
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)
-    target_link_libraries(nk_shared_test nk_shared m)
+    target_link_libraries(nk_shared_test nk_shared ${NK_CXX_MATH_LIB_})
 
     add_test(NAME nk_shared_test COMMAND nk_shared_test)
 endif ()
