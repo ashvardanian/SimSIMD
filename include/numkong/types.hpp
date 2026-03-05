@@ -5306,12 +5306,12 @@ struct raw_pod_type<value_type_, std::void_t<typename value_type_::raw_t>> {
 /**
  *  @brief Trait: is `memset(ptr, 0, n * sizeof(T))` equivalent to value-initialization?
  *
- *  True for trivially-default-constructible types (built-in scalars) and for all NumKong
- *  wrapper types (detected via `raw_t` member typedef) whose default constructors
- *  zero-initialize a single POD field.
+ *  True for trivially-copyable types (built-in scalars) and for all NumKong wrapper types
+ *  (detected via `raw_t` member typedef) whose default constructors zero-initialize a
+ *  single POD field.
  */
 template <typename value_type_, typename = void>
-struct is_memset_zero_safe : std::is_trivially_default_constructible<value_type_> {};
+struct is_memset_zero_safe : std::is_trivially_copyable<value_type_> {};
 
 template <typename value_type_>
 struct is_memset_zero_safe<value_type_, std::void_t<typename value_type_::raw_t>> : std::true_type {};
