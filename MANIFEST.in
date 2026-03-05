@@ -1,4 +1,4 @@
 include include/numkong/*.h
 include include/*
-include scripts/test.py
+graft test/*.py
 include VERSION
