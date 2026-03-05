@@ -12,11 +12,10 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
 
-#include "numkong/types.h"
-#include "numkong/cast/neon.h"
-#include "numkong/cast/serial.h"
-#include "numkong/reduce/serial.h"
-#include "numkong/reduce/neon.h" // for nk_reduce_add_f32x4_neon_
+#include "numkong/types.h"         // `nk_bf16_t`
+#include "numkong/cast/neon.h"     // `nk_e4m3x8_to_f16x8_neon_`
+#include "numkong/cast/serial.h"   // `nk_f32_to_bf16_serial`
+#include "numkong/reduce/serial.h" // `nk_reduce_moments_bf16_serial`
 
 #if defined(__cplusplus)
 extern "C" {

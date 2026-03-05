@@ -86,7 +86,7 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 
-#include "numkong/reduce/neon.h"
+#include "numkong/cast/neon.h" // `nk_e4m3x8_to_f16x8_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -683,7 +683,7 @@ NK_PUBLIC void nk_dot_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t 
             uint8x16_t b_u8x16 = vld1q_u8(b + i);
             popcount_u8x16 = vaddq_u8(popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
         }
-        dot += nk_reduce_add_u8x16_neon_(popcount_u8x16);
+        dot += (nk_u32_t)vaddlvq_u8(popcount_u8x16);
     }
     for (; i != n_bytes; ++i) dot += nk_u1x8_popcount_(a[i] & b[i]);
     *result = dot;

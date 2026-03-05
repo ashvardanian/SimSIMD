@@ -32,9 +32,8 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 
-#include "numkong/types.h"
-#include "numkong/set/neon.h"    // `nk_hamming_u1_neon`
-#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
+#include "numkong/types.h"    // `nk_u1x8_t`
+#include "numkong/set/neon.h" // `nk_hamming_u1_neon`
 
 #if defined(__cplusplus)
 extern "C" {

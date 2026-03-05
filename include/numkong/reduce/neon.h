@@ -12,9 +12,9 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 
-#include "numkong/types.h"
-#include "numkong/cast/neon.h"
-#include "numkong/cast/serial.h"
+#include "numkong/types.h"       // `nk_size_t`
+#include "numkong/cast/neon.h"   // `nk_e4m3x16_to_f16x8x2_neon_`
+#include "numkong/cast/serial.h" // `nk_e4m3_to_f16_serial`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -26,37 +26,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
 #endif
-
-/** @brief Horizontal sum of 4 floats in a NEON register. */
-NK_INTERNAL nk_f32_t nk_reduce_add_f32x4_neon_(float32x4_t sum_f32x4) { return vaddvq_f32(sum_f32x4); }
-
-/** @brief Horizontal sum of 2 doubles in a NEON register. */
-NK_INTERNAL nk_f64_t nk_reduce_add_f64x2_neon_(float64x2_t sum_f64x2) { return vaddvq_f64(sum_f64x2); }
-
-/** @brief Horizontal min of 4 floats in a NEON register. */
-NK_INTERNAL nk_f32_t nk_reduce_min_f32x4_neon_(float32x4_t min_f32x4) { return vminvq_f32(min_f32x4); }
-
-/** @brief Horizontal max of 4 floats in a NEON register. */
-NK_INTERNAL nk_f32_t nk_reduce_max_f32x4_neon_(float32x4_t max_f32x4) { return vmaxvq_f32(max_f32x4); }
-
-/** @brief Horizontal sum of 4 i32s in a NEON register. */
-NK_INTERNAL nk_i32_t nk_reduce_add_i32x4_neon_(int32x4_t sum_i32x4) { return vaddvq_s32(sum_i32x4); }
-
-/** @brief Horizontal min of 4 i32s in a NEON register. */
-NK_INTERNAL nk_i32_t nk_reduce_min_i32x4_neon_(int32x4_t min_i32x4) { return vminvq_s32(min_i32x4); }
-
-/** @brief Horizontal max of 4 i32s in a NEON register. */
-NK_INTERNAL nk_i32_t nk_reduce_max_i32x4_neon_(int32x4_t max_i32x4) { return vmaxvq_s32(max_i32x4); }
-
-/** @brief Horizontal sum of 16 u8s in a NEON register, returning u32. */
-NK_INTERNAL nk_u32_t nk_reduce_add_u8x16_neon_(uint8x16_t sum_u8x16) {
-    uint16x8_t low_u16x8 = vmovl_u8(vget_low_u8(sum_u8x16));
-    uint16x8_t high_u16x8 = vmovl_u8(vget_high_u8(sum_u8x16));
-    uint16x8_t sum_u16x8 = vaddq_u16(low_u16x8, high_u16x8);
-    uint32x4_t sum_u32x4 = vpaddlq_u16(sum_u16x8);
-    uint64x2_t sum_u64x2 = vpaddlq_u32(sum_u32x4);
-    return (nk_u32_t)vaddvq_u64(sum_u64x2);
-}
 
 NK_INTERNAL nk_u64_t nk_reduce_sadd_u64x2_neon_(uint64x2_t v) {
     uint64x2_t swapped_u64x2 = vextq_u64(v, v, 1);

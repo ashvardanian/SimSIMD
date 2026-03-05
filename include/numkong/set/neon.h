@@ -44,9 +44,8 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 
-#include "numkong/types.h"
-#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
-#include "numkong/set/serial.h"  // `nk_u1x8_popcount_`
+#include "numkong/types.h"      // `nk_u1x8_t`
+#include "numkong/set/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -77,7 +76,7 @@ NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
             uint8x16_t xor_popcount_u8x16 = vcntq_u8(veorq_u8(a_u8x16, b_u8x16));
             popcount_u8x16 = vaddq_u8(popcount_u8x16, xor_popcount_u8x16);
         }
-        differences += nk_reduce_add_u8x16_neon_(popcount_u8x16);
+        differences += (nk_u32_t)vaddlvq_u8(popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_bytes; ++i) differences += nk_u1x8_popcount_(a[i] ^ b[i]);
@@ -101,8 +100,8 @@ NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
             intersection_popcount_u8x16 = vaddq_u8(intersection_popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
             union_popcount_u8x16 = vaddq_u8(union_popcount_u8x16, vcntq_u8(vorrq_u8(a_u8x16, b_u8x16)));
         }
-        intersection_count += nk_reduce_add_u8x16_neon_(intersection_popcount_u8x16);
-        union_count += nk_reduce_add_u8x16_neon_(union_popcount_u8x16);
+        intersection_count += (nk_u32_t)vaddlvq_u8(intersection_popcount_u8x16);
+        union_count += (nk_u32_t)vaddlvq_u8(union_popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_bytes; ++i)

@@ -12,11 +12,10 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONFHM
 
-#include "numkong/types.h"
-#include "numkong/cast/serial.h"
-#include "numkong/cast/neon.h" // nk_e4m3x8_to_f16x8_neon_, nk_e5m2x8_to_f16x8_neon_, nk_e3m2x8_to_f16x8_neon_
-#include "numkong/reduce/serial.h"
-#include "numkong/reduce/neon.h" // nk_reduce_add_f32x4_neon_
+#include "numkong/types.h"         // `nk_e4m3_t`
+#include "numkong/cast/serial.h"   // `nk_f16_to_f32_serial`
+#include "numkong/cast/neon.h"     // `nk_e4m3x8_to_f16x8_neon_`
+#include "numkong/reduce/serial.h" // `nk_reduce_moments_e4m3_serial`
 
 #if defined(__cplusplus)
 extern "C" {
