@@ -1,24 +1,23 @@
 [package]
-name = "numkong"
-description = "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
-version = "6.5.15"
-edition = "2021"
-license = "Apache-2.0"
-authors = ["Ash Vardanian <1983160+ashvardanian@users.noreply.github.com>"]
-repository = "https://github.com/ashvardanian/NumKong"
-documentation = "https://docs.rs/numkong"
-homepage = "https://ashvardanian.com/posts/numkong-faster-scipy"
-keywords = ["simd", "search", "linear-algebra", "vector"]
+authors = ["Ash Vardanian <1983160+ashvardanian@users.noreply.github.com>"] 
 categories = [
   "mathematics",
   "hardware-support",
   "no-std",
   "wasm",
   "external-ffi-bindings",
-]
+] 
+description = "Portable mixed-precision BLAS-like vector math library for x86 and ARM" 
+documentation = "https://docs.rs/numkong" 
+edition = "2021" 
+homepage = "https://ashvardanian.com/posts/numkong-faster-scipy" 
+include = ["rust/**", "c/**", "include/**", "build.rs"] 
+keywords = ["simd", "search", "linear-algebra", "vector"] 
+license = "Apache-2.0" 
+name = "numkong" 
+repository = "https://github.com/ashvardanian/NumKong" 
 rust-version = "1.64" # Introduced Core C FFI in stable Rust
-include = ["rust/**", "c/**", "include/**", "build.rs"]
-
+version = "6.5.15" 
 
 [lib]
 name = "numkong"
@@ -28,23 +27,22 @@ path = "rust/numkong.rs"
 cc = "1.2.36"
 
 [profile.bench]
-opt-level = 3     # Corresponds to -O3
-lto = true        # Enables Link Time Optimization for further optimizations
 codegen-units = 1 # May increase compilation time but optimizes further
-rpath = false     # On some systems, setting this to false can help with optimizations
+lto = true # Enables Link Time Optimization for further optimizations
+opt-level = 3 # Corresponds to -O3
+rpath = false # On some systems, setting this to false can help with optimizations
 
 [features]
 default = []
-std = []
 parallel = ["dep:fork_union", "std"]
-wasm-runtime = ["dep:wasmtime", "dep:wasmtime-wasi"]
+std = []
+wasm-runtime = []
 
 [dependencies]
-fork_union = { version = "2.3", optional = true }
-wasmtime = { version = "41.0", optional = true }
-wasmtime-wasi = { version = "41.0", optional = true }
+fork_union = {version = "2.3", optional = true}
 
 [dev-dependencies]
-criterion = { version = "0.8.1" }
-rand = { version = "0.10.0" }
-half = { version = "2.6.0" }
+half = {version = "2.6.0"}
+rand = {version = "0.10.0"}
+wasmtime = {version = "42.0"}
+wasmtime-wasi = {version = "42.0"}
