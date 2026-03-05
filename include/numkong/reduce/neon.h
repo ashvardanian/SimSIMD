@@ -163,7 +163,8 @@ NK_INTERNAL void nk_reduce_minmax_f32_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b32x4_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t lane_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                             vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
         uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)remaining));
         float32x4_t data_min_f32x4 = vbslq_f32(valid_u32x4, tail_vec.f32x4, min_f32x4);
         float32x4_t data_max_f32x4 = vbslq_f32(valid_u32x4, tail_vec.f32x4, max_f32x4);
@@ -189,7 +190,8 @@ NK_INTERNAL void nk_reduce_minmax_f32_neon_contiguous_( //
     uint32x4_t max_value_match_u32x4 = vceqq_f32(max_f32x4, vdupq_n_f32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -266,7 +268,8 @@ NK_INTERNAL void nk_reduce_minmax_f32_neon_strided_(                      //
     uint32x4_t max_value_match_u32x4 = vceqq_f32(max_f32x4, vdupq_n_f32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -576,7 +579,8 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         int8x16_t data_for_min_i8x16 = vbslq_s8(valid_u8x16, tail_vec.i8x16, vdupq_n_s8(NK_I8_MAX));
         int8x16_t data_for_max_i8x16 = vbslq_s8(valid_u8x16, tail_vec.i8x16, vdupq_n_s8(NK_I8_MIN));
@@ -594,7 +598,8 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_s8(max_i8x16, vdupq_n_s8(max_value));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -663,7 +668,8 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_strided_(                      //
     uint8x16_t max_value_match_u8x16 = vceqq_s8(max_i8x16, vdupq_n_s8(max_value));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -842,7 +848,8 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, tail_vec.u8x16, vdupq_n_u8(NK_U8_MAX));
         uint8x16_t data_for_max_u8x16 = vbslq_u8(valid_u8x16, tail_vec.u8x16, vdupq_n_u8(0));
@@ -860,7 +867,8 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_value));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -929,7 +937,8 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_value));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -1109,7 +1118,8 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                     vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
         uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
         int16x8_t data_for_min_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, vdupq_n_s16(NK_I16_MAX));
         int16x8_t data_for_max_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, vdupq_n_s16(NK_I16_MIN));
@@ -1127,7 +1137,8 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_contiguous_( //
     uint16x8_t max_value_match_u16x8 = vceqq_s16(max_i16x8, vdupq_n_s16(max_value));
     uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
     nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
-    uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+    uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                 vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
     uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
     uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
     uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
@@ -1196,7 +1207,8 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_strided_(                      //
     uint16x8_t max_value_match_u16x8 = vceqq_s16(max_i16x8, vdupq_n_s16(max_value));
     uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
     nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
-    uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+    uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                 vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
     uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
     uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
     uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
@@ -1375,7 +1387,8 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                     vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
         uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
         uint16x8_t data_for_min_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, vdupq_n_u16(NK_U16_MAX));
         uint16x8_t data_for_max_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, vdupq_n_u16(0));
@@ -1393,7 +1406,8 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_contiguous_( //
     uint16x8_t max_value_match_u16x8 = vceqq_u16(max_u16x8, vdupq_n_u16(max_value));
     uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
     nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
-    uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+    uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                 vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
     uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
     uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
     uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
@@ -1462,7 +1476,8 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     uint16x8_t max_value_match_u16x8 = vceqq_u16(max_u16x8, vdupq_n_u16(max_value));
     uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
     nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
-    uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+    uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                                 vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
     uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
     uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
     uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
@@ -1787,7 +1802,8 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b32x4_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+        uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                     vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
         uint32x4_t valid_u32x4 = vcltq_u32(lane_indices_u32x4, vdupq_n_u32((uint32_t)remaining));
         int32x4_t data_min_i32x4 = vbslq_s32(valid_u32x4, tail_vec.i32x4, vdupq_n_s32(NK_I32_MAX));
         int32x4_t data_max_i32x4 = vbslq_s32(valid_u32x4, tail_vec.i32x4, vdupq_n_s32(NK_I32_MIN));
@@ -1805,7 +1821,8 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_contiguous_( //
     uint32x4_t max_value_match_u32x4 = vceqq_s32(max_i32x4, vdupq_n_s32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -1874,7 +1891,8 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_strided_(                      //
     uint32x4_t max_value_match_u32x4 = vceqq_s32(max_i32x4, vdupq_n_s32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -2057,7 +2075,8 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_contiguous_( //
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
         nk_partial_load_b32x4_serial_(data_ptr + idx, &tail_vec, remaining);
-        uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+        uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                     vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
         uint32x4_t valid_u32x4 = vcltq_u32(lane_indices_u32x4, vdupq_n_u32((uint32_t)remaining));
         uint32x4_t data_min_u32x4 = vbslq_u32(valid_u32x4, tail_vec.u32x4, vdupq_n_u32(NK_U32_MAX));
         uint32x4_t data_max_u32x4 = vbslq_u32(valid_u32x4, tail_vec.u32x4, vdupq_n_u32(0));
@@ -2075,7 +2094,8 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_contiguous_( //
     uint32x4_t max_value_match_u32x4 = vceqq_u32(max_u32x4, vdupq_n_u32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -2144,7 +2164,8 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_strided_(                      //
     uint32x4_t max_value_match_u32x4 = vceqq_u32(max_u32x4, vdupq_n_u32(max_value));
     uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
     nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
-    uint32x4_t lane_indices_u32x4 = {0, 1, 2, 3};
+    uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                                 vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
     uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
     uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
     uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
@@ -2460,10 +2481,17 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_contiguous_( //
     nk_e2m3_t const *data_ptr, nk_size_t count,           //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     // VTBL LUT: maps 6-bit magnitude (0..31) to value×16 (unsigned), fits in u8
-    uint8x16x2_t const lut_e2m3_x16 = {{
-        {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-        {32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120},
-    }};
+    uint8x16x2_t lut_e2m3_x16;
+    // table[0]: values for magnitudes 0..15
+    // 0x0E0C0A0806040200 → bytes [0..7]  = 0,2,4,6,8,10,12,14
+    // 0x1E1C1A1816141210 → bytes [8..15] = 16,18,20,22,24,26,28,30
+    lut_e2m3_x16.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0E0C0A0806040200ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x1E1C1A1816141210ULL)));
+    // table[1]: values for magnitudes 16..31
+    // 0x3C3834302C282420 → bytes [0..7]  = 32,36,40,44,48,52,56,60
+    // 0x7870686058504840 → bytes [8..15] = 64,72,80,88,96,104,112,120
+    lut_e2m3_x16.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x3C3834302C282420ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x7870686058504840ULL)));
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
@@ -2495,10 +2523,17 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_moments_e2m3_neon_strided_(                     //
     nk_e2m3_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
-    uint8x16x2_t const lut_e2m3_x16 = {{
-        {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-        {32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120},
-    }};
+    uint8x16x2_t lut_e2m3_x16;
+    // table[0]: values for magnitudes 0..15
+    // 0x0E0C0A0806040200 → bytes [0..7]  = 0,2,4,6,8,10,12,14
+    // 0x1E1C1A1816141210 → bytes [8..15] = 16,18,20,22,24,26,28,30
+    lut_e2m3_x16.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0E0C0A0806040200ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x1E1C1A1816141210ULL)));
+    // table[1]: values for magnitudes 16..31
+    // 0x3C3834302C282420 → bytes [0..7]  = 32,36,40,44,48,52,56,60
+    // 0x7870686058504840 → bytes [8..15] = 64,72,80,88,96,104,112,120
+    lut_e2m3_x16.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x3C3834302C282420ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x7870686058504840ULL)));
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
@@ -2599,7 +2634,8 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_contiguous_( //
         nk_partial_load_b8x16_serial_(data_ptr, &first_vec, count);
         first_comparable_u8x16 = nk_fp6x16_to_comparable_neon_(first_vec.u8x16);
         // Mask invalid lanes: min gets 0xFF (won't be selected), max gets 0x00
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)count));
         first_comparable_u8x16 = vbslq_u8(valid_u8x16, first_comparable_u8x16, vdupq_n_u8(0));
     }
@@ -2609,7 +2645,8 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_contiguous_( //
     }
     // For min: invalid lanes (0x00) should not win, so initialize min from masked data where invalid = 0xFF
     // For max: invalid lanes (0x00) should not win, which is already correct since 0x00 won't beat real data
-    uint8x16_t lane_indices_init_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_init_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                     vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t valid_init_u8x16 = vcltq_u8(lane_indices_init_u8x16, vdupq_n_u8((uint8_t)first_count));
     uint8x16_t min_u8x16 = vbslq_u8(valid_init_u8x16, first_comparable_u8x16, vdupq_n_u8(0xFF));
     uint8x16_t max_u8x16 = first_comparable_u8x16; // invalid lanes are 0x00, safe for max
@@ -2632,7 +2669,8 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_contiguous_( //
         nk_b128_vec_t tail_vec;
         nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(tail_vec.u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, comparable_u8x16, vdupq_n_u8(0xFF));
         uint8x16_t data_for_max_u8x16 = vbslq_u8(valid_u8x16, comparable_u8x16, vdupq_n_u8(0));
@@ -2650,7 +2688,8 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -2719,7 +2758,8 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_strided_(                      //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -2783,10 +2823,17 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_contiguous_( //
     nk_e3m2_t const *data_ptr, nk_size_t count,           //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     // VTBL LUT: maps 6-bit magnitude (0..31) to (value×16) low byte; max value×16 = 448 needs i16
-    uint8x16x2_t const lut_e3m2_lo = {{
-        {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28},
-        {32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0, 64, 128, 192},
-    }};
+    uint8x16x2_t lut_e3m2_lo;
+    // table[0]: low bytes for magnitudes 0..15
+    // 0x0706050403020100 → bytes [0..7]  = 0,1,2,3,4,5,6,7
+    // 0x1C1814100E0C0A08 → bytes [8..15] = 8,10,12,14,16,20,24,28
+    lut_e3m2_lo.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                     vreinterpret_u8_u64(vcreate_u64(0x1C1814100E0C0A08ULL)));
+    // table[1]: low bytes for magnitudes 16..31
+    // 0x7060504038302820 → bytes [0..7]  = 32,40,48,56,64,80,96,112
+    // 0xC0804000E0C0A080 → bytes [8..15] = 128,160,192,224,0,64,128,192
+    lut_e3m2_lo.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x7060504038302820ULL)),
+                                     vreinterpret_u8_u64(vcreate_u64(0xC0804000E0C0A080ULL)));
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
@@ -2835,10 +2882,17 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_moments_e3m2_neon_strided_(                     //
     nk_e3m2_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
-    uint8x16x2_t const lut_e3m2_lo = {{
-        {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 28},
-        {32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0, 64, 128, 192},
-    }};
+    uint8x16x2_t lut_e3m2_lo;
+    // table[0]: low bytes for magnitudes 0..15
+    // 0x0706050403020100 → bytes [0..7]  = 0,1,2,3,4,5,6,7
+    // 0x1C1814100E0C0A08 → bytes [8..15] = 8,10,12,14,16,20,24,28
+    lut_e3m2_lo.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                     vreinterpret_u8_u64(vcreate_u64(0x1C1814100E0C0A08ULL)));
+    // table[1]: low bytes for magnitudes 16..31
+    // 0x7060504038302820 → bytes [0..7]  = 32,40,48,56,64,80,96,112
+    // 0xC0804000E0C0A080 → bytes [8..15] = 128,160,192,224,0,64,128,192
+    lut_e3m2_lo.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x7060504038302820ULL)),
+                                     vreinterpret_u8_u64(vcreate_u64(0xC0804000E0C0A080ULL)));
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
@@ -2980,7 +3034,8 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_contiguous_( //
         nk_b128_vec_t first_vec;
         nk_partial_load_b8x16_serial_(data_ptr, &first_vec, count);
         first_comparable_u8x16 = nk_fp6x16_to_comparable_neon_(first_vec.u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)count));
         first_comparable_u8x16 = vbslq_u8(valid_u8x16, first_comparable_u8x16, vdupq_n_u8(0));
     }
@@ -2988,7 +3043,8 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_contiguous_( //
         uint8x16_t first_raw_u8x16 = vld1q_u8((nk_u8_t const *)data_ptr);
         first_comparable_u8x16 = nk_fp6x16_to_comparable_neon_(first_raw_u8x16);
     }
-    uint8x16_t lane_indices_init_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_init_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                     vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t valid_init_u8x16 = vcltq_u8(lane_indices_init_u8x16, vdupq_n_u8((uint8_t)first_count));
     uint8x16_t min_u8x16 = vbslq_u8(valid_init_u8x16, first_comparable_u8x16, vdupq_n_u8(0xFF));
     uint8x16_t max_u8x16 = first_comparable_u8x16;
@@ -3011,7 +3067,8 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_contiguous_( //
         nk_b128_vec_t tail_vec;
         nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(tail_vec.u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, comparable_u8x16, vdupq_n_u8(0xFF));
         uint8x16_t data_for_max_u8x16 = vbslq_u8(valid_u8x16, comparable_u8x16, vdupq_n_u8(0));
@@ -3029,7 +3086,8 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -3098,7 +3156,8 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_strided_(                      //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -3305,7 +3364,8 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_contiguous_( //
                                            vceqq_u8(comparable_u8x16, vdupq_n_u8(0xFF)));
         uint8x16_t nan_min_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0xFF), comparable_u8x16);
         uint8x16_t nan_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, nan_min_u8x16, vdupq_n_u8(0xFF));
         uint8x16_t data_for_max_u8x16 = vbslq_u8(valid_u8x16, nan_max_u8x16, vdupq_n_u8(0));
@@ -3329,7 +3389,8 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -3414,7 +3475,8 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_strided_(                      //
         uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
         uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
         nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
         uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
         uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -3607,7 +3669,8 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_contiguous_( //
         uint8x16_t is_nan_u8x16 = vorrq_u8(is_nan_low_u8x16, is_nan_high_u8x16);
         uint8x16_t nan_min_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0xFF), comparable_u8x16);
         uint8x16_t nan_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, nan_min_u8x16, vdupq_n_u8(0xFF));
         uint8x16_t data_for_max_u8x16 = vbslq_u8(valid_u8x16, nan_max_u8x16, vdupq_n_u8(0));
@@ -3631,7 +3694,8 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_contiguous_( //
     uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
     uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
     nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-    uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
     uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
     uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
     uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));
@@ -3722,7 +3786,8 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_strided_(                      //
         uint8x16_t max_value_match_u8x16 = vceqq_u8(max_u8x16, vdupq_n_u8(max_comparable));
         uint8x16_t masked_max_iter_u8x16 = vbslq_u8(max_value_match_u8x16, max_iter_u8x16, vdupq_n_u8(0xFF));
         nk_u8_t earliest_max_cycle = vminvq_u8(masked_max_iter_u8x16);
-        uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        uint8x16_t lane_indices_u8x16 = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0706050403020100ULL)),
+                                                    vreinterpret_u8_u64(vcreate_u64(0x0F0E0D0C0B0A0908ULL)));
         uint8x16_t min_cycle_match_u8x16 = vceqq_u8(min_iter_u8x16, vdupq_n_u8(earliest_min_cycle));
         uint8x16_t min_both_match_u8x16 = vandq_u8(min_value_match_u8x16, min_cycle_match_u8x16);
         uint8x16_t min_masked_lanes_u8x16 = vbslq_u8(min_both_match_u8x16, lane_indices_u8x16, vdupq_n_u8(0xFF));

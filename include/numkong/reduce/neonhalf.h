@@ -172,7 +172,8 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_contiguous_( //
         nk_b128_vec_t tail_vec;
         nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
         float16x8_t data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
-        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t lane_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                             vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
         uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)remaining));
         float16x8_t data_for_min = vbslq_f16(valid_u16x8, data_f16x8, min_f16x8);
         float16x8_t data_for_max = vbslq_f16(valid_u16x8, data_f16x8, max_f16x8);
@@ -279,7 +280,8 @@ NK_INTERNAL void nk_reduce_minmax_f16_neonhalf_strided_(                  //
             tail_vec.u16s[k] = *(nk_u16_t const *)(data_ptr + (idx + k) * stride_elements);
         float16x8_t data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
         // Mask invalid lanes
-        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t lane_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
+                                             vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
         uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)remaining));
         float16x8_t data_for_min = vbslq_f16(valid_u16x8, data_f16x8, min_f16x8);
         float16x8_t data_for_max = vbslq_f16(valid_u16x8, data_f16x8, max_f16x8);
