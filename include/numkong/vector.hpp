@@ -496,7 +496,9 @@ struct vector {
         if (values == 0) return v;
         pointer ptr = alloc_traits::allocate(v.alloc_, values);
         if (!ptr) return v;
-        std::memset(ptr, 0, values * sizeof(value_type_));
+        if constexpr (is_memset_zero_safe_v<value_type_>) std::memset(ptr, 0, values * sizeof(value_type_));
+        else
+            for (size_type i = 0; i < values; ++i) ptr[i] = value_type_ {};
         v.data_ = ptr;
         v.dimensions_ = dims;
         return v;

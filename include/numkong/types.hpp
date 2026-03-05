@@ -3080,7 +3080,6 @@ struct f118_t {
     NK_CMATH_CONSTEXPR_ f118_t ln_1p() const noexcept {
         // For small x, use series: ln(1+x) = x − x²/2 + x³/3 − …
         if (std::abs(high_) < 0.5) {
-            f118_t x_squared = *this * *this;
             f118_t series_sum = *this, current_term = *this;
             for (unsigned int term_index = 2; term_index <= 30; ++term_index) {
                 current_term = current_term * (*this) * f118_t(term_index & 1 ? 1.0 : -1.0);
@@ -5303,6 +5302,22 @@ template <typename value_type_>
 struct raw_pod_type<value_type_, std::void_t<typename value_type_::raw_t>> {
     using type = typename value_type_::raw_t;
 };
+
+/**
+ *  @brief Trait: is `memset(ptr, 0, n * sizeof(T))` equivalent to value-initialization?
+ *
+ *  True for trivially-default-constructible types (built-in scalars) and for all NumKong
+ *  wrapper types (detected via `raw_t` member typedef) whose default constructors
+ *  zero-initialize a single POD field.
+ */
+template <typename value_type_, typename = void>
+struct is_memset_zero_safe : std::bool_constant<std::is_trivially_default_constructible_v<value_type_>> {};
+
+template <typename value_type_>
+struct is_memset_zero_safe<value_type_, std::void_t<typename value_type_::raw_t>> : std::true_type {};
+
+template <typename value_type_>
+inline constexpr bool is_memset_zero_safe_v = is_memset_zero_safe<value_type_>::value;
 
 /**
  *  @brief Ceiling division: (n + divisor - 1) / divisor (compile-time divisor).

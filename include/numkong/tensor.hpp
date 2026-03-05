@@ -409,7 +409,9 @@ struct tensor {
         if (n == 0) return t;
         pointer ptr = alloc_traits::allocate(t.alloc_, n);
         if (!ptr) return t;
-        std::memset(ptr, 0, n * sizeof(value_type));
+        if constexpr (is_memset_zero_safe_v<value_type_>) std::memset(ptr, 0, n * sizeof(value_type_));
+        else
+            for (size_type i = 0; i < n; ++i) ptr[i] = value_type_ {};
         t.data_ = ptr;
         return t;
     }

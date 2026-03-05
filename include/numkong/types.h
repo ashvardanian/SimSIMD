@@ -801,10 +801,7 @@ typedef __fp16 nk_f16_t;
 typedef _Float16 nk_f16_t;
 #undef NK_NATIVE_F16
 #define NK_NATIVE_F16 1
-#else                                       // Unknown compiler or architecture
-#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
-#warning "Unknown compiler or architecture for float16."
-#endif
+#else // Unknown compiler or architecture
 #undef NK_NATIVE_F16
 #define NK_NATIVE_F16 0
 #endif // Unknown compiler or architecture
