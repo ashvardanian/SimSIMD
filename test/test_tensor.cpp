@@ -134,23 +134,28 @@ void test_vector_types() {
     test_vector_basics<std::complex<double>>();
     test_vector_basics<nk::i4x2_t>();
     test_vector_basics<nk::u1x8_t>();
+    std::printf("  vector basics (9 types):      OK\n");
 
     // Feature tests (non-template, using specific types)
     test_signed_indexing();
+    std::printf("  signed indexing:              OK\n");
+
     test_move_semantics();
+    std::printf("  move semantics:               OK\n");
+
     test_swap();
+    std::printf("  swap:                         OK\n");
+
     test_view_span_rev();
+    std::printf("  view/span/rev:                OK\n");
+
     test_range_slicing();
+    std::printf("  range slicing:                OK\n");
+
     test_sub_byte_i4x2();
     test_sub_byte_u1x8();
-    test_custom_allocator();
+    std::printf("  sub-byte i4x2/u1x8:           OK\n");
 
-    std::printf("  vector basics (9 types):      OK\n");
-    std::printf("  signed indexing:              OK\n");
-    std::printf("  move semantics:               OK\n");
-    std::printf("  swap:                         OK\n");
-    std::printf("  view/span/rev:                OK\n");
-    std::printf("  range slicing:                OK\n");
-    std::printf("  sub-byte i4x2/u1x8:          OK\n");
+    test_custom_allocator();
     std::printf("  custom allocator:             OK\n");
 }

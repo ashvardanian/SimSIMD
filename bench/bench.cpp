@@ -135,12 +135,6 @@ int main(int argc, char **argv) {
     print_indicator(NK_NATIVE_BF16);
     std::printf("  MKL ");
     print_indicator(NK_COMPARE_TO_MKL);
-    std::printf("  OpenMP ");
-#ifdef _OPENMP
-    print_indicator(true);
-#else
-    print_indicator(false);
-#endif
     std::printf("\n");
 
     // ISA row

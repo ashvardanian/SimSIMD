@@ -257,12 +257,6 @@ int main(int argc, char **argv) {
     print_indicator(NK_NATIVE_BF16);
     std::printf("  MKL ");
     print_indicator(NK_COMPARE_TO_MKL);
-    std::printf("  OpenMP ");
-#if NK_TEST_USE_OPENMP
-    print_indicator(true);
-#else
-    print_indicator(false);
-#endif
     std::printf("\n");
 
     // ISA row — one print_isa() call per ISA, skips those not compiled
