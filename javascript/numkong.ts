@@ -99,13 +99,7 @@ export const Capability = {
   RVVBB: 1n << 33n,          // 2025+: RISC-V Zvbb
 } as const;
 
-/* #region Custom Numeric Types */
-
 export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase };
-
-/* #endregion Custom Numeric Types */
-
-/* #region Type Conversion Functions */
 
 /** Convert a single FP16 value (as uint16 bits) to FP32 */
 export const castF16ToF32 = compiled.castF16ToF32;
@@ -126,21 +120,17 @@ export const castF32ToE5M2 = compiled.castF32ToE5M2;
 /** Bulk conversion between different numeric types (modifies destination array in-place) */
 export const cast = compiled.cast;
 
-/* #endregion Type Conversion Functions */
-
-/* #region Types */
-
 export { DType };
 
 /**
- * @brief Numeric arrays supported by distance metrics with auto-detected dtype.
+ * Numeric arrays supported by distance metrics with auto-detected dtype.
  *
  * These standard TypedArrays are auto-detected by the N-API binding.
  */
 export type NumericArray = Float64Array | Float32Array | Int8Array | Uint8Array;
 
 /**
- * @brief Extended array types supported by distance metrics with explicit dtype parameter.
+ * Extended array types supported by distance metrics with explicit dtype parameter.
  *
  * Includes Uint16Array (backing type for Float16Array and BFloat16Array) in addition
  * to the auto-detected types. Pass a dtype string as the third argument to distance
@@ -149,7 +139,7 @@ export type NumericArray = Float64Array | Float32Array | Int8Array | Uint8Array;
 export type DistanceArray = Float64Array | Float32Array | Int8Array | Uint8Array | Uint16Array;
 
 /**
- * @brief Union type for all array types (including custom types for conversions)
+ * Union type for all array types (including custom types for conversions)
  */
 export type NumKongArray =
   | Float64Array
@@ -162,10 +152,8 @@ export type NumKongArray =
   | Uint8Array
   | BinaryArray;
 
-/* #endregion Types */
-
 /**
- * @brief Extract a TypedArray from a TensorBase for the N-API backend.
+ * Extract a TypedArray from a TensorBase for the N-API backend.
  *
  * The native backend doesn't benefit from zero-copy TensorBase (Node.js TypedArrays
  * already share process memory), but accepting TensorBase keeps the API uniform.
@@ -181,10 +169,8 @@ function unwrapTensor(input: TensorBase): { arr: DistanceArray; dtype: DType } {
   }
 }
 
-/* #region Distance Metrics and Similarity Functions */
-
 /**
- * @brief Returns the runtime-detected SIMD capabilities as a bitmask.
+ * Returns the runtime-detected SIMD capabilities as a bitmask.
  *
  * The bitmask includes flags for various SIMD instruction sets like AVX2, AVX-512,
  * ARM NEON, ARM SVE, ARM SME, RISC-V Vector, and WASM SIMD extensions.
@@ -192,7 +178,8 @@ function unwrapTensor(input: TensorBase): { arr: DistanceArray; dtype: DType } {
  *
  * @returns {bigint} Bitmask of capability flags (use with Capability constants)
  *
- * @code{.ts}
+ * @example
+ * ```ts
  * import { getCapabilities, Capability } from 'numkong';
  *
  * const caps = getCapabilities();
@@ -202,21 +189,22 @@ function unwrapTensor(input: TensorBase): { arr: DistanceArray; dtype: DType } {
  * if (caps & Capability.HASWELL) {
  *   console.log('AVX2 available');
  * }
- * @endcode
+ * ```
  */
 export const getCapabilities = (): bigint => {
   return compiled.getCapabilities();
 };
 
 /**
- * @brief Checks if a specific SIMD capability is available at runtime.
+ * Checks if a specific SIMD capability is available at runtime.
  *
  * This is a convenience wrapper around getCapabilities() that tests for a single capability.
  *
  * @param {bigint} cap - Capability flag to check (from Capability constants)
  * @returns {boolean} True if the capability is available, false otherwise
  *
- * @code{.ts}
+ * @example
+ * ```ts
  * import { hasCapability, Capability } from 'numkong';
  *
  * if (hasCapability(Capability.HASWELL)) {
@@ -228,14 +216,14 @@ export const getCapabilities = (): bigint => {
  * if (hasCapability(Capability.V128RELAXED)) {
  *   console.log('WASM Relaxed SIMD available');
  * }
- * @endcode
+ * ```
  */
 export const hasCapability = (cap: bigint): boolean => {
   return (getCapabilities() & cap) !== 0n;
 };
 
 /**
- * @brief Computes the squared Euclidean distance between two vectors.
+ * Computes the squared Euclidean distance between two vectors.
  * @param a - The first vector.
  * @param b - The second vector (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
@@ -250,7 +238,7 @@ export function sqeuclidean(a: DistanceArray | TensorBase, b: DistanceArray | Te
 }
 
 /**
- * @brief Computes the Euclidean distance between two vectors.
+ * Computes the Euclidean distance between two vectors.
  * @param a - The first vector.
  * @param b - The second vector (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
@@ -265,7 +253,7 @@ export function euclidean(a: DistanceArray | TensorBase, b: DistanceArray | Tens
 }
 
 /**
- * @brief Computes the angular distance between two vectors.
+ * Computes the angular distance between two vectors.
  * @param a - The first vector.
  * @param b - The second vector (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
@@ -280,7 +268,7 @@ export function angular(a: DistanceArray | TensorBase, b: DistanceArray | Tensor
 }
 
 /**
- * @brief Computes the inner product of two vectors (same as dot product).
+ * Computes the inner product of two vectors (same as dot product).
  * @param a - The first vector.
  * @param b - The second vector (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
@@ -295,7 +283,7 @@ export function inner(a: DistanceArray | TensorBase, b: DistanceArray | TensorBa
 }
 
 /**
- * @brief Computes the dot product of two vectors (same as inner product).
+ * Computes the dot product of two vectors (same as inner product).
  * @param a - The first vector.
  * @param b - The second vector (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
@@ -310,7 +298,7 @@ export function dot(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase
 }
 
 /**
- * @brief Computes the bitwise Hamming distance between two vectors.
+ * Computes the bitwise Hamming distance between two vectors.
  *
  * Both vectors are treated as bit-packed (u1 dtype), where each byte contains 8 bits.
  * Use toBinary() to convert numeric arrays to bit-packed format.
@@ -325,7 +313,7 @@ export const hamming = (a: Uint8Array | BinaryArray | TensorBase, b: Uint8Array 
 };
 
 /**
- * @brief Computes the bitwise Jaccard distance between two vectors.
+ * Computes the bitwise Jaccard distance between two vectors.
  *
  * Both vectors are treated as bit-packed (u1 dtype), where each byte contains 8 bits.
  * Use toBinary() to convert numeric arrays to bit-packed format.
@@ -340,7 +328,7 @@ export const jaccard = (a: Uint8Array | BinaryArray | TensorBase, b: Uint8Array 
 };
 
 /**
- * @brief Computes the Kullback-Leibler divergence between two probability distributions.
+ * Computes the Kullback-Leibler divergence between two probability distributions.
  *
  * Both vectors must represent valid probability distributions (non-negative, sum to 1).
  * Supports f64, f32 (auto-detected) and f16, bf16 (with explicit dtype).
@@ -359,7 +347,7 @@ export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array | T
 }
 
 /**
- * @brief Computes the Jensen-Shannon divergence between two probability distributions.
+ * Computes the Jensen-Shannon divergence between two probability distributions.
  *
  * Both vectors must represent valid probability distributions (non-negative, sum to 1).
  * Supports f64, f32 (auto-detected) and f16, bf16 (with explicit dtype).
@@ -379,7 +367,7 @@ export function jensenshannon(a: Float64Array | Float32Array | Uint16Array | Ten
 }
 
 /**
- * @brief Quantizes a numeric vector into a bit-packed binary representation.
+ * Quantizes a numeric vector into a bit-packed binary representation.
  *
  * Converts each element to a single bit: 1 for positive values, 0 for non-positive values.
  * The bits are packed into bytes (8 bits per byte) in big-endian bit order within each byte.
@@ -388,7 +376,8 @@ export function jensenshannon(a: Float64Array | Float32Array | Uint16Array | Ten
  * @param {Float32Array | Float64Array | Int8Array} vector - The vector to quantize and pack.
  * @returns {Uint8Array} A bit-packed array where each byte contains 8 binary values.
  *
- * @code{.ts}
+ * @example
+ * ```ts
  * const vec = new Float32Array([1.5, -2.3, 0.0, 3.1, -1.0, 2.0, 0.5, -0.5]);
  * const binary = toBinary(vec);
  * // Result: Uint8Array([0b10010110]) = [0x96]
@@ -398,7 +387,7 @@ export function jensenshannon(a: Float64Array | Float32Array | Uint16Array | Ten
  * const a = toBinary(new Float32Array([1, 2, 3]));
  * const b = toBinary(new Float32Array([1, -2, 3]));
  * const dist = hamming(a, b); // Counts differing bits
- * @endcode
+ * ```
  */
 export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8Array => {
   const byteLength = Math.ceil(vector.length / 8);
@@ -414,8 +403,6 @@ export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8
 
   return packedVector;
 };
-
-/* #endregion Distance Metrics and Similarity Functions */
 
 export default {
   dot,
@@ -450,7 +437,7 @@ export default {
 };
 
 /**
- * @brief Finds the directory where the native build of the numkong module is located.
+ * Finds the directory where the native build of the numkong module is located.
  * @param {string} dir - The directory to start the search from.
  */
 function getBuildDir(dir: string) {

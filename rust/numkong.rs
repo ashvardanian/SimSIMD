@@ -227,7 +227,8 @@ mod wasm_runtime_tests {
         let mut linker = Linker::new(&engine);
 
         // Create WASI context (Wasmtime 41+ API)
-        let wasi = WasiCtx::builder().inherit_stdio().inherit_args().build_p1();
+        // Don't inherit_args() — cargo's test filter args would confuse the WASM test binary.
+        let wasi = WasiCtx::builder().inherit_stdio().build_p1();
         let mut store = Store::new(&engine, wasi);
 
         // Add WASI support (Wasmtime 41+ requires p1 module)

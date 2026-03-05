@@ -466,6 +466,13 @@ if (NK_BUILD_SHARED)
 
     # Emscripten requires building as executable to generate JS bindings
     if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        # Detect wasm64 (memory64) mode
+        if (CMAKE_SYSTEM_PROCESSOR STREQUAL "wasm64")
+            set(NK_WASM64_ ON)
+        else ()
+            set(NK_WASM64_ OFF)
+        endif ()
+
         # Create a minimal main() wrapper for Emscripten
         file(WRITE "${CMAKE_BINARY_DIR}/emscripten_stub.c"
              "// Stub main for Emscripten to generate JS bindings\nint main() { return 0; }\n"
@@ -473,9 +480,16 @@ if (NK_BUILD_SHARED)
 
         add_executable(nk_shared ${NK_SOURCES} "${CMAKE_BINARY_DIR}/emscripten_stub.c")
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
-        set_target_properties(
-            nk_shared PROPERTIES OUTPUT_NAME "numkong" SUFFIX ".js" # Generates numkong.js + numkong.wasm
-        )
+
+        if (NK_WASM64_)
+            set_target_properties(
+                nk_shared PROPERTIES OUTPUT_NAME "numkong64" SUFFIX ".js" # Generates numkong64.js + numkong64.wasm
+            )
+        else ()
+            set_target_properties(
+                nk_shared PROPERTIES OUTPUT_NAME "numkong" SUFFIX ".js" # Generates numkong.js + numkong.wasm
+            )
+        endif ()
         target_compile_definitions(
             nk_shared
             PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
@@ -504,6 +518,11 @@ if (NK_BUILD_SHARED)
             "SHELL:-s INITIAL_MEMORY=16MB" # Initial heap size
             "SHELL:-s STACK_SIZE=5MB" # Stack size for recursion
         )
+
+        # Memory64 link option for wasm64 builds
+        if (NK_WASM64_)
+            target_link_options(nk_shared PRIVATE "SHELL:-s MEMORY64=1")
+        endif ()
     else ()
         add_library(nk_shared SHARED ${NK_SOURCES})
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")

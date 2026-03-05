@@ -125,21 +125,19 @@
 #define NK_HAS_POSIX_EXTENSIONS_ 0
 #endif
 
-// On Linux, `syscall()` from `<unistd.h>` requires `_GNU_SOURCE` with `-std=c11`.
-// Scope it narrowly: define before including, then undef to avoid leaking.
+// On Linux x86/RISC-V, we need `syscall()` for AMX permission and hwprobe.
+// With `-std=c11` glibc hides `syscall()` behind `_GNU_SOURCE`, but if any
+// system header was included before us, `<features.h>` is already locked.
+// Forward-declare `syscall` directly — it always exists in glibc.
 #if defined(NK_DEFINED_LINUX_) && (NK_TARGET_X86_ || NK_TARGET_RISCV_)
-#if !defined(_GNU_SOURCE)
-#define _GNU_SOURCE
-#define NK_DEFINED_GNU_SOURCE_ 1
+#include <sys/syscall.h> // `SYS_arch_prctl`, `SYS_riscv_hwprobe`
+#ifdef __cplusplus
+extern "C" long syscall(long, ...) noexcept;
+#else
+extern long syscall(long, ...);
 #endif
-#include <sys/syscall.h> // `syscall`, `SYS_arch_prctl`
-#include <unistd.h>      // `syscall`
 #if NK_TARGET_RISCV_
 #include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
-#endif
-#if defined(NK_DEFINED_GNU_SOURCE_)
-#undef _GNU_SOURCE
-#undef NK_DEFINED_GNU_SOURCE_
 #endif
 #endif
 
