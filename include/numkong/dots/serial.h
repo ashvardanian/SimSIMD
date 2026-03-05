@@ -1467,227 +1467,494 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
  *  Like nk_define_cross_symmetric_ but the finalize function receives precomputed sums.
  *  For symmetric computation, both row and column vectors come from the same matrix A,
  *  so A sums serve as both row and column sums.
+ *
+ *  The off-diagonal helper uses 4×4 tiling (matching nk_define_cross_symmetric_) with
+ *  progressive sum accumulation: SAD runs on port 5 alongside DPBUSD on ports 0+1 for
+ *  zero throughput overhead on Alder Lake and Ice Lake.
  */
-#define nk_define_cross_compensated_symmetric_(                                                                       \
-    api_name, input_type_name, isa_suffix, input_value_type, result_value_type, sum_value_type, norm_value_type,      \
-    vec_type, state_type, result_vec_type, init_accumulator_fn, load_vec_fn, partial_load_vec_fn, inner_product_fn,   \
-    compensated_finalize_fn, partial_store_fn, load_sum_fn, partial_load_sum_fn, compute_a_sum_fn,                    \
-    depth_simd_dimensions, dimensions_per_value)                                                                      \
-    NK_INTERNAL void nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                          \
-        nk_##input_value_type##_t const **vector_base_ptrs, nk_size_t i_macro, nk_size_t macro_size,                  \
-        nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                           \
-        nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result,      \
-        nk_size_t result_stride_values, nk_size_t finalizer_batch_size, nk_size_t depth) {                            \
-        (void)finalizer_batch_size;                                                                                   \
-        (void)dimensions_per_value_runtime;                                                                           \
-        for (nk_size_t tile_row_start = 0; tile_row_start < macro_size; tile_row_start += 4) {                        \
-            for (nk_size_t tile_col_start = tile_row_start; tile_col_start < macro_size; tile_col_start += 4) {       \
-                nk_size_t tile_rows = (tile_row_start + 4 <= macro_size) ? 4 : (macro_size - tile_row_start);         \
-                nk_size_t tile_cols = (tile_col_start + 4 <= macro_size) ? 4 : (macro_size - tile_col_start);         \
-                int is_diag = (tile_row_start == tile_col_start);                                                     \
-                NK_ALIGN64 state_type accumulators[4][7];                                                             \
-                for (nk_size_t row = 0; row < tile_rows; row++) {                                                     \
-                    nk_size_t init_start = is_diag ? row : 0;                                                         \
-                    nk_size_t init_end = is_diag ? (row + 4) : tile_cols;                                             \
-                    for (nk_size_t col = init_start; col < init_end; col++) {                                         \
-                        init_accumulator_fn(&accumulators[row][col]);                                                 \
-                    }                                                                                                 \
-                }                                                                                                     \
-                nk_##input_value_type##_t const *row_ptrs[4], *col_ptrs[4];                                           \
-                row_ptrs[0] = vector_base_ptrs[tile_row_start + 0];                                                   \
-                row_ptrs[1] = (tile_rows > 1) ? vector_base_ptrs[tile_row_start + 1] : row_ptrs[0];                   \
-                row_ptrs[2] = (tile_rows > 2) ? vector_base_ptrs[tile_row_start + 2] : row_ptrs[0];                   \
-                row_ptrs[3] = (tile_rows > 3) ? vector_base_ptrs[tile_row_start + 3] : row_ptrs[0];                   \
-                if (is_diag) {                                                                                        \
-                    col_ptrs[0] = row_ptrs[0];                                                                        \
-                    col_ptrs[1] = row_ptrs[1];                                                                        \
-                    col_ptrs[2] = row_ptrs[2];                                                                        \
-                    col_ptrs[3] = row_ptrs[3];                                                                        \
-                }                                                                                                     \
-                else {                                                                                                \
-                    col_ptrs[0] = vector_base_ptrs[tile_col_start + 0];                                               \
-                    col_ptrs[1] = (tile_cols > 1) ? vector_base_ptrs[tile_col_start + 1] : col_ptrs[0];               \
-                    col_ptrs[2] = (tile_cols > 2) ? vector_base_ptrs[tile_col_start + 2] : col_ptrs[0];               \
-                    col_ptrs[3] = (tile_cols > 3) ? vector_base_ptrs[tile_col_start + 3] : col_ptrs[0];               \
-                }                                                                                                     \
-                vec_type row_vecs[4], col_vecs[4];                                                                    \
-                for (nk_size_t di = 0; di < aligned_depth; di += depth_step_values) {                                 \
-                    load_vec_fn(row_ptrs[0] + di, &row_vecs[0]);                                                      \
-                    load_vec_fn(row_ptrs[1] + di, &row_vecs[1]);                                                      \
-                    load_vec_fn(row_ptrs[2] + di, &row_vecs[2]);                                                      \
-                    load_vec_fn(row_ptrs[3] + di, &row_vecs[3]);                                                      \
-                    if (!is_diag) {                                                                                   \
-                        load_vec_fn(col_ptrs[0] + di, &col_vecs[0]);                                                  \
-                        load_vec_fn(col_ptrs[1] + di, &col_vecs[1]);                                                  \
-                        load_vec_fn(col_ptrs[2] + di, &col_vecs[2]);                                                  \
-                        load_vec_fn(col_ptrs[3] + di, &col_vecs[3]);                                                  \
-                    }                                                                                                 \
-                    else {                                                                                            \
-                        col_vecs[0] = row_vecs[0];                                                                    \
-                        col_vecs[1] = row_vecs[1];                                                                    \
-                        col_vecs[2] = row_vecs[2];                                                                    \
-                        col_vecs[3] = row_vecs[3];                                                                    \
-                    }                                                                                                 \
-                    for (nk_size_t row = 0; row < tile_rows; row++) {                                                 \
-                        nk_size_t col_start = is_diag ? row : 0;                                                      \
-                        nk_size_t col_end = is_diag ? (row < 4 ? 4 : tile_cols) : tile_cols;                          \
-                        for (nk_size_t col = col_start; col < col_end; col++) {                                       \
-                            inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col],                   \
-                                             di * dimensions_per_value, depth_simd_dimensions);                       \
-                        }                                                                                             \
-                    }                                                                                                 \
-                }                                                                                                     \
-                if (remainder_depth > 0) {                                                                            \
-                    partial_load_vec_fn(row_ptrs[0] + aligned_depth, &row_vecs[0], remainder_dimensions);             \
-                    partial_load_vec_fn(row_ptrs[1] + aligned_depth, &row_vecs[1], remainder_dimensions);             \
-                    partial_load_vec_fn(row_ptrs[2] + aligned_depth, &row_vecs[2], remainder_dimensions);             \
-                    partial_load_vec_fn(row_ptrs[3] + aligned_depth, &row_vecs[3], remainder_dimensions);             \
-                    if (!is_diag) {                                                                                   \
-                        partial_load_vec_fn(col_ptrs[0] + aligned_depth, &col_vecs[0], remainder_dimensions);         \
-                        partial_load_vec_fn(col_ptrs[1] + aligned_depth, &col_vecs[1], remainder_dimensions);         \
-                        partial_load_vec_fn(col_ptrs[2] + aligned_depth, &col_vecs[2], remainder_dimensions);         \
-                        partial_load_vec_fn(col_ptrs[3] + aligned_depth, &col_vecs[3], remainder_dimensions);         \
-                    }                                                                                                 \
-                    else {                                                                                            \
-                        col_vecs[0] = row_vecs[0];                                                                    \
-                        col_vecs[1] = row_vecs[1];                                                                    \
-                        col_vecs[2] = row_vecs[2];                                                                    \
-                        col_vecs[3] = row_vecs[3];                                                                    \
-                    }                                                                                                 \
-                    for (nk_size_t row = 0; row < tile_rows; row++) {                                                 \
-                        nk_size_t col_start = is_diag ? row : 0;                                                      \
-                        nk_size_t col_end = is_diag ? (row < 4 ? 4 : tile_cols) : tile_cols;                          \
-                        for (nk_size_t col = col_start; col < col_end; col++) {                                       \
-                            inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col],                   \
-                                             aligned_depth * dimensions_per_value, remainder_dimensions);             \
-                        }                                                                                             \
-                    }                                                                                                 \
-                }                                                                                                     \
-                /* Compute A sums for row and column vectors */                                                       \
-                nk_##sum_value_type##_t row_sums[4], col_sums_arr[4];                                                 \
-                for (nk_size_t r = 0; r < tile_rows; r++) row_sums[r] = compute_a_sum_fn(row_ptrs[r], depth);         \
-                if (!is_diag) {                                                                                       \
-                    for (nk_size_t c = 0; c < tile_cols; c++) col_sums_arr[c] = compute_a_sum_fn(col_ptrs[c], depth); \
-                }                                                                                                     \
-                else {                                                                                                \
-                    for (nk_size_t c = 0; c < tile_cols; c++) col_sums_arr[c] = row_sums[c];                          \
-                }                                                                                                     \
-                /* Build column sums as SIMD vector */                                                                \
-                result_vec_type col_sum_vec;                                                                          \
-                {                                                                                                     \
-                    nk_##sum_value_type##_t tmp_sums[4] = {0};                                                        \
-                    for (nk_size_t c = 0; c < tile_cols; c++) tmp_sums[c] = col_sums_arr[c];                          \
-                    partial_load_sum_fn(tmp_sums, &col_sum_vec, tile_cols);                                           \
-                }                                                                                                     \
-                /* Finalize with compensation */                                                                      \
-                for (nk_size_t row = 0; row < tile_rows; row++) {                                                     \
-                    result_vec_type rv;                                                                               \
-                    compensated_finalize_fn(                                                                          \
-                        &accumulators[row][is_diag ? row : 0], &accumulators[row][(is_diag ? row : 0) + 1],           \
-                        &accumulators[row][(is_diag ? row : 0) + 2], &accumulators[row][(is_diag ? row : 0) + 3],     \
-                        depth, row_sums[row], col_sum_vec, &rv);                                                      \
-                    nk_size_t global_row = i_macro + tile_row_start + row;                                            \
-                    nk_size_t global_col_start = i_macro + tile_col_start + (is_diag ? row : 0);                      \
-                    nk_size_t store_count = is_diag ? 4 : tile_cols;                                                  \
-                    nk_##result_value_type##_t *dest = result + global_row * result_stride_values + global_col_start; \
-                    partial_store_fn(&rv, dest, store_count);                                                         \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
-    }                                                                                                                 \
-    NK_PUBLIC void nk_##api_name##_symmetric_##input_type_name##_##isa_suffix(                                        \
-        nk_##input_value_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,             \
-        nk_##result_value_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
-        nk_size_t const macro_tile_size = 32;                                                                         \
-        nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;           \
-        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);     \
-        nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                      \
-        nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                            \
-        nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                      \
-        nk_size_t const depth_step = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);           \
-        nk_size_t const result_stride_values = result_stride / sizeof(nk_##result_value_type##_t);                    \
-        nk_size_t row_end = row_start + row_count;                                                                    \
-        if (row_end > n_vectors) row_end = n_vectors;                                                                 \
-        /* Build vector base pointers */                                                                              \
-        for (nk_size_t i_macro = row_start; i_macro < row_end; i_macro += macro_tile_size) {                          \
-            nk_size_t macro_size = macro_tile_size;                                                                   \
-            if (i_macro + macro_size > row_end) macro_size = row_end - i_macro;                                       \
-            nk_##input_value_type##_t const *vec_ptrs[32];                                                            \
-            for (nk_size_t k = 0; k < macro_size; k++)                                                                \
-                vec_ptrs[k] = (nk_##input_value_type##_t const *)((char const *)vectors + (i_macro + k) * stride);    \
-            for (nk_size_t k = macro_size; k < 32; k++) vec_ptrs[k] = vec_ptrs[0];                                    \
-            /* Diagonal macro-tile */                                                                                 \
-            nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                                   \
-                vec_ptrs, i_macro, macro_size, aligned_depth, remainder_depth, remainder_dimensions, depth_step,      \
-                dimensions_per_value, result, result_stride_values, 4, depth);                                        \
-            /* Off-diagonal macro-tiles */                                                                            \
-            for (nk_size_t j_macro = i_macro + macro_tile_size; j_macro < n_vectors; j_macro += macro_tile_size) {    \
-                nk_size_t j_size = macro_tile_size;                                                                   \
-                if (j_macro + j_size > n_vectors) j_size = n_vectors - j_macro;                                       \
-                nk_##input_value_type##_t const *col_ptrs_arr[32];                                                    \
-                for (nk_size_t k = 0; k < j_size; k++)                                                                \
-                    col_ptrs_arr[k] = (nk_##input_value_type##_t const *)((char const *)vectors +                     \
-                                                                          (j_macro + k) * stride);                    \
-                for (nk_size_t k = j_size; k < 32; k++) col_ptrs_arr[k] = col_ptrs_arr[0];                            \
-                /* Off-diagonal uses diagonal helper with col_ptrs from different macro-tile */                       \
-                /* For simplicity, fall back to row-by-row processing */                                              \
-                for (nk_size_t ri = 0; ri < macro_size; ri++) {                                                       \
-                    for (nk_size_t cj = 0; cj < j_size; cj += 4) {                                                    \
-                        nk_size_t tile_cols2 = (cj + 4 <= j_size) ? 4 : (j_size - cj);                                \
-                        state_type sa, sb, sc, sd;                                                                    \
-                        init_accumulator_fn(&sa);                                                                     \
-                        init_accumulator_fn(&sb);                                                                     \
-                        init_accumulator_fn(&sc);                                                                     \
-                        init_accumulator_fn(&sd);                                                                     \
-                        nk_##input_value_type##_t const *rp = vec_ptrs[ri];                                           \
-                        nk_##input_value_type##_t const *cp0 = col_ptrs_arr[cj];                                      \
-                        nk_##input_value_type##_t const *cp1 = (tile_cols2 > 1) ? col_ptrs_arr[cj + 1] : cp0;         \
-                        nk_##input_value_type##_t const *cp2 = (tile_cols2 > 2) ? col_ptrs_arr[cj + 2] : cp0;         \
-                        nk_##input_value_type##_t const *cp3 = (tile_cols2 > 3) ? col_ptrs_arr[cj + 3] : cp0;         \
-                        vec_type rv2, cv0, cv1, cv2, cv3;                                                             \
-                        for (nk_size_t di = 0; di < aligned_depth; di += depth_step) {                                \
-                            load_vec_fn(rp + di, &rv2);                                                               \
-                            load_vec_fn(cp0 + di, &cv0);                                                              \
-                            load_vec_fn(cp1 + di, &cv1);                                                              \
-                            load_vec_fn(cp2 + di, &cv2);                                                              \
-                            load_vec_fn(cp3 + di, &cv3);                                                              \
-                            inner_product_fn(&sa, rv2, cv0, di * dimensions_per_value, depth_simd_dimensions);        \
-                            inner_product_fn(&sb, rv2, cv1, di * dimensions_per_value, depth_simd_dimensions);        \
-                            inner_product_fn(&sc, rv2, cv2, di * dimensions_per_value, depth_simd_dimensions);        \
-                            inner_product_fn(&sd, rv2, cv3, di * dimensions_per_value, depth_simd_dimensions);        \
-                        }                                                                                             \
-                        if (remainder_depth > 0) {                                                                    \
-                            partial_load_vec_fn(rp + aligned_depth, &rv2, remainder_dimensions);                      \
-                            partial_load_vec_fn(cp0 + aligned_depth, &cv0, remainder_dimensions);                     \
-                            partial_load_vec_fn(cp1 + aligned_depth, &cv1, remainder_dimensions);                     \
-                            partial_load_vec_fn(cp2 + aligned_depth, &cv2, remainder_dimensions);                     \
-                            partial_load_vec_fn(cp3 + aligned_depth, &cv3, remainder_dimensions);                     \
-                            inner_product_fn(&sa, rv2, cv0, aligned_depth * dimensions_per_value,                     \
-                                             remainder_dimensions);                                                   \
-                            inner_product_fn(&sb, rv2, cv1, aligned_depth * dimensions_per_value,                     \
-                                             remainder_dimensions);                                                   \
-                            inner_product_fn(&sc, rv2, cv2, aligned_depth * dimensions_per_value,                     \
-                                             remainder_dimensions);                                                   \
-                            inner_product_fn(&sd, rv2, cv3, aligned_depth * dimensions_per_value,                     \
-                                             remainder_dimensions);                                                   \
-                        }                                                                                             \
-                        nk_##sum_value_type##_t row_sum2 = compute_a_sum_fn(rp, depth);                               \
-                        nk_##sum_value_type##_t cs_arr[4] = {0};                                                      \
-                        cs_arr[0] = compute_a_sum_fn(cp0, depth);                                                     \
-                        if (tile_cols2 > 1) cs_arr[1] = compute_a_sum_fn(cp1, depth);                                 \
-                        if (tile_cols2 > 2) cs_arr[2] = compute_a_sum_fn(cp2, depth);                                 \
-                        if (tile_cols2 > 3) cs_arr[3] = compute_a_sum_fn(cp3, depth);                                 \
-                        result_vec_type cs_vec;                                                                       \
-                        partial_load_sum_fn(cs_arr, &cs_vec, tile_cols2);                                             \
-                        result_vec_type res_vec;                                                                      \
-                        compensated_finalize_fn(&sa, &sb, &sc, &sd, depth, row_sum2, cs_vec, &res_vec);               \
-                        nk_size_t gr = i_macro + ri;                                                                  \
-                        nk_size_t gc = j_macro + cj;                                                                  \
-                        partial_store_fn(&res_vec, result + gr * result_stride_values + gc, tile_cols2);              \
-                    }                                                                                                 \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
+#define nk_define_cross_compensated_symmetric_(                                                                        \
+    api_name, input_type_name, isa_suffix, input_value_type, result_value_type, sum_value_type, norm_value_type,       \
+    vec_type, state_type, result_vec_type, init_accumulator_fn, load_vec_fn, partial_load_vec_fn, inner_product_fn,    \
+    compensated_finalize_fn, partial_store_fn, load_sum_fn, partial_load_sum_fn, sum_state_type, init_sum_fn,          \
+    update_sum_fn, finalize_sum_fn, depth_simd_dimensions, dimensions_per_value)                                       \
+    NK_INTERNAL void nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                           \
+        nk_##input_value_type##_t const **vector_base_ptrs, nk_size_t i_macro, nk_size_t macro_size,                   \
+        nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                            \
+        nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result,       \
+        nk_size_t result_stride_values, nk_size_t finalizer_batch_size, nk_size_t depth) {                             \
+        (void)finalizer_batch_size;                                                                                    \
+        (void)dimensions_per_value_runtime;                                                                            \
+        /* Compute sums via stateful helpers — separate loop is fine since diagonal is ~1.6% of work */                \
+        nk_size_t padded_depth_dimensions = aligned_depth * dimensions_per_value +                                     \
+                                            (remainder_depth > 0 ? depth_simd_dimensions : 0);                         \
+        nk_##sum_value_type##_t precomputed_sums[32];                                                                  \
+        for (nk_size_t s = 0; s < macro_size; s++) {                                                                   \
+            sum_state_type ss;                                                                                         \
+            init_sum_fn(&ss);                                                                                          \
+            for (nk_size_t di = 0; di < aligned_depth; di += depth_step_values) {                                      \
+                vec_type v;                                                                                            \
+                load_vec_fn(vector_base_ptrs[s] + di, &v);                                                             \
+                update_sum_fn(&ss, v);                                                                                 \
+            }                                                                                                          \
+            if (remainder_depth > 0) {                                                                                 \
+                vec_type v;                                                                                            \
+                partial_load_vec_fn(vector_base_ptrs[s] + aligned_depth, &v, remainder_dimensions);                    \
+                update_sum_fn(&ss, v);                                                                                 \
+            }                                                                                                          \
+            precomputed_sums[s] = finalize_sum_fn(&ss, padded_depth_dimensions);                                       \
+        }                                                                                                              \
+        for (nk_size_t tile_row_start = 0; tile_row_start < macro_size; tile_row_start += 4) {                         \
+            for (nk_size_t tile_col_start = tile_row_start; tile_col_start < macro_size; tile_col_start += 4) {        \
+                nk_size_t tile_rows = (tile_row_start + 4 <= macro_size) ? 4 : (macro_size - tile_row_start);          \
+                nk_size_t tile_cols = (tile_col_start + 4 <= macro_size) ? 4 : (macro_size - tile_col_start);          \
+                int is_diag = (tile_row_start == tile_col_start);                                                      \
+                NK_ALIGN64 state_type accumulators[4][7];                                                              \
+                for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
+                    nk_size_t init_start = is_diag ? row : 0;                                                          \
+                    nk_size_t init_end = is_diag ? (row + 4) : tile_cols;                                              \
+                    for (nk_size_t col = init_start; col < init_end; col++) {                                          \
+                        init_accumulator_fn(&accumulators[row][col]);                                                  \
+                    }                                                                                                  \
+                }                                                                                                      \
+                nk_##input_value_type##_t const *row_ptrs[4], *col_ptrs[4];                                            \
+                row_ptrs[0] = vector_base_ptrs[tile_row_start + 0];                                                    \
+                row_ptrs[1] = (tile_rows > 1) ? vector_base_ptrs[tile_row_start + 1] : row_ptrs[0];                    \
+                row_ptrs[2] = (tile_rows > 2) ? vector_base_ptrs[tile_row_start + 2] : row_ptrs[0];                    \
+                row_ptrs[3] = (tile_rows > 3) ? vector_base_ptrs[tile_row_start + 3] : row_ptrs[0];                    \
+                if (is_diag) {                                                                                         \
+                    col_ptrs[0] = row_ptrs[0];                                                                         \
+                    col_ptrs[1] = row_ptrs[1];                                                                         \
+                    col_ptrs[2] = row_ptrs[2];                                                                         \
+                    col_ptrs[3] = row_ptrs[3];                                                                         \
+                }                                                                                                      \
+                else {                                                                                                 \
+                    col_ptrs[0] = vector_base_ptrs[tile_col_start + 0];                                                \
+                    col_ptrs[1] = (tile_cols > 1) ? vector_base_ptrs[tile_col_start + 1] : col_ptrs[0];                \
+                    col_ptrs[2] = (tile_cols > 2) ? vector_base_ptrs[tile_col_start + 2] : col_ptrs[0];                \
+                    col_ptrs[3] = (tile_cols > 3) ? vector_base_ptrs[tile_col_start + 3] : col_ptrs[0];                \
+                }                                                                                                      \
+                vec_type row_vecs[4], col_vecs[4];                                                                     \
+                for (nk_size_t di = 0; di < aligned_depth; di += depth_step_values) {                                  \
+                    load_vec_fn(row_ptrs[0] + di, &row_vecs[0]);                                                       \
+                    load_vec_fn(row_ptrs[1] + di, &row_vecs[1]);                                                       \
+                    load_vec_fn(row_ptrs[2] + di, &row_vecs[2]);                                                       \
+                    load_vec_fn(row_ptrs[3] + di, &row_vecs[3]);                                                       \
+                    if (!is_diag) {                                                                                    \
+                        load_vec_fn(col_ptrs[0] + di, &col_vecs[0]);                                                   \
+                        load_vec_fn(col_ptrs[1] + di, &col_vecs[1]);                                                   \
+                        load_vec_fn(col_ptrs[2] + di, &col_vecs[2]);                                                   \
+                        load_vec_fn(col_ptrs[3] + di, &col_vecs[3]);                                                   \
+                    }                                                                                                  \
+                    else {                                                                                             \
+                        col_vecs[0] = row_vecs[0];                                                                     \
+                        col_vecs[1] = row_vecs[1];                                                                     \
+                        col_vecs[2] = row_vecs[2];                                                                     \
+                        col_vecs[3] = row_vecs[3];                                                                     \
+                    }                                                                                                  \
+                    if (tile_rows == 4 && tile_cols == 4 && is_diag) {                                                 \
+                        /* Upper triangle: 10 FMAs */                                                                  \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                    }                                                                                                  \
+                    else if (tile_rows == 4 && tile_cols == 4) {                                                       \
+                        /* Full 4×4 rectangle: 16 FMAs */                                                              \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][0], row_vecs[1], col_vecs[0], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][0], row_vecs[2], col_vecs[0], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][1], row_vecs[2], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][0], row_vecs[3], col_vecs[0], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][1], row_vecs[3], col_vecs[1], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][2], row_vecs[3], col_vecs[2], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], di * dimensions_per_value,     \
+                                         depth_simd_dimensions);                                                       \
+                    }                                                                                                  \
+                    else {                                                                                             \
+                        for (nk_size_t row = 0; row < tile_rows; row++) {                                              \
+                            nk_size_t col_start = is_diag ? row : 0;                                                   \
+                            nk_size_t col_end = is_diag ? (row < 4 ? 4 : tile_cols) : tile_cols;                       \
+                            for (nk_size_t col = col_start; col < col_end; col++)                                      \
+                                inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col],                \
+                                                 di * dimensions_per_value, depth_simd_dimensions);                    \
+                        }                                                                                              \
+                    }                                                                                                  \
+                }                                                                                                      \
+                if (remainder_depth > 0) {                                                                             \
+                    partial_load_vec_fn(row_ptrs[0] + aligned_depth, &row_vecs[0], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[1] + aligned_depth, &row_vecs[1], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[2] + aligned_depth, &row_vecs[2], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[3] + aligned_depth, &row_vecs[3], remainder_dimensions);              \
+                    if (!is_diag) {                                                                                    \
+                        partial_load_vec_fn(col_ptrs[0] + aligned_depth, &col_vecs[0], remainder_dimensions);          \
+                        partial_load_vec_fn(col_ptrs[1] + aligned_depth, &col_vecs[1], remainder_dimensions);          \
+                        partial_load_vec_fn(col_ptrs[2] + aligned_depth, &col_vecs[2], remainder_dimensions);          \
+                        partial_load_vec_fn(col_ptrs[3] + aligned_depth, &col_vecs[3], remainder_dimensions);          \
+                    }                                                                                                  \
+                    else {                                                                                             \
+                        col_vecs[0] = row_vecs[0];                                                                     \
+                        col_vecs[1] = row_vecs[1];                                                                     \
+                        col_vecs[2] = row_vecs[2];                                                                     \
+                        col_vecs[3] = row_vecs[3];                                                                     \
+                    }                                                                                                  \
+                    if (tile_rows == 4 && tile_cols == 4 && is_diag) {                                                 \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                    }                                                                                                  \
+                    else if (tile_rows == 4 && tile_cols == 4) {                                                       \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][0], row_vecs[1], col_vecs[0],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][0], row_vecs[2], col_vecs[0],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][1], row_vecs[2], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[3][0], row_vecs[3], col_vecs[0],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[3][1], row_vecs[3], col_vecs[1],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[3][2], row_vecs[3], col_vecs[2],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3],                                \
+                                         aligned_depth * dimensions_per_value, remainder_dimensions);                  \
+                    }                                                                                                  \
+                    else {                                                                                             \
+                        for (nk_size_t row = 0; row < tile_rows; row++) {                                              \
+                            nk_size_t col_start = is_diag ? row : 0;                                                   \
+                            nk_size_t col_end = is_diag ? (row < 4 ? 4 : tile_cols) : tile_cols;                       \
+                            for (nk_size_t col = col_start; col < col_end; col++)                                      \
+                                inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col],                \
+                                                 aligned_depth * dimensions_per_value, remainder_dimensions);          \
+                        }                                                                                              \
+                    }                                                                                                  \
+                }                                                                                                      \
+                nk_##sum_value_type##_t row_sums[4] = {0}, col_sums_arr[4] = {0};                                      \
+                for (nk_size_t r = 0; r < tile_rows; r++) row_sums[r] = precomputed_sums[tile_row_start + r];          \
+                for (nk_size_t c = 0; c < tile_cols; c++)                                                              \
+                    col_sums_arr[c] = is_diag ? row_sums[c] : precomputed_sums[tile_col_start + c];                    \
+                /* Build column sums as SIMD vector — for diagonal tiles, shift per row */                             \
+                result_vec_type col_sum_vec;                                                                           \
+                if (!is_diag) partial_load_sum_fn(col_sums_arr, &col_sum_vec, tile_cols);                              \
+                /* Finalize with compensation */                                                                       \
+                for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
+                    if (is_diag) {                                                                                     \
+                        nk_##sum_value_type##_t shifted[4] = {0};                                                      \
+                        for (nk_size_t c = 0; c < 4 && (row + c) < tile_cols; c++) shifted[c] = col_sums_arr[row + c]; \
+                        partial_load_sum_fn(shifted, &col_sum_vec, 4);                                                 \
+                    }                                                                                                  \
+                    result_vec_type rv;                                                                                \
+                    compensated_finalize_fn(                                                                           \
+                        &accumulators[row][is_diag ? row : 0], &accumulators[row][(is_diag ? row : 0) + 1],            \
+                        &accumulators[row][(is_diag ? row : 0) + 2], &accumulators[row][(is_diag ? row : 0) + 3],      \
+                        depth, row_sums[row], col_sum_vec, &rv);                                                       \
+                    nk_size_t global_row = i_macro + tile_row_start + row;                                             \
+                    nk_size_t global_col_start = i_macro + tile_col_start + (is_diag ? row : 0);                       \
+                    nk_size_t store_count = is_diag ? (tile_cols - row) : tile_cols;                                   \
+                    nk_##result_value_type##_t *dest = result + global_row * result_stride_values + global_col_start;  \
+                    partial_store_fn(&rv, dest, store_count);                                                          \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
+    }                                                                                                                  \
+    /* Off-diagonal helper: 4×4 tiling with inline sum accumulation (16 FMAs + up to 8 SADs per depth step) */         \
+    NK_INTERNAL void nk_##api_name##_symmetric_offdiagonal_##input_type_name##_##isa_suffix##_(                        \
+        nk_##input_value_type##_t const **row_ptrs_macro, nk_##input_value_type##_t const **col_ptrs_macro,            \
+        nk_size_t i_macro, nk_size_t j_macro, nk_size_t macro_i_size, nk_size_t macro_j_size, nk_size_t aligned_depth, \
+        nk_size_t remainder_depth, nk_size_t remainder_dimensions, nk_size_t depth_step_values,                        \
+        nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result, nk_size_t result_stride_values,    \
+        nk_size_t finalizer_batch_size, nk_size_t depth) {                                                             \
+        (void)finalizer_batch_size;                                                                                    \
+        (void)dimensions_per_value_runtime;                                                                            \
+        nk_size_t padded_depth_dimensions = aligned_depth * dimensions_per_value +                                     \
+                                            (remainder_depth > 0 ? depth_simd_dimensions : 0);                         \
+        /* Sum caches for this macro-tile pair — computed once, reused across tiles */                                 \
+        nk_##sum_value_type##_t row_sums[32], col_sums[32];                                                            \
+        for (nk_size_t tile_row_start = 0; tile_row_start < macro_i_size; tile_row_start += 4) {                       \
+            for (nk_size_t tile_col_start = 0; tile_col_start < macro_j_size; tile_col_start += 4) {                   \
+                nk_size_t tile_rows = (tile_row_start + 4 <= macro_i_size) ? 4 : (macro_i_size - tile_row_start);      \
+                nk_size_t tile_cols = (tile_col_start + 4 <= macro_j_size) ? 4 : (macro_j_size - tile_col_start);      \
+                /* Determine if this tile should compute sums — predictable branches */                                \
+                int compute_row_sums_flag = (tile_col_start == 0);                                                     \
+                int compute_col_sums_flag = (tile_row_start == 0);                                                     \
+                /* Initialize 4×4 dot accumulators */                                                                  \
+                NK_ALIGN64 state_type accumulators[4][4];                                                              \
+                for (nk_size_t row = 0; row < tile_rows; row++)                                                        \
+                    for (nk_size_t col = 0; col < tile_cols; col++) init_accumulator_fn(&accumulators[row][col]);      \
+                /* Initialize sum accumulators (only when needed) */                                                   \
+                sum_state_type rsum[4], csum[4];                                                                       \
+                if (compute_row_sums_flag)                                                                             \
+                    for (nk_size_t r = 0; r < tile_rows; r++) init_sum_fn(&rsum[r]);                                   \
+                if (compute_col_sums_flag)                                                                             \
+                    for (nk_size_t c = 0; c < tile_cols; c++) init_sum_fn(&csum[c]);                                   \
+                /* Setup pointers (hoist outside depth loop) */                                                        \
+                nk_##input_value_type##_t const *row_ptrs[4], *col_ptrs[4];                                            \
+                row_ptrs[0] = row_ptrs_macro[tile_row_start + 0];                                                      \
+                row_ptrs[1] = (tile_rows > 1) ? row_ptrs_macro[tile_row_start + 1] : row_ptrs[0];                      \
+                row_ptrs[2] = (tile_rows > 2) ? row_ptrs_macro[tile_row_start + 2] : row_ptrs[0];                      \
+                row_ptrs[3] = (tile_rows > 3) ? row_ptrs_macro[tile_row_start + 3] : row_ptrs[0];                      \
+                col_ptrs[0] = col_ptrs_macro[tile_col_start + 0];                                                      \
+                col_ptrs[1] = (tile_cols > 1) ? col_ptrs_macro[tile_col_start + 1] : col_ptrs[0];                      \
+                col_ptrs[2] = (tile_cols > 2) ? col_ptrs_macro[tile_col_start + 2] : col_ptrs[0];                      \
+                col_ptrs[3] = (tile_cols > 3) ? col_ptrs_macro[tile_col_start + 3] : col_ptrs[0];                      \
+                /* Depth loop — innermost, 16 FMAs + up to 8 SADs per iteration */                                     \
+                vec_type row_vecs[4], col_vecs[4];                                                                     \
+                for (nk_size_t di = 0; di < aligned_depth; di += depth_step_values) {                                  \
+                    load_vec_fn(row_ptrs[0] + di, &row_vecs[0]);                                                       \
+                    load_vec_fn(row_ptrs[1] + di, &row_vecs[1]);                                                       \
+                    load_vec_fn(row_ptrs[2] + di, &row_vecs[2]);                                                       \
+                    load_vec_fn(row_ptrs[3] + di, &row_vecs[3]);                                                       \
+                    load_vec_fn(col_ptrs[0] + di, &col_vecs[0]);                                                       \
+                    load_vec_fn(col_ptrs[1] + di, &col_vecs[1]);                                                       \
+                    load_vec_fn(col_ptrs[2] + di, &col_vecs[2]);                                                       \
+                    load_vec_fn(col_ptrs[3] + di, &col_vecs[3]);                                                       \
+                    nk_size_t vector_offset = di * dimensions_per_value;                                               \
+                    if (tile_rows == 4 && tile_cols == 4) {                                                            \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][0], row_vecs[1], col_vecs[0], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][0], row_vecs[2], col_vecs[0], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][1], row_vecs[2], col_vecs[1], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][0], row_vecs[3], col_vecs[0], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][1], row_vecs[3], col_vecs[1], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][2], row_vecs[3], col_vecs[2], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], vector_offset,                 \
+                                         depth_simd_dimensions);                                                       \
+                    }                                                                                                  \
+                    else {                                                                                             \
+                        for (nk_size_t row = 0; row < tile_rows; row++)                                                \
+                            for (nk_size_t col = 0; col < tile_cols; col++)                                            \
+                                inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset, \
+                                                 depth_simd_dimensions);                                               \
+                    }                                                                                                  \
+                    /* Progressive sum accumulation (SADs on port 5, parallel with DPBUSD on ports 0+1) */             \
+                    if (compute_row_sums_flag) {                                                                       \
+                        update_sum_fn(&rsum[0], row_vecs[0]);                                                          \
+                        if (tile_rows > 1) update_sum_fn(&rsum[1], row_vecs[1]);                                       \
+                        if (tile_rows > 2) update_sum_fn(&rsum[2], row_vecs[2]);                                       \
+                        if (tile_rows > 3) update_sum_fn(&rsum[3], row_vecs[3]);                                       \
+                    }                                                                                                  \
+                    if (compute_col_sums_flag) {                                                                       \
+                        update_sum_fn(&csum[0], col_vecs[0]);                                                          \
+                        if (tile_cols > 1) update_sum_fn(&csum[1], col_vecs[1]);                                       \
+                        if (tile_cols > 2) update_sum_fn(&csum[2], col_vecs[2]);                                       \
+                        if (tile_cols > 3) update_sum_fn(&csum[3], col_vecs[3]);                                       \
+                    }                                                                                                  \
+                }                                                                                                      \
+                /* Handle remainder depth */                                                                           \
+                if (remainder_depth > 0) {                                                                             \
+                    partial_load_vec_fn(row_ptrs[0] + aligned_depth, &row_vecs[0], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[1] + aligned_depth, &row_vecs[1], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[2] + aligned_depth, &row_vecs[2], remainder_dimensions);              \
+                    partial_load_vec_fn(row_ptrs[3] + aligned_depth, &row_vecs[3], remainder_dimensions);              \
+                    partial_load_vec_fn(col_ptrs[0] + aligned_depth, &col_vecs[0], remainder_dimensions);              \
+                    partial_load_vec_fn(col_ptrs[1] + aligned_depth, &col_vecs[1], remainder_dimensions);              \
+                    partial_load_vec_fn(col_ptrs[2] + aligned_depth, &col_vecs[2], remainder_dimensions);              \
+                    partial_load_vec_fn(col_ptrs[3] + aligned_depth, &col_vecs[3], remainder_dimensions);              \
+                    nk_size_t vector_offset = aligned_depth * dimensions_per_value;                                    \
+                    for (nk_size_t row = 0; row < tile_rows; row++)                                                    \
+                        for (nk_size_t col = 0; col < tile_cols; col++)                                                \
+                            inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset,     \
+                                             remainder_dimensions);                                                    \
+                    if (compute_row_sums_flag) {                                                                       \
+                        update_sum_fn(&rsum[0], row_vecs[0]);                                                          \
+                        if (tile_rows > 1) update_sum_fn(&rsum[1], row_vecs[1]);                                       \
+                        if (tile_rows > 2) update_sum_fn(&rsum[2], row_vecs[2]);                                       \
+                        if (tile_rows > 3) update_sum_fn(&rsum[3], row_vecs[3]);                                       \
+                    }                                                                                                  \
+                    if (compute_col_sums_flag) {                                                                       \
+                        update_sum_fn(&csum[0], col_vecs[0]);                                                          \
+                        if (tile_cols > 1) update_sum_fn(&csum[1], col_vecs[1]);                                       \
+                        if (tile_cols > 2) update_sum_fn(&csum[2], col_vecs[2]);                                       \
+                        if (tile_cols > 3) update_sum_fn(&csum[3], col_vecs[3]);                                       \
+                    }                                                                                                  \
+                }                                                                                                      \
+                /* Finalize and cache sums */                                                                          \
+                if (compute_row_sums_flag)                                                                             \
+                    for (nk_size_t r = 0; r < tile_rows; r++)                                                          \
+                        row_sums[tile_row_start + r] = finalize_sum_fn(&rsum[r], padded_depth_dimensions);             \
+                if (compute_col_sums_flag)                                                                             \
+                    for (nk_size_t c = 0; c < tile_cols; c++)                                                          \
+                        col_sums[tile_col_start + c] = finalize_sum_fn(&csum[c], padded_depth_dimensions);             \
+                /* Build col_sum SIMD vector once (constant across rows) */                                            \
+                nk_##sum_value_type##_t cs_arr[4] = {0};                                                               \
+                for (nk_size_t c = 0; c < tile_cols; c++) cs_arr[c] = col_sums[tile_col_start + c];                    \
+                result_vec_type cs_vec;                                                                                \
+                partial_load_sum_fn(cs_arr, &cs_vec, tile_cols);                                                       \
+                /* Compensated finalize + store */                                                                     \
+                for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
+                    result_vec_type rv;                                                                                \
+                    compensated_finalize_fn(&accumulators[row][0], &accumulators[row][1], &accumulators[row][2],       \
+                                            &accumulators[row][3], depth, row_sums[tile_row_start + row], cs_vec,      \
+                                            &rv);                                                                      \
+                    nk_##result_value_type##_t *dest = result +                                                        \
+                                                       (i_macro + tile_row_start + row) * result_stride_values +       \
+                                                       (j_macro + tile_col_start);                                     \
+                    partial_store_fn(&rv, dest, tile_cols);                                                            \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
+    }                                                                                                                  \
+    NK_PUBLIC void nk_##api_name##_symmetric_##input_type_name##_##isa_suffix(                                         \
+        nk_##input_value_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,              \
+        nk_##result_value_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {       \
+        nk_size_t const macro_tile_size = 32;                                                                          \
+        nk_size_t const row_block_size = 128;     /* L2 cache blocking */                                              \
+        nk_size_t const column_block_size = 2048; /* L3 cache blocking */                                              \
+        nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
+        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
+        nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                       \
+        nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                             \
+        nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                       \
+        nk_size_t const depth_step = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);            \
+        nk_size_t const result_stride_values = result_stride / sizeof(nk_##result_value_type##_t);                     \
+        nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;           \
+                                                                                                                       \
+        /* Process upper triangle with L3/L2/L1 blocking (column blocks → row blocks → 32×32 macro-tiles) */           \
+        for (nk_size_t j_block = 0; j_block < n_vectors; j_block += column_block_size) {                               \
+            nk_size_t j_block_end = (j_block + column_block_size < n_vectors) ? j_block + column_block_size            \
+                                                                              : n_vectors;                             \
+                                                                                                                       \
+            for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
+                nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
+                                                                                                                       \
+                /* Skip blocks entirely below diagonal (i_block_end <= j_block) */                                     \
+                if (i_block_end <= j_block) continue;                                                                  \
+                                                                                                                       \
+                for (nk_size_t i_macro = i_block; i_macro < i_block_end; i_macro += macro_tile_size) {                 \
+                    /* Upper triangle: j_macro starts at max(i_macro, j_block) */                                      \
+                    nk_size_t j_start = (i_macro > j_block) ? i_macro : j_block;                                       \
+                    for (nk_size_t j_macro = j_start; j_macro < j_block_end; j_macro += macro_tile_size) {             \
+                        nk_size_t macro_i_size = (i_macro + macro_tile_size <= i_block_end) ? macro_tile_size          \
+                                                                                            : (i_block_end - i_macro); \
+                        nk_size_t macro_j_size = (j_macro + macro_tile_size <= j_block_end) ? macro_tile_size          \
+                                                                                            : (j_block_end - j_macro); \
+                                                                                                                       \
+                        /* Build pointer arrays */                                                                     \
+                        nk_##input_value_type##_t const *vec_ptrs_i[32];                                               \
+                        nk_##input_value_type##_t const *vec_ptrs_j[32];                                               \
+                        for (nk_size_t k = 0; k < macro_i_size; k++)                                                   \
+                            vec_ptrs_i[k] = (nk_##input_value_type##_t const *)((char const *)vectors +                \
+                                                                                (i_macro + k) * stride);               \
+                        for (nk_size_t k = macro_i_size; k < 32; k++) vec_ptrs_i[k] = vec_ptrs_i[0];                   \
+                                                                                                                       \
+                        if (i_macro == j_macro) {                                                                      \
+                            /* Diagonal macro-tile */                                                                  \
+                            nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                    \
+                                vec_ptrs_i, i_macro, macro_i_size, aligned_depth, remainder_depth,                     \
+                                remainder_dimensions, depth_step, dimensions_per_value, result, result_stride_values,  \
+                                4, depth);                                                                             \
+                        }                                                                                              \
+                        else {                                                                                         \
+                            /* Off-diagonal macro-tile */                                                              \
+                            for (nk_size_t k = 0; k < macro_j_size; k++)                                               \
+                                vec_ptrs_j[k] = (nk_##input_value_type##_t const *)((char const *)vectors +            \
+                                                                                    (j_macro + k) * stride);           \
+                            for (nk_size_t k = macro_j_size; k < 32; k++) vec_ptrs_j[k] = vec_ptrs_j[0];               \
+                            nk_##api_name##_symmetric_offdiagonal_##input_type_name##_##isa_suffix##_(                 \
+                                vec_ptrs_i, vec_ptrs_j, i_macro, j_macro, macro_i_size, macro_j_size, aligned_depth,   \
+                                remainder_depth, remainder_dimensions, depth_step, dimensions_per_value, result,       \
+                                result_stride_values, 4, depth);                                                       \
+                        }                                                                                              \
+                    }                                                                                                  \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
     }
 
 /**

@@ -73,5 +73,21 @@ void test_cross_wasm() {
                    nk_euclideans_symmetric_u8_v128relaxed);
     run_if_matches("euclideans_symmetric_e2m3_v128relaxed", test_euclideans_symmetric<e2m3_t>,
                    nk_euclideans_symmetric_e2m3_v128relaxed);
+
+    run_if_matches("dots_packed_bf16_v128relaxed", test_dots_packed<bf16_t>, nk_dots_packed_size_bf16_v128relaxed,
+                   nk_dots_pack_bf16_v128relaxed, nk_dots_packed_bf16_v128relaxed);
+    run_if_matches("dots_symmetric_bf16_v128relaxed", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_v128relaxed);
+
+    run_if_matches("angulars_packed_bf16_v128relaxed", test_angulars_packed<bf16_t>,
+                   nk_dots_packed_size_bf16_v128relaxed, nk_dots_pack_bf16_v128relaxed,
+                   nk_angulars_packed_bf16_v128relaxed);
+    run_if_matches("angulars_symmetric_bf16_v128relaxed", test_angulars_symmetric<bf16_t>,
+                   nk_angulars_symmetric_bf16_v128relaxed);
+
+    run_if_matches("euclideans_packed_bf16_v128relaxed", test_euclideans_packed<bf16_t>,
+                   nk_dots_packed_size_bf16_v128relaxed, nk_dots_pack_bf16_v128relaxed,
+                   nk_euclideans_packed_bf16_v128relaxed);
+    run_if_matches("euclideans_symmetric_bf16_v128relaxed", test_euclideans_symmetric<bf16_t>,
+                   nk_euclideans_symmetric_bf16_v128relaxed);
 #endif
 }

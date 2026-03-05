@@ -62,6 +62,10 @@ void test_cross_x86() {
                    nk_dots_pack_e2m3_haswell, nk_angulars_packed_e2m3_haswell);
     run_if_matches("angulars_packed_e3m2_haswell", test_angulars_packed<e3m2_t>, nk_dots_packed_size_e3m2_haswell,
                    nk_dots_pack_e3m2_haswell, nk_angulars_packed_e3m2_haswell);
+    run_if_matches("angulars_packed_i8_haswell", test_angulars_packed<i8_t>, nk_dots_packed_size_i8_haswell,
+                   nk_dots_pack_i8_haswell, nk_angulars_packed_i8_haswell);
+    run_if_matches("angulars_packed_u8_haswell", test_angulars_packed<u8_t>, nk_dots_packed_size_u8_haswell,
+                   nk_dots_pack_u8_haswell, nk_angulars_packed_u8_haswell);
 
     run_if_matches("angulars_symmetric_f64_haswell", test_angulars_symmetric<f64_t>, nk_angulars_symmetric_f64_haswell);
     run_if_matches("angulars_symmetric_f32_haswell", test_angulars_symmetric<f32_t>, nk_angulars_symmetric_f32_haswell);
@@ -76,6 +80,8 @@ void test_cross_x86() {
                    nk_angulars_symmetric_e2m3_haswell);
     run_if_matches("angulars_symmetric_e3m2_haswell", test_angulars_symmetric<e3m2_t>,
                    nk_angulars_symmetric_e3m2_haswell);
+    run_if_matches("angulars_symmetric_i8_haswell", test_angulars_symmetric<i8_t>, nk_angulars_symmetric_i8_haswell);
+    run_if_matches("angulars_symmetric_u8_haswell", test_angulars_symmetric<u8_t>, nk_angulars_symmetric_u8_haswell);
 
     run_if_matches("euclideans_packed_f64_haswell", test_euclideans_packed<f64_t>, nk_dots_packed_size_f64_haswell,
                    nk_dots_pack_f64_haswell, nk_euclideans_packed_f64_haswell);
@@ -93,6 +99,10 @@ void test_cross_x86() {
                    nk_dots_pack_e2m3_haswell, nk_euclideans_packed_e2m3_haswell);
     run_if_matches("euclideans_packed_e3m2_haswell", test_euclideans_packed<e3m2_t>, nk_dots_packed_size_e3m2_haswell,
                    nk_dots_pack_e3m2_haswell, nk_euclideans_packed_e3m2_haswell);
+    run_if_matches("euclideans_packed_i8_haswell", test_euclideans_packed<i8_t>, nk_dots_packed_size_i8_haswell,
+                   nk_dots_pack_i8_haswell, nk_euclideans_packed_i8_haswell);
+    run_if_matches("euclideans_packed_u8_haswell", test_euclideans_packed<u8_t>, nk_dots_packed_size_u8_haswell,
+                   nk_dots_pack_u8_haswell, nk_euclideans_packed_u8_haswell);
 
     run_if_matches("euclideans_symmetric_f64_haswell", test_euclideans_symmetric<f64_t>,
                    nk_euclideans_symmetric_f64_haswell);
@@ -110,6 +120,10 @@ void test_cross_x86() {
                    nk_euclideans_symmetric_e2m3_haswell);
     run_if_matches("euclideans_symmetric_e3m2_haswell", test_euclideans_symmetric<e3m2_t>,
                    nk_euclideans_symmetric_e3m2_haswell);
+    run_if_matches("euclideans_symmetric_i8_haswell", test_euclideans_symmetric<i8_t>,
+                   nk_euclideans_symmetric_i8_haswell);
+    run_if_matches("euclideans_symmetric_u8_haswell", test_euclideans_symmetric<u8_t>,
+                   nk_euclideans_symmetric_u8_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE

@@ -121,6 +121,19 @@ void bench_cross_x86() {
     run_euclideans_symmetric<e5m2_k>("euclideans_symmetric_e5m2_haswell", nk_euclideans_symmetric_e5m2_haswell);
     run_euclideans_symmetric<e2m3_k>("euclideans_symmetric_e2m3_haswell", nk_euclideans_symmetric_e2m3_haswell);
     run_euclideans_symmetric<e3m2_k>("euclideans_symmetric_e3m2_haswell", nk_euclideans_symmetric_e3m2_haswell);
+
+    run_angulars_packed<i8_k>("angulars_packed_i8_haswell", nk_dots_packed_size_i8_haswell, nk_dots_pack_i8_haswell,
+                              nk_angulars_packed_i8_haswell);
+    run_angulars_packed<u8_k>("angulars_packed_u8_haswell", nk_dots_packed_size_u8_haswell, nk_dots_pack_u8_haswell,
+                              nk_angulars_packed_u8_haswell);
+    run_angulars_symmetric<i8_k>("angulars_symmetric_i8_haswell", nk_angulars_symmetric_i8_haswell);
+    run_angulars_symmetric<u8_k>("angulars_symmetric_u8_haswell", nk_angulars_symmetric_u8_haswell);
+    run_euclideans_packed<i8_k>("euclideans_packed_i8_haswell", nk_dots_packed_size_i8_haswell, nk_dots_pack_i8_haswell,
+                                nk_euclideans_packed_i8_haswell);
+    run_euclideans_packed<u8_k>("euclideans_packed_u8_haswell", nk_dots_packed_size_u8_haswell, nk_dots_pack_u8_haswell,
+                                nk_euclideans_packed_u8_haswell);
+    run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_haswell", nk_euclideans_symmetric_i8_haswell);
+    run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_haswell", nk_euclideans_symmetric_u8_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
@@ -329,6 +342,13 @@ void bench_cross_x86() {
                                 nk_euclideans_packed_i8_alder);
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_alder", nk_euclideans_symmetric_i8_alder);
 
+    run_angulars_packed<u8_k>("angulars_packed_u8_alder", nk_dots_packed_size_u8_alder, nk_dots_pack_u8_alder,
+                              nk_angulars_packed_u8_alder);
+    run_angulars_symmetric<u8_k>("angulars_symmetric_u8_alder", nk_angulars_symmetric_u8_alder);
+    run_euclideans_packed<u8_k>("euclideans_packed_u8_alder", nk_dots_packed_size_u8_alder, nk_dots_pack_u8_alder,
+                                nk_euclideans_packed_u8_alder);
+    run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_alder", nk_euclideans_symmetric_u8_alder);
+
 #endif
 
 #if NK_TARGET_SIERRA
@@ -350,6 +370,13 @@ void bench_cross_x86() {
     run_euclideans_packed<i8_k>("euclideans_packed_i8_sierra", nk_dots_packed_size_i8_sierra, nk_dots_pack_i8_sierra,
                                 nk_euclideans_packed_i8_sierra);
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_sierra", nk_euclideans_symmetric_i8_sierra);
+
+    run_angulars_packed<u8_k>("angulars_packed_u8_sierra", nk_dots_packed_size_u8_sierra, nk_dots_pack_u8_sierra,
+                              nk_angulars_packed_u8_sierra);
+    run_angulars_symmetric<u8_k>("angulars_symmetric_u8_sierra", nk_angulars_symmetric_u8_sierra);
+    run_euclideans_packed<u8_k>("euclideans_packed_u8_sierra", nk_dots_packed_size_u8_sierra, nk_dots_pack_u8_sierra,
+                                nk_euclideans_packed_u8_sierra);
+    run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_sierra", nk_euclideans_symmetric_u8_sierra);
 
 #endif
 

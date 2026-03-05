@@ -16,6 +16,7 @@ void bench_cross_wasm() {
     constexpr nk_dtype_t u8_k = nk_u8_k;
     constexpr nk_dtype_t f64_k = nk_f64_k;
     constexpr nk_dtype_t f32_k = nk_f32_k;
+    constexpr nk_dtype_t bf16_k = nk_bf16_k;
     constexpr nk_dtype_t e2m3_k = nk_e2m3_k;
 
 #if NK_TARGET_V128RELAXED
@@ -69,5 +70,17 @@ void bench_cross_wasm() {
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_v128relaxed", nk_euclideans_symmetric_i8_v128relaxed);
     run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_v128relaxed", nk_euclideans_symmetric_u8_v128relaxed);
     run_euclideans_symmetric<e2m3_k>("euclideans_symmetric_e2m3_v128relaxed", nk_euclideans_symmetric_e2m3_v128relaxed);
+
+    run_dots_packed<bf16_k>("dots_packed_bf16_v128relaxed", nk_dots_packed_size_bf16_v128relaxed,
+                            nk_dots_pack_bf16_v128relaxed, nk_dots_packed_bf16_v128relaxed);
+    run_dots_symmetric<bf16_k>("dots_symmetric_bf16_v128relaxed", nk_dots_symmetric_bf16_v128relaxed);
+
+    run_angulars_packed<bf16_k>("angulars_packed_bf16_v128relaxed", nk_dots_packed_size_bf16_v128relaxed,
+                                nk_dots_pack_bf16_v128relaxed, nk_angulars_packed_bf16_v128relaxed);
+    run_angulars_symmetric<bf16_k>("angulars_symmetric_bf16_v128relaxed", nk_angulars_symmetric_bf16_v128relaxed);
+
+    run_euclideans_packed<bf16_k>("euclideans_packed_bf16_v128relaxed", nk_dots_packed_size_bf16_v128relaxed,
+                                  nk_dots_pack_bf16_v128relaxed, nk_euclideans_packed_bf16_v128relaxed);
+    run_euclideans_symmetric<bf16_k>("euclideans_symmetric_bf16_v128relaxed", nk_euclideans_symmetric_bf16_v128relaxed);
 #endif
 }

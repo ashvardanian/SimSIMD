@@ -821,6 +821,37 @@ NK_INTERNAL void nk_dot_u1x128_finalize_serial(nk_dot_u1x128_state_serial_t cons
 
 #pragma endregion - Binary
 
+/**
+ *  Serial fallback sum helpers for progressive element-sum accumulation.
+ *  Used by the compensated symmetric GEMM macro to piggyback sum computation
+ *  on the depth loop's already-loaded vectors, avoiding a separate sum pass.
+ */
+
+#pragma region - Stateful Element Sum Helpers (for compensated GEMM)
+
+/* i4x32: Haswell i4 (nk_b128_vec_t containing 32 nibbles in 16 bytes) */
+typedef struct nk_sum_i4x32_state_serial_t {
+    nk_i64_t sum;
+} nk_sum_i4x32_state_serial_t;
+
+NK_INTERNAL void nk_sum_i4x32_init_serial(nk_sum_i4x32_state_serial_t *state) { state->sum = 0; }
+
+NK_INTERNAL void nk_sum_i4x32_update_serial(nk_sum_i4x32_state_serial_t *state, nk_b128_vec_t v) {
+    nk_u8_t const *d = (nk_u8_t const *)&v;
+    for (int i = 0; i < 16; i++) {
+        nk_i8_t low = (nk_i8_t)((d[i] & 0x0F) ^ 0x08) - 8; /* sign-extend low nibble */
+        nk_i8_t high = (nk_i8_t)((d[i] >> 4) ^ 0x08) - 8;  /* sign-extend high nibble */
+        state->sum += low + high;
+    }
+}
+
+NK_INTERNAL nk_i32_t nk_sum_i4x32_finalize_serial(nk_sum_i4x32_state_serial_t const *state, nk_size_t count) {
+    (void)count;
+    return (nk_i32_t)state->sum;
+}
+
+#pragma endregion - Stateful Element Sum Helpers
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

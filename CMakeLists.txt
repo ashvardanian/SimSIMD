@@ -372,7 +372,8 @@ if (NK_BUILD_BENCH)
         bench/bench_mesh.cpp bench/bench_sparse.cpp bench/bench_cast.cpp bench/bench_reduce.cpp
         # ISA-family cross/batch files for parallel compilation
         bench/bench_cross_serial.cpp bench/bench_cross_x86.cpp bench/bench_cross_amx.cpp bench/bench_cross_arm.cpp
-        bench/bench_cross_sme.cpp bench/bench_cross_blas.cpp bench/bench_cross_rvv.cpp bench/bench_maxsim.cpp
+        bench/bench_cross_sme.cpp bench/bench_cross_blas.cpp bench/bench_cross_rvv.cpp bench/bench_cross_wasm.cpp
+        bench/bench_maxsim.cpp
     )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
@@ -417,8 +418,8 @@ if (NK_BUILD_TEST)
         test/test_mesh.cpp test/test_cast.cpp test/test_reduce.cpp test/test_sparse.cpp
         # ISA-family cross/batch files for parallel compilation
         test/test_cross_serial.cpp test/test_cross_x86.cpp test/test_cross_amx.cpp test/test_cross_arm.cpp
-        test/test_cross_sme.cpp test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_maxsim.cpp
-        test/test_tensor.cpp
+        test/test_cross_sme.cpp test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_wasm.cpp
+        test/test_maxsim.cpp test/test_tensor.cpp
     )
     target_link_libraries(nk_test numkong ${NK_CXX_MATH_LIB_})
 

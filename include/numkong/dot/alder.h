@@ -341,6 +341,59 @@ NK_INTERNAL void nk_dot_u8x32_finalize_alder(                                   
     result->xmm = _mm_add_epi32(biased_i32x4, correction_i32x4);
 }
 
+/**
+ *  Stateful element-sum helpers for compensated symmetric GEMM.
+ *  SAD runs on port 5 while DPBUSD runs on ports 0+1 — zero throughput cost when inlined.
+ */
+
+/* i8x32: signed i8 sum via XOR→unsigned + SAD, bias-corrected at finalize */
+typedef struct nk_sum_i8x32_state_alder_t {
+    __m256i biased_sum_u64x4; /* Accumulates SAD of (v ^ 0x80), needs bias correction at finalize */
+} nk_sum_i8x32_state_alder_t;
+
+NK_INTERNAL void nk_sum_i8x32_init_alder(nk_sum_i8x32_state_alder_t *state) {
+    state->biased_sum_u64x4 = _mm256_setzero_si256();
+}
+NK_INTERNAL void nk_sum_i8x32_update_alder(nk_sum_i8x32_state_alder_t *state, nk_b256_vec_t vector) {
+    /* Convert signed→unsigned via XOR 0x80, then SAD against zero gives sum of unsigned values */
+    __m256i vector_unsigned_u8x32 = _mm256_xor_si256(vector.ymm, _mm256_set1_epi8((char)0x80));
+    __m256i sad_result_u64x4 = _mm256_sad_epu8(vector_unsigned_u8x32, _mm256_setzero_si256());
+    state->biased_sum_u64x4 = _mm256_add_epi64(state->biased_sum_u64x4, sad_result_u64x4);
+}
+NK_INTERNAL nk_i32_t nk_sum_i8x32_finalize_alder(nk_sum_i8x32_state_alder_t const *state, nk_size_t count) {
+    /* Horizontal reduce u64x4 → scalar */
+    __m128i low_u64x2 = _mm256_castsi256_si128(state->biased_sum_u64x4);
+    __m128i high_u64x2 = _mm256_extracti128_si256(state->biased_sum_u64x4, 1);
+    __m128i paired_u64x2 = _mm_add_epi64(low_u64x2, high_u64x2);
+    __m128i shuffled_u64x2 = _mm_shuffle_epi32(paired_u64x2, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i total_u64x2 = _mm_add_epi64(paired_u64x2, shuffled_u64x2);
+    nk_u64_t unsigned_sum = (nk_u64_t)_mm_cvtsi128_si64(total_u64x2);
+    /* Undo XOR bias: signed_sum = unsigned_sum - 128 * count */
+    return (nk_i32_t)((nk_i64_t)unsigned_sum - 128 * (nk_i64_t)count);
+}
+
+/* u8x32: unsigned u8 sum via plain SAD — no bias correction needed */
+typedef struct nk_sum_u8x32_state_alder_t {
+    __m256i sum_u64x4; /* Direct SAD accumulator */
+} nk_sum_u8x32_state_alder_t;
+
+NK_INTERNAL void nk_sum_u8x32_init_alder(nk_sum_u8x32_state_alder_t *state) {
+    state->sum_u64x4 = _mm256_setzero_si256();
+}
+NK_INTERNAL void nk_sum_u8x32_update_alder(nk_sum_u8x32_state_alder_t *state, nk_b256_vec_t vector) {
+    __m256i sad_result_u64x4 = _mm256_sad_epu8(vector.ymm, _mm256_setzero_si256());
+    state->sum_u64x4 = _mm256_add_epi64(state->sum_u64x4, sad_result_u64x4);
+}
+NK_INTERNAL nk_u32_t nk_sum_u8x32_finalize_alder(nk_sum_u8x32_state_alder_t const *state, nk_size_t count) {
+    (void)count;
+    __m128i low_u64x2 = _mm256_castsi256_si128(state->sum_u64x4);
+    __m128i high_u64x2 = _mm256_extracti128_si256(state->sum_u64x4, 1);
+    __m128i paired_u64x2 = _mm_add_epi64(low_u64x2, high_u64x2);
+    __m128i shuffled_u64x2 = _mm_shuffle_epi32(paired_u64x2, _MM_SHUFFLE(1, 0, 3, 2));
+    __m128i total_u64x2 = _mm_add_epi64(paired_u64x2, shuffled_u64x2);
+    return (nk_u32_t)_mm_cvtsi128_si64(total_u64x2);
+}
+
 NK_PUBLIC void nk_dot_e2m3_alder(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
     // Integer dot product for e2m3 using dual-VPSHUFB (LUT) + VPDPBUSD (unsigned×signed).

@@ -348,6 +348,7 @@ int main(int argc, char **argv) {
     test_cross_sme();
     test_cross_blas();
     test_cross_rvv();
+    test_cross_wasm();
 
     if (global_config.failure_count > 0) {
         std::puts("");

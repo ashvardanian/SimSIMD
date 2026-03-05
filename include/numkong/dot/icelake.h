@@ -348,6 +348,76 @@ NK_INTERNAL void nk_dot_u8x64_finalize_icelake(                                 
     result->xmm = _mm_add_epi32(biased_i32x4, correction_i32x4);
 }
 
+/**
+ *  Stateful element-sum helpers for compensated symmetric GEMM.
+ *  SAD512 runs on port 5 while DPBUSD runs on port 0 — zero throughput cost when inlined.
+ */
+
+/* i8x64: signed i8 sum via XOR→unsigned + SAD, bias-corrected at finalize */
+typedef struct nk_sum_i8x64_state_icelake_t {
+    __m512i biased_sum_u64x8;
+} nk_sum_i8x64_state_icelake_t;
+
+NK_INTERNAL void nk_sum_i8x64_init_icelake(nk_sum_i8x64_state_icelake_t *state) {
+    state->biased_sum_u64x8 = _mm512_setzero_si512();
+}
+NK_INTERNAL void nk_sum_i8x64_update_icelake(nk_sum_i8x64_state_icelake_t *state, nk_b512_vec_t vector) {
+    __m512i vector_unsigned_u8x64 = _mm512_xor_si512(vector.zmm, _mm512_set1_epi8((char)0x80));
+    __m512i sad_result_u64x8 = _mm512_sad_epu8(vector_unsigned_u8x64, _mm512_setzero_si512());
+    state->biased_sum_u64x8 = _mm512_add_epi64(state->biased_sum_u64x8, sad_result_u64x8);
+}
+NK_INTERNAL nk_i32_t nk_sum_i8x64_finalize_icelake(nk_sum_i8x64_state_icelake_t const *state, nk_size_t count) {
+    nk_u64_t unsigned_sum = (nk_u64_t)_mm512_reduce_add_epi64(state->biased_sum_u64x8);
+    return (nk_i32_t)((nk_i64_t)unsigned_sum - 128 * (nk_i64_t)count);
+}
+
+/* u8x64: unsigned u8 sum via plain SAD */
+typedef struct nk_sum_u8x64_state_icelake_t {
+    __m512i sum_u64x8;
+} nk_sum_u8x64_state_icelake_t;
+
+NK_INTERNAL void nk_sum_u8x64_init_icelake(nk_sum_u8x64_state_icelake_t *state) {
+    state->sum_u64x8 = _mm512_setzero_si512();
+}
+NK_INTERNAL void nk_sum_u8x64_update_icelake(nk_sum_u8x64_state_icelake_t *state, nk_b512_vec_t vector) {
+    __m512i sad_result_u64x8 = _mm512_sad_epu8(vector.zmm, _mm512_setzero_si512());
+    state->sum_u64x8 = _mm512_add_epi64(state->sum_u64x8, sad_result_u64x8);
+}
+NK_INTERNAL nk_u32_t nk_sum_u8x64_finalize_icelake(nk_sum_u8x64_state_icelake_t const *state, nk_size_t count) {
+    (void)count;
+    return (nk_u32_t)_mm512_reduce_add_epi64(state->sum_u64x8);
+}
+
+/* i4x128: signed i4 sum — vectorized nibble extraction + SAD on 512-bit vector.
+ * Each byte contains 2 nibbles in [0,15] representing signed values in [-8,7].
+ * We XOR nibbles with 0x08 to get unsigned [0,15], SAD against zero, then bias-correct at finalize. */
+typedef struct nk_sum_i4x128_state_icelake_t {
+    __m512i biased_sum_u64x8; /* Accumulates SAD of (nibble ^ 0x08), needs bias correction */
+} nk_sum_i4x128_state_icelake_t;
+
+NK_INTERNAL void nk_sum_i4x128_init_icelake(nk_sum_i4x128_state_icelake_t *state) {
+    state->biased_sum_u64x8 = _mm512_setzero_si512();
+}
+NK_INTERNAL void nk_sum_i4x128_update_icelake(nk_sum_i4x128_state_icelake_t *state, nk_b512_vec_t v) {
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+    __m512i const xor_mask_u8x64 = _mm512_set1_epi8(0x08);
+    __m512i const zeros_u8x64 = _mm512_setzero_si512();
+    /* Extract low and high nibbles, XOR with 8 to get unsigned representation */
+    __m512i low_u8x64 = _mm512_and_si512(v.zmm, nibble_mask_u8x64);
+    __m512i high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(v.zmm, 4), nibble_mask_u8x64);
+    __m512i low_biased_u8x64 = _mm512_xor_si512(low_u8x64, xor_mask_u8x64);
+    __m512i high_biased_u8x64 = _mm512_xor_si512(high_u8x64, xor_mask_u8x64);
+    /* SAD against zero gives sum of unsigned values, accumulate in u64 lanes */
+    state->biased_sum_u64x8 = _mm512_add_epi64(state->biased_sum_u64x8, _mm512_sad_epu8(low_biased_u8x64, zeros_u8x64));
+    state->biased_sum_u64x8 = _mm512_add_epi64(state->biased_sum_u64x8,
+                                               _mm512_sad_epu8(high_biased_u8x64, zeros_u8x64));
+}
+NK_INTERNAL nk_i32_t nk_sum_i4x128_finalize_icelake(nk_sum_i4x128_state_icelake_t const *state, nk_size_t count) {
+    /* Reduce u64x8 → scalar, then undo XOR bias: signed_sum = unsigned_sum - 8 * count */
+    nk_i64_t unsigned_sum = _mm512_reduce_add_epi64(state->biased_sum_u64x8);
+    return (nk_i32_t)(unsigned_sum - 8 * (nk_i64_t)count);
+}
+
 NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.

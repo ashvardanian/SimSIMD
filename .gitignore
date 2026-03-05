@@ -62,7 +62,7 @@ CMakeCache.txt
 *.exe
 *.out
 *.app
-
+*.wasm
 
 # Rust crate
 target/

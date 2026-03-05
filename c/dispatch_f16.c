@@ -18,6 +18,11 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             *m = (m_t)&nk_reduce_moments_f16_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_f16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_maxsim_packed_size_k:
+            *m = (m_t)&nk_maxsim_packed_size_f16_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif
@@ -148,6 +153,14 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_ALDER
+    if (v & nk_cap_alder_k) switch (k) {
+        case nk_kernel_maxsim_packed_size_k: *m = (m_t)&nk_maxsim_packed_size_f16_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_alder, *c = nk_cap_alder_k; return;
         default: break;
         }
 #endif
