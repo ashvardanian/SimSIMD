@@ -41,26 +41,26 @@ void test_cross_sme() {
     run_if_matches("dots_symmetric_i4_sme", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_sme);
     run_if_matches("dots_symmetric_u4_sme", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_sme);
 
-    run_if_matches("angulars_f16_sme", test_angulars_packed<f16_t>, nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
-                   nk_angulars_packed_f16_sme);
-    run_if_matches("angulars_bf16_sme", test_angulars_packed<bf16_t>, nk_dots_packed_size_bf16_sme,
+    run_if_matches("angulars_packed_f16_sme", test_angulars_packed<f16_t>, nk_dots_packed_size_f16_sme,
+                   nk_dots_pack_f16_sme, nk_angulars_packed_f16_sme);
+    run_if_matches("angulars_packed_bf16_sme", test_angulars_packed<bf16_t>, nk_dots_packed_size_bf16_sme,
                    nk_dots_pack_bf16_sme, nk_angulars_packed_bf16_sme);
-    run_if_matches("angulars_e4m3_sme", test_angulars_packed<e4m3_t>, nk_dots_packed_size_e4m3_sme,
+    run_if_matches("angulars_packed_e4m3_sme", test_angulars_packed<e4m3_t>, nk_dots_packed_size_e4m3_sme,
                    nk_dots_pack_e4m3_sme, nk_angulars_packed_e4m3_sme);
-    run_if_matches("angulars_e5m2_sme", test_angulars_packed<e5m2_t>, nk_dots_packed_size_e5m2_sme,
+    run_if_matches("angulars_packed_e5m2_sme", test_angulars_packed<e5m2_t>, nk_dots_packed_size_e5m2_sme,
                    nk_dots_pack_e5m2_sme, nk_angulars_packed_e5m2_sme);
-    run_if_matches("angulars_e2m3_sme", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_sme,
+    run_if_matches("angulars_packed_e2m3_sme", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_sme,
                    nk_dots_pack_e2m3_sme, nk_angulars_packed_e2m3_sme);
-    run_if_matches("angulars_e3m2_sme", test_angulars_packed<e3m2_t>, nk_dots_packed_size_e3m2_sme,
+    run_if_matches("angulars_packed_e3m2_sme", test_angulars_packed<e3m2_t>, nk_dots_packed_size_e3m2_sme,
                    nk_dots_pack_e3m2_sme, nk_angulars_packed_e3m2_sme);
-    run_if_matches("angulars_i8_sme", test_angulars_packed<i8_t>, nk_dots_packed_size_i8_sme, nk_dots_pack_i8_sme,
-                   nk_angulars_packed_i8_sme);
-    run_if_matches("angulars_u8_sme", test_angulars_packed<u8_t>, nk_dots_packed_size_u8_sme, nk_dots_pack_u8_sme,
-                   nk_angulars_packed_u8_sme);
-    run_if_matches("angulars_i4_sme", test_angulars_packed<i4x2_t>, nk_dots_packed_size_i4_sme, nk_dots_pack_i4_sme,
-                   nk_angulars_packed_i4_sme);
-    run_if_matches("angulars_u4_sme", test_angulars_packed<u4x2_t>, nk_dots_packed_size_u4_sme, nk_dots_pack_u4_sme,
-                   nk_angulars_packed_u4_sme);
+    run_if_matches("angulars_packed_i8_sme", test_angulars_packed<i8_t>, nk_dots_packed_size_i8_sme,
+                   nk_dots_pack_i8_sme, nk_angulars_packed_i8_sme);
+    run_if_matches("angulars_packed_u8_sme", test_angulars_packed<u8_t>, nk_dots_packed_size_u8_sme,
+                   nk_dots_pack_u8_sme, nk_angulars_packed_u8_sme);
+    run_if_matches("angulars_packed_i4_sme", test_angulars_packed<i4x2_t>, nk_dots_packed_size_i4_sme,
+                   nk_dots_pack_i4_sme, nk_angulars_packed_i4_sme);
+    run_if_matches("angulars_packed_u4_sme", test_angulars_packed<u4x2_t>, nk_dots_packed_size_u4_sme,
+                   nk_dots_pack_u4_sme, nk_angulars_packed_u4_sme);
 
     run_if_matches("angulars_symmetric_f16_sme", test_angulars_symmetric<f16_t>, nk_angulars_symmetric_f16_sme);
     run_if_matches("angulars_symmetric_bf16_sme", test_angulars_symmetric<bf16_t>, nk_angulars_symmetric_bf16_sme);
@@ -73,26 +73,26 @@ void test_cross_sme() {
     run_if_matches("angulars_symmetric_i4_sme", test_angulars_symmetric<i4x2_t>, nk_angulars_symmetric_i4_sme);
     run_if_matches("angulars_symmetric_u4_sme", test_angulars_symmetric<u4x2_t>, nk_angulars_symmetric_u4_sme);
 
-    run_if_matches("euclideans_f16_sme", test_euclideans_packed<f16_t>, nk_dots_packed_size_f16_sme,
+    run_if_matches("euclideans_packed_f16_sme", test_euclideans_packed<f16_t>, nk_dots_packed_size_f16_sme,
                    nk_dots_pack_f16_sme, nk_euclideans_packed_f16_sme);
-    run_if_matches("euclideans_bf16_sme", test_euclideans_packed<bf16_t>, nk_dots_packed_size_bf16_sme,
+    run_if_matches("euclideans_packed_bf16_sme", test_euclideans_packed<bf16_t>, nk_dots_packed_size_bf16_sme,
                    nk_dots_pack_bf16_sme, nk_euclideans_packed_bf16_sme);
-    run_if_matches("euclideans_e4m3_sme", test_euclideans_packed<e4m3_t>, nk_dots_packed_size_e4m3_sme,
+    run_if_matches("euclideans_packed_e4m3_sme", test_euclideans_packed<e4m3_t>, nk_dots_packed_size_e4m3_sme,
                    nk_dots_pack_e4m3_sme, nk_euclideans_packed_e4m3_sme);
-    run_if_matches("euclideans_e5m2_sme", test_euclideans_packed<e5m2_t>, nk_dots_packed_size_e5m2_sme,
+    run_if_matches("euclideans_packed_e5m2_sme", test_euclideans_packed<e5m2_t>, nk_dots_packed_size_e5m2_sme,
                    nk_dots_pack_e5m2_sme, nk_euclideans_packed_e5m2_sme);
-    run_if_matches("euclideans_e2m3_sme", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_sme,
+    run_if_matches("euclideans_packed_e2m3_sme", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_sme,
                    nk_dots_pack_e2m3_sme, nk_euclideans_packed_e2m3_sme);
-    run_if_matches("euclideans_e3m2_sme", test_euclideans_packed<e3m2_t>, nk_dots_packed_size_e3m2_sme,
+    run_if_matches("euclideans_packed_e3m2_sme", test_euclideans_packed<e3m2_t>, nk_dots_packed_size_e3m2_sme,
                    nk_dots_pack_e3m2_sme, nk_euclideans_packed_e3m2_sme);
-    run_if_matches("euclideans_i8_sme", test_euclideans_packed<i8_t>, nk_dots_packed_size_i8_sme, nk_dots_pack_i8_sme,
-                   nk_euclideans_packed_i8_sme);
-    run_if_matches("euclideans_u8_sme", test_euclideans_packed<u8_t>, nk_dots_packed_size_u8_sme, nk_dots_pack_u8_sme,
-                   nk_euclideans_packed_u8_sme);
-    run_if_matches("euclideans_i4_sme", test_euclideans_packed<i4x2_t>, nk_dots_packed_size_i4_sme, nk_dots_pack_i4_sme,
-                   nk_euclideans_packed_i4_sme);
-    run_if_matches("euclideans_u4_sme", test_euclideans_packed<u4x2_t>, nk_dots_packed_size_u4_sme, nk_dots_pack_u4_sme,
-                   nk_euclideans_packed_u4_sme);
+    run_if_matches("euclideans_packed_i8_sme", test_euclideans_packed<i8_t>, nk_dots_packed_size_i8_sme,
+                   nk_dots_pack_i8_sme, nk_euclideans_packed_i8_sme);
+    run_if_matches("euclideans_packed_u8_sme", test_euclideans_packed<u8_t>, nk_dots_packed_size_u8_sme,
+                   nk_dots_pack_u8_sme, nk_euclideans_packed_u8_sme);
+    run_if_matches("euclideans_packed_i4_sme", test_euclideans_packed<i4x2_t>, nk_dots_packed_size_i4_sme,
+                   nk_dots_pack_i4_sme, nk_euclideans_packed_i4_sme);
+    run_if_matches("euclideans_packed_u4_sme", test_euclideans_packed<u4x2_t>, nk_dots_packed_size_u4_sme,
+                   nk_dots_pack_u4_sme, nk_euclideans_packed_u4_sme);
 
     run_if_matches("euclideans_symmetric_f16_sme", test_euclideans_symmetric<f16_t>, nk_euclideans_symmetric_f16_sme);
     run_if_matches("euclideans_symmetric_bf16_sme", test_euclideans_symmetric<bf16_t>,
@@ -120,7 +120,7 @@ void test_cross_sme() {
                    nk_sets_pack_u1_smebi32, nk_hammings_packed_u1_smebi32);
     run_if_matches("hammings_symmetric_u1_smebi32", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_smebi32);
 
-    run_if_matches("jaccards_u1_smebi32", test_jaccards_packed<u1x8_t>, nk_sets_packed_size_u1_smebi32,
+    run_if_matches("jaccards_packed_u1_smebi32", test_jaccards_packed<u1x8_t>, nk_sets_packed_size_u1_smebi32,
                    nk_sets_pack_u1_smebi32, nk_jaccards_packed_u1_smebi32);
     run_if_matches("jaccards_symmetric_u1_smebi32", test_jaccards_symmetric<u1x8_t>, nk_jaccards_symmetric_u1_smebi32);
 #endif
@@ -133,17 +133,17 @@ void test_cross_sme() {
     run_if_matches("dots_symmetric_f64_smef64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_smef64);
     run_if_matches("dots_symmetric_f32_smef64", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_smef64);
 
-    run_if_matches("angulars_f32_smef64", test_angulars_packed<f32_t>, nk_dots_packed_size_f32_smef64,
+    run_if_matches("angulars_packed_f32_smef64", test_angulars_packed<f32_t>, nk_dots_packed_size_f32_smef64,
                    nk_dots_pack_f32_smef64, nk_angulars_packed_f32_smef64);
-    run_if_matches("angulars_f64_smef64", test_angulars_packed<f64_t>, nk_dots_packed_size_f64_smef64,
+    run_if_matches("angulars_packed_f64_smef64", test_angulars_packed<f64_t>, nk_dots_packed_size_f64_smef64,
                    nk_dots_pack_f64_smef64, nk_angulars_packed_f64_smef64);
 
     run_if_matches("angulars_symmetric_f32_smef64", test_angulars_symmetric<f32_t>, nk_angulars_symmetric_f32_smef64);
     run_if_matches("angulars_symmetric_f64_smef64", test_angulars_symmetric<f64_t>, nk_angulars_symmetric_f64_smef64);
 
-    run_if_matches("euclideans_f32_smef64", test_euclideans_packed<f32_t>, nk_dots_packed_size_f32_smef64,
+    run_if_matches("euclideans_packed_f32_smef64", test_euclideans_packed<f32_t>, nk_dots_packed_size_f32_smef64,
                    nk_dots_pack_f32_smef64, nk_euclideans_packed_f32_smef64);
-    run_if_matches("euclideans_f64_smef64", test_euclideans_packed<f64_t>, nk_dots_packed_size_f64_smef64,
+    run_if_matches("euclideans_packed_f64_smef64", test_euclideans_packed<f64_t>, nk_dots_packed_size_f64_smef64,
                    nk_dots_pack_f64_smef64, nk_euclideans_packed_f64_smef64);
 
     run_if_matches("euclideans_symmetric_f32_smef64", test_euclideans_symmetric<f32_t>,

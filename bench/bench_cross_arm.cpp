@@ -42,11 +42,11 @@ void bench_cross_arm() {
     run_dots_symmetric<f32_k>("dots_symmetric_f32_neon", nk_dots_symmetric_f32_neon);
     run_dots_symmetric<u1_k>("dots_symmetric_u1_neon", nk_dots_symmetric_u1_neon);
 
-    run_hammings_packed<u1_k>("hammings_u1_neon", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_hammings_packed<u1_k>("hammings_packed_u1_neon", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_hammings_packed_u1_neon);
     run_hammings_symmetric<u1_k>("hammings_symmetric_u1_neon", nk_hammings_symmetric_u1_neon);
 
-    run_jaccards_packed<u1_k>("jaccards_u1_neon", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_neon", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_jaccards_packed_u1_neon);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_neon", nk_jaccards_symmetric_u1_neon);
 

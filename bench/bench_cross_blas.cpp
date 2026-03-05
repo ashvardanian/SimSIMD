@@ -180,7 +180,7 @@ void measure_dots_f64_with_mkl(bm::State &state, std::size_t m, std::size_t n, s
                                   });
 }
 
-void measure_dots_u8i8i32_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_i8u8_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_dots_unpacked<std::uint8_t, std::int8_t, std::int32_t>(
         state, m, n, k,
         [](std::uint8_t *a, std::int8_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -190,7 +190,7 @@ void measure_dots_u8i8i32_with_mkl(bm::State &state, std::size_t m, std::size_t 
         });
 }
 
-void measure_dots_i16i16i32_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_i16_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_dots_unpacked<std::int16_t, std::int16_t, std::int32_t>(
         state, m, n, k,
         [](std::int16_t *a, std::int16_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -214,9 +214,9 @@ void bench_cross_blas() {
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
     // BLAS GEMM baselines for matmul comparison (same layout as NumKong: A x B^T)
-    bm::RegisterBenchmark(("dots_f32_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f32_with_blas,
+    bm::RegisterBenchmark(("dots_packed_f32_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f32_with_blas,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_f64_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f64_with_blas,
+    bm::RegisterBenchmark(("dots_packed_f64_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f64_with_blas,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 
     // BLAS SYRK baselines for symmetric operations (correct operation for dots_symmetric: A x A^T)
@@ -227,17 +227,17 @@ void bench_cross_blas() {
 #endif
 
 #if NK_COMPARE_TO_MKL
-    bm::RegisterBenchmark(("dots_f32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f32_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_f32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f32_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_bf16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_bf16_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_bf16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_bf16_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_f16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f16_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_f16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f16_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_f64_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f64_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_f64_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f64_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_u8i8i32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_u8i8i32_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_i8u8_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_i8u8_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
-    bm::RegisterBenchmark(("dots_i16i16i32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_i16i16i32_with_mkl,
+    bm::RegisterBenchmark(("dots_packed_i16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_i16_with_mkl,
                           bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 #endif
 }

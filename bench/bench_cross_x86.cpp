@@ -66,10 +66,10 @@ void bench_cross_x86() {
     run_dots_symmetric<u8_k>("dots_symmetric_u8_haswell", nk_dots_symmetric_u8_haswell);
     run_dots_symmetric<u1_k>("dots_symmetric_u1_haswell", nk_dots_symmetric_u1_haswell);
 
-    run_hammings_packed<u1_k>("hammings_u1_haswell", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_hammings_packed<u1_k>("hammings_packed_u1_haswell", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_hammings_packed_u1_haswell);
     run_hammings_symmetric<u1_k>("hammings_symmetric_u1_haswell", nk_hammings_symmetric_u1_haswell);
-    run_jaccards_packed<u1_k>("jaccards_u1_haswell", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_haswell", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_jaccards_packed_u1_haswell);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_haswell", nk_jaccards_symmetric_u1_haswell);
 
@@ -222,10 +222,10 @@ void bench_cross_x86() {
     run_dots_symmetric<u4_k>("dots_symmetric_u4_icelake", nk_dots_symmetric_u4_icelake);
     run_dots_symmetric<u1_k>("dots_symmetric_u1_icelake", nk_dots_symmetric_u1_icelake);
 
-    run_hammings_packed<u1_k>("hammings_u1_icelake", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_hammings_packed<u1_k>("hammings_packed_u1_icelake", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_hammings_packed_u1_icelake);
     run_hammings_symmetric<u1_k>("hammings_symmetric_u1_icelake", nk_hammings_symmetric_u1_icelake);
-    run_jaccards_packed<u1_k>("jaccards_u1_icelake", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_icelake", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_jaccards_packed_u1_icelake);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_icelake", nk_jaccards_symmetric_u1_icelake);
 

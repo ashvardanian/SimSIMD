@@ -65,10 +65,10 @@ void bench_cross_serial() {
     run_dots_symmetric<i4_k>("dots_symmetric_i4_serial", nk_dots_symmetric_i4_serial);
     run_dots_symmetric<u4_k>("dots_symmetric_u4_serial", nk_dots_symmetric_u4_serial);
 
-    run_hammings_packed<u1_k>("hammings_u1_serial", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_hammings_packed<u1_k>("hammings_packed_u1_serial", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_hammings_packed_u1_serial);
     run_hammings_symmetric<u1_k>("hammings_symmetric_u1_serial", nk_hammings_symmetric_u1_serial);
-    run_jaccards_packed<u1_k>("jaccards_u1_serial", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_serial", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
                               nk_jaccards_packed_u1_serial);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_serial", nk_jaccards_symmetric_u1_serial);
 
