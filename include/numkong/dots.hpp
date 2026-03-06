@@ -190,34 +190,41 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
     if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
-        nk_dots_packed_f64(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_f64(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                           c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, f32_t> && dispatch)
-        nk_dots_packed_f32(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_f32(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                           c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, f16_t> && dispatch)
-        nk_dots_packed_f16(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_f16(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                           c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && dispatch)
-        nk_dots_packed_bf16(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+        nk_dots_packed_bf16(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, i8_t> && dispatch)
-        nk_dots_packed_i8(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_i8(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                          c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, u8_t> && dispatch)
-        nk_dots_packed_u8(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_u8(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                          c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && dispatch)
-        nk_dots_packed_e4m3(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+        nk_dots_packed_e4m3(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
-        nk_dots_packed_e5m2(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+        nk_dots_packed_e5m2(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, e2m3_t> && dispatch)
-        nk_dots_packed_e2m3(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+        nk_dots_packed_e2m3(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, e3m2_t> && dispatch)
-        nk_dots_packed_e3m2(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+        nk_dots_packed_e3m2(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
-        nk_dots_packed_u4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_u4(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                          c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
-        nk_dots_packed_i4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+        nk_dots_packed_i4(&a->raw_, b_packed, &c->raw_, row_count, column_count, depth, a_stride_in_bytes,
+                          c_stride_in_bytes);
     else {
         in_type_ const *b;
         size_t b_stride_in_bytes;
@@ -252,37 +259,41 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
-        nk_dots_symmetric_f64(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f64(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, f32_t> && dispatch)
-        nk_dots_symmetric_f32(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f32(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, f16_t> && dispatch)
-        nk_dots_symmetric_f16(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f16(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && dispatch)
-        nk_dots_symmetric_bf16(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_bf16(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, i8_t> && dispatch)
-        nk_dots_symmetric_i8(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
+        nk_dots_symmetric_i8(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                             row_count);
     else if constexpr (std::is_same_v<in_type_, u8_t> && dispatch)
-        nk_dots_symmetric_u8(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
+        nk_dots_symmetric_u8(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                             row_count);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && dispatch)
-        nk_dots_symmetric_e4m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_e4m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
-        nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, e2m3_t> && dispatch)
-        nk_dots_symmetric_e2m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_e2m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, e3m2_t> && dispatch)
-        nk_dots_symmetric_e3m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_e3m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
-        nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
+        nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                             row_count);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
-        nk_dots_symmetric_i4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
+        nk_dots_symmetric_i4(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                             row_count);
     else {
         std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
         char const *a_bytes = reinterpret_cast<char const *>(a);

@@ -111,61 +111,52 @@ void reduce_minmax(in_type_ const *data, std::size_t count, std::size_t stride_b
                    std::size_t *min_index, minmax_type_ *max_value, std::size_t *max_index) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
                           std::is_same_v<minmax_type_, typename in_type_::reduce_minmax_value_t>;
+    // `nk_size_t` may alias differently from `std::size_t` on some platforms,
+    // using `unsigned long long` instead of `unsigned long`.
+    static_assert(sizeof(std::size_t) == sizeof(nk_size_t), "size_t and nk_size_t must have the same width");
+    auto *min_raw = reinterpret_cast<nk_size_t *>(min_index);
+    auto *max_raw = reinterpret_cast<nk_size_t *>(max_index);
 
     // For types where minmax_type_ matches the C function output type directly,
     // dispatch to the C kernel and pass raw pointers through.
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_reduce_minmax_f64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_f64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_reduce_minmax_f32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_f32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_reduce_minmax_i8(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_, max_index);
+        nk_reduce_minmax_i8(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_reduce_minmax_u8(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_, max_index);
+        nk_reduce_minmax_u8(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_reduce_minmax_i16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_i16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_reduce_minmax_u16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_u16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_reduce_minmax_i32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_i32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_reduce_minmax_u32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_u32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_reduce_minmax_i64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_i64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_reduce_minmax_u64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_u64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
-        nk_reduce_minmax_e2m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                              max_index);
+        nk_reduce_minmax_e2m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
-        nk_reduce_minmax_e3m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                              max_index);
+        nk_reduce_minmax_e3m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_reduce_minmax_f16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                             max_index);
+        nk_reduce_minmax_f16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_reduce_minmax_bf16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                              max_index);
+        nk_reduce_minmax_bf16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
-        nk_reduce_minmax_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                              max_index);
+        nk_reduce_minmax_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
-        nk_reduce_minmax_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_,
-                              max_index);
+        nk_reduce_minmax_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
-        nk_reduce_minmax_i4(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_, max_index);
+        nk_reduce_minmax_i4(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
-        nk_reduce_minmax_u4(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_, max_index);
+        nk_reduce_minmax_u4(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_reduce_minmax_u1(&data->raw_, count, stride_bytes, &min_value->raw_, min_index, &max_value->raw_, max_index);
+        nk_reduce_minmax_u1(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     // Scalar fallback
     else {
         minmax_type_ best_min = minmax_type_(in_type_::finite_max());
