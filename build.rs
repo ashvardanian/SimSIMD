@@ -258,7 +258,6 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=c/dispatch_u1.c");
     println!("cargo:rerun-if-changed=c/dispatch_other.c");
     println!("cargo:rerun-if-changed=c/numkong.c");
-    println!("cargo:rerun-if-changed=rust/numkong.rs");
     // Top-level headers
     println!("cargo:rerun-if-changed=include/numkong/numkong.h");
     println!("cargo:rerun-if-changed=include/numkong/types.h");
