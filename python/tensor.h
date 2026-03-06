@@ -30,7 +30,7 @@ extern "C" {
  *  - If parent != NULL: view into parent's memory, `data` points there
  */
 typedef struct Tensor {
-    PyObject_HEAD
+    PyObject_VAR_HEAD
     /** Logical dtype (f32, f64, bf16, etc.). */
     nk_dtype_t dtype;
     /** Number of dimensions (0 for scalar). */
