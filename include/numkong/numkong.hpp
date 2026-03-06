@@ -39,6 +39,7 @@
 #include "numkong/random.hpp"
 #include "numkong/dot.hpp"
 #include "numkong/spatial.hpp"
+#include "numkong/spatials.hpp"
 #include "numkong/probability.hpp"
 #include "numkong/each.hpp"
 #include "numkong/reduce.hpp"
@@ -50,5 +51,7 @@
 #include "numkong/trigonometry.hpp"
 #include "numkong/dots.hpp"
 #include "numkong/matrix.hpp"
+#include "numkong/maxsim.hpp"
+#include "numkong/tensor.hpp"
 
 #endif // NK_NUMKONG_HPP

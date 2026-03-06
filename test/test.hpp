@@ -82,6 +82,7 @@
 
 #include "numkong/types.hpp"
 #include "numkong/tensor.hpp"
+#include "numkong/matrix.hpp"
 #include "numkong/random.hpp" // `nk::fill_uniform`
 
 namespace nk = ashvardanian::numkong;
@@ -422,6 +423,7 @@ void test_geospatial();
 void test_mesh();
 void test_sparse();
 void test_vector_types();
+void test_tensor_ops();
 void test_maxsim();
 
 // Forward declarations for cross/batch tests (ISA-family files)

@@ -159,3 +159,167 @@ void test_vector_types() {
     test_custom_allocator();
     std::printf("  custom allocator:             OK\n");
 }
+
+/**
+ *  @brief Explicit template instantiation test for all tensor-level operations.
+ *
+ *  Forces the compiler to fully instantiate every type × operation combination,
+ *  catching signature mismatches, missing type traits, and implicit conversion errors
+ *  that syntax-only checks miss.
+ */
+template <typename value_type_>
+void test_tensor_ops_for_type() {
+    using tensor_t = nk::tensor<value_type_>;
+
+    // Create small test tensors
+    auto a = tensor_t::try_zeros({4, 8});
+    auto b = tensor_t::try_zeros({4, 8});
+    assert(!a.empty() && !b.empty());
+
+    auto av = a.view();
+    auto bv = b.view();
+
+    // Scalar reductions
+    { [[maybe_unused]] auto r = nk::sum<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::moments<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::min<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::max<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::argmin<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::argmax<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::minmax<value_type_>(av); }
+
+    // Axis reductions
+    { [[maybe_unused]] auto r = nk::try_sum<value_type_>(av, 0); }
+    { [[maybe_unused]] auto r = nk::try_sum<value_type_>(av, 1, nk::keep_dims_k); }
+    { [[maybe_unused]] auto r = nk::try_moments<value_type_>(av, 1); }
+    { [[maybe_unused]] auto r = nk::try_min<value_type_>(av, 0); }
+    { [[maybe_unused]] auto r = nk::try_min<value_type_>(av, 1, nk::keep_dims_k); }
+    { [[maybe_unused]] auto r = nk::try_max<value_type_>(av, 0); }
+    { [[maybe_unused]] auto r = nk::try_max<value_type_>(av, 1, nk::keep_dims_k); }
+
+    // Elementwise binary
+    { [[maybe_unused]] auto r = nk::try_add<value_type_>(av, bv); }
+    { [[maybe_unused]] auto r = nk::try_sub<value_type_>(av, bv); }
+    { [[maybe_unused]] auto r = nk::try_mul<value_type_>(av, bv); }
+
+    // Elementwise binary with scalar
+    using scale_t = typename value_type_::scale_t;
+    scale_t scalar {1};
+    { [[maybe_unused]] auto r = nk::try_add<value_type_>(av, scalar); }
+    { [[maybe_unused]] auto r = nk::try_sub<value_type_>(av, scalar); }
+    { [[maybe_unused]] auto r = nk::try_mul<value_type_>(av, scalar); }
+
+    // Elementwise into
+    auto out = tensor_t::try_zeros({4, 8});
+    { [[maybe_unused]] bool ok = nk::add_into<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::sub_into<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::mul_into<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::add_into<value_type_>(av, scalar, out.span()); }
+    { [[maybe_unused]] bool ok = nk::sub_into<value_type_>(av, scalar, out.span()); }
+    { [[maybe_unused]] bool ok = nk::mul_into<value_type_>(av, scalar, out.span()); }
+
+    // Affine
+    scale_t alpha {1}, beta {0};
+    { [[maybe_unused]] auto r = nk::try_scale<value_type_>(av, alpha, beta); }
+    { [[maybe_unused]] auto r = nk::try_blend<value_type_>(av, bv, alpha, beta); }
+    { [[maybe_unused]] auto r = nk::try_fma<value_type_>(av, bv, av, alpha, beta); }
+    { [[maybe_unused]] bool ok = nk::scale_into<value_type_>(av, alpha, beta, out.span()); }
+    { [[maybe_unused]] bool ok = nk::blend_into<value_type_>(av, bv, alpha, beta, out.span()); }
+    { [[maybe_unused]] bool ok = nk::fma_into<value_type_>(av, bv, av, alpha, beta, out.span()); }
+}
+
+template <typename value_type_>
+void test_tensor_trig_for_type() {
+    using tensor_t = nk::tensor<value_type_>;
+    auto a = tensor_t::try_zeros({4, 8});
+    auto out = tensor_t::try_zeros({4, 8});
+    auto av = a.view();
+
+    { [[maybe_unused]] auto r = nk::try_sin<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::try_cos<value_type_>(av); }
+    { [[maybe_unused]] auto r = nk::try_atan<value_type_>(av); }
+    { [[maybe_unused]] bool ok = nk::sin_into<value_type_>(av, out.span()); }
+    { [[maybe_unused]] bool ok = nk::cos_into<value_type_>(av, out.span()); }
+    { [[maybe_unused]] bool ok = nk::atan_into<value_type_>(av, out.span()); }
+}
+
+template <typename value_type_>
+void test_tensor_symmetric_for_type() {
+    using tensor_t = nk::tensor<value_type_>;
+    auto a = tensor_t::try_zeros({4, 8});
+    auto am = a.as_matrix_view();
+
+    { [[maybe_unused]] auto r = nk::try_dots_symmetric<value_type_>(am); }
+    { [[maybe_unused]] auto r = nk::try_angulars_symmetric<value_type_>(am); }
+    { [[maybe_unused]] auto r = nk::try_euclideans_symmetric<value_type_>(am); }
+}
+
+template <typename value_type_>
+void test_tensor_packed_for_type() {
+    using tensor_t = nk::tensor<value_type_>;
+    auto a = tensor_t::try_zeros({4, 8});
+    auto b = tensor_t::try_zeros({6, 8});
+
+    // packed_matrix
+    auto bm = b.as_matrix_view();
+    auto packed = nk::packed_matrix<value_type_, nk::aligned_allocator<char>>::try_pack(bm);
+    auto am = a.as_matrix_view();
+    auto result = nk::matrix<typename value_type_::dot_result_t>::try_zeros({4, 6});
+    packed.multiply(am, result.span());
+}
+
+template <typename value_type_>
+void test_tensor_maxsim_for_type() {
+    using tensor_t = nk::tensor<value_type_>;
+    auto q = tensor_t::try_zeros({3, 16});
+    auto d = tensor_t::try_zeros({5, 16});
+
+    auto qm = q.as_matrix_view();
+    auto dm = d.as_matrix_view();
+
+    auto pq = nk::packed_maxsim<value_type_>::try_pack(qm);
+    auto pd = nk::packed_maxsim<value_type_>::try_pack(dm);
+    { [[maybe_unused]] auto r = nk::maxsim(pq, pd); }
+}
+
+void test_tensor_ops() {
+    std::printf("Testing tensor op instantiations...\n");
+
+    // Core numeric types: all operations
+    test_tensor_ops_for_type<nk::f32_t>();
+    test_tensor_ops_for_type<nk::f64_t>();
+    test_tensor_ops_for_type<nk::f16_t>();
+    test_tensor_ops_for_type<nk::bf16_t>();
+    test_tensor_ops_for_type<nk::i8_t>();
+    test_tensor_ops_for_type<nk::u8_t>();
+    std::printf("  ops (6 types):                OK\n");
+
+    // Trig (float-capable types)
+    test_tensor_trig_for_type<nk::f32_t>();
+    test_tensor_trig_for_type<nk::f64_t>();
+    test_tensor_trig_for_type<nk::f16_t>();
+    test_tensor_trig_for_type<nk::bf16_t>();
+    std::printf("  trig (4 types):               OK\n");
+
+    // Symmetric distances
+    test_tensor_symmetric_for_type<nk::f32_t>();
+    test_tensor_symmetric_for_type<nk::f64_t>();
+    test_tensor_symmetric_for_type<nk::f16_t>();
+    test_tensor_symmetric_for_type<nk::bf16_t>();
+    test_tensor_symmetric_for_type<nk::i8_t>();
+    std::printf("  symmetric dist (5 types):     OK\n");
+
+    // Packed GEMM
+    test_tensor_packed_for_type<nk::f32_t>();
+    test_tensor_packed_for_type<nk::f64_t>();
+    test_tensor_packed_for_type<nk::f16_t>();
+    test_tensor_packed_for_type<nk::bf16_t>();
+    test_tensor_packed_for_type<nk::i8_t>();
+    std::printf("  packed GEMM (5 types):        OK\n");
+
+    // MaxSim (bf16, f32, f16 only)
+    test_tensor_maxsim_for_type<nk::bf16_t>();
+    test_tensor_maxsim_for_type<nk::f32_t>();
+    test_tensor_maxsim_for_type<nk::f16_t>();
+    std::printf("  packed MaxSim (3 types):      OK\n");
+}

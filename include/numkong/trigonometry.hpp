@@ -35,7 +35,7 @@ void sin(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_sin_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
-        for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).sin().template to<in_type_>();
+        for (std::size_t i = 0; i < n; i++) out[i] = in_type_(precision_type_(in[i]).sin());
     }
 }
 
@@ -58,7 +58,7 @@ void cos(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_cos_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
-        for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).cos().template to<in_type_>();
+        for (std::size_t i = 0; i < n; i++) out[i] = in_type_(precision_type_(in[i]).cos());
     }
 }
 
@@ -81,7 +81,7 @@ void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_atan_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
-        for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).atan().template to<in_type_>();
+        for (std::size_t i = 0; i < n; i++) out[i] = in_type_(precision_type_(in[i]).atan());
     }
 }
 

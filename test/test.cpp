@@ -320,6 +320,7 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     test_vector_types();
+    test_tensor_ops();
 
     // Print a table header
     print_stats_header();

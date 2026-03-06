@@ -107,7 +107,7 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size
  *  Useful as a reference implementation for validating BLAS/MKL/Accelerate.
  *
  *  @param a Matrix A [m x k] row-major
- *  @param b Matrix B [n x k] row-major (accessed as B^T)
+ *  @param b Matrix B [n x k] row-major (accessed as Bᵀ)
  *  @param c Output matrix C [m x n] row-major
  *  @param row_count Rows of A and C (m)
  *  @param column_count Rows of B and columns of C (n)
@@ -140,7 +140,7 @@ void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t
 }
 
 /**
- *  @brief Conjugated unpacked dot products: C = A × B^H (Hermitian inner product, row-major)
+ *  @brief Conjugated unpacked dot products: C = A × Bᴴ (Hermitian inner product, row-major)
  *
  *  Same as `dots_unpacked`, but conjugates elements of B before multiplication.
  *  For real types this is identical to `dots_unpacked`. For complex types this
