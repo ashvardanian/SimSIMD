@@ -7055,7 +7055,7 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::{Complex16, Complex32, NumberLike};
+    use crate::scalar::{bf16c, f16c, f32c, NumberLike};
     use std::sync::Once;
 
     static INIT: Once = Once::new();
@@ -7376,7 +7376,7 @@ mod tests {
     }
 
     #[test]
-    fn tensor_explicit_elementwise_and_cast() {
+    fn elementwise_and_cast() {
         let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
         let a = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
         let b = Tensor::<f32>::try_full(&[3, 4], 2.0).unwrap();
@@ -7399,6 +7399,11 @@ mod tests {
         assert_eq!(casted.shape(), &[3, 2]);
         assert_eq!(casted.as_slice(), &[0.0, 2.0, 4.0, 6.0, 8.0, 10.0]);
 
+        let complex = a_even.try_cast_dtype::<f32c>().unwrap();
+        assert_eq!(complex.shape(), &[3, 2]);
+        assert_eq!(complex.as_slice()[0], f32c::from_real_imag(0.0, 0.0));
+        assert_eq!(complex.as_slice()[5], f32c::from_real_imag(10.0, 0.0));
+
         let mut out = Tensor::<f32>::try_full(&[3, 4], 0.0).unwrap();
         a.try_add_tensor_into(&b, &mut out).unwrap();
         assert_eq!(out.as_slice()[0], 2.0);
@@ -7419,7 +7424,7 @@ mod tests {
     }
 
     #[test]
-    fn tensor_explicit_reductions_axis_and_strided_views() {
+    fn reductions_axis_and_strided_views() {
         let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
         let a = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
         let a_even = a
@@ -7466,56 +7471,38 @@ mod tests {
     }
 
     #[test]
-    fn tensor_complex_elementwise_view_and_owner_paths() {
-        let a_values = [
-            Complex32 { re: 1.0, im: 2.0 },
-            Complex32 { re: 3.0, im: 4.0 },
-        ];
-        let b_values = [
-            Complex32 { re: 5.0, im: 6.0 },
-            Complex32 { re: 7.0, im: 8.0 },
-        ];
-        let zeros = Tensor::<Complex32>::try_full(&[2], Complex32 { re: 0.0, im: 0.0 }).unwrap();
-        let a = Tensor::<Complex32>::try_from_slice(&a_values, &[2]).unwrap();
-        let b = Tensor::<Complex32>::try_from_slice(&b_values, &[2]).unwrap();
+    fn complex_elementwise_view_and_owner_paths() {
+        let a_values = [f32c { re: 1.0, im: 2.0 }, f32c { re: 3.0, im: 4.0 }];
+        let b_values = [f32c { re: 5.0, im: 6.0 }, f32c { re: 7.0, im: 8.0 }];
+        let zeros = Tensor::<f32c>::try_full(&[2], f32c { re: 0.0, im: 0.0 }).unwrap();
+        let a = Tensor::<f32c>::try_from_slice(&a_values, &[2]).unwrap();
+        let b = Tensor::<f32c>::try_from_slice(&b_values, &[2]).unwrap();
 
         let added = a.try_add_tensor(&b).unwrap();
         assert_eq!(
             added.as_slice(),
-            &[
-                Complex32 { re: 6.0, im: 8.0 },
-                Complex32 { re: 10.0, im: 12.0 }
-            ]
+            &[f32c { re: 6.0, im: 8.0 }, f32c { re: 10.0, im: 12.0 }]
         );
 
         let scaled = a
-            .scale(
-                Complex32 { re: 1.0, im: 0.0 },
-                Complex32 { re: 1.0, im: 0.0 },
-            )
+            .scale(f32c { re: 1.0, im: 0.0 }, f32c { re: 1.0, im: 0.0 })
             .unwrap();
         assert_eq!(
             scaled.as_slice(),
-            &[
-                Complex32 { re: 2.0, im: 2.0 },
-                Complex32 { re: 4.0, im: 4.0 }
-            ]
+            &[f32c { re: 2.0, im: 2.0 }, f32c { re: 4.0, im: 4.0 }]
         );
 
         let blended = a
             .view()
             .try_blend_tensor(
                 &b.view(),
-                Complex32 { re: 1.0, im: 0.0 },
-                Complex32 { re: -1.0, im: 0.0 },
+                f32c { re: 1.0, im: 0.0 },
+                f32c { re: -1.0, im: 0.0 },
             )
             .unwrap();
         assert_eq!(
             blended.as_slice(),
-            &[
-                Complex32 { re: -4.0, im: -4.0 },
-                Complex32 { re: -4.0, im: -4.0 }
-            ]
+            &[f32c { re: -4.0, im: -4.0 }, f32c { re: -4.0, im: -4.0 }]
         );
 
         let fma = a
@@ -7523,40 +7510,44 @@ mod tests {
             .try_fma_tensors(
                 &b.view(),
                 &zeros.view(),
-                Complex32 { re: 1.0, im: 0.0 },
-                Complex32 { re: 0.0, im: 0.0 },
+                f32c { re: 1.0, im: 0.0 },
+                f32c { re: 0.0, im: 0.0 },
             )
             .unwrap();
         assert_eq!(
             fma.as_slice(),
             &[
-                Complex32 { re: -7.0, im: 16.0 },
-                Complex32 {
+                f32c { re: -7.0, im: 16.0 },
+                f32c {
                     re: -11.0,
                     im: 52.0
                 }
             ]
         );
 
-        let mut inplace = Tensor::<Complex32>::try_from_slice(&a_values, &[2]).unwrap();
+        let mut inplace = Tensor::<f32c>::try_from_slice(&a_values, &[2]).unwrap();
         inplace.try_add_tensor_inplace(&b).unwrap();
         assert_eq!(inplace.as_slice(), added.as_slice());
 
-        let strided = Tensor::<Complex16>::try_from_slice(
+        let widened = a.try_cast_dtype::<bf16c>().unwrap();
+        assert_eq!(widened.as_slice()[0].re.to_f32(), 1.0);
+        assert_eq!(widened.as_slice()[0].im.to_f32(), 2.0);
+
+        let strided = Tensor::<f16c>::try_from_slice(
             &[
-                Complex16 {
+                f16c {
                     re: f16::from_f32(1.0),
                     im: f16::from_f32(2.0),
                 },
-                Complex16 {
+                f16c {
                     re: f16::from_f32(100.0),
                     im: f16::from_f32(101.0),
                 },
-                Complex16 {
+                f16c {
                     re: f16::from_f32(3.0),
                     im: f16::from_f32(4.0),
                 },
-                Complex16 {
+                f16c {
                     re: f16::from_f32(102.0),
                     im: f16::from_f32(103.0),
                 },
@@ -7567,9 +7558,9 @@ mod tests {
         let complex_column = strided
             .slice(&[SliceRange::full(), SliceRange::range(0, 1)])
             .unwrap();
-        let mut out = Tensor::<Complex16>::try_full(
+        let mut out = Tensor::<f16c>::try_full(
             &[2, 1],
-            Complex16 {
+            f16c {
                 re: f16::ZERO,
                 im: f16::ZERO,
             },
@@ -7579,11 +7570,11 @@ mod tests {
             let mut span = out.span();
             complex_column
                 .try_scale_tensor_into(
-                    Complex16 {
+                    f16c {
                         re: f16::ONE,
                         im: f16::ZERO,
                     },
-                    Complex16 {
+                    f16c {
                         re: f16::ZERO,
                         im: f16::ONE,
                     },
@@ -7594,11 +7585,11 @@ mod tests {
         assert_eq!(
             out.as_slice(),
             &[
-                Complex16 {
+                f16c {
                     re: f16::from_f32(1.0),
                     im: f16::from_f32(3.0)
                 },
-                Complex16 {
+                f16c {
                     re: f16::from_f32(3.0),
                     im: f16::from_f32(5.0)
                 }

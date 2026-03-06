@@ -102,12 +102,9 @@ pub mod vector;
 
 // Re-export scalar types at crate root
 pub use scalar::{
-    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, Complex16, Complex32, Complex64,
-    ComplexBF16, FloatConvertible, FloatLike, NumberLike, StorageElement,
+    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u1x8, u4x2, FloatConvertible,
+    FloatLike, NumberLike, StorageElement,
 };
-
-// Re-export complex product types
-pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
@@ -145,14 +142,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn smoke_dot() {
+    fn dot_smoke() {
         let first = [1.0_f32, 2.0, 3.0];
         let second = [4.0_f32, 5.0, 6.0];
         assert!((<f32 as Dot>::dot(&first, &second).unwrap() - 32.0).abs() < 0.01);
     }
 
     #[test]
-    fn smoke_angular() {
+    fn angular_smoke() {
         let first = [1.0_f32, 0.0];
         let second = [0.0_f32, 1.0];
         // Orthogonal vectors → angular distance = 1.0
@@ -160,14 +157,14 @@ mod tests {
     }
 
     #[test]
-    fn smoke_euclidean() {
+    fn euclidean_smoke() {
         let first = [0.0_f32, 0.0, 0.0];
         let second = [3.0_f32, 4.0, 0.0];
         assert!((f32::euclidean(&first, &second).unwrap() - 5.0).abs() < 0.1);
     }
 
     #[test]
-    fn smoke_maxsim_f32() {
+    fn maxsim_smoke() {
         capabilities::configure_thread();
         let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
         let documents = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
@@ -185,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn smoke_tensor_dots() {
+    fn tensor_dots_smoke() {
         capabilities::configure_thread();
         let queries = Tensor::<f32>::try_full(&[2, 4], 1.0).unwrap();
         let targets = Tensor::<f32>::try_full(&[3, 4], 1.0).unwrap();

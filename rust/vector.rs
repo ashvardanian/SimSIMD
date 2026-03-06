@@ -1069,7 +1069,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vec_index_signed() {
+    fn vec_index_signed() {
         let v = Vector::<f32>::try_from_dims(&[10.0, 20.0, 30.0, 40.0, 50.0]).unwrap();
         // Positive indexing
         assert_eq!(v[0], 10.0);
@@ -1081,7 +1081,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vector_view_stride() {
+    fn vector_view_stride() {
         let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
         let view = v.view();
         assert!(view.is_contiguous());
@@ -1094,7 +1094,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vector_span_fill() {
+    fn vector_span_fill() {
         let mut v = Vector::<f32>::try_zeros(4).unwrap();
         {
             let mut span = v.span();
@@ -1105,7 +1105,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vector_iter() {
+    fn vector_iter() {
         let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
         let vals: Vec<f32> = v.iter().collect();
         assert_eq!(vals, vec![1.0, 2.0, 3.0]);
@@ -1116,7 +1116,7 @@ mod tests {
     }
 
     #[test]
-    fn test_view_strided_iteration() {
+    fn view_strided_iteration() {
         let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
         let view = v.view();
 
@@ -1128,7 +1128,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vector_filled() {
+    fn vector_filled() {
         let v = Vector::<f32>::try_full(3, 7.5).unwrap();
         assert_eq!(v[0], 7.5);
         assert_eq!(v[1], 7.5);
@@ -1136,7 +1136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_vector() {
+    fn empty_vector() {
         let v = Vector::<f32>::try_zeros(0).unwrap();
         assert!(v.is_empty());
         assert_eq!(v.size(), 0);
@@ -1144,7 +1144,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_index_out_of_bounds() {
+    fn index_out_of_bounds() {
         let v = Vector::<f32>::try_zeros(3).unwrap();
         let _ = v[3_usize];
     }

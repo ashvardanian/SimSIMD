@@ -17,12 +17,8 @@
 //! - **Capabilities**: [`cap`] module for runtime SIMD feature detection
 
 use crate::scalar::{
-    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, Complex16, Complex32, Complex64,
-    ComplexBF16, StorageElement,
+    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u1x8, u4x2, StorageElement,
 };
-
-pub type ComplexProductF32 = Complex32;
-pub type ComplexProductF64 = Complex64;
 
 #[link(name = "numkong")]
 extern "C" {
@@ -1220,6 +1216,10 @@ mod dtype {
     pub(crate) const E5M2: u32 = 1 << 15;
     pub(crate) const E2M3: u32 = 1 << 18;
     pub(crate) const E3M2: u32 = 1 << 19;
+    pub(crate) const F64C: u32 = 1 << 20;
+    pub(crate) const F32C: u32 = 1 << 21;
+    pub(crate) const F16C: u32 = 1 << 22;
+    pub(crate) const BF16C: u32 = 1 << 23;
     pub(crate) const I8: u32 = 1 << 2;
     pub(crate) const I16: u32 = 1 << 3;
     pub(crate) const I32: u32 = 1 << 4;
@@ -1241,6 +1241,10 @@ mod private {
     impl Sealed for super::e5m2 {}
     impl Sealed for super::e2m3 {}
     impl Sealed for super::e3m2 {}
+    impl Sealed for super::f64c {}
+    impl Sealed for super::f32c {}
+    impl Sealed for super::f16c {}
+    impl Sealed for super::bf16c {}
     impl Sealed for i8 {}
     impl Sealed for i16 {}
     impl Sealed for i32 {}
@@ -1297,6 +1301,26 @@ impl CastDtype for e2m3 {
 impl CastDtype for e3m2 {
     fn dtype_code() -> u32 {
         dtype::E3M2
+    }
+}
+impl CastDtype for f64c {
+    fn dtype_code() -> u32 {
+        dtype::F64C
+    }
+}
+impl CastDtype for f32c {
+    fn dtype_code() -> u32 {
+        dtype::F32C
+    }
+}
+impl CastDtype for f16c {
+    fn dtype_code() -> u32 {
+        dtype::F16C
+    }
+}
+impl CastDtype for bf16c {
+    fn dtype_code() -> u32 {
+        dtype::BF16C
     }
 }
 impl CastDtype for i8 {
@@ -1650,8 +1674,8 @@ impl Dot for u4x2 {
     }
 }
 
-impl Dot for Complex16 {
-    type Output = Complex32;
+impl Dot for f16c {
+    type Output = f32c;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -1665,15 +1689,15 @@ impl Dot for Complex16 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Dot for ComplexBF16 {
-    type Output = Complex32;
+impl Dot for bf16c {
+    type Output = f32c;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -1687,15 +1711,15 @@ impl Dot for ComplexBF16 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Dot for Complex32 {
-    type Output = Complex32;
+impl Dot for f32c {
+    type Output = f32c;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -1709,15 +1733,15 @@ impl Dot for Complex32 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Dot for Complex64 {
-    type Output = Complex64;
+impl Dot for f64c {
+    type Output = f64c;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -1731,7 +1755,7 @@ impl Dot for Complex64 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex64 {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })
@@ -2836,7 +2860,7 @@ impl VDot for e3m2 {}
 impl VDot for i4x2 {}
 impl VDot for u4x2 {}
 
-impl VDot for Complex16 {
+impl VDot for f16c {
     fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -2850,14 +2874,14 @@ impl VDot for Complex16 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl VDot for ComplexBF16 {
+impl VDot for bf16c {
     fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -2871,14 +2895,14 @@ impl VDot for ComplexBF16 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl VDot for Complex32 {
+impl VDot for f32c {
     fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -2892,14 +2916,14 @@ impl VDot for Complex32 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl VDot for Complex64 {
+impl VDot for f64c {
     fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -2913,7 +2937,7 @@ impl VDot for Complex64 {
                 result.as_mut_ptr(),
             )
         };
-        Some(Complex64 {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })
@@ -3562,8 +3586,8 @@ impl EachScale for e3m2 {
     }
 }
 
-impl EachScale for Complex64 {
-    type Scalar = Complex64;
+impl EachScale for f64c {
+    type Scalar = f64c;
     fn each_scale(
         a: &[Self],
         alpha: Self::Scalar,
@@ -3586,8 +3610,8 @@ impl EachScale for Complex64 {
     }
 }
 
-impl EachScale for Complex32 {
-    type Scalar = Complex32;
+impl EachScale for f32c {
+    type Scalar = f32c;
     fn each_scale(
         a: &[Self],
         alpha: Self::Scalar,
@@ -3610,8 +3634,8 @@ impl EachScale for Complex32 {
     }
 }
 
-impl EachScale for Complex16 {
-    type Scalar = Complex16;
+impl EachScale for f16c {
+    type Scalar = f16c;
     fn each_scale(
         a: &[Self],
         alpha: Self::Scalar,
@@ -3622,8 +3646,8 @@ impl EachScale for Complex16 {
     }
 }
 
-impl EachScale for ComplexBF16 {
-    type Scalar = ComplexBF16;
+impl EachScale for bf16c {
+    type Scalar = bf16c;
     fn each_scale(
         a: &[Self],
         alpha: Self::Scalar,
@@ -3852,7 +3876,7 @@ impl EachSum for e3m2 {
     }
 }
 
-impl EachSum for Complex64 {
+impl EachSum for f64c {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
@@ -3869,7 +3893,7 @@ impl EachSum for Complex64 {
     }
 }
 
-impl EachSum for Complex32 {
+impl EachSum for f32c {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
@@ -3886,13 +3910,13 @@ impl EachSum for Complex32 {
     }
 }
 
-impl EachSum for Complex16 {
+impl EachSum for f16c {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
         complex_each_sum_fallback(a, b, result)
     }
 }
 
-impl EachSum for ComplexBF16 {
+impl EachSum for bf16c {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
         complex_each_sum_fallback(a, b, result)
     }
@@ -4337,8 +4361,8 @@ impl EachBlend for e3m2 {
     }
 }
 
-impl EachBlend for Complex64 {
-    type Scalar = Complex64;
+impl EachBlend for f64c {
+    type Scalar = f64c;
     fn each_blend(
         a: &[Self],
         b: &[Self],
@@ -4363,8 +4387,8 @@ impl EachBlend for Complex64 {
     }
 }
 
-impl EachBlend for Complex32 {
-    type Scalar = Complex32;
+impl EachBlend for f32c {
+    type Scalar = f32c;
     fn each_blend(
         a: &[Self],
         b: &[Self],
@@ -4389,8 +4413,8 @@ impl EachBlend for Complex32 {
     }
 }
 
-impl EachBlend for Complex16 {
-    type Scalar = Complex16;
+impl EachBlend for f16c {
+    type Scalar = f16c;
     fn each_blend(
         a: &[Self],
         b: &[Self],
@@ -4402,8 +4426,8 @@ impl EachBlend for Complex16 {
     }
 }
 
-impl EachBlend for ComplexBF16 {
-    type Scalar = ComplexBF16;
+impl EachBlend for bf16c {
+    type Scalar = bf16c;
     fn each_blend(
         a: &[Self],
         b: &[Self],
@@ -4887,8 +4911,8 @@ impl EachFMA for u64 {
     }
 }
 
-impl EachFMA for Complex64 {
-    type Scalar = Complex64;
+impl EachFMA for f64c {
+    type Scalar = f64c;
     fn each_fma(
         a: &[Self],
         b: &[Self],
@@ -4915,8 +4939,8 @@ impl EachFMA for Complex64 {
     }
 }
 
-impl EachFMA for Complex32 {
-    type Scalar = Complex32;
+impl EachFMA for f32c {
+    type Scalar = f32c;
     fn each_fma(
         a: &[Self],
         b: &[Self],
@@ -4943,8 +4967,8 @@ impl EachFMA for Complex32 {
     }
 }
 
-impl EachFMA for Complex16 {
-    type Scalar = Complex16;
+impl EachFMA for f16c {
+    type Scalar = f16c;
     fn each_fma(
         a: &[Self],
         b: &[Self],
@@ -4957,8 +4981,8 @@ impl EachFMA for Complex16 {
     }
 }
 
-impl EachFMA for ComplexBF16 {
-    type Scalar = ComplexBF16;
+impl EachFMA for bf16c {
+    type Scalar = bf16c;
     fn each_fma(
         a: &[Self],
         b: &[Self],
@@ -6201,8 +6225,8 @@ impl Bilinear for bf16 {
     }
 }
 
-impl Bilinear for Complex64 {
-    type Output = Complex64;
+impl Bilinear for f64c {
+    type Output = f64c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
@@ -6219,15 +6243,15 @@ impl Bilinear for Complex64 {
                 result.as_mut_ptr(),
             );
         }
-        Some(Complex64 {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Bilinear for Complex32 {
-    type Output = Complex32;
+impl Bilinear for f32c {
+    type Output = f32c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
@@ -6244,15 +6268,15 @@ impl Bilinear for Complex32 {
                 result.as_mut_ptr(),
             );
         }
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Bilinear for Complex16 {
-    type Output = Complex32;
+impl Bilinear for f16c {
+    type Output = f32c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
@@ -6269,15 +6293,15 @@ impl Bilinear for Complex16 {
                 result.as_mut_ptr(),
             );
         }
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
     }
 }
 
-impl Bilinear for ComplexBF16 {
-    type Output = Complex32;
+impl Bilinear for bf16c {
+    type Output = f32c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
@@ -6294,7 +6318,7 @@ impl Bilinear for ComplexBF16 {
                 result.as_mut_ptr(),
             );
         }
-        Some(Complex32 {
+        Some(f32c {
             re: result[0],
             im: result[1],
         })
@@ -6431,8 +6455,8 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 mod tests {
     use super::*;
     use crate::scalar::{
-        assert_close, bf16, f16, Complex16, Complex32, Complex64, ComplexBF16, FloatLike,
-        NumberLike, StorageElement, TestableType,
+        assert_close, bf16, bf16c, f16, f16c, f32c, f64c, FloatLike, NumberLike, StorageElement,
+        TestableType,
     };
 
     // region: Core Test Helpers
@@ -6818,11 +6842,11 @@ mod tests {
 
     // region: Complex Products
 
-    trait ComplexOutput {
+    trait ComplexValue {
         fn real(&self) -> f64;
         fn imag(&self) -> f64;
     }
-    impl ComplexOutput for Complex32 {
+    impl ComplexValue for f32c {
         fn real(&self) -> f64 {
             self.re as f64
         }
@@ -6830,7 +6854,7 @@ mod tests {
             self.im as f64
         }
     }
-    impl ComplexOutput for Complex64 {
+    impl ComplexValue for f64c {
         fn real(&self) -> f64 {
             self.re
         }
@@ -6839,14 +6863,14 @@ mod tests {
         }
     }
 
-    trait ComplexTestType: Copy + StorageElement + Dot + VDot + Bilinear {
-        fn from_parts(re: f32, im: f32) -> Self;
+    trait ComplexSample: Copy + StorageElement + Dot + VDot + Bilinear {
+        fn from_real_imag(re: f32, im: f32) -> Self;
         fn atol() -> f64;
         fn rtol() -> f64;
     }
 
-    impl ComplexTestType for Complex16 {
-        fn from_parts(re: f32, im: f32) -> Self {
+    impl ComplexSample for f16c {
+        fn from_real_imag(re: f32, im: f32) -> Self {
             Self {
                 re: f16::from_f32(re),
                 im: f16::from_f32(im),
@@ -6860,8 +6884,8 @@ mod tests {
         }
     }
 
-    impl ComplexTestType for ComplexBF16 {
-        fn from_parts(re: f32, im: f32) -> Self {
+    impl ComplexSample for bf16c {
+        fn from_real_imag(re: f32, im: f32) -> Self {
             Self {
                 re: bf16::from_f32(re),
                 im: bf16::from_f32(im),
@@ -6875,8 +6899,8 @@ mod tests {
         }
     }
 
-    impl ComplexTestType for Complex32 {
-        fn from_parts(re: f32, im: f32) -> Self {
+    impl ComplexSample for f32c {
+        fn from_real_imag(re: f32, im: f32) -> Self {
             Self { re, im }
         }
         fn atol() -> f64 {
@@ -6887,8 +6911,8 @@ mod tests {
         }
     }
 
-    impl ComplexTestType for Complex64 {
-        fn from_parts(re: f32, im: f32) -> Self {
+    impl ComplexSample for f64c {
+        fn from_real_imag(re: f32, im: f32) -> Self {
             Self {
                 re: re as f64,
                 im: im as f64,
@@ -6911,12 +6935,18 @@ mod tests {
         expected_im: f64,
         label: &str,
     ) where
-        T: ComplexTestType,
-        R: ComplexOutput,
+        T: ComplexSample,
+        R: ComplexValue,
         F: FnOnce(&[T], &[T]) -> Option<R>,
     {
-        let a_t: Vec<T> = a.iter().map(|&(re, im)| T::from_parts(re, im)).collect();
-        let b_t: Vec<T> = b.iter().map(|&(re, im)| T::from_parts(re, im)).collect();
+        let a_t: Vec<T> = a
+            .iter()
+            .map(|&(re, im)| T::from_real_imag(re, im))
+            .collect();
+        let b_t: Vec<T> = b
+            .iter()
+            .map(|&(re, im)| T::from_real_imag(re, im))
+            .collect();
         let result = op(&a_t, &b_t).unwrap();
         let tol = T::atol() + T::rtol() * expected_re.abs().max(expected_im.abs());
         assert_close(
@@ -6937,8 +6967,8 @@ mod tests {
 
     fn check_complex_dot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
-        T: ComplexTestType,
-        <T as Dot>::Output: ComplexOutput,
+        T: ComplexSample,
+        <T as Dot>::Output: ComplexValue,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -6960,8 +6990,8 @@ mod tests {
 
     fn check_complex_vdot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
-        T: ComplexTestType,
-        <T as Dot>::Output: ComplexOutput,
+        T: ComplexSample,
+        <T as Dot>::Output: ComplexValue,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -6983,8 +7013,8 @@ mod tests {
 
     fn check_complex_bilinear_identity<T>(n: usize)
     where
-        T: ComplexTestType,
-        <T as Bilinear>::Output: ComplexOutput,
+        T: ComplexSample,
+        <T as Bilinear>::Output: ComplexValue,
     {
         let mut a = vec![T::zero(); n];
         let mut b = vec![T::zero(); n];
@@ -7013,28 +7043,28 @@ mod tests {
     }
 
     #[test]
-    fn complex_products() {
+    fn complex_dot_vdot_bilinear() {
         // [1+2i, 3+4i] · [5+6i, 7+8i]
         let a = &[1.0_f32, 2.0, 3.0, 4.0];
         let b = &[5.0_f32, 6.0, 7.0, 8.0];
 
         // dot: (-18, 68)
-        check_complex_dot::<Complex64>(a, b, -18.0, 68.0);
-        check_complex_dot::<Complex32>(a, b, -18.0, 68.0);
-        check_complex_dot::<Complex16>(a, b, -18.0, 68.0);
-        check_complex_dot::<ComplexBF16>(a, b, -18.0, 68.0);
+        check_complex_dot::<f64c>(a, b, -18.0, 68.0);
+        check_complex_dot::<f32c>(a, b, -18.0, 68.0);
+        check_complex_dot::<f16c>(a, b, -18.0, 68.0);
+        check_complex_dot::<bf16c>(a, b, -18.0, 68.0);
 
         // vdot (conjugate): (70, -8)
-        check_complex_vdot::<Complex64>(a, b, 70.0, -8.0);
-        check_complex_vdot::<Complex32>(a, b, 70.0, -8.0);
-        check_complex_vdot::<Complex16>(a, b, 70.0, -8.0);
-        check_complex_vdot::<ComplexBF16>(a, b, 70.0, -8.0);
+        check_complex_vdot::<f64c>(a, b, 70.0, -8.0);
+        check_complex_vdot::<f32c>(a, b, 70.0, -8.0);
+        check_complex_vdot::<f16c>(a, b, 70.0, -8.0);
+        check_complex_vdot::<bf16c>(a, b, 70.0, -8.0);
 
         // bilinear: identity matrix, unit vector → (1, 0)
-        check_complex_bilinear_identity::<Complex64>(4);
-        check_complex_bilinear_identity::<Complex32>(4);
-        check_complex_bilinear_identity::<Complex16>(4);
-        check_complex_bilinear_identity::<ComplexBF16>(4);
+        check_complex_bilinear_identity::<f64c>(4);
+        check_complex_bilinear_identity::<f32c>(4);
+        check_complex_bilinear_identity::<f16c>(4);
+        check_complex_bilinear_identity::<bf16c>(4);
     }
 
     // endregion
@@ -7229,6 +7259,56 @@ mod tests {
         assert!(cast(&src, &mut dst).is_none());
     }
 
+    #[test]
+    fn cast_real_to_complex() {
+        let src = [1.25f32, -2.5];
+        let mut dst = [f32c::zero(); 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst[0], f32c::from_real_imag(1.25, 0.0));
+        assert_eq!(dst[1], f32c::from_real_imag(-2.5, 0.0));
+
+        let src = [f16::from_f32(3.0), f16::from_f32(-4.0)];
+        let mut dst = [f16c::zero(); 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(
+            dst,
+            [
+                f16c::from_real_imag(f16::from_f32(3.0), f16::ZERO),
+                f16c::from_real_imag(f16::from_f32(-4.0), f16::ZERO),
+            ]
+        );
+    }
+
+    #[test]
+    fn cast_complex_to_real() {
+        let src = [
+            f64c::from_real_imag(1.25, 9.0),
+            f64c::from_real_imag(-2.5, -7.0),
+        ];
+        let mut dst = [0.0f64; 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst, [1.25, -2.5]);
+    }
+
+    #[test]
+    fn cast_complex_to_complex() {
+        let src = [
+            f32c::from_real_imag(1.25, -2.5),
+            f32c::from_real_imag(-3.5, 4.25),
+        ];
+        let mut widened = [f64c::zero(); 2];
+        cast(&src, &mut widened).unwrap();
+        assert_eq!(widened[0], f64c::from_real_imag(1.25, -2.5));
+        assert_eq!(widened[1], f64c::from_real_imag(-3.5, 4.25));
+
+        let mut narrowed = [bf16c::zero(); 2];
+        cast(&widened, &mut narrowed).unwrap();
+        assert_eq!(narrowed[0].re.to_f32(), bf16::from_f32(1.25).to_f32());
+        assert_eq!(narrowed[0].im.to_f32(), bf16::from_f32(-2.5).to_f32());
+        assert_eq!(narrowed[1].re.to_f32(), bf16::from_f32(-3.5).to_f32());
+        assert_eq!(narrowed[1].im.to_f32(), bf16::from_f32(4.25).to_f32());
+    }
+
     // endregion
 
     // region: Elementwise Operations
@@ -7316,7 +7396,7 @@ mod tests {
     }
 
     #[test]
-    fn each_scale() {
+    fn scale_elementwise() {
         check_each_scale::<f32>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
         check_each_scale::<f64>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
         check_each_scale::<f16>(&[1.0, 2.0, 3.0, 4.0, 5.0], 2.0, 1.0);
@@ -7336,7 +7416,7 @@ mod tests {
     }
 
     #[test]
-    fn each_sum() {
+    fn sum_elementwise() {
         check_each_sum::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
         check_each_sum::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
         check_each_sum::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]);
@@ -7356,7 +7436,7 @@ mod tests {
     }
 
     #[test]
-    fn each_sum_length_mismatch() {
+    fn sum_elementwise_length_mismatch() {
         let a: Vec<f32> = vec![1.0, 2.0, 3.0];
         let b: Vec<f32> = vec![4.0, 5.0];
         let mut result = vec![0.0f32; a.len()];
@@ -7364,7 +7444,7 @@ mod tests {
     }
 
     #[test]
-    fn each_blend() {
+    fn blend_elementwise() {
         check_each_blend::<f32>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
         check_each_blend::<f64>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
         check_each_blend::<f16>(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0], 0.5, 0.5);
@@ -7378,7 +7458,7 @@ mod tests {
     }
 
     #[test]
-    fn each_fma() {
+    fn fma_elementwise() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[2.0, 3.0, 4.0];
         let c = &[1.0, 1.0, 1.0];
@@ -7405,7 +7485,7 @@ mod tests {
     }
 
     #[test]
-    fn each_large() {
+    fn large_elementwise() {
         let values: Vec<f32> = (0..1536).map(|i| i as f32).collect();
         check_each_scale::<f32>(&values, 2.0, 0.5);
 
@@ -7459,21 +7539,21 @@ mod tests {
     }
 
     #[test]
-    fn each_sin() {
+    fn sin_elementwise() {
         check_each_sin::<f32>(97);
         check_each_sin::<f64>(97);
         check_each_sin::<f16>(97);
     }
 
     #[test]
-    fn each_cos() {
+    fn cos_elementwise() {
         check_each_cos::<f32>(97);
         check_each_cos::<f64>(97);
         check_each_cos::<f16>(97);
     }
 
     #[test]
-    fn each_atan() {
+    fn atan_elementwise() {
         check_each_atan::<f32>(100);
         check_each_atan::<f64>(100);
         check_each_atan::<f16>(100);
@@ -7823,7 +7903,7 @@ mod tests {
     }
 
     #[test]
-    fn reduce_moments() {
+    fn moments_reduction() {
         // Float types — SumOutput/SumSqOutput are FloatLike (f32 or f64)
         let input_values = &[1.0, 2.0, 3.0, 4.0, 5.0];
         check_reduce_moments::<f64>(input_values);
@@ -7901,7 +7981,7 @@ mod tests {
     }
 
     #[test]
-    fn reduce_minmax() {
+    fn minmax_reduction() {
         // All FloatLike types — Output is also FloatLike
         let input_values = &[3.0, 1.0, 4.0, 1.5, 5.0, 2.0];
         check_reduce_minmax::<f64>(input_values);
@@ -7925,7 +8005,7 @@ mod tests {
     }
 
     #[test]
-    fn reduce_minmax_all_nan() {
+    fn minmax_reduction_all_nan() {
         let nan_f64: Vec<f64> = vec![f64::NAN; 16];
         assert_eq!(
             f64::reduce_minmax(&nan_f64, core::mem::size_of::<f64>()),
@@ -7964,7 +8044,7 @@ mod tests {
     }
 
     #[test]
-    fn reduce_minmax_mixed_nan() {
+    fn minmax_reduction_mixed_nan() {
         let data = vec![f64::NAN, 3.0, f64::NAN, 1.0, f64::NAN, 5.0];
         let result = f64::reduce_minmax(&data, core::mem::size_of::<f64>());
         assert!(result.is_some());
