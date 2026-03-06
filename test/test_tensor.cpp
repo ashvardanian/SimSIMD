@@ -192,6 +192,8 @@ void test_tensor_ops_for_type() {
     { [[maybe_unused]] auto r = nk::try_sum<value_type_>(av, 0); }
     { [[maybe_unused]] auto r = nk::try_sum<value_type_>(av, 1, nk::keep_dims_k); }
     { [[maybe_unused]] auto r = nk::try_moments<value_type_>(av, 1); }
+    { [[maybe_unused]] auto r = nk::try_minmax<value_type_>(av, 0); }
+    { [[maybe_unused]] auto r = nk::try_minmax<value_type_>(av, 1, nk::keep_dims_k); }
     { [[maybe_unused]] auto r = nk::try_min<value_type_>(av, 0); }
     { [[maybe_unused]] auto r = nk::try_min<value_type_>(av, 1, nk::keep_dims_k); }
     { [[maybe_unused]] auto r = nk::try_max<value_type_>(av, 0); }

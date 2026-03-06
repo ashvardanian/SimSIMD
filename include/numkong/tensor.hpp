@@ -720,6 +720,63 @@ bool shapes_match_out_(tensor_view<in_type_, max_rank_> a, tensor_span<out_type_
     return true;
 }
 
+/** @brief Unary elementwise traversal: validates shapes, recurses on rank≥2, calls leaf on rank-1 slices. */
+template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
+bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output,
+                       leaf_fn_ &&leaf) noexcept {
+    if (!shapes_match_out_(input, output)) return false;
+    if (input.empty()) return true;
+    if (input.rank() >= 2) {
+        for (std::size_t i = 0; i < input.extent(0); ++i) {
+            auto idx = static_cast<std::ptrdiff_t>(i);
+            if (!elementwise_into_<value_type_, max_rank_>(input.slice_leading(idx), output.slice_leading(idx), leaf))
+                return false;
+        }
+        return true;
+    }
+    leaf(input, output);
+    return true;
+}
+
+/** @brief Binary elementwise traversal: validates shapes, recurses on rank≥2, calls leaf on rank-1 slices. */
+template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
+bool elementwise_into_(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
+                       tensor_span<value_type_, max_rank_> output, leaf_fn_ &&leaf) noexcept {
+    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
+    if (lhs.empty()) return true;
+    if (lhs.rank() >= 2) {
+        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
+            auto idx = static_cast<std::ptrdiff_t>(i);
+            if (!elementwise_into_<value_type_, max_rank_>(lhs.slice_leading(idx), rhs.slice_leading(idx),
+                                                           output.slice_leading(idx), leaf))
+                return false;
+        }
+        return true;
+    }
+    leaf(lhs, rhs, output);
+    return true;
+}
+
+/** @brief Ternary elementwise traversal: validates shapes, recurses on rank≥2, calls leaf on rank-1 slices. */
+template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
+bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_type_, max_rank_> b,
+                       tensor_view<value_type_, max_rank_> c, tensor_span<value_type_, max_rank_> output,
+                       leaf_fn_ &&leaf) noexcept {
+    if (!shapes_match_(a, b) || !shapes_match_(a, c) || !shapes_match_out_(a, output)) return false;
+    if (a.empty()) return true;
+    if (a.rank() >= 2) {
+        for (std::size_t i = 0; i < a.extent(0); ++i) {
+            auto idx = static_cast<std::ptrdiff_t>(i);
+            if (!elementwise_into_<value_type_, max_rank_>(a.slice_leading(idx), b.slice_leading(idx),
+                                                           c.slice_leading(idx), output.slice_leading(idx), leaf))
+                return false;
+        }
+        return true;
+    }
+    leaf(a, b, c, output);
+    return true;
+}
+
 #pragma endregion - Helpers
 
 #pragma region - Scalar Reductions
@@ -934,40 +991,55 @@ try_moments(tensor_view<value_type_, max_rank_> input, std::size_t axis,
     return {std::move(sums), std::move(sumsqs)};
 }
 
-/** @brief Min along an axis. */
+/** @brief Min and max along an axis. Returns pair of tensors (min_value, max_value); either may be empty on failure. */
 template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<typename value_type_::reduce_minmax_value_t, aligned_allocator<typename value_type_::reduce_minmax_value_t>,
-       max_rank_>
-try_min(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+minmax_result<tensor<typename value_type_::reduce_minmax_value_t,
+                     aligned_allocator<typename value_type_::reduce_minmax_value_t>, max_rank_>>
+try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+           keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
     using out_tensor_t = tensor<minmax_t, aligned_allocator<minmax_t>, max_rank_>;
-    if (input.empty() || axis >= input.rank()) return out_tensor_t {};
+    if (input.empty() || axis >= input.rank()) return {out_tensor_t {}, 0, out_tensor_t {}, 0};
 
     auto out_shape = reduced_shape_(input.shape(), axis, keep_dims, sizeof(minmax_t));
-    auto result = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_max()));
-    if (result.empty()) return result;
+    auto mins = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_max()));
+    auto maxs = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_min()));
+    if (mins.empty() || maxs.empty()) return {out_tensor_t {}, 0, out_tensor_t {}, 0};
 
     if (input.rank() == 2 && axis == 1) {
-        auto output_data = result.data();
+        auto min_data = mins.data();
+        auto max_data = maxs.data();
         for (std::size_t r = 0; r < input.extent(0); ++r) {
             auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            output_data[r] = min<value_type_, max_rank_>(row);
+            auto mm = minmax<value_type_, max_rank_>(row);
+            min_data[r] = mm.min_value;
+            max_data[r] = mm.max_value;
         }
     }
     else if (input.rank() == 2 && axis == 0) {
-        auto output_data = result.data();
+        auto min_data = mins.data();
+        auto max_data = maxs.data();
         for (std::size_t r = 0; r < input.extent(0); ++r) {
             auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
             if (row.is_contiguous()) {
                 auto src = row.data();
                 for (std::size_t c = 0; c < input.extent(1); ++c) {
                     minmax_t v = minmax_t(src[c]);
-                    if (v < output_data[c]) output_data[c] = v;
+                    if (v < min_data[c]) min_data[c] = v;
+                    if (v > max_data[c]) max_data[c] = v;
                 }
             }
         }
     }
-    return result;
+    return {std::move(mins), 0, std::move(maxs), 0};
+}
+
+/** @brief Min along an axis. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<typename value_type_::reduce_minmax_value_t, aligned_allocator<typename value_type_::reduce_minmax_value_t>,
+       max_rank_>
+try_min(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    return try_minmax<value_type_, max_rank_>(input, axis, keep_dims).min_value;
 }
 
 /** @brief Max along an axis. */
@@ -975,242 +1047,10 @@ template <typename value_type_, std::size_t max_rank_ = 8>
 tensor<typename value_type_::reduce_minmax_value_t, aligned_allocator<typename value_type_::reduce_minmax_value_t>,
        max_rank_>
 try_max(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
-    using minmax_t = typename value_type_::reduce_minmax_value_t;
-    using out_tensor_t = tensor<minmax_t, aligned_allocator<minmax_t>, max_rank_>;
-    if (input.empty() || axis >= input.rank()) return out_tensor_t {};
-
-    auto out_shape = reduced_shape_(input.shape(), axis, keep_dims, sizeof(minmax_t));
-    auto result = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_min()));
-    if (result.empty()) return result;
-
-    if (input.rank() == 2 && axis == 1) {
-        auto output_data = result.data();
-        for (std::size_t r = 0; r < input.extent(0); ++r) {
-            auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            output_data[r] = max<value_type_, max_rank_>(row);
-        }
-    }
-    else if (input.rank() == 2 && axis == 0) {
-        auto output_data = result.data();
-        for (std::size_t r = 0; r < input.extent(0); ++r) {
-            auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            if (row.is_contiguous()) {
-                auto src = row.data();
-                for (std::size_t c = 0; c < input.extent(1); ++c) {
-                    minmax_t v = minmax_t(src[c]);
-                    if (v > output_data[c]) output_data[c] = v;
-                }
-            }
-        }
-    }
-    return result;
+    return try_minmax<value_type_, max_rank_>(input, axis, keep_dims).max_value;
 }
 
 #pragma endregion - Axis Reductions
-
-#pragma region - Elementwise Binary
-
-/** @brief Elementwise addition: output[i] = lhs[i] + rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool add_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
-    if (lhs.empty()) return true;
-    if (lhs.rank() >= 2) {
-        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!add_into<value_type_, max_rank_>(lhs.slice_leading(row_index), rhs.slice_leading(row_index),
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::sum<value_type_>(lhs.data(), rhs.data(), lhs.extent(0), output.data());
-    return true;
-}
-
-/** @brief Allocating elementwise add: result = lhs + rhs. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
-    auto &input_shape = lhs.shape();
-    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!add_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
-    return result;
-}
-
-/** @brief Elementwise add scalar: output[i] = input[i] + scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool add_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!add_into<value_type_, max_rank_>(input.slice_leading(row_index), scalar,
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    typename value_type_::scale_t one = 1;
-    numkong::scale<value_type_>(input.data(), input.extent(0), &one, &scalar, output.data());
-    return true;
-}
-
-/** @brief Allocating add scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (input.empty()) return out_tensor_t {};
-    auto &input_shape = input.shape();
-    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!add_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
-    return result;
-}
-
-/** @brief Elementwise subtraction: output[i] = lhs[i] − rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool sub_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
-    if (lhs.empty()) return true;
-    if (lhs.rank() >= 2) {
-        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!sub_into<value_type_, max_rank_>(lhs.slice_leading(row_index), rhs.slice_leading(row_index),
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    typename value_type_::scale_t alpha = 1;
-    typename value_type_::scale_t beta = -1;
-    numkong::blend<value_type_>(lhs.data(), rhs.data(), lhs.extent(0), &alpha, &beta, output.data());
-    return true;
-}
-
-/** @brief Allocating elementwise sub. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
-    auto &input_shape = lhs.shape();
-    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!sub_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
-    return result;
-}
-
-/** @brief Elementwise sub scalar: output[i] = input[i] − scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool sub_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!sub_into<value_type_, max_rank_>(input.slice_leading(row_index), scalar,
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    typename value_type_::scale_t one = 1;
-    typename value_type_::scale_t neg_scalar = -scalar;
-    numkong::scale<value_type_>(input.data(), input.extent(0), &one, &neg_scalar, output.data());
-    return true;
-}
-
-/** @brief Allocating sub scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (input.empty()) return out_tensor_t {};
-    auto &input_shape = input.shape();
-    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!sub_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
-    return result;
-}
-
-/** @brief Elementwise multiplication: output[i] = lhs[i] × rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool mul_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
-    if (lhs.empty()) return true;
-    if (lhs.rank() >= 2) {
-        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!mul_into<value_type_, max_rank_>(lhs.slice_leading(row_index), rhs.slice_leading(row_index),
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    typename value_type_::scale_t alpha = 1;
-    typename value_type_::scale_t beta = 0;
-    numkong::fma<value_type_>(lhs.data(), rhs.data(), lhs.extent(0), output.data(), &alpha, &beta, output.data());
-    return true;
-}
-
-/** @brief Allocating elementwise multiply. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
-    auto &input_shape = lhs.shape();
-    auto result = out_tensor_t::try_zeros(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!mul_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
-    return result;
-}
-
-/** @brief Elementwise multiply by scalar: output[i] = input[i] × scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-bool mul_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
-              tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!mul_into<value_type_, max_rank_>(input.slice_leading(row_index), scalar,
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    typename value_type_::scale_t zero = 0;
-    numkong::scale<value_type_>(input.data(), input.extent(0), &scalar, &zero, output.data());
-    return true;
-}
-
-/** @brief Allocating multiply by scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
-    if (input.empty()) return out_tensor_t {};
-    auto &input_shape = input.shape();
-    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
-    if (result.empty()) return result;
-    if (!mul_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
-    return result;
-}
-
-#pragma endregion - Elementwise Binary
 
 #pragma region - Elementwise Affine
 
@@ -1218,19 +1058,10 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(tensor_vi
 template <typename value_type_, std::size_t max_rank_ = 8>
 bool scale_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t alpha,
                 typename value_type_::scale_t beta, tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!scale_into<value_type_, max_rank_>(input.slice_leading(row_index), alpha, beta,
-                                                    output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::scale<value_type_>(input.data(), input.extent(0), &alpha, &beta, output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        input, output, [&](tensor_view<value_type_, max_rank_> in, tensor_span<value_type_, max_rank_> out) {
+            numkong::scale<value_type_>(in.data(), in.extent(0), &alpha, &beta, out.data());
+        });
 }
 
 /** @brief Allocating scale: result[i] = α × input[i] + β. */
@@ -1252,19 +1083,12 @@ template <typename value_type_, std::size_t max_rank_ = 8>
 bool blend_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
                 typename value_type_::scale_t alpha, typename value_type_::scale_t beta,
                 tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
-    if (lhs.empty()) return true;
-    if (lhs.rank() >= 2) {
-        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!blend_into<value_type_, max_rank_>(lhs.slice_leading(row_index), rhs.slice_leading(row_index), alpha,
-                                                    beta, output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::blend<value_type_>(lhs.data(), rhs.data(), lhs.extent(0), &alpha, &beta, output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        lhs, rhs, output,
+        [&](tensor_view<value_type_, max_rank_> l, tensor_view<value_type_, max_rank_> r,
+            tensor_span<value_type_, max_rank_> out) {
+            numkong::blend<value_type_>(l.data(), r.data(), l.extent(0), &alpha, &beta, out.data());
+        });
 }
 
 /** @brief Allocating blend: result[i] = α × lhs[i] + β × rhs[i]. */
@@ -1287,20 +1111,12 @@ template <typename value_type_, std::size_t max_rank_ = 8>
 bool fma_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
               tensor_view<value_type_, max_rank_> addend, typename value_type_::scale_t alpha,
               typename value_type_::scale_t beta, tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_(lhs, addend) || !shapes_match_out_(lhs, output)) return false;
-    if (lhs.empty()) return true;
-    if (lhs.rank() >= 2) {
-        for (std::size_t i = 0; i < lhs.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!fma_into<value_type_, max_rank_>(lhs.slice_leading(row_index), rhs.slice_leading(row_index),
-                                                  addend.slice_leading(row_index), alpha, beta,
-                                                  output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::fma<value_type_>(lhs.data(), rhs.data(), lhs.extent(0), addend.data(), &alpha, &beta, output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        lhs, rhs, addend, output,
+        [&](tensor_view<value_type_, max_rank_> a, tensor_view<value_type_, max_rank_> b,
+            tensor_view<value_type_, max_rank_> c, tensor_span<value_type_, max_rank_> out) {
+            numkong::fma<value_type_>(a.data(), b.data(), a.extent(0), c.data(), &alpha, &beta, out.data());
+        });
 }
 
 /** @brief Allocating FMA: result[i] = α × lhs[i] × rhs[i] + β × addend[i]. */
@@ -1321,23 +1137,155 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_fma(tensor_vi
 
 #pragma endregion - Elementwise Affine
 
+#pragma region - Elementwise Binary
+
+/** @brief Elementwise addition: output[i] = lhs[i] + rhs[i]. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool add_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    return elementwise_into_<value_type_, max_rank_>(
+        lhs, rhs, output,
+        [](tensor_view<value_type_, max_rank_> l, tensor_view<value_type_, max_rank_> r,
+           tensor_span<value_type_, max_rank_> out) {
+            numkong::sum<value_type_>(l.data(), r.data(), l.extent(0), out.data());
+        });
+}
+
+/** @brief Allocating elementwise add: result = lhs + rhs. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(
+    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
+    auto &input_shape = lhs.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!add_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Elementwise add scalar: output[i] = input[i] + scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool add_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    typename value_type_::scale_t one {1};
+    return scale_into<value_type_, max_rank_>(input, one, scalar, output);
+}
+
+/** @brief Allocating add scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(tensor_view<value_type_, max_rank_> input,
+                                                                       typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (input.empty()) return out_tensor_t {};
+    auto &input_shape = input.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!add_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Elementwise subtraction: output[i] = lhs[i] − rhs[i]. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool sub_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    typename value_type_::scale_t alpha {1}, beta {-1};
+    return blend_into<value_type_, max_rank_>(lhs, rhs, alpha, beta, output);
+}
+
+/** @brief Allocating elementwise sub. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(
+    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
+    auto &input_shape = lhs.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!sub_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Elementwise sub scalar: output[i] = input[i] − scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool sub_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    typename value_type_::scale_t one {1};
+    typename value_type_::scale_t neg_scalar = -scalar;
+    return scale_into<value_type_, max_rank_>(input, one, neg_scalar, output);
+}
+
+/** @brief Allocating sub scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(tensor_view<value_type_, max_rank_> input,
+                                                                       typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (input.empty()) return out_tensor_t {};
+    auto &input_shape = input.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!sub_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Elementwise multiplication: output[i] = lhs[i] × rhs[i]. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool mul_into(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    return elementwise_into_<value_type_, max_rank_>(
+        lhs, rhs, output,
+        [](tensor_view<value_type_, max_rank_> l, tensor_view<value_type_, max_rank_> r,
+           tensor_span<value_type_, max_rank_> out) {
+            typename value_type_::scale_t alpha {1}, beta {0};
+            numkong::fma<value_type_>(l.data(), r.data(), l.extent(0), out.data(), &alpha, &beta, out.data());
+        });
+}
+
+/** @brief Allocating elementwise multiply. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(
+    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
+    auto &input_shape = lhs.shape();
+    auto result = out_tensor_t::try_zeros(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!mul_into<value_type_, max_rank_>(lhs, rhs, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Elementwise multiply by scalar: output[i] = input[i] × scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+bool mul_into(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
+              tensor_span<value_type_, max_rank_> output) noexcept {
+    typename value_type_::scale_t zero {0};
+    return scale_into<value_type_, max_rank_>(input, scalar, zero, output);
+}
+
+/** @brief Allocating multiply by scalar. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(tensor_view<value_type_, max_rank_> input,
+                                                                       typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    if (input.empty()) return out_tensor_t {};
+    auto &input_shape = input.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!mul_into<value_type_, max_rank_>(input, scalar, result.span())) return out_tensor_t {};
+    return result;
+}
+
+#pragma endregion - Elementwise Binary
+
 #pragma region - Trigonometric
 
 /** @brief Elementwise sin into pre-allocated output. */
 template <typename value_type_, std::size_t max_rank_ = 8>
 bool sin_into(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!sin_into<value_type_, max_rank_>(input.slice_leading(row_index), output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::sin<value_type_>(input.data(), input.extent(0), output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        input, output, [](tensor_view<value_type_, max_rank_> in, tensor_span<value_type_, max_rank_> out) {
+            numkong::sin<value_type_>(in.data(), in.extent(0), out.data());
+        });
 }
 
 /** @brief Allocating sin. */
@@ -1356,18 +1304,10 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sin(
 /** @brief Elementwise cos into pre-allocated output. */
 template <typename value_type_, std::size_t max_rank_ = 8>
 bool cos_into(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!cos_into<value_type_, max_rank_>(input.slice_leading(row_index), output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::cos<value_type_>(input.data(), input.extent(0), output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        input, output, [](tensor_view<value_type_, max_rank_> in, tensor_span<value_type_, max_rank_> out) {
+            numkong::cos<value_type_>(in.data(), in.extent(0), out.data());
+        });
 }
 
 /** @brief Allocating cos. */
@@ -1386,18 +1326,10 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_cos(
 /** @brief Elementwise atan into pre-allocated output. */
 template <typename value_type_, std::size_t max_rank_ = 8>
 bool atan_into(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
-    if (input.empty()) return true;
-    if (input.rank() >= 2) {
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto row_index = static_cast<std::ptrdiff_t>(i);
-            if (!atan_into<value_type_, max_rank_>(input.slice_leading(row_index), output.slice_leading(row_index)))
-                return false;
-        }
-        return true;
-    }
-    numkong::atan<value_type_>(input.data(), input.extent(0), output.data());
-    return true;
+    return elementwise_into_<value_type_, max_rank_>(
+        input, output, [](tensor_view<value_type_, max_rank_> in, tensor_span<value_type_, max_rank_> out) {
+            numkong::atan<value_type_>(in.data(), in.extent(0), out.data());
+        });
 }
 
 /** @brief Allocating atan. */
