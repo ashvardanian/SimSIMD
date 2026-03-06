@@ -1939,6 +1939,33 @@ impl NumberLike for u1x8 {
 
 // region: Complex Types
 
+#[inline(always)]
+fn complex_mul_components<T>(lhs_re: T, lhs_im: T, rhs_re: T, rhs_im: T) -> (T, T)
+where
+    T: Copy + core::ops::Add<Output = T> + core::ops::Sub<Output = T> + core::ops::Mul<Output = T>,
+{
+    (
+        lhs_re * rhs_re - lhs_im * rhs_im,
+        lhs_re * rhs_im + lhs_im * rhs_re,
+    )
+}
+
+/// Half-precision complex number (real + imaginary `f16` pair).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Complex16 {
+    pub re: f16,
+    pub im: f16,
+}
+
+/// Brain-float complex number (real + imaginary `bf16` pair).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ComplexBF16 {
+    pub re: bf16,
+    pub im: bf16,
+}
+
 /// Single-precision complex number (real + imaginary f32 pair).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -1955,6 +1982,333 @@ pub struct Complex64 {
     pub im: f64,
 }
 
+impl From<f32> for Complex16 {
+    fn from(value: f32) -> Self {
+        Self {
+            re: f16::from_f32(value),
+            im: f16::ZERO,
+        }
+    }
+}
+
+impl From<f32> for ComplexBF16 {
+    fn from(value: f32) -> Self {
+        Self {
+            re: bf16::from_f32(value),
+            im: bf16::ZERO,
+        }
+    }
+}
+
+impl From<f32> for Complex32 {
+    fn from(value: f32) -> Self {
+        Self { re: value, im: 0.0 }
+    }
+}
+
+impl From<f32> for Complex64 {
+    fn from(value: f32) -> Self {
+        Self {
+            re: value as f64,
+            im: 0.0,
+        }
+    }
+}
+
+impl core::ops::Add for Complex16 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
+    }
+}
+
+impl core::ops::Sub for Complex16 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
+}
+
+impl core::ops::Mul for Complex16 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (re, im) = complex_mul_components(self.re, self.im, rhs.re, rhs.im);
+        Self { re, im }
+    }
+}
+
+impl core::ops::Neg for Complex16 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
+    }
+}
+
+impl core::ops::Add for ComplexBF16 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
+    }
+}
+
+impl core::ops::Sub for ComplexBF16 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
+}
+
+impl core::ops::Mul for ComplexBF16 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (re, im) = complex_mul_components(self.re, self.im, rhs.re, rhs.im);
+        Self { re, im }
+    }
+}
+
+impl core::ops::Neg for ComplexBF16 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
+    }
+}
+
+impl core::ops::Add for Complex32 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
+    }
+}
+
+impl core::ops::Sub for Complex32 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
+}
+
+impl core::ops::Mul for Complex32 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (re, im) = complex_mul_components(self.re, self.im, rhs.re, rhs.im);
+        Self { re, im }
+    }
+}
+
+impl core::ops::Neg for Complex32 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
+    }
+}
+
+impl core::ops::Add for Complex64 {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
+    }
+}
+
+impl core::ops::Sub for Complex64 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
+}
+
+impl core::ops::Mul for Complex64 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        let (re, im) = complex_mul_components(self.re, self.im, rhs.re, rhs.im);
+        Self { re, im }
+    }
+}
+
+impl core::ops::Neg for Complex64 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
+    }
+}
+
+impl StorageElement for Complex16 {
+    fn zero() -> Self {
+        Complex16 {
+            re: f16::ZERO,
+            im: f16::ZERO,
+        }
+    }
+    fn one() -> Self {
+        Complex16 {
+            re: f16::ONE,
+            im: f16::ZERO,
+        }
+    }
+}
+
+impl NumberLike for Complex16 {
+    fn from_f32(v: f32) -> Self {
+        Self::from(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.re.to_f32()
+    }
+    fn from_f64(v: f64) -> Self {
+        Self {
+            re: f16::from_f32(v as f32),
+            im: f16::ZERO,
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self.re.to_f32() as f64
+    }
+    fn abs(self) -> Self {
+        let mag_sq = self.re.to_f32() * self.re.to_f32() + self.im.to_f32() * self.im.to_f32();
+        Self {
+            re: f16::from_f32(f32_abs_compat(mag_sq)),
+            im: f16::ZERO,
+        }
+    }
+    fn is_nan(self) -> bool {
+        self.re.is_nan() || self.im.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.re.is_finite() && self.im.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.re.is_infinite() || self.im.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+}
+
+impl FloatConvertible for Complex16 {
+    type DimScalar = Complex16;
+    type Unpacked = [Complex16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [Complex16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [Complex16; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl StorageElement for ComplexBF16 {
+    fn zero() -> Self {
+        ComplexBF16 {
+            re: bf16::ZERO,
+            im: bf16::ZERO,
+        }
+    }
+    fn one() -> Self {
+        ComplexBF16 {
+            re: bf16::ONE,
+            im: bf16::ZERO,
+        }
+    }
+}
+
+impl NumberLike for ComplexBF16 {
+    fn from_f32(v: f32) -> Self {
+        Self::from(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.re.to_f32()
+    }
+    fn from_f64(v: f64) -> Self {
+        Self {
+            re: bf16::from_f32(v as f32),
+            im: bf16::ZERO,
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self.re.to_f32() as f64
+    }
+    fn abs(self) -> Self {
+        let mag_sq = self.re.to_f32() * self.re.to_f32() + self.im.to_f32() * self.im.to_f32();
+        Self {
+            re: bf16::from_f32(f32_abs_compat(mag_sq)),
+            im: bf16::ZERO,
+        }
+    }
+    fn is_nan(self) -> bool {
+        self.re.is_nan() || self.im.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.re.is_finite() && self.im.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.re.is_infinite() || self.im.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+}
+
+impl FloatConvertible for ComplexBF16 {
+    type DimScalar = ComplexBF16;
+    type Unpacked = [ComplexBF16; 1];
+    #[inline(always)]
+    fn unpack(self) -> [ComplexBF16; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [ComplexBF16; 1]) -> Self {
+        dims[0]
+    }
+}
+
 impl StorageElement for Complex32 {
     fn zero() -> Self {
         Complex32 { re: 0.0, im: 0.0 }
@@ -1966,7 +2320,7 @@ impl StorageElement for Complex32 {
 
 impl NumberLike for Complex32 {
     fn from_f32(v: f32) -> Self {
-        Complex32 { re: v, im: 0.0 }
+        Self::from(v)
     }
     fn to_f32(self) -> f32 {
         self.re
@@ -2032,10 +2386,7 @@ impl StorageElement for Complex64 {
 
 impl NumberLike for Complex64 {
     fn from_f32(v: f32) -> Self {
-        Complex64 {
-            re: v as f64,
-            im: 0.0,
-        }
+        Self::from(v)
     }
     fn to_f32(self) -> f32 {
         self.re as f32

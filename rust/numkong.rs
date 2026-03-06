@@ -88,7 +88,7 @@
 //! - `cos(input, result)`: Element-wise cosine.
 //! - `atan(input, result)`: Element-wise arctangent.
 //!
-//! Additional traits: `ComplexDot`, `ComplexVDot`, `SparseIntersect`, `SparseDot`.
+//! Additional traits: `VDot`, `Roots`, `SparseIntersect`, `SparseDot`.
 //!
 #![allow(non_camel_case_types)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
@@ -102,8 +102,8 @@ pub mod vector;
 
 // Re-export scalar types at crate root
 pub use scalar::{
-    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, Complex32, Complex64, FloatConvertible,
-    FloatLike, NumberLike, StorageElement,
+    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, Complex16, Complex32, Complex64,
+    ComplexBF16, FloatConvertible, FloatLike, NumberLike, StorageElement,
 };
 
 // Re-export complex product types
@@ -111,12 +111,11 @@ pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
-    Angular, Bilinear, BinarySimilarity, ComplexBilinear, ComplexDot, ComplexEachBlend,
-    ComplexEachFMA, ComplexEachScale, ComplexEachSum, ComplexProducts, ComplexVDot, Dot, EachATan,
-    EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Euclidean, Hamming, Haversine,
-    Jaccard, JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment, MeshAlignmentResult,
-    ProbabilitySimilarity, ReduceMinMax, ReduceMoments, Reductions, SparseDot, SparseIntersect,
-    SpatialSimilarity, Trigonometry, Vincenty,
+    Angular, Bilinear, BinarySimilarity, Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale,
+    EachSin, EachSum, Euclidean, Hamming, Haversine, Jaccard, JensenShannon, KullbackLeibler,
+    Mahalanobis, MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax,
+    ReduceMoments, Reductions, Roots, SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry,
+    VDot, Vincenty,
 };
 
 // Re-export cast operations
