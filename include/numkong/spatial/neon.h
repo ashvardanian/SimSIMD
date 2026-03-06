@@ -567,17 +567,13 @@ NK_PUBLIC void nk_angular_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
 }
 
 /** @brief Angular from_dot: computes 1 − dot × rsqrt(query_sumsq × target_sumsq) for 4 pairs in f64. */
-NK_INTERNAL void nk_angular_through_f64_from_dot_neon_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
-                                                       nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    float32x4_t dots_f32x4 = dots.f32x4;
-    // Build F64 vectors for parallel processing (2x float64x2_t for precision)
-    float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
-    float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
-
-    float64x2_t query_sumsq_f64x2 = vdupq_n_f64((nk_f64_t)query_sumsq);
-
-    float64x2_t target_sumsqs_ab_f64x2 = vcvt_f64_f32(vget_low_f32(target_sumsqs.f32x4));
-    float64x2_t target_sumsqs_cd_f64x2 = vcvt_f64_f32(vget_high_f32(target_sumsqs.f32x4));
+NK_INTERNAL void nk_angular_through_f64_from_dot_neon_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                       nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    float64x2_t dots_ab_f64x2 = dots.f64x2s[0];
+    float64x2_t dots_cd_f64x2 = dots.f64x2s[1];
+    float64x2_t query_sumsq_f64x2 = vdupq_n_f64(query_sumsq);
+    float64x2_t target_sumsqs_ab_f64x2 = target_sumsqs.f64x2s[0];
+    float64x2_t target_sumsqs_cd_f64x2 = target_sumsqs.f64x2s[1];
 
     // products = query_sumsq * target_sumsq
     float64x2_t products_ab_f64x2 = vmulq_f64(query_sumsq_f64x2, target_sumsqs_ab_f64x2);
@@ -624,24 +620,18 @@ NK_INTERNAL void nk_angular_through_f64_from_dot_neon_(nk_b128_vec_t dots, nk_f3
     result_ab_f64x2 = vbslq_f64(prod_zero_dot_nonzero_ab_u64x2, ones_f64x2, result_ab_f64x2);
     result_cd_f64x2 = vbslq_f64(prod_zero_dot_nonzero_cd_u64x2, ones_f64x2, result_cd_f64x2);
 
-    // Convert to F32 and store
-    float32x2_t result_ab_f32x2 = vcvt_f32_f64(result_ab_f64x2);
-    float32x2_t result_cd_f32x2 = vcvt_f32_f64(result_cd_f64x2);
-    results->f32x4 = vcombine_f32(result_ab_f32x2, result_cd_f32x2);
+    results->f64x2s[0] = result_ab_f64x2;
+    results->f64x2s[1] = result_cd_f64x2;
 }
 
 /** @brief Euclidean from_dot: computes √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs in f64. */
-NK_INTERNAL void nk_euclidean_through_f64_from_dot_neon_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
-                                                         nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    float32x4_t dots_f32x4 = dots.f32x4;
-    // Build F64 vectors
-    float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
-    float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
-
-    float64x2_t query_sumsq_f64x2 = vdupq_n_f64((nk_f64_t)query_sumsq);
-
-    float64x2_t target_sumsqs_ab_f64x2 = vcvt_f64_f32(vget_low_f32(target_sumsqs.f32x4));
-    float64x2_t target_sumsqs_cd_f64x2 = vcvt_f64_f32(vget_high_f32(target_sumsqs.f32x4));
+NK_INTERNAL void nk_euclidean_through_f64_from_dot_neon_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                         nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    float64x2_t dots_ab_f64x2 = dots.f64x2s[0];
+    float64x2_t dots_cd_f64x2 = dots.f64x2s[1];
+    float64x2_t query_sumsq_f64x2 = vdupq_n_f64(query_sumsq);
+    float64x2_t target_sumsqs_ab_f64x2 = target_sumsqs.f64x2s[0];
+    float64x2_t target_sumsqs_cd_f64x2 = target_sumsqs.f64x2s[1];
 
     // dist_sq = query_sumsq + target_sumsq − 2 × dot
     float64x2_t neg_two_f64x2 = vdupq_n_f64(-2.0);
@@ -657,10 +647,8 @@ NK_INTERNAL void nk_euclidean_through_f64_from_dot_neon_(nk_b128_vec_t dots, nk_
     float64x2_t dist_ab_f64x2 = vsqrtq_f64(dist_sq_ab_f64x2);
     float64x2_t dist_cd_f64x2 = vsqrtq_f64(dist_sq_cd_f64x2);
 
-    // Convert to F32 and store
-    float32x2_t dist_ab_f32x2 = vcvt_f32_f64(dist_ab_f64x2);
-    float32x2_t dist_cd_f32x2 = vcvt_f32_f64(dist_cd_f64x2);
-    results->f32x4 = vcombine_f32(dist_ab_f32x2, dist_cd_f32x2);
+    results->f64x2s[0] = dist_ab_f64x2;
+    results->f64x2s[1] = dist_cd_f64x2;
 }
 
 /** @brief Angular from_dot: computes 1 − dot × rsqrt(query_sumsq × target_sumsq) for 4 pairs in f32. */
