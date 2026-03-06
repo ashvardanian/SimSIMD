@@ -800,7 +800,11 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
     }
 
     // Hub 4: f64x8 - f64 conversions (8 elements/batch)
-    if (from_f64 || to_f64) {
+    // Only enter when both sides are types we can actually handle: f64, f32, i32, u32.
+    // Unsupported pairs (e.g. i8→f64, f16→f64) fall through to serial fallback.
+    if ((from_f64 || to_f64) &&                                                                               //
+        (from_type == nk_f64_k || from_type == nk_f32_k || from_type == nk_i32_k || from_type == nk_u32_k) && //
+        (to_type == nk_f64_k || to_type == nk_f32_k || to_type == nk_i32_k || to_type == nk_u32_k)) {
         nk_size_t from_step = sizeof(nk_b512_vec_t) / sizeof(nk_f64_t) * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
         nk_size_t to_step = sizeof(nk_b512_vec_t) / sizeof(nk_f64_t) * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
         while (n > 0) {

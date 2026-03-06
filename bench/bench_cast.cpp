@@ -86,6 +86,15 @@ void bench_cast() {
     run_cast<nk_f16_k, nk_f32_k>("cast_f16_to_f32_sapphire", nk_cast_sapphire);
 #endif
 
+#if NK_TARGET_SKYLAKE
+    run_cast<nk_f64_k, nk_f32_k>("cast_f64_to_f32_skylake", nk_cast_skylake);
+    run_cast<nk_f32_k, nk_f64_k>("cast_f32_to_f64_skylake", nk_cast_skylake);
+    run_cast<nk_i32_k, nk_f64_k>("cast_i32_to_f64_skylake", nk_cast_skylake);
+    run_cast<nk_f64_k, nk_i32_k>("cast_f64_to_i32_skylake", nk_cast_skylake);
+    run_cast<nk_i8_k, nk_i32_k>("cast_i8_to_i32_skylake", nk_cast_skylake);
+    run_cast<nk_i32_k, nk_i8_k>("cast_i32_to_i8_skylake", nk_cast_skylake);
+#endif
+
     // Serial fallbacks
     run_cast<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
     run_cast<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);
@@ -97,4 +106,11 @@ void bench_cast() {
     run_cast<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_serial", nk_cast_serial);
     run_cast<nk_f64_k, nk_f32_k>("cast_f64_to_f32_serial", nk_cast_serial);
     run_cast<nk_f32_k, nk_f64_k>("cast_f32_to_f64_serial", nk_cast_serial);
+    run_cast<nk_i8_k, nk_i32_k>("cast_i8_to_i32_serial", nk_cast_serial);
+    run_cast<nk_i32_k, nk_i8_k>("cast_i32_to_i8_serial", nk_cast_serial);
+    run_cast<nk_i16_k, nk_i64_k>("cast_i16_to_i64_serial", nk_cast_serial);
+    run_cast<nk_i32_k, nk_f64_k>("cast_i32_to_f64_serial", nk_cast_serial);
+    run_cast<nk_f64_k, nk_i32_k>("cast_f64_to_i32_serial", nk_cast_serial);
+    run_cast<nk_i8_k, nk_f64_k>("cast_i8_to_f64_serial", nk_cast_serial);
+    run_cast<nk_u8_k, nk_f32_k>("cast_u8_to_f32_serial", nk_cast_serial);
 }
