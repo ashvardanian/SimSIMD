@@ -38,9 +38,8 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 
-#include "numkong/types.h"
-#include "numkong/dot/serial.h"  // `nk_u1x8_popcount_`
-#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
+#include "numkong/types.h"     // `nk_f32_t`
+#include "numkong/dot/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
 extern "C" {

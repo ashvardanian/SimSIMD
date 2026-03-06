@@ -292,7 +292,7 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
                     vectors.as_ptr(),
                     n,
                     k,
-                    vectors.stride(0) as usize,
+                    vectors.stride_bytes(0) as usize,
                     data.as_ptr(),
                 );
             }

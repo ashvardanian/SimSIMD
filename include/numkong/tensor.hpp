@@ -15,7 +15,7 @@
  *  - Signed strides (ptrdiff_t) for reversed/transposed views
  *  - Signed indexing (negative = from end)
  *  - C++23 variadic `operator[]` for multi-dimensional access
- *  - Axis iteration (rows(), axis_iter)
+ *  - Axis iteration (rows_views(), rows_spans(), axis_iterator)
  *  - Conversion to vector_view/vector_span for rank-1 tensors
  */
 
@@ -103,7 +103,7 @@ struct tensor_view {
     constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
 
     /** @brief Stride in bytes along the i-th dimension (signed). */
-    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
+    constexpr difference_type stride_bytes(size_type i) const noexcept { return shape_.strides[i]; }
 
     /** @brief Total number of elements. */
     constexpr size_type numel() const noexcept { return shape_.numel(); }
@@ -147,6 +147,25 @@ struct tensor_view {
         }
         return true;
     }
+
+    /** @brief Transpose the first two dimensions (swap extents and strides). Requires rank >= 2. */
+    constexpr tensor_view transpose() const noexcept {
+        if (shape_.rank < 2) return *this;
+        auto transposed = shape_;
+        std::swap(transposed.extents[0], transposed.extents[1]);
+        std::swap(transposed.strides[0], transposed.strides[1]);
+        return {data_, transposed};
+    }
+
+    /** @brief Reshape to new extents (requires contiguous layout and matching element count).
+     *  Returns an empty view if the tensor is not contiguous or element counts don't match. */
+    tensor_view reshape(std::initializer_list<size_type> new_extents) const noexcept {
+        auto new_rank = new_extents.size();
+        if (!is_contiguous() || new_rank > max_rank_ || new_rank == 0) return {};
+        auto new_shape = shape_storage_<max_rank_>::contiguous(new_extents.begin(), new_rank, sizeof(value_type));
+        if (new_shape.numel() != shape_.numel()) return {};
+        return {data_, new_shape};
+    }
 };
 
 #pragma endregion - Tensor View
@@ -178,7 +197,7 @@ struct tensor_span {
     /** @brief Extent along the i-th dimension. */
     constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
     /** @brief Stride in bytes along the i-th dimension (signed). */
-    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
+    constexpr difference_type stride_bytes(size_type i) const noexcept { return shape_.strides[i]; }
     /** @brief Total number of elements. */
     constexpr size_type numel() const noexcept { return shape_.numel(); }
     /** @brief True if empty. */
@@ -199,7 +218,7 @@ struct tensor_span {
     }
 
     /** @brief Slice along leading dimension. */
-    tensor_span slice_leading(difference_type idx) noexcept {
+    tensor_span slice_leading(difference_type idx) const noexcept {
         auto i = resolve_index_(idx, shape_.extents[0]);
         auto offset = static_cast<difference_type>(i) * shape_.strides[0];
         shape_storage_<max_rank_> sub;
@@ -229,11 +248,30 @@ struct tensor_span {
         }
         return true;
     }
+
+    /** @brief Transpose the first two dimensions. Requires rank >= 2. */
+    constexpr tensor_span transpose() noexcept {
+        if (shape_.rank < 2) return *this;
+        auto transposed = shape_;
+        std::swap(transposed.extents[0], transposed.extents[1]);
+        std::swap(transposed.strides[0], transposed.strides[1]);
+        return {data_, transposed};
+    }
+
+    /** @brief Reshape to new extents (requires contiguous layout and matching element count).
+     *  Returns an empty span if not contiguous or element counts don't match. */
+    tensor_span reshape(std::initializer_list<size_type> new_extents) noexcept {
+        auto new_rank = new_extents.size();
+        if (!is_contiguous() || new_rank > max_rank_ || new_rank == 0) return {};
+        auto new_shape = shape_storage_<max_rank_>::contiguous(new_extents.begin(), new_rank, sizeof(value_type));
+        if (new_shape.numel() != shape_.numel()) return {};
+        return {data_, new_shape};
+    }
 };
 
 #pragma endregion - Tensor Span
 
-#pragma region - Outer Iterator
+#pragma region - Axis Iterator
 
 /**
  *  @brief Random-access iterator over slices along the leading dimension.
@@ -243,7 +281,7 @@ struct tensor_span {
  *  Dereference calls `parent_.slice_leading(index_)` to produce each sub-view.
  */
 template <typename view_type_>
-class outer_iterator_ {
+class axis_iterator {
     using value_type = typename view_type_::value_type;
     using difference_type = std::ptrdiff_t;
 
@@ -255,52 +293,52 @@ class outer_iterator_ {
   public:
     using iterator_category = std::random_access_iterator_tag;
 
-    constexpr outer_iterator_() noexcept = default;
+    constexpr axis_iterator() noexcept = default;
 
-    constexpr outer_iterator_(view_type_ const &parent, std::size_t index) noexcept
-        : data_(parent.byte_data()), stride_(parent.stride(0)), index_(index), parent_(parent) {}
+    constexpr axis_iterator(view_type_ const &parent, std::size_t index) noexcept
+        : data_(parent.byte_data()), stride_(parent.stride_bytes(0)), index_(index), parent_(parent) {}
 
     constexpr auto operator*() const noexcept { return parent_.slice_leading(static_cast<difference_type>(index_)); }
 
-    constexpr outer_iterator_ &operator++() noexcept {
+    constexpr axis_iterator &operator++() noexcept {
         ++index_;
         return *this;
     }
-    constexpr outer_iterator_ operator++(int) noexcept {
+    constexpr axis_iterator operator++(int) noexcept {
         auto tmp = *this;
         ++index_;
         return tmp;
     }
-    constexpr outer_iterator_ &operator--() noexcept {
+    constexpr axis_iterator &operator--() noexcept {
         --index_;
         return *this;
     }
-    constexpr outer_iterator_ operator--(int) noexcept {
+    constexpr axis_iterator operator--(int) noexcept {
         auto tmp = *this;
         --index_;
         return tmp;
     }
 
-    constexpr outer_iterator_ operator+(difference_type n) const noexcept {
+    constexpr axis_iterator operator+(difference_type n) const noexcept {
         auto copy = *this;
         copy.index_ += n;
         return copy;
     }
-    constexpr outer_iterator_ operator-(difference_type n) const noexcept {
+    constexpr axis_iterator operator-(difference_type n) const noexcept {
         auto copy = *this;
         copy.index_ -= n;
         return copy;
     }
-    constexpr difference_type operator-(outer_iterator_ const &other) const noexcept {
+    constexpr difference_type operator-(axis_iterator const &other) const noexcept {
         return static_cast<difference_type>(index_) - static_cast<difference_type>(other.index_);
     }
 
-    constexpr bool operator==(outer_iterator_ const &other) const noexcept { return index_ == other.index_; }
-    constexpr bool operator!=(outer_iterator_ const &other) const noexcept { return index_ != other.index_; }
-    constexpr bool operator<(outer_iterator_ const &other) const noexcept { return index_ < other.index_; }
+    constexpr bool operator==(axis_iterator const &other) const noexcept { return index_ == other.index_; }
+    constexpr bool operator!=(axis_iterator const &other) const noexcept { return index_ != other.index_; }
+    constexpr bool operator<(axis_iterator const &other) const noexcept { return index_ < other.index_; }
 };
 
-#pragma endregion - Outer Iterator
+#pragma endregion - Axis Iterator
 
 #pragma region - Tensor
 
@@ -310,7 +348,7 @@ class outer_iterator_ {
  *  @tparam allocator_type_ Allocator.
  *  @tparam max_rank_ Maximum number of dimensions.
  *
- *  Fixed-size at construction. Use `try_with_extents()` factory for non-throwing construction.
+ *  Fixed-size at construction. Use `try_zeros()` factory for non-throwing construction.
  */
 template <typename value_type_, typename allocator_type_ = aligned_allocator<value_type_>, std::size_t max_rank_ = 8>
 struct tensor {
@@ -357,21 +395,76 @@ struct tensor {
 
     /**
      *  @brief Factory: allocate a zero-initialized tensor with the given extents.
-     *  @param extents Pointer to array of extents (one per dimension).
-     *  @param rank Number of dimensions.
+     *  @param extents Extents (one per dimension), e.g. `{3, 4}`.
      *  @param alloc Allocator instance.
      *  @return Non-empty tensor on success, empty on failure.
      */
-    [[nodiscard]] static tensor try_with_extents(size_type const *extents, size_type rank,
-                                                 allocator_type_ alloc = {}) noexcept {
+    [[nodiscard]] static tensor try_zeros(std::initializer_list<size_type> extents,
+                                          allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
+        auto rank = extents.size();
         if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents, rank, sizeof(value_type));
+        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
         auto n = t.shape_.numel();
         if (n == 0) return t;
         pointer ptr = alloc_traits::allocate(t.alloc_, n);
         if (!ptr) return t;
-        std::memset(ptr, 0, n * sizeof(value_type));
+        if constexpr (is_memset_zero_safe_v<value_type_>) std::memset(ptr, 0, n * sizeof(value_type_));
+        else
+            for (size_type i = 0; i < n; ++i) ptr[i] = value_type_ {};
+        t.data_ = ptr;
+        return t;
+    }
+
+    /**
+     *  @brief Factory: allocate a tensor filled with ones.
+     *  @param extents Extents (one per dimension), e.g. `{3, 4}`.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on failure.
+     */
+    [[nodiscard]] static tensor try_ones(std::initializer_list<size_type> extents,
+                                         allocator_type_ alloc = {}) noexcept {
+        return try_full(extents, value_type_ {1}, alloc);
+    }
+
+    /**
+     *  @brief Factory: allocate a tensor filled with a given value.
+     *  @param extents Extents (one per dimension), e.g. `{3, 4}`.
+     *  @param val Fill value.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on failure.
+     */
+    [[nodiscard]] static tensor try_full(std::initializer_list<size_type> extents, value_type_ val,
+                                         allocator_type_ alloc = {}) noexcept {
+        tensor t(alloc);
+        auto rank = extents.size();
+        if (rank > max_rank_ || rank == 0) return t;
+        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
+        auto n = t.shape_.numel();
+        if (n == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (!ptr) return t;
+        for (size_type i = 0; i < n; ++i) ptr[i] = val;
+        t.data_ = ptr;
+        return t;
+    }
+
+    /**
+     *  @brief Factory: allocate an uninitialized tensor.
+     *  @param extents Extents (one per dimension), e.g. `{3, 4}`.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on failure.
+     */
+    [[nodiscard]] static tensor try_empty(std::initializer_list<size_type> extents,
+                                          allocator_type_ alloc = {}) noexcept {
+        tensor t(alloc);
+        auto rank = extents.size();
+        if (rank > max_rank_ || rank == 0) return t;
+        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
+        auto n = t.shape_.numel();
+        if (n == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (!ptr) return t;
         t.data_ = ptr;
         return t;
     }
@@ -394,7 +487,7 @@ struct tensor {
     constexpr size_type extent(size_type i) const noexcept { return shape_.extents[i]; }
 
     /** @brief Stride in bytes along dimension i (signed). */
-    constexpr difference_type stride(size_type i) const noexcept { return shape_.strides[i]; }
+    constexpr difference_type stride_bytes(size_type i) const noexcept { return shape_.strides[i]; }
 
     /** @brief Total number of elements. */
     constexpr size_type numel() const noexcept { return shape_.numel(); }
@@ -418,25 +511,25 @@ struct tensor {
     /** @brief Create a mutable span. */
     span_type span() noexcept { return {reinterpret_cast<char *>(data_), shape_}; }
 
-    /** @brief Iterate rows (slices along leading dimension). */
-    auto rows() const noexcept {
-        struct range_t {
-            view_type parent;
-            auto begin() const noexcept { return outer_iterator_<view_type>(parent, 0); }
-            auto end() const noexcept { return outer_iterator_<view_type>(parent, parent.extent(0)); }
-        };
-        return range_t {view()};
-    }
+    /** @brief Range of immutable row views (slices along leading dimension). */
+    struct rows_views_t {
+        view_type parent;
+        auto begin() const noexcept { return axis_iterator<view_type>(parent, 0); }
+        auto end() const noexcept { return axis_iterator<view_type>(parent, parent.extent(0)); }
+    };
 
-    /** @brief Mutable row iteration. */
-    auto rows_mut() noexcept {
-        struct range_t {
-            span_type parent;
-            auto begin() noexcept { return outer_iterator_<span_type>(parent, 0); }
-            auto end() noexcept { return outer_iterator_<span_type>(parent, parent.extent(0)); }
-        };
-        return range_t {span()};
-    }
+    /** @brief Range of mutable row spans (slices along leading dimension). */
+    struct rows_spans_t {
+        span_type parent;
+        auto begin() noexcept { return axis_iterator<span_type>(parent, 0); }
+        auto end() noexcept { return axis_iterator<span_type>(parent, parent.extent(0)); }
+    };
+
+    /** @brief Iterate rows as immutable views. */
+    rows_views_t rows_views() const noexcept { return {view()}; }
+
+    /** @brief Iterate rows as mutable spans. */
+    rows_spans_t rows_spans() noexcept { return {span()}; }
 };
 
 /** @brief Non-member swap. */

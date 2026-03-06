@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Test cross-distance operations: batch, dots_symmetric, dots_packed.
+"""Test cross-distance operations: batch, symmetric, and packed APIs.
 
 Covers batch operations for float and complex dtypes.
 Symmetric and packed dot products tested for all numeric dtypes
@@ -328,3 +328,98 @@ def test_hammings_pack_and_packed(capability):
             expected[i, j] = np.logical_xor(a_bits[i], b_bits[j]).sum()
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.parametrize("metric", ["angular", "euclidean"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_spatials_pack_and_packed(metric, capability):
+    """Test dots_pack + angulars/euclideans_packed against SciPy cdist."""
+    num_rows_a, num_rows_b, depth = 8, 16, 64
+    a = np.random.randn(num_rows_a, depth).astype(np.float32)
+    b = np.random.randn(num_rows_b, depth).astype(np.float32)
+
+    keep_one_capability(capability)
+    b_packed = nk.dots_pack(b, dtype="float32")
+    if metric == "angular":
+        result = np.asarray(nk.angulars_packed(a, b_packed))
+        expected = spd.cdist(a, b, "cosine")
+    else:
+        result = np.asarray(nk.euclideans_packed(a, b_packed))
+        expected = spd.cdist(a, b, "euclidean")
+
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.parametrize("metric", ["angular", "euclidean"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_spatials_symmetric(metric, capability):
+    """Test angulars/euclideans_symmetric against SciPy cdist (upper triangle)."""
+    num_rows, depth = 16, 64
+    vectors = np.random.randn(num_rows, depth).astype(np.float32)
+
+    keep_one_capability(capability)
+    if metric == "angular":
+        result = np.asarray(nk.angulars_symmetric(vectors, dtype="float32"))
+        expected = spd.cdist(vectors, vectors, "cosine")
+    else:
+        result = np.asarray(nk.euclideans_symmetric(vectors, dtype="float32"))
+        expected = spd.cdist(vectors, vectors, "euclidean")
+
+    mask = np.triu(np.ones((num_rows, num_rows), dtype=bool))
+    np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_jaccards_pack_and_packed(capability):
+    """Test hammings_pack + jaccards_packed against SciPy cdist."""
+    num_rows_a, num_rows_b, bit_depth = 8, 16, 128
+    a_bits = np.random.randint(2, size=(num_rows_a, bit_depth)).astype(np.uint8)
+    b_bits = np.random.randint(2, size=(num_rows_b, bit_depth)).astype(np.uint8)
+    a_packed = np.packbits(a_bits, axis=1)
+    b_packed_raw = np.packbits(b_bits, axis=1)
+
+    keep_one_capability(capability)
+    b_packed = nk.hammings_pack(b_packed_raw, dtype="uint1")
+    result = np.asarray(nk.jaccards_packed(a_packed, b_packed))
+    expected = spd.cdist(a_bits, b_bits, "jaccard")
+
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_jaccards_symmetric(capability):
+    """Test jaccards_symmetric against SciPy cdist (upper triangle)."""
+    num_rows, bit_depth = 16, 128
+    bits = np.random.randint(2, size=(num_rows, bit_depth)).astype(np.uint8)
+    packed = np.packbits(bits, axis=1)
+
+    keep_one_capability(capability)
+    result = np.asarray(nk.jaccards_symmetric(packed, dtype="uint1"))
+    expected = spd.cdist(bits, bits, "jaccard")
+
+    mask = np.triu(np.ones((num_rows, num_rows), dtype=bool))
+    np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_packed_kind_validation():
+    """New packed APIs should enforce the expected packer family."""
+    a_float = np.random.randn(4, 8).astype(np.float32)
+    b_float = np.random.randn(5, 8).astype(np.float32)
+    dots_packed = nk.dots_pack(b_float, dtype="float32")
+
+    bits = np.random.randint(2, size=(5, 64)).astype(np.uint8)
+    hamming_packed = nk.hammings_pack(np.packbits(bits, axis=1), dtype="uint1")
+
+    with pytest.raises(TypeError):
+        nk.jaccards_packed(np.packbits(np.random.randint(2, size=(4, 64)).astype(np.uint8), axis=1), dots_packed)
+    with pytest.raises(TypeError):
+        nk.angulars_packed(a_float, hamming_packed)

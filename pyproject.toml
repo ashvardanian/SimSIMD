@@ -31,7 +31,7 @@ test-command = """
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
     python -m pip install ml_dtypes --only-binary=:all: || (echo "Failed to install ml_dtypes" && exit 0) &&
     python -c "import numkong; print(numkong.get_capabilities())" &&
-    pytest {project}/scripts/test.py -s -x -Wd
+    pytest {project}/test/ -s -x -Wd
 """
 
 # We need to build for all platforms:
@@ -112,7 +112,7 @@ test-command = """
     cmd /c "python -m pip install numpy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
     python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! &
     python -m pip install ml_dtypes & if errorlevel 1 echo Failed to install ml_dtypes... Nothing can stop me, I'm all the way up! &
-    pytest {project}/scripts/test.py -s -x -Wd"
+    pytest {project}/test/ -s -x -Wd"
 """
 
 # These environment variables allow setup.py to detect the target architecture
@@ -170,13 +170,14 @@ inherit.environment = "append"
 select = "*-macos*_arm64"
 
 # RISC-V 64-bit builds
-# The `manylinux_2_39` riscv64 image is Fedora-based and uses `dnf` instead of `yum`.
-# We install binutils 2.43+ from Fedora 41 repos for zvfh/zvfbfwma/zvbb support.
+# The `manylinux_2_39` riscv64 image uses `dnf` instead of `yum`.
+# GCC/binutils in this image don't support all requested RISC-V vector extensions.
+# Install LLVM and build with clang + lld for full `rv64gcv_zvfh_zvfbfwma_zvbb`.
 [[tool.cibuildwheel.overrides]]
-before-all = """dnf update -y && dnf install -y glibc-devel wget python3-devel && \
-dnf install -y --releasever=41 \
-  --repofrompath=fedora-updates,https://download.fedoraproject.org/pub/fedora/linux/updates/41/Everything/riscv64/ \
-  --repo=fedora-updates --nogpgcheck binutils"""
+before-all = "dnf update -y && dnf install -y glibc-devel wget python3-devel clang lld"
+environment.CC = "clang"
+environment.CXX = "clang++"
+environment.LDFLAGS = "-fuse-ld=lld"
 environment.NK_TARGET_ARM_ = "0"
 environment.NK_TARGET_RISCV_ = "1"
 environment.NK_TARGET_X86_ = "0"

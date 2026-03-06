@@ -28,9 +28,8 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
 
-#include "numkong/types.h"
+#include "numkong/types.h"        // `nk_bf16_t`
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
-#include "numkong/reduce/neon.h"  // `nk_reduce_add_f32x4_neon_`
 #include "numkong/cast/serial.h"  // `nk_bf16_to_f32_serial`
 
 #if defined(__cplusplus)

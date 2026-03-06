@@ -49,5 +49,6 @@
 #include "numkong/mesh.hpp"
 #include "numkong/trigonometry.hpp"
 #include "numkong/dots.hpp"
+#include "numkong/matrix.hpp"
 
 #endif // NK_NUMKONG_HPP

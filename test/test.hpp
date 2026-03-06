@@ -373,7 +373,7 @@ void print_stats_header() noexcept;
  */
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t n) {
-    auto result = nk::vector<type_>::try_with_dimensions(n);
+    auto result = nk::vector<type_>::try_zeros(n);
 #if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
     if (result.empty() && n > 0) throw std::bad_alloc();
 #else

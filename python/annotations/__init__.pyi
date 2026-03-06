@@ -1,4 +1,4 @@
-from typing import Any, Union, Literal, Optional, TypeAlias
+from typing import Any, Literal, Optional, TypeAlias, Union
 
 # Many annotation features depend on the Python version:
 # - `typing.TypeAlias` type aliases are supported in Python 3.10-3.11.
@@ -9,26 +9,9 @@ from typing import Any, Union, Literal, Optional, TypeAlias
 # Assume Python 3.11 with NumPy available.
 from numpy.typing import NDArray
 
-_BufferType: TypeAlias = Union[NDArray[Any], memoryview]
+# region Forward Declarations and Shared Types
 
-_MetricType = Literal[
-    "euclidean",
-    "sqeuclidean",
-    "inner",
-    "dot",
-    "angular",
-    "hamming",
-    "jaccard",
-    "kullbackleibler",
-    "kld",
-    "jensenshannon",
-    "jsd",
-    "intersection",
-    "bilinear",
-    "mahalanobis",
-    "fma",
-    "blend",
-]
+# Scalar dtype literals used throughout the API.
 _IntegralType = Literal[
     "uint1",
     # Sub-byte integers
@@ -69,6 +52,27 @@ _ComplexType = Literal[
     "complex64",
     "complex128",
 ]
+_MetricType = Literal[
+    "euclidean",
+    "sqeuclidean",
+    "inner",
+    "dot",
+    "angular",
+    "hamming",
+    "jaccard",
+    "kullbackleibler",
+    "kld",
+    "jensenshannon",
+    "jsd",
+    "intersection",
+    "bilinear",
+    "mahalanobis",
+    "fma",
+    "blend",
+]
+
+# Buffer-compatible tensor inputs accepted by most functions.
+_BufferType: TypeAlias = Union[NDArray[Any], memoryview]
 
 class Tensor(memoryview):
     """N-dimensional tensor type returned by NumKong operations.
@@ -196,6 +200,57 @@ class Tensor(memoryview):
     def argmax(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, None, "Tensor"]:
         """Return the index of the maximum element, or None if all elements are NaN."""
         ...
+
+class PackedMatrix:
+    """Opaque pre-packed matrix for repeated cross operations.
+
+    Created by dots_pack() or hammings_pack() and used with
+    dots_packed(), hammings_packed(), jaccards_packed(), angulars_packed(),
+    euclideans_packed(), or the @ operator.
+    """
+
+    @property
+    def kind(self) -> str:
+        """Kernel kind ('dots' or 'hammings')."""
+        ...
+
+    @property
+    def n(self) -> int:
+        """Number of rows in the original matrix."""
+        ...
+
+    @property
+    def k(self) -> int:
+        """Number of columns in the original matrix."""
+        ...
+
+    @property
+    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
+        """Data type of the packed matrix (like 'bf16' or 'i8')."""
+        ...
+
+    @property
+    def nbytes(self) -> int:
+        """Size of the packed buffer in bytes."""
+        ...
+
+    @classmethod
+    def packed_size(
+        cls,
+        n: int,
+        k: int,
+        /,
+        dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
+        kind: str = "dots",
+    ) -> int:
+        """Return packed buffer size in bytes for given dimensions and dtype."""
+        ...
+
+    def __repr__(self) -> str:
+        """Return a string representation."""
+        ...
+
+# endregion Forward Declarations and Shared Types
 
 # region Capabilities
 
@@ -627,59 +682,31 @@ def hammings_symmetric(
     dtype: Optional[_IntegralType] = None,
     out: Optional[_BufferType] = None,
 ) -> Tensor: ...
+def jaccards_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[_IntegralType] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+def angulars_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+def euclideans_symmetric(
+    vectors: _BufferType,
+    /,
+    *,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
 
 # endregion Symmetric Pairwise Operations
 
 # region Packed Matrix Operations
-
-# Packed matrix multiplication and Hamming distance (AMX/AVX-512 accelerated).
-class PackedMatrix:
-    """Opaque pre-packed matrix for repeated matrix multiplication or Hamming distance.
-
-    Created by dots_pack() or hammings_pack() and used with
-    dots_packed(), hammings_packed(), or the @ operator.
-    """
-
-    @property
-    def kind(self) -> str:
-        """Kernel kind ('dots' or 'hammings')."""
-        ...
-
-    @property
-    def n(self) -> int:
-        """Number of rows in the original matrix."""
-        ...
-
-    @property
-    def k(self) -> int:
-        """Number of columns in the original matrix."""
-        ...
-
-    @property
-    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
-        """Data type of the packed matrix (like 'bf16' or 'i8')."""
-        ...
-
-    @property
-    def nbytes(self) -> int:
-        """Size of the packed buffer in bytes."""
-        ...
-
-    @classmethod
-    def packed_size(
-        cls,
-        n: int,
-        k: int,
-        /,
-        dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
-        kind: str = "dots",
-    ) -> int:
-        """Return the packed buffer size in bytes for given dimensions and dtype."""
-        ...
-
-    def __repr__(self) -> str:
-        """Return a string representation."""
-        ...
 
 # Pack a matrix for repeated dot-product matmul.
 def dots_pack(
@@ -706,6 +733,33 @@ def hammings_pack(
 
 # Hamming distance computation with a pre-packed B matrix.
 def hammings_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Jaccard distance computation with a pre-packed B matrix.
+def jaccards_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Angular distance computation with a pre-packed B matrix.
+def angulars_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# Euclidean distance computation with a pre-packed B matrix.
+def euclideans_packed(
     a: _BufferType,
     b: PackedMatrix,
     /,

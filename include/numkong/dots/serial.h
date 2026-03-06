@@ -2049,6 +2049,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result,       \
         nk_size_t result_stride_values, nk_size_t finalizer_batch_size, nk_size_t depth) {                             \
                                                                                                                        \
+        (void)dimensions_per_value_runtime;                                                                            \
+        (void)finalizer_batch_size;                                                                                    \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_size; tile_row_start += 4) {                         \
             for (nk_size_t tile_column_start = tile_row_start; tile_column_start < macro_size;                         \
@@ -2229,6 +2231,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result, nk_size_t result_stride_values,    \
         nk_size_t finalizer_batch_size, nk_size_t depth) {                                                             \
                                                                                                                        \
+        (void)dimensions_per_value_runtime;                                                                            \
+        (void)finalizer_batch_size;                                                                                    \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_i_size; tile_row_start += 4) {                       \
             for (nk_size_t tile_column_start = 0; tile_column_start < macro_j_size; tile_column_start += 4) {          \

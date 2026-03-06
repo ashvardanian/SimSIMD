@@ -22,8 +22,8 @@
 //! // Requires linking against libnumkong C library
 //! use numkong::{Tensor, PackedMatrix};
 //!
-//! let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
-//! let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
+//! let a = Tensor::<f32>::try_full(&[1024, 512], 1.0).unwrap();
+//! let b = Tensor::<f32>::try_full(&[256, 512], 1.0).unwrap();
 //!
 //! // Pack B once, multiply many times
 //! let b_packed = PackedMatrix::try_pack(&b).unwrap();
@@ -2350,8 +2350,8 @@ impl Euclideans for i4x2 {
 /// // Requires linking against libnumkong C library
 /// use numkong::{Tensor, PackedMatrix};
 ///
-/// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
-/// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
+/// let a = Tensor::<f32>::try_full(&[1024, 512], 1.0).unwrap();
+/// let b = Tensor::<f32>::try_full(&[256, 512], 1.0).unwrap();
 ///
 /// // Pack B once, multiply many times
 /// let b_packed = PackedMatrix::try_pack(&b).unwrap();
@@ -2386,8 +2386,12 @@ impl<T, A: Allocator, const MAX_RANK: usize> Drop for Tensor<T, A, MAX_RANK> {
                     self.data.as_ptr(),
                     self.len,
                 ));
-                // Deallocate buffer using our allocator
-                let layout = alloc::alloc::Layout::array::<T>(self.len).unwrap();
+                // Deallocate buffer using matching SIMD-aligned layout
+                let layout = alloc::alloc::Layout::from_size_align(
+                    self.len * core::mem::size_of::<T>(),
+                    SIMD_ALIGNMENT,
+                )
+                .unwrap();
                 self.alloc.deallocate(
                     NonNull::new_unchecked(self.data.as_ptr() as *mut u8),
                     layout,
@@ -2409,7 +2413,7 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Creates a new Tensor filled with a value using a custom allocator.
     ///
     /// Returns `Err` if allocation fails or shape is invalid.
-    pub fn try_new_in(shape: &[usize], value: T, alloc: A) -> Result<Self, TensorError> {
+    pub fn try_full_in(shape: &[usize], value: T, alloc: A) -> Result<Self, TensorError> {
         if shape.len() > MAX_RANK {
             return Err(TensorError::TooManyRanks { got: shape.len() });
         }
@@ -2422,12 +2426,15 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             });
         }
 
-        // Allocate raw buffer using our allocator
+        // Allocate SIMD-aligned raw buffer using our allocator
         let data = if total == 0 {
             NonNull::dangling()
         } else {
-            let layout = alloc::alloc::Layout::array::<T>(total)
-                .map_err(|_| TensorError::AllocationFailed)?;
+            let layout = alloc::alloc::Layout::from_size_align(
+                total * core::mem::size_of::<T>(),
+                SIMD_ALIGNMENT,
+            )
+            .map_err(|_| TensorError::AllocationFailed)?;
             let ptr = alloc
                 .allocate(layout)
                 .ok_or(TensorError::AllocationFailed)?;
@@ -2458,7 +2465,75 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         })
     }
 
-    /// Creates an Tensor from existing slice data using a custom allocator.
+    /// Creates a zero-initialized Tensor using a custom allocator.
+    ///
+    /// Returns `Err` if allocation fails or shape is invalid.
+    pub fn try_zeros_in(shape: &[usize], alloc: A) -> Result<Self, TensorError>
+    where
+        T: Default,
+    {
+        Self::try_full_in(shape, T::default(), alloc)
+    }
+
+    /// Creates a Tensor filled with ones using a custom allocator.
+    ///
+    /// Returns `Err` if allocation fails or shape is invalid.
+    pub fn try_ones_in(shape: &[usize], alloc: A) -> Result<Self, TensorError>
+    where
+        T: crate::scalar::NumberLike,
+    {
+        Self::try_full_in(shape, T::one(), alloc)
+    }
+
+    /// Creates an uninitialized Tensor using a custom allocator.
+    ///
+    /// # Safety
+    /// The returned tensor's contents are uninitialized. Reading before writing
+    /// is undefined behavior.
+    pub unsafe fn try_empty_in(shape: &[usize], alloc: A) -> Result<Self, TensorError> {
+        if shape.len() > MAX_RANK {
+            return Err(TensorError::TooManyRanks { got: shape.len() });
+        }
+
+        let total: usize = shape.iter().product();
+        if total == 0 && !shape.is_empty() && shape.iter().any(|&d| d == 0) {
+            return Err(TensorError::InvalidShape {
+                shape: ShapeDescriptor::from_slice(shape),
+                reason: "zero-sized dimension",
+            });
+        }
+
+        let data = if total == 0 {
+            NonNull::dangling()
+        } else {
+            let layout = alloc::alloc::Layout::from_size_align(
+                total * core::mem::size_of::<T>(),
+                SIMD_ALIGNMENT,
+            )
+            .map_err(|_| TensorError::AllocationFailed)?;
+            let ptr = alloc
+                .allocate(layout)
+                .ok_or(TensorError::AllocationFailed)?;
+            unsafe { NonNull::new_unchecked(ptr.as_ptr() as *mut T) }
+        };
+
+        let mut shape_arr = [0usize; MAX_RANK];
+        shape_arr[..shape.len()].copy_from_slice(shape);
+
+        let mut strides_arr = [0isize; MAX_RANK];
+        Self::compute_strides_into(shape, &mut strides_arr);
+
+        Ok(Self {
+            data,
+            len: total,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: shape.len(),
+            alloc,
+        })
+    }
+
+    /// Creates a Tensor from existing slice data using a custom allocator.
     ///
     /// Returns `Err` if shape doesn't match data length or allocation fails.
     pub fn try_from_slice_in(data: &[T], shape: &[usize], alloc: A) -> Result<Self, TensorError> {
@@ -2474,12 +2549,15 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             });
         }
 
-        // Allocate and copy using our allocator
+        // Allocate SIMD-aligned buffer and copy using our allocator
         let ptr = if total == 0 {
             NonNull::dangling()
         } else {
-            let layout = alloc::alloc::Layout::array::<T>(total)
-                .map_err(|_| TensorError::AllocationFailed)?;
+            let layout = alloc::alloc::Layout::from_size_align(
+                total * core::mem::size_of::<T>(),
+                SIMD_ALIGNMENT,
+            )
+            .map_err(|_| TensorError::AllocationFailed)?;
             let ptr = alloc
                 .allocate(layout)
                 .ok_or(TensorError::AllocationFailed)?;
@@ -2540,8 +2618,13 @@ impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         self.ndim
     }
 
+    /// Returns the number of dimensions (alias for `ndim()`).
+    pub fn rank(&self) -> usize {
+        self.ndim
+    }
+
     /// Returns the total number of elements.
-    pub fn len(&self) -> usize {
+    pub fn numel(&self) -> usize {
         self.len
     }
 
@@ -2551,7 +2634,7 @@ impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> isize {
+    pub fn stride_bytes(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -2616,20 +2699,40 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Creates a new Tensor filled with a value using the global allocator.
     ///
     /// Returns `Err` if allocation fails or shape is invalid.
-    pub fn try_new(shape: &[usize], value: T) -> Result<Self, TensorError> {
-        Self::try_new_in(shape, value, Global)
+    pub fn try_full(shape: &[usize], value: T) -> Result<Self, TensorError> {
+        Self::try_full_in(shape, value, Global)
     }
 
-    /// Creates an Tensor from existing slice data using the global allocator.
+    /// Creates a zero-initialized Tensor using the global allocator.
+    pub fn try_zeros(shape: &[usize]) -> Result<Self, TensorError>
+    where
+        T: Default,
+    {
+        Self::try_zeros_in(shape, Global)
+    }
+
+    /// Creates a Tensor filled with ones using the global allocator.
+    pub fn try_ones(shape: &[usize]) -> Result<Self, TensorError>
+    where
+        T: crate::scalar::NumberLike,
+    {
+        Self::try_ones_in(shape, Global)
+    }
+
+    /// Creates an uninitialized Tensor using the global allocator.
+    ///
+    /// # Safety
+    /// The returned tensor's contents are uninitialized. Reading before writing
+    /// is undefined behavior.
+    pub unsafe fn try_empty(shape: &[usize]) -> Result<Self, TensorError> {
+        unsafe { Self::try_empty_in(shape, Global) }
+    }
+
+    /// Creates a Tensor from existing slice data using the global allocator.
     ///
     /// Returns `Err` if shape doesn't match data length or allocation fails.
     pub fn try_from_slice(data: &[T], shape: &[usize]) -> Result<Self, TensorError> {
         Self::try_from_slice_in(data, shape, Global)
-    }
-
-    /// Convenience constructor that panics on error.
-    pub fn new(shape: &[usize], value: T) -> Self {
-        Self::try_new(shape, value).expect("Tensor::new failed")
     }
 
     /// Convenience constructor that panics on error.
@@ -2715,8 +2818,13 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         self.ndim
     }
 
+    /// Returns the number of dimensions (alias for `ndim()`).
+    pub fn rank(&self) -> usize {
+        self.ndim
+    }
+
     /// Returns the total number of elements.
-    pub fn len(&self) -> usize {
+    pub fn numel(&self) -> usize {
         self.len
     }
 
@@ -2726,7 +2834,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> isize {
+    pub fn stride_bytes(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -2785,7 +2893,7 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
             Tensor::try_from_slice(slice, self.shape())
         } else {
             // For non-contiguous views, we need to copy element by element
-            let mut result = Tensor::try_new(self.shape(), unsafe { (*self.data).clone() })?;
+            let mut result = Tensor::try_full(self.shape(), unsafe { (*self.data).clone() })?;
             self.copy_to_contiguous(result.as_mut_slice());
             Ok(result)
         }
@@ -2849,7 +2957,7 @@ where
     /// use numkong::{Tensor, TensorView};
     ///
     /// // 100 vectors of dimension 768
-    /// let vectors = Tensor::<f32>::try_new(&[100, 768], 0.0)?;
+    /// let vectors = Tensor::<f32>::try_full(&[100, 768], 0.0)?;
     ///
     /// // Compute 100×100 symmetric matrix
     /// let gram = vectors.view().try_dots_symmetric()?;
@@ -2871,7 +2979,7 @@ where
 
         // Result is n_vectors × n_vectors symmetric matrix
         let result_shape = &[n_vectors, n_vectors];
-        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_full(
             result_shape,
             T::Accumulator::default(),
         )?;
@@ -2881,9 +2989,9 @@ where
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2907,7 +3015,7 @@ impl<'a, T: Angulars, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         }
         let n_vectors = shape[0];
         let depth = shape[1];
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n_vectors, n_vectors],
             T::SpatialResult::default(),
         )?;
@@ -2916,9 +3024,9 @@ impl<'a, T: Angulars, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2942,7 +3050,7 @@ impl<'a, T: Euclideans, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         }
         let n_vectors = shape[0];
         let depth = shape[1];
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n_vectors, n_vectors],
             T::SpatialResult::default(),
         )?;
@@ -2951,9 +3059,9 @@ impl<'a, T: Euclideans, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n_vectors,
             );
@@ -2976,15 +3084,15 @@ impl<'a, T: Hammings, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         let n_vectors = shape[0];
         let depth = shape[1];
         let mut result =
-            Tensor::<u32, Global, MAX_RANK>::try_new(&[n_vectors, n_vectors], u32::default())?;
+            Tensor::<u32, Global, MAX_RANK>::try_full(&[n_vectors, n_vectors], u32::default())?;
         unsafe {
             T::hammings_symmetric(
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n_vectors,
             );
@@ -3007,7 +3115,7 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         }
         let n_vectors = shape[0];
         let depth = shape[1];
-        let mut result = Tensor::<T::JaccardResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::JaccardResult, Global, MAX_RANK>::try_full(
             &[n_vectors, n_vectors],
             T::JaccardResult::default(),
         )?;
@@ -3016,9 +3124,9 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 self.as_ptr(),
                 n_vectors,
                 depth,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n_vectors,
             );
@@ -3058,8 +3166,13 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
         self.ndim
     }
 
+    /// Returns the number of dimensions (alias for `ndim()`).
+    pub fn rank(&self) -> usize {
+        self.ndim
+    }
+
     /// Returns the total number of elements.
-    pub fn len(&self) -> usize {
+    pub fn numel(&self) -> usize {
         self.len
     }
 
@@ -3069,7 +3182,7 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
     }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride(&self, dim: usize) -> isize {
+    pub fn stride_bytes(&self, dim: usize) -> isize {
         self.strides[dim]
     }
 
@@ -3140,13 +3253,13 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
 
 // endregion: TensorSpan
 
-// region: AxisIter
+// region: AxisIterator
 
 /// Iterator over sub-tensor views along a given axis.
 ///
 /// Each item is a `TensorView` with the iterated dimension removed (rank - 1).
-/// For a rank-2 matrix, `axis_iter(0)` yields row views.
-pub struct AxisIter<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+/// For a rank-2 matrix, `axis_views(0)` yields row views.
+pub struct AxisIterator<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     data: *const T,
     shape: [usize; MAX_RANK],
     strides: [isize; MAX_RANK],
@@ -3158,7 +3271,7 @@ pub struct AxisIter<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T, const MAX_RANK: usize> Iterator for AxisIter<'a, T, MAX_RANK> {
+impl<'a, T, const MAX_RANK: usize> Iterator for AxisIterator<'a, T, MAX_RANK> {
     type Item = TensorView<'a, T, MAX_RANK>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -3199,13 +3312,13 @@ impl<'a, T, const MAX_RANK: usize> Iterator for AxisIter<'a, T, MAX_RANK> {
     }
 }
 
-impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIter<'a, T, MAX_RANK> {}
+impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIterator<'a, T, MAX_RANK> {}
 
 /// Mutable iterator over sub-tensor spans along a given axis.
 ///
 /// Each item is a `TensorSpan` with the iterated dimension removed (rank - 1).
-/// For a rank-2 matrix, `axis_iter_mut(0)` yields mutable row spans.
-pub struct AxisIterMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+/// For a rank-2 matrix, `axis_spans(0)` yields mutable row spans.
+pub struct AxisIteratorMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     data: *mut T,
     shape: [usize; MAX_RANK],
     strides: [isize; MAX_RANK],
@@ -3217,7 +3330,7 @@ pub struct AxisIterMut<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     _marker: PhantomData<&'a mut T>,
 }
 
-impl<'a, T, const MAX_RANK: usize> Iterator for AxisIterMut<'a, T, MAX_RANK> {
+impl<'a, T, const MAX_RANK: usize> Iterator for AxisIteratorMut<'a, T, MAX_RANK> {
     type Item = TensorSpan<'a, T, MAX_RANK>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -3257,11 +3370,11 @@ impl<'a, T, const MAX_RANK: usize> Iterator for AxisIterMut<'a, T, MAX_RANK> {
     }
 }
 
-impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIterMut<'a, T, MAX_RANK> {}
+impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIteratorMut<'a, T, MAX_RANK> {}
 
 impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     /// Iterate along the given axis, yielding sub-tensor views with rank-1.
-    pub fn axis_iter(&self, axis: usize) -> Result<AxisIter<'a, T, MAX_RANK>, TensorError> {
+    pub fn axis_views(&self, axis: usize) -> Result<AxisIterator<'a, T, MAX_RANK>, TensorError> {
         if axis >= self.ndim {
             return Err(TensorError::IndexOutOfBounds {
                 index: axis,
@@ -3274,7 +3387,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 got: 0,
             });
         }
-        Ok(AxisIter {
+        Ok(AxisIterator {
             data: self.data,
             shape: self.shape,
             strides: self.strides,
@@ -3290,15 +3403,15 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
 
 impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Iterate along the given axis, yielding sub-tensor views with rank-1.
-    pub fn axis_iter(&self, axis: usize) -> Result<AxisIter<'_, T, MAX_RANK>, TensorError> {
-        self.view().axis_iter(axis)
+    pub fn axis_views(&self, axis: usize) -> Result<AxisIterator<'_, T, MAX_RANK>, TensorError> {
+        self.view().axis_views(axis)
     }
 
     /// Iterate mutably along the given axis, yielding sub-tensor spans with rank-1.
-    pub fn axis_iter_mut(
+    pub fn axis_spans(
         &mut self,
         axis: usize,
-    ) -> Result<AxisIterMut<'_, T, MAX_RANK>, TensorError> {
+    ) -> Result<AxisIteratorMut<'_, T, MAX_RANK>, TensorError> {
         if axis >= self.ndim {
             return Err(TensorError::IndexOutOfBounds {
                 index: axis,
@@ -3311,7 +3424,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                 got: 0,
             });
         }
-        Ok(AxisIterMut {
+        Ok(AxisIteratorMut {
             data: self.data.as_ptr(),
             shape: self.shape,
             strides: self.strides,
@@ -3325,7 +3438,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
-// endregion: AxisIter
+// endregion: AxisIterator
 
 // region: Tensor View and Slice Methods
 
@@ -3363,7 +3476,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// ```ignore
     /// use numkong::{Tensor, SliceRange};
     ///
-    /// let arr = Tensor::<f32>::try_new(&[4, 5], 1.0).unwrap();
+    /// let arr = Tensor::<f32>::try_full(&[4, 5], 1.0).unwrap();
     ///
     /// // Get rows 0..2, all columns
     /// let view = arr.slice(&[SliceRange::range(0, 2), SliceRange::full()]).unwrap();
@@ -3755,7 +3868,7 @@ impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
 
         if size > 0 {
             unsafe {
-                T::dots_pack(b.as_ptr(), n, k, b.stride(0) as usize, data.as_ptr());
+                T::dots_pack(b.as_ptr(), n, k, b.stride_bytes(0) as usize, data.as_ptr());
             }
         }
 
@@ -3918,7 +4031,7 @@ where
             });
         }
 
-        let mut c = Tensor::try_new_in(&[m, n], T::Accumulator::default(), self.alloc.clone())?;
+        let mut c = Tensor::try_full_in(&[m, n], T::Accumulator::default(), self.alloc.clone())?;
         unsafe {
             T::dots_packed(
                 self.as_ptr(),
@@ -3927,8 +4040,8 @@ where
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(c)
@@ -3985,8 +4098,8 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(())
@@ -4016,10 +4129,10 @@ where
     /// use fork_union::ThreadPool;
     ///
     /// let mut pool = ThreadPool::try_spawn(4).unwrap();
-    /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
-    /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
+    /// let a = Tensor::<f32>::try_full(&[1024, 512], 1.0).unwrap();
+    /// let b = Tensor::<f32>::try_full(&[256, 512], 1.0).unwrap();
     /// let b_packed = PackedMatrix::try_pack(&b).unwrap();
-    /// let mut c = Tensor::<f32>::try_new(&[1024, 256], 0.0).unwrap();
+    /// let mut c = Tensor::<f32>::try_full(&[1024, 256], 0.0).unwrap();
     /// a.try_dots_packed_parallel_into(&b_packed, &mut c, &mut pool).unwrap();
     /// ```
     pub fn try_dots_packed_parallel_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
@@ -4058,8 +4171,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0) as usize;
-        let c_stride = c.stride(0) as usize;
+        let a_stride = self.stride_bytes(0) as usize;
+        let c_stride = c.stride_bytes(0) as usize;
 
         // Get actual thread count from pool
         let num_threads = pool.threads().max(1);
@@ -4106,7 +4219,7 @@ where
     ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
         let (n, _) = packed_b.dims();
-        let mut c = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+        let mut c = Tensor::<T::Accumulator, Global, MAX_RANK>::try_full(
             &[m, n],
             T::Accumulator::default(),
         )?;
@@ -4183,7 +4296,7 @@ where
     /// use fork_union::ThreadPool;
     ///
     /// let mut pool = ThreadPool::try_spawn(4).unwrap();
-    /// let vectors = Tensor::<f32>::try_new(&[100, 768], 1.0).unwrap();
+    /// let vectors = Tensor::<f32>::try_full(&[100, 768], 1.0).unwrap();
     /// let gram = vectors.try_dots_symmetric_parallel(&mut pool).unwrap();
     /// assert_eq!(gram.shape(), &[100, 100]);
     /// ```
@@ -4199,7 +4312,7 @@ where
         }
 
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_full(
             &[n, n],
             T::Accumulator::default(),
         )?;
@@ -4207,8 +4320,8 @@ where
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0) as usize;
-        let result_stride = result.stride(0) as usize;
+        let stride = self.stride_bytes(0) as usize;
+        let result_stride = result.stride_bytes(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4274,7 +4387,7 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 got: ShapeDescriptor::from_slice(&[m, k]),
             });
         }
-        let mut c = Tensor::try_new_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
+        let mut c = Tensor::try_full_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
         unsafe {
             T::angulars_packed(
                 self.as_ptr(),
@@ -4283,8 +4396,8 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(c)
@@ -4341,8 +4454,8 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(())
@@ -4359,7 +4472,7 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n, n],
             T::SpatialResult::default(),
         )?;
@@ -4368,9 +4481,9 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n,
             );
@@ -4402,7 +4515,7 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
                 got: ShapeDescriptor::from_slice(&[m, k]),
             });
         }
-        let mut c = Tensor::try_new_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
+        let mut c = Tensor::try_full_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
         unsafe {
             T::euclideans_packed(
                 self.as_ptr(),
@@ -4411,8 +4524,8 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(c)
@@ -4469,8 +4582,8 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(())
@@ -4487,7 +4600,7 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n, n],
             T::SpatialResult::default(),
         )?;
@@ -4496,9 +4609,9 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n,
             );
@@ -4555,8 +4668,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0) as usize;
-        let c_stride = c.stride(0) as usize;
+        let a_stride = self.stride_bytes(0) as usize;
+        let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
         let rows_per_thread = (m + num_threads - 1) / num_threads;
 
@@ -4591,7 +4704,7 @@ where
     ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
         let (n, _) = packed_b.dims();
-        let mut c = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut c = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[m, n],
             T::SpatialResult::default(),
         )?;
@@ -4621,15 +4734,15 @@ where
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n, n],
             T::SpatialResult::default(),
         )?;
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0) as usize;
-        let result_stride = result.stride(0) as usize;
+        let stride = self.stride_bytes(0) as usize;
+        let result_stride = result.stride_bytes(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4708,8 +4821,8 @@ where
         let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
         let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
-        let a_stride = self.stride(0) as usize;
-        let c_stride = c.stride(0) as usize;
+        let a_stride = self.stride_bytes(0) as usize;
+        let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
         let rows_per_thread = (m + num_threads - 1) / num_threads;
 
@@ -4744,7 +4857,7 @@ where
     ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
         let (n, _) = packed_b.dims();
-        let mut c = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut c = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[m, n],
             T::SpatialResult::default(),
         )?;
@@ -4774,15 +4887,15 @@ where
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
             &[n, n],
             T::SpatialResult::default(),
         )?;
         let num_threads = pool.threads().max(1);
         let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
         let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
-        let stride = self.stride(0) as usize;
-        let result_stride = result.stride(0) as usize;
+        let stride = self.stride_bytes(0) as usize;
+        let result_stride = result.stride_bytes(0) as usize;
 
         pool.for_threads(move |thread_idx, _colocation_idx| {
             crate::capabilities::configure_thread();
@@ -4841,7 +4954,7 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 got: ShapeDescriptor::from_slice(&[m, k]),
             });
         }
-        let mut c = Tensor::try_new_in(&[m, n], u32::default(), self.alloc.clone())?;
+        let mut c = Tensor::try_full_in(&[m, n], u32::default(), self.alloc.clone())?;
         unsafe {
             T::hammings_packed(
                 self.as_ptr(),
@@ -4850,8 +4963,8 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(c)
@@ -4908,8 +5021,8 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(())
@@ -4924,15 +5037,15 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<u32, Global, MAX_RANK>::try_new(&[n, n], u32::default())?;
+        let mut result = Tensor::<u32, Global, MAX_RANK>::try_full(&[n, n], u32::default())?;
         unsafe {
             T::hammings_symmetric(
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n,
             );
@@ -4964,7 +5077,7 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 got: ShapeDescriptor::from_slice(&[m, k]),
             });
         }
-        let mut c = Tensor::try_new_in(&[m, n], T::JaccardResult::default(), self.alloc.clone())?;
+        let mut c = Tensor::try_full_in(&[m, n], T::JaccardResult::default(), self.alloc.clone())?;
         unsafe {
             T::jaccards_packed(
                 self.as_ptr(),
@@ -4973,8 +5086,8 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(c)
@@ -5031,8 +5144,8 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 m,
                 n,
                 k,
-                self.stride(0) as usize,
-                c.stride(0) as usize,
+                self.stride_bytes(0) as usize,
+                c.stride_bytes(0) as usize,
             );
         }
         Ok(())
@@ -5049,7 +5162,7 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             });
         }
         let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::JaccardResult, Global, MAX_RANK>::try_new(
+        let mut result = Tensor::<T::JaccardResult, Global, MAX_RANK>::try_full(
             &[n, n],
             T::JaccardResult::default(),
         )?;
@@ -5058,9 +5171,9 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
                 self.as_ptr(),
                 n,
                 k,
-                self.stride(0) as usize,
+                self.stride_bytes(0) as usize,
                 result.as_mut_ptr(),
-                result.stride(0) as usize,
+                result.stride_bytes(0) as usize,
                 0,
                 n,
             );
@@ -5082,7 +5195,7 @@ impl<T: Clone + EachScale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         alpha: T::Scalar,
         beta: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::each_scale(self.as_slice(), alpha, beta, result.as_mut_slice());
         Ok(result)
     }
@@ -5113,7 +5226,7 @@ impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                 got: ShapeDescriptor::from_slice(other.shape()),
             });
         }
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::each_sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
         Ok(result)
     }
@@ -5155,7 +5268,7 @@ impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                 got: ShapeDescriptor::from_slice(other.shape()),
             });
         }
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::each_blend(
             self.as_slice(),
             other.as_slice(),
@@ -5184,7 +5297,7 @@ impl<T: Clone + EachFMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
                 got: ShapeDescriptor::from_slice(b.shape()),
             });
         }
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::each_fma(
             self.as_slice(),
             b.as_slice(),
@@ -5206,7 +5319,7 @@ impl<T: Clone + EachSin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     ///
     /// Input values are in radians.
     pub fn sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::sin(self.as_slice(), result.as_mut_slice());
         Ok(result)
     }
@@ -5227,7 +5340,7 @@ impl<T: Clone + EachCos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     ///
     /// Input values are in radians.
     pub fn cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::cos(self.as_slice(), result.as_mut_slice());
         Ok(result)
     }
@@ -5248,7 +5361,7 @@ impl<T: Clone + EachATan, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     ///
     /// Output values are in radians in the range (-π/2, π/2).
     pub fn atan(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        let mut result = Tensor::try_full(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
         T::atan(self.as_slice(), result.as_mut_slice());
         Ok(result)
     }
@@ -5301,7 +5414,7 @@ impl<const MAX_RANK: usize> Tensor<f32, Global, MAX_RANK> {
     /// Sum all elements of the array.
     pub fn sum(&self) -> f32 {
         let ones: Tensor<f32, Global, MAX_RANK> =
-            Tensor::try_new(self.shape(), 1.0f32).expect("allocation failed");
+            Tensor::try_full(self.shape(), 1.0f32).expect("allocation failed");
         <f32 as Dot>::dot(self.as_slice(), ones.as_slice()).unwrap_or(0.0)
     }
 }
@@ -5310,7 +5423,7 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
     /// Sum all elements of the array.
     pub fn sum(&self) -> f64 {
         let ones: Tensor<f64, Global, MAX_RANK> =
-            Tensor::try_new(self.shape(), 1.0f64).expect("allocation failed");
+            Tensor::try_full(self.shape(), 1.0f64).expect("allocation failed");
         <f64 as Dot>::dot(self.as_slice(), ones.as_slice()).unwrap_or(0.0)
     }
 }
@@ -5322,6 +5435,7 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scalar::NumberLike;
     use std::sync::Once;
 
     static INIT: Once = Once::new();
@@ -5402,8 +5516,8 @@ mod tests {
     {
         init_thread();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
@@ -5426,8 +5540,8 @@ mod tests {
     {
         init_thread();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b_t = Tensor::<T>::try_new(&[k, n], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b_t = Tensor::<T>::try_full(&[k, n], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack_transposed(&b_t).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
@@ -5451,8 +5565,8 @@ mod tests {
         init_thread();
         let tol = T::atol();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.angulars_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
@@ -5474,8 +5588,8 @@ mod tests {
         init_thread();
         let tol = T::atol();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.euclideans_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
@@ -5497,8 +5611,8 @@ mod tests {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.dots_packed(&b_packed);
             let parallel = a.dots_packed_parallel(&b_packed, &mut pool);
@@ -5518,8 +5632,8 @@ mod tests {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.angulars_packed(&b_packed);
             let parallel = a.angulars_packed_parallel(&b_packed, &mut pool);
@@ -5539,8 +5653,8 @@ mod tests {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         for &(m, n, k) in DIMS {
-            let a = Tensor::<T>::try_new(&[m, k], T::one()).unwrap();
-            let b = Tensor::<T>::try_new(&[n, k], T::one()).unwrap();
+            let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
+            let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let serial = a.euclideans_packed(&b_packed);
             let parallel = a.euclideans_packed_parallel(&b_packed, &mut pool);
@@ -5555,10 +5669,10 @@ mod tests {
     #[test]
     fn tensor_construction() {
         // Creation
-        let arr = Tensor::<f32>::try_new(&[3, 4], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         assert_eq!(arr.shape(), &[3, 4]);
         assert_eq!(arr.ndim(), 2);
-        assert_eq!(arr.len(), 12);
+        assert_eq!(arr.numel(), 12);
         assert!(!arr.is_empty());
 
         // From slice
@@ -5568,7 +5682,7 @@ mod tests {
         assert_eq!(arr.as_slice(), &data[..]);
 
         // Clone
-        let arr = Tensor::<f32>::try_new(&[3, 4], 2.5f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[3, 4], 2.5f32).unwrap();
         let cloned = arr.clone();
         assert_eq!(cloned.shape(), arr.shape());
         assert_eq!(cloned.as_slice(), arr.as_slice());
@@ -5591,7 +5705,7 @@ mod tests {
         assert_eq!(arr.row(3), None);
 
         // Slicing
-        let arr = Tensor::<f32>::try_new(&[4, 5], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[4, 5], 1.0f32).unwrap();
         let view = arr
             .slice(&[SliceRange::full(), SliceRange::full()])
             .unwrap();
@@ -5607,36 +5721,36 @@ mod tests {
         assert_eq!(view.ndim(), 1);
 
         // Transpose
-        let arr = Tensor::<f32>::try_new(&[3, 4], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         let transposed = arr.t().unwrap();
         assert_eq!(transposed.shape(), &[4, 3]);
 
         // Contiguous check
-        let arr = Tensor::<f32>::try_new(&[3, 4], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         let view = arr.view();
         assert!(view.is_contiguous());
         assert!(arr.has_contiguous_rows());
 
         // Matrix alias
-        let mat: Matrix<f32> = Matrix::try_new(&[3, 4], 1.0f32).unwrap();
+        let mat: Matrix<f32> = Matrix::try_full(&[3, 4], 1.0f32).unwrap();
         assert_eq!(mat.shape(), &[3, 4]);
     }
 
     #[test]
     fn tensor_ops() {
         // Reshape
-        let arr = Tensor::<f32>::try_new(&[3, 4], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         let reshaped = arr.reshape(&[2, 6]).unwrap();
         assert_eq!(reshaped.shape(), &[2, 6]);
-        assert_eq!(reshaped.len(), 12);
+        assert_eq!(reshaped.numel(), 12);
 
         // Sum f32
-        let arr = Tensor::<f32>::try_new(&[100], 1.0f32).unwrap();
+        let arr = Tensor::<f32>::try_full(&[100], 1.0f32).unwrap();
         let sum = arr.sum();
         assert!((sum - 100.0).abs() < 0.001);
 
         // Sum f64
-        let arr = Tensor::<f64>::try_new(&[100], 1.0f64).unwrap();
+        let arr = Tensor::<f64>::try_full(&[100], 1.0f64).unwrap();
         let sum = arr.sum();
         assert!((sum - 100.0).abs() < 1e-9);
     }
@@ -5720,7 +5834,7 @@ mod tests {
     {
         init_thread();
         for &(num_vectors, _num_targets, depth) in DIMS {
-            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_dots_symmetric().unwrap();
             assert_eq!(
                 gram_matrix.shape(),
@@ -5752,7 +5866,7 @@ mod tests {
         init_thread();
         let tolerance = T::atol();
         for &(num_vectors, _num_targets, depth) in DIMS {
-            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_angulars_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
             // The C implementation only populates the upper triangle (j >= i).
@@ -5777,7 +5891,7 @@ mod tests {
         init_thread();
         let tolerance = T::atol();
         for &(num_vectors, _num_targets, depth) in DIMS {
-            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_euclideans_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
             // The C implementation only populates the upper triangle (j >= i).
@@ -5845,8 +5959,8 @@ mod tests {
     #[test]
     fn binary_packed_u1() {
         init_thread();
-        let a = Tensor::<u1x8>::try_new(&[4, 8], u1x8(0xFF)).unwrap();
-        let b = Tensor::<u1x8>::try_new(&[16, 8], u1x8(0xFF)).unwrap();
+        let a = Tensor::<u1x8>::try_full(&[4, 8], u1x8(0xFF)).unwrap();
+        let b = Tensor::<u1x8>::try_full(&[16, 8], u1x8(0xFF)).unwrap();
 
         // Dots
         let b_packed = PackedMatrix::try_pack(&b).unwrap();
@@ -5868,7 +5982,7 @@ mod tests {
     #[test]
     fn binary_symmetric_u1() {
         init_thread();
-        let a = Tensor::<u1x8>::try_new(&[4, 8], u1x8(0xFF)).unwrap();
+        let a = Tensor::<u1x8>::try_full(&[4, 8], u1x8(0xFF)).unwrap();
 
         // Dots symmetric
         let gram = a.view().try_dots_symmetric().unwrap();

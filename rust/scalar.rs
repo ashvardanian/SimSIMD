@@ -1204,13 +1204,29 @@ impl From<i4x2> for (i8, i8) {
 
 // endregion: i4x2 Type
 
-// region: FloatLike Trait
+// region: StorageElement + NumberLike + FloatLike Traits
+
+/// Minimal trait for types that can be stored in vectors and tensors.
+///
+/// Provides identity elements (`zero`, `one`) and sub-byte packing metadata.
+/// Does not require numeric conversion — use [`NumberLike`] for that.
+pub trait StorageElement: Sized + Copy + Clone + Default {
+    /// The additive identity.
+    fn zero() -> Self;
+    /// The multiplicative identity.
+    fn one() -> Self;
+    /// Number of logical dimensions packed into one storage value.
+    /// Default: 1 for all normal types. Override for sub-byte packed types.
+    fn dimensions_per_value() -> usize {
+        1
+    }
+}
 
 /// Trait for types that support conversion to/from f32 with classification and constants.
 ///
 /// Provides a unified interface for all numeric types used in NumKong,
 /// including half-precision floats, mini-floats, integers, and packed types.
-pub trait FloatLike: Sized + Copy + Clone {
+pub trait NumberLike: StorageElement {
     /// Convert from f32 to this type.
     fn from_f32(v: f32) -> Self;
     /// Convert from this type to f32.
@@ -1236,12 +1252,6 @@ pub trait FloatLike: Sized + Copy + Clone {
     fn is_infinite(self) -> bool {
         self.to_f32().is_infinite()
     }
-    fn zero() -> Self {
-        Self::from_f32(0.0)
-    }
-    fn one() -> Self {
-        Self::from_f32(1.0)
-    }
 
     fn has_infinity() -> bool {
         false
@@ -1258,15 +1268,22 @@ pub trait FloatLike: Sized + Copy + Clone {
     fn min_positive() -> f32 {
         f32::MIN_POSITIVE
     }
+}
 
-    /// Number of logical dimensions packed into one storage value.
-    /// Default: 1 for all normal types. Override for sub-byte packed types.
-    fn dimensions_per_value() -> usize {
-        1
+/// Backward-compatible alias: any type implementing [`NumberLike`] also implements `FloatLike`.
+pub trait FloatLike: NumberLike {}
+impl<T: NumberLike> FloatLike for T {}
+
+impl StorageElement for f32 {
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
     }
 }
 
-impl FloatLike for f32 {
+impl NumberLike for f32 {
     fn from_f32(v: f32) -> Self {
         v
     }
@@ -1308,7 +1325,16 @@ impl FloatLike for f32 {
     }
 }
 
-impl FloatLike for f64 {
+impl StorageElement for f64 {
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
+}
+
+impl NumberLike for f64 {
     fn from_f32(v: f32) -> Self {
         v as f64
     }
@@ -1350,7 +1376,16 @@ impl FloatLike for f64 {
     }
 }
 
-impl FloatLike for f16 {
+impl StorageElement for f16 {
+    fn zero() -> Self {
+        f16(0)
+    }
+    fn one() -> Self {
+        f16::from_f32(1.0)
+    }
+}
+
+impl NumberLike for f16 {
     fn from_f32(v: f32) -> Self {
         f16::from_f32(v)
     }
@@ -1386,7 +1421,16 @@ impl FloatLike for f16 {
     }
 }
 
-impl FloatLike for bf16 {
+impl StorageElement for bf16 {
+    fn zero() -> Self {
+        bf16(0)
+    }
+    fn one() -> Self {
+        bf16::from_f32(1.0)
+    }
+}
+
+impl NumberLike for bf16 {
     fn from_f32(v: f32) -> Self {
         bf16::from_f32(v)
     }
@@ -1422,7 +1466,16 @@ impl FloatLike for bf16 {
     }
 }
 
-impl FloatLike for e4m3 {
+impl StorageElement for e4m3 {
+    fn zero() -> Self {
+        e4m3(0)
+    }
+    fn one() -> Self {
+        e4m3::from_f32(1.0)
+    }
+}
+
+impl NumberLike for e4m3 {
     fn from_f32(v: f32) -> Self {
         e4m3::from_f32(v)
     }
@@ -1455,7 +1508,16 @@ impl FloatLike for e4m3 {
     }
 }
 
-impl FloatLike for e5m2 {
+impl StorageElement for e5m2 {
+    fn zero() -> Self {
+        e5m2(0)
+    }
+    fn one() -> Self {
+        e5m2::from_f32(1.0)
+    }
+}
+
+impl NumberLike for e5m2 {
     fn from_f32(v: f32) -> Self {
         e5m2::from_f32(v)
     }
@@ -1491,7 +1553,16 @@ impl FloatLike for e5m2 {
     }
 }
 
-impl FloatLike for e2m3 {
+impl StorageElement for e2m3 {
+    fn zero() -> Self {
+        e2m3(0)
+    }
+    fn one() -> Self {
+        e2m3::from_f32(1.0)
+    }
+}
+
+impl NumberLike for e2m3 {
     fn from_f32(v: f32) -> Self {
         e2m3::from_f32(v)
     }
@@ -1521,7 +1592,16 @@ impl FloatLike for e2m3 {
     }
 }
 
-impl FloatLike for e3m2 {
+impl StorageElement for e3m2 {
+    fn zero() -> Self {
+        e3m2(0)
+    }
+    fn one() -> Self {
+        e3m2::from_f32(1.0)
+    }
+}
+
+impl NumberLike for e3m2 {
     fn from_f32(v: f32) -> Self {
         e3m2::from_f32(v)
     }
@@ -1551,7 +1631,16 @@ impl FloatLike for e3m2 {
     }
 }
 
-impl FloatLike for i8 {
+impl StorageElement for i8 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for i8 {
     fn from_f32(v: f32) -> Self {
         f32_round_compat(v) as i8
     }
@@ -1566,7 +1655,16 @@ impl FloatLike for i8 {
     }
 }
 
-impl FloatLike for u8 {
+impl StorageElement for u8 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for u8 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v);
         if r < 0.0 {
@@ -1591,7 +1689,16 @@ impl FloatLike for u8 {
     }
 }
 
-impl FloatLike for i32 {
+impl StorageElement for i32 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for i32 {
     fn from_f32(v: f32) -> Self {
         f32_round_compat(v) as i32
     }
@@ -1606,7 +1713,16 @@ impl FloatLike for i32 {
     }
 }
 
-impl FloatLike for u32 {
+impl StorageElement for u32 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for u32 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v);
         if r < 0.0 {
@@ -1631,7 +1747,16 @@ impl FloatLike for u32 {
     }
 }
 
-impl FloatLike for i16 {
+impl StorageElement for i16 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for i16 {
     fn from_f32(v: f32) -> Self {
         f32_round_compat(v) as i16
     }
@@ -1646,7 +1771,16 @@ impl FloatLike for i16 {
     }
 }
 
-impl FloatLike for u16 {
+impl StorageElement for u16 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for u16 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v);
         if r < 0.0 {
@@ -1671,7 +1805,16 @@ impl FloatLike for u16 {
     }
 }
 
-impl FloatLike for i64 {
+impl StorageElement for i64 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for i64 {
     fn from_f32(v: f32) -> Self {
         f32_round_compat(v) as i64
     }
@@ -1686,7 +1829,16 @@ impl FloatLike for i64 {
     }
 }
 
-impl FloatLike for u64 {
+impl StorageElement for u64 {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+}
+
+impl NumberLike for u64 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v);
         if r < 0.0 {
@@ -1711,7 +1863,19 @@ impl FloatLike for u64 {
     }
 }
 
-impl FloatLike for i4x2 {
+impl StorageElement for i4x2 {
+    fn zero() -> Self {
+        i4x2::from((0i8, 0i8))
+    }
+    fn one() -> Self {
+        i4x2::from((1i8, 1i8))
+    }
+    fn dimensions_per_value() -> usize {
+        2
+    }
+}
+
+impl NumberLike for i4x2 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v) as i8;
         i4x2::from((r, r))
@@ -1720,18 +1884,21 @@ impl FloatLike for i4x2 {
         let (a, _) = self.into();
         a as f32
     }
-    fn one() -> Self {
-        i4x2::from((1i8, 1i8))
-    }
+}
+
+impl StorageElement for u4x2 {
     fn zero() -> Self {
-        i4x2::from((0i8, 0i8))
+        u4x2::from((0u8, 0u8))
+    }
+    fn one() -> Self {
+        u4x2::from((1u8, 1u8))
     }
     fn dimensions_per_value() -> usize {
         2
     }
 }
 
-impl FloatLike for u4x2 {
+impl NumberLike for u4x2 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v);
         let r = if r < 0.0 { 0u8 } else { r as u8 };
@@ -1741,18 +1908,21 @@ impl FloatLike for u4x2 {
         let (a, _) = self.into();
         a as f32
     }
-    fn one() -> Self {
-        u4x2::from((1u8, 1u8))
-    }
+}
+
+impl StorageElement for u1x8 {
     fn zero() -> Self {
-        u4x2::from((0u8, 0u8))
+        u1x8(0x00)
+    }
+    fn one() -> Self {
+        u1x8(0xFF)
     }
     fn dimensions_per_value() -> usize {
-        2
+        8
     }
 }
 
-impl FloatLike for u1x8 {
+impl NumberLike for u1x8 {
     fn from_f32(v: f32) -> Self {
         if v > 0.0 {
             u1x8(0xFF)
@@ -1763,18 +1933,161 @@ impl FloatLike for u1x8 {
     fn to_f32(self) -> f32 {
         self.0.count_ones() as f32
     }
-    fn one() -> Self {
-        u1x8(0xFF)
-    }
+}
+
+// endregion: StorageElement + NumberLike + FloatLike Traits
+
+// region: Complex Types
+
+/// Single-precision complex number (real + imaginary f32 pair).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Complex32 {
+    pub re: f32,
+    pub im: f32,
+}
+
+/// Double-precision complex number (real + imaginary f64 pair).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Complex64 {
+    pub re: f64,
+    pub im: f64,
+}
+
+impl StorageElement for Complex32 {
     fn zero() -> Self {
-        u1x8(0x00)
+        Complex32 { re: 0.0, im: 0.0 }
     }
-    fn dimensions_per_value() -> usize {
-        8
+    fn one() -> Self {
+        Complex32 { re: 1.0, im: 0.0 }
     }
 }
 
-// endregion: FloatLike Trait
+impl NumberLike for Complex32 {
+    fn from_f32(v: f32) -> Self {
+        Complex32 { re: v, im: 0.0 }
+    }
+    fn to_f32(self) -> f32 {
+        self.re
+    }
+    fn from_f64(v: f64) -> Self {
+        Complex32 {
+            re: v as f32,
+            im: 0.0,
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self.re as f64
+    }
+    fn abs(self) -> Self {
+        // Magnitude squared — no sqrt available in no_std
+        let mag_sq = self.re * self.re + self.im * self.im;
+        Complex32 {
+            re: f32_abs_compat(mag_sq),
+            im: 0.0,
+        }
+    }
+    fn is_nan(self) -> bool {
+        self.re.is_nan() || self.im.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.re.is_finite() && self.im.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.re.is_infinite() || self.im.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+}
+
+impl FloatConvertible for Complex32 {
+    type DimScalar = Complex32;
+    type Unpacked = [Complex32; 1];
+    #[inline(always)]
+    fn unpack(self) -> [Complex32; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [Complex32; 1]) -> Self {
+        dims[0]
+    }
+}
+
+impl StorageElement for Complex64 {
+    fn zero() -> Self {
+        Complex64 { re: 0.0, im: 0.0 }
+    }
+    fn one() -> Self {
+        Complex64 { re: 1.0, im: 0.0 }
+    }
+}
+
+impl NumberLike for Complex64 {
+    fn from_f32(v: f32) -> Self {
+        Complex64 {
+            re: v as f64,
+            im: 0.0,
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self.re as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        Complex64 { re: v, im: 0.0 }
+    }
+    fn to_f64(self) -> f64 {
+        self.re
+    }
+    fn abs(self) -> Self {
+        // Magnitude squared — no sqrt available in no_std
+        let mag_sq = self.re * self.re + self.im * self.im;
+        Complex64 {
+            re: if mag_sq < 0.0 { -mag_sq } else { mag_sq },
+            im: 0.0,
+        }
+    }
+    fn is_nan(self) -> bool {
+        self.re.is_nan() || self.im.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.re.is_finite() && self.im.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.re.is_infinite() || self.im.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+}
+
+impl FloatConvertible for Complex64 {
+    type DimScalar = Complex64;
+    type Unpacked = [Complex64; 1];
+    #[inline(always)]
+    fn unpack(self) -> [Complex64; 1] {
+        [self]
+    }
+    #[inline(always)]
+    fn pack(dims: [Complex64; 1]) -> Self {
+        dims[0]
+    }
+}
+
+// endregion: Complex Types
 
 // region: FloatConvertible Trait
 
@@ -1783,9 +2096,9 @@ impl FloatLike for u1x8 {
 /// For normal scalar types (`dimensions_per_value() == 1`), `DimScalar = Self` and
 /// `Unpacked = [Self; 1]`. For packed sub-byte types, `DimScalar` is the natural
 /// scalar type for individual sub-dimensions (e.g., `i8` for `i4x2`).
-pub trait FloatConvertible: FloatLike {
+pub trait FloatConvertible: NumberLike {
     /// Scalar type for individual sub-dimensions.
-    type DimScalar: Copy + Default + FloatLike;
+    type DimScalar: Copy + Default + NumberLike;
 
     /// Fixed-size array holding all unpacked sub-dimensions.
     type Unpacked: AsRef<[Self::DimScalar]> + AsMut<[Self::DimScalar]> + Copy + Default;
@@ -2263,7 +2576,7 @@ mod tests {
 
     fn assert_scalar_roundtrip<T: FloatLike>(original: f32, abs_tol: f32, rel_tol: f32) {
         let converted = T::from_f32(original);
-        let roundtrip = FloatLike::to_f32(converted);
+        let roundtrip = NumberLike::to_f32(converted);
         if original == 0.0 {
             assert_eq!(roundtrip, 0.0, "Zero should roundtrip exactly");
             return;
@@ -2318,38 +2631,38 @@ mod tests {
         let a = T::from_f32(a_val);
         let b = T::from_f32(b_val);
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(a + b),
+            NumberLike::to_f32(a + b),
             a_val + b_val,
             abs_tol,
             rel_tol,
             "add",
         );
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(a - b),
+            NumberLike::to_f32(a - b),
             a_val - b_val,
             abs_tol,
             rel_tol,
             "sub",
         );
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(a * b),
+            NumberLike::to_f32(a * b),
             a_val * b_val,
             abs_tol,
             rel_tol,
             "mul",
         );
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(a / b),
+            NumberLike::to_f32(a / b),
             a_val / b_val,
             abs_tol,
             rel_tol,
             "div",
         );
-        assert_scalar_almost_equal::<T>(FloatLike::to_f32(-a), -a_val, abs_tol, rel_tol, "neg");
-        assert_eq!(FloatLike::to_f32(T::zero()), 0.0);
-        assert_scalar_almost_equal::<T>(FloatLike::to_f32(T::one()), 1.0, abs_tol, rel_tol, "ONE");
+        assert_scalar_almost_equal::<T>(NumberLike::to_f32(-a), -a_val, abs_tol, rel_tol, "neg");
+        assert_eq!(NumberLike::to_f32(T::zero()), 0.0);
+        assert_scalar_almost_equal::<T>(NumberLike::to_f32(T::one()), 1.0, abs_tol, rel_tol, "ONE");
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(T::from_f32(-1.0)),
+            NumberLike::to_f32(T::from_f32(-1.0)),
             -1.0,
             abs_tol,
             rel_tol,
@@ -2358,16 +2671,16 @@ mod tests {
         assert!(a > b);
         assert!(a == a);
         assert_scalar_almost_equal::<T>(
-            FloatLike::to_f32(FloatLike::abs(-a)),
+            NumberLike::to_f32(NumberLike::abs(-a)),
             a_val,
             abs_tol,
             rel_tol,
             "abs",
         );
-        assert!(FloatLike::is_finite(a));
-        assert!(!FloatLike::is_nan(a));
+        assert!(NumberLike::is_finite(a));
+        assert!(!NumberLike::is_nan(a));
         if T::has_infinity() {
-            assert!(!FloatLike::is_infinite(a));
+            assert!(!NumberLike::is_infinite(a));
         }
     }
 
@@ -2378,31 +2691,31 @@ mod tests {
     }
 
     fn check_edge_cases<T: FloatLike>() {
-        assert_eq!(FloatLike::to_f32(T::from_f32(0.0)), 0.0);
-        assert_eq!(FloatLike::to_f32(T::from_f32(-0.0)), 0.0);
+        assert_eq!(NumberLike::to_f32(T::from_f32(0.0)), 0.0);
+        assert_eq!(NumberLike::to_f32(T::from_f32(-0.0)), 0.0);
         if T::has_infinity() {
-            assert!(FloatLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
-            assert!(FloatLike::to_f32(T::from_f32(f32::NEG_INFINITY)).is_infinite());
+            assert!(NumberLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
+            assert!(NumberLike::to_f32(T::from_f32(f32::NEG_INFINITY)).is_infinite());
         } else {
-            assert!(!FloatLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
+            assert!(!NumberLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
         }
         if T::has_nan() {
-            assert!(FloatLike::to_f32(T::from_f32(f32::NAN)).is_nan());
+            assert!(NumberLike::to_f32(T::from_f32(f32::NAN)).is_nan());
         } else {
-            assert!(!FloatLike::to_f32(T::from_f32(f32::NAN)).is_nan());
+            assert!(!NumberLike::to_f32(T::from_f32(f32::NAN)).is_nan());
         }
         let big = T::max_value() * 10.0;
         let overflow = T::from_f32(big);
         if T::has_infinity() {
             assert!(
-                FloatLike::to_f32(overflow).is_infinite()
-                    || FloatLike::to_f32(overflow) >= T::max_value()
+                NumberLike::to_f32(overflow).is_infinite()
+                    || NumberLike::to_f32(overflow) >= T::max_value()
             );
         } else {
-            let v = FloatLike::to_f32(overflow);
+            let v = NumberLike::to_f32(overflow);
             assert!(!v.is_infinite() && !v.is_nan());
             assert!(v <= T::max_value());
-            let neg = FloatLike::to_f32(T::from_f32(-big));
+            let neg = NumberLike::to_f32(T::from_f32(-big));
             assert!(!neg.is_infinite() && !neg.is_nan());
             assert!(neg >= -T::max_value());
         }
@@ -2410,7 +2723,7 @@ mod tests {
 
     fn check_subnormals<T: FloatLike>(values: &[f32], upper_bound: f32) {
         for &val in values {
-            let roundtrip = FloatLike::to_f32(T::from_f32(val));
+            let roundtrip = NumberLike::to_f32(T::from_f32(val));
             assert!(
                 roundtrip >= 0.0 && roundtrip < upper_bound,
                 "{} subnormal test failed for {}: got {}",

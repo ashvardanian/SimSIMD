@@ -211,10 +211,17 @@ NK_PUBLIC void nk_reduce_moments_u8_neonsdot(                         //
 NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_contiguous_( //
     nk_e2m3_t const *data_ptr, nk_size_t count,               //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
-    uint8x16x2_t const lut_e2m3_x16 = {{
-        {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-        {32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120},
-    }};
+    uint8x16x2_t lut_e2m3_x16;
+    // table[0]: values for magnitudes 0..15
+    // 0x0E0C0A0806040200 → bytes [0..7]  = 0,2,4,6,8,10,12,14
+    // 0x1E1C1A1816141210 → bytes [8..15] = 16,18,20,22,24,26,28,30
+    lut_e2m3_x16.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0E0C0A0806040200ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x1E1C1A1816141210ULL)));
+    // table[1]: values for magnitudes 16..31
+    // 0x3C3834302C282420 → bytes [0..7]  = 32,36,40,44,48,52,56,60
+    // 0x7870686058504840 → bytes [8..15] = 64,72,80,88,96,104,112,120
+    lut_e2m3_x16.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x3C3834302C282420ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x7870686058504840ULL)));
     int8x16_t ones_i8x16 = vdupq_n_s8(1);
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     int32x4_t sumsq_i32x4 = vdupq_n_s32(0);
@@ -245,10 +252,17 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_contiguous_( //
 NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_strided_(                 //
     nk_e2m3_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
-    uint8x16x2_t const lut_e2m3_x16 = {{
-        {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
-        {32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120},
-    }};
+    uint8x16x2_t lut_e2m3_x16;
+    // table[0]: values for magnitudes 0..15
+    // 0x0E0C0A0806040200 → bytes [0..7]  = 0,2,4,6,8,10,12,14
+    // 0x1E1C1A1816141210 → bytes [8..15] = 16,18,20,22,24,26,28,30
+    lut_e2m3_x16.val[0] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x0E0C0A0806040200ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x1E1C1A1816141210ULL)));
+    // table[1]: values for magnitudes 16..31
+    // 0x3C3834302C282420 → bytes [0..7]  = 32,36,40,44,48,52,56,60
+    // 0x7870686058504840 → bytes [8..15] = 64,72,80,88,96,104,112,120
+    lut_e2m3_x16.val[1] = vcombine_u8(vreinterpret_u8_u64(vcreate_u64(0x3C3834302C282420ULL)),
+                                      vreinterpret_u8_u64(vcreate_u64(0x7870686058504840ULL)));
     int8x16_t ones_i8x16 = vdupq_n_s8(1);
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     int32x4_t sumsq_i32x4 = vdupq_n_s32(0);

@@ -187,7 +187,6 @@ template <typename in_type_, typename result_type_ = typename in_type_::dot_resu
           allow_simd_t allow_simd_ = prefer_simd_k>
 void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_t row_count, size_t column_count,
                  size_t depth, size_t a_stride_in_bytes, size_t c_stride_in_bytes) noexcept {
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
     if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
@@ -249,7 +248,6 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
                     result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                     std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
     if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
 
@@ -375,7 +373,6 @@ void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                         std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
     if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
 
@@ -383,6 +380,7 @@ void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
         nk_hammings_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                  row_count);
     else {
+        using raw_t = typename in_type_::raw_t;
         std::size_t depth_bytes = divide_round_up(depth, 8);
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
@@ -432,7 +430,6 @@ void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
     if (!a_stride_in_bytes) a_stride_in_bytes = divide_round_up(depth, 8) * sizeof(in_type_);
     if (!c_stride_in_bytes) c_stride_in_bytes = column_count * sizeof(result_type_);
 
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
 
@@ -515,7 +512,6 @@ void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                         std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
     if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
 
@@ -523,6 +519,7 @@ void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
         nk_jaccards_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                  row_count);
     else {
+        using raw_t = typename in_type_::raw_t;
         std::size_t depth_bytes = divide_round_up(depth, 8);
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
@@ -556,7 +553,6 @@ void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
     if (!a_stride_in_bytes) a_stride_in_bytes = divide_round_up(depth, 8) * sizeof(in_type_);
     if (!c_stride_in_bytes) c_stride_in_bytes = column_count * sizeof(result_type_);
 
-    using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
 

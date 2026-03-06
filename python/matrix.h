@@ -4,9 +4,8 @@
  *  @author Ash Vardanian
  *  @date February 20, 2026
  *
- *  Declares the PackedMatrix type and API functions for matrix
- *  multiplication (dots_pack, dots_packed, Tensor @), symmetric dot products,
- *  symmetric Hamming distances, and packed Hamming operations.
+ *  Declares the PackedMatrix type and API functions for packed/symmetric
+ *  cross operations used by the Python module.
  */
 #ifndef NK_PYTHON_MATRIX_H
 #define NK_PYTHON_MATRIX_H
@@ -18,11 +17,11 @@ extern "C" {
 #endif
 
 /**
- *  @brief Pre-packed matrix optimized for matrix multiplication or Hamming distance.
+ *  @brief Pre-packed matrix optimized for matrix multiplication or set distances.
  *
  *  Stores matrix data in a hardware-optimized layout (e.g., for AMX, AVX-512).
  *  Created via `nk.dots_pack()` or `nk.hammings_pack()` and used with
- *  `nk.dots_packed()`, `nk.hammings_packed()`, or the `@` operator.
+ *  packed batch APIs (`nk.*_packed()`) or the `@` operator for dot products.
  */
 typedef struct PackedMatrix {
     PyObject_HEAD
@@ -49,17 +48,35 @@ PyObject *api_dots_packed(PyObject *self, PyObject *const *args, Py_ssize_t narg
 PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 /** @brief Hamming distance computation with a pre-packed B matrix. */
 PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief Jaccard distance computation with a pre-packed B matrix. */
+PyObject *api_jaccards_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief Angular distance computation with a pre-packed B matrix. */
+PyObject *api_angulars_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief Euclidean distance computation with a pre-packed B matrix. */
+PyObject *api_euclideans_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 /** @brief All-pairs dot products within a single matrix. */
 PyObject *api_dots_symmetric(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 /** @brief All-pairs Hamming distances within a single matrix. */
 PyObject *api_hammings_symmetric(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief All-pairs Jaccard distances within a single matrix. */
+PyObject *api_jaccards_symmetric(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief All-pairs angular distances within a single matrix. */
+PyObject *api_angulars_symmetric(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+/** @brief All-pairs Euclidean distances within a single matrix. */
+PyObject *api_euclideans_symmetric(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
 extern char const doc_dots_pack[];
 extern char const doc_dots_packed[];
 extern char const doc_hammings_pack[];
 extern char const doc_hammings_packed[];
+extern char const doc_jaccards_packed[];
+extern char const doc_angulars_packed[];
+extern char const doc_euclideans_packed[];
 extern char const doc_dots_symmetric[];
 extern char const doc_hammings_symmetric[];
+extern char const doc_jaccards_symmetric[];
+extern char const doc_angulars_symmetric[];
+extern char const doc_euclideans_symmetric[];
 
 /**
  *  @brief Tensor @ PackedMatrix operator implementation.

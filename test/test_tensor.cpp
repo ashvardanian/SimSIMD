@@ -115,7 +115,7 @@ void test_sub_byte_u1x8() {
 
 void test_custom_allocator() {
     using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
-    auto v = nk::vector<nk::f32_t, custom_alloc_t>::try_with_dimensions(256);
+    auto v = nk::vector<nk::f32_t, custom_alloc_t>::try_zeros(256);
     assert(v.size() == 256 && "custom allocator size mismatch");
     v[128] = nk::f32_t(99.0f);
     assert(v[128] == nk::f32_t(99.0f) && "custom allocator value mismatch");
