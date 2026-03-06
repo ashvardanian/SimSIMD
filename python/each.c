@@ -531,6 +531,7 @@ char const doc_add[] =                                                          
 static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyObject *out_obj,
                                   PyObject *out_dtype_obj) {
     PyObject *return_obj = NULL;
+    char *cast_staging = NULL;
     Py_buffer a_buffer, out_buffer;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -570,8 +571,14 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     if (!py_number_to_scalar_buffer(scalar_obj, &beta_buf, scalar_dtype)) goto cleanup;
 
     size_t const element_size = bytes_per_dtype(dtype);
+    size_t total_elements = 1;
+    for (int dim = 0; dim < a_buffer.ndim; dim++) total_elements *= (size_t)a_buffer.shape[dim];
+
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+    nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+
+    // nk.add(np.int16([1,2,3]), 5) → returns new Tensor(int16)
     if (!out_obj) {
         Tensor *result_tensor = Tensor_new(dtype, (size_t)a_buffer.ndim, a_buffer.shape);
         if (!result_tensor) goto cleanup;
@@ -579,6 +586,21 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
         result_data = result_tensor->data;
         compute_contiguous_strides((size_t)a_buffer.ndim, a_buffer.shape, element_size, result_strides);
     }
+    // nk.add(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
+    // → kernel computes int16, then casts int16→float64 into output buffer
+    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+        cast_staging = PyMem_Malloc(total_elements * element_size);
+        if (!cast_staging) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+        result_data = cast_staging;
+        compute_contiguous_strides((size_t)a_buffer.ndim, a_buffer.shape, element_size, result_strides);
+        return_obj = Py_None;
+        Py_INCREF(Py_None);
+    }
+    // nk.add(np.float32([1,2,3]), 5.0, out=np.zeros(3, dtype=np.float32))
+    // → kernel writes float32 directly into output buffer
     else {
         result_data = out_buffer.buf;
         for (int dim = 0; dim < a_buffer.ndim; ++dim) result_strides[dim] = out_buffer.strides[dim];
@@ -589,7 +611,7 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
     int num_scale_buffers = out_obj ? 2 : 1;
     int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
-    if (!out_obj && contiguous_tail < a_buffer.ndim) {
+    if (cast_staging || (!out_obj && contiguous_tail < a_buffer.ndim)) {
         Py_buffer const *input_only[] = {&a_buffer};
         contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
@@ -598,9 +620,11 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
                          a_buffer.shape, a_buffer.strides, result_strides,               //
                          a_buffer.ndim, contiguous_tail);
+    if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
     PyEval_RestoreThread(save);
 
 cleanup:
+    if (cast_staging) PyMem_Free(cast_staging);
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&out_buffer);
     return return_obj;
@@ -611,6 +635,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     PyObject *return_obj = NULL;
     char *a_promoted = NULL;
     char *b_promoted = NULL;
+    char *cast_staging = NULL;
     int a_needs_free = 0, b_needs_free = 0;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
@@ -684,6 +709,10 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
 
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+    nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+
+    // nk.add(np.int16([1,2,3]), np.uint16([4,5,6]))
+    // → promotes to int32, returns new Tensor(int32)
     if (!out_obj) {
         Tensor *result_tensor = Tensor_new(dtype, (size_t)num_dims, a_buffer.shape);
         if (!result_tensor) goto cleanup;
@@ -691,25 +720,38 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
         result_data = result_tensor->data;
         memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
     }
+    // nk.add(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
+    // → kernel computes int32, then casts int32→float64 into output buffer
+    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+        cast_staging = PyMem_Malloc(total_elements * element_size);
+        if (!cast_staging) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+        result_data = cast_staging;
+        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
+        return_obj = Py_None;
+        Py_INCREF(Py_None);
+    }
+    // nk.add(np.float32([1,2,3]), np.float32([4,5,6]), out=np.zeros(3, dtype=np.float32))
+    // → kernel writes float32 directly into output buffer
     else {
         result_data = out_buffer.buf;
-        for (int dim = 0; dim < num_dims; dim++) result_strides[dim] = out_buffer.strides[dim];
+        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     int contiguous_tail = num_dims;
-    if (out_obj) {
-        Py_buffer const *bufs[] = {&out_buffer};
-        contiguous_tail = shared_contiguous_tail_dimensions(bufs, 1, num_dims);
-    }
 
     PyThreadState *save = PyEval_SaveThread();
     each_sum_recursive(sum_kernel, a_promoted, b_promoted, result_data, a_buffer.shape, promoted_strides,
                        promoted_strides, result_strides, num_dims, contiguous_tail);
+    if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
     PyEval_RestoreThread(save);
 
 cleanup:
+    if (cast_staging) PyMem_Free(cast_staging);
     if (a_needs_free) PyMem_Free(a_promoted);
     if (b_needs_free) PyMem_Free(b_promoted);
     PyBuffer_Release(&a_buffer);
@@ -761,12 +803,14 @@ PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         return NULL;
     }
 
+    // nk.add(5.0, np.float32([1,2,3])) → scalar + array
     if (a_is_scalar || b_is_scalar) {
         PyObject *array_obj = a_is_scalar ? b_obj : a_obj;
         PyObject *scalar_obj = a_is_scalar ? a_obj : b_obj;
         return add_scalar_array(array_obj, scalar_obj, out_obj, out_dtype_obj);
     }
 
+    // nk.add(np.float32([1,2,3]), np.float32([4,5,6])) → array + array
     return add_array_array(a_obj, b_obj, out_obj, out_dtype_obj);
 }
 
@@ -790,6 +834,7 @@ char const doc_multiply[] =                                                     
 static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyObject *out_obj,
                                        PyObject *out_dtype_obj) {
     PyObject *return_obj = NULL;
+    char *cast_staging = NULL;
     Py_buffer a_buffer, out_buffer;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -829,8 +874,14 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
 
     size_t const element_size = bytes_per_dtype(dtype);
+    size_t total_elements = 1;
+    for (int dim = 0; dim < a_buffer.ndim; dim++) total_elements *= (size_t)a_buffer.shape[dim];
+
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+    nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+
+    // nk.multiply(np.float32([1,2,3]), 5.0) → returns new Tensor(float32)
     if (!out_obj) {
         Tensor *result_tensor = Tensor_new(dtype, (size_t)a_buffer.ndim, a_buffer.shape);
         if (!result_tensor) goto cleanup;
@@ -838,6 +889,21 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
         result_data = result_tensor->data;
         compute_contiguous_strides((size_t)a_buffer.ndim, a_buffer.shape, element_size, result_strides);
     }
+    // nk.multiply(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
+    // → kernel computes int16, then casts int16→float64 into output buffer
+    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+        cast_staging = PyMem_Malloc(total_elements * element_size);
+        if (!cast_staging) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+        result_data = cast_staging;
+        compute_contiguous_strides((size_t)a_buffer.ndim, a_buffer.shape, element_size, result_strides);
+        return_obj = Py_None;
+        Py_INCREF(Py_None);
+    }
+    // nk.multiply(np.float32([1,2,3]), 5.0, out=np.zeros(3, dtype=np.float32))
+    // → kernel writes float32 directly into output buffer
     else {
         result_data = out_buffer.buf;
         for (int dim = 0; dim < a_buffer.ndim; ++dim) result_strides[dim] = out_buffer.strides[dim];
@@ -848,7 +914,7 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
     int num_scale_buffers = out_obj ? 2 : 1;
     int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
-    if (!out_obj && contiguous_tail < a_buffer.ndim) {
+    if (cast_staging || (!out_obj && contiguous_tail < a_buffer.ndim)) {
         Py_buffer const *input_only[] = {&a_buffer};
         contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
@@ -857,9 +923,11 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
                          a_buffer.shape, a_buffer.strides, result_strides,               //
                          a_buffer.ndim, contiguous_tail);
+    if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
     PyEval_RestoreThread(save);
 
 cleanup:
+    if (cast_staging) PyMem_Free(cast_staging);
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&out_buffer);
     return return_obj;
@@ -870,6 +938,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     PyObject *return_obj = NULL;
     char *a_promoted = NULL;
     char *b_promoted = NULL;
+    char *cast_staging = NULL;
     int a_needs_free = 0, b_needs_free = 0;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
@@ -948,6 +1017,10 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
 
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+    nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+
+    // nk.multiply(np.int16([1,2,3]), np.uint16([4,5,6]))
+    // → promotes to int32, returns new Tensor(int32), zero-filled to prevent 0*NaN=NaN
     if (!out_obj) {
         Tensor *result_tensor = Tensor_new(dtype, (size_t)num_dims, a_buffer.shape);
         if (!result_tensor) goto cleanup;
@@ -956,26 +1029,40 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
         result_data = result_tensor->data;
         memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
     }
+    // nk.multiply(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
+    // → kernel computes int32, then casts int32→float64 into output buffer
+    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+        cast_staging = PyMem_Malloc(total_elements * element_size);
+        if (!cast_staging) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+        result_data = cast_staging;
+        memset(result_data, 0, total_elements * element_size); // prevent 0*NaN=NaN
+        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
+        return_obj = Py_None;
+        Py_INCREF(Py_None);
+    }
+    // nk.multiply(np.float32([1,2,3]), np.float32([4,5,6]), out=np.zeros(3, dtype=np.float32))
+    // → kernel writes float32 directly into output buffer
     else {
         result_data = out_buffer.buf;
-        for (int dim = 0; dim < num_dims; dim++) result_strides[dim] = out_buffer.strides[dim];
+        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     int contiguous_tail = num_dims;
-    if (out_obj) {
-        Py_buffer const *bufs[] = {&out_buffer};
-        contiguous_tail = shared_contiguous_tail_dimensions(bufs, 1, num_dims);
-    }
 
     PyThreadState *save = PyEval_SaveThread();
     each_fma_recursive(fma_kernel, a_promoted, b_promoted, result_data, result_data, &alpha_buf, &beta_buf,
                        a_buffer.shape, promoted_strides, promoted_strides, result_strides, result_strides, num_dims,
                        contiguous_tail);
+    if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
     PyEval_RestoreThread(save);
 
 cleanup:
+    if (cast_staging) PyMem_Free(cast_staging);
     if (a_needs_free) PyMem_Free(a_promoted);
     if (b_needs_free) PyMem_Free(b_promoted);
     PyBuffer_Release(&a_buffer);
@@ -1027,12 +1114,14 @@ PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const p
         return NULL;
     }
 
+    // nk.multiply(5.0, np.float32([1,2,3])) → scalar * array
     if (a_is_scalar || b_is_scalar) {
         PyObject *array_obj = a_is_scalar ? b_obj : a_obj;
         PyObject *scalar_obj = a_is_scalar ? a_obj : b_obj;
         return multiply_scalar_array(array_obj, scalar_obj, out_obj, out_dtype_obj);
     }
 
+    // nk.multiply(np.float32([1,2,3]), np.float32([4,5,6])) → array * array
     return multiply_array_array(a_obj, b_obj, out_obj, out_dtype_obj);
 }
 
