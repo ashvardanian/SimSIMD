@@ -171,11 +171,13 @@ mod tests {
         capabilities::configure_thread();
         let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
         let documents = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
-        let packed_q = MaxSimPackedMatrix::try_pack(&queries).unwrap();
-        let packed_d = MaxSimPackedMatrix::try_pack(&documents).unwrap();
-        assert_eq!(packed_q.dims(), (4, 16));
-        assert_eq!(packed_d.dims(), (8, 16));
-        let score = packed_q.score(&packed_d);
+        let queries_view = queries.view();
+        let docs_view = documents.view();
+        let queries_packed = MaxSimPackedMatrix::try_pack(&queries_view).unwrap();
+        let docs_packed = MaxSimPackedMatrix::try_pack(&docs_view).unwrap();
+        assert_eq!(queries_packed.dims(), (4, 16));
+        assert_eq!(docs_packed.dims(), (8, 16));
+        let score = queries_packed.score(&docs_packed);
         assert!(
             score.is_finite(),
             "MaxSim score must be finite, got {score}"

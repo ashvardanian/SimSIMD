@@ -12,9 +12,11 @@
 //! let queries = Tensor::<f32>::try_new(&[32, 128], 1.0).unwrap();
 //! let documents = Tensor::<f32>::try_new(&[1024, 128], 1.0).unwrap();
 //!
-//! let packed_q = MaxSimPackedMatrix::try_pack(&queries).unwrap();
-//! let packed_d = MaxSimPackedMatrix::try_pack(&documents).unwrap();
-//! let score = packed_q.score(&packed_d);
+//! let queries_view = queries.view();
+//! let docs_view = documents.view();
+//! let queries_packed = MaxSimPackedMatrix::try_pack(&queries_view).unwrap();
+//! let docs_packed = MaxSimPackedMatrix::try_pack(&docs_view).unwrap();
+//! let score = queries_packed.score(&docs_packed);
 //! ```
 
 extern crate alloc;
@@ -23,7 +25,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::scalar::{bf16, f16};
-use crate::tensor::{Allocator, Global, Tensor, TensorError, SIMD_ALIGNMENT};
+use crate::tensor::{Allocator, Global, ShapeDescriptor, TensorError, TensorView, SIMD_ALIGNMENT};
 
 // region: FFI
 
@@ -41,7 +43,7 @@ extern "C" {
     );
 
     fn nk_maxsim_packed_size_f16(n: usize, k: usize) -> usize;
-    fn nk_maxsim_pack_f16(v: *const u16, n: usize, k: usize, stride: usize, packed: *mut u8);
+    fn nk_maxsim_pack_f16(v: *const f16, n: usize, k: usize, stride: usize, packed: *mut u8);
     fn nk_maxsim_packed_f16(
         q: *const u8,
         d: *const u8,
@@ -52,7 +54,7 @@ extern "C" {
     );
 
     fn nk_maxsim_packed_size_bf16(n: usize, k: usize) -> usize;
-    fn nk_maxsim_pack_bf16(v: *const u16, n: usize, k: usize, stride: usize, packed: *mut u8);
+    fn nk_maxsim_pack_bf16(v: *const bf16, n: usize, k: usize, stride: usize, packed: *mut u8);
     fn nk_maxsim_packed_bf16(
         q: *const u8,
         d: *const u8,
@@ -144,7 +146,7 @@ impl MaxSim for f16 {
         stride: usize,
         packed: *mut u8,
     ) {
-        nk_maxsim_pack_f16(vectors as *const u16, n, k, stride, packed)
+        nk_maxsim_pack_f16(vectors, n, k, stride, packed)
     }
 
     unsafe fn maxsim_packed(
@@ -173,7 +175,7 @@ impl MaxSim for bf16 {
         stride: usize,
         packed: *mut u8,
     ) {
-        nk_maxsim_pack_bf16(vectors as *const u16, n, k, stride, packed)
+        nk_maxsim_pack_bf16(vectors, n, k, stride, packed)
     }
 
     unsafe fn maxsim_packed(
@@ -256,21 +258,16 @@ impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
 }
 
 impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
-    /// Pack vectors from a 2D tensor using a custom allocator.
+    /// Pack vectors from a 2D tensor view using a custom allocator.
     ///
-    /// Returns `Err` if the tensor is not 2D or allocation fails.
-    pub fn try_pack_in<BA: Allocator, const MAX_RANK: usize>(
-        vectors: &Tensor<T, BA, MAX_RANK>,
+    /// Returns `Err` if the view is not 2D, the depth axis is not contiguous,
+    /// the row stride is negative, or allocation fails.
+    pub fn try_pack_in<const MAX_RANK: usize>(
+        vectors: &TensorView<'_, T, MAX_RANK>,
         alloc: A,
     ) -> Result<Self, TensorError> {
-        if vectors.ndim() != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: vectors.ndim(),
-            });
-        }
-        let (n, k) = (vectors.shape()[0], vectors.shape()[1]);
-        let size = T::maxsim_packed_size(n, k);
+        let (vector_count, depth, row_stride_bytes) = validate_maxsim_view(vectors)?;
+        let size = T::maxsim_packed_size(vector_count, depth);
 
         let data = if size == 0 {
             NonNull::dangling()
@@ -290,9 +287,9 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
             unsafe {
                 T::maxsim_pack(
                     vectors.as_ptr(),
-                    n,
-                    k,
-                    vectors.stride_bytes(0) as usize,
+                    vector_count,
+                    depth,
+                    row_stride_bytes,
                     data.as_ptr(),
                 );
             }
@@ -301,8 +298,8 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
         Ok(Self {
             data,
             size,
-            n,
-            k,
+            n: vector_count,
+            k: depth,
             alloc,
             _marker: PhantomData,
         })
@@ -364,33 +361,120 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
 
 // Convenience methods using Global allocator
 impl<T: MaxSim> MaxSimPackedMatrix<T, Global> {
-    /// Pack vectors from a 2D tensor using the global allocator.
-    pub fn try_pack<BA: Allocator, const MAX_RANK: usize>(
-        vectors: &Tensor<T, BA, MAX_RANK>,
+    /// Pack vectors from a 2D tensor view using the global allocator.
+    pub fn try_pack<const MAX_RANK: usize>(
+        vectors: &TensorView<'_, T, MAX_RANK>,
     ) -> Result<Self, TensorError> {
         Self::try_pack_in(vectors, Global)
     }
 
     /// Convenience constructor that panics on error.
-    pub fn pack<BA: Allocator, const MAX_RANK: usize>(vectors: &Tensor<T, BA, MAX_RANK>) -> Self {
+    pub fn pack<const MAX_RANK: usize>(vectors: &TensorView<'_, T, MAX_RANK>) -> Self {
         Self::try_pack(vectors).expect("MaxSimPackedMatrix::pack failed")
     }
 }
 
 // endregion: MaxSimPackedMatrix
 
-// region: Tensor convenience
-
-impl<T: MaxSim, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
-    /// Pack this tensor's vectors for MaxSim scoring.
-    pub fn try_maxsim_pack(&self) -> Result<MaxSimPackedMatrix<T, A>, TensorError> {
-        MaxSimPackedMatrix::try_pack_in(self, self.allocator().clone())
+fn validate_maxsim_view<T, const MAX_RANK: usize>(
+    vectors: &TensorView<'_, T, MAX_RANK>,
+) -> Result<(usize, usize, usize), TensorError> {
+    if vectors.ndim() != 2 {
+        return Err(TensorError::DimensionMismatch {
+            expected: 2,
+            got: vectors.ndim(),
+        });
     }
 
-    /// Convenience that panics on error.
-    pub fn maxsim_pack(&self) -> MaxSimPackedMatrix<T, A> {
-        self.try_maxsim_pack().expect("maxsim_pack failed")
+    if !vectors.has_contiguous_rows() {
+        return Err(TensorError::NonContiguousRows);
+    }
+
+    let row_stride_bytes = vectors.stride_bytes(0);
+    if row_stride_bytes < 0 {
+        return Err(TensorError::InvalidShape {
+            shape: ShapeDescriptor::from_slice(vectors.shape()),
+            reason: "MaxSim requires non-negative row strides",
+        });
+    }
+
+    Ok((
+        vectors.shape()[0],
+        vectors.shape()[1],
+        row_stride_bytes as usize,
+    ))
+}
+
+// region: TensorView convenience
+
+impl<'a, T: MaxSim, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Pack this 2D tensor view for MaxSim scoring using the provided allocator.
+    pub fn try_maxsim_pack_in<A: Allocator>(
+        &self,
+        alloc: A,
+    ) -> Result<MaxSimPackedMatrix<T, A>, TensorError> {
+        MaxSimPackedMatrix::try_pack_in(self, alloc)
+    }
+
+    /// Pack this 2D tensor view for MaxSim scoring using the global allocator.
+    pub fn try_maxsim_pack(&self) -> Result<MaxSimPackedMatrix<T, Global>, TensorError> {
+        self.try_maxsim_pack_in(Global)
     }
 }
 
-// endregion: Tensor convenience
+// endregion: TensorView convenience
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tensor::{SliceRange, Tensor};
+
+    #[test]
+    fn maxsim_packs_from_tensor_view() {
+        let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
+        let docs = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
+
+        let queries_packed = queries.view().try_maxsim_pack().unwrap();
+        let docs_packed = docs.view().try_maxsim_pack().unwrap();
+
+        assert_eq!(queries_packed.dims(), (4, 16));
+        assert_eq!(docs_packed.dims(), (8, 16));
+        assert!(queries_packed.score(&docs_packed).is_finite());
+    }
+
+    #[test]
+    fn maxsim_rejects_non_contiguous_depth_axis() {
+        let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
+        let transposed = queries.t().unwrap();
+        let result = transposed.try_maxsim_pack();
+        assert!(matches!(result, Err(TensorError::NonContiguousRows)));
+    }
+
+    #[test]
+    fn maxsim_accepts_outer_strided_views() {
+        let queries = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
+        let odd_rows = queries
+            .slice(&[
+                SliceRange::range_step(1, 7, 2),
+                SliceRange::range_step(0, 16, 1),
+            ])
+            .unwrap();
+
+        let queries_packed = odd_rows.try_maxsim_pack().unwrap();
+        assert_eq!(queries_packed.dims(), (3, 16));
+    }
+
+    #[test]
+    fn maxsim_rejects_negative_row_stride() {
+        let queries = Tensor::<f32>::try_full(&[8, 16], 1.0).unwrap();
+        let reversed_rows = queries
+            .slice(&[
+                SliceRange::range_step(7, 0, -1),
+                SliceRange::range_step(0, 16, 1),
+            ])
+            .unwrap();
+
+        let result = reversed_rows.try_maxsim_pack();
+        assert!(matches!(result, Err(TensorError::InvalidShape { .. })));
+    }
+}

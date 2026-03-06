@@ -6938,7 +6938,7 @@ mod tests {
     fn check_complex_dot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
         T: ComplexTestType,
-        T::Output: ComplexOutput,
+        <T as Dot>::Output: ComplexOutput,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -6948,7 +6948,7 @@ mod tests {
             .chunks_exact(2)
             .map(|chunk| (chunk[0], chunk[1]))
             .collect();
-        check_complex::<T, T::Output, _>(
+        check_complex::<T, <T as Dot>::Output, _>(
             &a_pairs,
             &b_pairs,
             <T as Dot>::dot,
@@ -6961,7 +6961,7 @@ mod tests {
     fn check_complex_vdot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
         T: ComplexTestType,
-        T::Output: ComplexOutput,
+        <T as Dot>::Output: ComplexOutput,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -6971,7 +6971,7 @@ mod tests {
             .chunks_exact(2)
             .map(|chunk| (chunk[0], chunk[1]))
             .collect();
-        check_complex::<T, T::Output, _>(
+        check_complex::<T, <T as Dot>::Output, _>(
             &a_pairs,
             &b_pairs,
             T::vdot,
@@ -6984,7 +6984,7 @@ mod tests {
     fn check_complex_bilinear_identity<T>(n: usize)
     where
         T: ComplexTestType,
-        T::Output: ComplexOutput,
+        <T as Bilinear>::Output: ComplexOutput,
     {
         let mut a = vec![T::zero(); n];
         let mut b = vec![T::zero(); n];
@@ -7019,22 +7019,22 @@ mod tests {
         let b = &[5.0_f32, 6.0, 7.0, 8.0];
 
         // dot: (-18, 68)
-        check_complex_dot::<f64>(a, b, -18.0, 68.0);
-        check_complex_dot::<f32>(a, b, -18.0, 68.0);
-        check_complex_dot::<f16>(a, b, -18.0, 68.0);
-        check_complex_dot::<bf16>(a, b, -18.0, 68.0);
+        check_complex_dot::<Complex64>(a, b, -18.0, 68.0);
+        check_complex_dot::<Complex32>(a, b, -18.0, 68.0);
+        check_complex_dot::<Complex16>(a, b, -18.0, 68.0);
+        check_complex_dot::<ComplexBF16>(a, b, -18.0, 68.0);
 
         // vdot (conjugate): (70, -8)
-        check_complex_vdot::<f64>(a, b, 70.0, -8.0);
-        check_complex_vdot::<f32>(a, b, 70.0, -8.0);
-        check_complex_vdot::<f16>(a, b, 70.0, -8.0);
-        check_complex_vdot::<bf16>(a, b, 70.0, -8.0);
+        check_complex_vdot::<Complex64>(a, b, 70.0, -8.0);
+        check_complex_vdot::<Complex32>(a, b, 70.0, -8.0);
+        check_complex_vdot::<Complex16>(a, b, 70.0, -8.0);
+        check_complex_vdot::<ComplexBF16>(a, b, 70.0, -8.0);
 
         // bilinear: identity matrix, unit vector → (1, 0)
-        check_complex_bilinear_identity::<f64>(4);
-        check_complex_bilinear_identity::<f32>(4);
-        check_complex_bilinear_identity::<f16>(4);
-        check_complex_bilinear_identity::<bf16>(4);
+        check_complex_bilinear_identity::<Complex64>(4);
+        check_complex_bilinear_identity::<Complex32>(4);
+        check_complex_bilinear_identity::<Complex16>(4);
+        check_complex_bilinear_identity::<ComplexBF16>(4);
     }
 
     // endregion
