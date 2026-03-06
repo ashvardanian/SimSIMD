@@ -675,7 +675,8 @@ if (NK_BUILD_SHARED_TEST)
         test/test_probability.cpp test/test_each.cpp test/test_trigonometry.cpp test/test_geospatial.cpp
         test/test_mesh.cpp test/test_cast.cpp test/test_reduce.cpp test/test_sparse.cpp test/test_cross_serial.cpp
         test/test_cross_x86.cpp test/test_cross_amx.cpp test/test_cross_arm.cpp test/test_cross_sme.cpp
-        test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_maxsim.cpp test/test_tensor.cpp
+        test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_wasm.cpp test/test_maxsim.cpp
+        test/test_tensor.cpp
     )
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)
