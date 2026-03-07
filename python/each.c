@@ -580,6 +580,8 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
     nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+    Py_buffer const *input_bufs[] = {&a_buffer};
+    int contiguous_tail = shared_contiguous_tail_dimensions(input_bufs, 1, a_buffer.ndim);
 
     // nk.add(np.int16([1,2,3]), 5) → returns new Tensor(int16)
     if (!out_obj) {
@@ -603,20 +605,14 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
         Py_INCREF(Py_None);
     }
     // nk.add(np.float32([1,2,3]), 5.0, out=np.zeros(3, dtype=np.float32))
-    // → kernel writes float32 directly into output buffer
+    // → kernel writes float32 directly into output buffer; output may be non-contiguous
     else {
         result_data = out_buffer.buf;
         for (int dim = 0; dim < a_buffer.ndim; ++dim) result_strides[dim] = out_buffer.strides[dim];
+        Py_buffer const *both_bufs[] = {&a_buffer, &out_buffer};
+        contiguous_tail = shared_contiguous_tail_dimensions(both_bufs, 2, a_buffer.ndim);
         return_obj = Py_None;
         Py_INCREF(Py_None);
-    }
-
-    Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
-    int num_scale_buffers = out_obj ? 2 : 1;
-    int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
-    if (cast_staging || (!out_obj && contiguous_tail < a_buffer.ndim)) {
-        Py_buffer const *input_only[] = {&a_buffer};
-        contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
 
     PyThreadState *gil = PyEval_SaveThread();
@@ -884,6 +880,8 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
     nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+    Py_buffer const *input_bufs[] = {&a_buffer};
+    int contiguous_tail = shared_contiguous_tail_dimensions(input_bufs, 1, a_buffer.ndim);
 
     // nk.multiply(np.float32([1,2,3]), 5.0) → returns new Tensor(float32)
     if (!out_obj) {
@@ -907,20 +905,14 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
         Py_INCREF(Py_None);
     }
     // nk.multiply(np.float32([1,2,3]), 5.0, out=np.zeros(3, dtype=np.float32))
-    // → kernel writes float32 directly into output buffer
+    // → kernel writes float32 directly into output buffer; output may be non-contiguous
     else {
         result_data = out_buffer.buf;
         for (int dim = 0; dim < a_buffer.ndim; ++dim) result_strides[dim] = out_buffer.strides[dim];
+        Py_buffer const *both_bufs[] = {&a_buffer, &out_buffer};
+        contiguous_tail = shared_contiguous_tail_dimensions(both_bufs, 2, a_buffer.ndim);
         return_obj = Py_None;
         Py_INCREF(Py_None);
-    }
-
-    Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
-    int num_scale_buffers = out_obj ? 2 : 1;
-    int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
-    if (cast_staging || (!out_obj && contiguous_tail < a_buffer.ndim)) {
-        Py_buffer const *input_only[] = {&a_buffer};
-        contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
 
     PyThreadState *gil = PyEval_SaveThread();
