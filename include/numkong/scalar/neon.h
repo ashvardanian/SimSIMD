@@ -51,14 +51,24 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_neon(nk_f64_t x) {
     return r;
 }
 NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
+    // MSVC provides the ACLE scalar FMA intrinsics, but GCC doesn't
+#if defined(_MSC_VER)
+    return vfmas_f32(c, a, b);
+#else
     nk_f32_t r;
     __asm__("fmadd %s0, %s1, %s2, %s3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
     return r;
+#endif
 }
 NK_PUBLIC nk_f64_t nk_f64_fma_neon(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
+    // MSVC provides the ACLE scalar FMA intrinsics, but GCC doesn't
+#if defined(_MSC_VER)
+    return vfmad_f64(c, a, b);
+#else
     nk_f64_t r;
     __asm__("fmadd %d0, %d1, %d2, %d3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
     return r;
+#endif
 }
 
 NK_PUBLIC nk_u8_t nk_u8_saturating_add_neon(nk_u8_t a, nk_u8_t b) { return vqaddb_u8(a, b); }
