@@ -95,7 +95,9 @@ fn build_simsimd() -> HashMap<String, bool> {
     }
 
     // Try compilation with all enabled backends
+    let mut built = true;
     if build.try_compile("simsimd").is_err() {
+        built = false;
         println!("cargo:warning=Failed to compile SimSIMD with all SIMD backends...");
 
         // Fallback: disable backends one by one until compilation succeeds
@@ -104,6 +106,7 @@ fn build_simsimd() -> HashMap<String, bool> {
             flags.insert(flag.to_string(), false);
 
             if build.try_compile("simsimd").is_ok() {
+                built = true;
                 println!(
                     "cargo:warning=Successfully compiled after disabling {}",
                     flag
@@ -117,6 +120,7 @@ fn build_simsimd() -> HashMap<String, bool> {
             );
         }
     }
+    assert!(built, "Failed to build SimSIMD");
 
     // Declare file dependencies
     println!("cargo:rerun-if-changed=c/lib.c");
