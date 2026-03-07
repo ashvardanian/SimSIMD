@@ -29,13 +29,22 @@
 //
 // On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
 // Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
+//
+// MemorySanitizer cannot track data flow through SIMD intrinsics (SVE, NEON, SSE, AVX),
+// causing false-positive "use-of-uninitialized-value" reports. Disable MSan instrumentation
+// for all SimSIMD functions since they are entirely SIMD code.
+#if defined(__has_feature) && __has_feature(memory_sanitizer)
+#define _SIMSIMD_NO_SANITIZE_MEMORY __attribute__((no_sanitize("memory")))
+#else
+#define _SIMSIMD_NO_SANITIZE_MEMORY
+#endif
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
 #elif defined(__GNUC__) || defined(__clang__)
-#define SIMSIMD_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
-#define SIMSIMD_PUBLIC __attribute__((unused, nonnull)) inline static
+#define SIMSIMD_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull)) _SIMSIMD_NO_SANITIZE_MEMORY
+#define SIMSIMD_PUBLIC __attribute__((unused, nonnull)) _SIMSIMD_NO_SANITIZE_MEMORY inline static
 #define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
 #define SIMSIMD_DYNAMIC
