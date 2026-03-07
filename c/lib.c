@@ -291,8 +291,11 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_distance_t *dummy_results = &dummy_results_buffer[0];
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
+    // The buffer must be large enough to cover the widest SIMD register (SVE: up to 2048 bits = 256 bytes).
+    // SVE functions use `do { } while (i < n)` loops that execute once even with n=0, and MemorySanitizer
+    // instruments predicated loads as full-width reads, so all bytes must be initialized.
     typedef double largest_scalar_t;
-    largest_scalar_t dummy_input[1] = {0};
+    largest_scalar_t dummy_input[32] = {0};
     void *x = &dummy_input[0];
 
     // Dense:
