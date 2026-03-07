@@ -458,7 +458,7 @@ jobs:
       - name: Upload Prebuild Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: prebuilds
+          name: prebuilds-${{ matrix.os }}
           path: prebuilds
           retention-days: 1
           overwrite: true
@@ -488,8 +488,9 @@ jobs:
       - name: Download Prebuild Artifacts
         uses: actions/download-artifact@v8
         with:
-          name: prebuilds
+          pattern: prebuilds-*
           path: prebuilds
+          merge-multiple: true
       - name: Verify File Hard Links (Optional)
         run: find . -type f -links +1
       - name: Install Node.js Dependencies
