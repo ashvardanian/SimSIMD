@@ -592,7 +592,8 @@ typedef signed int nk_i32_t;
 typedef unsigned int nk_u32_t;
 // On LP64 targets (Linux ARM64, RISC-V 64), `long` and `long long` are both 64-bit but distinct types.
 // NEON/RVV intrinsics on Linux expect `long*`, while Apple's NEON intrinsics expect `long long*`.
-#if (NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)) || NK_TARGET_RISCV_
+// Windows uses LLP64 where `long` is 32-bit, so it must use `long long` for 64-bit types.
+#if ((NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)) || NK_TARGET_RISCV_) && !defined(NK_DEFINED_WINDOWS_)
 typedef signed long nk_i64_t;
 typedef unsigned long nk_u64_t;
 #else
