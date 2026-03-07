@@ -280,19 +280,19 @@ struct f32_t {
         return is_sign_negative() ? f32_t {-1.0f} : f32_t {1.0f};
     }
 
-    inline f32_t floor() const noexcept { return f32_t {std::floor(raw_)}; }
-    inline f32_t ceil() const noexcept { return f32_t {std::ceil(raw_)}; }
-    inline f32_t round() const noexcept { return f32_t {std::round(raw_)}; }
-    inline f32_t trunc() const noexcept { return f32_t {std::trunc(raw_)}; }
-    inline f32_t fract() const noexcept { return f32_t {raw_ - std::trunc(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t floor() const noexcept { return f32_t {std::floor(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t ceil() const noexcept { return f32_t {std::ceil(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t round() const noexcept { return f32_t {std::round(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t trunc() const noexcept { return f32_t {std::trunc(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t fract() const noexcept { return f32_t {raw_ - std::trunc(raw_)}; }
 
     inline f32_t sqrt() const noexcept { return f32_t {nk_f32_sqrt(raw_)}; }
-    inline f32_t cbrt() const noexcept { return f32_t {std::cbrt(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t cbrt() const noexcept { return f32_t {std::cbrt(raw_)}; }
     inline f32_t rsqrt() const noexcept { return f32_t {nk_f32_rsqrt(raw_)}; }
     constexpr f32_t recip() const noexcept { return f32_t {1.0f / raw_}; }
     /** @sa std::fma */
     inline f32_t fma(f32_t a, f32_t b) const noexcept { return f32_t {nk_f32_fma(raw_, a.raw_, b.raw_)}; }
-    inline f32_t powf(f32_t exp) const noexcept { return f32_t {std::pow(raw_, exp.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t powf(f32_t exp) const noexcept { return f32_t {std::pow(raw_, exp.raw_)}; }
     constexpr f32_t powi(int n) const noexcept {
         float result = 1.0f, base = raw_;
         if (n < 0) {
@@ -307,35 +307,35 @@ struct f32_t {
         return f32_t {result};
     }
 
-    inline f32_t exp() const noexcept { return f32_t {std::exp(raw_)}; }
-    inline f32_t exp2() const noexcept { return f32_t {std::exp2(raw_)}; }
-    inline f32_t exp_m1() const noexcept { return f32_t {std::expm1(raw_)}; }
-    inline f32_t ln() const noexcept { return f32_t {std::log(raw_)}; }
-    inline f32_t ln_1p() const noexcept { return f32_t {std::log1p(raw_)}; }
-    inline f32_t log2() const noexcept { return f32_t {std::log2(raw_)}; }
-    inline f32_t log10() const noexcept { return f32_t {std::log10(raw_)}; }
-    inline f32_t log(f32_t base) const noexcept { return f32_t {std::log(raw_) / std::log(base.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t exp() const noexcept { return f32_t {std::exp(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t exp2() const noexcept { return f32_t {std::exp2(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t exp_m1() const noexcept { return f32_t {std::expm1(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t ln() const noexcept { return f32_t {std::log(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t ln_1p() const noexcept { return f32_t {std::log1p(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t log2() const noexcept { return f32_t {std::log2(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t log10() const noexcept { return f32_t {std::log10(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t log(f32_t base) const noexcept { return f32_t {std::log(raw_) / std::log(base.raw_)}; }
 
-    inline f32_t sin() const noexcept { return f32_t {std::sin(raw_)}; }
-    inline f32_t cos() const noexcept { return f32_t {std::cos(raw_)}; }
-    inline f32_t tan() const noexcept { return f32_t {std::tan(raw_)}; }
-    inline f32_t asin() const noexcept { return f32_t {std::asin(raw_)}; }
-    inline f32_t acos() const noexcept { return f32_t {std::acos(raw_)}; }
-    inline f32_t atan() const noexcept { return f32_t {std::atan(raw_)}; }
-    inline f32_t atan2(f32_t x) const noexcept { return f32_t {std::atan2(raw_, x.raw_)}; }
-    inline f32_t hypot(f32_t y) const noexcept { return f32_t {std::hypot(raw_, y.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t sin() const noexcept { return f32_t {std::sin(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t cos() const noexcept { return f32_t {std::cos(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t tan() const noexcept { return f32_t {std::tan(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t asin() const noexcept { return f32_t {std::asin(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t acos() const noexcept { return f32_t {std::acos(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t atan() const noexcept { return f32_t {std::atan(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t atan2(f32_t x) const noexcept { return f32_t {std::atan2(raw_, x.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t hypot(f32_t y) const noexcept { return f32_t {std::hypot(raw_, y.raw_)}; }
     constexpr f32_t to_radians() const noexcept { return f32_t {raw_ * 0.017453292519943295f}; }
     constexpr f32_t to_degrees() const noexcept { return f32_t {raw_ * 57.29577951308232f}; }
 
-    inline f32_t sinh() const noexcept { return f32_t {std::sinh(raw_)}; }
-    inline f32_t cosh() const noexcept { return f32_t {std::cosh(raw_)}; }
-    inline f32_t tanh() const noexcept { return f32_t {std::tanh(raw_)}; }
-    inline f32_t asinh() const noexcept { return f32_t {std::asinh(raw_)}; }
-    inline f32_t acosh() const noexcept { return f32_t {std::acosh(raw_)}; }
-    inline f32_t atanh() const noexcept { return f32_t {std::atanh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t sinh() const noexcept { return f32_t {std::sinh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t cosh() const noexcept { return f32_t {std::cosh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t tanh() const noexcept { return f32_t {std::tanh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t asinh() const noexcept { return f32_t {std::asinh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t acosh() const noexcept { return f32_t {std::acosh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t atanh() const noexcept { return f32_t {std::atanh(raw_)}; }
 
-    inline f32_t min(f32_t o) const noexcept { return f32_t {std::fmin(raw_, o.raw_)}; }
-    inline f32_t max(f32_t o) const noexcept { return f32_t {std::fmax(raw_, o.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t min(f32_t o) const noexcept { return f32_t {std::fmin(raw_, o.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f32_t max(f32_t o) const noexcept { return f32_t {std::fmax(raw_, o.raw_)}; }
     inline f32_t clamp(f32_t lo, f32_t hi) const noexcept { return max(lo).min(hi); }
 
     static constexpr f32_t clamped_to_finite_(float x) noexcept {
@@ -541,19 +541,19 @@ struct f64_t {
         return is_sign_negative() ? f64_t {-1.0} : f64_t {1.0};
     }
 
-    inline f64_t floor() const noexcept { return f64_t {std::floor(raw_)}; }
-    inline f64_t ceil() const noexcept { return f64_t {std::ceil(raw_)}; }
-    inline f64_t round() const noexcept { return f64_t {std::round(raw_)}; }
-    inline f64_t trunc() const noexcept { return f64_t {std::trunc(raw_)}; }
-    inline f64_t fract() const noexcept { return f64_t {raw_ - std::trunc(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t floor() const noexcept { return f64_t {std::floor(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t ceil() const noexcept { return f64_t {std::ceil(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t round() const noexcept { return f64_t {std::round(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t trunc() const noexcept { return f64_t {std::trunc(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t fract() const noexcept { return f64_t {raw_ - std::trunc(raw_)}; }
 
     inline f64_t sqrt() const noexcept { return f64_t {nk_f64_sqrt(raw_)}; }
-    inline f64_t cbrt() const noexcept { return f64_t {std::cbrt(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t cbrt() const noexcept { return f64_t {std::cbrt(raw_)}; }
     inline f64_t rsqrt() const noexcept { return f64_t {nk_f64_rsqrt(raw_)}; }
     constexpr f64_t recip() const noexcept { return f64_t {1.0 / raw_}; }
     /** @sa std::fma */
     inline f64_t fma(f64_t a, f64_t b) const noexcept { return f64_t {nk_f64_fma(raw_, a.raw_, b.raw_)}; }
-    inline f64_t powf(f64_t exp) const noexcept { return f64_t {std::pow(raw_, exp.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t powf(f64_t exp) const noexcept { return f64_t {std::pow(raw_, exp.raw_)}; }
     constexpr f64_t powi(int n) const noexcept {
         double result = 1.0, base = raw_;
         if (n < 0) {
@@ -568,35 +568,35 @@ struct f64_t {
         return f64_t {result};
     }
 
-    inline f64_t exp() const noexcept { return f64_t {std::exp(raw_)}; }
-    inline f64_t exp2() const noexcept { return f64_t {std::exp2(raw_)}; }
-    inline f64_t exp_m1() const noexcept { return f64_t {std::expm1(raw_)}; }
-    inline f64_t ln() const noexcept { return f64_t {std::log(raw_)}; }
-    inline f64_t ln_1p() const noexcept { return f64_t {std::log1p(raw_)}; }
-    inline f64_t log2() const noexcept { return f64_t {std::log2(raw_)}; }
-    inline f64_t log10() const noexcept { return f64_t {std::log10(raw_)}; }
-    inline f64_t log(f64_t base) const noexcept { return f64_t {std::log(raw_) / std::log(base.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t exp() const noexcept { return f64_t {std::exp(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t exp2() const noexcept { return f64_t {std::exp2(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t exp_m1() const noexcept { return f64_t {std::expm1(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t ln() const noexcept { return f64_t {std::log(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t ln_1p() const noexcept { return f64_t {std::log1p(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t log2() const noexcept { return f64_t {std::log2(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t log10() const noexcept { return f64_t {std::log10(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t log(f64_t base) const noexcept { return f64_t {std::log(raw_) / std::log(base.raw_)}; }
 
-    inline f64_t sin() const noexcept { return f64_t {std::sin(raw_)}; }
-    inline f64_t cos() const noexcept { return f64_t {std::cos(raw_)}; }
-    inline f64_t tan() const noexcept { return f64_t {std::tan(raw_)}; }
-    inline f64_t asin() const noexcept { return f64_t {std::asin(raw_)}; }
-    inline f64_t acos() const noexcept { return f64_t {std::acos(raw_)}; }
-    inline f64_t atan() const noexcept { return f64_t {std::atan(raw_)}; }
-    inline f64_t atan2(f64_t x) const noexcept { return f64_t {std::atan2(raw_, x.raw_)}; }
-    inline f64_t hypot(f64_t y) const noexcept { return f64_t {std::hypot(raw_, y.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t sin() const noexcept { return f64_t {std::sin(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t cos() const noexcept { return f64_t {std::cos(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t tan() const noexcept { return f64_t {std::tan(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t asin() const noexcept { return f64_t {std::asin(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t acos() const noexcept { return f64_t {std::acos(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t atan() const noexcept { return f64_t {std::atan(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t atan2(f64_t x) const noexcept { return f64_t {std::atan2(raw_, x.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t hypot(f64_t y) const noexcept { return f64_t {std::hypot(raw_, y.raw_)}; }
     constexpr f64_t to_radians() const noexcept { return f64_t {raw_ * 0.017453292519943295}; }
     constexpr f64_t to_degrees() const noexcept { return f64_t {raw_ * 57.29577951308232}; }
 
-    inline f64_t sinh() const noexcept { return f64_t {std::sinh(raw_)}; }
-    inline f64_t cosh() const noexcept { return f64_t {std::cosh(raw_)}; }
-    inline f64_t tanh() const noexcept { return f64_t {std::tanh(raw_)}; }
-    inline f64_t asinh() const noexcept { return f64_t {std::asinh(raw_)}; }
-    inline f64_t acosh() const noexcept { return f64_t {std::acosh(raw_)}; }
-    inline f64_t atanh() const noexcept { return f64_t {std::atanh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t sinh() const noexcept { return f64_t {std::sinh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t cosh() const noexcept { return f64_t {std::cosh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t tanh() const noexcept { return f64_t {std::tanh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t asinh() const noexcept { return f64_t {std::asinh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t acosh() const noexcept { return f64_t {std::acosh(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t atanh() const noexcept { return f64_t {std::atanh(raw_)}; }
 
-    inline f64_t min(f64_t o) const noexcept { return f64_t {std::fmin(raw_, o.raw_)}; }
-    inline f64_t max(f64_t o) const noexcept { return f64_t {std::fmax(raw_, o.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t min(f64_t o) const noexcept { return f64_t {std::fmin(raw_, o.raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t max(f64_t o) const noexcept { return f64_t {std::fmax(raw_, o.raw_)}; }
     inline f64_t clamp(f64_t lo, f64_t hi) const noexcept { return max(lo).min(hi); }
 
     static constexpr f64_t clamped_to_finite_(double x) noexcept {
@@ -1302,51 +1302,51 @@ struct f16_t {
         return is_sign_negative() ? f16_t {-1.0f} : f16_t {1.0f};
     }
 
-    inline f16_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
-    inline f16_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
-    inline f16_t round() const noexcept { return from_f32(std::round(to_f32())); }
-    inline f16_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
-    inline f16_t fract() const noexcept {
+    NK_CMATH_CONSTEXPR_ f16_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t round() const noexcept { return from_f32(std::round(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t fract() const noexcept {
         float f = to_f32();
         return from_f32(f - std::trunc(f));
     }
 
     inline f16_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline f16_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
     inline f16_t rsqrt() const noexcept { return from_f32(nk_f32_rsqrt(to_f32())); }
     inline f16_t recip() const noexcept { return from_f32(1.0f / to_f32()); }
     /** @sa std::fma */
     inline f16_t fma(f16_t a, f16_t b) const noexcept { return from_f32(nk_f32_fma(to_f32(), a.to_f32(), b.to_f32())); }
-    inline f16_t powf(f16_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t powf(f16_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
 
-    inline f16_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
-    inline f16_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
-    inline f16_t exp_m1() const noexcept { return from_f32(std::expm1(to_f32())); }
-    inline f16_t ln() const noexcept { return from_f32(std::log(to_f32())); }
-    inline f16_t ln_1p() const noexcept { return from_f32(std::log1p(to_f32())); }
-    inline f16_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
-    inline f16_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t exp_m1() const noexcept { return from_f32(std::expm1(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t ln() const noexcept { return from_f32(std::log(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t ln_1p() const noexcept { return from_f32(std::log1p(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
 
-    inline f16_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
-    inline f16_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
-    inline f16_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
-    inline f16_t asin() const noexcept { return from_f32(std::asin(to_f32())); }
-    inline f16_t acos() const noexcept { return from_f32(std::acos(to_f32())); }
-    inline f16_t atan() const noexcept { return from_f32(std::atan(to_f32())); }
-    inline f16_t atan2(f16_t x) const noexcept { return from_f32(std::atan2(to_f32(), x.to_f32())); }
-    inline f16_t hypot(f16_t y) const noexcept { return from_f32(std::hypot(to_f32(), y.to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t asin() const noexcept { return from_f32(std::asin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t acos() const noexcept { return from_f32(std::acos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t atan() const noexcept { return from_f32(std::atan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t atan2(f16_t x) const noexcept { return from_f32(std::atan2(to_f32(), x.to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t hypot(f16_t y) const noexcept { return from_f32(std::hypot(to_f32(), y.to_f32())); }
     inline f16_t to_radians() const noexcept { return from_f32(to_f32() * 0.017453292519943295f); }
     inline f16_t to_degrees() const noexcept { return from_f32(to_f32() * 57.29577951308232f); }
 
-    inline f16_t sinh() const noexcept { return from_f32(std::sinh(to_f32())); }
-    inline f16_t cosh() const noexcept { return from_f32(std::cosh(to_f32())); }
-    inline f16_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
-    inline f16_t asinh() const noexcept { return from_f32(std::asinh(to_f32())); }
-    inline f16_t acosh() const noexcept { return from_f32(std::acosh(to_f32())); }
-    inline f16_t atanh() const noexcept { return from_f32(std::atanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t sinh() const noexcept { return from_f32(std::sinh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t cosh() const noexcept { return from_f32(std::cosh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t asinh() const noexcept { return from_f32(std::asinh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t acosh() const noexcept { return from_f32(std::acosh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t atanh() const noexcept { return from_f32(std::atanh(to_f32())); }
 
-    inline f16_t min(f16_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline f16_t max(f16_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t min(f16_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ f16_t max(f16_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline f16_t clamp(f16_t lo, f16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
@@ -1550,53 +1550,53 @@ struct bf16_t {
         return is_sign_negative() ? bf16_t {-1.0f} : bf16_t {1.0f};
     }
 
-    inline bf16_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
-    inline bf16_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
-    inline bf16_t round() const noexcept { return from_f32(std::round(to_f32())); }
-    inline bf16_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
-    inline bf16_t fract() const noexcept {
+    NK_CMATH_CONSTEXPR_ bf16_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t round() const noexcept { return from_f32(std::round(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t fract() const noexcept {
         float f = to_f32();
         return from_f32(f - std::trunc(f));
     }
 
     inline bf16_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline bf16_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
     inline bf16_t rsqrt() const noexcept { return from_f32(nk_f32_rsqrt(to_f32())); }
     inline bf16_t recip() const noexcept { return from_f32(1.0f / to_f32()); }
     /** @sa std::fma */
     inline bf16_t fma(bf16_t a, bf16_t b) const noexcept {
         return from_f32(nk_f32_fma(to_f32(), a.to_f32(), b.to_f32()));
     }
-    inline bf16_t powf(bf16_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t powf(bf16_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
 
-    inline bf16_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
-    inline bf16_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
-    inline bf16_t exp_m1() const noexcept { return from_f32(std::expm1(to_f32())); }
-    inline bf16_t ln() const noexcept { return from_f32(std::log(to_f32())); }
-    inline bf16_t ln_1p() const noexcept { return from_f32(std::log1p(to_f32())); }
-    inline bf16_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
-    inline bf16_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t exp_m1() const noexcept { return from_f32(std::expm1(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t ln() const noexcept { return from_f32(std::log(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t ln_1p() const noexcept { return from_f32(std::log1p(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
 
-    inline bf16_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
-    inline bf16_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
-    inline bf16_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
-    inline bf16_t asin() const noexcept { return from_f32(std::asin(to_f32())); }
-    inline bf16_t acos() const noexcept { return from_f32(std::acos(to_f32())); }
-    inline bf16_t atan() const noexcept { return from_f32(std::atan(to_f32())); }
-    inline bf16_t atan2(bf16_t x) const noexcept { return from_f32(std::atan2(to_f32(), x.to_f32())); }
-    inline bf16_t hypot(bf16_t y) const noexcept { return from_f32(std::hypot(to_f32(), y.to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t asin() const noexcept { return from_f32(std::asin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t acos() const noexcept { return from_f32(std::acos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t atan() const noexcept { return from_f32(std::atan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t atan2(bf16_t x) const noexcept { return from_f32(std::atan2(to_f32(), x.to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t hypot(bf16_t y) const noexcept { return from_f32(std::hypot(to_f32(), y.to_f32())); }
     inline bf16_t to_radians() const noexcept { return from_f32(to_f32() * 0.017453292519943295f); }
     inline bf16_t to_degrees() const noexcept { return from_f32(to_f32() * 57.29577951308232f); }
 
-    inline bf16_t sinh() const noexcept { return from_f32(std::sinh(to_f32())); }
-    inline bf16_t cosh() const noexcept { return from_f32(std::cosh(to_f32())); }
-    inline bf16_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
-    inline bf16_t asinh() const noexcept { return from_f32(std::asinh(to_f32())); }
-    inline bf16_t acosh() const noexcept { return from_f32(std::acosh(to_f32())); }
-    inline bf16_t atanh() const noexcept { return from_f32(std::atanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t sinh() const noexcept { return from_f32(std::sinh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t cosh() const noexcept { return from_f32(std::cosh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t asinh() const noexcept { return from_f32(std::asinh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t acosh() const noexcept { return from_f32(std::acosh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t atanh() const noexcept { return from_f32(std::atanh(to_f32())); }
 
-    inline bf16_t min(bf16_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline bf16_t max(bf16_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t min(bf16_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ bf16_t max(bf16_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline bf16_t clamp(bf16_t lo, bf16_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
@@ -1986,38 +1986,38 @@ struct e4m3_t {
         return is_sign_negative() ? e4m3_t {-1.0f} : e4m3_t {1.0f};
     }
 
-    inline e4m3_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
-    inline e4m3_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
-    inline e4m3_t round() const noexcept { return from_f32(std::round(to_f32())); }
-    inline e4m3_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
-    inline e4m3_t fract() const noexcept {
+    NK_CMATH_CONSTEXPR_ e4m3_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t round() const noexcept { return from_f32(std::round(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t fract() const noexcept {
         float f = to_f32();
         return from_f32(f - std::trunc(f));
     }
 
     inline e4m3_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline e4m3_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
     inline e4m3_t rsqrt() const noexcept { return from_f32(nk_f32_rsqrt(to_f32())); }
     inline e4m3_t recip() const noexcept { return from_f32(1.0f / to_f32()); }
     /** @sa std::fma */
     inline e4m3_t fma(e4m3_t a, e4m3_t b) const noexcept {
         return from_f32(nk_f32_fma(to_f32(), a.to_f32(), b.to_f32()));
     }
-    inline e4m3_t powf(e4m3_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t powf(e4m3_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
 
-    inline e4m3_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
-    inline e4m3_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
-    inline e4m3_t ln() const noexcept { return from_f32(std::log(to_f32())); }
-    inline e4m3_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
-    inline e4m3_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t ln() const noexcept { return from_f32(std::log(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
 
-    inline e4m3_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
-    inline e4m3_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
-    inline e4m3_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
-    inline e4m3_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
 
-    inline e4m3_t min(e4m3_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline e4m3_t max(e4m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t min(e4m3_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e4m3_t max(e4m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e4m3_t clamp(e4m3_t lo, e4m3_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
@@ -2202,38 +2202,38 @@ struct e5m2_t {
         return is_sign_negative() ? e5m2_t {-1.0f} : e5m2_t {1.0f};
     }
 
-    inline e5m2_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
-    inline e5m2_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
-    inline e5m2_t round() const noexcept { return from_f32(std::round(to_f32())); }
-    inline e5m2_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
-    inline e5m2_t fract() const noexcept {
+    NK_CMATH_CONSTEXPR_ e5m2_t floor() const noexcept { return from_f32(std::floor(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t ceil() const noexcept { return from_f32(std::ceil(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t round() const noexcept { return from_f32(std::round(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t trunc() const noexcept { return from_f32(std::trunc(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t fract() const noexcept {
         float f = to_f32();
         return from_f32(f - std::trunc(f));
     }
 
     inline e5m2_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline e5m2_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t cbrt() const noexcept { return from_f32(std::cbrt(to_f32())); }
     inline e5m2_t rsqrt() const noexcept { return from_f32(nk_f32_rsqrt(to_f32())); }
     inline e5m2_t recip() const noexcept { return from_f32(1.0f / to_f32()); }
     /** @sa std::fma */
     inline e5m2_t fma(e5m2_t a, e5m2_t b) const noexcept {
         return from_f32(nk_f32_fma(to_f32(), a.to_f32(), b.to_f32()));
     }
-    inline e5m2_t powf(e5m2_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t powf(e5m2_t exp) const noexcept { return from_f32(std::pow(to_f32(), exp.to_f32())); }
 
-    inline e5m2_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
-    inline e5m2_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
-    inline e5m2_t ln() const noexcept { return from_f32(std::log(to_f32())); }
-    inline e5m2_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
-    inline e5m2_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t exp() const noexcept { return from_f32(std::exp(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t exp2() const noexcept { return from_f32(std::exp2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t ln() const noexcept { return from_f32(std::log(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t log2() const noexcept { return from_f32(std::log2(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t log10() const noexcept { return from_f32(std::log10(to_f32())); }
 
-    inline e5m2_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
-    inline e5m2_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
-    inline e5m2_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
-    inline e5m2_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t sin() const noexcept { return from_f32(std::sin(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t cos() const noexcept { return from_f32(std::cos(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t tan() const noexcept { return from_f32(std::tan(to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t tanh() const noexcept { return from_f32(std::tanh(to_f32())); }
 
-    inline e5m2_t min(e5m2_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline e5m2_t max(e5m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t min(e5m2_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e5m2_t max(e5m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e5m2_t clamp(e5m2_t lo, e5m2_t hi) const noexcept { return max(lo).min(hi); }
 
     /** @brief Saturating addition: clamps to finite range on overflow. */
@@ -2412,8 +2412,8 @@ struct e2m3_t {
     constexpr e2m3_t copysign(e2m3_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }
 
     inline e2m3_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline e2m3_t min(e2m3_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline e2m3_t max(e2m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e2m3_t min(e2m3_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e2m3_t max(e2m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e2m3_t clamp(e2m3_t lo, e2m3_t hi) const noexcept { return max(lo).min(hi); }
 
     inline e2m3_t saturating_add(e2m3_t o) const noexcept {
@@ -2590,8 +2590,8 @@ struct e3m2_t {
     constexpr e3m2_t copysign(e3m2_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }
 
     inline e3m2_t sqrt() const noexcept { return from_f32(nk_f32_sqrt(to_f32())); }
-    inline e3m2_t min(e3m2_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
-    inline e3m2_t max(e3m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e3m2_t min(e3m2_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    NK_CMATH_CONSTEXPR_ e3m2_t max(e3m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
     inline e3m2_t clamp(e3m2_t lo, e3m2_t hi) const noexcept { return max(lo).min(hi); }
 
     inline e3m2_t saturating_add(e3m2_t o) const noexcept {
@@ -2777,6 +2777,10 @@ struct f118_t {
 
     /** @brief Convert to double (loses ~53 bits of precision). */
     constexpr explicit operator double() const noexcept { return high_ + low_; }
+    constexpr explicit operator float() const noexcept { return static_cast<float>(high_ + low_); }
+    constexpr explicit operator f64_t() const noexcept { return {static_cast<double>(*this)}; }
+    constexpr explicit operator f32_t() const noexcept { return {static_cast<float>(*this)}; }
+    constexpr explicit operator f16_t() const noexcept { return {static_cast<float>(*this)}; }
 
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
@@ -2794,7 +2798,7 @@ struct f118_t {
     }
 
     /** @brief Square root with ~103 bits precision (max rel err: 6.8e-32 vs __float128, ~103 bits vs Boost). */
-    inline f118_t sqrt() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t sqrt() const noexcept {
         if (high_ <= 0) return f118_t(std::sqrt(high_));
         double inv_sqrt_approx = 1.0 / std::sqrt(high_);
         double sqrt_approx = high_ * inv_sqrt_approx;
@@ -2804,10 +2808,10 @@ struct f118_t {
     }
 
     /** @brief Reciprocal square root (1/sqrt). */
-    inline f118_t rsqrt() const noexcept { return f118_t(1.0) / sqrt(); }
+    NK_CMATH_CONSTEXPR_ f118_t rsqrt() const noexcept { return f118_t(1.0) / sqrt(); }
 
     /** @brief Exponential with ~101 bits precision (max rel err: 2.2e-31 vs __float128, ~102 bits vs Boost). */
-    inline f118_t exp() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t exp() const noexcept {
         // High-precision ln(2)
         constexpr double ln2_high = 0.6931471805599453;
         constexpr double ln2_low = 2.3190468138462996e-17;
@@ -2830,7 +2834,7 @@ struct f118_t {
     }
 
     /** @brief Natural logarithm with ~105 bits precision (max rel err: 2.2e-32 vs __float128, ~105 bits vs Boost). */
-    inline f118_t log() const noexcept {
+    NK_CMATH_CONSTEXPR_ f118_t log() const noexcept {
         if (high_ <= 0) return f118_t(std::log(high_)); // NaN or -inf
 
         // High-precision ln(2)
