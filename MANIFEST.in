@@ -1,4 +1,4 @@
 include include/numkong/*.h
 include include/*
-graft test/*.py
+recursive-include test *.py
 include VERSION

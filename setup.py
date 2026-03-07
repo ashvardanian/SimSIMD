@@ -430,7 +430,10 @@ ext_modules = [
 class ParallelBuildExt(build_ext):
     def initialize_options(self):
         super().initialize_options()
-        self.parallel = os.cpu_count()
+        # In Docker containers (e.g. cibuildwheel), `os.cpu_count()` returns the
+        # *host* core count, not the container's allocated vCPUs.  Launching dozens
+        # of heavy SIMD compilation jobs in parallel OOMs the container (exit 143).
+        self.parallel = int(os.environ.get("NK_BUILD_PARALLEL", min(os.cpu_count() or 1, 4)))
 
 
 setup(

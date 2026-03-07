@@ -65,6 +65,7 @@ environment-pass = [
 
 [tool.cibuildwheel.environment]
 NK_IN_QEMU = "1"
+NK_BUILD_PARALLEL = "2"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
