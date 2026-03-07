@@ -64,8 +64,8 @@ environment-pass = [
 ]
 
 [tool.cibuildwheel.environment]
-NK_IN_QEMU = "1"
 NK_BUILD_PARALLEL = "2"
+NK_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
@@ -87,7 +87,9 @@ musllinux-x86_64-image = "musllinux_1_2"
 # The healthy version would be: `apt-get update && apt-get install -y libc6-dev wget python3-dev`.
 # We can't even use direct YUM variant: `yum update -y && yum install -y glibc-devel wget python3-devel`
 # as downloading from `extras` fails on Arm instances!
-before-all = ["yum update -y --disablerepo=extras && yum install -y --disablerepo=extras glibc-devel wget python3-devel"]
+before-all = [
+  "yum update -y --disablerepo=extras --setopt=install_weak_deps=0 && yum install -y --disablerepo=extras glibc-devel wget python3-devel",
+]
 
 # With `musl` builds, we obviously don't need the `glibc` and can't use `yum`.
 # This may also be handy for using custom dependencies for different Python versions:
