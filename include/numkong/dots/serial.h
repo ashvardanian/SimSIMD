@@ -1933,7 +1933,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                                                                                 (i_macro + k) * stride);               \
                         for (nk_size_t k = macro_i_size; k < 32; k++) vec_ptrs_i[k] = vec_ptrs_i[0];                   \
                                                                                                                        \
-                        if (i_macro == j_macro) {                                                                      \
+                        if (i_macro == j_macro && macro_i_size == macro_j_size) {                                      \
                             /* Diagonal macro-tile */                                                                  \
                             nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                    \
                                 vec_ptrs_i, i_macro, macro_i_size, aligned_depth, remainder_depth,                     \
@@ -2406,13 +2406,13 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         for (nk_size_t i = 0; i < macro_i_size; i++) {                                                 \
                             vector_base_ptrs_i[i] = vectors + (i_macro + i) * vectors_stride_values;                   \
                         }                                                                                              \
-                        if (i_macro != j_macro) {                                                                      \
+                        if (i_macro != j_macro || macro_i_size != macro_j_size) {                                      \
                             for (nk_size_t j = 0; j < macro_j_size; j++) {                                             \
                                 vector_base_ptrs_j[j] = vectors + (j_macro + j) * vectors_stride_values;               \
                             }                                                                                          \
                         }                                                                                              \
                                                                                                                        \
-                        if (i_macro == j_macro) {                                                                      \
+                        if (i_macro == j_macro && macro_i_size == macro_j_size) {                                      \
                             /* Diagonal macro-tile: symmetric, upper triangle only */                                  \
                             nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                    \
                                 vector_base_ptrs_i, i_macro, macro_i_size, aligned_depth, remainder_depth,             \
