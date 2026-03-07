@@ -713,6 +713,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
     nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+    int contiguous_tail = num_dims;
 
     // nk.add(np.int16([1,2,3]), np.uint16([4,5,6]))
     // → promotes to int32, returns new Tensor(int32)
@@ -737,15 +738,15 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
         Py_INCREF(Py_None);
     }
     // nk.add(np.float32([1,2,3]), np.float32([4,5,6]), out=np.zeros(3, dtype=np.float32))
-    // → kernel writes float32 directly into output buffer
+    // → kernel writes float32 directly into output buffer; output may be non-contiguous
     else {
         result_data = out_buffer.buf;
-        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
+        for (int dim = 0; dim < num_dims; dim++) result_strides[dim] = out_buffer.strides[dim];
+        Py_buffer const *out_bufs[] = {&out_buffer};
+        contiguous_tail = shared_contiguous_tail_dimensions(out_bufs, 1, num_dims);
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
-
-    int contiguous_tail = num_dims;
 
     PyThreadState *gil = PyEval_SaveThread();
     each_sum_recursive(sum_kernel, a_promoted, b_promoted, result_data, a_buffer.shape, promoted_strides,
@@ -1021,6 +1022,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     char *result_data = NULL;
     Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
     nk_dtype_t out_buf_dtype = nk_dtype_unknown_k;
+    int contiguous_tail = num_dims;
 
     // nk.multiply(np.int16([1,2,3]), np.uint16([4,5,6]))
     // → promotes to int32, returns new Tensor(int32), zero-filled to prevent 0*NaN=NaN
@@ -1047,15 +1049,15 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
         Py_INCREF(Py_None);
     }
     // nk.multiply(np.float32([1,2,3]), np.float32([4,5,6]), out=np.zeros(3, dtype=np.float32))
-    // → kernel writes float32 directly into output buffer
+    // → kernel writes float32 directly into output buffer; output may be non-contiguous
     else {
         result_data = out_buffer.buf;
-        memcpy(result_strides, promoted_strides, num_dims * sizeof(Py_ssize_t));
+        for (int dim = 0; dim < num_dims; dim++) result_strides[dim] = out_buffer.strides[dim];
+        Py_buffer const *out_bufs[] = {&out_buffer};
+        contiguous_tail = shared_contiguous_tail_dimensions(out_bufs, 1, num_dims);
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
-
-    int contiguous_tail = num_dims;
 
     PyThreadState *gil = PyEval_SaveThread();
     each_fma_recursive(fma_kernel, a_promoted, b_promoted, result_data, result_data, &alpha_buf, &beta_buf,
