@@ -14,6 +14,7 @@ dist/
 javascript/dist
 bun.lockb
 .build/
+.venv/
 
 # for Google Benchmark
 compare.py
@@ -69,3 +70,7 @@ target/
 
 # perfplot charts
 *.png
+\n
+
+# Library crate: don't commit lockfile
+Cargo.lock

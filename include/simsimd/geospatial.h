@@ -1,6 +1,6 @@
 /**
  *  @file       geospatial.h
- *  @brief      SIMD-accelerated Geo-Spatial distance functions.
+ *  @brief      SIMD-accelerated Geospatial distance functions.
  *  @author     Ash Vardanian
  *  @date       July 1, 2023
  *

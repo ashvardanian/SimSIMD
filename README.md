@@ -1,6 +1,6 @@
 ![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.jpg?raw=true)
 
-Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
+Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geospatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
@@ -32,7 +32,7 @@ SimSIMD provides an alternative.
     <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
 </a>
 <a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions MacOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=MacOS&logo=apple&color=blue">
+    <img alt="GitHub Actions macOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=macOS&logo=apple&color=blue">
 </a>
 <a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
     <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
@@ -43,7 +43,7 @@ SimSIMD provides an alternative.
 ## Features
 
 __SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSIMD can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
@@ -85,7 +85,7 @@ You can learn more about the technical implementation details in the following b
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Substitutes LibC's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
+- [Substitutes libc's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
 - [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
 - For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
 - For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
@@ -281,7 +281,7 @@ You can learn more about the technical implementation details in the following b
 > The code was compiled with GCC 12, using glibc v2.35.
 > The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
 > Most modern Arm-based 64-bit CPUs will have similar relative speedups.
-> Variance withing x86 CPUs will be larger.
+> Variance within x86 CPUs will be larger.
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -299,7 +299,7 @@ The same applies to processing `float16` and `bfloat16` values with `float32` pr
 
 ### Installation
 
-Use the following snippet to install SimSIMD and list available hardware acceleration options available on your machine:
+Use the following snippet to install SimSIMD and list hardware acceleration options available on your machine:
 
 ```sh
 pip install simsimd
@@ -321,7 +321,7 @@ vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -555,6 +555,7 @@ Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
 import numpy as np
 import simsimd as simd
 
+ndim = 1536
 a = np.random.randn(ndim).astype(np.float32)
 b = np.random.randn(ndim).astype(np.float32)
 
@@ -625,13 +626,13 @@ fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
     let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    // Compute the cosine similarity between vector_a and vector_b
-    let cosine_similarity = f32::cosine(&vector_a, &vector_b)
+    // Compute the cosine distance between vectors
+    let cosine_distance = f32::cosine(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 
-    // Compute the squared Euclidean distance between vector_a and vector_b
+    // Compute the squared Euclidean distance between vectors
     let sq_euclidean_distance = f32::sqeuclidean(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -648,16 +649,17 @@ use simsimd::SpatialSimilarity;
 use simsimd::ComplexProducts;
 
 fn main() {
+    // Complex vectors have interleaved real & imaginary components
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0];
     let vector_b: Vec<f32> = vec![5.0, 6.0, 7.0, 8.0];
 
-    // Compute the inner product between vector_a and vector_b
+    // Compute the inner product between vectors
     let inner_product = SpatialSimilarity::dot(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
     println!("Inner Product: {}", inner_product);
 
-    // Compute the complex inner product between complex_vector_a and complex_vector_b
+    // Compute the complex inner product between vectors
     let complex_inner_product = ComplexProducts::dot(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -705,13 +707,13 @@ fn main() {
     let vector_a = &[0b11110000, 0b00001111, 0b10101010];
     let vector_b = &[0b11110000, 0b00001111, 0b01010101];
 
-    // Compute the Hamming distance between vector_a and vector_b
+    // Compute the Hamming distance between vectors
     let hamming_distance = u8::hamming(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
     println!("Hamming Distance: {}", hamming_distance);
 
-    // Compute the Jaccard distance between vector_a and vector_b
+    // Compute the Jaccard distance between vectors
     let jaccard_distance = u8::jaccard(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -734,11 +736,11 @@ fn main() {
     let vector_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
     let vector_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
 
-    // Compute the cosine similarity
-    let cosine_similarity = f16::cosine(&vector_a, &vector_b)
+    // Compute the cosine distance
+    let cosine_distance = f16::cosine(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
     
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 
     // Direct bit manipulation
     let half = f16::from_f32(3.14159);
@@ -764,10 +766,10 @@ fn main() {
     let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_a.as_ptr() as *const SimF16, vector_a.len()) };
     let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_b.as_ptr() as *const SimF16, vector_b.len()) };
 
-    let cosine_similarity = SimF16::cosine(buffer_a, buffer_b)
+    let cosine_distance = SimF16::cosine(buffer_a, buffer_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 }
 ```
 
@@ -787,10 +789,10 @@ fn main() {
     let vector_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
 
     // Compute the cosine similarity
-    let cosine_similarity = bf16::cosine(&vector_a, &vector_b)
+    let cosine_distance = bf16::cosine(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
     
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 
     // Direct bit manipulation
     let brain_half = bf16::from_f32(3.14159);
@@ -899,8 +901,8 @@ import SimSIMD
 let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
 
-let cosineSimilarity = vectorA.cosine(vectorB)  // Computes the cosine similarity
 let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
+let cosineDistance = vectorA.cosine(vectorB)    // Computes the cosine distance
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
@@ -970,8 +972,8 @@ To override compilation settings and switch between runtime and compile-time dis
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_i8_t i8[1536];
-    simsimd_i8_t u8[1536];
+    simsimd_i8_t i8s[1536];
+    simsimd_u8_t u8s[1536];
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
@@ -1022,10 +1024,10 @@ int main() {
     simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
 
     // SimSIMD provides complex types with `real` and `imag` fields
-    simsimd_f64c_t f64s[768];
-    simsimd_f32c_t f32s[768];
-    simsimd_f16c_t f16s[768];
-    simsimd_bf16c_t bf16s[768];
+    simsimd_f64c_t f64cs[768];
+    simsimd_f32c_t f32cs[768];
+    simsimd_f16c_t f16cs[768];
+    simsimd_bf16c_t bf16cs[768];
     simsimd_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
@@ -1102,7 +1104,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
 For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
+For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -1304,7 +1306,7 @@ Both functions are defined for non-negative numbers, and the logarithm is a key 
 ### Mixed Precision in Fused-Multiply-Add and Weighted Sums
 
 The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
-The Weighted Sum is it's simplified variant without element-wise multiplication.
+The Weighted Sum is its simplified variant without element-wise multiplication.
 
 ```math
 \text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i

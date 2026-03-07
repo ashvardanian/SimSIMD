@@ -545,7 +545,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const *a_scalars, simsi
     float32x4_t ab_vec = vdupq_n_f32(0);
 
 simsimd_dot_bf16_neon_cycle:
-    if (count_scalars < 4) {
+    if (count_scalars < 8) {
         a_vec = _simsimd_partial_load_bf16x8_neon(a_scalars, count_scalars);
         b_vec = _simsimd_partial_load_bf16x8_neon(b_scalars, count_scalars);
         count_scalars = 0;
@@ -553,7 +553,7 @@ simsimd_dot_bf16_neon_cycle:
     else {
         a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)a_scalars);
         b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)b_scalars);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
     if (count_scalars) goto simsimd_dot_bf16_neon_cycle;
@@ -1150,7 +1150,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
     //      __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
     //
     // The problem with this approach, however, is the `-128` value in the second vector.
-    // Flipping it's sign will do nothing, and the result will be incorrect.
+    // Flipping its sign will do nothing, and the result will be incorrect.
     // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
@@ -1163,7 +1163,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
         __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 0));
         __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
 
-        // Multiply and accumulate at int16 level, accumulate at `int32` level
+        // Multiply and accumulate at `int16` level, accumulate at `int32` level
         ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
         ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
     }
@@ -1197,7 +1197,7 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const *a_scalars, simsim
         __m256i b_i16_low_vec = _mm256_unpacklo_epi8(b_u8_vec, zeros_vec);
         __m256i b_i16_high_vec = _mm256_unpackhi_epi8(b_u8_vec, zeros_vec);
 
-        // Multiply and accumulate at int16 level, accumulate at int32 level
+        // Multiply and accumulate at `int16` level, accumulate at `int32` level
         ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
         ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
     }
@@ -1819,8 +1819,8 @@ simsimd_dot_u8_ice_cycle:
 
 #if SIMSIMD_TARGET_SIERRA
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "avx2vnni")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+#pragma GCC target("avx2", "bmi2", "avxvnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avxvnni"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const *a_scalars, simsimd_i8_t const *b_scalars,
                                           simsimd_size_t count_scalars, simsimd_distance_t *result) {

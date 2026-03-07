@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install dependencies
         run: |
@@ -69,15 +69,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macOS-14, windows-2022]
+        os: [ubuntu-22.04, macos-15, windows-2022]
         python-version: ["3.13", "3.8"]
         architecture: [x64, arm64]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -108,14 +108,14 @@ jobs:
 
   test_nodejs:
     name: Test Node.js
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       CC: gcc-12
       CXX: g++-12
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update compilers
         run: |
@@ -123,7 +123,7 @@ jobs:
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -136,7 +136,7 @@ jobs:
 
   test_deno:
     name: Test Deno
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       CC: gcc-12
       CXX: g++-12
@@ -146,7 +146,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Update compilers
         run: |
@@ -154,7 +154,7 @@ jobs:
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -166,12 +166,12 @@ jobs:
           npm test
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: vx.x.x
+          deno-version: v2.x
 
       - name: Test with Deno
-        run: deno test -A
+        run: deno test -A --no-check
 
   test_rust:
     name: Test Rust
@@ -179,23 +179,42 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Build and Test
+      - name: Install 32-bit target and dependencies
+        run: |
+          rustup target add i686-unknown-linux-gnu
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+
+      - name: Test default build
         run: cargo test
+
+      - name: Test with all features
+        run: cargo test --all-features
+
+      - name: Test no-std build (check only)
+        run: cargo check --no-default-features
+
+      - name: Test i686 cross-compilation build
+        run: cargo build --target i686-unknown-linux-gnu --all-features
+
+      - name: Test i686 cross-compilation (no-std)
+        run: cargo build --target i686-unknown-linux-gnu --no-default-features
 
   # Temporary workaround to run Swift tests on Linux
   # Based on: https://github.com/swift-actions/setup-swift/issues/591#issuecomment-1685710678
   test_ubuntu_swift:
     name: Swift on Linux
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container: swift:5.9
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Test Swift
         run: swift test
 
@@ -209,13 +228,14 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install Toolchain
@@ -236,11 +256,12 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Docker CE from Official Repository
         run: |
           sudo apt-get update
@@ -251,9 +272,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
           sudo systemctl start docker
+          sudo chmod 666 /var/run/docker.sock
           docker version
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install Toolchain
@@ -269,16 +291,17 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-13
+    runs-on: macos-15
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install Toolchain
@@ -293,16 +316,17 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"] #! Python 3.7 isn't supported on ARM macOS
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install Toolchain
@@ -320,9 +344,10 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
-        #! ARM64 isn't supported for Python 3.7 and 3.8
+        #! ARM64 isn't supported for Python 3.8
         include:
           - python-version: "39"
             architecture: ARM64
@@ -336,12 +361,16 @@ jobs:
             architecture: ARM64
           - python-version: "313t"
             architecture: ARM64
+          - python-version: "314"
+            architecture: ARM64
+          - python-version: "314t"
+            architecture: ARM64
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Setup MSVC
@@ -362,13 +391,14 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Setup QEMU

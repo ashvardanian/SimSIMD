@@ -10,7 +10,7 @@
 #include <node_api.h>        // `napi_*` functions
 #include <simsimd/simsimd.h> // `simsimd_*` functions
 
-/// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
+/// @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
 napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t metric_kind,

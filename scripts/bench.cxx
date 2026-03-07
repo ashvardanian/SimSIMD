@@ -44,11 +44,12 @@ constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
 constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
 
-/// Matches OpenAI embedding size
 /// For sub-byte data types
-constexpr std::size_t dense_dimensions = 1536;
+/// Can be overridden at runtime via `SIMSIMD_BENCH_DENSE_DIMENSIONS` environment variable
+std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
-constexpr std::size_t curved_dimensions = 8;
+/// Can be overridden at runtime via `SIMSIMD_BENCH_CURVED_DIMENSIONS` environment variable
+std::size_t curved_dimensions = 8;
 
 namespace bm = benchmark;
 
@@ -680,7 +681,10 @@ void vdot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_si
 
 void bilinear_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    std::array<simsimd_f32_t, curved_dimensions> intermediate;
+    // Thread-local buffer to avoid allocation in hot path
+    static thread_local std::vector<simsimd_f32_t> intermediate;
+    if (intermediate.size() < n) intermediate.resize(n);
+
     simsimd_f32_t alpha = 1.0f, beta = 0.0f;
     cblas_sgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, (int)n, b, 1, beta, intermediate.data(), 1);
     *result = cblas_sdot((int)n, a, 1, intermediate.data(), 1);
@@ -688,7 +692,10 @@ void bilinear_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f
 
 void bilinear_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    std::array<simsimd_f64_t, curved_dimensions> intermediate;
+    // Thread-local buffer to avoid allocation in hot path
+    static thread_local std::vector<simsimd_f64_t> intermediate;
+    if (intermediate.size() < n) intermediate.resize(n);
+
     simsimd_f64_t alpha = 1.0, beta = 0.0;
     cblas_dgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, n, b, 1, beta, intermediate.data(), 1);
     *result = cblas_ddot((int)n, a, 1, intermediate.data(), 1);
@@ -696,7 +703,10 @@ void bilinear_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f
 
 void bilinear_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    std::array<simsimd_f32c_t, curved_dimensions> intermediate;
+    // Thread-local buffer to avoid allocation in hot path
+    static thread_local std::vector<simsimd_f32c_t> intermediate;
+    if (intermediate.size() < n) intermediate.resize(n);
+
     simsimd_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
     cblas_cgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
     simsimd_f32_t f32_result[2] = {0, 0};
@@ -707,7 +717,10 @@ void bilinear_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsim
 
 void bilinear_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    std::array<simsimd_f64c_t, curved_dimensions> intermediate;
+    // Thread-local buffer to avoid allocation in hot path
+    static thread_local std::vector<simsimd_f64c_t> intermediate;
+    if (intermediate.size() < n) intermediate.resize(n);
+
     simsimd_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
     cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
     cblas_zdotu_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)intermediate.data(), 1, results);
@@ -753,6 +766,24 @@ int main(int argc, char **argv) {
     std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
     std::printf("- x86 Turin support enabled: %s\n", flags[(runtime_caps & simsimd_cap_turin_k) != 0]);
     std::printf("- x86 Sierra Forest support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sierra_k) != 0]);
+    std::printf("\n");
+
+    // Override dimensions from environment variables if provided
+    if (char const *env_dense = std::getenv("SIMSIMD_BENCH_DENSE_DIMENSIONS")) {
+        std::size_t parsed_dense = std::atoi(env_dense);
+        if (parsed_dense > 0) {
+            dense_dimensions = parsed_dense;
+            std::printf("Overriding `dense_dimensions` to %zu from SIMSIMD_BENCH_DENSE_DIMENSIONS\n", dense_dimensions);
+        }
+    }
+    if (char const *env_curved = std::getenv("SIMSIMD_BENCH_CURVED_DIMENSIONS")) {
+        std::size_t parsed_curved = std::atoi(env_curved);
+        if (parsed_curved > 0) {
+            curved_dimensions = parsed_curved;
+            std::printf("Overriding `curved_dimensions` to %zu from SIMSIMD_BENCH_CURVED_DIMENSIONS\n",
+                        curved_dimensions);
+        }
+    }
     std::printf("\n");
 
     // Run the benchmarks

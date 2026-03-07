@@ -31,36 +31,36 @@
  *
  *  - Linux: everything is available in GCC 12+ and Clang 16+.
  *  - Windows - MSVC: everything except Sapphire Rapids and ARM SVE.
- *  - MacOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
+ *  - macOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
  */
-#if !defined(SIMSIMD_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__))
+#if !defined(SIMSIMD_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_NEON 1
 #endif
-#if !defined(SIMSIMD_TARGET_SVE) && (defined(__linux__))
+#if !defined(SIMSIMD_TARGET_SVE) && (defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_SVE 1
 #endif
-#if !defined(SIMSIMD_TARGET_SVE2) && (defined(__linux__))
+#if !defined(SIMSIMD_TARGET_SVE2) && (defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_SVE2 1
 #endif
-#if !defined(SIMSIMD_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__))
+#if !defined(SIMSIMD_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_HASWELL 1
 #endif
-#if !defined(SIMSIMD_TARGET_SKYLAKE) && (defined(_MSC_VER) || defined(__linux__))
+#if !defined(SIMSIMD_TARGET_SKYLAKE) && (defined(_MSC_VER) || defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_SKYLAKE 1
 #endif
-#if !defined(SIMSIMD_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__))
+#if !defined(SIMSIMD_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_ICE 1
 #endif
-#if !defined(SIMSIMD_TARGET_GENOA) && (defined(__linux__))
+#if !defined(SIMSIMD_TARGET_GENOA) && (defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_GENOA 1
 #endif
-#if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__))
+#if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #endif
-#if !defined(SIMSIMD_TARGET_TURIN) && (defined(__linux__))
+#if !defined(SIMSIMD_TARGET_TURIN) && (defined(__linux__) || defined(__FreeBSD__))
 #define SIMSIMD_TARGET_TURIN 1
 #endif
-#if !defined(SIMSIMD_TARGET_SIERRA) && (defined(__linux__)) && 0 // TODO: Add target spec to GCC & Clang
+#if !defined(SIMSIMD_TARGET_SIERRA) && (defined(__linux__) || defined(__FreeBSD__)) && 0 // TODO: Add target spec to GCC & Clang
 #define SIMSIMD_TARGET_SIERRA 1
 #endif
 
@@ -291,8 +291,11 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_distance_t *dummy_results = &dummy_results_buffer[0];
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
+    // The buffer must be large enough to cover the widest SIMD register (SVE: up to 2048 bits = 256 bytes).
+    // SVE functions use `do { } while (i < n)` loops that execute once even with n=0, and MemorySanitizer
+    // instruments predicated loads as full-width reads, so all bytes must be initialized.
     typedef double largest_scalar_t;
-    largest_scalar_t dummy_input[1] = {0};
+    largest_scalar_t dummy_input[32] = {0};
     void *x = &dummy_input[0];
 
     // Dense:

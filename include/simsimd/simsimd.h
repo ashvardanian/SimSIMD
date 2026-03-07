@@ -26,16 +26,18 @@
  *
  *  Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
  *  Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
- *  that aren't supported by any other CPU built to date... and those are only available in Tiger Lake laptops.
+ *  which are not supported by other CPUs to date and are only available in Tiger Lake laptops.
  *  Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
  *  It's mostly used in 4-socket and 8-socket high-memory configurations.
  *
- *  In practical terms, it makes sense to differentiate only 3 AVX512 generations:
+ *  For us, it makes sense to differentiate only these AVX512 generations:
  *  1. Intel Skylake (pre 2019): supports single-precision dot-products.
  *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
  *  3. AMD Genoa (2023+): brain-floating point support.
  *  4. Intel Sapphire Rapids (2023+): advanced mixed-precision float processing.
  *  5. AMD Turin (2024+): advanced sparse algorithms.
+ *
+ *  Beyond those, we support AVX2 for old Haswell generation CPUs, and AVX2+VNNI for modern Sierra generation.
  *
  *  To list all available macros for x86, take a recent compiler, like GCC 12 and run:
  *       gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -80,7 +82,7 @@
  *    The N2 core is very similar to V2 and is used by Microsoft @b Cobalt.
  *    https://developer.arm.com/Processors/Neoverse%20N2
  *
- *  On Consumer side, Apple is the biggest player with mobile @b A chips and desktop @b M chips.
+ *  On the consumer side, Apple is the biggest player with mobile @b A chips and desktop @b M chips.
  *  The M1 implements Armv8.5-A, both M2 and M3 implement Armv8.6-A, and M4 is expected to have Armv9.1-A.
  */
 
@@ -89,7 +91,7 @@
 
 #define SIMSIMD_VERSION_MAJOR 6
 #define SIMSIMD_VERSION_MINOR 5
-#define SIMSIMD_VERSION_PATCH 1
+#define SIMSIMD_VERSION_PATCH 15
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -114,6 +116,22 @@
 #if defined(_SIMSIMD_DEFINED_APPLE)
 #include <fenv.h>       // `fesetenv` - part of C 99 standard
 #include <sys/sysctl.h> // `sysctlbyname`
+#endif
+
+// Detect POSIX extensions availability for signal handling.
+// POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
+// These are needed on Linux ARM for safely testing `mrs` instruction availability.
+#if defined(_SIMSIMD_DEFINED_LINUX) && defined(_POSIX_VERSION)
+#include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
+#include <signal.h> // `sigaction`, `SIGILL`
+#define _SIMSIMD_HAS_POSIX_EXTENSIONS 1
+#else
+#define _SIMSIMD_HAS_POSIX_EXTENSIONS 0
+#endif
+
+// On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
+#if defined(_SIMSIMD_DEFINED_WINDOWS) && _SIMSIMD_TARGET_ARM
+#include <processthreadsapi.h> // `IsProcessorFeaturePresent`
 #endif
 
 #ifdef __cplusplus
@@ -454,6 +472,15 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 #pragma GCC target("arch=armv8.5-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
 
+#if _SIMSIMD_HAS_POSIX_EXTENSIONS
+/** @brief SIGILL handler for `mrs` instruction testing on Linux ARM */
+static sigjmp_buf _simsimd_mrs_test_jump_buffer;
+static void _simsimd_mrs_test_sigill_handler(int sig) {
+    (void)sig; // Unused parameter
+    siglongjmp(_simsimd_mrs_test_jump_buffer, 1);
+}
+#endif
+
 /**
  *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
@@ -503,6 +530,36 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_serial_k));
 
 #elif defined(_SIMSIMD_DEFINED_LINUX)
+
+    // Depending on the environment, reading system registers may cause SIGILL.
+    // One option to avoid the crash is to use `getauxval(AT_HWCAP)` and `getauxval(AT_HWCAP2)`,
+    // Linux APIs, but those aren't as informative as reading the registers directly.
+    // So before reading the ID registers, we set up a signal handler to catch SIGILL
+    // and probe one of the registers, reverting back to the old signal handler afterwards.
+    //
+    // This issue was originally observed in: https://github.com/ashvardanian/SimSIMD/issues/279
+#if _SIMSIMD_HAS_POSIX_EXTENSIONS
+    struct sigaction action_new, action_old;
+    action_new.sa_handler = _simsimd_mrs_test_sigill_handler;
+    sigemptyset(&action_new.sa_mask);
+    action_new.sa_flags = 0;
+
+    int mrs_works = 0;
+    if (sigaction(SIGILL, &action_new, &action_old) == 0) {
+        if (sigsetjmp(_simsimd_mrs_test_jump_buffer, 1) == 0) {
+            unsigned long midr_value;
+            __asm__ __volatile__("mrs %0, MIDR_EL1" : "=r"(midr_value));
+            mrs_works = 1;
+        }
+        sigaction(SIGILL, &action_old, NULL);
+    }
+
+    // Early exit if `mrs` doesn't work - return conservative NEON-only capabilities
+    if (!mrs_works) return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+#else  // _SIMSIMD_HAS_POSIX_EXTENSIONS
+    // Without POSIX signal handlers, fall back to conservative NEON capabilities.
+    return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+#endif // _SIMSIMD_HAS_POSIX_EXTENSIONS
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -561,8 +618,31 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
-#else // if !_SIMSIMD_DEFINED_LINUX
-    return simsimd_cap_serial_k;
+
+#elif defined(_SIMSIMD_DEFINED_WINDOWS)
+
+    unsigned supports_neon = 0, supports_dp = 0;
+
+    // On Windows ARM, use the `IsProcessorFeaturePresent` API for capability detection.
+    // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
+#if defined(PF_ARM_V8_INSTRUCTIONS_AVAILABLE)
+    supports_neon = IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE);
+#endif
+#if defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
+    supports_dp = IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
+#endif
+
+    // Windows API doesn't provide reliable detection for FP16, BF16.
+    return (simsimd_capability_t)(                                 //
+        (simsimd_cap_neon_k * (supports_neon)) |                   //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_dp)) | //
+        (simsimd_cap_serial_k));
+
+#else // Unknown platform
+
+    // Conservative fallback for unknown platforms: NEON is mandatory in ARMv8-A (ARM64)
+    return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+
 #endif
 }
 
@@ -1589,7 +1669,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b,
 }
 SIMSIMD_PUBLIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_dot_u8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_dot_u8_ice(a, b, n, d);
