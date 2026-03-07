@@ -1,4 +1,104 @@
-module CSimSIMD {
-    header "simsimd/simsimd.h"
+// Hierarchical Clang C Module Map for NumKong
+
+// Layer 1: Core types (changes rarely, no dependencies)
+module CNumKongCore {
+    header "numkong/types.h"
+    export *
+}
+
+// Layer 2: Kernel families (independent, change frequently during development)
+module CNumKongKernels {
+    // Each kernel depends on Core for types
+    use CNumKongCore
+
+    explicit module Dot {
+        header "numkong/dot.h"
+        export *
+    }
+
+    explicit module Dots {
+        header "numkong/dots.h"
+        export *
+    }
+
+    explicit module Spatial {
+        header "numkong/spatial.h"
+        export *
+    }
+
+    explicit module Geospatial {
+        header "numkong/geospatial.h"
+        export *
+    }
+
+    explicit module Set {
+        header "numkong/set.h"
+        export *
+    }
+
+    explicit module Sets {
+        header "numkong/sets.h"
+        export *
+    }
+
+    explicit module Probability {
+        header "numkong/probability.h"
+        export *
+    }
+
+    explicit module Curved {
+        header "numkong/curved.h"
+        export *
+    }
+
+    explicit module Sparse {
+        header "numkong/sparse.h"
+        export *
+    }
+
+    explicit module Each {
+        header "numkong/each.h"
+        export *
+    }
+
+    explicit module Trigonometry {
+        header "numkong/trigonometry.h"
+        export *
+    }
+
+    explicit module Mesh {
+        header "numkong/mesh.h"
+        export *
+    }
+
+    explicit module Reduce {
+        header "numkong/reduce.h"
+        export *
+    }
+
+    explicit module Cast {
+        header "numkong/cast.h"
+        export *
+    }
+
+    export *
+}
+
+// Layer 3: Capability detection (depends on Core, used by umbrella)
+module CNumKongCapabilities {
+    use CNumKongCore
+
+    header "numkong/capabilities.h"
+    export *
+}
+
+// Layer 4: Unified API (top-level umbrella module)
+module CNumKong {
+    // Depends on Core, Kernels, and Capabilities
+    use CNumKongCore
+    use CNumKongKernels
+    use CNumKongCapabilities
+
+    header "numkong/numkong.h"
     export *
 }

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NumKong WASM Browser Tests</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        h2 {
+            color: #666;
+            margin-top: 30px;
+        }
+
+        .summary {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .summary.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .summary.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .test {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-left: 3px solid;
+            background: #f8f9fa;
+        }
+
+        .test.pass {
+            border-color: #28a745;
+        }
+
+        .test.fail {
+            border-color: #dc3545;
+        }
+
+        .error {
+            color: #dc3545;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        .capability-info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>NumKong WASM Test Suite</h1>
+    <div id="results" class="loading">Loading WASM module and running tests...</div>
+
+    <script type="module">
+        // Import WASM wrapper and Emscripten module
+        import * as numkongWrapper from '../javascript/dist/esm/numkong-wasm.js';
+        import NumKongModule from '../build-wasm/numkong.js';
+
+        const results = [];
+        let capabilities = null;
+
+        // Simple test framework
+        function test(name, fn) {
+            try {
+                fn();
+                results.push({ name, pass: true });
+                console.log('✓', name);
+            } catch (e) {
+                results.push({ name, pass: false, error: e.message });
+                console.error('✗', name, e);
+            }
+        }
+
+        function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
+            const lowerBound = expected - tolerance;
+            const upperBound = expected + tolerance;
+            if (!(actual >= lowerBound && actual <= upperBound)) {
+                throw new Error(`Expected ${actual} to be almost equal to ${expected} (tolerance: ${tolerance})`);
+            }
+        }
+
+        // Load NumKong WASM module
+        const wasmInstance = await NumKongModule();
+        numkongWrapper.initWasm(wasmInstance);
+        const numkong = numkongWrapper;
+
+        // Get capabilities if available
+        if (typeof numkong.getCapabilities === 'function') {
+            capabilities = numkong.getCapabilities();
+            console.log('Runtime capabilities:', '0x' + capabilities.toString(16));
+        }
+
+        // Run test suite
+        test('Distance from itself', () => {
+            const f32s = new Float32Array([1.0, 2.0, 3.0]);
+            assertAlmostEqual(numkong.sqeuclidean(f32s, f32s), 0.0, 0.01);
+            assertAlmostEqual(numkong.angular(f32s, f32s), 0.0, 0.01);
+
+            const f64s = new Float64Array([1.0, 2.0, 3.0]);
+            assertAlmostEqual(numkong.sqeuclidean(f64s, f64s), 0.0, 0.01);
+            assertAlmostEqual(numkong.angular(f64s, f64s), 0.0, 0.01);
+
+            const f32sNormalized = new Float32Array([
+                1 / Math.sqrt(14),
+                2 / Math.sqrt(14),
+                3 / Math.sqrt(14),
+            ]);
+            assertAlmostEqual(numkong.inner(f32sNormalized, f32sNormalized), 1.0, 0.01);
+
+            const f32sHistogram = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
+            assertAlmostEqual(numkong.kullbackleibler(f32sHistogram, f32sHistogram), 0.0, 0.01);
+            assertAlmostEqual(numkong.jensenshannon(f32sHistogram, f32sHistogram), 0.0, 0.01);
+
+            const u8s = new Uint8Array([1, 2, 3]);
+            assertAlmostEqual(numkong.hamming(u8s, u8s), 0.0, 0.01);
+            assertAlmostEqual(numkong.jaccard(u8s, u8s), 0.0, 0.01);
+        });
+
+        test('Orthogonal vectors', () => {
+            const a = new Float32Array([1.0, 0.0, 0.0]);
+            const b = new Float32Array([0.0, 1.0, 0.0]);
+
+            assertAlmostEqual(numkong.inner(a, b), 0.0, 0.01);
+            assertAlmostEqual(numkong.angular(a, b), 1.0, 0.01);
+        });
+
+        test('Opposite vectors', () => {
+            const a = new Float32Array([1.0, 2.0, 3.0]);
+            const b = new Float32Array([-1.0, -2.0, -3.0]);
+
+            assertAlmostEqual(numkong.angular(a, b), 2.0, 0.01);
+        });
+
+        test('Euclidean distance', () => {
+            const a = new Float32Array([0.0, 0.0, 0.0]);
+            const b = new Float32Array([3.0, 4.0, 0.0]);
+
+            assertAlmostEqual(numkong.euclidean(a, b), 5.0, 0.01);
+            assertAlmostEqual(numkong.sqeuclidean(a, b), 25.0, 0.01);
+        });
+
+        test('Capability detection', () => {
+            if (typeof numkong.getCapabilities === 'function') {
+                const caps = numkong.getCapabilities();
+                if (typeof caps !== 'bigint') {
+                    throw new Error('getCapabilities should return bigint');
+                }
+
+                // Serial fallback should always be present
+                if (typeof numkong.hasCapability === 'function') {
+                    if (!numkong.hasCapability(1n << 0n)) {
+                        throw new Error('SERIAL capability should be present');
+                    }
+                }
+            }
+        });
+
+        // Expanded test coverage - comprehensive dtype/function/dimension testing
+        const testMatrix = {
+            dot: ['f64', 'f32', 'i8', 'u8'],
+            inner: ['f64', 'f32', 'i8', 'u8'],
+            sqeuclidean: ['f64', 'f32', 'i8', 'u8'],
+            euclidean: ['f64', 'f32', 'i8', 'u8'],
+            angular: ['f64', 'f32', 'i8'],
+            kullbackleibler: ['f64', 'f32'],
+            jensenshannon: ['f64', 'f32'],
+            hamming: ['u8'],
+            jaccard: ['u8']
+        };
+
+        const dims = [3, 16, 128, 1536];
+
+        function randomVector(dtype, len) {
+            const rand = () => Math.random() * 2 - 1;
+            if (dtype === 'f64') return Float64Array.from({ length: len }, rand);
+            if (dtype === 'f32') return Float32Array.from({ length: len }, rand);
+            if (dtype === 'i8') return Int8Array.from({ length: len }, () => (Math.random() * 256 - 128) | 0);
+            if (dtype === 'u8') return Uint8Array.from({ length: len }, () => Math.random() * 256 | 0);
+        }
+
+        for (const [fn, dtypes] of Object.entries(testMatrix)) {
+            for (const dtype of dtypes) {
+                for (const dim of dims) {
+                    const name = `[browser] ${fn}(${dtype}×${dim})`;
+                    try {
+                        const a = randomVector(dtype, dim);
+                        const b = randomVector(dtype, dim);
+                        const result = numkong[fn](a, b);
+
+                        if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid result');
+
+                        const result2 = numkong[fn](a, b);
+                        const diff = Math.abs(result - result2);
+                        if (diff > 1e-6) throw new Error(`Determinism check failed: ${diff}`);
+
+                        results.push({ name, pass: true });
+                    } catch (e) {
+                        results.push({ name, pass: false, error: e.message });
+                    }
+                }
+            }
+        }
+
+        // Display results
+        const passed = results.filter(r => r.pass).length;
+        const total = results.length;
+        const allPassed = passed === total;
+
+        const summaryClass = allPassed ? 'pass' : 'fail';
+        const summaryText = allPassed
+            ? `✓ All ${total} tests passed`
+            : `✗ ${passed}/${total} tests passed`;
+
+        const capabilityInfo = capabilities !== null
+            ? `<div class="capability-info">Runtime Capabilities: 0x${capabilities.toString(16)}</div>`
+            : '';
+
+        const testResults = results.map(r => {
+            const statusIcon = r.pass ? '✓' : '✗';
+            const testClass = r.pass ? 'pass' : 'fail';
+            const errorMsg = r.error ? `<div class="error">Error: ${r.error}</div>` : '';
+            return `
+                <div class="test ${testClass}">
+                    ${statusIcon} ${r.name}
+                    ${errorMsg}
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('results').innerHTML = `
+            <div class="summary ${summaryClass}">${summaryText}</div>
+            ${capabilityInfo}
+            <h2>Test Results</h2>
+            ${testResults}
+        `;
+
+        // Make results accessible to Playwright automation
+        window.testResults = results;
+        window.testsPassed = allPassed;
+    </script>
+</body>
+
+</html>

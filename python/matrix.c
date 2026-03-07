@@ -1,0 +1,1201 @@
+/**
+ *  @brief Packed-matrix cross operations for NumKong Python bindings.
+ *  @file python/matrix.c
+ *  @author Ash Vardanian
+ *  @date February 20, 2026
+ *
+ *  This module owns:
+ *  - `PackedMatrix`: opaque pre-packed right-hand-side matrix representation.
+ *  - Packing APIs: `dots_pack()` and `hammings_pack()`.
+ *  - Packed cross APIs: `*_packed()` for dots, hammings, jaccards, angulars, euclideans.
+ *  - Symmetric all-pairs APIs: `*_symmetric()` for the same metric families.
+ *  - `Tensor @ PackedMatrix`: dot-product shortcut equivalent to `dots_packed`.
+ *
+ *  Shape naming convention used in docs and errors:
+ *  - `a`: (height, depth)
+ *  - packed `b`: (width, depth)
+ *  - result: (height, width)
+ */
+#include "matrix.h"
+#include "tensor.h"
+
+#include <numkong/dots.h>
+
+static void PackedMatrix_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(self); }
+
+/** @brief Compute packed buffer size for a PackedMatrix. */
+static size_t packed_matrix_nbytes(PackedMatrix *mm) {
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, mm->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
+    if (!size_fn) return 0;
+    return size_fn(mm->n, mm->k);
+}
+
+static PyObject *PackedMatrix_repr(PyObject *self) {
+    PackedMatrix *mm = (PackedMatrix *)self;
+    size_t packed_size = packed_matrix_nbytes(mm);
+    char const *kind_str = (mm->kind == nk_kernel_hammings_packed_k) ? "hammings" : "dots";
+    return PyUnicode_FromFormat("<PackedMatrix kind='%s' n=%zu k=%zu dtype='%s' nbytes=%zu>", kind_str, (size_t)mm->n,
+                                (size_t)mm->k, dtype_to_string(mm->dtype), packed_size);
+}
+
+static PyObject *PackedMatrix_get_n(PyObject *self, void *closure) {
+    (void)closure;
+    return PyLong_FromSize_t(((PackedMatrix *)self)->n);
+}
+
+static PyObject *PackedMatrix_get_k(PyObject *self, void *closure) {
+    (void)closure;
+    return PyLong_FromSize_t(((PackedMatrix *)self)->k);
+}
+
+static PyObject *PackedMatrix_get_dtype(PyObject *self, void *closure) {
+    (void)closure;
+    return PyUnicode_FromString(dtype_to_string(((PackedMatrix *)self)->dtype));
+}
+
+static PyObject *PackedMatrix_get_nbytes(PyObject *self, void *closure) {
+    (void)closure;
+    return PyLong_FromSize_t(packed_matrix_nbytes((PackedMatrix *)self));
+}
+
+static PyObject *PackedMatrix_get_kind(PyObject *self, void *closure) {
+    (void)closure;
+    PackedMatrix *mm = (PackedMatrix *)self;
+    return PyUnicode_FromString((mm->kind == nk_kernel_hammings_packed_k) ? "hammings" : "dots");
+}
+
+static PyGetSetDef PackedMatrix_getset[] = {
+    {"n", PackedMatrix_get_n, NULL, "Number of rows in the original matrix", NULL},
+    {"k", PackedMatrix_get_k, NULL, "Number of columns in the original matrix", NULL},
+    {"dtype", PackedMatrix_get_dtype, NULL, "Data type of the matrix elements", NULL},
+    {"nbytes", PackedMatrix_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
+    {"kind", PackedMatrix_get_kind, NULL, "Kind of packed matrix ('dots' or 'hammings')", NULL},
+    {NULL, NULL, NULL, NULL, NULL},
+};
+
+static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)cls;
+
+    PyObject *n_obj = NULL, *k_obj = NULL, *dtype_obj = NULL, *kind_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    Py_ssize_t total = nargs + nkw;
+
+    if (nargs < 2 || total > 4 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "packed_size(n, k, dtype, *, kind='dots')");
+        return NULL;
+    }
+
+    n_obj = args[0];
+    k_obj = args[1];
+    if (nargs >= 3) dtype_obj = args[2];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        PyObject *value = args[nargs + i];
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            if (dtype_obj) {
+                PyErr_SetString(PyExc_TypeError, "packed_size() got multiple values for argument 'dtype'");
+                return NULL;
+            }
+            dtype_obj = value;
+        }
+        else if (PyUnicode_CompareWithASCIIString(name, "kind") == 0) kind_obj = value;
+        else {
+            PyErr_Format(PyExc_TypeError, "packed_size() got unexpected keyword argument '%S'", name);
+            return NULL;
+        }
+    }
+
+    if (!dtype_obj) {
+        PyErr_SetString(PyExc_TypeError, "packed_size() requires 'dtype' argument");
+        return NULL;
+    }
+
+    nk_size_t n = (nk_size_t)PyLong_AsSize_t(n_obj);
+    if (n == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+    nk_size_t k = (nk_size_t)PyLong_AsSize_t(k_obj);
+    if (k == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+
+    char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
+    if (!dtype_str) return NULL;
+    nk_dtype_t dtype = python_string_to_dtype(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unknown dtype: '%s'", dtype_str);
+        return NULL;
+    }
+
+    nk_kernel_kind_t size_kind = nk_kernel_dots_packed_size_k;
+    if (kind_obj) {
+        char const *kind_str = PyUnicode_AsUTF8(kind_obj);
+        if (!kind_str) return NULL;
+        if (!same_string(kind_str, "hammings") && !same_string(kind_str, "dots")) {
+            PyErr_Format(PyExc_ValueError, "Unknown kind: '%s'. Expected 'dots' or 'hammings'.", kind_str);
+            return NULL;
+        }
+    }
+
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(size_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&size_fn, &cap);
+    if (!size_fn) {
+        PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_str);
+        return NULL;
+    }
+
+    return PyLong_FromSize_t(size_fn(n, k));
+}
+
+static PyMethodDef PackedMatrix_methods[] = {
+    {"packed_size", (PyCFunction)PackedMatrix_packed_size, METH_CLASS | METH_FASTCALL | METH_KEYWORDS,
+     "Return packed buffer size in bytes for a matrix shape and dtype."},
+    {NULL, NULL, 0, NULL},
+};
+
+PyTypeObject PackedMatrixType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.PackedMatrix",
+    .tp_doc = "Opaque pre-packed matrix for repeated cross operations",
+    .tp_basicsize = sizeof(PackedMatrix),
+    .tp_itemsize = sizeof(char),
+    .tp_dealloc = PackedMatrix_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_getset = PackedMatrix_getset,
+    .tp_methods = PackedMatrix_methods,
+    .tp_repr = PackedMatrix_repr,
+};
+
+/** @brief Parse a Python buffer format string into a NumKong dtype. */
+static int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
+    // If the source object is a Tensor, use its dtype directly —
+    // the PEP 3118 format string may be a placeholder for exotic types.
+    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) {
+        *dtype = ((Tensor *)buffer->obj)->dtype;
+        return 1;
+    }
+    char const *format = buffer->format;
+    if (!format) {
+        PyErr_SetString(PyExc_TypeError, "Input buffer must expose a format string");
+        return 0;
+    }
+    *dtype = python_string_to_dtype(format);
+    if (*dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", format);
+        return 0;
+    }
+    return 1;
+}
+
+/** @brief Matrix multiplication operator for Tensor @ PackedMatrix. */
+PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
+    if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
+    Tensor *a = (Tensor *)self;
+
+    if (!PyObject_TypeCheck(other, &PackedMatrixType)) {
+        PyErr_SetString(PyExc_TypeError, "matmul requires PackedMatrix as right operand " "(use nk.dots_pack() first)");
+        return NULL;
+    }
+
+    PackedMatrix *packed = (PackedMatrix *)other;
+
+    if (packed->kind != nk_kernel_dots_packed_k) {
+        PyErr_SetString(PyExc_TypeError, "@ operator requires a dots-packed matrix (use nk.dots_packed() for dots)");
+        return NULL;
+    }
+
+    if (a->rank != 2) {
+        PyErr_SetString(PyExc_ValueError, "matmul requires 2D array as left operand");
+        return NULL;
+    }
+
+    nk_size_t m = (nk_size_t)a->shape[0];
+    nk_size_t k_a = (nk_size_t)a->shape[1];
+
+    if (k_a != packed->k) {
+        PyErr_Format(PyExc_ValueError, "Dimension mismatch: array has k=%zu but packed matrix has k=%zu", k_a,
+                     packed->k);
+        return NULL;
+    }
+
+    if (is_complex(a->dtype)) {
+        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul");
+        return NULL;
+    }
+
+    if (a->strides[0] < 0 || a->strides[1] < 0) {
+        PyErr_SetString(PyExc_ValueError, "matmul does not support negative strides");
+        return NULL;
+    }
+
+    nk_size_t n = packed->n;
+    nk_size_t k = packed->k;
+    nk_size_t row_stride = (nk_size_t)a->strides[0];
+    nk_size_t col_stride = (nk_size_t)a->strides[1];
+
+    // Require matching dtype and row-contiguous input
+    if (a->dtype != packed->dtype) {
+        PyErr_Format(PyExc_TypeError,
+                     "dtype mismatch: tensor is '%s' but packed matrix is '%s'. " "Use .astype('%s') to convert first.",
+                     dtype_to_python_string(a->dtype), dtype_to_python_string(packed->dtype),
+                     dtype_to_python_string(packed->dtype));
+        return NULL;
+    }
+    if (col_stride != (nk_size_t)bytes_per_dtype(packed->dtype)) {
+        PyErr_SetString(PyExc_ValueError, "matmul requires row-contiguous left operand");
+        return NULL;
+    }
+
+    // Determine output dtype
+    nk_dtype_t out_dtype = nk_dot_output_dtype(packed->dtype);
+    if (out_dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
+        return NULL;
+    }
+
+    // Find matmul kernel via punned dispatch
+    nk_dots_punned_t matmul_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_k, packed->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&matmul_fn, &cap);
+    if (!matmul_fn) {
+        PyErr_SetString(PyExc_LookupError, "No matmul kernel for this dtype");
+        return NULL;
+    }
+
+    // Allocate output tensor
+    Py_ssize_t out_shape[2] = {(Py_ssize_t)m, (Py_ssize_t)n};
+    Tensor *result = Tensor_new(out_dtype, 2, out_shape);
+    if (!result) return NULL;
+
+    nk_size_t c_stride = n * bytes_per_dtype(out_dtype);
+    PyThreadState *save = PyEval_SaveThread();
+    matmul_fn(a->data, packed->start, result->data, m, n, k, row_stride, c_stride);
+    PyEval_RestoreThread(save);
+
+    return (PyObject *)result;
+}
+
+typedef struct matrix_metric_spec_t {
+    char const *name;
+    char const *pack_hint;
+    nk_kernel_kind_t packed_kind;
+    nk_kernel_kind_t symmetric_kind;
+    nk_kernel_kind_t metric_kind;
+    nk_kernel_kind_t required_packed_kind;
+} matrix_metric_spec_t;
+
+static matrix_metric_spec_t const spec_dots = {
+    .name = "dots",
+    .pack_hint = "dots_pack",
+    .packed_kind = nk_kernel_dots_packed_k,
+    .symmetric_kind = nk_kernel_dots_symmetric_k,
+    .metric_kind = nk_kernel_dot_k,
+    .required_packed_kind = nk_kernel_dots_packed_k,
+};
+
+static matrix_metric_spec_t const spec_angulars = {
+    .name = "angulars",
+    .pack_hint = "dots_pack",
+    .packed_kind = nk_kernel_angulars_packed_k,
+    .symmetric_kind = nk_kernel_angulars_symmetric_k,
+    .metric_kind = nk_kernel_angular_k,
+    .required_packed_kind = nk_kernel_dots_packed_k,
+};
+
+static matrix_metric_spec_t const spec_euclideans = {
+    .name = "euclideans",
+    .pack_hint = "dots_pack",
+    .packed_kind = nk_kernel_euclideans_packed_k,
+    .symmetric_kind = nk_kernel_euclideans_symmetric_k,
+    .metric_kind = nk_kernel_euclidean_k,
+    .required_packed_kind = nk_kernel_dots_packed_k,
+};
+
+static matrix_metric_spec_t const spec_hammings = {
+    .name = "hammings",
+    .pack_hint = "hammings_pack",
+    .packed_kind = nk_kernel_hammings_packed_k,
+    .symmetric_kind = nk_kernel_hammings_symmetric_k,
+    .metric_kind = nk_kernel_hamming_k,
+    .required_packed_kind = nk_kernel_hammings_packed_k,
+};
+
+static matrix_metric_spec_t const spec_jaccards = {
+    .name = "jaccards",
+    .pack_hint = "hammings_pack",
+    .packed_kind = nk_kernel_jaccards_packed_k,
+    .symmetric_kind = nk_kernel_jaccards_symmetric_k,
+    .metric_kind = nk_kernel_jaccard_k,
+    .required_packed_kind = nk_kernel_hammings_packed_k,
+};
+
+static int resolve_output_tensor(                                            //
+    PyObject *out_obj, nk_size_t rows, nk_size_t cols, nk_dtype_t out_dtype, //
+    Tensor **result, char **out_data, nk_size_t *row_stride, int *owns_result) {
+
+    if (out_obj && out_obj != Py_None) {
+        if (!PyObject_TypeCheck(out_obj, &TensorType)) {
+            PyErr_SetString(PyExc_TypeError, "out must be a Tensor");
+            return 0;
+        }
+        *result = (Tensor *)out_obj;
+
+        if ((*result)->rank != 2 || (*result)->shape[0] != (Py_ssize_t)rows ||
+            (*result)->shape[1] != (Py_ssize_t)cols) {
+            PyErr_Format(PyExc_ValueError, "out has wrong shape: expected (%zu, %zu), got (%zd, %zd)", rows, cols,
+                         (*result)->shape[0], (*result)->shape[1]);
+            return 0;
+        }
+
+        if ((*result)->dtype != out_dtype) {
+            PyErr_Format(PyExc_TypeError, "out dtype '%s' does not match expected '%s'",
+                         dtype_to_python_string((*result)->dtype), dtype_to_python_string(out_dtype));
+            return 0;
+        }
+
+        size_t out_item_size = bytes_per_dtype(out_dtype);
+        if ((*result)->strides[1] != (Py_ssize_t)out_item_size ||
+            (*result)->strides[0] != (Py_ssize_t)(cols * out_item_size)) {
+            PyErr_SetString(PyExc_ValueError, "out must be C-contiguous");
+            return 0;
+        }
+
+        *out_data = (*result)->data;
+        *row_stride = (nk_size_t)(*result)->strides[0];
+        *owns_result = 0;
+        return 1;
+    }
+
+    Py_ssize_t out_shape[2] = {(Py_ssize_t)rows, (Py_ssize_t)cols};
+    *result = Tensor_new(out_dtype, 2, out_shape);
+    if (!*result) return 0;
+
+    *out_data = (*result)->data;
+    *row_stride = cols * bytes_per_dtype(out_dtype);
+    *owns_result = 1;
+    return 1;
+}
+
+static PyObject *api_packed_common( //
+    PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, matrix_metric_spec_t const *spec) {
+
+    PyObject *a_obj = NULL;
+    PyObject *b_obj = NULL;
+    PyObject *out_obj = NULL;
+    Py_ssize_t start_row = -1, end_row = -1;
+
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs != 2) {
+        PyErr_Format(PyExc_TypeError, "%s_packed() requires exactly 2 positional arguments: a, b", spec->name);
+        return NULL;
+    }
+
+    a_obj = args[0];
+    b_obj = args[1];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(name, "out") == 0) { out_obj = args[nargs + i]; }
+        else if (PyUnicode_CompareWithASCIIString(name, "start_row") == 0) {
+            start_row = PyLong_AsSsize_t(args[nargs + i]);
+            if (start_row == -1 && PyErr_Occurred()) return NULL;
+        }
+        else if (PyUnicode_CompareWithASCIIString(name, "end_row") == 0) {
+            end_row = PyLong_AsSsize_t(args[nargs + i]);
+            if (end_row == -1 && PyErr_Occurred()) return NULL;
+        }
+        else {
+            char const *name_str = PyUnicode_AsUTF8(name);
+            PyErr_Format(PyExc_TypeError, "%s_packed() got unexpected keyword argument '%s'", spec->name, name_str);
+            return NULL;
+        }
+    }
+
+    if (!PyObject_TypeCheck(b_obj, &PackedMatrixType)) {
+        PyErr_Format(PyExc_TypeError, "b must be a PackedMatrix (use %s() first)", spec->pack_hint);
+        return NULL;
+    }
+    PackedMatrix *packed = (PackedMatrix *)b_obj;
+
+    if (packed->kind != spec->required_packed_kind) {
+        PyErr_Format(PyExc_TypeError, "b must be packed with %s()", spec->pack_hint);
+        return NULL;
+    }
+
+    Py_buffer a_buffer;
+    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "a must support buffer protocol");
+        return NULL;
+    }
+
+    if (a_buffer.ndim != 2) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_SetString(PyExc_ValueError, "a must be a 2D matrix");
+        return NULL;
+    }
+
+    nk_dtype_t src_dtype;
+    if (!buffer_dtype(&a_buffer, &src_dtype)) {
+        PyBuffer_Release(&a_buffer);
+        return NULL;
+    }
+    if (is_complex(src_dtype)) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported");
+        return NULL;
+    }
+    if (a_buffer.strides[0] < 0 || a_buffer.strides[1] < 0) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_ValueError, "%s_packed does not support negative strides", spec->name);
+        return NULL;
+    }
+
+    nk_size_t height = (nk_size_t)a_buffer.shape[0];
+    nk_size_t depth = (nk_size_t)a_buffer.shape[1];
+    nk_size_t input_row_stride = (nk_size_t)a_buffer.strides[0];
+    nk_size_t input_col_stride = (nk_size_t)a_buffer.strides[1];
+    int const accepts_bitpacked_u1 = ( //
+        spec->required_packed_kind == nk_kernel_hammings_packed_k && src_dtype == nk_u8_k && packed->dtype == nk_u1_k);
+    if (accepts_bitpacked_u1) depth *= nk_dtype_dimensions_per_value(packed->dtype);
+
+    if (depth != packed->k) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_ValueError, "Depth mismatch: a has depth=%zu but packed matrix has depth=%zu", depth,
+                     packed->k);
+        return NULL;
+    }
+
+    if (src_dtype != packed->dtype && !accepts_bitpacked_u1) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_TypeError, "dtype mismatch: input is '%s' but packed matrix is '%s'",
+                     dtype_to_python_string(src_dtype), dtype_to_python_string(packed->dtype));
+        return NULL;
+    }
+
+    nk_size_t expected_col_stride = accepts_bitpacked_u1 ? (nk_size_t)a_buffer.itemsize
+                                                         : (nk_size_t)bytes_per_dtype(packed->dtype);
+    if (input_col_stride != expected_col_stride) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_SetString(PyExc_ValueError, "left operand must be row-contiguous");
+        return NULL;
+    }
+
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->metric_kind, packed->dtype);
+    if (out_dtype == nk_dtype_unknown_k) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for %s_packed", spec->name);
+        return NULL;
+    }
+
+    nk_dots_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(spec->packed_kind, packed->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_LookupError, "No %s_packed kernel for this dtype", spec->name);
+        return NULL;
+    }
+
+    nk_size_t width = packed->n;
+    nk_size_t depth_packed = packed->k;
+
+    Tensor *result = NULL;
+    int owns_result = 0;
+    char *out_data = NULL;
+    nk_size_t output_row_stride = 0;
+    if (!resolve_output_tensor(out_obj, height, width, out_dtype, &result, &out_data, &output_row_stride,
+                               &owns_result)) {
+        PyBuffer_Release(&a_buffer);
+        return NULL;
+    }
+
+    // Apply row-range slicing
+    if (start_row < 0) start_row = 0;
+    if (end_row < 0) end_row = (Py_ssize_t)height;
+    if (start_row > (Py_ssize_t)height || end_row > (Py_ssize_t)height || start_row > end_row) {
+        PyBuffer_Release(&a_buffer);
+        PyErr_Format(PyExc_ValueError, "Invalid row range [%zd, %zd) for matrix with %zu rows", start_row, end_row,
+                     (size_t)height);
+        return NULL;
+    }
+    {
+        char *a_ptr = (char *)a_buffer.buf + start_row * (Py_ssize_t)input_row_stride;
+        char *o_ptr = out_data + start_row * (Py_ssize_t)output_row_stride;
+        nk_size_t slice_height = (nk_size_t)(end_row - start_row);
+        PyThreadState *save = PyEval_SaveThread();
+        kernel(a_ptr, packed->start, o_ptr, slice_height, width, depth_packed, input_row_stride, output_row_stride);
+        PyEval_RestoreThread(save);
+    }
+    PyBuffer_Release(&a_buffer);
+
+    if (owns_result) return (PyObject *)result;
+    Py_INCREF(result);
+    return (PyObject *)result;
+}
+
+static PyObject *api_symmetric_common( //
+    PyObject *const *args, Py_ssize_t positional_args_count, PyObject *args_names_tuple,
+    matrix_metric_spec_t const *spec) {
+
+    PyObject *vectors_obj = NULL;
+    PyObject *dtype_obj = NULL;
+    PyObject *out_obj = NULL;
+    Py_ssize_t start_row = -1, end_row = -1;
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 1 || args_count > 5 || positional_args_count > 1) {
+        PyErr_Format(PyExc_TypeError, "%s_symmetric(vectors, *, dtype=None, out=None, start_row=None, end_row=None)",
+                     spec->name);
+        return NULL;
+    }
+
+    vectors_obj = args[0];
+    for (Py_ssize_t i = 0, j = positional_args_count; i < args_names_count; ++i, ++j) {
+        PyObject *key = PyTuple_GetItem(args_names_tuple, i);
+        PyObject *value = args[j];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = value;
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0) out_obj = value;
+        else if (PyUnicode_CompareWithASCIIString(key, "start_row") == 0) {
+            start_row = PyLong_AsSsize_t(value);
+            if (start_row == -1 && PyErr_Occurred()) return NULL;
+        }
+        else if (PyUnicode_CompareWithASCIIString(key, "end_row") == 0) {
+            end_row = PyLong_AsSsize_t(value);
+            if (end_row == -1 && PyErr_Occurred()) return NULL;
+        }
+        else {
+            PyErr_Format(PyExc_TypeError, "%s_symmetric() unexpected keyword: %S", spec->name, key);
+            return NULL;
+        }
+    }
+
+    Py_buffer vec_buf;
+    if (PyObject_GetBuffer(vectors_obj, &vec_buf, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "vectors must support buffer protocol");
+        return NULL;
+    }
+
+    PyObject *return_obj = NULL;
+    if (vec_buf.ndim != 2) {
+        PyErr_SetString(PyExc_ValueError, "vectors must be a 2D matrix");
+        goto cleanup;
+    }
+
+    if (vec_buf.strides[1] != vec_buf.itemsize) {
+        PyErr_SetString(PyExc_ValueError, "Input rows must be contiguous");
+        goto cleanup;
+    }
+
+    nk_dtype_t dtype;
+    if (!buffer_dtype(&vec_buf, &dtype)) goto cleanup;
+
+    if (dtype_obj) {
+        char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str) goto cleanup;
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
+            goto cleanup;
+        }
+    }
+
+    nk_dots_symmetric_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(spec->symmetric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
+                          &cap);
+    if (!kernel) {
+        PyErr_Format(PyExc_LookupError, "No %s_symmetric kernel for dtype '%s'", spec->name,
+                     dtype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->metric_kind, dtype);
+    if (out_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for %s_symmetric", spec->name);
+        goto cleanup;
+    }
+
+    nk_size_t n_vectors = (nk_size_t)vec_buf.shape[0];
+    nk_size_t depth = (nk_size_t)vec_buf.shape[1];
+    depth *= nk_dtype_dimensions_per_value(dtype);
+    nk_size_t stride = (nk_size_t)vec_buf.strides[0];
+
+    Tensor *result = NULL;
+    int owns_result = 0;
+    char *out_data = NULL;
+    nk_size_t result_stride = 0;
+    if (!resolve_output_tensor(out_obj, n_vectors, n_vectors, out_dtype, &result, &out_data, &result_stride,
+                               &owns_result))
+        goto cleanup;
+
+    // Apply row-range slicing
+    {
+        nk_size_t row_start = (start_row >= 0) ? (nk_size_t)start_row : 0;
+        nk_size_t row_end = (end_row >= 0) ? (nk_size_t)end_row : n_vectors;
+        if (row_start > n_vectors || row_end > n_vectors || row_start > row_end) {
+            PyErr_Format(PyExc_ValueError, "Invalid row range [%zu, %zu) for %zu vectors", (size_t)row_start,
+                         (size_t)row_end, (size_t)n_vectors);
+            goto cleanup;
+        }
+        PyThreadState *save = PyEval_SaveThread();
+        kernel(vec_buf.buf, n_vectors, depth, stride, out_data, result_stride, row_start, row_end - row_start);
+        PyEval_RestoreThread(save);
+    }
+
+    if (owns_result) return_obj = (PyObject *)result;
+    else {
+        Py_INCREF(result);
+        return_obj = (PyObject *)result;
+    }
+
+cleanup:
+    PyBuffer_Release(&vec_buf);
+    return return_obj;
+}
+
+char const doc_dots_pack[] =                                                         //
+    "dots_pack(b, /, dtype='bf16') -> PackedMatrix\n\n"                              //
+    "Pack a 2D matrix for repeated dot-product style cross operations.\n\n"          //
+    "Parameters:\n"                                                                  //
+    "    b (array_like): Source matrix with shape (width, depth).\n"                 //
+    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"                   //
+    "        Supported values: 'bf16', 'f16', 'f32', 'f64', 'i8', 'u8'.\n\n"         //
+    "Returns:\n"                                                                     //
+    "    PackedMatrix: Opaque packed matrix accepted by dots_packed(),\n"            //
+    "        angulars_packed(), euclideans_packed(), and Tensor @ PackedMatrix.\n\n" //
+    "Signature:\n"                                                                   //
+    "    >>> def dots_pack(b, /, dtype='bf16') -> PackedMatrix: ...";
+
+PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+
+    PyObject *b_obj = NULL;
+    char const *dtype_str = "bf16";
+
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    Py_ssize_t total = nargs + nkw;
+
+    if (nargs < 1 || total > 2) {
+        PyErr_SetString(PyExc_TypeError, "dots_pack() requires 1-2 arguments: b, dtype='bf16'");
+        return NULL;
+    }
+
+    b_obj = args[0];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            if (nargs >= 2) {
+                PyErr_SetString(PyExc_TypeError, "dots_pack() got multiple values for argument 'dtype'");
+                return NULL;
+            }
+            PyObject *val = args[nargs + i];
+            if (!PyUnicode_Check(val)) {
+                PyErr_SetString(PyExc_TypeError, "dtype must be a string");
+                return NULL;
+            }
+            dtype_str = PyUnicode_AsUTF8(val);
+        }
+        else {
+            char const *name_str = PyUnicode_AsUTF8(name);
+            PyErr_Format(PyExc_TypeError, "dots_pack() got unexpected keyword argument '%s'", name_str);
+            return NULL;
+        }
+    }
+    if (nargs >= 2) {
+        if (!PyUnicode_Check(args[1])) {
+            PyErr_SetString(PyExc_TypeError, "dtype must be a string");
+            return NULL;
+        }
+        dtype_str = PyUnicode_AsUTF8(args[1]);
+    }
+
+    // Resolve the target packing dtype
+    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    if (target_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
+        return NULL;
+    }
+
+    // Get the input buffer
+    Py_buffer b_buffer;
+    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
+        return NULL;
+    }
+
+    if (b_buffer.ndim != 2) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "b must be a 2D matrix");
+        return NULL;
+    }
+
+    nk_dtype_t src_dtype;
+    if (!buffer_dtype(&b_buffer, &src_dtype)) {
+        PyBuffer_Release(&b_buffer);
+        return NULL;
+    }
+    if (is_complex(src_dtype)) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul packing");
+        return NULL;
+    }
+    if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "matmul packing does not support negative strides");
+        return NULL;
+    }
+
+    nk_size_t n = (nk_size_t)b_buffer.shape[0];
+    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
+    nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
+
+    // Require row-contiguous input with matching dtype
+    if (src_dtype != target_dtype) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(
+            PyExc_TypeError,
+            "Input dtype '%s' does not match target dtype '%s'. " "Cast the input first (e.g., " "array.astype(np." "fl" "oa" "t3" "2)" ")" ".",
+            dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+    if (col_stride != (nk_size_t)bytes_per_dtype(target_dtype)) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
+        return NULL;
+    }
+
+    // Get packed size via punned dispatch
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
+    if (!size_fn) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(PyExc_LookupError, "No packing kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+    nk_size_t packed_size = size_fn(n, k);
+
+    PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
+    if (!packed) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    packed->kind = nk_kernel_dots_packed_k;
+    packed->dtype = target_dtype;
+    packed->n = n;
+    packed->k = k;
+
+    // Pack via punned dispatch
+    nk_dots_pack_punned_t pack_fn = NULL;
+    cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&pack_fn, &cap);
+    if (!pack_fn) {
+        Py_DECREF(packed);
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(PyExc_LookupError, "No pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+
+    {
+        PyThreadState *save = PyEval_SaveThread();
+        pack_fn(b_buffer.buf, n, k, row_stride, packed->start);
+        PyEval_RestoreThread(save);
+    }
+
+    PyBuffer_Release(&b_buffer);
+    return (PyObject *)packed;
+}
+
+char const doc_dots_packed[] =                                                             //
+    "dots_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor\n\n"        //
+    "Compute row-wise dot products between matrix a and pre-packed matrix b.\n\n"          //
+    "Parameters:\n"                                                                        //
+    "    a (array_like): Query matrix with shape (height, depth).\n"                       //
+    "    b (PackedMatrix): Matrix packed with dots_pack(); shape (width, depth).\n"        //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                  //
+    "        (height, width) and matching output dtype.\n"                                 //
+    "    start_row (int, optional): First row of a to process (default 0).\n"              //
+    "    end_row (int, optional): One-past-last row of a to process (default height).\n\n" //
+    "Returns:\n"                                                                           //
+    "    Tensor: Dot-product matrix with shape (height, width).\n"                         //
+    "    Returns out when provided.\n\n"                                                   //
+    "Note:\n"                                                                              //
+    "    Equivalent to A @ B.T where B is the original unpacked matrix.\n\n"               //
+    "Signature:\n"                                                                         //
+    "    >>> def dots_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_dots_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_packed_common(args, nargs, kwnames, &spec_dots);
+}
+
+char const doc_hammings_pack[] =                                             //
+    "hammings_pack(b, /, dtype='uint1') -> PackedMatrix\n\n"                 //
+    "Pack a 2D matrix for repeated set-distance cross operations.\n\n"       //
+    "Parameters:\n"                                                          //
+    "    b (array_like): Source matrix with shape (width, depth).\n"         //
+    "    dtype (str, optional): Packing dtype. Default: 'uint1'.\n"          //
+    "        For 'uint1', packed bits are represented as uint8 bytes.\n\n"   //
+    "Returns:\n"                                                             //
+    "    PackedMatrix: Opaque packed matrix accepted by hammings_packed()\n" //
+    "        and jaccards_packed().\n\n"                                     //
+    "Signature:\n"                                                           //
+    "    >>> def hammings_pack(b, /, dtype='uint1') -> PackedMatrix: ...";
+
+PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+
+    PyObject *b_obj = NULL;
+    char const *dtype_str = "uint1";
+
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    Py_ssize_t total = nargs + nkw;
+
+    if (nargs < 1 || total > 2) {
+        PyErr_SetString(PyExc_TypeError, "hammings_pack() requires 1-2 arguments: b, dtype='uint1'");
+        return NULL;
+    }
+
+    b_obj = args[0];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            if (nargs >= 2) {
+                PyErr_SetString(PyExc_TypeError, "hammings_pack() got multiple values for argument 'dtype'");
+                return NULL;
+            }
+            PyObject *val = args[nargs + i];
+            if (!PyUnicode_Check(val)) {
+                PyErr_SetString(PyExc_TypeError, "dtype must be a string");
+                return NULL;
+            }
+            dtype_str = PyUnicode_AsUTF8(val);
+        }
+        else {
+            char const *name_str = PyUnicode_AsUTF8(name);
+            PyErr_Format(PyExc_TypeError, "hammings_pack() got unexpected keyword argument '%s'", name_str);
+            return NULL;
+        }
+    }
+    if (nargs >= 2) {
+        if (!PyUnicode_Check(args[1])) {
+            PyErr_SetString(PyExc_TypeError, "dtype must be a string");
+            return NULL;
+        }
+        dtype_str = PyUnicode_AsUTF8(args[1]);
+    }
+
+    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    if (target_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
+        return NULL;
+    }
+
+    Py_buffer b_buffer;
+    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
+        return NULL;
+    }
+
+    if (b_buffer.ndim != 2) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "b must be a 2D matrix");
+        return NULL;
+    }
+
+    nk_dtype_t src_dtype;
+    if (!buffer_dtype(&b_buffer, &src_dtype)) {
+        PyBuffer_Release(&b_buffer);
+        return NULL;
+    }
+
+    if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "hammings packing does not support negative strides");
+        return NULL;
+    }
+
+    nk_size_t n = (nk_size_t)b_buffer.shape[0];
+    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
+    k *= nk_dtype_dimensions_per_value(target_dtype);
+    nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
+    nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
+
+    // Allow uint8 input when target is uint1 (packed bits are stored as uint8 bytes)
+    if (src_dtype != target_dtype && !(src_dtype == nk_u8_k && target_dtype == nk_u1_k)) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'.",
+                     dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+    if (col_stride != (nk_size_t)b_buffer.itemsize) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
+        return NULL;
+    }
+
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
+    if (!size_fn) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(PyExc_LookupError, "No hammings packing kernel for dtype '%s'",
+                     dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+    nk_size_t packed_size = size_fn(n, k);
+
+    PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
+    if (!packed) {
+        PyBuffer_Release(&b_buffer);
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    packed->kind = nk_kernel_hammings_packed_k;
+    packed->dtype = target_dtype;
+    packed->n = n;
+    packed->k = k;
+
+    nk_dots_pack_punned_t pack_fn = NULL;
+    cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&pack_fn, &cap);
+    if (!pack_fn) {
+        Py_DECREF(packed);
+        PyBuffer_Release(&b_buffer);
+        PyErr_Format(PyExc_LookupError, "No hammings pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        return NULL;
+    }
+
+    {
+        PyThreadState *save = PyEval_SaveThread();
+        pack_fn(b_buffer.buf, n, k, row_stride, packed->start);
+        PyEval_RestoreThread(save);
+    }
+
+    PyBuffer_Release(&b_buffer);
+    return (PyObject *)packed;
+}
+
+char const doc_hammings_packed[] =                                                         //
+    "hammings_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor\n\n"    //
+    "Compute row-wise Hamming distances between matrix a and pre-packed b.\n\n"            //
+    "Parameters:\n"                                                                        //
+    "    a (array_like): Query matrix with shape (height, depth).\n"                       //
+    "    b (PackedMatrix): Matrix packed with hammings_pack();\n"                          //
+    "        shape (width, depth).\n"                                                      //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                  //
+    "        (height, width) and dtype uint32.\n"                                          //
+    "    start_row (int, optional): First row of a to process (default 0).\n"              //
+    "    end_row (int, optional): One-past-last row of a to process (default height).\n\n" //
+    "Returns:\n"                                                                           //
+    "    Tensor: Hamming-distance matrix with shape (height, width).\n"                    //
+    "    Returns out when provided.\n\n"                                                   //
+    "Signature:\n"                                                                         //
+    "    >>> def hammings_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_packed_common(args, nargs, kwnames, &spec_hammings);
+}
+
+char const doc_jaccards_packed[] =                                                         //
+    "jaccards_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor\n\n"    //
+    "Compute row-wise Jaccard distances between matrix a and pre-packed b.\n\n"            //
+    "Parameters:\n"                                                                        //
+    "    a (array_like): Query matrix with shape (height, depth).\n"                       //
+    "    b (PackedMatrix): Matrix packed with hammings_pack();\n"                          //
+    "        shape (width, depth).\n"                                                      //
+    "    out (Tensor, optional): C-contiguous output tensor with\n"                        //
+    "        shape (height, width) and matching output dtype.\n"                           //
+    "    start_row (int, optional): First row of a to process (default 0).\n"              //
+    "    end_row (int, optional): One-past-last row of a to process (default height).\n\n" //
+    "Returns:\n"                                                                           //
+    "    Tensor: Jaccard-distance matrix with shape (height, width).\n"                    //
+    "    Returns out when provided.\n\n"                                                   //
+    "Signature:\n"                                                                         //
+    "    >>> def jaccards_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_jaccards_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_packed_common(args, nargs, kwnames, &spec_jaccards);
+}
+
+char const doc_angulars_packed[] =                                                         //
+    "angulars_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor\n\n"    //
+    "Compute row-wise angular distances between matrix a and pre-packed b.\n\n"            //
+    "Parameters:\n"                                                                        //
+    "    a (array_like): Query matrix with shape (height, depth).\n"                       //
+    "    b (PackedMatrix): Matrix packed with dots_pack();\n"                              //
+    "        shape (width, depth).\n"                                                      //
+    "    out (Tensor, optional): C-contiguous output tensor with\n"                        //
+    "        shape (height, width) and matching output dtype.\n"                           //
+    "    start_row (int, optional): First row of a to process (default 0).\n"              //
+    "    end_row (int, optional): One-past-last row of a to process (default height).\n\n" //
+    "Returns:\n"                                                                           //
+    "    Tensor: Angular-distance matrix with shape (height, width).\n"                    //
+    "    Returns out when provided.\n\n"                                                   //
+    "Signature:\n"                                                                         //
+    "    >>> def angulars_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_angulars_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_packed_common(args, nargs, kwnames, &spec_angulars);
+}
+
+char const doc_euclideans_packed[] =                                                       //
+    "euclideans_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor\n\n"  //
+    "Compute row-wise Euclidean distances between matrix a and pre-packed b.\n\n"          //
+    "Parameters:\n"                                                                        //
+    "    a (array_like): Query matrix with shape (height, depth).\n"                       //
+    "    b (PackedMatrix): Matrix packed with dots_pack();\n"                              //
+    "        shape (width, depth).\n"                                                      //
+    "    out (Tensor, optional): C-contiguous output tensor with\n"                        //
+    "        shape (height, width) and matching output dtype.\n"                           //
+    "    start_row (int, optional): First row of a to process (default 0).\n"              //
+    "    end_row (int, optional): One-past-last row of a to process (default height).\n\n" //
+    "Returns:\n"                                                                           //
+    "    Tensor: Euclidean-distance matrix with shape (height, width).\n"                  //
+    "    Returns out when provided.\n\n"                                                   //
+    "Signature:\n"                                                                         //
+    "    >>> def euclideans_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_euclideans_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_packed_common(args, nargs, kwnames, &spec_euclideans);
+}
+
+char const doc_dots_symmetric[] =                                                                     //
+    "dots_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor\n\n" //
+    "Compute the symmetric all-pairs dot-product (Gram) matrix.\n"                                    //
+    "Only the upper triangle of the output is guaranteed to be initialized.\n\n"                      //
+    "Parameters:\n"                                                                                   //
+    "    vectors (array_like): Input matrix with shape (count, depth).\n"                             //
+    "    dtype (str, optional): Optional dtype override for kernel dispatch.\n"                       //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                             //
+    "        (count, count) and matching output dtype.\n"                                             //
+    "    start_row (int, optional): First row to compute (default 0).\n"                              //
+    "    end_row (int, optional): One-past-last row to compute (default count).\n"                    //
+    "        Only the upper triangle overlapping with the specified row range is filled.\n\n"         //
+    "Returns:\n"                                                                                      //
+    "    Tensor: Symmetric dot-product matrix with shape (count, count).\n"                           //
+    "    Returns out when provided.\n\n"                                                              //
+    "Signature:\n"                                                                                    //
+    "    >>> def dots_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_dots_symmetric( //
+    PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+    (void)self;
+    return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_dots);
+}
+
+char const doc_hammings_symmetric[] =                                                                     //
+    "hammings_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor\n\n" //
+    "Compute the symmetric all-pairs Hamming-distance matrix.\n"                                          //
+    "Only the upper triangle of the output is guaranteed to be initialized.\n\n"                          //
+    "Parameters:\n"                                                                                       //
+    "    vectors (array_like): Input matrix with shape (count, depth).\n"                                 //
+    "        For dtype='uint1', packed bits are represented as uint8 bytes.\n"                            //
+    "    dtype (str, optional): Optional dtype override for kernel dispatch.\n"                           //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                                 //
+    "        (count, count) and dtype uint32.\n"                                                          //
+    "    start_row (int, optional): First row to compute (default 0).\n"                                  //
+    "    end_row (int, optional): One-past-last row to compute (default count).\n"                        //
+    "        Only the upper triangle overlapping with the specified row range is filled.\n\n"             //
+    "Returns:\n"                                                                                          //
+    "    Tensor: Symmetric Hamming-distance matrix with shape (count, count).\n"                          //
+    "    Returns out when provided.\n\n"                                                                  //
+    "Signature:\n"                                                                                        //
+    "    >>> def hammings_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_hammings_symmetric( //
+    PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+    (void)self;
+    return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_hammings);
+}
+
+char const doc_jaccards_symmetric[] =                                                                     //
+    "jaccards_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor\n\n" //
+    "Compute the symmetric all-pairs Jaccard-distance matrix.\n"                                          //
+    "Only the upper triangle of the output is guaranteed to be initialized.\n\n"                          //
+    "Parameters:\n"                                                                                       //
+    "    vectors (array_like): Input matrix with shape (count, depth).\n"                                 //
+    "        For dtype='uint1', packed bits are represented as uint8 bytes.\n"                            //
+    "    dtype (str, optional): Optional dtype override for kernel dispatch.\n"                           //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                                 //
+    "        (count, count) and matching output dtype.\n"                                                 //
+    "    start_row (int, optional): First row to compute (default 0).\n"                                  //
+    "    end_row (int, optional): One-past-last row to compute (default count).\n"                        //
+    "        Only the upper triangle overlapping with the specified row range is filled.\n\n"             //
+    "Returns:\n"                                                                                          //
+    "    Tensor: Symmetric Jaccard-distance matrix with shape (count, count).\n"                          //
+    "    Returns out when provided.\n\n"                                                                  //
+    "Signature:\n"                                                                                        //
+    "    >>> def jaccards_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_jaccards_symmetric( //
+    PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+    (void)self;
+    return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_jaccards);
+}
+
+char const doc_angulars_symmetric[] =                                                                     //
+    "angulars_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor\n\n" //
+    "Compute the symmetric all-pairs angular-distance matrix.\n"                                          //
+    "Only the upper triangle of the output is guaranteed to be initialized.\n\n"                          //
+    "Parameters:\n"                                                                                       //
+    "    vectors (array_like): Input matrix with shape (count, depth).\n"                                 //
+    "    dtype (str, optional): Optional dtype override for kernel dispatch.\n"                           //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                                 //
+    "        (count, count) and matching output dtype.\n"                                                 //
+    "    start_row (int, optional): First row to compute (default 0).\n"                                  //
+    "    end_row (int, optional): One-past-last row to compute (default count).\n"                        //
+    "        Only the upper triangle overlapping with the specified row range is filled.\n\n"             //
+    "Returns:\n"                                                                                          //
+    "    Tensor: Symmetric angular-distance matrix with shape (count, count).\n"                          //
+    "    Returns out when provided.\n\n"                                                                  //
+    "Signature:\n"                                                                                        //
+    "    >>> def angulars_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
+
+PyObject *api_angulars_symmetric( //
+    PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+    (void)self;
+    return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_angulars);
+}
+
+char const doc_euclideans_symmetric[] =                                                                     //
+    "euclideans_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor\n\n" //
+    "Compute the symmetric all-pairs Euclidean-distance matrix.\n"                                          //
+    "Only the upper triangle of the output is guaranteed to be initialized.\n\n"                            //
+    "Parameters:\n"                                                                                         //
+    "    vectors (array_like): Input matrix with shape (count, depth).\n"                                   //
+    "    dtype (str, optional): Optional dtype override for kernel dispatch.\n"                             //
+    "    out (Tensor, optional): C-contiguous output tensor with shape\n"                                   //
+    "        (count, count) and matching output dtype.\n"                                                   //
+    "    start_row (int, optional): First row to compute (default 0).\n"                                    //
+    "    end_row (int, optional): One-past-last row to compute (default count).\n"                          //
+    "        Only the upper triangle overlapping with the specified row range is filled.\n\n"               //
+    "Returns:\n"                                                                                            //
+    "    Tensor: Symmetric Euclidean-distance matrix with shape (count, count).\n"                          //
+    "    Returns out when provided.\n\n"                                                                    //
+    "Signature:\n"                                                                                          //
+    "    >>> def euclideans_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: " "...";
+
+PyObject *api_euclideans_symmetric( //
+    PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+    (void)self;
+    return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_euclideans);
+}
