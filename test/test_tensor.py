@@ -1034,8 +1034,44 @@ def test_float8_e5m2_vs_ml_dtypes():
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_gil_free_threading():
-    """Test NumKong in Python 3.13t free-threaded mode if available."""
+def test_dots_packed_row_range():
+    """Test dots_packed with start_row/end_row splits produce the same result."""
+    height, depth, width = 100, 64, 50
+    left_matrix = np.random.randn(height, depth).astype(np.float32)
+    right_matrix = np.ascontiguousarray(np.random.randn(width, depth).astype(np.float32))
+    right_packed = nk.dots_pack(right_matrix, dtype="float32")
+
+    reference = np.array(nk.dots_packed(left_matrix, right_packed))
+
+    output = nk.zeros((height, width), dtype="float32")
+    nk.dots_packed(left_matrix, right_packed, out=output, start_row=0, end_row=50)
+    nk.dots_packed(left_matrix, right_packed, out=output, start_row=50, end_row=100)
+
+    assert np.allclose(np.array(output), reference, atol=1e-5), "Row-range split differs from full computation"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_dots_symmetric_row_range():
+    """Test dots_symmetric with start_row/end_row.
+
+    Only the upper triangle of the output is guaranteed to be initialized,
+    so we compare only the upper-triangle entries that fall within each row range.
+    """
+    count, depth = 64, 32
+    vectors = np.random.randn(count, depth).astype(np.float32)
+
+    reference = np.array(nk.dots_symmetric(vectors))
+    mask = np.triu(np.ones((count, count), dtype=bool))
+
+    output = nk.zeros((count, count), dtype="float32")
+    nk.dots_symmetric(vectors, out=output, start_row=0, end_row=count)
+
+    assert np.allclose(np.array(output)[mask], reference[mask], atol=1e-5), (
+        "Full-range dots_symmetric differs from default"
+    )
+
+
+def _skip_unless_free_threaded():
     version = sys.version_info
     if version.major == 3 and version.minor >= 13:
         is_free_threaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
@@ -1045,6 +1081,12 @@ def test_gil_free_threading():
             pytest.skip("GIL is enabled, skipping GIL-related tests")
     else:
         pytest.skip("Python < 3.13t, skipping GIL-related tests")
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_gil_free_threading():
+    """Test NumKong in Python 3.13t free-threaded mode if available."""
+    _skip_unless_free_threaded()
 
     num_threads = multiprocessing.cpu_count()
     vectors_a = np.random.rand(32 * 1024 * num_threads, 1024).astype(np.float32)
@@ -1090,3 +1132,70 @@ def test_gil_free_threading():
             f"{num_threads}-threaded execution took longer than 2-threaded baseline: {multi_duration:.2f}s vs {baseline_duration:.2f}s",
             UserWarning,
         )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_gil_free_dots_packed_threading():
+    """Test multi-threaded dots_packed with start_row/end_row."""
+    _skip_unless_free_threaded()
+
+    height, depth, width = 200, 64, 50
+    num_threads = min(multiprocessing.cpu_count(), 4)
+    left_matrix = np.random.randn(height, depth).astype(np.float32)
+    right_matrix = np.ascontiguousarray(np.random.randn(width, depth).astype(np.float32))
+    right_packed = nk.dots_pack(right_matrix, dtype="float32")
+
+    # Single-threaded reference
+    reference = nk.dots_packed(left_matrix, right_packed)
+
+    # Multi-threaded with row slicing into shared output
+    output = nk.zeros((height, width), dtype="float32")
+    rows_per_thread = height // num_threads
+
+    def compute_slice(thread_index):
+        start_row = thread_index * rows_per_thread
+        end_row = start_row + rows_per_thread if thread_index < num_threads - 1 else height
+        nk.dots_packed(left_matrix, right_packed, out=output, start_row=start_row, end_row=end_row)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+        list(pool.map(compute_slice, range(num_threads)))
+
+    assert np.allclose(
+        np.array(output), np.array(reference), atol=1e-5
+    ), "Multi-threaded dots_packed result differs from single-threaded"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_gil_free_dots_symmetric_threading():
+    """Test multi-threaded dots_symmetric with start_row/end_row.
+
+    The symmetric kernel only fills the upper triangle of each row's output.
+    Each thread computes a disjoint row range into the same shared output tensor.
+    """
+    _skip_unless_free_threaded()
+
+    count, depth = 100, 64
+    num_threads = min(multiprocessing.cpu_count(), 4)
+    vectors = np.random.randn(count, depth).astype(np.float32)
+
+    # Single-threaded reference (upper triangle only is meaningful)
+    reference = np.array(nk.dots_symmetric(vectors))
+
+    # Multi-threaded with row slicing into shared output
+    output = nk.zeros((count, count), dtype="float32")
+    rows_per_thread = count // num_threads
+
+    def compute_slice(thread_index):
+        start_row = thread_index * rows_per_thread
+        end_row = start_row + rows_per_thread if thread_index < num_threads - 1 else count
+        nk.dots_symmetric(vectors, out=output, start_row=start_row, end_row=end_row)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+        list(pool.map(compute_slice, range(num_threads)))
+
+    # Only the upper triangle is guaranteed initialized by the symmetric kernel
+    result = np.array(output)
+    mask = np.triu(np.ones((count, count), dtype=bool))
+    assert np.allclose(
+        result[mask], reference[mask], atol=1e-5
+    ), "Multi-threaded dots_symmetric upper triangle differs from single-threaded"

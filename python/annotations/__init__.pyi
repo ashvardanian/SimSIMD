@@ -80,6 +80,10 @@ class Tensor(memoryview):
     Supports NumPy-like properties and buffer protocol for interoperability.
     """
 
+    def __new__(cls, array_like: _BufferType, /, *, dtype: Optional[str] = None) -> "Tensor":
+        """Construct a Tensor by copying data from a buffer-protocol object."""
+        ...
+
     @property
     def shape(self) -> tuple[int, ...]:
         """Shape of the tensor as a tuple of dimensions."""
@@ -674,6 +678,8 @@ def dots_symmetric(
     *,
     dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 def hammings_symmetric(
     vectors: _BufferType,
@@ -681,6 +687,8 @@ def hammings_symmetric(
     *,
     dtype: Optional[_IntegralType] = None,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 def jaccards_symmetric(
     vectors: _BufferType,
@@ -688,6 +696,8 @@ def jaccards_symmetric(
     *,
     dtype: Optional[_IntegralType] = None,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 def angulars_symmetric(
     vectors: _BufferType,
@@ -695,6 +705,8 @@ def angulars_symmetric(
     *,
     dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 def euclideans_symmetric(
     vectors: _BufferType,
@@ -702,6 +714,8 @@ def euclideans_symmetric(
     *,
     dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # endregion Symmetric Pairwise Operations
@@ -722,6 +736,8 @@ def dots_packed(
     /,
     *,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # Pack a matrix for repeated Hamming distance computation.
@@ -738,6 +754,8 @@ def hammings_packed(
     /,
     *,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # Jaccard distance computation with a pre-packed B matrix.
@@ -747,6 +765,8 @@ def jaccards_packed(
     /,
     *,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # Angular distance computation with a pre-packed B matrix.
@@ -756,6 +776,8 @@ def angulars_packed(
     /,
     *,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # Euclidean distance computation with a pre-packed B matrix.
@@ -765,6 +787,8 @@ def euclideans_packed(
     /,
     *,
     out: Optional[_BufferType] = None,
+    start_row: Optional[int] = None,
+    end_row: Optional[int] = None,
 ) -> Tensor: ...
 
 # endregion Packed Matrix Operations

@@ -478,10 +478,10 @@ static PyObject *tensor_elementwise_scalar(Tensor *a, double alpha_value, double
     nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
     nk_scalar_buffer_set_f64(&alpha_buf, alpha_value, scalar_dtype);
     nk_scalar_buffer_set_f64(&beta_buf, beta_value, scalar_dtype);
-    PyThreadState *save = PyEval_SaveThread();
+    PyThreadState *gil = PyEval_SaveThread();
     each_scale_recursive(kernel, a->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, r_strides, a->rank,
                          contiguous_tail);
-    PyEval_RestoreThread(save);
+    PyEval_RestoreThread(gil);
     return (PyObject *)r;
 }
 
@@ -491,6 +491,7 @@ static PyObject *Tensor_add(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
     Tensor *a = (Tensor *)self;
 
+    // Tensor([1,2,3]) + Tensor([4,5,6]) → element-wise sum via sum kernel
     if (PyObject_TypeCheck(other, &TensorType)) {
         Tensor *b = (Tensor *)other;
         if (a->rank != b->rank || a->dtype != b->dtype) {
@@ -531,13 +532,14 @@ static PyObject *Tensor_add(PyObject *self, PyObject *other) {
         Py_buffer const *bufs[] = {&a_buf, &b_buf};
         size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
 
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         each_sum_recursive(kernel, a->data, b->data, r->data, a->shape, a->strides, b->strides, r_strides, a->rank,
                            contiguous_tail);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
         return (PyObject *)r;
     }
 
+    // Tensor([1,2,3]) + 5.0 → broadcast scalar addition via scale kernel (α=1, β=scalar)
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
         return tensor_elementwise_scalar(a, 1.0, sc);
@@ -550,6 +552,7 @@ static PyObject *Tensor_subtract(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
     Tensor *a = (Tensor *)self;
 
+    // Tensor([4,5,6]) - Tensor([1,2,3]) → element-wise difference via blend kernel (α=1, β=−1)
     if (PyObject_TypeCheck(other, &TensorType)) {
         Tensor *b = (Tensor *)other;
         if (a->rank != b->rank || a->dtype != b->dtype) {
@@ -595,13 +598,14 @@ static PyObject *Tensor_subtract(PyObject *self, PyObject *other) {
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
         nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
         nk_scalar_buffer_set_f64(&beta_buf, -1.0, scalar_dtype);
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         each_blend_recursive(kernel, a->data, b->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, b->strides,
                              r_strides, a->rank, contiguous_tail);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
         return (PyObject *)r;
     }
 
+    // Tensor([4,5,6]) - 1.0 → broadcast scalar subtraction via scale kernel (α=1, β=−scalar)
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
         return tensor_elementwise_scalar(a, 1.0, -sc);
@@ -614,6 +618,7 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
     Tensor *a = (Tensor *)self;
 
+    // Tensor([1,2,3]) × Tensor([4,5,6]) → element-wise product via fma kernel (α=1, β=0)
     if (PyObject_TypeCheck(other, &TensorType)) {
         Tensor *b = (Tensor *)other;
         if (a->rank != b->rank || a->dtype != b->dtype) {
@@ -663,13 +668,14 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
         nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
         nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         each_fma_recursive(kernel, a->data, b->data, r->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides,
                            b->strides, r_strides, r_strides, a->rank, contiguous_tail);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
         return (PyObject *)r;
     }
 
+    // Tensor([1,2,3]) × 5.0 → broadcast scalar multiply via scale kernel (α=scalar, β=0)
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
         return tensor_elementwise_scalar(a, sc, 0.0);
@@ -1942,6 +1948,65 @@ static PyObject *Tensor_iter(PyObject *self) {
     return (PyObject *)iter;
 }
 
+static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    (void)type;
+    static char const *kwlist[] = {"", "dtype", NULL};
+    PyObject *source = NULL;
+    char const *dtype_str = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$s", (char **)kwlist, &source, &dtype_str)) return NULL;
+
+    Py_buffer buf;
+    if (PyObject_GetBuffer(source, &buf, PyBUF_FULL_RO) != 0) {
+        PyErr_SetString(PyExc_TypeError, "Tensor() requires an object supporting the buffer protocol");
+        return NULL;
+    }
+
+    nk_dtype_t dtype;
+    if (dtype_str) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
+            PyBuffer_Release(&buf);
+            PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
+            return NULL;
+        }
+        if ((Py_ssize_t)bytes_per_dtype(dtype) != buf.itemsize) {
+            PyBuffer_Release(&buf);
+            PyErr_Format(PyExc_ValueError, "dtype '%s' has itemsize %zu but buffer has itemsize %zd", dtype_str,
+                         bytes_per_dtype(dtype), buf.itemsize);
+            return NULL;
+        }
+    }
+    else if (buf.obj && PyObject_TypeCheck(buf.obj, &TensorType)) { dtype = ((Tensor *)buf.obj)->dtype; }
+    else {
+        char const *fmt = buf.format ? buf.format : "B";
+        dtype = python_string_to_dtype(fmt);
+        if (dtype == nk_dtype_unknown_k) {
+            PyBuffer_Release(&buf);
+            PyErr_Format(PyExc_TypeError, "Cannot determine dtype from buffer format '%s'", fmt);
+            return NULL;
+        }
+    }
+
+    Tensor *tensor = Tensor_new(dtype, (size_t)buf.ndim, buf.shape);
+    if (!tensor) {
+        PyBuffer_Release(&buf);
+        return NULL;
+    }
+
+    if (PyBuffer_IsContiguous(&buf, 'C')) { memcpy(tensor->data, buf.buf, (size_t)buf.len); }
+    else {
+        size_t row_bytes = (size_t)buf.itemsize;
+        for (int d = 1; d < buf.ndim; d++) row_bytes *= (size_t)buf.shape[d];
+        Py_ssize_t dst_stride = (Py_ssize_t)row_bytes;
+        Py_ssize_t src_stride = buf.strides[0];
+        for (Py_ssize_t i = 0; i < buf.shape[0]; i++)
+            memcpy(tensor->data + i * dst_stride, (char *)buf.buf + i * src_stride, row_bytes);
+    }
+
+    PyBuffer_Release(&buf);
+    return (PyObject *)tensor;
+}
+
 PyTypeObject TensorType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.Tensor",
     .tp_doc = "N-dimensional tensor with full NumPy-like API, supporting NumKong's type system",
@@ -1949,6 +2014,7 @@ PyTypeObject TensorType = {
     .tp_itemsize = sizeof(char),
     .tp_dealloc = Tensor_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = Tensor_tp_new,
     .tp_as_buffer = &Tensor_as_buffer,
     .tp_as_number = &Tensor_as_number,
     .tp_as_sequence = &Tensor_as_sequence,

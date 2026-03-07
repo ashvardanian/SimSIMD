@@ -158,7 +158,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
 
     char *result_data = NULL;
 
-    // Allocate the output tensor if it wasn't provided
+    // nk.fma(a, b, c) → returns new Tensor with α·a·b + β·c
     if (!out_obj) {
         Py_ssize_t out_shape[1] = {a_parsed.dimensions};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
@@ -166,6 +166,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         return_obj = (PyObject *)result_tensor;
         result_data = result_tensor->data;
     }
+    // nk.fma(a, b, c, out=result) → writes into provided buffer, returns None
     else {
         result_data = out_parsed.start;
         return_obj = Py_None;
@@ -173,9 +174,9 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
     }
 
     {
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         kernel(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
     }
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -325,7 +326,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     char *result_data = NULL;
 
-    // Allocate the output tensor if it wasn't provided
+    // nk.blend(a, b) → returns new Tensor with α·a + β·b
     if (!out_obj) {
         Py_ssize_t out_shape[1] = {a_parsed.dimensions};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
@@ -333,6 +334,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         return_obj = (PyObject *)result_tensor;
         result_data = result_tensor->data;
     }
+    // nk.blend(a, b, out=result) → writes into provided buffer, returns None
     else {
         result_data = out_parsed.start;
         return_obj = Py_None;
@@ -340,9 +342,9 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
 
     {
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
     }
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -486,7 +488,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     char *result_data = NULL;
 
-    // Allocate the output tensor if it wasn't provided
+    // nk.scale(a, alpha=2.0, beta=1.0) → returns new Tensor with α·a + β
     if (!out_obj) {
         Py_ssize_t out_shape[1] = {a_parsed.dimensions};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
@@ -494,6 +496,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         return_obj = (PyObject *)result_tensor;
         result_data = result_tensor->data;
     }
+    // nk.scale(a, alpha=2.0, out=result) → writes into provided buffer, returns None
     else {
         result_data = out_parsed.start;
         return_obj = Py_None;
@@ -501,9 +504,9 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
 
     {
-        PyThreadState *save = PyEval_SaveThread();
+        PyThreadState *gil = PyEval_SaveThread();
         kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
-        PyEval_RestoreThread(save);
+        PyEval_RestoreThread(gil);
     }
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -616,12 +619,12 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
         contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
 
-    PyThreadState *save = PyEval_SaveThread();
+    PyThreadState *gil = PyEval_SaveThread();
     each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
                          a_buffer.shape, a_buffer.strides, result_strides,               //
                          a_buffer.ndim, contiguous_tail);
     if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
-    PyEval_RestoreThread(save);
+    PyEval_RestoreThread(gil);
 
 cleanup:
     if (cast_staging) PyMem_Free(cast_staging);
@@ -744,11 +747,11 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
 
     int contiguous_tail = num_dims;
 
-    PyThreadState *save = PyEval_SaveThread();
+    PyThreadState *gil = PyEval_SaveThread();
     each_sum_recursive(sum_kernel, a_promoted, b_promoted, result_data, a_buffer.shape, promoted_strides,
                        promoted_strides, result_strides, num_dims, contiguous_tail);
     if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
-    PyEval_RestoreThread(save);
+    PyEval_RestoreThread(gil);
 
 cleanup:
     if (cast_staging) PyMem_Free(cast_staging);
@@ -919,12 +922,12 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
         contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
     }
 
-    PyThreadState *save = PyEval_SaveThread();
+    PyThreadState *gil = PyEval_SaveThread();
     each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
                          a_buffer.shape, a_buffer.strides, result_strides,               //
                          a_buffer.ndim, contiguous_tail);
     if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
-    PyEval_RestoreThread(save);
+    PyEval_RestoreThread(gil);
 
 cleanup:
     if (cast_staging) PyMem_Free(cast_staging);
@@ -1054,12 +1057,12 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
 
     int contiguous_tail = num_dims;
 
-    PyThreadState *save = PyEval_SaveThread();
+    PyThreadState *gil = PyEval_SaveThread();
     each_fma_recursive(fma_kernel, a_promoted, b_promoted, result_data, result_data, &alpha_buf, &beta_buf,
                        a_buffer.shape, promoted_strides, promoted_strides, result_strides, result_strides, num_dims,
                        contiguous_tail);
     if (cast_staging) { nk_cast(cast_staging, dtype, (nk_size_t)total_elements, out_buffer.buf, out_buf_dtype); }
-    PyEval_RestoreThread(save);
+    PyEval_RestoreThread(gil);
 
 cleanup:
     if (cast_staging) PyMem_Free(cast_staging);
@@ -1260,26 +1263,27 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
         goto cleanup;
     }
 
-    char *output_start = NULL;
+    char *result_data = NULL;
 
-    // Allocate the output array if it wasn't provided
+    // nk.sin(np.float32([0, 1.57, 3.14])) → returns new Tensor with sine values
     if (!out_obj) {
-        Py_ssize_t trig_shape[1] = {(Py_ssize_t)a_parsed.dimensions};
-        Tensor *output_obj = Tensor_new(dtype, 1, trig_shape);
-        if (!output_obj) { goto cleanup; }
-        return_obj = (PyObject *)output_obj;
-        output_start = output_obj->data;
+        Py_ssize_t out_shape[1] = {(Py_ssize_t)a_parsed.dimensions};
+        Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
+        if (!result_tensor) { goto cleanup; }
+        return_obj = (PyObject *)result_tensor;
+        result_data = result_tensor->data;
     }
+    // nk.sin(angles, out=result) → writes into provided buffer, returns None
     else {
-        output_start = out_parsed.start;
+        result_data = out_parsed.start;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     {
-        PyThreadState *save = PyEval_SaveThread();
-        kernel(a_parsed.start, a_parsed.dimensions, output_start);
-        PyEval_RestoreThread(save);
+        PyThreadState *gil = PyEval_SaveThread();
+        kernel(a_parsed.start, a_parsed.dimensions, result_data);
+        PyEval_RestoreThread(gil);
     }
 cleanup:
     PyBuffer_Release(&a_buffer);
