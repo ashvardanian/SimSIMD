@@ -2780,7 +2780,7 @@ struct f118_t {
     constexpr explicit operator float() const noexcept { return static_cast<float>(high_ + low_); }
     constexpr explicit operator f64_t() const noexcept { return {static_cast<double>(*this)}; }
     constexpr explicit operator f32_t() const noexcept { return {static_cast<float>(*this)}; }
-    constexpr explicit operator f16_t() const noexcept { return {static_cast<float>(*this)}; }
+    inline explicit operator f16_t() const noexcept { return {static_cast<float>(*this)}; }
 
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
