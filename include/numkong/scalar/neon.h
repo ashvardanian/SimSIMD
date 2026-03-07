@@ -51,9 +51,11 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_neon(nk_f64_t x) {
     return r;
 }
 NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
-    // MSVC provides the ACLE scalar FMA intrinsics, but GCC doesn't
+    // MSVC lacks both GCC inline asm and scalar ACLE FMA intrinsics (vfmas_f32/vfmad_f64).
+    // GCC/Clang: use inline asm for scalar FMADD.
+    // MSVC: use vector FMA + lane extract (compiler may optimize to scalar FMADD).
 #if defined(_MSC_VER)
-    return vfmas_f32(c, a, b);
+    return vget_lane_f32(vfma_f32(vdup_n_f32(c), vdup_n_f32(a), vdup_n_f32(b)), 0);
 #else
     nk_f32_t r;
     __asm__("fmadd %s0, %s1, %s2, %s3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
@@ -61,9 +63,11 @@ NK_PUBLIC nk_f32_t nk_f32_fma_neon(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
 #endif
 }
 NK_PUBLIC nk_f64_t nk_f64_fma_neon(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
-    // MSVC provides the ACLE scalar FMA intrinsics, but GCC doesn't
+    // MSVC lacks both GCC inline asm and scalar ACLE FMA intrinsics (vfmas_f32/vfmad_f64).
+    // GCC/Clang: use inline asm for scalar FMADD.
+    // MSVC: use vector FMA + lane extract (compiler may optimize to scalar FMADD).
 #if defined(_MSC_VER)
-    return vfmad_f64(c, a, b);
+    return vget_lane_f64(vfma_f64(vdup_n_f64(c), vdup_n_f64(a), vdup_n_f64(b)), 0);
 #else
     nk_f64_t r;
     __asm__("fmadd %d0, %d1, %d2, %d3" : "=w"(r) : "w"(a), "w"(b), "w"(c));
