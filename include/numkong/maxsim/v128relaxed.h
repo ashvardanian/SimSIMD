@@ -20,7 +20,7 @@
 
 #include "numkong/types.h"
 #include "numkong/maxsim/serial.h"      // `nk_maxsim_packed_header_t`
-#include "numkong/dot/v128relaxed.h"    // `nk_dot_bf16_v128relaxed`, `nk_dot_f32_v128relaxed`
+#include "numkong/dot.h"                // `nk_dot_bf16`, `nk_dot_f32`, `nk_dot_f16`
 #include "numkong/cast/serial.h"        // `nk_bf16_to_f32_serial`
 #include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
 #include "numkong/reduce/v128relaxed.h" // `nk_reduce_add_i32x4_v128relaxed_`
@@ -183,11 +183,11 @@ NK_PUBLIC void nk_maxsim_packed_bf16_v128relaxed( //
         for (nk_size_t query_index = 0; query_index < chunk_size; query_index++) {
             nk_u32_t best_document_index = best_document_indices[query_index];
             nk_f32_t dot_result;
-            nk_dot_bf16_v128relaxed((nk_bf16_t const *)(regions.query_originals +
-                                                        (chunk_start + query_index) * regions.query_original_stride),
-                                    (nk_bf16_t const *)(regions.document_originals +
-                                                        best_document_index * regions.document_original_stride),
-                                    depth, &dot_result);
+            nk_dot_bf16((nk_bf16_t const *)(regions.query_originals +
+                                            (chunk_start + query_index) * regions.query_original_stride),
+                        (nk_bf16_t const *)(regions.document_originals +
+                                            best_document_index * regions.document_original_stride),
+                        depth, &dot_result);
             nk_f32_t cosine = dot_result * regions.query_metadata[chunk_start + query_index].inverse_norm_f32 *
                               regions.document_metadata[best_document_index].inverse_norm_f32;
             nk_f32_t angular = 1.0f - cosine;
@@ -217,7 +217,7 @@ NK_PUBLIC void nk_maxsim_packed_f32_v128relaxed( //
         for (nk_size_t query_index = 0; query_index < chunk_size; query_index++) {
             nk_u32_t best_document_index = best_document_indices[query_index];
             nk_f32_t dot_result;
-            nk_dot_f32_v128relaxed(
+            nk_dot_f32(
                 (nk_f32_t const *)(regions.query_originals +
                                    (chunk_start + query_index) * regions.query_original_stride),
                 (nk_f32_t const *)(regions.document_originals + best_document_index * regions.document_original_stride),
@@ -251,7 +251,7 @@ NK_PUBLIC void nk_maxsim_packed_f16_v128relaxed( //
         for (nk_size_t query_index = 0; query_index < chunk_size; query_index++) {
             nk_u32_t best_document_index = best_document_indices[query_index];
             nk_f32_t dot_result;
-            nk_dot_f16_v128relaxed(
+            nk_dot_f16(
                 (nk_f16_t const *)(regions.query_originals +
                                    (chunk_start + query_index) * regions.query_original_stride),
                 (nk_f16_t const *)(regions.document_originals + best_document_index * regions.document_original_stride),
