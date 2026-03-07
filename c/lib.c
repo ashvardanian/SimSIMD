@@ -7,6 +7,19 @@
 #define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_NATIVE_BF16 0
 
+/*  MemorySanitizer cannot track initialization through SIMD intrinsics (SVE, NEON, SSE, AVX),
+ *  causing false-positive "use-of-uninitialized-value" reports. We unpoison results after dispatch.
+ */
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define SIMSIMD_UNPOISON(ptr, size) __msan_unpoison((ptr), (size))
+#endif
+#endif
+#ifndef SIMSIMD_UNPOISON
+#define SIMSIMD_UNPOISON(ptr, size) (void)(ptr), (void)(size)
+#endif
+
 /*  Override the primary serial operations to avoid the LibC dependency.
  */
 #define SIMSIMD_SQRT(x) simsimd_approximate_square_root(x)
@@ -77,6 +90,7 @@ extern "C" {
             }                                                                                                         \
         }                                                                                                             \
         metric(a, b, n, results);                                                                                     \
+        SIMSIMD_UNPOISON(results, sizeof(simsimd_distance_t));                                                          \
     }
 
 #define SIMSIMD_DECLARATION_SPARSE(name, extension, type)                                                       \
@@ -95,6 +109,7 @@ extern "C" {
             }                                                                                                   \
         }                                                                                                       \
         metric(a, b, a_length, b_length, result);                                                               \
+        SIMSIMD_UNPOISON(result, sizeof(simsimd_distance_t));                                                    \
     }
 
 #define SIMSIMD_DECLARATION_CURVED(name, extension)                                                           \
@@ -113,6 +128,7 @@ extern "C" {
             }                                                                                                 \
         }                                                                                                     \
         metric(a, b, c, n, result);                                                                           \
+        SIMSIMD_UNPOISON(result, sizeof(simsimd_distance_t));                                                  \
     }
 
 #define SIMSIMD_DECLARATION_FMA(name, extension)                                                                \
@@ -127,6 +143,7 @@ extern "C" {
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);                 \
         }                                                                                                       \
         metric(a, b, c, n, alpha, beta, result);                                                                \
+        SIMSIMD_UNPOISON(result, n * sizeof(simsimd_##extension##_t));                                            \
     }
 
 #define SIMSIMD_DECLARATION_WSUM(name, extension)                                                   \
@@ -141,6 +158,7 @@ extern "C" {
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);     \
         }                                                                                           \
         metric(a, b, n, alpha, beta, result);                                                       \
+        SIMSIMD_UNPOISON(result, n * sizeof(simsimd_##extension##_t));                               \
     }
 
 // Dot products
