@@ -836,16 +836,10 @@ typedef unsigned short nk_f16_t;
  *  https://forums.developer.apple.com/forums/thread/726201
  *  https://www.phoronix.com/news/GCC-LLVM-bf16-BFloat16-Type
  */
-#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \
-    (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
+#if (defined(__GNUC__) || defined(__clang__)) && ((defined(__ARM_BF16_FORMAT_ALTERNATIVE)) || (defined(__AVX512BF16__)))
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 1
 typedef __bf16 nk_bf16_t;
-#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) && \
-       (defined(__AVX512BF16__)))
-typedef __bfloat16 nk_bf16_t;
-#undef NK_NATIVE_BF16
-#define NK_NATIVE_BF16 1
 #else // Unknown compiler or architecture
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 0
