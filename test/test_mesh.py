@@ -8,7 +8,7 @@ Parametrized over: capability from possible_capabilities.
 Precision notes:
     Kabsch on identical points expects near-zero RMSD and unit scale.
     Umeyama on 2x-scaled points expects scale in (1, 3).
-    Serial RMSD kernel may return NaN for identical point clouds (known issue, skipped).
+    RMSD on identical point clouds expects near-zero result and unit scale.
 
 Matches C++ suite: test_mesh.cpp.
 """

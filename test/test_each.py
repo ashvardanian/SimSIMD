@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Test elementwise operations: nk.scale, nk.add, nk.blend, nk.fma, nk.multiply.
 
-Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, int8, uint8 (core ops);
+Covers dtypes: float64, float32, float16, int8, uint8 (core ops);
     mixed-dtype tuples for NumPy-like add/multiply interface.
 Parametrized over: ndim from dense_dimensions, capability from possible_capabilities.
 

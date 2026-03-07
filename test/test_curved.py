@@ -12,8 +12,9 @@ Precision notes:
     positive-definite matrix (c = abs(random) @ abs(random).T) so mahalanobis
     produces real, finite results.
 
-    All dtypes assert against an f64-precision accurate baseline.
-    Complex bilinear tested separately (different operand construction).
+    Real dtypes assert against a high-precision Decimal baseline.
+    Complex bilinear tested separately (Decimal doesn't support complex,
+    so it uses NumPy extended-precision types instead).
 
 Matches C++ suite: test_curved.cpp.
 """
@@ -73,7 +74,7 @@ except ImportError:
         return np.sqrt(diff @ z @ diff)
 
 
-def make_positive_semidefinite(data: np.ndarray) -> np.ndarray:
+def make_positive_semidefinite(data):
     """Make a square matrix positive semi-definite in-place (Gershgorin diagonal dominance).
 
     Matches C++ make_positive_semidefinite() in test/test_curved.cpp.
@@ -155,7 +156,7 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_CURVED[metric]
 
-    # High-precision baseline (f64)
+    # High-precision baseline (Decimal)
     accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline, c_baseline)
 
     # Baseline at native compute precision (for error-stat collection)

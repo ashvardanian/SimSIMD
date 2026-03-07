@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Test reductions: nk.moments, nk.minmax, nk.sum, nk.min, nk.max, nk.argmin, nk.argmax, nk.norm.
 
-Covers dtypes: float64, float32, float16, bfloat16, int32 (axis reductions also test int32 norm).
+Covers dtypes: float64, float32, float16, int32 (axis reductions also test int32 norm).
 Parametrized over: dtype, ndim from dense_dimensions, shape, axis.
 
 Precision notes:
