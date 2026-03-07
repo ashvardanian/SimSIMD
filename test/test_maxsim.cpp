@@ -98,6 +98,15 @@ void test_maxsim() {
                    nk_maxsim_pack_bf16_genoa, nk_maxsim_packed_bf16_genoa);
 #endif
 
+#if NK_TARGET_SAPPHIREAMX
+    run_if_matches("maxsim_bf16_sapphireamx", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sapphireamx,
+                   nk_maxsim_pack_bf16_sapphireamx, nk_maxsim_packed_bf16_sapphireamx);
+    run_if_matches("maxsim_f32_sapphireamx", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sapphireamx,
+                   nk_maxsim_pack_f32_sapphireamx, nk_maxsim_packed_f32_sapphireamx);
+    run_if_matches("maxsim_f16_sapphireamx", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sapphireamx,
+                   nk_maxsim_pack_f16_sapphireamx, nk_maxsim_packed_f16_sapphireamx);
+#endif
+
 #if NK_TARGET_NEONSDOT
     run_if_matches("maxsim_bf16_neonsdot", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_neonsdot,
                    nk_maxsim_pack_bf16_neonsdot, nk_maxsim_packed_bf16_neonsdot);

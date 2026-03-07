@@ -161,6 +161,33 @@ NK_PUBLIC void nk_maxsim_packed_bf16_genoa(void const *q_packed, void const *d_p
                                            nk_size_t depth, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_SAPPHIREAMX
+/** @copydoc nk_maxsim_packed_size_bf16 */
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sapphireamx(nk_size_t n, nk_size_t k);
+/** @copydoc nk_maxsim_packed_size_bf16 */
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sapphireamx(nk_size_t n, nk_size_t k);
+/** @copydoc nk_maxsim_packed_size_bf16 */
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_sapphireamx(nk_size_t n, nk_size_t k);
+/** @copydoc nk_maxsim_pack_bf16 */
+NK_PUBLIC void nk_maxsim_pack_bf16_sapphireamx(nk_bf16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
+                                               void *packed);
+/** @copydoc nk_maxsim_pack_bf16 */
+NK_PUBLIC void nk_maxsim_pack_f32_sapphireamx(nk_f32_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
+                                              void *packed);
+/** @copydoc nk_maxsim_pack_bf16 */
+NK_PUBLIC void nk_maxsim_pack_f16_sapphireamx(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride,
+                                              void *packed);
+/** @copydoc nk_maxsim_packed_bf16 */
+NK_PUBLIC void nk_maxsim_packed_bf16_sapphireamx(void const *q_packed, void const *d_packed, nk_size_t n_q,
+                                                 nk_size_t n_d, nk_size_t depth, nk_f32_t *result);
+/** @copydoc nk_maxsim_packed_bf16 */
+NK_PUBLIC void nk_maxsim_packed_f32_sapphireamx(void const *q_packed, void const *d_packed, nk_size_t n_q,
+                                                nk_size_t n_d, nk_size_t depth, nk_f32_t *result);
+/** @copydoc nk_maxsim_packed_bf16 */
+NK_PUBLIC void nk_maxsim_packed_f16_sapphireamx(void const *q_packed, void const *d_packed, nk_size_t n_q,
+                                                nk_size_t n_d, nk_size_t depth, nk_f32_t *result);
+#endif // NK_TARGET_SAPPHIREAMX
+
 #if NK_TARGET_HASWELL
 /** @copydoc nk_maxsim_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_haswell(nk_size_t n, nk_size_t k);
@@ -305,6 +332,7 @@ NK_PUBLIC void nk_maxsim_packed_f32_sme(void const *q_packed, void const *d_pack
 #include "numkong/maxsim/alder.h"
 #include "numkong/maxsim/icelake.h"
 #include "numkong/maxsim/genoa.h"
+#include "numkong/maxsim/sapphireamx.h"
 #include "numkong/maxsim/neonsdot.h"
 #include "numkong/maxsim/sme.h"
 #include "numkong/maxsim/v128relaxed.h"
@@ -318,6 +346,8 @@ extern "C" {
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16(nk_size_t n, nk_size_t k) {
 #if NK_TARGET_SME
     return nk_maxsim_packed_size_bf16_sme(n, k);
+#elif NK_TARGET_SAPPHIREAMX
+    return nk_maxsim_packed_size_bf16_sapphireamx(n, k);
 #elif NK_TARGET_GENOA
     return nk_maxsim_packed_size_bf16_genoa(n, k);
 #elif NK_TARGET_ALDER
@@ -336,6 +366,8 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16(nk_size_t n, nk_size_t k) {
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32(nk_size_t n, nk_size_t k) {
 #if NK_TARGET_SME
     return nk_maxsim_packed_size_f32_sme(n, k);
+#elif NK_TARGET_SAPPHIREAMX
+    return nk_maxsim_packed_size_f32_sapphireamx(n, k);
 #elif NK_TARGET_ICELAKE
     return nk_maxsim_packed_size_f32_icelake(n, k);
 #elif NK_TARGET_ALDER
@@ -354,6 +386,8 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32(nk_size_t n, nk_size_t k) {
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16(nk_size_t n, nk_size_t k) {
 #if NK_TARGET_SME
     return nk_maxsim_packed_size_f16_sme(n, k);
+#elif NK_TARGET_SAPPHIREAMX
+    return nk_maxsim_packed_size_f16_sapphireamx(n, k);
 #elif NK_TARGET_ICELAKE
     return nk_maxsim_packed_size_f16_icelake(n, k);
 #elif NK_TARGET_ALDER
@@ -372,6 +406,8 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16(nk_size_t n, nk_size_t k) {
 NK_PUBLIC void nk_maxsim_pack_bf16(nk_bf16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) {
 #if NK_TARGET_SME
     nk_maxsim_pack_bf16_sme(vectors, n, k, stride, packed);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_pack_bf16_sapphireamx(vectors, n, k, stride, packed);
 #elif NK_TARGET_GENOA
     nk_maxsim_pack_bf16_genoa(vectors, n, k, stride, packed);
 #elif NK_TARGET_ALDER
@@ -390,6 +426,8 @@ NK_PUBLIC void nk_maxsim_pack_bf16(nk_bf16_t const *vectors, nk_size_t n, nk_siz
 NK_PUBLIC void nk_maxsim_pack_f32(nk_f32_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) {
 #if NK_TARGET_SME
     nk_maxsim_pack_f32_sme(vectors, n, k, stride, packed);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_pack_f32_sapphireamx(vectors, n, k, stride, packed);
 #elif NK_TARGET_ICELAKE
     nk_maxsim_pack_f32_icelake(vectors, n, k, stride, packed);
 #elif NK_TARGET_ALDER
@@ -408,6 +446,8 @@ NK_PUBLIC void nk_maxsim_pack_f32(nk_f32_t const *vectors, nk_size_t n, nk_size_
 NK_PUBLIC void nk_maxsim_pack_f16(nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) {
 #if NK_TARGET_SME
     nk_maxsim_pack_f16_sme(vectors, n, k, stride, packed);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_pack_f16_sapphireamx(vectors, n, k, stride, packed);
 #elif NK_TARGET_ICELAKE
     nk_maxsim_pack_f16_icelake(vectors, n, k, stride, packed);
 #elif NK_TARGET_ALDER
@@ -427,6 +467,8 @@ NK_PUBLIC void nk_maxsim_packed_bf16(void const *q_packed, void const *d_packed,
                                      nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
     nk_maxsim_packed_bf16_sme(q_packed, d_packed, n_q, n_d, depth, result);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_packed_bf16_sapphireamx(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_GENOA
     nk_maxsim_packed_bf16_genoa(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ALDER
@@ -446,6 +488,8 @@ NK_PUBLIC void nk_maxsim_packed_f32(void const *q_packed, void const *d_packed, 
                                     nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
     nk_maxsim_packed_f32_sme(q_packed, d_packed, n_q, n_d, depth, result);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_packed_f32_sapphireamx(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ICELAKE
     nk_maxsim_packed_f32_icelake(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ALDER
@@ -465,6 +509,8 @@ NK_PUBLIC void nk_maxsim_packed_f16(void const *q_packed, void const *d_packed, 
                                     nk_size_t depth, nk_f32_t *result) {
 #if NK_TARGET_SME
     nk_maxsim_packed_f16_sme(q_packed, d_packed, n_q, n_d, depth, result);
+#elif NK_TARGET_SAPPHIREAMX
+    nk_maxsim_packed_f16_sapphireamx(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ICELAKE
     nk_maxsim_packed_f16_icelake(q_packed, d_packed, n_q, n_d, depth, result);
 #elif NK_TARGET_ALDER
