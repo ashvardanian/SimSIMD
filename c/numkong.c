@@ -6,6 +6,19 @@
  */
 #include "dispatch.h"
 
+/*  MemorySanitizer cannot track initialization through SIMD intrinsics (SVE, NEON, SSE, AVX),
+ *  causing false-positive "use-of-uninitialized-value" reports. We unpoison results after dispatch.
+ */
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+#define nk_unpoison_(ptr, size) __msan_unpoison((ptr), (size))
+#endif
+#endif
+#ifndef nk_unpoison_
+#define nk_unpoison_(ptr, size) (void)(ptr), (void)(size)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -217,12 +230,15 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
     NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
                                             nk_##output_type##_t *results) {                                         \
         nk_dispatch_table.name##_##extension(a, b, n, (void *)results);                                              \
+        nk_unpoison_((void *)results, sizeof(nk_##output_type##_t));                                                 \
     }
 
 #define nk_dispatch_sparse_(name, extension, type)                                                              \
     NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length, \
                                             nk_size_t b_length, nk_##type##_t *result, nk_size_t *count) {      \
         nk_dispatch_table.name##_##extension(a, b, a_length, b_length, (void *)result, count);                  \
+        nk_unpoison_(count, sizeof(nk_size_t));                                                                 \
+        nk_unpoison_((void *)result, (*count) * sizeof(nk_##type##_t));                                         \
     }
 
 #define nk_dispatch_sparse_dot_(name, index_type, weight_type, output_type)                                           \
@@ -232,12 +248,14 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                           nk_size_t b_length, nk_##output_type##_t *product) {        \
         nk_dispatch_table.name##_##index_type##weight_type(a, b, a_weights, b_weights, a_length, b_length,            \
                                                            (void *)product);                                          \
+        nk_unpoison_((void *)product, sizeof(nk_##output_type##_t));                                                  \
     }
 
 #define nk_dispatch_curved_(name, extension, output_type)                                                             \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b,                 \
                                             nk_##extension##_t const *c, nk_size_t n, nk_##output_type##_t *result) { \
         nk_dispatch_table.name##_##extension(a, b, c, n, (void *)result);                                             \
+        nk_unpoison_((void *)result, sizeof(nk_##output_type##_t));                                                   \
     }
 
 #define nk_dispatch_geospatial_(name, extension, output_type)                                                   \
@@ -245,6 +263,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                             nk_##extension##_t const *b_lats, nk_##extension##_t const *b_lons, \
                                             nk_size_t n, nk_##output_type##_t *results) {                       \
         nk_dispatch_table.name##_##extension(a_lats, a_lons, b_lats, b_lons, n, (void *)results);               \
+        nk_unpoison_((void *)results, sizeof(nk_##output_type##_t));                                            \
     }
 
 #define nk_dispatch_each_fma_(extension, scalar_type)                                                        \
@@ -252,6 +271,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_##extension##_t const *a, nk_##extension##_t const *b, nk_##extension##_t const *c, nk_size_t n,  \
         nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, nk_##extension##_t *result) {   \
         nk_dispatch_table.each_fma_##extension(a, b, c, n, (void const *)alpha, (void const *)beta, result); \
+        nk_unpoison_((void *)result, n * sizeof(nk_##extension##_t));                                        \
     }
 
 #define nk_dispatch_each_blend_(extension, scalar_type)                                                              \
@@ -259,6 +279,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                               nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
                                               nk_##extension##_t *result) {                                          \
         nk_dispatch_table.each_blend_##extension(a, b, n, (void const *)alpha, (void const *)beta, result);          \
+        nk_unpoison_((void *)result, n * sizeof(nk_##extension##_t));                                                \
     }
 
 #define nk_dispatch_each_scale_(extension, scalar_type)                                                            \
@@ -266,18 +287,21 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                               nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
                                               nk_##extension##_t *result) {                                        \
         nk_dispatch_table.each_scale_##extension(a, n, (void const *)alpha, (void const *)beta, result);           \
+        nk_unpoison_((void *)result, n * sizeof(nk_##extension##_t));                                              \
     }
 
 #define nk_dispatch_each_sum_(extension)                                                                           \
     NK_DYNAMIC void nk_each_sum_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
                                             nk_##extension##_t *result) {                                          \
         nk_dispatch_table.each_sum_##extension(a, b, n, result);                                                   \
+        nk_unpoison_((void *)result, n * sizeof(nk_##extension##_t));                                              \
     }
 
 #define nk_dispatch_trigonometry_(name, extension)                                              \
     NK_DYNAMIC void nk_each_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n, \
                                                  nk_##extension##_t *outputs) {                 \
         nk_dispatch_table.each_##name##_##extension(inputs, n, outputs);                        \
+        nk_unpoison_((void *)outputs, n * sizeof(nk_##extension##_t));                          \
     }
 
 #define nk_dispatch_mesh_(name, extension, mesh_type)                                                              \
@@ -287,6 +311,11 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                             nk_##mesh_type##_t *result) {                                          \
         nk_dispatch_table.name##_##extension(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation,    \
                                              (void *)scale, (void *)result);                                       \
+        if (a_centroid) nk_unpoison_((void *)a_centroid, 3 * sizeof(nk_##mesh_type##_t));                          \
+        if (b_centroid) nk_unpoison_((void *)b_centroid, 3 * sizeof(nk_##mesh_type##_t));                          \
+        if (rotation) nk_unpoison_((void *)rotation, 9 * sizeof(nk_##mesh_type##_t));                              \
+        if (scale) nk_unpoison_((void *)scale, sizeof(nk_##mesh_type##_t));                                        \
+        nk_unpoison_((void *)result, sizeof(nk_##mesh_type##_t));                                                  \
     }
 
 #define nk_dispatch_reduce_moments_(extension, data_type, sum_type, sumsq_type)                                      \
@@ -294,6 +323,8 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                   sum_type *sum_ptr, sumsq_type *sumsq_ptr) {                        \
         ((nk_kernel_reduce_moments_punned_t)nk_dispatch_table.reduce_moments_##extension)(data, count, stride_bytes, \
                                                                                           sum_ptr, sumsq_ptr);       \
+        nk_unpoison_((void *)sum_ptr, sizeof(sum_type));                                                             \
+        nk_unpoison_((void *)sumsq_ptr, sizeof(sumsq_type));                                                         \
     }
 
 #define nk_dispatch_reduce_minmax_(extension, data_type, minmax_type)                                                  \
@@ -302,6 +333,10 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                  nk_size_t *max_index) {                                               \
         ((nk_kernel_reduce_minmax_punned_t)nk_dispatch_table.reduce_minmax_##extension)(                               \
             data, count, stride_bytes, min_value, min_index, max_value, max_index);                                    \
+        nk_unpoison_((void *)min_value, sizeof(minmax_type));                                                          \
+        nk_unpoison_(min_index, sizeof(nk_size_t));                                                                    \
+        nk_unpoison_((void *)max_value, sizeof(minmax_type));                                                          \
+        nk_unpoison_(max_index, sizeof(nk_size_t));                                                                    \
     }
 
 #define nk_dispatch_cross_packed_size_(api_name, name, input_type, accum_type)          \
@@ -320,6 +355,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                   nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
                                                   nk_size_t a_stride, nk_size_t c_stride) {                       \
         nk_dispatch_table.api_name##_packed_##name(a, b_packed, c, m, n, k, a_stride, c_stride);                  \
+        nk_unpoison_((void *)c, m *c_stride);                                                                     \
     }
 
 #define nk_dispatch_cross_symmetric_(api_name, name, input_type, output_type)                                   \
@@ -328,12 +364,14 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_##output_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
         nk_dispatch_table.api_name##_symmetric_##name(vectors, n_vectors, depth, stride, result, result_stride, \
                                                       row_start, row_count);                                    \
+        nk_unpoison_((void *)result, row_count *result_stride);                                                 \
     }
 
 #define nk_dispatch_maxsim_packed_(name, input_type)                                                                  \
     NK_DYNAMIC void nk_maxsim_packed_##name(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d, \
                                             nk_size_t depth, nk_f32_t *result) {                                      \
         nk_dispatch_table.maxsim_packed_##name(q_packed, d_packed, n_q, n_d, depth, (void *)result);                  \
+        nk_unpoison_((void *)result, n_q * sizeof(nk_f32_t));                                                         \
     }
 
 // Dot products

@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::env;
 
-fn main() {
-    build_simsimd();
-}
+fn main() { build_numkong().expect("Failed to build NumKong"); }
 
 /// Build NumKong with dynamic SIMD dispatching.
 /// Returns a HashMap of enabled compilation flags for potential reuse.
-fn build_simsimd() -> HashMap<String, bool> {
+fn build_numkong() -> Result<HashMap<String, bool>, String> {
     let mut flags = HashMap::<String, bool>::new();
     let mut build = cc::Build::new();
 
@@ -212,6 +210,7 @@ fn build_simsimd() -> HashMap<String, bool> {
         println!("cargo:warning=Failed to compile NumKong with all SIMD backends...");
 
         // Fallback: disable backends one by one until compilation succeeds
+        let mut compiled = false;
         for flag in flags_to_try.iter() {
             build.define(flag, "0");
             flags.insert(flag.to_string(), false);
@@ -221,6 +220,7 @@ fn build_simsimd() -> HashMap<String, bool> {
                     "cargo:warning=Successfully compiled after disabling {}",
                     flag
                 );
+                compiled = true;
                 break;
             }
 
@@ -228,6 +228,10 @@ fn build_simsimd() -> HashMap<String, bool> {
                 "cargo:warning=Failed to compile after disabling {}, trying next configuration...",
                 flag
             );
+        }
+
+        if !compiled {
+            return Err("Failed to compile NumKong with any SIMD configuration".into());
         }
     }
 
@@ -458,5 +462,5 @@ fn build_simsimd() -> HashMap<String, bool> {
         println!("cargo:rerun-if-env-changed={}", flag);
     }
 
-    flags
+    Ok(flags)
 }
