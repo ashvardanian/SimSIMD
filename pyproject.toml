@@ -187,7 +187,14 @@ environment.NK_TARGET_X86_ = "0"
 inherit.environment = "append"
 select = "*-manylinux*_riscv64"
 
+# The default `musllinux_1_2` riscv64 image ships GCC which doesn't support
+# all requested RISC-V vector extensions (zvfbfwma, zvbb).
+# Install LLVM and build with clang + lld, mirroring the manylinux override.
 [[tool.cibuildwheel.overrides]]
+before-all = "apk add --update wget python3-dev clang lld"
+environment.CC = "clang"
+environment.CXX = "clang++"
+environment.LDFLAGS = "-fuse-ld=lld"
 environment.NK_TARGET_ARM_ = "0"
 environment.NK_TARGET_RISCV_ = "1"
 environment.NK_TARGET_X86_ = "0"
