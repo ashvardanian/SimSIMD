@@ -6,8 +6,19 @@
 //! ## Modules
 //!
 //! - [`types`]: Mixed-precision scalar types (`f16`, `bf16`, FP8, packed integers) and [`FloatLike`] trait
-//! - [`numerics`]: Distance functions, elementwise operations, trigonometry, reductions, and geospatial
-//! - [`tensor`]: N-dimensional tensors, GEMM, and packed spatial distance operations
+//! - [`spatial`]: Dot products, angular (cosine), and Euclidean distances
+//! - [`each`]: Elementwise operations and trigonometry
+//! - [`reduce`]: Statistical reductions (moments, min/max)
+//! - [`set`]: Binary set similarity (Hamming, Jaccard)
+//! - [`probability`]: Probability divergences (KL, JS)
+//! - [`curved`]: Curved metric spaces (Bilinear, Mahalanobis)
+//! - [`mesh`]: Mesh alignment (Kabsch, Umeyama, RMSD)
+//! - [`geospatial`]: Geospatial distances (Haversine, Vincenty)
+//! - [`sparse`]: Sparse set operations
+//! - [`cast`]: Type casting between scalar formats
+//! - [`capabilities`]: Runtime SIMD feature detection
+//! - [`matrix`]: Batch matrix operations (GEMM, packed spatial distances)
+//! - [`tensor`]: N-dimensional tensors with elementwise/reduction operations
 //!
 //! ## Implemented operations include:
 //!
@@ -93,9 +104,22 @@
 #![allow(non_camel_case_types)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
-// Module declarations
+// Domain modules
+pub mod capabilities;
+pub mod cast;
+pub mod curved;
+pub mod each;
+pub mod geospatial;
 pub mod maxsim;
-pub mod numerics;
+pub mod mesh;
+pub mod probability;
+pub mod reduce;
+pub mod set;
+pub mod sparse;
+pub mod spatial;
+
+// Containers
+pub mod matrix;
 pub mod tensor;
 pub mod types;
 pub mod vector;
@@ -106,28 +130,49 @@ pub use types::{
     FloatLike, NumberLike, StorageElement,
 };
 
-// Re-export all numeric traits
-pub use numerics::{
-    Angular, Bilinear, BinarySimilarity, Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale,
-    EachSin, EachSum, Euclidean, Hamming, Haversine, Jaccard, JensenShannon, KullbackLeibler,
-    Mahalanobis, MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax,
-    ReduceMoments, Reductions, Roots, SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry,
-    VDot, Vincenty,
-};
+// Re-export spatial traits
+pub use spatial::{Angular, Dot, Euclidean, Roots, SpatialSimilarity, VDot};
+
+// Re-export set traits
+pub use set::{BinarySimilarity, Hamming, Jaccard};
+
+// Re-export probability traits
+pub use probability::{JensenShannon, KullbackLeibler, ProbabilitySimilarity};
+
+// Re-export elementwise and trig traits
+pub use each::{EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Trigonometry};
+
+// Re-export reduction traits
+pub use reduce::{ReduceMinMax, ReduceMoments, Reductions};
+
+// Re-export curved metric traits
+pub use curved::{Bilinear, Mahalanobis};
+
+// Re-export mesh alignment
+pub use mesh::{MeshAlignment, MeshAlignmentResult};
+
+// Re-export geospatial
+pub use geospatial::{Geospatial, Haversine, Vincenty};
+
+// Re-export sparse
+pub use sparse::{SparseDot, SparseIntersect};
 
 // Re-export cast operations
-pub use numerics::{cast, CastDtype};
+pub use cast::{cast, CastDtype};
 
-// Re-export capabilities module
-pub use numerics::cap;
-pub use numerics::capabilities;
+// Re-export capabilities
+pub use capabilities::cap;
+pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Angulars, AxisIterator, AxisIteratorMut, Dots, Euclideans, Global, Hammings,
-    Jaccards, Matrix, MatrixSpan, MatrixView, PackedMatrix, ShapeDescriptor, SliceRange, Tensor,
-    TensorError, TensorSpan, TensorView, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Allocator, AxisIterator, AxisIteratorMut, Global, Matrix, MatrixSpan, MatrixView,
+    ShapeDescriptor, SliceRange, Tensor, TensorError, TensorSpan, TensorView, DEFAULT_MAX_RANK,
+    SIMD_ALIGNMENT,
 };
+
+// Re-export matrix types
+pub use matrix::{Angulars, Dots, Euclideans, Hammings, Jaccards, PackedMatrix};
 
 // Re-export vector types
 pub use vector::{DimIterator, VecIndex, Vector, VectorSpan, VectorView};
