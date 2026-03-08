@@ -93,18 +93,10 @@ struct f64c_t;
 struct f118_t;
 
 /**
- *  @brief Single-precision IEEE 754 floating-point wrapper.
+ *  @brief Single-precision (32-bit) IEEE 754 floating-point wrapper.
  *
- *  Provides strong type identity for `float`, compatible with NumKong kernels
- *  and `std::mdspan`. API inspired by Rust's f32, std::numeric_limits, and
- *  Eigen's NumTraits.
- *
- *  Features:
- *  - Arithmetic operators and Rust-style methods (order, total_cmp, signum, fma)
- *  - Classification: is_nan, is_finite, is_normal, is_subnormal
- *  - Bit manipulation: to_bits, from_bits, copysign (constexpr)
- *  - Type aliases for NumKong kernel signatures (dot_result_t, reduce_moments_sum_t, etc.)
- *
+ *  Layout: sign(1) + exponent(8) + mantissa(23), bias=127.
+ *  Range: ±3.40×10³⁸, epsilon at 1.0 ≈ 1.19×10⁻⁷, subnormal min ≈ 1.40×10⁻⁴⁵.
  *  @note Only bit-manipulation and pure-arithmetic functions are constexpr.
  *        STL cmath functions become constexpr in C++26.
  */
@@ -364,12 +356,10 @@ struct f32_t {
 };
 
 /**
- *  @brief Double-precision IEEE 754 floating-point wrapper.
+ *  @brief Double-precision (64-bit) IEEE 754 floating-point wrapper.
  *
- *  Provides strong type identity for `double`, compatible with NumKong kernels
- *  and `std::mdspan`. API inspired by Rust's f64, std::numeric_limits, and
- *  Eigen's NumTraits.
- *
+ *  Layout: sign(1) + exponent(11) + mantissa(52), bias=1023.
+ *  Range: ±1.80×10³⁰⁸, epsilon at 1.0 ≈ 2.22×10⁻¹⁶, subnormal min ≈ 4.94×10⁻³²⁴.
  *  @note Only bit-manipulation and pure-arithmetic functions are constexpr.
  *        STL cmath functions become constexpr in C++26.
  */
@@ -622,18 +612,10 @@ struct f64_t {
 };
 
 /**
- *  @brief Single-precision complex number wrapper using composition.
+ *  @brief Single-precision (64-bit) complex number, composed of two f32_t.
  *
- *  Provides strong type identity for complex float, compatible with NumKong kernels
- *  and `std::mdspan`. Uses composition of two `f32_t` components (not inheritance).
- *
- *  Features:
- *  - Real/imaginary accessors via `real()` and `imag()`
- *  - Complex arithmetic: `+`, `-`, `*`, `/`
- *  - Complex-specific: `conj()`, `norm()`, `abs()`, `arg()`
- *  - Full transcendentals: `exp()`, `log()`, `sqrt()`, `pow()`, trig, hyperbolic
- *
- *  @note Non-constexpr due to reliance on `f32_t` STL-forwarding functions.
+ *  Layout: {real: f32_t, imag: f32_t}. Uses composition, not inheritance.
+ *  Supports complex arithmetic, conjugate, norm, abs, arg, and full transcendentals.
  */
 struct f32c_t {
 
@@ -870,18 +852,10 @@ struct f32c_t {
 };
 
 /**
- *  @brief Double-precision complex number wrapper using composition.
+ *  @brief Double-precision (128-bit) complex number, composed of two f64_t.
  *
- *  Provides strong type identity for complex double, compatible with NumKong kernels
- *  and `std::mdspan`. Uses composition of two `f64_t` components (not inheritance).
- *
- *  Features:
- *  - Real/imaginary accessors via `real()` and `imag()`
- *  - Complex arithmetic: `+`, `-`, `*`, `/`
- *  - Complex-specific: `conj()`, `norm()`, `abs()`, `arg()`
- *  - Full transcendentals: `exp()`, `log()`, `sqrt()`, `pow()`, trig, hyperbolic
- *
- *  @note Non-constexpr due to reliance on `f64_t` STL-forwarding functions.
+ *  Layout: {real: f64_t, imag: f64_t}. Uses composition, not inheritance.
+ *  Supports complex arithmetic, conjugate, norm, abs, arg, and full transcendentals.
  */
 struct f64c_t {
 
@@ -1122,15 +1096,10 @@ struct f64c_t {
 /**
  *  @brief Half-precision (16-bit) IEEE 754 floating-point wrapper.
  *
- *  Provides strong type identity for half-precision floats, compatible with NumKong
- *  kernels and `std::mdspan`. All kernel outputs are widened to f32.
- *
- *  Features:
- *  - Arithmetic operators (via f32 upcast/downcast)
- *  - Full math functions (via f32 upcast, compute, downcast)
- *  - Classification and special values
- *
- *  @note Not constexpr due to conversion functions. All math done in f32.
+ *  Layout: sign(1) + exponent(5) + mantissa(10), bias=15.
+ *  Range: [-65504, +65504], epsilon at 1.0: ~9.77e-4, subnormal min: ~5.96e-8.
+ *  30,722 of 63,488 finite values (48.4%) fall in [-1, +1].
+ *  All arithmetic and math done via f32 upcast/downcast.
  */
 struct f16_t {
 
@@ -1369,16 +1338,11 @@ struct f16_t {
 /**
  *  @brief Brain floating-point (16-bit) wrapper with f32-compatible exponent range.
  *
- *  bf16 has the same exponent range as f32 (8 bits) but only 7 mantissa bits.
- *  Provides strong type identity, compatible with NumKong kernels. All kernel
- *  outputs are widened to f32.
- *
- *  Features:
- *  - Same dynamic range as f32 (~38 orders of magnitude)
- *  - Lower precision than f16 (7 vs 10 mantissa bits)
- *  - Full math functions (via f32 upcast, compute, downcast)
- *
- *  @note Not constexpr due to conversion functions. All math done in f32.
+ *  Layout: sign(1) + exponent(8) + mantissa(7), bias=127.
+ *  Same exponent range as f32 (~38 orders of magnitude) but only 7 mantissa bits (vs 23).
+ *  Range: [-3.39e38, +3.39e38], epsilon at 1.0: ~7.81e-3, subnormal min: ~9.18e-41.
+ *  32,514 of 65,280 finite values (49.8%) fall in [-1, +1].
+ *  All arithmetic and math done via f32 upcast/downcast.
  */
 struct bf16_t {
 
@@ -1617,17 +1581,10 @@ struct bf16_t {
 };
 
 /**
- *  @brief Half-precision complex number wrapper using composition.
+ *  @brief Half-precision (32-bit) complex number, composed of two f16_t.
  *
- *  Provides strong type identity for complex f16, compatible with NumKong kernels.
- *  Uses composition of two `f16_t` components. Results widened to f32c for precision.
- *
- *  Features:
- *  - Real/imaginary accessors via `real()` and `imag()`
- *  - Complex arithmetic: `+`, `-`, `*`, `/`
- *  - Complex-specific: `conj()`, `norm()`, `abs()`
- *
- *  @note Math computed via f32 upcast for precision.
+ *  Layout: {real: f16_t, imag: f16_t}. Kernel outputs widened to f32c.
+ *  All arithmetic via f32 upcast/downcast.
  */
 struct f16c_t {
 
@@ -1721,17 +1678,10 @@ struct f16c_t {
 };
 
 /**
- *  @brief BFloat16 complex number wrapper using composition.
+ *  @brief BFloat16 (32-bit) complex number, composed of two bf16_t.
  *
- *  Provides strong type identity for complex bf16, compatible with NumKong kernels.
- *  Uses composition of two `bf16_t` components. Results widened to f32c for precision.
- *
- *  Features:
- *  - Real/imaginary accessors via `real()` and `imag()`
- *  - Complex arithmetic: `+`, `-`, `*`, `/`
- *  - Complex-specific: `conj()`, `norm()`, `abs()`
- *
- *  @note Math computed via f32 upcast for precision.
+ *  Layout: {real: bf16_t, imag: bf16_t}. Kernel outputs widened to f32c.
+ *  All arithmetic via f32 upcast/downcast.
  */
 struct bf16c_t {
 
@@ -1827,16 +1777,13 @@ struct bf16c_t {
 /**
  *  @brief FP8 E4M3 (8-bit float with 4-bit exponent, 3-bit mantissa) wrapper.
  *
- *  E4M3 is an 8-bit floating-point format optimized for machine learning inference.
- *  Range: ±448, smallest normal: 2⁻⁶. No infinity representation (all exponent bits
- *  set = NaN). Provides strong type identity, compatible with NumKong kernels.
- *
- *  Features:
- *  - Compact 8-bit storage for ML weights and activations
- *  - Full math functions (via f32 upcast, compute, downcast)
- *  - All kernel outputs widened to f32
- *
- *  @note Not constexpr due to conversion functions. All math done in f32.
+ *  Layout: sign(1) + exponent(4) + mantissa(3), bias=7.
+ *  Range: ±448, epsilon at 1.0: 0.125, subnormal min: ~1.95e-3.
+ *  No infinity representation; only 2 NaN codes (0x7F, 0xFF).
+ *  114 of 254 finite values (44.9%) fall in [-1, +1].
+ *  Dot products can be computed exactly via integer decomposition: mantissa products
+ *  (8+m_a)*(8+m_b) are accumulated into 29 bins indexed by exponent sum (e_a+e_b).
+ *  All arithmetic and math done via f32 upcast/downcast.
  */
 struct e4m3_t {
 
@@ -2040,17 +1987,16 @@ struct e4m3_t {
 /**
  *  @brief FP8 E5M2 (8-bit float with 5-bit exponent, 2-bit mantissa) wrapper.
  *
- *  E5M2 is an 8-bit floating-point format with the same exponent range as f16.
- *  Range: ±57344, supports infinity and NaN. Provides strong type identity,
- *  compatible with NumKong kernels.
- *
- *  Features:
- *  - Same dynamic range as f16 (5-bit exponent)
- *  - Lower precision than E4M3 (2 vs 3 mantissa bits)
- *  - Full math functions (via f32 upcast, compute, downcast)
- *  - All kernel outputs widened to f32
- *
- *  @note Not constexpr due to conversion functions. All math done in f32.
+ *  Layout: sign(1) + exponent(5) + mantissa(2), bias=15.
+ *  Same exponent range as f16, but only 2 mantissa bits.
+ *  Range: ±57344, epsilon at 1.0: 0.25, subnormal min: ~1.53e-5.
+ *  Supports infinity and NaN (IEEE-like, exp=31).
+ *  122 of 248 finite values (49.2%) fall in [-1, +1].
+ *  The huge dynamic range (ratio ~3.7e9) makes f32 accumulation vulnerable to
+ *  catastrophic cancellation when large and small products coexist.
+ *  Dot products can be computed exactly via integer decomposition: mantissa products
+ *  (4+m_a)*(4+m_b) are accumulated into 63 bins indexed by exponent sum (e_a+e_b).
+ *  All arithmetic and math done via f32 upcast/downcast.
  */
 struct e5m2_t {
 
@@ -2256,14 +2202,14 @@ struct e5m2_t {
 /**
  *  @brief Float6 E2M3FN: 1 sign + 2 exponent (bias=1) + 3 mantissa bits, with 2 bits of padding.
  *
- *  Range: [-7.5, +7.5], stored byte-aligned in 8 bits (0b00SEEMM, upper 2 bits unused/padding).
- *  Format: 6-bit payload + 2-bit padding for efficient byte-aligned SIMD operations.
- *  No Inf/NaN support (OCP Microscaling FN format).
- *  Optimized for ARM NEONFHM using FMLAL (widening FP16→FP32).
+ *  Range: [-7.5, +7.5], stored byte-aligned (0b00SEEMMM, upper 2 bits padding).
+ *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid.
+ *  Only 18 of 64 values (28.1%) fall in [-1, +1] — 72% of codes represent |x| > 1.
+ *  Dot products are exact via integer accumulation: every value x 16 is an integer
+ *  in [-120, +120], so products fit in i16 and sums fit in i32 without rounding.
  *
- *  References:
- *  - https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
- *  - https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
+ *  @see https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *  @see https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
  */
 struct e2m3_t {
 
@@ -2434,14 +2380,14 @@ struct e2m3_t {
 /**
  *  @brief Float6 E3M2FN: 1 sign + 3 exponent (bias=3) + 2 mantissa bits, with 2 bits of padding.
  *
- *  Range: [-28, +28], stored byte-aligned in 8 bits (0b00SEEEMM, upper 2 bits unused/padding).
- *  Format: 6-bit payload + 2-bit padding for efficient byte-aligned SIMD operations.
- *  No Inf/NaN support (OCP Microscaling FN format).
- *  Optimized for ARM NEONFHM using FMLAL (widening FP16→FP32).
+ *  Range: [-28, +28], stored byte-aligned (0b00SEEEMM, upper 2 bits padding).
+ *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid.
+ *  26 of 64 values (40.6%) fall in [-1, +1].
+ *  Dot products are exact via integer accumulation: every value x 4 is an integer
+ *  in [-28, +28], so products fit in i16 and sums fit in i32 without rounding.
  *
- *  References:
- *  - https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
- *  - https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
+ *  @see https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *  @see https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
  */
 struct e3m2_t {
 
@@ -3519,14 +3465,8 @@ struct f118c_t {
 /**
  *  @brief Signed 8-bit integer wrapper.
  *
- *  Provides strong type identity for `int8_t`, compatible with NumKong kernels
- *  and `std::mdspan`.
- *
- *  Features:
- *  - All arithmetic operators
- *  - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
- *  - Integer-specific: `abs()`, widened accumulation types
- *  - No NaN/infinity concepts (integers are exact)
+ *  Range: [−128, +127]. Exact integer arithmetic, wrapping on overflow.
+ *  Dot products accumulated into i32 via VNNI / VPDPBUSD / SDOT.
  */
 struct i8_t {
 
@@ -3694,14 +3634,8 @@ struct i8_t {
 /**
  *  @brief Unsigned 8-bit integer wrapper.
  *
- *  Provides strong type identity for `uint8_t`, compatible with NumKong kernels
- *  and `std::mdspan`.
- *
- *  Features:
- *  - All arithmetic operators
- *  - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
- *  - Widened accumulation types for kernel outputs
- *  - No NaN/infinity concepts (integers are exact)
+ *  Range: [0, 255]. Exact integer arithmetic, wrapping on overflow.
+ *  Dot products accumulated into i32 via VNNI / VPDPBUSD / UDOT.
  */
 struct u8_t {
 
@@ -3858,14 +3792,7 @@ struct u8_t {
 /**
  *  @brief Signed 32-bit integer wrapper.
  *
- *  Provides strong type identity for `int32_t`, compatible with NumKong kernels
- *  and `std::mdspan`.
- *
- *  Features:
- *  - All arithmetic operators
- *  - Bitwise operators: `&`, `|`, `^`, `~`, `<<`, `>>`
- *  - Integer-specific: `abs()`, widened accumulation types
- *  - No NaN/infinity concepts (integers are exact)
+ *  Range: [−2³¹, +2³¹−1]. Exact integer arithmetic, wrapping on overflow.
  */
 struct i32_t {
 
@@ -4011,14 +3938,7 @@ struct i32_t {
 /**
  *  @brief Unsigned 32-bit integer wrapper.
  *
- *  Provides strong type identity for `std::uint32_t`, compatible with NumKong
- *  kernels and `std::mdspan`.
- *
- *  Features:
- *  - Arithmetic operators (wrapping semantics)
- *  - Bitwise operators
- *  - Spaceship operator for comparisons
- *  - Integer-specific: min, max, clamp
+ *  Range: [0, 2³²−1]. Exact integer arithmetic, wrapping on overflow.
  */
 struct u32_t {
 
@@ -4150,13 +4070,7 @@ struct u32_t {
 /**
  *  @brief Signed 64-bit integer wrapper.
  *
- *  Provides strong type identity for `std::int64_t`, compatible with NumKong
- *  kernels and `std::mdspan`.
- *
- *  Features:
- *  - Arithmetic operators (wrapping semantics)
- *  - Bitwise operators
- *  - Integer-specific: abs, signum, min, max, clamp
+ *  Range: [−2⁶³, +2⁶³−1]. Exact integer arithmetic, wrapping on overflow.
  */
 struct i64_t {
 
@@ -4303,14 +4217,7 @@ struct i64_t {
 /**
  *  @brief Unsigned 64-bit integer wrapper.
  *
- *  Provides strong type identity for `std::uint64_t`, compatible with NumKong
- *  kernels and `std::mdspan`.
- *
- *  Features:
- *  - Arithmetic operators (wrapping semantics)
- *  - Bitwise operators
- *  - Spaceship operator for comparisons
- *  - Integer-specific: min, max, clamp
+ *  Range: [0, 2⁶⁴−1]. Exact integer arithmetic, wrapping on overflow.
  */
 struct u64_t {
 
@@ -4441,14 +4348,7 @@ struct u64_t {
 /**
  *  @brief Signed 16-bit integer wrapper.
  *
- *  Provides strong type identity for `std::int16_t`, compatible with NumKong
- *  kernels and `std::mdspan`.
- *
- *  Features:
- *  - Arithmetic operators (wrapping semantics)
- *  - Bitwise operators
- *  - Spaceship operator for comparisons
- *  - Integer-specific: abs, signum, min, max, clamp
+ *  Range: [−32768, +32767]. Exact integer arithmetic, wrapping on overflow.
  */
 struct i16_t {
 
@@ -4589,14 +4489,7 @@ struct i16_t {
 /**
  *  @brief Unsigned 16-bit integer wrapper.
  *
- *  Provides strong type identity for `std::uint16_t`, compatible with NumKong
- *  kernels and `std::mdspan`.
- *
- *  Features:
- *  - Arithmetic operators (wrapping semantics)
- *  - Bitwise operators
- *  - Spaceship operator for comparisons
- *  - Integer-specific: min, max, clamp
+ *  Range: [0, 65535]. Exact integer arithmetic, wrapping on overflow.
  */
 struct u16_t {
 
@@ -4799,16 +4692,10 @@ struct sub_byte_ref<u4x2_t> {
 };
 
 /**
- *  @brief Packed 8-bit bit-vector wrapper (8 booleans in one byte).
+ *  @brief Packed 8-bit bit-vector (8 booleans in one byte).
  *
- *  Storage/transport type for binary data. Provides bitwise operations
- *  and population count for Hamming distance and Jaccard similarity.
- *
- *  Features:
- *  - Bitwise operators (&, |, ^, ~)
- *  - Individual bit access
- *  - Population count (popcount)
- *  - Hamming distance and intersection/union helpers
+ *  Layout: 8 bits packed into one byte, LSB = dimension 0.
+ *  Used for Hamming distance and Jaccard similarity via popcount.
  */
 struct u1x8_t {
     // Core type aliases
@@ -4915,15 +4802,10 @@ struct u1x8_t {
 };
 
 /**
- *  @brief Packed 4-bit signed integer pair (2 x i4 in one byte).
+ *  @brief Packed 4-bit signed integer pair (2 × i4 in one byte).
  *
- *  Storage/transport type for 4-bit quantized data. Elements are sign-extended
- *  to i8 for arithmetic. Layout: [high:4][low:4].
- *
- *  Features:
- *  - Element access (low/high nibbles, sign-extended to i8)
- *  - Dot product
- *  - Element-wise operations returning widened types
+ *  Layout: [high nibble : low nibble]. Elements sign-extended to i8 for arithmetic.
+ *  Range per element: [−8, +7].
  */
 struct i4x2_t {
     // Core type aliases
@@ -5043,15 +4925,10 @@ struct i4x2_t {
 };
 
 /**
- *  @brief Packed 4-bit unsigned integer pair (2 x u4 in one byte).
+ *  @brief Packed 4-bit unsigned integer pair (2 × u4 in one byte).
  *
- *  Storage/transport type for 4-bit quantized data. Elements are zero-extended
- *  to u8 for arithmetic. Layout: [high:4][low:4].
- *
- *  Features:
- *  - Element access (low/high nibbles as u8)
- *  - Dot product
- *  - Element-wise operations returning widened types
+ *  Layout: [high nibble : low nibble]. Elements zero-extended to u8 for arithmetic.
+ *  Range per element: [0, 15].
  */
 struct u4x2_t {
     // Core type aliases

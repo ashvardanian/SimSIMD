@@ -69,11 +69,12 @@ pub(crate) fn f64_round_compat(x: f64) -> f64 {
 
 // region: f16 Type
 
-/// A half-precision (16-bit) floating point number.
+/// Half-precision (16-bit) IEEE 754 floating-point number.
 ///
-/// This type represents IEEE 754 half-precision binary floating-point format.
-/// It provides conversion methods to and from f32, and the underlying u16
-/// representation is publicly accessible for direct bit manipulation.
+/// Layout: sign(1) + exponent(5) + mantissa(10), bias=15.
+/// Range: ±65504, epsilon at 1.0 ≈ 9.77×10⁻⁴, subnormal min ≈ 5.96×10⁻⁸.
+/// 30 722 of 63 488 finite values (48.4%) fall in [−1, +1].
+/// All arithmetic via f32 upcast/downcast.
 ///
 /// # Examples
 ///
@@ -223,11 +224,12 @@ impl core::cmp::PartialOrd for f16 {
 
 // region: bf16 Type
 
-/// A brain floating point (bfloat16) number.
+/// BFloat16 (16-bit) floating-point number — truncated IEEE 754 single-precision.
 ///
-/// Google's bfloat16 format truncates IEEE 754 single-precision to 16 bits,
-/// keeping the sign bit, 8 exponent bits, and 7 mantissa bits. This provides
-/// wider dynamic range than f16 but lower precision.
+/// Layout: sign(1) + exponent(8) + mantissa(7), bias=127.
+/// Range: ±3.39×10³⁸ (same dynamic range as f32), epsilon at 1.0 ≈ 7.81×10⁻³.
+/// 32 514 of 65 280 finite values (49.8%) fall in [−1, +1].
+/// Wider dynamic range than f16 but lower precision (7 vs 10 mantissa bits).
 ///
 /// # Examples
 ///
@@ -379,11 +381,12 @@ impl core::cmp::PartialOrd for bf16 {
 
 // region: e4m3 Type
 
-/// An 8-bit floating point number in E4M3 format (OCP FP8).
+/// 8-bit E4M3 floating-point number (OCP FP8).
 ///
-/// E4M3 uses 1 sign bit, 4 exponent bits, and 3 mantissa bits. It provides
-/// wider dynamic range than E5M2 but lower precision. Note: E4M3 has no
-/// infinities, using those bit patterns for NaN instead.
+/// Layout: sign(1) + exponent(4) + mantissa(3), bias=7.
+/// Range: ±448, no infinities (all-ones exponent → NaN).
+/// 114 of 254 finite values (44.9%) fall in [−1, +1].
+/// Exact integer dot products via exponent-sum binning (29 bins).
 ///
 /// # Examples
 ///
@@ -531,11 +534,12 @@ impl core::cmp::PartialOrd for e4m3 {
 
 // region: e5m2 Type
 
-/// An 8-bit floating point number in E5M2 format (OCP FP8).
+/// 8-bit E5M2 floating-point number (OCP FP8).
 ///
-/// E5M2 uses 1 sign bit, 5 exponent bits, and 2 mantissa bits. It has
-/// a similar structure to IEEE half-precision but reduced precision.
-/// Unlike E4M3, E5M2 supports infinities.
+/// Layout: sign(1) + exponent(5) + mantissa(2), bias=15.
+/// Range: ±57 344, supports infinities. Only 4 mantissa levels per exponent.
+/// 122 of 248 finite values (49.2%) fall in [−1, +1].
+/// High cancellation risk in dot products — consider compensated accumulation.
 ///
 /// # Examples
 ///
@@ -690,11 +694,12 @@ impl core::cmp::PartialOrd for e5m2 {
 
 // region: e2m3 Type
 
-/// A 6-bit floating point number in E2M3FN format (padded to 8-bit).
+/// 6-bit E2M3 micro-float (padded to 8-bit storage).
 ///
-/// E2M3FN uses 1 sign bit, 2 exponent bits, and 3 mantissa bits. It provides
-/// higher precision than E3M2 but narrower dynamic range. Note: E2M3FN has no
-/// infinities, using those bit patterns for NaN instead.
+/// Layout: sign(1) + exponent(2) + mantissa(3), bias=1.
+/// Range: ±7.5, no infinities. Only 64 total codes; 18 (28.1%) fall in [−1, +1].
+/// 72% of codes lie outside [−1, +1] — poor resolution for normalized vectors.
+/// Exact integer dot products via exponent-sum binning (15 bins).
 ///
 /// # Examples
 ///
@@ -845,11 +850,11 @@ impl core::cmp::PartialOrd for e2m3 {
 
 // region: e3m2 Type
 
-/// A 6-bit floating point number in E3M2FN format (padded to 8-bit).
+/// 6-bit E3M2 micro-float (padded to 8-bit storage).
 ///
-/// E3M2FN uses 1 sign bit, 3 exponent bits, and 2 mantissa bits. It provides
-/// wider dynamic range than E2M3 but lower precision. Unlike E2M3FN, E3M2FN
-/// supports infinities.
+/// Layout: sign(1) + exponent(3) + mantissa(2), bias=3.
+/// Range: ±28, supports infinities. Only 64 total codes; 26 (40.6%) fall in [−1, +1].
+/// Exact integer dot products via exponent-sum binning (15 bins).
 ///
 /// # Examples
 ///
@@ -1002,10 +1007,10 @@ impl core::cmp::PartialOrd for e3m2 {
 
 // region: u1x8 Type
 
-/// A packed 8-bit vector representing 8 binary (1-bit) values.
+/// Packed 8-bit bit-vector (8 booleans in one byte).
 ///
-/// Used for Hamming and Jaccard distance on binary vectors.
-/// Each `u1x8` holds 8 bits packed into a single byte (b0 = LSB, b7 = MSB).
+/// Layout: 8 bits packed into one byte, LSB = dimension 0.
+/// Used for Hamming distance and Jaccard similarity via popcount.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct u1x8(pub u8);
@@ -1081,10 +1086,10 @@ impl From<u1x8> for (bool, bool, bool, bool, bool, bool, bool, bool) {
 
 // region: u4x2 Type
 
-/// A packed byte containing two unsigned 4-bit values (0..15).
+/// Packed 4-bit unsigned integer pair (2 × u4 in one byte).
 ///
-/// Used for dot products and spatial distances on 4-bit quantized vectors.
 /// Layout: low nibble = first element, high nibble = second element.
+/// Range per element: [0, 15]. Elements zero-extended to u8 for arithmetic.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct u4x2(pub u8);
@@ -1135,10 +1140,10 @@ impl From<u4x2> for (u8, u8) {
 
 // region: i4x2 Type
 
-/// A packed byte containing two signed 4-bit values (-8..7).
+/// Packed 4-bit signed integer pair (2 × i4 in one byte).
 ///
-/// Used for dot products and spatial distances on 4-bit quantized vectors.
 /// Layout: low nibble = first element, high nibble = second element (two's complement).
+/// Range per element: [−8, +7]. Elements sign-extended to i8 for arithmetic.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct i4x2(pub u8);
@@ -2029,7 +2034,10 @@ impl ComplexComponent for f64 {
     }
 }
 
-/// Complex number stored as adjacent real and imaginary components.
+/// Complex number with adjacent real and imaginary components of type `T`.
+///
+/// Layout: `{re: T, im: T}`. Supports conjugate, norm², and component access.
+/// Concrete aliases: [`f16c`], [`bf16c`], [`f32c`], [`f64c`].
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct complex<T> {
@@ -2063,13 +2071,13 @@ impl<T: ComplexComponent> complex<T> {
     }
 }
 
-/// Half-precision complex number (real + imaginary `f16` pair).
+/// Half-precision (32-bit) complex number — two [`f16`] components. Kernel outputs widened to f32c.
 pub type f16c = complex<f16>;
-/// Brain-float complex number (real + imaginary `bf16` pair).
+/// BFloat16 (32-bit) complex number — two [`bf16`] components. Kernel outputs widened to f32c.
 pub type bf16c = complex<bf16>;
-/// Single-precision complex number (real + imaginary `f32` pair).
+/// Single-precision (64-bit) complex number — two `f32` components.
 pub type f32c = complex<f32>;
-/// Double-precision complex number (real + imaginary `f64` pair).
+/// Double-precision (128-bit) complex number — two `f64` components.
 pub type f64c = complex<f64>;
 
 impl<T: ComplexComponent> From<f32> for complex<T> {

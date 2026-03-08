@@ -562,46 +562,64 @@
 extern "C" {
 #endif
 
-/** @brief Eight boolean values packed in one byte.
- *  The number of dimensions passed to sub-byte kernels must be a multiple of 8.
- *  Unused sub-elements in the final byte must be zeroed. */
+/** @brief Packed 8-bit bit-vector (8 booleans in one byte), LSB = dimension 0.
+ *  Used for Hamming distance and Jaccard similarity via popcount.
+ *  Dimension count must be a multiple of 8; unused bits in the final byte must be zeroed. */
 typedef unsigned char nk_u1x8_t;
-/** @brief Two 4-bit signed integers packed in one byte.
- *  The number of dimensions passed to sub-byte kernels must be a multiple of 2.
- *  Unused sub-elements in the final byte must be zeroed. */
+/** @brief Packed 4-bit signed integer pair (2 × i4 in one byte), [high nibble : low nibble].
+ *  Range per element: [−8, +7]. Elements sign-extended to i8 for arithmetic.
+ *  Dimension count must be a multiple of 2; unused nibbles in the final byte must be zeroed. */
 typedef unsigned char nk_i4x2_t;
-/** @brief Two 4-bit unsigned integers packed in one byte.
- *  The number of dimensions passed to sub-byte kernels must be a multiple of 2.
- *  Unused sub-elements in the final byte must be zeroed. */
+/** @brief Packed 4-bit unsigned integer pair (2 × u4 in one byte), [high nibble : low nibble].
+ *  Range per element: [0, 15]. Elements zero-extended to u8 for arithmetic.
+ *  Dimension count must be a multiple of 2; unused nibbles in the final byte must be zeroed. */
 typedef unsigned char nk_u4x2_t;
 
-/** @brief FP8 E4M3FN (OCP v1.0): S EEEE MMM, bias=7, range ±448, no Inf, NaN at 0x7F/0xFF */
+/** @brief 8-bit E4M3 float (OCP FP8): sign(1) + exponent(4) + mantissa(3), bias=7.
+ *  Range: ±448, no infinities (all-ones exponent → NaN at 0x7F/0xFF).
+ *  114 of 254 finite values (44.9%) fall in [−1, +1]. */
 typedef unsigned char nk_e4m3_t;
-/** @brief FP8 E5M2 (OCP v1.0): S EEEEE MM, bias=15, range ±57344, Inf at 0x7C/0xFC */
+/** @brief 8-bit E5M2 float (OCP FP8): sign(1) + exponent(5) + mantissa(2), bias=15.
+ *  Range: ±57 344, supports infinities at 0x7C/0xFC.
+ *  122 of 248 finite values (49.2%) fall in [−1, +1]. */
 typedef unsigned char nk_e5m2_t;
-/** @brief FP6 E2M3FN (OCP MX v1.0): S EE MMM (6-bit), bias=1, range ±7.5, no Inf/NaN */
+/** @brief 6-bit E2M3 micro-float (OCP MX v1.0): sign(1) + exponent(2) + mantissa(3), bias=1.
+ *  Range: ±7.5, no infinities or NaN. Only 64 total codes; 18 (28.1%) fall in [−1, +1]. */
 typedef unsigned char nk_e2m3_t;
-/** @brief FP6 E3M2FN (OCP MX v1.0): S EEE MM (6-bit), bias=3, range ±28, no Inf/NaN */
+/** @brief 6-bit E3M2 micro-float (OCP MX v1.0): sign(1) + exponent(3) + mantissa(2), bias=3.
+ *  Range: ±28, supports infinities. Only 64 total codes; 26 (40.6%) fall in [−1, +1]. */
 typedef unsigned char nk_e3m2_t;
 
+/** @brief Signed 8-bit integer. Range: [−128, +127]. */
 typedef signed char nk_i8_t;
+/** @brief Unsigned 8-bit integer. Range: [0, 255]. */
 typedef unsigned char nk_u8_t;
+/** @brief Signed 16-bit integer. Range: [−32 768, +32 767]. */
 typedef signed short nk_i16_t;
+/** @brief Unsigned 16-bit integer. Range: [0, 65 535]. */
 typedef unsigned short nk_u16_t;
+/** @brief Signed 32-bit integer. Range: [−2³¹, +2³¹−1]. */
 typedef signed int nk_i32_t;
+/** @brief Unsigned 32-bit integer. Range: [0, 2³²−1]. */
 typedef unsigned int nk_u32_t;
-// On LP64 targets (Linux ARM64, RISC-V 64), `long` and `long long` are both 64-bit but distinct types.
-// NEON/RVV intrinsics on Linux expect `long*`, while Apple's NEON intrinsics expect `long long*`.
-// Windows uses LLP64 where `long` is 32-bit, so it must use `long long` for 64-bit types.
+/*  On LP64 targets (Linux ARM64, RISC-V 64), `long` and `long long` are both 64-bit but distinct types.
+ *  NEON/RVV intrinsics on Linux expect `long*`, while Apple's NEON intrinsics expect `long long*`.
+ *  Windows uses LLP64 where `long` is 32-bit, so it must use `long long` for 64-bit types. */
 #if ((NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)) || NK_TARGET_RISCV_) && !defined(NK_DEFINED_WINDOWS_)
+/** @brief Signed 64-bit integer. Range: [−2⁶³, +2⁶³−1]. */
 typedef signed long nk_i64_t;
+/** @brief Unsigned 64-bit integer. Range: [0, 2⁶⁴−1]. */
 typedef unsigned long nk_u64_t;
 #else
+/** @brief Signed 64-bit integer. Range: [−2⁶³, +2⁶³−1]. */
 typedef signed long long nk_i64_t;
+/** @brief Unsigned 64-bit integer. Range: [0, 2⁶⁴−1]. */
 typedef unsigned long long nk_u64_t;
 #endif
 
+/** @brief Single-precision (32-bit) IEEE 754 float. sign(1) + exponent(8) + mantissa(23), bias=127. */
 typedef float nk_f32_t;
+/** @brief Double-precision (64-bit) IEEE 754 float. sign(1) + exponent(11) + mantissa(52), bias=1023. */
 typedef double nk_f64_t;
 
 #if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_
@@ -785,7 +803,10 @@ NK_PUBLIC nk_size_t nk_dtype_dimensions_per_value(nk_dtype_t dtype) {
     }
 }
 
-/*  @brief  Half-precision floating-point type.
+/** @brief Half-precision (16-bit) IEEE 754 float.
+ *
+ *  Layout: sign(1) + exponent(5) + mantissa(10), bias=15.
+ *  Range: ±65 504, epsilon at 1.0 ≈ 9.77×10⁻⁴. 30 722 of 63 488 finite values (48.4%) in [−1, +1].
  *
  *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
@@ -813,11 +834,13 @@ typedef unsigned short nk_f16_t;
 #endif
 
 #if !defined(NK_NATIVE_BF16) || NK_NATIVE_BF16
-/**
- *  @brief  Half-precision brain-float type.
+/** @brief BFloat16 (16-bit) float — truncated IEEE 754 single-precision.
  *
- *  - GCC or Clang on 64-bit Arm: `__bf16`
- *  - GCC or Clang on 64-bit x86: `_BFloat16`.
+ *  Layout: sign(1) + exponent(8) + mantissa(7), bias=127.
+ *  Same dynamic range as f32, epsilon ≈ 7.81×10⁻³.
+ *  32 514 of 65 280 finite values (49.8%) in [−1, +1]. Wider range than f16 but lower precision.
+ *
+ *  - GCC or Clang: `__bf16`
  *  - Default: `unsigned short`.
  *
  *  The compilers have added `__bf16` support in compliance with the x86-64 psABI spec.
@@ -903,7 +926,7 @@ NK_STATIC_ASSERT(sizeof(nk_bf16_t) == 2, nk_bf16_t_must_be_2_bytes);
 
 #define nk_assign_from_to_(src, dest) (*(dest) = *(src))
 
-/** @brief  Convenience type for half-precision floating-point bit manipulation. */
+/** @brief 16-bit union for f16/bf16/u16/i16 bit manipulation. */
 typedef union {
     nk_u16_t u;
     nk_i16_t i;
@@ -911,39 +934,39 @@ typedef union {
     nk_bf16_t bf;
 } nk_fui16_t;
 
-/** @brief  Convenience type for single-precision floating-point bit manipulation. */
+/** @brief 32-bit union for f32/u32/i32 bit manipulation. */
 typedef union {
     nk_u32_t u;
     nk_i32_t i;
     nk_f32_t f;
 } nk_fui32_t;
 
-/** @brief  Convenience type for double-precision floating-point bit manipulation. */
+/** @brief 64-bit union for f64/u64/i64 bit manipulation. */
 typedef union {
     nk_u64_t u;
     nk_i64_t i;
     nk_f64_t f;
 } nk_fui64_t;
 
-/** @brief  Convenience type addressing the real and imaginary parts of a half-precision complex number. */
+/** @brief Half-precision (32-bit) complex number — {real: f16, imag: f16}. Kernel outputs widened to f32c. */
 typedef struct {
     nk_f16_t real;
     nk_f16_t imag;
 } nk_f16c_t;
 
-/** @brief  Convenience type addressing the real and imaginary parts of a half-precision brain-float complex number. */
+/** @brief BFloat16 (32-bit) complex number — {real: bf16, imag: bf16}. Kernel outputs widened to f32c. */
 typedef struct {
     nk_bf16_t real;
     nk_bf16_t imag;
 } nk_bf16c_t;
 
-/** @brief  Convenience type addressing the real and imaginary parts of a single-precision complex number. */
+/** @brief Single-precision (64-bit) complex number — {real: f32, imag: f32}. */
 typedef struct {
     nk_f32_t real;
     nk_f32_t imag;
 } nk_f32c_t;
 
-/** @brief  Convenience type addressing the real and imaginary parts of a double-precision complex number. */
+/** @brief Double-precision (128-bit) complex number — {real: f64, imag: f64}. */
 typedef struct {
     nk_f64_t real;
     nk_f64_t imag;

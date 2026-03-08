@@ -248,6 +248,14 @@ static PyNumberMethods NkBFloat16Scalar_as_number = {
     .nb_int = (unaryfunc)NkBFloat16Scalar_int,
 };
 
+static char const doc_bfloat16[] =                                             //
+    "BFloat16 (16-bit) floating-point scalar.\n"                               //
+    "\n"                                                                       //
+    "Layout: sign(1) + exponent(8) + mantissa(7), bias=127.\n"                 //
+    "Range: ±3.39e38 (same dynamic range as f32), epsilon at 1.0: ~7.81e-3.\n" //
+    "32,514 of 65,280 finite values (49.8%%) fall in [-1, +1].\n"              //
+    "Wider dynamic range than float16 but lower precision (7 vs 10 mantissa bits).";
+
 PyTypeObject NkBFloat16Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.bfloat16",
     .tp_basicsize = sizeof(NkBFloat16ScalarObject),
@@ -258,7 +266,7 @@ PyTypeObject NkBFloat16Scalar_Type = {
     .tp_hash = (hashfunc)NkBFloat16Scalar_hash,
     .tp_richcompare = NkBFloat16Scalar_richcompare,
     .tp_as_number = &NkBFloat16Scalar_as_number,
-    .tp_doc = "NumKong bfloat16 scalar type (16-bit brain floating point)",
+    .tp_doc = doc_bfloat16,
 };
 
 static PyObject *NkFloat8E4M3Scalar_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -477,6 +485,14 @@ static PyNumberMethods NkFloat8E4M3Scalar_as_number = {
     .nb_int = (unaryfunc)NkFloat8E4M3Scalar_int,
 };
 
+static char const doc_float8_e4m3[] =                         //
+    "8-bit E4M3 (OCP FP8) floating-point scalar.\n"           //
+    "\n"                                                      //
+    "Layout: sign(1) + exponent(4) + mantissa(3), bias=7.\n"  //
+    "Range: ±448, no infinities (all-ones exponent = NaN).\n" //
+    "114 of 254 finite values (44.9%%) fall in [-1, +1].\n"   //
+    "Exact integer dot products via exponent-sum binning (29 bins).";
+
 PyTypeObject NkFloat8E4M3Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.float8_e4m3",
     .tp_basicsize = sizeof(NkFloat8E4M3ScalarObject),
@@ -487,7 +503,7 @@ PyTypeObject NkFloat8E4M3Scalar_Type = {
     .tp_hash = (hashfunc)NkFloat8E4M3Scalar_hash,
     .tp_richcompare = NkFloat8E4M3Scalar_richcompare,
     .tp_as_number = &NkFloat8E4M3Scalar_as_number,
-    .tp_doc = "NumKong float8_e4m3 scalar type (8-bit E4M3 floating point)",
+    .tp_doc = doc_float8_e4m3,
 };
 
 static PyObject *NkFloat8E5M2Scalar_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -706,6 +722,14 @@ static PyNumberMethods NkFloat8E5M2Scalar_as_number = {
     .nb_int = (unaryfunc)NkFloat8E5M2Scalar_int,
 };
 
+static char const doc_float8_e5m2[] =                                             //
+    "8-bit E5M2 (OCP FP8) floating-point scalar.\n"                               //
+    "\n"                                                                          //
+    "Layout: sign(1) + exponent(5) + mantissa(2), bias=15.\n"                     //
+    "Range: ±57,344, supports infinities. Only 4 mantissa levels per exponent.\n" //
+    "122 of 248 finite values (49.2%%) fall in [-1, +1].\n"                       //
+    "High cancellation risk in dot products.";
+
 PyTypeObject NkFloat8E5M2Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.float8_e5m2",
     .tp_basicsize = sizeof(NkFloat8E5M2ScalarObject),
@@ -716,7 +740,7 @@ PyTypeObject NkFloat8E5M2Scalar_Type = {
     .tp_hash = (hashfunc)NkFloat8E5M2Scalar_hash,
     .tp_richcompare = NkFloat8E5M2Scalar_richcompare,
     .tp_as_number = &NkFloat8E5M2Scalar_as_number,
-    .tp_doc = "NumKong float8_e5m2 scalar type (8-bit E5M2 floating point, range ~+-57344)",
+    .tp_doc = doc_float8_e5m2,
 };
 
 static PyObject *NkFloat16Scalar_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -935,6 +959,14 @@ static PyNumberMethods NkFloat16Scalar_as_number = {
     .nb_int = (unaryfunc)NkFloat16Scalar_int,
 };
 
+static char const doc_float16[] =                                 //
+    "IEEE 754 half-precision (16-bit) floating-point scalar.\n"   //
+    "\n"                                                          //
+    "Layout: sign(1) + exponent(5) + mantissa(10), bias=15.\n"    //
+    "Range: ±65,504, epsilon at 1.0: ~9.77e-4.\n"                 //
+    "30,722 of 63,488 finite values (48.4%%) fall in [-1, +1].\n" //
+    "All arithmetic via f32 upcast/downcast.";
+
 PyTypeObject NkFloat16Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.float16",
     .tp_basicsize = sizeof(NkFloat16ScalarObject),
@@ -945,7 +977,7 @@ PyTypeObject NkFloat16Scalar_Type = {
     .tp_hash = (hashfunc)NkFloat16Scalar_hash,
     .tp_richcompare = NkFloat16Scalar_richcompare,
     .tp_as_number = &NkFloat16Scalar_as_number,
-    .tp_doc = "NumKong float16 scalar type (IEEE 754 half-precision, range ~+-65504)",
+    .tp_doc = doc_float16,
 };
 
 static PyObject *NkFloat6E2M3Scalar_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -1164,6 +1196,14 @@ static PyNumberMethods NkFloat6E2M3Scalar_as_number = {
     .nb_int = (unaryfunc)NkFloat6E2M3Scalar_int,
 };
 
+static char const doc_float6_e2m3[] =                                                     //
+    "6-bit E2M3 micro-float scalar (padded to 8-bit storage).\n"                          //
+    "\n"                                                                                  //
+    "Layout: sign(1) + exponent(2) + mantissa(3), bias=1.\n"                              //
+    "Range: ±7.5, no infinities. Only 64 total codes.\n"                                  //
+    "18 of 64 codes (28.1%%) fall in [-1, +1]; poor resolution for normalized vectors.\n" //
+    "Exact integer dot products via exponent-sum binning (15 bins).";
+
 PyTypeObject NkFloat6E2M3Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.float6_e2m3",
     .tp_basicsize = sizeof(NkFloat6E2M3ScalarObject),
@@ -1174,7 +1214,7 @@ PyTypeObject NkFloat6E2M3Scalar_Type = {
     .tp_hash = (hashfunc)NkFloat6E2M3Scalar_hash,
     .tp_richcompare = NkFloat6E2M3Scalar_richcompare,
     .tp_as_number = &NkFloat6E2M3Scalar_as_number,
-    .tp_doc = "NumKong float6_e2m3 scalar type (6-bit E2M3 micro-float, range ~+-7.5)",
+    .tp_doc = doc_float6_e2m3,
 };
 
 static PyObject *NkFloat6E3M2Scalar_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
@@ -1393,6 +1433,14 @@ static PyNumberMethods NkFloat6E3M2Scalar_as_number = {
     .nb_int = (unaryfunc)NkFloat6E3M2Scalar_int,
 };
 
+static char const doc_float6_e3m2[] =                            //
+    "6-bit E3M2 micro-float scalar (padded to 8-bit storage).\n" //
+    "\n"                                                         //
+    "Layout: sign(1) + exponent(3) + mantissa(2), bias=3.\n"     //
+    "Range: ±28, supports infinities. Only 64 total codes.\n"    //
+    "26 of 64 codes (40.6%%) fall in [-1, +1].\n"                //
+    "Exact integer dot products via exponent-sum binning (15 bins).";
+
 PyTypeObject NkFloat6E3M2Scalar_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.float6_e3m2",
     .tp_basicsize = sizeof(NkFloat6E3M2ScalarObject),
@@ -1403,7 +1451,7 @@ PyTypeObject NkFloat6E3M2Scalar_Type = {
     .tp_hash = (hashfunc)NkFloat6E3M2Scalar_hash,
     .tp_richcompare = NkFloat6E3M2Scalar_richcompare,
     .tp_as_number = &NkFloat6E3M2Scalar_as_number,
-    .tp_doc = "NumKong float6_e3m2 scalar type (6-bit E3M2 micro-float, range ~+-28)",
+    .tp_doc = doc_float6_e3m2,
 };
 
 int nk_register_scalar_types(PyObject *module) {
