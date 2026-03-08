@@ -670,8 +670,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
 
     // Hub 1: f32x16 - float types + small integers (16 elements/batch)
     if (from_f32_hub && to_f32_hub) {
-        nk_size_t from_step = sizeof(nk_b512_vec_t) / sizeof(nk_f32_t) * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
-        nk_size_t to_step = sizeof(nk_b512_vec_t) / sizeof(nk_f32_t) * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
+        nk_size_t from_bytes = nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
+        nk_size_t to_bytes = nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
         while (n > 0) {
             nk_size_t batch = n < 16 ? n : 16;
             __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)batch);
@@ -721,8 +721,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
             else if (to_type == nk_u16_k)
                 _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_u16x16_skylake_(hub_f32x16));
 
-            from_ptr += from_step;
-            to_ptr += to_step;
+            from_ptr += batch * from_bytes;
+            to_ptr += batch * to_bytes;
             n -= batch;
         }
         return;
@@ -730,8 +730,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
 
     // Hub 2: u64x8 - unsigned ↔ unsigned integers (8 elements/batch)
     if (from_unsigned && to_unsigned) {
-        nk_size_t from_step = sizeof(nk_b512_vec_t) / sizeof(nk_u64_t) * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
-        nk_size_t to_step = sizeof(nk_b512_vec_t) / sizeof(nk_u64_t) * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
+        nk_size_t from_bytes = nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
+        nk_size_t to_bytes = nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
@@ -752,8 +752,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
             else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_u64x8_to_u32x8_skylake_(hub_u64x8));
             else if (to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_u64x8);
 
-            from_ptr += from_step;
-            to_ptr += to_step;
+            from_ptr += batch * from_bytes;
+            to_ptr += batch * to_bytes;
             n -= batch;
         }
         return;
@@ -761,8 +761,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
 
     // Hub 3: i64x8 - signed/mixed integer conversions (8 elements/batch)
     if ((from_signed || from_unsigned) && (to_signed || to_unsigned)) {
-        nk_size_t from_step = sizeof(nk_b512_vec_t) / sizeof(nk_i64_t) * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
-        nk_size_t to_step = sizeof(nk_b512_vec_t) / sizeof(nk_i64_t) * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
+        nk_size_t from_bytes = nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
+        nk_size_t to_bytes = nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
@@ -792,8 +792,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
             else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_i64x8_to_u32x8_skylake_(hub_i64x8));
             else if (to_type == nk_i64_k || to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_i64x8);
 
-            from_ptr += from_step;
-            to_ptr += to_step;
+            from_ptr += batch * from_bytes;
+            to_ptr += batch * to_bytes;
             n -= batch;
         }
         return;
@@ -805,8 +805,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
     if ((from_f64 || to_f64) &&                                                                               //
         (from_type == nk_f64_k || from_type == nk_f32_k || from_type == nk_i32_k || from_type == nk_u32_k) && //
         (to_type == nk_f64_k || to_type == nk_f32_k || to_type == nk_i32_k || to_type == nk_u32_k)) {
-        nk_size_t from_step = sizeof(nk_b512_vec_t) / sizeof(nk_f64_t) * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
-        nk_size_t to_step = sizeof(nk_b512_vec_t) / sizeof(nk_f64_t) * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
+        nk_size_t from_bytes = nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
+        nk_size_t to_bytes = nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
@@ -828,8 +828,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
             else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_i32x8_skylake_(hub_f64x8));
             else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_u32x8_skylake_(hub_f64x8));
 
-            from_ptr += from_step;
-            to_ptr += to_step;
+            from_ptr += batch * from_bytes;
+            to_ptr += batch * to_bytes;
             n -= batch;
         }
         return;
