@@ -448,7 +448,6 @@ setup(
     long_description_content_type="text/markdown",
     license="Apache-2.0",
     classifiers=[
-        "License :: OSI Approved :: Apache Software License",
         "Operating System :: POSIX :: Linux",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS",
