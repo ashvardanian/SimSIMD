@@ -397,6 +397,17 @@ def make_random(shape, dtype):
         # Exclude NaN/±∞ entries from random generation
         finite_mask = np.isfinite(lut)
         valid_bytes = np.where(finite_mask)[0].astype(np.uint8)
+        # For types whose max representable value can cause FP32 accumulation
+        # errors exceeding NK_ATOL (catastrophic cancellation), restrict to
+        # values whose magnitude keeps products within FP32's reliable range.
+        # Threshold: T² * eps_f32 < NK_ATOL/4  =>  T = floor(sqrt(NK_ATOL / (4 * eps_f32))) ~ 458
+        # Only e5m2 (max 57344) is affected; e4m3/e3m2/e2m3 are within bounds.
+        eps32 = np.finfo(np.float32).eps
+        mag_threshold = np.floor(np.sqrt(NK_ATOL / (4 * eps32)))
+        decoded = lut[valid_bytes.astype(int)]
+        magnitude_ok = np.abs(decoded) <= mag_threshold
+        if not np.all(magnitude_ok):
+            valid_bytes = valid_bytes[magnitude_ok]
         raw = valid_bytes[np.random.randint(0, len(valid_bytes), size=shape)]
         baseline = lut[raw.astype(int)]
         return raw, baseline
