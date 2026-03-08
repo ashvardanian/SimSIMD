@@ -83,5 +83,7 @@ target/
 # Python wheel archives
 *.whl
 
-# Library crate: don't commit lockfile
+# Library: don't commit lockfiles!
 Cargo.lock
+uv.lock
+package-lock.json
