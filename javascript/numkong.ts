@@ -29,7 +29,7 @@ import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
-import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, DType, dtypeToString } from "./dtypes.js";
+import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, DType, dtypeToString } from "./types.js";
 
 let compiled: any;
 
@@ -37,7 +37,7 @@ try {
   let builddir = getBuildDir(getDirName());
   compiled = build(builddir);
 
-  // Initialize conversion functions for dtypes.ts
+  // Initialize conversion functions for types.ts
   setConversionFunctions({
     castF16ToF32: compiled.castF16ToF32,
     castF32ToF16: compiled.castF32ToF16,

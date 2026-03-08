@@ -8,7 +8,7 @@
         "node-gyp-build.d.ts",
         "numkong.ts",
         "numkong-wasm.ts",
-        "dtypes.ts"
+        "types.ts"
     ],
     "compilerOptions": {
         "allowJs": true,

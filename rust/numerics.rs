@@ -16,7 +16,7 @@
 //! - **Type casting**: [`CastDtype`], [`cast`]
 //! - **Capabilities**: [`cap`] module for runtime SIMD feature detection
 
-use crate::scalar::{
+use crate::types::{
     bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u1x8, u4x2, StorageElement,
 };
 
@@ -6454,7 +6454,7 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::{
+    use crate::types::{
         assert_close, bf16, bf16c, f16, f16c, f32c, f64c, FloatLike, NumberLike, StorageElement,
         TestableType,
     };

@@ -15,7 +15,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::scalar::{FloatConvertible, NumberLike, StorageElement};
+use crate::types::{FloatConvertible, NumberLike, StorageElement};
 use crate::tensor::{Allocator, Global, TensorError, SIMD_ALIGNMENT};
 
 // region: VecIndex — Signed Indexing
@@ -1012,7 +1012,7 @@ impl<'a, T: FloatConvertible> DoubleEndedIterator for DimIterator<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::{bf16, f16, i4x2, u1x8, u4x2};
+    use crate::types::{bf16, f16, i4x2, u1x8, u4x2};
 
     fn check_vector_roundtrip<T: FloatConvertible>() {
         let dims_per_value = T::dimensions_per_value();

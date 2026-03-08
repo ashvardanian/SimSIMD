@@ -12,7 +12,7 @@
  * - Both wasm32 and wasm64 (memory64) modes
  */
 
-import { TensorBase, DType, dtypeToString } from './dtypes.js';
+import { TensorBase, DType, dtypeToString } from './types.js';
 
 /**
  * Emscripten module interface.
@@ -157,7 +157,7 @@ function detectType(arr: any): TypeInfo {
     return { dtype: DType.U8, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
   }
 
-  // Check for custom typed arrays from dtypes.ts
+  // Check for custom typed arrays from types.ts
   const constructorName = arr.constructor.name;
 
   if (constructorName === 'Float16Array') {

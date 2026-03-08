@@ -1,6 +1,6 @@
 /**
  * @brief Custom TypedArray classes for non-native numeric types.
- * @file javascript/dtypes.ts
+ * @file javascript/types.ts
  * @author Ash Vardanian
  * @date February 3, 2026
  *

@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`scalars`]: Mixed-precision scalar types (`f16`, `bf16`, FP8, packed integers) and [`FloatLike`] trait
+//! - [`types`]: Mixed-precision scalar types (`f16`, `bf16`, FP8, packed integers) and [`FloatLike`] trait
 //! - [`numerics`]: Distance functions, elementwise operations, trigonometry, reductions, and geospatial
 //! - [`tensor`]: N-dimensional tensors, GEMM, and packed spatial distance operations
 //!
@@ -96,12 +96,12 @@
 // Module declarations
 pub mod maxsim;
 pub mod numerics;
-pub mod scalar;
 pub mod tensor;
+pub mod types;
 pub mod vector;
 
 // Re-export scalar types at crate root
-pub use scalar::{
+pub use types::{
     bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u1x8, u4x2, FloatConvertible,
     FloatLike, NumberLike, StorageElement,
 };

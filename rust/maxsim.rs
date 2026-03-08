@@ -24,7 +24,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::scalar::{bf16, f16};
+use crate::types::{bf16, f16};
 use crate::tensor::{Allocator, Global, ShapeDescriptor, TensorError, TensorView, SIMD_ALIGNMENT};
 
 // region: FFI

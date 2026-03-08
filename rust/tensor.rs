@@ -40,7 +40,7 @@ use crate::numerics::{
     cast, CastDtype, Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum,
     ReduceMinMax, ReduceMoments, Roots,
 };
-use crate::scalar::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 use crate::vector::VecIndex;
 
 #[link(name = "numkong")]
@@ -2485,7 +2485,7 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Returns `Err` if allocation fails or shape is invalid.
     pub fn try_ones_in(shape: &[usize], alloc: A) -> Result<Self, TensorError>
     where
-        T: crate::scalar::NumberLike,
+        T: crate::types::NumberLike,
     {
         Self::try_full_in(shape, T::one(), alloc)
     }
@@ -2719,7 +2719,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Creates a Tensor filled with ones using the global allocator.
     pub fn try_ones(shape: &[usize]) -> Result<Self, TensorError>
     where
-        T: crate::scalar::NumberLike,
+        T: crate::types::NumberLike,
     {
         Self::try_ones_in(shape, Global)
     }
@@ -7055,7 +7055,7 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scalar::{bf16c, f16c, f32c, NumberLike};
+    use crate::types::{bf16c, f16c, f32c, NumberLike};
     use std::sync::Once;
 
     static INIT: Once = Once::new();
@@ -7123,7 +7123,7 @@ mod tests {
         });
     }
 
-    use crate::scalar::{FloatLike, TestableType};
+    use crate::types::{FloatLike, TestableType};
 
     // Dimension combos for generic tensor tests: (m, n, k).
     const DIMS: &[(usize, usize, usize)] =

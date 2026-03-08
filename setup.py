@@ -405,7 +405,7 @@ base_sources = [
     "python/numkong.c",
     "python/tensor.c",
     "python/matrix.c",
-    "python/scalar.c",
+    "python/types.c",
     "python/distance.c",
     "python/each.c",
     "python/mesh.c",
