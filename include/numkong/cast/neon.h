@@ -607,14 +607,16 @@ NK_INTERNAL float32x4_t nk_i16x4_to_f32x4_neon_(int16x4_t i16x4) { return vcvtq_
 /** @brief Convert 4x u16 → f32x4 (NEON). Widen to u32, then convert. */
 NK_INTERNAL float32x4_t nk_u16x4_to_f32x4_neon_(uint16x4_t u16x4) { return vcvtq_f32_u32(vmovl_u16(u16x4)); }
 
-/** @brief Convert 4x i8 → f32x4 (NEON). Widen i8 → i16 → i32, then convert. */
-NK_INTERNAL float32x4_t nk_i8x4_to_f32x4_neon_(int8x8_t i8x8) {
+/** @brief Convert 4x i8 → f32x4 (NEON). Loads exactly 4 bytes via nk_b32_vec_t to avoid overread. */
+NK_INTERNAL float32x4_t nk_i8x4_to_f32x4_neon_(nk_b32_vec_t in_vec) {
+    int8x8_t i8x8 = vcreate_s8((nk_u64_t)in_vec.u32);
     int16x8_t i16x8 = vmovl_s8(i8x8);
     return vcvtq_f32_s32(vmovl_s16(vget_low_s16(i16x8)));
 }
 
-/** @brief Convert 4x u8 → f32x4 (NEON). Widen u8 → u16 → u32, then convert. */
-NK_INTERNAL float32x4_t nk_u8x4_to_f32x4_neon_(uint8x8_t u8x8) {
+/** @brief Convert 4x u8 → f32x4 (NEON). Loads exactly 4 bytes via nk_b32_vec_t to avoid overread. */
+NK_INTERNAL float32x4_t nk_u8x4_to_f32x4_neon_(nk_b32_vec_t in_vec) {
+    uint8x8_t u8x8 = vcreate_u8((nk_u64_t)in_vec.u32);
     uint16x8_t u16x8 = vmovl_u8(u8x8);
     return vcvtq_f32_u32(vmovl_u16(vget_low_u16(u16x8)));
 }
@@ -1082,8 +1084,16 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
         case nk_u32_k: hub_f32x4 = vcvtq_f32_u32(vld1q_u32((nk_u32_t const *)from_ptr)); break;
         case nk_i16_k: hub_f32x4 = nk_i16x4_to_f32x4_neon_(vld1_s16((nk_i16_t const *)from_ptr)); break;
         case nk_u16_k: hub_f32x4 = nk_u16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)from_ptr)); break;
-        case nk_i8_k: hub_f32x4 = nk_i8x4_to_f32x4_neon_(vld1_s8((nk_i8_t const *)from_ptr)); break;
-        case nk_u8_k: hub_f32x4 = nk_u8x4_to_f32x4_neon_(vld1_u8((nk_u8_t const *)from_ptr)); break;
+        case nk_i8_k: {
+            nk_b32_vec_t in_vec;
+            nk_load_b32_serial_(from_ptr, &in_vec);
+            hub_f32x4 = nk_i8x4_to_f32x4_neon_(in_vec);
+        } break;
+        case nk_u8_k: {
+            nk_b32_vec_t in_vec;
+            nk_load_b32_serial_(from_ptr, &in_vec);
+            hub_f32x4 = nk_u8x4_to_f32x4_neon_(in_vec);
+        } break;
         default: hub_f32x4 = vdupq_n_f32(0); break;
         }
 
