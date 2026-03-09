@@ -13,6 +13,9 @@ void nk_dispatch_i8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_dots_packed_size_k:
             *m = (m_t)&nk_dots_packed_size_i8_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;

@@ -258,6 +258,14 @@ void test_dot() {
     run_if_matches("dot_e2m3_v128relaxed", test_dot<e2m3_t>, nk_dot_e2m3_v128relaxed);
     run_if_matches("dot_e3m2_v128relaxed", test_dot<e3m2_t>, nk_dot_e3m2_v128relaxed);
     run_if_matches("dot_u1_v128relaxed", test_dot<u1x8_t>, nk_dot_u1_v128relaxed);
+    run_if_matches("dot_e4m3_v128relaxed", test_dot<e4m3_t>, nk_dot_e4m3_v128relaxed);
+    run_if_matches("dot_e5m2_v128relaxed", test_dot<e5m2_t>, nk_dot_e5m2_v128relaxed);
+    run_if_matches("dot_i4_v128relaxed", test_dot<i4x2_t>, nk_dot_i4_v128relaxed);
+    run_if_matches("dot_u4_v128relaxed", test_dot<u4x2_t>, nk_dot_u4_v128relaxed);
+    run_if_matches("dot_f32c_v128relaxed", test_dot<f32c_t>, nk_dot_f32c_v128relaxed);
+    run_if_matches("vdot_f32c_v128relaxed", test_vdot<f32c_t>, nk_vdot_f32c_v128relaxed);
+    run_if_matches("dot_f64c_v128relaxed", test_dot<f64c_t>, nk_dot_f64c_v128relaxed);
+    run_if_matches("vdot_f64c_v128relaxed", test_vdot<f64c_t>, nk_vdot_f64c_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF

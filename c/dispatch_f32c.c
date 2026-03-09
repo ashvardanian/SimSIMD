@@ -8,6 +8,13 @@
 
 void nk_dispatch_f32c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32c_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f32c_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE
     if (v & nk_cap_sve_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32c_sve, *c = nk_cap_sve_k; return;

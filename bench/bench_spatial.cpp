@@ -205,6 +205,12 @@ void bench_spatial() {
     run_dense<f64_k, f64_k>("angular_f64_v128relaxed", nk_angular_f64_v128relaxed);
     run_dense<f16_k, f32_k>("angular_f16_v128relaxed", nk_angular_f16_v128relaxed);
     run_dense<bf16_k, f32_k>("angular_bf16_v128relaxed", nk_angular_bf16_v128relaxed);
+    run_dense<u8_k, u32_k>("sqeuclidean_u8_v128relaxed", nk_sqeuclidean_u8_v128relaxed);
+    run_dense<u8_k, f32_k>("euclidean_u8_v128relaxed", nk_euclidean_u8_v128relaxed);
+    run_dense<u8_k, f32_k>("angular_u8_v128relaxed", nk_angular_u8_v128relaxed);
+    run_dense<i8_k, u32_k>("sqeuclidean_i8_v128relaxed", nk_sqeuclidean_i8_v128relaxed);
+    run_dense<i8_k, f32_k>("euclidean_i8_v128relaxed", nk_euclidean_i8_v128relaxed);
+    run_dense<i8_k, f32_k>("angular_i8_v128relaxed", nk_angular_i8_v128relaxed);
 #endif
 
     // Serial fallbacks

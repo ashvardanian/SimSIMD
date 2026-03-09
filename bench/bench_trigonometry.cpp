@@ -107,6 +107,15 @@ void bench_trigonometry() {
     run_trigonometry<f16_k>("each_atan_f16_skylake", nk_each_atan_f16_skylake);
 #endif
 
+#if NK_TARGET_V128RELAXED
+    run_trigonometry<f32_k>("each_sin_f32_v128relaxed", nk_each_sin_f32_v128relaxed);
+    run_trigonometry<f32_k>("each_cos_f32_v128relaxed", nk_each_cos_f32_v128relaxed);
+    run_trigonometry<f32_k>("each_atan_f32_v128relaxed", nk_each_atan_f32_v128relaxed);
+    run_trigonometry<f64_k>("each_sin_f64_v128relaxed", nk_each_sin_f64_v128relaxed);
+    run_trigonometry<f64_k>("each_cos_f64_v128relaxed", nk_each_cos_f64_v128relaxed);
+    run_trigonometry<f64_k>("each_atan_f64_v128relaxed", nk_each_atan_f64_v128relaxed);
+#endif
+
     // STL baselines
     run_trigonometry<f32_k>("each_sin_f32_stl", elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f32_t>>);
     run_trigonometry<f32_k>("each_cos_f32_stl", elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f32_t>>);

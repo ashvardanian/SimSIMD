@@ -14,6 +14,15 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             *m = (m_t)&nk_reduce_moments_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_dots_symmetric_k:
+            *m = (m_t)&nk_dots_symmetric_e5m2_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
         default: break;
         }
 #endif

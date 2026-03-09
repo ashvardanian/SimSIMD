@@ -264,6 +264,12 @@ void test_spatial() {
     run_if_matches("angular_f64_v128relaxed", test_angular<f64_t>, nk_angular_f64_v128relaxed);
     run_if_matches("angular_f16_v128relaxed", test_angular<f16_t>, nk_angular_f16_v128relaxed);
     run_if_matches("angular_bf16_v128relaxed", test_angular<bf16_t>, nk_angular_bf16_v128relaxed);
+    run_if_matches("sqeuclidean_u8_v128relaxed", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_v128relaxed);
+    run_if_matches("euclidean_u8_v128relaxed", test_euclidean<u8_t>, nk_euclidean_u8_v128relaxed);
+    run_if_matches("angular_u8_v128relaxed", test_angular<u8_t>, nk_angular_u8_v128relaxed);
+    run_if_matches("sqeuclidean_i8_v128relaxed", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_v128relaxed);
+    run_if_matches("euclidean_i8_v128relaxed", test_euclidean<i8_t>, nk_euclidean_i8_v128relaxed);
+    run_if_matches("angular_i8_v128relaxed", test_angular<i8_t>, nk_angular_i8_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF

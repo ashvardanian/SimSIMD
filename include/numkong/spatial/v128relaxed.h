@@ -434,6 +434,235 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_v128relaxed_(nk_b128_vec_t do
 }
 
 #pragma endregion - Spatial From - Dot Helpers
+#pragma region - Integer Spatial
+
+NK_PUBLIC void nk_sqeuclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    v128_t sum_u32x4 = wasm_u32x4_splat(0);
+    nk_u8_t const *a_scalars = a, *b_scalars = b;
+    nk_size_t count_scalars = n;
+    v128_t a_u8x16, b_u8x16;
+
+nk_sqeuclidean_u8_v128relaxed_cycle:
+    if (count_scalars < 16) {
+        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
+        a_u8x16 = a_vec.v128;
+        b_u8x16 = b_vec.v128;
+        count_scalars = 0;
+    }
+    else {
+        a_u8x16 = wasm_v128_load(a_scalars);
+        b_u8x16 = wasm_v128_load(b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+
+    // |a-b| via saturating subtraction: diff = (a ⊖ b) | (b ⊖ a)
+    v128_t difference_u8x16 = wasm_v128_or(wasm_u8x16_sub_sat(a_u8x16, b_u8x16), wasm_u8x16_sub_sat(b_u8x16, a_u8x16));
+
+    // Widen to u16 and square via extmul
+    v128_t difference_low_u16x8 = wasm_u16x8_extend_low_u8x16(difference_u8x16);
+    v128_t difference_high_u16x8 = wasm_u16x8_extend_high_u8x16(difference_u8x16);
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_low_i16x8(difference_low_u16x8, difference_low_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_high_i16x8(difference_low_u16x8, difference_low_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_low_i16x8(difference_high_u16x8, difference_high_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_high_i16x8(difference_high_u16x8, difference_high_u16x8));
+    if (count_scalars) goto nk_sqeuclidean_u8_v128relaxed_cycle;
+
+    *result = nk_reduce_add_u32x4_v128relaxed_(sum_u32x4);
+}
+
+NK_PUBLIC void nk_euclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t distance_squared;
+    nk_sqeuclidean_u8_v128relaxed(a, b, n, &distance_squared);
+    *result = nk_f32_sqrt_v128relaxed((nk_f32_t)distance_squared);
+}
+
+NK_PUBLIC void nk_angular_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+    // Uses the same relaxed_dot decomposition as nk_dot_u8_v128relaxed:
+    //   a·b = relaxed_dot(a, b^0x80) + 128·Σa
+    //   a·a = relaxed_dot(a, a^0x80) + 128·Σa
+    //   b·b = relaxed_dot(b, b^0x80) + 128·Σb
+    // ~11 ops per 16 elements vs ~28 with extend+extmul.
+    nk_i64_t dot_ab_total = 0, dot_aa_total = 0, dot_bb_total = 0;
+    nk_i64_t sum_a_total = 0, sum_b_total = 0;
+    nk_size_t i = 0;
+
+    // Windowed accumulation loop
+    while (i + 16 <= n) {
+        v128_t dot_ab_i32x4 = wasm_i32x4_splat(0);
+        v128_t dot_aa_i32x4 = wasm_i32x4_splat(0);
+        v128_t dot_bb_i32x4 = wasm_i32x4_splat(0);
+        v128_t sum_a_u16x8 = wasm_u16x8_splat(0); // accumulate in u16
+        v128_t sum_b_u16x8 = wasm_u16x8_splat(0);
+
+        // Inner loop: accumulate 128 iterations before widening sums
+        // Overflow safety: max u16 lane = 128 × 510 = 65280 < 65535
+        nk_size_t cycle = 0;
+        for (; cycle < 128 && i + 16 <= n; ++cycle, i += 16) {
+            v128_t a_u8x16 = wasm_v128_load(a + i);
+            v128_t b_u8x16 = wasm_v128_load(b + i);
+
+            // Reinterpret unsigned as signed by flipping high bit (u8 → i7 domain)
+            v128_t a_signed_i8x16 = wasm_v128_xor(a_u8x16, wasm_i8x16_splat((char)0x80));
+            v128_t b_signed_i8x16 = wasm_v128_xor(b_u8x16, wasm_i8x16_splat((char)0x80));
+
+            // Three relaxed_dot calls: a·b_signed, a·a_signed, b·b_signed
+            dot_ab_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_u8x16, b_signed_i8x16, dot_ab_i32x4);
+            dot_aa_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_u8x16, a_signed_i8x16, dot_aa_i32x4);
+            dot_bb_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(b_u8x16, b_signed_i8x16, dot_bb_i32x4);
+
+            // Sum accumulators for correction: u8→u16 only (1 widening/iter)
+            sum_a_u16x8 = wasm_u16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
+            sum_b_u16x8 = wasm_u16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
+        }
+
+        // Deferred widening: u16 → u32 once per window
+        v128_t sum_a_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(sum_a_u16x8);
+        v128_t sum_b_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(sum_b_u16x8);
+        dot_ab_total += nk_reduce_add_i32x4_v128relaxed_(dot_ab_i32x4);
+        dot_aa_total += nk_reduce_add_i32x4_v128relaxed_(dot_aa_i32x4);
+        dot_bb_total += nk_reduce_add_i32x4_v128relaxed_(dot_bb_i32x4);
+        sum_a_total += nk_reduce_add_u32x4_v128relaxed_(sum_a_u32x4);
+        sum_b_total += nk_reduce_add_u32x4_v128relaxed_(sum_b_u32x4);
+    }
+
+    // Scalar tail
+    for (; i < n; i++) {
+        dot_ab_total += (nk_i32_t)a[i] * (nk_i32_t)b[i];
+        dot_aa_total += (nk_i32_t)a[i] * (nk_i32_t)a[i];
+        dot_bb_total += (nk_i32_t)b[i] * (nk_i32_t)b[i];
+    }
+
+    // Apply correction: true_dot = biased_dot + 128 × Σ(first operand)
+    // For the tail, the scalar products are already unbiased, so only correct the SIMD part.
+    // But since we accumulated both SIMD biased dots and scalar true dots into the same totals,
+    // we need to add the scalar sums too for the correction to work correctly on the SIMD portion.
+    // Actually, the scalar tail computes true products directly (no bias), so correction only
+    // applies to the biased SIMD sums. We handle this by not adding tail elements to sum_a/sum_b.
+    nk_f64_t dot_ab = (nk_f64_t)(dot_ab_total + 128LL * sum_a_total);
+    nk_f64_t norm_aa = (nk_f64_t)(dot_aa_total + 128LL * sum_a_total);
+    nk_f64_t norm_bb = (nk_f64_t)(dot_bb_total + 128LL * sum_b_total);
+    *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_(dot_ab, norm_aa, norm_bb);
+}
+
+NK_PUBLIC void nk_sqeuclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+    // XOR with 0x80 to reinterpret signed as unsigned, then use unsigned algorithm.
+    // |a-b|² is invariant under this uniform offset.
+    v128_t sum_u32x4 = wasm_u32x4_splat(0);
+    v128_t bias_u8x16 = wasm_u8x16_splat(0x80);
+    nk_i8_t const *a_scalars = a, *b_scalars = b;
+    nk_size_t count_scalars = n;
+    v128_t a_u8x16, b_u8x16;
+
+nk_sqeuclidean_i8_v128relaxed_cycle:
+    if (count_scalars < 16) {
+        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
+        a_u8x16 = wasm_v128_xor(a_vec.v128, bias_u8x16);
+        b_u8x16 = wasm_v128_xor(b_vec.v128, bias_u8x16);
+        count_scalars = 0;
+    }
+    else {
+        a_u8x16 = wasm_v128_xor(wasm_v128_load(a_scalars), bias_u8x16);
+        b_u8x16 = wasm_v128_xor(wasm_v128_load(b_scalars), bias_u8x16);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+
+    v128_t difference_u8x16 = wasm_v128_or(wasm_u8x16_sub_sat(a_u8x16, b_u8x16), wasm_u8x16_sub_sat(b_u8x16, a_u8x16));
+    v128_t difference_low_u16x8 = wasm_u16x8_extend_low_u8x16(difference_u8x16);
+    v128_t difference_high_u16x8 = wasm_u16x8_extend_high_u8x16(difference_u8x16);
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_low_i16x8(difference_low_u16x8, difference_low_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_high_i16x8(difference_low_u16x8, difference_low_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_low_i16x8(difference_high_u16x8, difference_high_u16x8));
+    sum_u32x4 = wasm_i32x4_add(sum_u32x4, wasm_i32x4_extmul_high_i16x8(difference_high_u16x8, difference_high_u16x8));
+    if (count_scalars) goto nk_sqeuclidean_i8_v128relaxed_cycle;
+
+    *result = nk_reduce_add_u32x4_v128relaxed_(sum_u32x4);
+}
+
+NK_PUBLIC void nk_euclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t distance_squared;
+    nk_sqeuclidean_i8_v128relaxed(a, b, n, &distance_squared);
+    *result = nk_f32_sqrt_v128relaxed((nk_f32_t)distance_squared);
+}
+
+NK_PUBLIC void nk_angular_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+    // Uses the same relaxed_dot decomposition as nk_dot_i8_v128relaxed:
+    //   a·b = relaxed_dot(a, b&0x7F) - 128·Σ(a[i] where b[i]<0)
+    //   a·a = relaxed_dot(a, a&0x7F) - 128·Σ(a[i] where a[i]<0)
+    //   b·b = relaxed_dot(b, b&0x7F) - 128·Σ(b[i] where b[i]<0)
+    nk_i64_t dot_ab_total = 0, dot_aa_total = 0, dot_bb_total = 0;
+    nk_i64_t corr_ab_total = 0, corr_aa_total = 0, corr_bb_total = 0;
+    nk_size_t i = 0;
+
+    // Windowed accumulation loop
+    while (i + 16 <= n) {
+        v128_t dot_ab_i32x4 = wasm_i32x4_splat(0);
+        v128_t dot_aa_i32x4 = wasm_i32x4_splat(0);
+        v128_t dot_bb_i32x4 = wasm_i32x4_splat(0);
+        v128_t corr_ab_i16x8 = wasm_i16x8_splat(0); // accumulate corrections in i16
+        v128_t corr_aa_i16x8 = wasm_i16x8_splat(0);
+        v128_t corr_bb_i16x8 = wasm_i16x8_splat(0);
+
+        // Inner loop: accumulate 127 iterations before widening corrections
+        // Overflow safety: max i16 lane magnitude = 127 × 254 = 32258 < 32767
+        nk_size_t cycle = 0;
+        for (; cycle < 127 && i + 16 <= n; ++cycle, i += 16) {
+            v128_t a_i8x16 = wasm_v128_load(a + i);
+            v128_t b_i8x16 = wasm_v128_load(b + i);
+
+            // Clear sign bit to get 7-bit unsigned magnitudes
+            v128_t a_7bit_u8x16 = wasm_v128_and(a_i8x16, wasm_i8x16_splat(0x7F));
+            v128_t b_7bit_u8x16 = wasm_v128_and(b_i8x16, wasm_i8x16_splat(0x7F));
+
+            // Negative masks for correction
+            v128_t a_neg_mask_i8x16 = wasm_i8x16_lt(a_i8x16, wasm_i8x16_splat(0));
+            v128_t b_neg_mask_i8x16 = wasm_i8x16_lt(b_i8x16, wasm_i8x16_splat(0));
+
+            // Three relaxed_dot calls
+            dot_ab_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_i8x16, b_7bit_u8x16, dot_ab_i32x4);
+            dot_aa_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_i8x16, a_7bit_u8x16, dot_aa_i32x4);
+            dot_bb_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(b_i8x16, b_7bit_u8x16, dot_bb_i32x4);
+
+            // Accumulate corrections in i16 (1 widening/iter instead of 2)
+            v128_t a_where_b_neg = wasm_v128_and(a_i8x16, b_neg_mask_i8x16);
+            v128_t a_where_a_neg = wasm_v128_and(a_i8x16, a_neg_mask_i8x16);
+            v128_t b_where_b_neg = wasm_v128_and(b_i8x16, b_neg_mask_i8x16);
+            corr_ab_i16x8 = wasm_i16x8_add(corr_ab_i16x8, wasm_i16x8_extadd_pairwise_i8x16(a_where_b_neg));
+            corr_aa_i16x8 = wasm_i16x8_add(corr_aa_i16x8, wasm_i16x8_extadd_pairwise_i8x16(a_where_a_neg));
+            corr_bb_i16x8 = wasm_i16x8_add(corr_bb_i16x8, wasm_i16x8_extadd_pairwise_i8x16(b_where_b_neg));
+        }
+
+        // Deferred widening: i16 → i32 once per window
+        v128_t corr_ab_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(corr_ab_i16x8);
+        v128_t corr_aa_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(corr_aa_i16x8);
+        v128_t corr_bb_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(corr_bb_i16x8);
+        dot_ab_total += nk_reduce_add_i32x4_v128relaxed_(dot_ab_i32x4);
+        dot_aa_total += nk_reduce_add_i32x4_v128relaxed_(dot_aa_i32x4);
+        dot_bb_total += nk_reduce_add_i32x4_v128relaxed_(dot_bb_i32x4);
+        corr_ab_total += nk_reduce_add_i32x4_v128relaxed_(corr_ab_i32x4);
+        corr_aa_total += nk_reduce_add_i32x4_v128relaxed_(corr_aa_i32x4);
+        corr_bb_total += nk_reduce_add_i32x4_v128relaxed_(corr_bb_i32x4);
+    }
+
+    // Scalar tail
+    for (; i < n; i++) {
+        dot_ab_total += (nk_i32_t)a[i] * (nk_i32_t)b[i];
+        dot_aa_total += (nk_i32_t)a[i] * (nk_i32_t)a[i];
+        dot_bb_total += (nk_i32_t)b[i] * (nk_i32_t)b[i];
+    }
+
+    // Apply correction: true_dot = relaxed_dot - 128 × correction
+    // Scalar tail computes true products directly, so correction only applies to SIMD portion.
+    nk_f64_t dot_ab = (nk_f64_t)(dot_ab_total - 128LL * corr_ab_total);
+    nk_f64_t norm_aa = (nk_f64_t)(dot_aa_total - 128LL * corr_aa_total);
+    nk_f64_t norm_bb = (nk_f64_t)(dot_bb_total - 128LL * corr_bb_total);
+    *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_(dot_ab, norm_aa, norm_bb);
+}
+
+#pragma endregion - Integer Spatial
 
 #if defined(__clang__)
 #pragma clang attribute pop

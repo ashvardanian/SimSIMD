@@ -249,6 +249,14 @@ void bench_dot() {
     run_dense<e2m3_k, f32_k>("dot_e2m3_v128relaxed", nk_dot_e2m3_v128relaxed);
     run_dense<e3m2_k, f32_k>("dot_e3m2_v128relaxed", nk_dot_e3m2_v128relaxed);
     run_dense<u1_k, u32_k>("dot_u1_v128relaxed", nk_dot_u1_v128relaxed);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_v128relaxed", nk_dot_e4m3_v128relaxed);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_v128relaxed", nk_dot_e5m2_v128relaxed);
+    run_dense<u4_k, u32_k>("dot_u4_v128relaxed", nk_dot_u4_v128relaxed);
+    run_dense<i4_k, i32_k>("dot_i4_v128relaxed", nk_dot_i4_v128relaxed);
+    run_dense<f32c_k, f32c_k>("dot_f32c_v128relaxed", nk_dot_f32c_v128relaxed);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_v128relaxed", nk_vdot_f32c_v128relaxed);
+    run_dense<f64c_k, f64c_k>("dot_f64c_v128relaxed", nk_dot_f64c_v128relaxed);
+    run_dense<f64c_k, f64c_k>("vdot_f64c_v128relaxed", nk_vdot_f64c_v128relaxed);
 #endif
 
     // Serial fallbacks

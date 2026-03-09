@@ -633,6 +633,18 @@ NK_PUBLIC void nk_euclidean_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const
 NK_PUBLIC void nk_angular_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
 /*  SIMD-powered backends for RISC-V Vector extension, using scalable vector arithmetic.
@@ -1231,6 +1243,8 @@ NK_PUBLIC void nk_euclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, 
     nk_euclidean_i8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_euclidean_i8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_euclidean_i8_v128relaxed(a, b, n, result);
 #else
     nk_euclidean_i8_serial(a, b, n, result);
 #endif
@@ -1249,6 +1263,8 @@ NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
     nk_sqeuclidean_i8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_sqeuclidean_i8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_sqeuclidean_i8_v128relaxed(a, b, n, result);
 #else
     nk_sqeuclidean_i8_serial(a, b, n, result);
 #endif
@@ -1267,6 +1283,8 @@ NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk
     nk_angular_i8_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_i8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_angular_i8_v128relaxed(a, b, n, result);
 #else
     nk_angular_i8_serial(a, b, n, result);
 #endif
@@ -1285,6 +1303,8 @@ NK_PUBLIC void nk_euclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, 
     nk_euclidean_u8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_euclidean_u8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_euclidean_u8_v128relaxed(a, b, n, result);
 #else
     nk_euclidean_u8_serial(a, b, n, result);
 #endif
@@ -1303,6 +1323,8 @@ NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     nk_sqeuclidean_u8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_sqeuclidean_u8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_sqeuclidean_u8_v128relaxed(a, b, n, result);
 #else
     nk_sqeuclidean_u8_serial(a, b, n, result);
 #endif
@@ -1321,6 +1343,8 @@ NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
     nk_angular_u8_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_u8_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_angular_u8_v128relaxed(a, b, n, result);
 #else
     nk_angular_u8_serial(a, b, n, result);
 #endif

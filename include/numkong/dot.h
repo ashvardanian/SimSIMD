@@ -21,8 +21,8 @@
  *  - e3m2: 8-bit e3m2 floating point numbers (MX) → 32-bit floats
  *  - i8: 8-bit signed integers → 32-bit signed integers
  *  - u8: 8-bit unsigned integers → 32-bit unsigned integers
- *  - i4: 4-bit signed integers (packed pairs) → 32-bit signed integers
- *  - u4: 4-bit unsigned integers (packed pairs) → 32-bit unsigned integers
+ *  - i4: 4-bit signed integers (packed nibble pairs) → 32-bit signed integers
+ *  - u4: 4-bit unsigned integers (packed nibble pairs) → 32-bit unsigned integers
  *  - u1: 1-bit binary (packed octets) → 32-bit unsigned integers
  *
  *  Complex dot product variants:
@@ -571,6 +571,22 @@ NK_PUBLIC void nk_dot_e2m3_v128relaxed(nk_e2m3_t const *a, nk_e2m3_t const *b, n
 NK_PUBLIC void nk_dot_e3m2_v128relaxed(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_u1 */
 NK_PUBLIC void nk_dot_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result);
+/** @copydoc nk_dot_f32 */
+NK_PUBLIC void nk_dot_e4m3_v128relaxed(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_f32 */
+NK_PUBLIC void nk_dot_e5m2_v128relaxed(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_i4 */
+NK_PUBLIC void nk_dot_i4_v128relaxed(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u4 */
+NK_PUBLIC void nk_dot_u4_v128relaxed(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_f32c */
+NK_PUBLIC void nk_dot_f32c_v128relaxed(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_dot_f32c */
+NK_PUBLIC void nk_vdot_f32c_v128relaxed(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_dot_f64c */
+NK_PUBLIC void nk_dot_f64c_v128relaxed(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
+/** @copydoc nk_dot_f64c */
+NK_PUBLIC void nk_vdot_f64c_v128relaxed(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
 #endif // NK_TARGET_V128RELAXED
 
 /**
@@ -681,6 +697,8 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
     nk_dot_i4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_i4_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_i4_v128relaxed(a, b, n, result);
 #else
     nk_dot_i4_serial(a, b, n, result);
 #endif
@@ -693,6 +711,8 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
     nk_dot_u4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_u4_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_u4_v128relaxed(a, b, n, result);
 #else
     nk_dot_u4_serial(a, b, n, result);
 #endif
@@ -769,6 +789,8 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
     nk_dot_e4m3_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e4m3_rvv(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_e4m3_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -789,6 +811,8 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
     nk_dot_e5m2_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e5m2_rvv(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_e5m2_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e5m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -925,6 +949,8 @@ NK_PUBLIC void nk_dot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, 
     nk_dot_f32c_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_f32c_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_f32c_v128relaxed(a, b, n, result);
 #else
     nk_dot_f32c_serial(a, b, n, result);
 #endif
@@ -939,6 +965,8 @@ NK_PUBLIC void nk_dot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, 
     nk_dot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f64c_skylake(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_f64c_v128relaxed(a, b, n, result);
 #else
     nk_dot_f64c_serial(a, b, n, result);
 #endif
@@ -981,6 +1009,8 @@ NK_PUBLIC void nk_vdot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n,
     nk_vdot_f32c_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_vdot_f32c_haswell(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_vdot_f32c_v128relaxed(a, b, n, result);
 #else
     nk_vdot_f32c_serial(a, b, n, result);
 #endif
@@ -995,6 +1025,8 @@ NK_PUBLIC void nk_vdot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n,
     nk_vdot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_vdot_f64c_skylake(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_vdot_f64c_v128relaxed(a, b, n, result);
 #else
     nk_vdot_f64c_serial(a, b, n, result);
 #endif
