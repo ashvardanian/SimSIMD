@@ -159,7 +159,7 @@ jobs:
 
       - name: Build and Test
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
           npm test
@@ -199,7 +199,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Test Emscripten runtime
@@ -240,7 +240,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Test Emscripten64 runtime
@@ -318,7 +318,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Install Playwright
@@ -443,7 +443,7 @@ jobs:
 
       - name: Build and Test with Node
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
           npm test
@@ -489,7 +489,7 @@ jobs:
 
       - name: Build prebuilds and JS
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
 

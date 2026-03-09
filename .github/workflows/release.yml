@@ -439,7 +439,7 @@ jobs:
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
           sudo apt install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
       - name: Install Node.js Dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
       - name: Prebuild Native Modules (Linux / Non-Darwin)
         if: matrix.os != 'macos-15'
         run: npm run prebuild-single
@@ -494,7 +494,7 @@ jobs:
       - name: Verify File Hard Links (Optional)
         run: find . -type f -links +1
       - name: Install Node.js Dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
       - name: Build JavaScript from TypeScript
         run: npm run build-js
       - name: Run Final Tests with Prebuild Artifacts
