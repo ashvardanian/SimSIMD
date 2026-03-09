@@ -24,43 +24,61 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::types::{bf16, f16};
 use crate::tensor::{Allocator, Global, ShapeDescriptor, TensorError, TensorView, SIMD_ALIGNMENT};
+use crate::types::{bf16, f16};
 
 // region: FFI
 
 #[link(name = "numkong")]
 extern "C" {
-    fn nk_maxsim_packed_size_f32(n: usize, k: usize) -> usize;
-    fn nk_maxsim_pack_f32(v: *const f32, n: usize, k: usize, stride: usize, packed: *mut u8);
+    fn nk_maxsim_packed_size_f32(vector_count: usize, depth: usize) -> usize;
+    fn nk_maxsim_pack_f32(
+        v: *const f32,
+        vector_count: usize,
+        depth: usize,
+        stride: usize,
+        packed: *mut u8,
+    );
     fn nk_maxsim_packed_f32(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut f32,
     );
 
-    fn nk_maxsim_packed_size_f16(n: usize, k: usize) -> usize;
-    fn nk_maxsim_pack_f16(v: *const f16, n: usize, k: usize, stride: usize, packed: *mut u8);
+    fn nk_maxsim_packed_size_f16(vector_count: usize, depth: usize) -> usize;
+    fn nk_maxsim_pack_f16(
+        v: *const f16,
+        vector_count: usize,
+        depth: usize,
+        stride: usize,
+        packed: *mut u8,
+    );
     fn nk_maxsim_packed_f16(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut f32,
     );
 
-    fn nk_maxsim_packed_size_bf16(n: usize, k: usize) -> usize;
-    fn nk_maxsim_pack_bf16(v: *const bf16, n: usize, k: usize, stride: usize, packed: *mut u8);
+    fn nk_maxsim_packed_size_bf16(vector_count: usize, depth: usize) -> usize;
+    fn nk_maxsim_pack_bf16(
+        v: *const bf16,
+        vector_count: usize,
+        depth: usize,
+        stride: usize,
+        packed: *mut u8,
+    );
     fn nk_maxsim_packed_bf16(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut f32,
     );
 }
@@ -74,15 +92,21 @@ pub trait MaxSim: Sized + Clone {
     /// Score type returned by MaxSim scoring (always f32).
     type Score: Clone + Default;
 
-    /// Returns the packed buffer size in bytes for `n` vectors of depth `k`.
-    fn maxsim_packed_size(n: usize, k: usize) -> usize;
+    /// Returns the packed buffer size in bytes for `vector_count` vectors of given `depth`.
+    fn maxsim_packed_size(vector_count: usize, depth: usize) -> usize;
 
     /// Pack vectors into backend-specific quantized format.
     ///
     /// # Safety
-    /// - `vectors` must point to `n` rows of `k` elements, byte stride `stride`
-    /// - `packed` must have at least `maxsim_packed_size(n, k)` bytes
-    unsafe fn maxsim_pack(vectors: *const Self, n: usize, k: usize, stride: usize, packed: *mut u8);
+    /// - `vectors` must point to `vector_count` rows of `depth` elements, byte stride `stride`
+    /// - `packed` must have at least `maxsim_packed_size(vector_count, depth)` bytes
+    unsafe fn maxsim_pack(
+        vectors: *const Self,
+        vector_count: usize,
+        depth: usize,
+        stride: usize,
+        packed: *mut u8,
+    );
 
     /// Compute MaxSim score on pre-packed buffers.
     ///
@@ -92,9 +116,9 @@ pub trait MaxSim: Sized + Clone {
     unsafe fn maxsim_packed(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut Self::Score,
     );
 }
@@ -106,87 +130,87 @@ pub trait MaxSim: Sized + Clone {
 impl MaxSim for f32 {
     type Score = f32;
 
-    fn maxsim_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_maxsim_packed_size_f32(n, k) }
+    fn maxsim_packed_size(vector_count: usize, depth: usize) -> usize {
+        unsafe { nk_maxsim_packed_size_f32(vector_count, depth) }
     }
 
     unsafe fn maxsim_pack(
         vectors: *const Self,
-        n: usize,
-        k: usize,
+        vector_count: usize,
+        depth: usize,
         stride: usize,
         packed: *mut u8,
     ) {
-        nk_maxsim_pack_f32(vectors, n, k, stride, packed)
+        nk_maxsim_pack_f32(vectors, vector_count, depth, stride, packed)
     }
 
     unsafe fn maxsim_packed(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut Self::Score,
     ) {
-        nk_maxsim_packed_f32(q, d, nq, nd, k, result)
+        nk_maxsim_packed_f32(q, d, query_count, document_count, depth, result)
     }
 }
 
 impl MaxSim for f16 {
     type Score = f32;
 
-    fn maxsim_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_maxsim_packed_size_f16(n, k) }
+    fn maxsim_packed_size(vector_count: usize, depth: usize) -> usize {
+        unsafe { nk_maxsim_packed_size_f16(vector_count, depth) }
     }
 
     unsafe fn maxsim_pack(
         vectors: *const Self,
-        n: usize,
-        k: usize,
+        vector_count: usize,
+        depth: usize,
         stride: usize,
         packed: *mut u8,
     ) {
-        nk_maxsim_pack_f16(vectors, n, k, stride, packed)
+        nk_maxsim_pack_f16(vectors, vector_count, depth, stride, packed)
     }
 
     unsafe fn maxsim_packed(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut Self::Score,
     ) {
-        nk_maxsim_packed_f16(q, d, nq, nd, k, result)
+        nk_maxsim_packed_f16(q, d, query_count, document_count, depth, result)
     }
 }
 
 impl MaxSim for bf16 {
     type Score = f32;
 
-    fn maxsim_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_maxsim_packed_size_bf16(n, k) }
+    fn maxsim_packed_size(vector_count: usize, depth: usize) -> usize {
+        unsafe { nk_maxsim_packed_size_bf16(vector_count, depth) }
     }
 
     unsafe fn maxsim_pack(
         vectors: *const Self,
-        n: usize,
-        k: usize,
+        vector_count: usize,
+        depth: usize,
         stride: usize,
         packed: *mut u8,
     ) {
-        nk_maxsim_pack_bf16(vectors, n, k, stride, packed)
+        nk_maxsim_pack_bf16(vectors, vector_count, depth, stride, packed)
     }
 
     unsafe fn maxsim_packed(
         q: *const u8,
         d: *const u8,
-        nq: usize,
-        nd: usize,
-        k: usize,
+        query_count: usize,
+        document_count: usize,
+        depth: usize,
         result: *mut Self::Score,
     ) {
-        nk_maxsim_packed_bf16(q, d, nq, nd, k, result)
+        nk_maxsim_packed_bf16(q, d, query_count, document_count, depth, result)
     }
 }
 
@@ -202,8 +226,8 @@ impl MaxSim for bf16 {
 pub struct MaxSimPackedMatrix<T: MaxSim, A: Allocator = Global> {
     data: NonNull<u8>,
     size: usize,
-    n: usize,
-    k: usize,
+    vector_count: usize,
+    depth: usize,
     alloc: A,
     _marker: PhantomData<T>,
 }
@@ -230,8 +254,8 @@ impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
             return Self {
                 data: NonNull::dangling(),
                 size: 0,
-                n: self.n,
-                k: self.k,
+                vector_count: self.vector_count,
+                depth: self.depth,
                 alloc: self.alloc.clone(),
                 _marker: PhantomData,
             };
@@ -249,8 +273,8 @@ impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
         Self {
             data: ptr,
             size: self.size,
-            n: self.n,
-            k: self.k,
+            vector_count: self.vector_count,
+            depth: self.depth,
             alloc: self.alloc.clone(),
             _marker: PhantomData,
         }
@@ -298,8 +322,8 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
         Ok(Self {
             data,
             size,
-            n: vector_count,
-            k: depth,
+            vector_count,
+            depth,
             alloc,
             _marker: PhantomData,
         })
@@ -312,10 +336,10 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
         &self,
         other: &MaxSimPackedMatrix<T, OA>,
     ) -> Result<T::Score, TensorError> {
-        if self.k != other.k {
+        if self.depth != other.depth {
             return Err(TensorError::DimensionMismatch {
-                expected: self.k,
-                got: other.k,
+                expected: self.depth,
+                got: other.depth,
             });
         }
         let mut score = T::Score::default();
@@ -323,9 +347,9 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
             T::maxsim_packed(
                 self.as_ptr(),
                 other.as_ptr(),
-                self.n,
-                other.n,
-                self.k,
+                self.vector_count,
+                other.vector_count,
+                self.depth,
                 &mut score,
             )
         };
@@ -339,14 +363,10 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a reference to the allocator.
-    pub fn allocator(&self) -> &A {
-        &self.alloc
-    }
+    pub fn allocator(&self) -> &A { &self.alloc }
 
-    /// Returns dimensions (n, k) of the original vector set.
-    pub fn dims(&self) -> (usize, usize) {
-        (self.n, self.k)
-    }
+    /// Returns dimensions (vector_count, depth) of the original vector set.
+    pub fn dims(&self) -> (usize, usize) { (self.vector_count, self.depth) }
 
     /// Returns the packed data buffer.
     pub fn as_bytes(&self) -> &[u8] {
@@ -354,9 +374,7 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a pointer to the packed data.
-    pub fn as_ptr(&self) -> *const u8 {
-        self.data.as_ptr()
-    }
+    pub fn as_ptr(&self) -> *const u8 { self.data.as_ptr() }
 }
 
 // Convenience methods using Global allocator

@@ -23,24 +23,24 @@ static size_t maxsim_packed_matrix_nbytes(MaxSimPackedMatrix *mm) {
     nk_find_kernel_punned(nk_kernel_maxsim_packed_size_k, mm->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn) return 0;
-    return size_fn(mm->n, mm->k);
+    return size_fn(mm->vector_count, mm->depth);
 }
 
 static PyObject *MaxSimPackedMatrix_repr(PyObject *self) {
     MaxSimPackedMatrix *mm = (MaxSimPackedMatrix *)self;
     size_t packed_size = maxsim_packed_matrix_nbytes(mm);
-    return PyUnicode_FromFormat("<MaxSimPackedMatrix n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n, (size_t)mm->k,
-                                dtype_to_string(mm->dtype), packed_size);
+    return PyUnicode_FromFormat("<MaxSimPackedMatrix vector_count=%zu depth=%zu dtype='%s' nbytes=%zu>",
+                                (size_t)mm->vector_count, (size_t)mm->depth, dtype_to_string(mm->dtype), packed_size);
 }
 
-static PyObject *MaxSimPackedMatrix_get_n(PyObject *self, void *closure) {
+static PyObject *MaxSimPackedMatrix_get_vector_count(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->n);
+    return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->vector_count);
 }
 
-static PyObject *MaxSimPackedMatrix_get_k(PyObject *self, void *closure) {
+static PyObject *MaxSimPackedMatrix_get_depth(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->k);
+    return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->depth);
 }
 
 static PyObject *MaxSimPackedMatrix_get_dtype(PyObject *self, void *closure) {
@@ -54,8 +54,8 @@ static PyObject *MaxSimPackedMatrix_get_nbytes(PyObject *self, void *closure) {
 }
 
 static PyGetSetDef MaxSimPackedMatrix_getset[] = {
-    {"n", MaxSimPackedMatrix_get_n, NULL, "Number of vectors", NULL},
-    {"k", MaxSimPackedMatrix_get_k, NULL, "Number of dimensions per vector (depth)", NULL},
+    {"vector_count", MaxSimPackedMatrix_get_vector_count, NULL, "Number of vectors", NULL},
+    {"depth", MaxSimPackedMatrix_get_depth, NULL, "Number of dimensions per vector (depth)", NULL},
     {"dtype", MaxSimPackedMatrix_get_dtype, NULL, "Data type of the packed vectors", NULL},
     {"nbytes", MaxSimPackedMatrix_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
     {NULL, NULL, NULL, NULL, NULL},
@@ -65,17 +65,17 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
                                                 PyObject *kwnames) {
     (void)cls;
 
-    PyObject *n_obj = NULL, *k_obj = NULL, *dtype_obj = NULL;
+    PyObject *vector_count_obj = NULL, *depth_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 2 || total > 3 || nargs > 3) {
-        PyErr_SetString(PyExc_TypeError, "packed_size(n, k, /, dtype='bf16')");
+        PyErr_SetString(PyExc_TypeError, "packed_size(vector_count, depth, /, dtype='bf16')");
         return NULL;
     }
 
-    n_obj = args[0];
-    k_obj = args[1];
+    vector_count_obj = args[0];
+    depth_obj = args[1];
     if (nargs >= 3) dtype_obj = args[2];
 
     for (Py_ssize_t i = 0; i < nkw; i++) {
@@ -99,10 +99,10 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
         return NULL;
     }
 
-    nk_size_t n = (nk_size_t)PyLong_AsSize_t(n_obj);
-    if (n == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
-    nk_size_t k = (nk_size_t)PyLong_AsSize_t(k_obj);
-    if (k == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+    nk_size_t vector_count = (nk_size_t)PyLong_AsSize_t(vector_count_obj);
+    if (vector_count == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+    nk_size_t depth = (nk_size_t)PyLong_AsSize_t(depth_obj);
+    if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
     char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_str) return NULL;
@@ -121,7 +121,7 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
         return NULL;
     }
 
-    return PyLong_FromSize_t(size_fn(n, k));
+    return PyLong_FromSize_t(size_fn(vector_count, depth));
 }
 
 static PyMethodDef MaxSimPackedMatrix_methods[] = {
@@ -146,7 +146,7 @@ char const doc_maxsim_pack[] =                                              //
     "maxsim_pack(b, /, dtype='bf16') -> MaxSimPackedMatrix\n\n"             //
     "Pack a 2D matrix for MaxSim late-interaction scoring.\n\n"             //
     "Parameters:\n"                                                         //
-    "    b (array_like): Source matrix with shape (n, k).\n"                //
+    "    b (array_like): Source matrix with shape (vector_count, depth).\n" //
     "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"          //
     "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                   //
     "Returns:\n"                                                            //
@@ -233,8 +233,8 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
         return NULL;
     }
 
-    nk_size_t n = (nk_size_t)b_buffer.shape[0];
-    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    nk_size_t vector_count = (nk_size_t)b_buffer.shape[0];
+    nk_size_t depth = (nk_size_t)b_buffer.shape[1];
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
@@ -260,7 +260,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
                      dtype_to_python_string(target_dtype));
         return NULL;
     }
-    nk_size_t packed_size = size_fn(n, k);
+    nk_size_t packed_size = size_fn(vector_count, depth);
 
     MaxSimPackedMatrix *packed = PyObject_NewVar(MaxSimPackedMatrix, &MaxSimPackedMatrixType, packed_size);
     if (!packed) {
@@ -270,8 +270,8 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     }
 
     packed->dtype = target_dtype;
-    packed->n = n;
-    packed->k = k;
+    packed->vector_count = vector_count;
+    packed->depth = depth;
 
     nk_dots_pack_punned_t pack_fn = NULL;
     cap = nk_cap_serial_k;
@@ -286,7 +286,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
 
     {
         PyThreadState *save = PyEval_SaveThread();
-        pack_fn(b_buffer.buf, n, k, row_stride, packed->start);
+        pack_fn(b_buffer.buf, vector_count, depth, row_stride, packed->start);
         PyEval_RestoreThread(save);
     }
 
@@ -295,94 +295,97 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
 }
 
 char const doc_maxsim_packed[] =                                             //
-    "maxsim_packed(q, d, /) -> float\n\n"                                    //
+    "maxsim_packed(queries, documents, /) -> float\n\n"                      //
     "Compute MaxSim late-interaction score between two packed matrices.\n\n" //
     "Parameters:\n"                                                          //
-    "    q (MaxSimPackedMatrix): Packed query vectors.\n"                    //
-    "    d (MaxSimPackedMatrix): Packed document vectors.\n\n"               //
+    "    queries (MaxSimPackedMatrix): Packed query vectors.\n"              //
+    "    documents (MaxSimPackedMatrix): Packed document vectors.\n\n"       //
     "Returns:\n"                                                             //
     "    float: Sum of per-query minimum angular distances.\n\n"             //
     "Signature:\n"                                                           //
-    "    >>> def maxsim_packed(q, d, /) -> float: ...";
+    "    >>> def maxsim_packed(queries, documents, /) -> float: ...";
 
 PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;
 
     if (nargs != 2 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "maxsim_packed() requires exactly 2 positional arguments: q, d");
+        PyErr_SetString(PyExc_TypeError, "maxsim_packed() requires exactly 2 positional arguments: queries, documents");
         return NULL;
     }
 
     if (!PyObject_TypeCheck(args[0], &MaxSimPackedMatrixType)) {
-        PyErr_SetString(PyExc_TypeError, "q must be a MaxSimPackedMatrix (use maxsim_pack() first)");
+        PyErr_SetString(PyExc_TypeError, "queries must be a MaxSimPackedMatrix (use maxsim_pack() first)");
         return NULL;
     }
     if (!PyObject_TypeCheck(args[1], &MaxSimPackedMatrixType)) {
-        PyErr_SetString(PyExc_TypeError, "d must be a MaxSimPackedMatrix (use maxsim_pack() first)");
+        PyErr_SetString(PyExc_TypeError, "documents must be a MaxSimPackedMatrix (use maxsim_pack() first)");
         return NULL;
     }
 
-    MaxSimPackedMatrix *q = (MaxSimPackedMatrix *)args[0];
-    MaxSimPackedMatrix *d = (MaxSimPackedMatrix *)args[1];
+    MaxSimPackedMatrix *queries = (MaxSimPackedMatrix *)args[0];
+    MaxSimPackedMatrix *documents = (MaxSimPackedMatrix *)args[1];
 
-    if (q->dtype != d->dtype) {
-        PyErr_Format(PyExc_TypeError, "dtype mismatch: q is '%s' but d is '%s'", dtype_to_python_string(q->dtype),
-                     dtype_to_python_string(d->dtype));
+    if (queries->dtype != documents->dtype) {
+        PyErr_Format(PyExc_TypeError, "dtype mismatch: queries is '%s' but documents is '%s'",
+                     dtype_to_python_string(queries->dtype), dtype_to_python_string(documents->dtype));
         return NULL;
     }
-    if (q->k != d->k) {
-        PyErr_Format(PyExc_ValueError, "depth mismatch: q has k=%zu but d has k=%zu", (size_t)q->k, (size_t)d->k);
+    if (queries->depth != documents->depth) {
+        PyErr_Format(PyExc_ValueError, "depth mismatch: queries have depth=%zu but documents have depth=%zu",
+                     (size_t)queries->depth, (size_t)documents->depth);
         return NULL;
     }
 
     nk_maxsim_packed_punned_t kernel = NULL;
     nk_capability_t cap = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_maxsim_packed_k, q->dtype, static_capabilities, nk_cap_any_k,
+    nk_find_kernel_punned(nk_kernel_maxsim_packed_k, queries->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&kernel, &cap);
     if (!kernel) {
-        PyErr_Format(PyExc_LookupError, "No maxsim_packed kernel for dtype '%s'", dtype_to_python_string(q->dtype));
+        PyErr_Format(PyExc_LookupError, "No maxsim_packed kernel for dtype '%s'",
+                     dtype_to_python_string(queries->dtype));
         return NULL;
     }
 
     nk_f32_t result = 0;
     {
         PyThreadState *save = PyEval_SaveThread();
-        kernel(q->start, d->start, q->n, d->n, q->k, &result);
+        kernel(queries->start, documents->start, queries->vector_count, documents->vector_count, queries->depth,
+               &result);
         PyEval_RestoreThread(save);
     }
 
     return PyFloat_FromDouble((double)result);
 }
 
-char const doc_maxsim[] =                                                 //
-    "maxsim(q, d, /, dtype='bf16') -> float\n\n"                          //
-    "Convenience MaxSim: pack both matrices and compute in one call.\n\n" //
-    "Parameters:\n"                                                       //
-    "    q (array_like): Query matrix with shape (n_q, depth).\n"         //
-    "    d (array_like): Document matrix with shape (n_d, depth).\n"      //
-    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"        //
-    "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                 //
-    "Returns:\n"                                                          //
-    "    float: Sum of per-query minimum angular distances.\n\n"          //
-    "Signature:\n"                                                        //
-    "    >>> def maxsim(q, d, /, dtype='bf16') -> float: ...";
+char const doc_maxsim[] =                                                               //
+    "maxsim(queries, documents, /, dtype='bf16') -> float\n\n"                          //
+    "Convenience MaxSim: pack both matrices and compute in one call.\n\n"               //
+    "Parameters:\n"                                                                     //
+    "    queries (array_like): Query matrix with shape (query_count, depth).\n"         //
+    "    documents (array_like): Document matrix with shape (document_count, depth).\n" //
+    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"                      //
+    "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                               //
+    "Returns:\n"                                                                        //
+    "    float: Sum of per-query minimum angular distances.\n\n"                        //
+    "Signature:\n"                                                                      //
+    "    >>> def maxsim(queries, documents, /, dtype='bf16') -> float: ...";
 
 PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;
 
-    PyObject *q_obj = NULL, *d_obj = NULL;
+    PyObject *queries_obj = NULL, *documents_obj = NULL;
     char const *dtype_str = "bf16";
 
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 2 || total > 3) {
-        PyErr_SetString(PyExc_TypeError, "maxsim() requires 2-3 arguments: q, d, dtype='bf16'");
+        PyErr_SetString(PyExc_TypeError, "maxsim() requires 2-3 arguments: queries, documents, dtype='bf16'");
         return NULL;
     }
 
-    q_obj = args[0];
-    d_obj = args[1];
+    queries_obj = args[0];
+    documents_obj = args[1];
 
     for (Py_ssize_t i = 0; i < nkw; i++) {
         PyObject *name = PyTuple_GET_ITEM(kwnames, i);
@@ -422,59 +425,61 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
         return NULL;
     }
 
-    Py_buffer q_buffer, d_buffer;
-    int have_q = 0, have_d = 0;
+    Py_buffer queries_buffer, documents_buffer;
+    int have_queries = 0, have_documents = 0;
     PyObject *return_obj = NULL;
     MaxSimPackedMatrix *q_packed = NULL, *d_packed = NULL;
 
-    if (PyObject_GetBuffer(q_obj, &q_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "q must support buffer protocol");
+    if (PyObject_GetBuffer(queries_obj, &queries_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "queries must support buffer protocol");
         return NULL;
     }
-    have_q = 1;
+    have_queries = 1;
 
-    if (PyObject_GetBuffer(d_obj, &d_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "d must support buffer protocol");
+    if (PyObject_GetBuffer(documents_obj, &documents_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "documents must support buffer protocol");
         goto cleanup;
     }
-    have_d = 1;
+    have_documents = 1;
 
-    if (q_buffer.ndim != 2 || d_buffer.ndim != 2) {
-        PyErr_SetString(PyExc_ValueError, "q and d must be 2D matrices");
+    if (queries_buffer.ndim != 2 || documents_buffer.ndim != 2) {
+        PyErr_SetString(PyExc_ValueError, "queries and documents must be 2D matrices");
         goto cleanup;
     }
 
     {
-        nk_dtype_t q_dtype, d_dtype;
-        if (!buffer_dtype(&q_buffer, &q_dtype)) goto cleanup;
-        if (!buffer_dtype(&d_buffer, &d_dtype)) goto cleanup;
+        nk_dtype_t queries_dtype, documents_dtype;
+        if (!buffer_dtype(&queries_buffer, &queries_dtype)) goto cleanup;
+        if (!buffer_dtype(&documents_buffer, &documents_dtype)) goto cleanup;
 
-        if (q_dtype != target_dtype) {
-            PyErr_Format(PyExc_TypeError, "q dtype '%s' does not match target dtype '%s'",
-                         dtype_to_python_string(q_dtype), dtype_to_python_string(target_dtype));
+        if (queries_dtype != target_dtype) {
+            PyErr_Format(PyExc_TypeError, "queries dtype '%s' does not match target dtype '%s'",
+                         dtype_to_python_string(queries_dtype), dtype_to_python_string(target_dtype));
             goto cleanup;
         }
-        if (d_dtype != target_dtype) {
-            PyErr_Format(PyExc_TypeError, "d dtype '%s' does not match target dtype '%s'",
-                         dtype_to_python_string(d_dtype), dtype_to_python_string(target_dtype));
+        if (documents_dtype != target_dtype) {
+            PyErr_Format(PyExc_TypeError, "documents dtype '%s' does not match target dtype '%s'",
+                         dtype_to_python_string(documents_dtype), dtype_to_python_string(target_dtype));
             goto cleanup;
         }
     }
 
-    if (q_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype) ||
-        d_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype)) {
+    if (queries_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype) ||
+        documents_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype)) {
         PyErr_SetString(PyExc_ValueError, "Input matrices must be row-contiguous");
         goto cleanup;
     }
 
     {
-        nk_size_t q_n = (nk_size_t)q_buffer.shape[0], q_k = (nk_size_t)q_buffer.shape[1];
-        nk_size_t d_n = (nk_size_t)d_buffer.shape[0], d_k = (nk_size_t)d_buffer.shape[1];
-        nk_size_t q_stride = (nk_size_t)q_buffer.strides[0];
-        nk_size_t d_stride = (nk_size_t)d_buffer.strides[0];
+        nk_size_t query_count = (nk_size_t)queries_buffer.shape[0], query_depth = (nk_size_t)queries_buffer.shape[1];
+        nk_size_t document_count = (nk_size_t)documents_buffer.shape[0],
+                  document_depth = (nk_size_t)documents_buffer.shape[1];
+        nk_size_t query_stride = (nk_size_t)queries_buffer.strides[0];
+        nk_size_t document_stride = (nk_size_t)documents_buffer.strides[0];
 
-        if (q_k != d_k) {
-            PyErr_Format(PyExc_ValueError, "Depth mismatch: q has k=%zu but d has k=%zu", (size_t)q_k, (size_t)d_k);
+        if (query_depth != document_depth) {
+            PyErr_Format(PyExc_ValueError, "Depth mismatch: queries have depth=%zu but documents have depth=%zu",
+                         (size_t)query_depth, (size_t)document_depth);
             goto cleanup;
         }
 
@@ -505,8 +510,8 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
             goto cleanup;
         }
 
-        nk_size_t q_packed_size = size_fn(q_n, q_k);
-        nk_size_t d_packed_size = size_fn(d_n, d_k);
+        nk_size_t q_packed_size = size_fn(query_count, query_depth);
+        nk_size_t d_packed_size = size_fn(document_count, document_depth);
 
         q_packed = PyObject_NewVar(MaxSimPackedMatrix, &MaxSimPackedMatrixType, q_packed_size);
         if (!q_packed) {
@@ -514,8 +519,8 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
             goto cleanup;
         }
         q_packed->dtype = target_dtype;
-        q_packed->n = q_n;
-        q_packed->k = q_k;
+        q_packed->vector_count = query_count;
+        q_packed->depth = query_depth;
 
         d_packed = PyObject_NewVar(MaxSimPackedMatrix, &MaxSimPackedMatrixType, d_packed_size);
         if (!d_packed) {
@@ -523,20 +528,20 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
             goto cleanup;
         }
         d_packed->dtype = target_dtype;
-        d_packed->n = d_n;
-        d_packed->k = d_k;
+        d_packed->vector_count = document_count;
+        d_packed->depth = document_depth;
 
         {
             PyThreadState *save = PyEval_SaveThread();
-            pack_fn(q_buffer.buf, q_n, q_k, q_stride, q_packed->start);
-            pack_fn(d_buffer.buf, d_n, d_k, d_stride, d_packed->start);
+            pack_fn(queries_buffer.buf, query_count, query_depth, query_stride, q_packed->start);
+            pack_fn(documents_buffer.buf, document_count, document_depth, document_stride, d_packed->start);
             PyEval_RestoreThread(save);
         }
 
         nk_f32_t result = 0;
         {
             PyThreadState *save = PyEval_SaveThread();
-            kernel(q_packed->start, d_packed->start, q_n, d_n, q_k, &result);
+            kernel(q_packed->start, d_packed->start, query_count, document_count, query_depth, &result);
             PyEval_RestoreThread(save);
         }
 
@@ -544,8 +549,8 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
 
 cleanup:
-    if (have_q) PyBuffer_Release(&q_buffer);
-    if (have_d) PyBuffer_Release(&d_buffer);
+    if (have_queries) PyBuffer_Release(&queries_buffer);
+    if (have_documents) PyBuffer_Release(&documents_buffer);
     Py_XDECREF(q_packed);
     Py_XDECREF(d_packed);
     return return_obj;

@@ -30,24 +30,24 @@ static size_t packed_matrix_nbytes(PackedMatrix *mm) {
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, mm->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn) return 0;
-    return size_fn(mm->n, mm->k);
+    return size_fn(mm->width, mm->depth);
 }
 
 static PyObject *PackedMatrix_repr(PyObject *self) {
     PackedMatrix *mm = (PackedMatrix *)self;
     size_t packed_size = packed_matrix_nbytes(mm);
-    return PyUnicode_FromFormat("<PackedMatrix n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n, (size_t)mm->k,
-                                dtype_to_string(mm->dtype), packed_size);
+    return PyUnicode_FromFormat("<PackedMatrix width=%zu depth=%zu dtype='%s' nbytes=%zu>", (size_t)mm->width,
+                                (size_t)mm->depth, dtype_to_string(mm->dtype), packed_size);
 }
 
-static PyObject *PackedMatrix_get_n(PyObject *self, void *closure) {
+static PyObject *PackedMatrix_get_width(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((PackedMatrix *)self)->n);
+    return PyLong_FromSize_t(((PackedMatrix *)self)->width);
 }
 
-static PyObject *PackedMatrix_get_k(PyObject *self, void *closure) {
+static PyObject *PackedMatrix_get_depth(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((PackedMatrix *)self)->k);
+    return PyLong_FromSize_t(((PackedMatrix *)self)->depth);
 }
 
 static PyObject *PackedMatrix_get_dtype(PyObject *self, void *closure) {
@@ -61,8 +61,8 @@ static PyObject *PackedMatrix_get_nbytes(PyObject *self, void *closure) {
 }
 
 static PyGetSetDef PackedMatrix_getset[] = {
-    {"n", PackedMatrix_get_n, NULL, "Number of rows in the original matrix", NULL},
-    {"k", PackedMatrix_get_k, NULL, "Number of columns in the original matrix", NULL},
+    {"width", PackedMatrix_get_width, NULL, "Number of rows in the original matrix", NULL},
+    {"depth", PackedMatrix_get_depth, NULL, "Number of columns in the original matrix", NULL},
     {"dtype", PackedMatrix_get_dtype, NULL, "Data type of the matrix elements", NULL},
     {"nbytes", PackedMatrix_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
     {NULL, NULL, NULL, NULL, NULL},
@@ -71,17 +71,17 @@ static PyGetSetDef PackedMatrix_getset[] = {
 static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)cls;
 
-    PyObject *n_obj = NULL, *k_obj = NULL, *dtype_obj = NULL;
+    PyObject *width_obj = NULL, *depth_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 2 || total > 3 || nargs > 3) {
-        PyErr_SetString(PyExc_TypeError, "packed_size(n, k, /, dtype='bf16')");
+        PyErr_SetString(PyExc_TypeError, "packed_size(width, depth, /, dtype='bf16')");
         return NULL;
     }
 
-    n_obj = args[0];
-    k_obj = args[1];
+    width_obj = args[0];
+    depth_obj = args[1];
     if (nargs >= 3) dtype_obj = args[2];
 
     for (Py_ssize_t i = 0; i < nkw; i++) {
@@ -105,10 +105,10 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
         return NULL;
     }
 
-    nk_size_t n = (nk_size_t)PyLong_AsSize_t(n_obj);
-    if (n == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
-    nk_size_t k = (nk_size_t)PyLong_AsSize_t(k_obj);
-    if (k == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+    nk_size_t width = (nk_size_t)PyLong_AsSize_t(width_obj);
+    if (width == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
+    nk_size_t depth = (nk_size_t)PyLong_AsSize_t(depth_obj);
+    if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
     char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_str) return NULL;
@@ -127,7 +127,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
         return NULL;
     }
 
-    return PyLong_FromSize_t(size_fn(n, k));
+    return PyLong_FromSize_t(size_fn(width, depth));
 }
 
 static PyMethodDef PackedMatrix_methods[] = {
@@ -186,12 +186,12 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
         return NULL;
     }
 
-    nk_size_t m = (nk_size_t)a->shape[0];
-    nk_size_t k_a = (nk_size_t)a->shape[1];
+    nk_size_t height = (nk_size_t)a->shape[0];
+    nk_size_t depth_a = (nk_size_t)a->shape[1];
 
-    if (k_a != packed->k) {
-        PyErr_Format(PyExc_ValueError, "Dimension mismatch: array has k=%zu but packed matrix has k=%zu", k_a,
-                     packed->k);
+    if (depth_a != packed->depth) {
+        PyErr_Format(PyExc_ValueError, "Dimension mismatch: array has depth=%zu but packed matrix has depth=%zu",
+                     depth_a, packed->depth);
         return NULL;
     }
 
@@ -205,8 +205,8 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
         return NULL;
     }
 
-    nk_size_t n = packed->n;
-    nk_size_t k = packed->k;
+    nk_size_t n = packed->width;
+    nk_size_t k = packed->depth;
     nk_size_t row_stride = (nk_size_t)a->strides[0];
     nk_size_t col_stride = (nk_size_t)a->strides[1];
 
@@ -231,7 +231,7 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     }
 
     // Find matmul kernel via punned dispatch
-    nk_dots_punned_t matmul_fn = NULL;
+    nk_dots_packed_punned_t matmul_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_packed_k, packed->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&matmul_fn, &cap);
@@ -241,13 +241,13 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     }
 
     // Allocate output tensor
-    Py_ssize_t out_shape[2] = {(Py_ssize_t)m, (Py_ssize_t)n};
+    Py_ssize_t out_shape[2] = {(Py_ssize_t)height, (Py_ssize_t)n};
     Tensor *result = Tensor_new(out_dtype, 2, out_shape);
     if (!result) return NULL;
 
     nk_size_t c_stride = n * bytes_per_dtype(out_dtype);
     PyThreadState *save = PyEval_SaveThread();
-    matmul_fn(a->data, packed->start, result->data, m, n, k, row_stride, c_stride);
+    matmul_fn(a->data, packed->start, result->data, height, n, k, row_stride, c_stride);
     PyEval_RestoreThread(save);
 
     return (PyObject *)result;
@@ -425,10 +425,10 @@ static PyObject *api_packed_common( //
         same_string(spec->pack_hint, "hammings_pack") && src_dtype == nk_u8_k && packed->dtype == nk_u1_k);
     if (accepts_bitpacked_u1) depth *= nk_dtype_dimensions_per_value(packed->dtype);
 
-    if (depth != packed->k) {
+    if (depth != packed->depth) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_ValueError, "Depth mismatch: a has depth=%zu but packed matrix has depth=%zu", depth,
-                     packed->k);
+                     packed->depth);
         return NULL;
     }
 
@@ -454,7 +454,7 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    nk_dots_punned_t kernel = NULL;
+    nk_dots_packed_punned_t kernel = NULL;
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(spec->packed_kind, packed->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&kernel, &cap);
@@ -464,8 +464,8 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    nk_size_t width = packed->n;
-    nk_size_t depth_packed = packed->k;
+    nk_size_t width = packed->width;
+    nk_size_t depth_packed = packed->depth;
 
     Tensor *result = NULL;
     int owns_result = 0;
@@ -715,8 +715,8 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         return NULL;
     }
 
-    nk_size_t n = (nk_size_t)b_buffer.shape[0];
-    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    nk_size_t width = (nk_size_t)b_buffer.shape[0];
+    nk_size_t depth = (nk_size_t)b_buffer.shape[1];
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
@@ -745,7 +745,7 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         PyErr_Format(PyExc_LookupError, "No packing kernel for dtype '%s'", dtype_to_python_string(target_dtype));
         return NULL;
     }
-    nk_size_t packed_size = size_fn(n, k);
+    nk_size_t packed_size = size_fn(width, depth);
 
     PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
     if (!packed) {
@@ -755,8 +755,8 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     }
 
     packed->dtype = target_dtype;
-    packed->n = n;
-    packed->k = k;
+    packed->width = width;
+    packed->depth = depth;
 
     // Pack via punned dispatch
     nk_dots_pack_punned_t pack_fn = NULL;
@@ -772,7 +772,7 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
 
     {
         PyThreadState *save = PyEval_SaveThread();
-        pack_fn(b_buffer.buf, n, k, row_stride, packed->start);
+        pack_fn(b_buffer.buf, width, depth, row_stride, packed->start);
         PyEval_RestoreThread(save);
     }
 
@@ -890,10 +890,10 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
         return NULL;
     }
 
-    nk_size_t n = (nk_size_t)b_buffer.shape[0];
-    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    nk_size_t width = (nk_size_t)b_buffer.shape[0];
+    nk_size_t depth = (nk_size_t)b_buffer.shape[1];
     // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
-    k *= nk_dtype_dimensions_per_value(target_dtype);
+    depth *= nk_dtype_dimensions_per_value(target_dtype);
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
@@ -920,7 +920,7 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
                      dtype_to_python_string(target_dtype));
         return NULL;
     }
-    nk_size_t packed_size = size_fn(n, k);
+    nk_size_t packed_size = size_fn(width, depth);
 
     PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
     if (!packed) {
@@ -930,8 +930,8 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
     }
 
     packed->dtype = target_dtype;
-    packed->n = n;
-    packed->k = k;
+    packed->width = width;
+    packed->depth = depth;
 
     nk_dots_pack_punned_t pack_fn = NULL;
     cap = nk_cap_serial_k;
@@ -946,7 +946,7 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
 
     {
         PyThreadState *save = PyEval_SaveThread();
-        pack_fn(b_buffer.buf, n, k, row_stride, packed->start);
+        pack_fn(b_buffer.buf, width, depth, row_stride, packed->start);
         PyEval_RestoreThread(save);
     }
 

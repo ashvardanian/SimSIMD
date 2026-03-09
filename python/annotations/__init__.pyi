@@ -227,12 +227,12 @@ class PackedMatrix:
     """
 
     @property
-    def n(self) -> int:
+    def width(self) -> int:
         """Number of rows in the original matrix."""
         ...
 
     @property
-    def k(self) -> int:
+    def depth(self) -> int:
         """Number of columns in the original matrix."""
         ...
 
@@ -249,8 +249,8 @@ class PackedMatrix:
     @classmethod
     def packed_size(
         cls,
-        n: int,
-        k: int,
+        width: int,
+        depth: int,
         /,
         dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
     ) -> int:
@@ -265,12 +265,12 @@ class MaxSimPackedMatrix:
     """Opaque pre-packed matrix for MaxSim late-interaction scoring."""
 
     @property
-    def n(self) -> int:
+    def vector_count(self) -> int:
         """Number of vectors."""
         ...
 
     @property
-    def k(self) -> int:
+    def depth(self) -> int:
         """Number of dimensions per vector (depth)."""
         ...
 
@@ -285,7 +285,7 @@ class MaxSimPackedMatrix:
         ...
 
     @classmethod
-    def packed_size(cls, n: int, k: int, /, dtype: _FloatType = "bf16") -> int:
+    def packed_size(cls, vector_count: int, depth: int, /, dtype: _FloatType = "bf16") -> int:
         """Return packed buffer size in bytes for given dimensions and dtype."""
         ...
 
@@ -834,8 +834,8 @@ def euclideans_packed(
 
 # region MaxSim
 def maxsim_pack(b: _BufferType, /, dtype: Optional[_FloatType] = None) -> MaxSimPackedMatrix: ...
-def maxsim_packed(q: MaxSimPackedMatrix, d: MaxSimPackedMatrix, /) -> float: ...
-def maxsim(q: _BufferType, d: _BufferType, /, dtype: Optional[_FloatType] = None) -> float: ...
+def maxsim_packed(queries: MaxSimPackedMatrix, documents: MaxSimPackedMatrix, /) -> float: ...
+def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: Optional[_FloatType] = None) -> float: ...
 
 # endregion MaxSim
 

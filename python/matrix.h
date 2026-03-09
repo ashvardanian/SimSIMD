@@ -27,10 +27,10 @@ typedef struct PackedMatrix {
     PyObject_HEAD
     /** Packed dtype (bf16, i8, f32, etc.). */
     nk_dtype_t dtype;
-    /** Number of rows in original matrix. */
-    nk_size_t n;
-    /** Number of columns in original matrix. */
-    nk_size_t k;
+    /** Number of rows in original matrix (width). */
+    nk_size_t width;
+    /** Number of columns in original matrix (depth). */
+    nk_size_t depth;
     /** Variable-length packed data. */
     char start[];
 } PackedMatrix;

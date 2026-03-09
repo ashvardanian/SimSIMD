@@ -322,47 +322,45 @@ typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t cou
                                                  void *min_value, nk_size_t *min_index, void *max_value,
                                                  nk_size_t *max_index);
 
-typedef nk_size_t (*nk_dots_packed_size_punned_t)(nk_size_t n, nk_size_t k);
+typedef nk_size_t (*nk_dots_packed_size_punned_t)(nk_size_t width, nk_size_t depth);
 
-typedef void (*nk_dots_pack_punned_t)(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+typedef void (*nk_dots_pack_punned_t)(void const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                      void *b_packed);
 
-typedef void (*nk_dots_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                                 nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_dots_packed_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t height, nk_size_t width,
+                                        nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
 
 typedef void (*nk_dots_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
                                            void *result, nk_size_t result_stride, nk_size_t row_start,
                                            nk_size_t row_count);
 
-typedef nk_size_t (*nk_sets_packed_size_punned_t)(nk_size_t n, nk_size_t k);
-
-typedef void (*nk_sets_pack_punned_t)(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
-
-typedef void (*nk_hammings_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
-                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_hammings_packed_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t height,
+                                            nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
 
 typedef void (*nk_hammings_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                nk_size_t stride, void *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
 
-typedef void (*nk_jaccards_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
-                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_jaccards_packed_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t height,
+                                            nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
 
 typedef void (*nk_jaccards_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                nk_size_t stride, void *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
 
-typedef void (*nk_angulars_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
-                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_angulars_packed_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t height,
+                                            nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
 typedef void (*nk_angulars_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                nk_size_t stride, void *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
-typedef void (*nk_euclideans_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+typedef void (*nk_euclideans_packed_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t height,
+                                              nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
 typedef void (*nk_euclideans_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                  nk_size_t stride, void *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
 
-typedef void (*nk_maxsim_packed_punned_t)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, void *);
+typedef void (*nk_maxsim_packed_punned_t)(void const *q_packed, void const *d_packed, nk_size_t query_count,
+                                          nk_size_t document_count, nk_size_t depth, void *result);
 
 typedef void (*nk_kernel_cast_punned_t)(void const *from, nk_dtype_t from_type, nk_size_t n, void *to,
                                         nk_dtype_t to_type);

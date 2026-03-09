@@ -668,7 +668,7 @@ static int cdist_batch_packed(                                               //
     // All metric families reuse the dots pack_size / pack kernels
     nk_dots_packed_size_punned_t size_fn = NULL;
     nk_dots_pack_punned_t pack_fn = NULL;
-    nk_dots_punned_t kernel = NULL;
+    nk_dots_packed_punned_t kernel = NULL;
     nk_capability_t cap = nk_cap_serial_k;
 
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, nk_cap_any_k,

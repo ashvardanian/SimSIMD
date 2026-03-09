@@ -304,22 +304,22 @@ typedef struct {
     nk_dots_pack_punned_t dots_pack_u4;
     nk_dots_pack_punned_t dots_pack_u1;
     // Dots packed
-    nk_dots_punned_t dots_packed_f64;
-    nk_dots_punned_t dots_packed_f32;
-    nk_dots_punned_t dots_packed_bf16;
-    nk_dots_punned_t dots_packed_f16;
-    nk_dots_punned_t dots_packed_e5m2;
-    nk_dots_punned_t dots_packed_e4m3;
-    nk_dots_punned_t dots_packed_e3m2;
-    nk_dots_punned_t dots_packed_e2m3;
-    nk_dots_punned_t dots_packed_i8;
-    nk_dots_punned_t dots_packed_i4;
-    nk_dots_punned_t dots_packed_u8;
-    nk_dots_punned_t dots_packed_u4;
-    nk_dots_punned_t dots_packed_u1;
+    nk_dots_packed_punned_t dots_packed_f64;
+    nk_dots_packed_punned_t dots_packed_f32;
+    nk_dots_packed_punned_t dots_packed_bf16;
+    nk_dots_packed_punned_t dots_packed_f16;
+    nk_dots_packed_punned_t dots_packed_e5m2;
+    nk_dots_packed_punned_t dots_packed_e4m3;
+    nk_dots_packed_punned_t dots_packed_e3m2;
+    nk_dots_packed_punned_t dots_packed_e2m3;
+    nk_dots_packed_punned_t dots_packed_i8;
+    nk_dots_packed_punned_t dots_packed_i4;
+    nk_dots_packed_punned_t dots_packed_u8;
+    nk_dots_packed_punned_t dots_packed_u4;
+    nk_dots_packed_punned_t dots_packed_u1;
     // Sets packed
-    nk_hammings_punned_t hammings_packed_u1;
-    nk_jaccards_punned_t jaccards_packed_u1;
+    nk_hammings_packed_punned_t hammings_packed_u1;
+    nk_jaccards_packed_punned_t jaccards_packed_u1;
     // Dots symmetric
     nk_dots_symmetric_punned_t dots_symmetric_f64;
     nk_dots_symmetric_punned_t dots_symmetric_f32;
@@ -338,18 +338,18 @@ typedef struct {
     nk_hammings_symmetric_punned_t hammings_symmetric_u1;
     nk_jaccards_symmetric_punned_t jaccards_symmetric_u1;
     // Angulars packed
-    nk_angulars_punned_t angulars_packed_f64;
-    nk_angulars_punned_t angulars_packed_f32;
-    nk_angulars_punned_t angulars_packed_bf16;
-    nk_angulars_punned_t angulars_packed_f16;
-    nk_angulars_punned_t angulars_packed_e5m2;
-    nk_angulars_punned_t angulars_packed_e4m3;
-    nk_angulars_punned_t angulars_packed_e3m2;
-    nk_angulars_punned_t angulars_packed_e2m3;
-    nk_angulars_punned_t angulars_packed_i8;
-    nk_angulars_punned_t angulars_packed_i4;
-    nk_angulars_punned_t angulars_packed_u8;
-    nk_angulars_punned_t angulars_packed_u4;
+    nk_angulars_packed_punned_t angulars_packed_f64;
+    nk_angulars_packed_punned_t angulars_packed_f32;
+    nk_angulars_packed_punned_t angulars_packed_bf16;
+    nk_angulars_packed_punned_t angulars_packed_f16;
+    nk_angulars_packed_punned_t angulars_packed_e5m2;
+    nk_angulars_packed_punned_t angulars_packed_e4m3;
+    nk_angulars_packed_punned_t angulars_packed_e3m2;
+    nk_angulars_packed_punned_t angulars_packed_e2m3;
+    nk_angulars_packed_punned_t angulars_packed_i8;
+    nk_angulars_packed_punned_t angulars_packed_i4;
+    nk_angulars_packed_punned_t angulars_packed_u8;
+    nk_angulars_packed_punned_t angulars_packed_u4;
     // Angulars symmetric
     nk_angulars_symmetric_punned_t angulars_symmetric_f64;
     nk_angulars_symmetric_punned_t angulars_symmetric_f32;
@@ -364,18 +364,18 @@ typedef struct {
     nk_angulars_symmetric_punned_t angulars_symmetric_u8;
     nk_angulars_symmetric_punned_t angulars_symmetric_u4;
     // Euclideans packed
-    nk_euclideans_punned_t euclideans_packed_f64;
-    nk_euclideans_punned_t euclideans_packed_f32;
-    nk_euclideans_punned_t euclideans_packed_bf16;
-    nk_euclideans_punned_t euclideans_packed_f16;
-    nk_euclideans_punned_t euclideans_packed_e5m2;
-    nk_euclideans_punned_t euclideans_packed_e4m3;
-    nk_euclideans_punned_t euclideans_packed_e3m2;
-    nk_euclideans_punned_t euclideans_packed_e2m3;
-    nk_euclideans_punned_t euclideans_packed_i8;
-    nk_euclideans_punned_t euclideans_packed_i4;
-    nk_euclideans_punned_t euclideans_packed_u8;
-    nk_euclideans_punned_t euclideans_packed_u4;
+    nk_euclideans_packed_punned_t euclideans_packed_f64;
+    nk_euclideans_packed_punned_t euclideans_packed_f32;
+    nk_euclideans_packed_punned_t euclideans_packed_bf16;
+    nk_euclideans_packed_punned_t euclideans_packed_f16;
+    nk_euclideans_packed_punned_t euclideans_packed_e5m2;
+    nk_euclideans_packed_punned_t euclideans_packed_e4m3;
+    nk_euclideans_packed_punned_t euclideans_packed_e3m2;
+    nk_euclideans_packed_punned_t euclideans_packed_e2m3;
+    nk_euclideans_packed_punned_t euclideans_packed_i8;
+    nk_euclideans_packed_punned_t euclideans_packed_i4;
+    nk_euclideans_packed_punned_t euclideans_packed_u8;
+    nk_euclideans_packed_punned_t euclideans_packed_u4;
     // Euclideans symmetric
     nk_euclideans_symmetric_punned_t euclideans_symmetric_f64;
     nk_euclideans_symmetric_punned_t euclideans_symmetric_f32;
