@@ -20,7 +20,7 @@ namespace ashvardanian::numkong {
 /**
  *  @brief Hamming distance: Σ(aᵢ ⊕ bᵢ)
  *  @param[in] a,b Input vectors
- *  @param[in] d Number of dimensions (elements for u8_t, bits/8 for u1x8_t)
+ *  @param[in] d Number of dimensions
  *  @param[out] r Pointer to output count
  *
  *  @tparam in_type_ Input vector element type (u1x8_t or u8_t)
@@ -35,10 +35,11 @@ void hamming(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
 
     if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) nk_hamming_u1(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_hamming_u8(&a->raw_, &b->raw_, d, &r->raw_);
-    // Scalar fallback
     else {
+        constexpr std::size_t dims_per_value = dimensions_per_value<in_type_>();
+        std::size_t n = divide_round_up(d, dims_per_value);
         typename result_type_::raw_t count = 0;
-        for (std::size_t i = 0; i < d; i++) count += (a[i] != b[i]) ? 1 : 0;
+        for (std::size_t i = 0; i < n; i++) count += count_differences(a[i], b[i]);
         *r = result_type_::from_raw(count);
     }
 }
@@ -49,7 +50,7 @@ void hamming(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
  *  @param[in] d Number of dimensions
  *  @param[out] r Pointer to output distance
  *
- *  For u1x8_t (bit vectors): uses |A intersect B| / |A union B| (set intersection/union)
+ *  For u1x8_t (bit vectors): uses popcount(AND) / popcount(OR)
  *  For u16_t/u32_t (element vectors): uses count of matching elements / total
  *
  *  @tparam in_type_ Input vector element type (u1x8_t, u16_t, or u32_t)
@@ -65,20 +66,14 @@ void jaccard(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
     if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) nk_jaccard_u1(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_jaccard_u16(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_jaccard_u32(&a->raw_, &b->raw_, d, &r->raw_);
-    // Scalar fallback for u1x8_t (bit vectors)
-    else if constexpr (std::is_same_v<in_type_, u1x8_t>) {
-        std::uint32_t intersection_count = 0, union_count = 0;
-        for (std::size_t i = 0; i < d; i++)
-            intersection_count += a[i].intersection(b[i]), union_count += a[i].union_size(b[i]);
-        if (union_count == 0) *r = result_type_(0.0f);
-        else *r = result_type_(1.0f - static_cast<float>(intersection_count) / static_cast<float>(union_count));
-    }
-    // Scalar fallback for element vectors
     else {
-        std::size_t matches = 0;
-        for (std::size_t i = 0; i < d; i++) matches += (a[i] == b[i]) ? 1 : 0;
-        if (d == 0) *r = result_type_(1.0f);
-        else *r = result_type_(1.0f - static_cast<float>(matches) / static_cast<float>(d));
+        constexpr std::size_t dims_per_value = dimensions_per_value<in_type_>();
+        std::size_t n = divide_round_up(d, dims_per_value);
+        std::uint32_t intersection_count = 0, union_count = 0;
+        for (std::size_t i = 0; i < n; i++)
+            intersection_count += count_intersection(a[i], b[i]), union_count += count_union(a[i], b[i]);
+        if (union_count == 0) *r = result_type_();
+        else *r = result_type_(1) - result_type_(intersection_count) / result_type_(union_count);
     }
 }
 

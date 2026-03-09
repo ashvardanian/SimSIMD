@@ -1804,6 +1804,9 @@ struct e4m3_t {
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -2017,6 +2020,9 @@ struct e5m2_t {
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -3657,6 +3663,7 @@ struct u8_t {
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using hamming_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -3954,6 +3961,7 @@ struct u32_t {
     using reduce_minmax_value_t = u32_t;  // `nk_reduce_minmax_u32` value output
 
     // Kernel function pointer types
+    using jaccard_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
                                                nk_size_t *);
     using scale_t = nk_f64_t;
@@ -4505,6 +4513,7 @@ struct u16_t {
     using reduce_minmax_value_t = u16_t;  // `nk_reduce_minmax_u16` value output
 
     // Kernel function pointer types
+    using jaccard_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
                                                nk_size_t *);
     using scale_t = nk_f32_t;
@@ -5336,6 +5345,34 @@ template <typename accumulator_type_>
 constexpr accumulator_type_ saturating_fma(u4x2_t a, u4x2_t b, accumulator_type_ acc) noexcept {
     return fma(a, b, acc);
 }
+
+/** @brief Count element-level differences. For scalar types, returns 1 if different, 0 if equal. */
+template <typename scalar_type_>
+constexpr unsigned count_differences(scalar_type_ a, scalar_type_ b) noexcept {
+    return (a != b) ? 1 : 0;
+}
+
+/** @brief Count bit-level differences for u1x8_t (8 packed bits). Returns popcount of XOR. */
+constexpr unsigned count_differences(u1x8_t a, u1x8_t b) noexcept { return a.hamming(b); }
+
+/** @brief Count element-level intersection. For scalar types, returns 1 if equal, 0 if different. */
+template <typename scalar_type_>
+constexpr unsigned count_intersection(scalar_type_ a, scalar_type_ b) noexcept {
+    return (a == b) ? 1 : 0;
+}
+
+/** @brief Count element-level union. For scalar types, always returns 1 (one element per pair). */
+template <typename scalar_type_>
+constexpr unsigned count_union(scalar_type_ a, scalar_type_ b) noexcept {
+    (void)a, (void)b;
+    return 1;
+}
+
+/** @brief Count bit-level intersection for u1x8_t (8 packed bits). Returns popcount of AND. */
+constexpr unsigned count_intersection(u1x8_t a, u1x8_t b) noexcept { return a.intersection(b); }
+
+/** @brief Count bit-level union for u1x8_t (8 packed bits). Returns popcount of OR. */
+constexpr unsigned count_union(u1x8_t a, u1x8_t b) noexcept { return a.union_size(b); }
 
 #pragma endregion - SIMD Dispatch Helpers
 

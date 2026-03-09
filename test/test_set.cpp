@@ -9,10 +9,12 @@
 #include "numkong/set.hpp"
 
 /**
- *  @brief Test Hamming distance for binary vectors.
+ *  @brief Test Hamming distance for binary or integer vectors.
  */
-error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
-    using scalar_t = u1x8_t;
+template <typename scalar_type_>
+error_stats_t test_hamming(typename scalar_type_::hamming_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::hamming_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -24,11 +26,12 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        u32_t result;
+        result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        u32_t reference;
-        nk::hamming(a.values_data(), b.values_data(), global_config.dense_dimensions, &reference);
+        result_t reference;
+        nk::hamming<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &reference);
 
         stats.accumulate(result, reference);
     }
@@ -37,10 +40,12 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
 }
 
 /**
- *  @brief Test Jaccard distance for binary vectors.
+ *  @brief Test Jaccard distance for binary or integer vectors.
  */
-error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
-    using scalar_t = u1x8_t;
+template <typename scalar_type_>
+error_stats_t test_jaccard(typename scalar_type_::jaccard_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::jaccard_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -52,11 +57,12 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        f32_t result;
+        result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f32_t reference;
-        nk::jaccard(a.values_data(), b.values_data(), global_config.dense_dimensions, &reference);
+        result_t reference;
+        nk::jaccard<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &reference);
 
         stats.accumulate(result, reference);
     }
@@ -70,39 +76,65 @@ void test_set() {
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("hamming_u1", test_hamming, nk_hamming_u1);
-    run_if_matches("jaccard_u1", test_jaccard, nk_jaccard_u1);
+    run_if_matches("hamming_u1", test_hamming<u1x8_t>, nk_hamming_u1);
+    run_if_matches("jaccard_u1", test_jaccard<u1x8_t>, nk_jaccard_u1);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("hamming_u1_neon", test_hamming, nk_hamming_u1_neon);
-    run_if_matches("jaccard_u1_neon", test_jaccard, nk_jaccard_u1_neon);
+    run_if_matches("hamming_u1_neon", test_hamming<u1x8_t>, nk_hamming_u1_neon);
+    run_if_matches("jaccard_u1_neon", test_jaccard<u1x8_t>, nk_jaccard_u1_neon);
+    run_if_matches("hamming_u8_neon", test_hamming<u8_t>, nk_hamming_u8_neon);
+    run_if_matches("jaccard_u16_neon", test_jaccard<u16_t>, nk_jaccard_u16_neon);
+    run_if_matches("jaccard_u32_neon", test_jaccard<u32_t>, nk_jaccard_u32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("hamming_u1_haswell", test_hamming, nk_hamming_u1_haswell);
-    run_if_matches("jaccard_u1_haswell", test_jaccard, nk_jaccard_u1_haswell);
+    run_if_matches("hamming_u1_haswell", test_hamming<u1x8_t>, nk_hamming_u1_haswell);
+    run_if_matches("jaccard_u1_haswell", test_jaccard<u1x8_t>, nk_jaccard_u1_haswell);
+    run_if_matches("hamming_u8_haswell", test_hamming<u8_t>, nk_hamming_u8_haswell);
+    run_if_matches("jaccard_u16_haswell", test_jaccard<u16_t>, nk_jaccard_u16_haswell);
+    run_if_matches("jaccard_u32_haswell", test_jaccard<u32_t>, nk_jaccard_u32_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICELAKE
-    run_if_matches("hamming_u1_icelake", test_hamming, nk_hamming_u1_icelake);
-    run_if_matches("jaccard_u1_icelake", test_jaccard, nk_jaccard_u1_icelake);
+    run_if_matches("hamming_u1_icelake", test_hamming<u1x8_t>, nk_hamming_u1_icelake);
+    run_if_matches("jaccard_u1_icelake", test_jaccard<u1x8_t>, nk_jaccard_u1_icelake);
+    run_if_matches("hamming_u8_icelake", test_hamming<u8_t>, nk_hamming_u8_icelake);
+    run_if_matches("jaccard_u16_icelake", test_jaccard<u16_t>, nk_jaccard_u16_icelake);
+    run_if_matches("jaccard_u32_icelake", test_jaccard<u32_t>, nk_jaccard_u32_icelake);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_SVE
+    run_if_matches("hamming_u1_sve", test_hamming<u1x8_t>, nk_hamming_u1_sve);
+    run_if_matches("jaccard_u1_sve", test_jaccard<u1x8_t>, nk_jaccard_u1_sve);
+    run_if_matches("hamming_u8_sve", test_hamming<u8_t>, nk_hamming_u8_sve);
+    run_if_matches("jaccard_u16_sve", test_jaccard<u16_t>, nk_jaccard_u16_sve);
+    run_if_matches("jaccard_u32_sve", test_jaccard<u32_t>, nk_jaccard_u32_sve);
+#endif // NK_TARGET_SVE
+
 #if NK_TARGET_RVV
-    run_if_matches("hamming_u1_rvv", test_hamming, nk_hamming_u1_rvv);
-    run_if_matches("jaccard_u1_rvv", test_jaccard, nk_jaccard_u1_rvv);
+    run_if_matches("hamming_u1_rvv", test_hamming<u1x8_t>, nk_hamming_u1_rvv);
+    run_if_matches("jaccard_u1_rvv", test_jaccard<u1x8_t>, nk_jaccard_u1_rvv);
+    run_if_matches("hamming_u8_rvv", test_hamming<u8_t>, nk_hamming_u8_rvv);
+    run_if_matches("jaccard_u16_rvv", test_jaccard<u16_t>, nk_jaccard_u16_rvv);
+    run_if_matches("jaccard_u32_rvv", test_jaccard<u32_t>, nk_jaccard_u32_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("hamming_u1_v128relaxed", test_hamming, nk_hamming_u1_v128relaxed);
-    run_if_matches("jaccard_u1_v128relaxed", test_jaccard, nk_jaccard_u1_v128relaxed);
+    run_if_matches("hamming_u1_v128relaxed", test_hamming<u1x8_t>, nk_hamming_u1_v128relaxed);
+    run_if_matches("jaccard_u1_v128relaxed", test_jaccard<u1x8_t>, nk_jaccard_u1_v128relaxed);
+    run_if_matches("hamming_u8_v128relaxed", test_hamming<u8_t>, nk_hamming_u8_v128relaxed);
+    run_if_matches("jaccard_u16_v128relaxed", test_jaccard<u16_t>, nk_jaccard_u16_v128relaxed);
+    run_if_matches("jaccard_u32_v128relaxed", test_jaccard<u32_t>, nk_jaccard_u32_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
-    run_if_matches("hamming_u1_serial", test_hamming, nk_hamming_u1_serial);
-    run_if_matches("jaccard_u1_serial", test_jaccard, nk_jaccard_u1_serial);
+    run_if_matches("hamming_u1_serial", test_hamming<u1x8_t>, nk_hamming_u1_serial);
+    run_if_matches("jaccard_u1_serial", test_jaccard<u1x8_t>, nk_jaccard_u1_serial);
+    run_if_matches("hamming_u8_serial", test_hamming<u8_t>, nk_hamming_u8_serial);
+    run_if_matches("jaccard_u16_serial", test_jaccard<u16_t>, nk_jaccard_u16_serial);
+    run_if_matches("jaccard_u32_serial", test_jaccard<u32_t>, nk_jaccard_u32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
