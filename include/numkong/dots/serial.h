@@ -2431,6 +2431,20 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             }                                                                                                          \
         }                                                                                                              \
     }
+
+/* Optimize serial GEMM instantiations for size rather than speed.
+ * These fallback kernels are only used when no SIMD backend is available,
+ * so aggressive inlining/unrolling from -O3 wastes ~1.3 MB of binary space
+ * with negligible performance benefit on the serial path. */
+#if defined(NDEBUG)
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((optimize("Os"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("Os")
+#endif
+#endif
+
 /* F64 GEMM: depth_simd_dimensions=2 (2 f64s = 16 bytes) */
 nk_define_cross_pack_size_(dots, f64, serial, f64, f64, /*norm_value_type=*/f64, /*depth_simd_dimensions=*/2,
                            /*dimensions_per_value=*/1)
@@ -2635,6 +2649,14 @@ nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot
                         nk_load_b128_serial_, nk_partial_load_b1x128_serial_, nk_dot_u1x128_update_serial,
                         nk_dot_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
+
+#if defined(NDEBUG)
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
+#endif
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
  *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride = column_count × sizeof(bf16)).
