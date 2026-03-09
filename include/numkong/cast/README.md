@@ -96,200 +96,178 @@ AVX-512 (`nk_cast_skylake`) doubles throughput to 16 elements per instruction.
 
 ## Performance
 
+Controlled by `NK_DENSE_DIMENSIONS`.
+Columns show 256, 1024, 4096 elements. ↓ = downcast, ↑ = upcast.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f32-f16</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_sapphire</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_sapphire</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-bf16</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-e4m3</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>e4m3-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-e5m2</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>e5m2-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_cast_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel             |  ↓ 256 |   ↓ 1K |   ↓ 4K |  ↑ 256 |   ↑ 1K |   ↑ 4K |
+| :----------------- | -----: | -----: | -----: | -----: | -----: | -----: |
+| __f32 ↔ f16__      |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ bf16__     |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e4m3__     |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e5m2__     |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e2m3__     |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e3m2__     |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64 ↔ f32__      |        |        |        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+
+| Kernel             |    256 |   1024 |   4096 |
+| :----------------- | -----: | -----: | -----: |
+| __f32→i8__         |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→u8__         |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→i16__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→u16__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→i32__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→u32__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→i64__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→u64__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __i4x2→i8__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u4x2→u8__        |        |        |        |
+| `nk_cast_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_haswell`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_skylake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_icelake`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_sapphire` | 0 GB/s | 0 GB/s | 0 GB/s |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f32-f16</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-bf16</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-e4m3</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>e4m3-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32-e5m2</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>e5m2-f32</b></td></tr>
-<tr>
-  <td><code>nk_cast_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel           |  ↓ 256 |   ↓ 1K |   ↓ 4K |  ↑ 256 |   ↑ 1K |   ↑ 4K |
+| :--------------- | -----: | -----: | -----: | -----: | -----: | -----: |
+| __f32 ↔ f16__    |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ bf16__   |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e4m3__   |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e5m2__   |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e2m3__   |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32 ↔ e3m2__   |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64 ↔ f32__    |        |        |        |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s | 0 GB/s |
+
+| Kernel           |    256 |   1024 |   4096 |
+| :--------------- | -----: | -----: | -----: |
+| __f32→i8__       |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→u8__       |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→i16__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f32→u16__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→i32__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→u32__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→i64__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __f64→u64__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __i4x2→i8__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u4x2→u8__      |        |        |        |
+| `nk_cast_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_cast_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |

@@ -124,368 +124,460 @@ The final horizontal reduction across lanes uses pairwise `VSHUFPS` + `VMINPS` c
 
 ## Performance
 
+Controlled by `NK_DENSE_DIMENSIONS`.
+Columns show 256, 1024, 4096 elements.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>moments f64</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments f32</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments bf16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_bf16_genoa</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments f16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_f16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments e4m3</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_e4m3_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_e4m3_genoa</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments i8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_sierra</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments u8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_alder</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f64</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f32</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax bf16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_f16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax e4m3</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_e4m3_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax i8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_i8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax u8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_u8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_u8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                           |           256 |          1024 |          4096 |
+| :------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                          |               |               |               |
+| `nk_reduce_moments_f64_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f64_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f64_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                          |               |               |               |
+| `nk_reduce_moments_f32_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f32_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f32_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                         |               |               |               |
+| `nk_reduce_moments_bf16_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_bf16_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_bf16_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_bf16_genoa`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                          |               |               |               |
+| `nk_reduce_moments_f16_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f16_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f16_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                         |               |               |               |
+| `nk_reduce_moments_e5m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e5m2_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e5m2_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e5m2_genoa`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                         |               |               |               |
+| `nk_reduce_moments_e4m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e4m3_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e4m3_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e4m3_genoa`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                         |               |               |               |
+| `nk_reduce_moments_e3m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e3m2_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e3m2_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e3m2_icelake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e3m2_alder`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                         |               |               |               |
+| `nk_reduce_moments_e2m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e2m3_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e2m3_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e2m3_icelake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e2m3_sierra`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                           |               |               |               |
+| `nk_reduce_moments_i8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_icelake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_sierra`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                           |               |               |               |
+| `nk_reduce_moments_u8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_icelake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_alder`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i4__                           |               |               |               |
+| `nk_reduce_moments_i4_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i4_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i4_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i4_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u4__                           |               |               |               |
+| `nk_reduce_moments_u4_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u4_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u4_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u4_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u1__                           |               |               |               |
+| `nk_reduce_moments_u1_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u1_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u1_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u1_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                          |               |               |               |
+| `nk_reduce_moments_i16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i16_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i16_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i16_icelake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i16_alder`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                          |               |               |               |
+| `nk_reduce_moments_u16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u16_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u16_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u16_alder`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                          |               |               |               |
+| `nk_reduce_moments_i32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i32_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i32_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                          |               |               |               |
+| `nk_reduce_moments_u32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u32_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u32_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                          |               |               |               |
+| `nk_reduce_moments_i64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i64_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i64_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                          |               |               |               |
+| `nk_reduce_moments_u64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u64_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u64_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+
+#### V8
+
+| Kernel                               |           256 |          1024 |          4096 |
+| :----------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                              |               |               |               |
+| `nk_reduce_moments_f64_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                              |               |               |               |
+| `nk_reduce_moments_f32_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                             |               |               |               |
+| `nk_reduce_moments_bf16_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                              |               |               |               |
+| `nk_reduce_moments_f16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                             |               |               |               |
+| `nk_reduce_moments_e5m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                             |               |               |               |
+| `nk_reduce_moments_e4m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                             |               |               |               |
+| `nk_reduce_moments_e3m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                             |               |               |               |
+| `nk_reduce_moments_e2m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                               |               |               |               |
+| `nk_reduce_moments_i8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                               |               |               |               |
+| `nk_reduce_moments_u8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                              |               |               |               |
+| `nk_reduce_moments_i16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                              |               |               |               |
+| `nk_reduce_moments_u16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                              |               |               |               |
+| `nk_reduce_moments_i32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                              |               |               |               |
+| `nk_reduce_moments_u32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                              |               |               |               |
+| `nk_reduce_moments_i64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                              |               |               |               |
+| `nk_reduce_moments_u64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+
+#### Wasmtime
+
+| Kernel                               |           256 |          1024 |          4096 |
+| :----------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                              |               |               |               |
+| `nk_reduce_moments_f64_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                              |               |               |               |
+| `nk_reduce_moments_f32_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                             |               |               |               |
+| `nk_reduce_moments_bf16_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                              |               |               |               |
+| `nk_reduce_moments_f16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                             |               |               |               |
+| `nk_reduce_moments_e5m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                             |               |               |               |
+| `nk_reduce_moments_e4m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                             |               |               |               |
+| `nk_reduce_moments_e3m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                             |               |               |               |
+| `nk_reduce_moments_e2m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                               |               |               |               |
+| `nk_reduce_moments_i8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                               |               |               |               |
+| `nk_reduce_moments_u8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                              |               |               |               |
+| `nk_reduce_moments_i16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                              |               |               |               |
+| `nk_reduce_moments_u16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                              |               |               |               |
+| `nk_reduce_moments_i32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                              |               |               |               |
+| `nk_reduce_moments_u32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                              |               |               |               |
+| `nk_reduce_moments_i64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                              |               |               |               |
+| `nk_reduce_moments_u64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>moments f64</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments f32</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments bf16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments f16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments e4m3</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_e4m3_neonfhm</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments i8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_i8_neonsdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>moments u8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_moments_u8_neonsdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f64</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f32</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax bf16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax f16</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax e4m3</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_reduce_minmax_e4m3_neonfhm</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax i8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_i8_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>minmax u8</b></td></tr>
-<tr>
-  <td><code>nk_reduce_minmax_u8_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                             |           256 |          1024 |          4096 |
+| :--------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                            |               |               |               |
+| `nk_reduce_moments_f64_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f64_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                            |               |               |               |
+| `nk_reduce_moments_f32_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f32_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                           |               |               |               |
+| `nk_reduce_moments_bf16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_bf16_neonbfdot` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_neonbfdot`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                            |               |               |               |
+| `nk_reduce_moments_f16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_f16_neonhalf`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_neonhalf`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                           |               |               |               |
+| `nk_reduce_moments_e5m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e5m2_neonfhm`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_neonfhm`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                           |               |               |               |
+| `nk_reduce_moments_e4m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e4m3_neonfhm`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_neonfhm`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                           |               |               |               |
+| `nk_reduce_moments_e3m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                           |               |               |               |
+| `nk_reduce_moments_e2m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_moments_e2m3_neonsdot`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                             |               |               |               |
+| `nk_reduce_moments_i8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i8_neonsdot`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                             |               |               |               |
+| `nk_reduce_moments_u8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u8_neonsdot`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i4__                             |               |               |               |
+| `nk_reduce_moments_i4_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i4_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u4__                             |               |               |               |
+| `nk_reduce_moments_u4_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u4_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u1__                             |               |               |               |
+| `nk_reduce_moments_u1_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u1_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                            |               |               |               |
+| `nk_reduce_moments_i16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i16_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                            |               |               |               |
+| `nk_reduce_moments_u16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u16_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                            |               |               |               |
+| `nk_reduce_moments_i32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i32_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                            |               |               |               |
+| `nk_reduce_moments_u32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u32_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                            |               |               |               |
+| `nk_reduce_moments_i64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_i64_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                            |               |               |               |
+| `nk_reduce_moments_u64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_moments_u64_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_neon`        |        0 GB/s |        0 GB/s |        0 GB/s |
+
+#### V8
+
+| Kernel                               |           256 |          1024 |          4096 |
+| :----------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                              |               |               |               |
+| `nk_reduce_moments_f64_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                              |               |               |               |
+| `nk_reduce_moments_f32_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                             |               |               |               |
+| `nk_reduce_moments_bf16_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                              |               |               |               |
+| `nk_reduce_moments_f16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                             |               |               |               |
+| `nk_reduce_moments_e5m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                             |               |               |               |
+| `nk_reduce_moments_e4m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                             |               |               |               |
+| `nk_reduce_moments_e3m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                             |               |               |               |
+| `nk_reduce_moments_e2m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                               |               |               |               |
+| `nk_reduce_moments_i8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                               |               |               |               |
+| `nk_reduce_moments_u8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                              |               |               |               |
+| `nk_reduce_moments_i16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                              |               |               |               |
+| `nk_reduce_moments_u16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                              |               |               |               |
+| `nk_reduce_moments_i32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                              |               |               |               |
+| `nk_reduce_moments_u32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                              |               |               |               |
+| `nk_reduce_moments_i64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                              |               |               |               |
+| `nk_reduce_moments_u64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+
+#### Wasmtime
+
+| Kernel                               |           256 |          1024 |          4096 |
+| :----------------------------------- | ------------: | ------------: | ------------: |
+| __f64__                              |               |               |               |
+| `nk_reduce_moments_f64_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f64_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                              |               |               |               |
+| `nk_reduce_moments_f32_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f32_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                             |               |               |               |
+| `nk_reduce_moments_bf16_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_bf16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                              |               |               |               |
+| `nk_reduce_moments_f16_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_f16_v128relaxed`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                             |               |               |               |
+| `nk_reduce_moments_e5m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e5m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                             |               |               |               |
+| `nk_reduce_moments_e4m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e4m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                             |               |               |               |
+| `nk_reduce_moments_e3m2_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e3m2_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                             |               |               |               |
+| `nk_reduce_moments_e2m3_v128relaxed` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_reduce_minmax_e2m3_v128relaxed`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                               |               |               |               |
+| `nk_reduce_moments_i8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                               |               |               |               |
+| `nk_reduce_moments_u8_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u8_v128relaxed`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                              |               |               |               |
+| `nk_reduce_moments_i16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                              |               |               |               |
+| `nk_reduce_moments_u16_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u16_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                              |               |               |               |
+| `nk_reduce_moments_i32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                              |               |               |               |
+| `nk_reduce_moments_u32_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u32_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                              |               |               |               |
+| `nk_reduce_moments_i64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_i64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                              |               |               |               |
+| `nk_reduce_moments_u64_v128relaxed`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_reduce_minmax_u64_v128relaxed`   |        0 GB/s |        0 GB/s |        0 GB/s |

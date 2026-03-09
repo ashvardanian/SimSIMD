@@ -88,170 +88,42 @@ Hardware support remains the bottleneck: no ISA provides native sparse outer-pro
 
 ## Performance
 
+Controlled by `NK_SPARSE_FIRST_LENGTH`, `NK_SPARSE_SECOND_LENGTH`, `NK_SPARSE_INTERSECTION`.
+Columns show 1%, 50%, 95% intersection ratio with both `NK_SPARSE_FIRST_LENGTH` and `NK_SPARSE_SECOND_LENGTH` set to the same value of 4096.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>intersect u16</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u16_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>intersect u32</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u32_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>intersect u64</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u64_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>dot u32f32</b></td></tr>
-<tr>
-  <td><code>nk_sparse_dot_u32f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_dot_u32f32_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>dot u16bf16</b></td></tr>
-<tr>
-  <td><code>nk_sparse_dot_u16bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                            |     1% |    50% |    95% |
+| :-------------------------------- | -----: | -----: | -----: |
+| __u16__                           |        |        |        |
+| `nk_sparse_intersect_u16_serial`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u16_icelake` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_dot_u16bf16_serial`    | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u32__                           |        |        |        |
+| `nk_sparse_intersect_u32_serial`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u32_icelake` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_dot_u32f32_serial`     | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_dot_u32f32_icelake`    | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u64__                           |        |        |        |
+| `nk_sparse_intersect_u64_serial`  | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u64_icelake` | 0 GB/s | 0 GB/s | 0 GB/s |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>intersect u16</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u16_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u16_sve2</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>intersect u32</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u32_sve2</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>intersect u64</b></td></tr>
-<tr>
-  <td><code>nk_sparse_intersect_u64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_intersect_u64_sve2</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>dot u32f32</b></td></tr>
-<tr>
-  <td><code>nk_sparse_dot_u32f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_dot_u32f32_sve2</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>dot u16bf16</b></td></tr>
-<tr>
-  <td><code>nk_sparse_dot_u16bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_sparse_dot_u16bf16_sve2</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                           |     1% |    50% |    95% |
+| :------------------------------- | -----: | -----: | -----: |
+| __u16__                          |        |        |        |
+| `nk_sparse_intersect_u16_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u16_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_dot_u16bf16_serial`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u32__                          |        |        |        |
+| `nk_sparse_intersect_u32_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u32_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_dot_u32f32_serial`    | 0 GB/s | 0 GB/s | 0 GB/s |
+| __u64__                          |        |        |        |
+| `nk_sparse_intersect_u64_serial` | 0 GB/s | 0 GB/s | 0 GB/s |
+| `nk_sparse_intersect_u64_neon`   | 0 GB/s | 0 GB/s | 0 GB/s |

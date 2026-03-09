@@ -110,288 +110,69 @@ SVE mesh kernels (`sve.h`, `svehalf.h`, 112 lines total) were removed in the sam
 
 ## Performance
 
+Controlled by `NK_MESH_POINTS`.
+Columns show 256, 1024, 4096 points.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                   |             256 |            1024 |            4096 |
+| :----------------------- | --------------: | --------------: | --------------: |
+| __f64__                  |                 |                 |                 |
+| `nk_rmsd_f64_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f64_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f64_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f64_haswell`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f64_haswell`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f64_haswell` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f64_skylake`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f64_skylake`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f64_skylake` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __f32__                  |                 |                 |                 |
+| `nk_rmsd_f32_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f32_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f32_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f32_haswell`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f32_haswell`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f32_haswell` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f32_skylake`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f32_skylake`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f32_skylake` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __bf16__                 |                 |                 |                 |
+| `nk_rmsd_bf16_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_bf16_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_bf16_serial` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __f16__                  |                 |                 |                 |
+| `nk_rmsd_f16_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f16_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f16_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_rmsd_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_rmsd_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kabsch_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_umeyama_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                   |             256 |            1024 |            4096 |
+| :----------------------- | --------------: | --------------: | --------------: |
+| __f64__                  |                 |                 |                 |
+| `nk_rmsd_f64_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f64_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f64_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f64_neon`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f64_neon`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f64_neon`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __f32__                  |                 |                 |                 |
+| `nk_rmsd_f32_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f32_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f32_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_rmsd_f32_neon`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f32_neon`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f32_neon`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __bf16__                 |                 |                 |                 |
+| `nk_rmsd_bf16_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_bf16_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_bf16_serial` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| __f16__                  |                 |                 |                 |
+| `nk_rmsd_f16_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_kabsch_f16_serial`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| `nk_umeyama_f16_serial`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |

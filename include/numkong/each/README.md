@@ -98,484 +98,342 @@ FMA requires cross-lane operations for the imaginary part: `re(a*b) = re(a)*re(b
 
 ## Performance
 
+Controlled by `NK_DENSE_DIMENSIONS`.
+Columns show 256, 1024, 4096 elements.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>sum f64</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum f32</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum f16</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_f16_sapphire</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_e4m3_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum i8</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_sum_i8_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f64</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_scale_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f32</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_scale_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_scale_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f16</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_scale_e4m3_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale i8</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_scale_i8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f64</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_blend_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f32</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_blend_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_blend_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f16</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend i8</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_blend_i8_sapphire</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f64</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_fma_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f32</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_fma_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_fma_bf16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f16</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_e4m3_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_fma_e4m3_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma i8</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_i8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_each_fma_i8_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                       |           256 |          1024 |          4096 |
+| :--------------------------- | ------------: | ------------: | ------------: |
+| __f64__                      |               |               |               |
+| `nk_each_sum_f64_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f64_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f64_skylake`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64_skylake`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                      |               |               |               |
+| `nk_each_sum_f32_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f32_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f32_skylake`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32_skylake`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32_skylake`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                     |               |               |               |
+| `nk_each_sum_bf16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_bf16_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_bf16_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_bf16_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_bf16_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_bf16_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_bf16_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_bf16_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_bf16_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_bf16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_bf16_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_bf16_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                      |               |               |               |
+| `nk_each_sum_f16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f16_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f16_sapphire`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f16_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f16_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f16_serial`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f16_haswell`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f16_haswell`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                     |               |               |               |
+| `nk_each_sum_e4m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e4m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e4m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e4m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                     |               |               |               |
+| `nk_each_sum_e5m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e5m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e5m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e5m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                     |               |               |               |
+| `nk_each_sum_e2m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e2m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e2m3_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e2m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                     |               |               |               |
+| `nk_each_sum_e3m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e3m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e3m2_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e3m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                       |               |               |               |
+| `nk_each_sum_i8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i8_haswell`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i8_icelake`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_sapphire`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i8_sapphire`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_haswell`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_skylake`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_sapphire`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                       |               |               |               |
+| `nk_each_sum_u8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u8_haswell`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u8_icelake`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_skylake`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_sapphire`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u8_serial`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u8_haswell`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u8_sapphire`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_haswell`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_skylake`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_sapphire`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                      |               |               |               |
+| `nk_each_sum_i16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i16_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i16_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i16_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i16_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i16_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i16_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                      |               |               |               |
+| `nk_each_sum_u16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u16_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u16_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u16_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u16_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u16_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u16_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u16_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                      |               |               |               |
+| `nk_each_sum_i32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i32_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i32_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i32_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i32_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i32_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i32_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                      |               |               |               |
+| `nk_each_sum_u32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u32_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u32_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u32_haswell`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u32_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u32_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u32_haswell`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u32_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                      |               |               |               |
+| `nk_each_sum_i64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i64_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i64_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i64_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                      |               |               |               |
+| `nk_each_sum_u64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u64_icelake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u64_skylake`  |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u64_serial`   |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u64_skylake`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| __f64c__                     |               |               |               |
+| `nk_each_scale_f64c_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64c_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64c_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64c_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64c_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64c_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64c_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64c_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32c__                     |               |               |               |
+| `nk_each_scale_f32c_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32c_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32c_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32c_serial`  | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32c_haswell` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32c_skylake` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32c_haswell`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32c_skylake`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>sum f64</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum f32</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum f16</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>sum i8</b></td></tr>
-<tr>
-  <td><code>nk_each_sum_i8_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f64</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f32</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale f16</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>scale i8</b></td></tr>
-<tr>
-  <td><code>nk_each_scale_i8_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f64</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f32</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend f16</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>blend i8</b></td></tr>
-<tr>
-  <td><code>nk_each_blend_i8_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f64</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f32</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma bf16</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_bf16_neonbfdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma f16</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma e4m3</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_e4m3_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>fma i8</b></td></tr>
-<tr>
-  <td><code>nk_each_fma_i8_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                         |           256 |          1024 |          4096 |
+| :----------------------------- | ------------: | ------------: | ------------: |
+| __f64__                        |               |               |               |
+| `nk_each_sum_f64_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f64_neon`         | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64_neon`         | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32__                        |               |               |               |
+| `nk_each_sum_f32_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f32_neon`         | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32_neon`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32_neon`         | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __bf16__                       |               |               |               |
+| `nk_each_sum_bf16_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_bf16_neonbfdot`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_bf16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_bf16_neonbfdot` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_bf16_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_bf16_neonbfdot` | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_bf16_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_bf16_neonbfdot`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f16__                        |               |               |               |
+| `nk_each_sum_f16_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_f16_neonhalf`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f16_neonhalf`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f16_serial`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f16_neonhalf`   | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f16_serial`       | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f16_neonhalf`     | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e4m3__                       |               |               |               |
+| `nk_each_sum_e4m3_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_e4m3_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e4m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e4m3_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e4m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e4m3_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e4m3_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e4m3_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e5m2__                       |               |               |               |
+| `nk_each_sum_e5m2_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_sum_e5m2_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e5m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e5m2_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e5m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e5m2_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e5m2_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e5m2_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e2m3__                       |               |               |               |
+| `nk_each_sum_e2m3_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e2m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e2m3_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e2m3_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __e3m2__                       |               |               |               |
+| `nk_each_sum_e3m2_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_e3m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_e3m2_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_e3m2_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __i8__                         |               |               |               |
+| `nk_each_sum_i8_serial`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i8_neonhalf`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i8_neonhalf`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i8_neonhalf`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_serial`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i8_neonhalf`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u8__                         |               |               |               |
+| `nk_each_sum_u8_serial`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u8_neonhalf`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u8_neonhalf`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u8_serial`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u8_neonhalf`    |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_serial`        |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u8_neonhalf`      |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i16__                        |               |               |               |
+| `nk_each_sum_i16_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i16_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i16_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i16_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i16_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u16__                        |               |               |               |
+| `nk_each_sum_u16_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u16_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u16_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u16_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u16_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u16_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i32__                        |               |               |               |
+| `nk_each_sum_i32_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i32_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i32_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i32_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i32_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u32__                        |               |               |               |
+| `nk_each_sum_u32_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u32_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u32_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u32_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u32_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u32_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __i64__                        |               |               |               |
+| `nk_each_sum_i64_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_i64_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_i64_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_i64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i64_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_i64_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __u64__                        |               |               |               |
+| `nk_each_sum_u64_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_sum_u64_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_scale_u64_neon`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_blend_u64_serial`     |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u64_serial`       |        0 GB/s |        0 GB/s |        0 GB/s |
+| `nk_each_fma_u64_neon`         |        0 GB/s |        0 GB/s |        0 GB/s |
+| __f64c__                       |               |               |               |
+| `nk_each_scale_f64c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f64c_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f64c_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64c_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f64c_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| __f32c__                       |               |               |               |
+| `nk_each_scale_f32c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_scale_f32c_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32c_serial`    | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_blend_f32c_neon`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32c_serial`      | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
+| `nk_each_fma_f32c_neon`        | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP | 0 GB/s, 0 ULP |
