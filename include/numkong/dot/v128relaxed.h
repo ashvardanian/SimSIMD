@@ -959,7 +959,7 @@ NK_PUBLIC void nk_dot_f32c_v128relaxed(nk_f32c_t const *a_pairs, nk_f32c_t const
                                        nk_f32c_t *result) {
     v128_t sum_real_f64x2 = wasm_f64x2_splat(0.0);
     v128_t sum_imag_f64x2 = wasm_f64x2_splat(0.0);
-    v128_t sign_flip_i64x2 = wasm_i64x2_const(0x8000000000000000ULL, 0);
+    v128_t sign_flip_i64x2 = wasm_i64x2_const(0, 0x8000000000000000ULL);
 
     nk_size_t idx_pairs = 0;
     for (; idx_pairs != count_pairs; ++idx_pairs) {
@@ -977,7 +977,7 @@ NK_PUBLIC void nk_dot_f32c_v128relaxed(nk_f32c_t const *a_pairs, nk_f32c_t const
         sum_imag_f64x2 = wasm_f64x2_relaxed_madd(a_real_imag_f64x2, b_swapped_f64x2, sum_imag_f64x2);
     }
 
-    // Flip sign of lane 0 in sum_real (ar*br needs to subtract ai*bi)
+    // Flip sign of lane 1 in sum_real: real = Σ(aᵣ*bᵣ) - Σ(aᵢ*bᵢ)
     sum_real_f64x2 = wasm_v128_xor(sum_real_f64x2, sign_flip_i64x2);
 
     // Finalize: real = sum_real[0] + sum_real[1], imag = sum_imag[0] + sum_imag[1]
@@ -991,7 +991,7 @@ NK_PUBLIC void nk_vdot_f32c_v128relaxed(nk_f32c_t const *a_pairs, nk_f32c_t cons
                                         nk_f32c_t *result) {
     v128_t sum_real_f64x2 = wasm_f64x2_splat(0.0);
     v128_t sum_imag_f64x2 = wasm_f64x2_splat(0.0);
-    v128_t sign_flip_i64x2 = wasm_i64x2_const(0x8000000000000000ULL, 0);
+    v128_t sign_flip_i64x2 = wasm_i64x2_const(0, 0x8000000000000000ULL);
 
     nk_size_t idx_pairs = 0;
     for (; idx_pairs != count_pairs; ++idx_pairs) {
@@ -1005,7 +1005,7 @@ NK_PUBLIC void nk_vdot_f32c_v128relaxed(nk_f32c_t const *a_pairs, nk_f32c_t cons
         sum_imag_f64x2 = wasm_f64x2_relaxed_madd(a_real_imag_f64x2, b_swapped_f64x2, sum_imag_f64x2);
     }
 
-    // For vdot (conjugate dot): flip sign of imag lane 0 instead
+    // For vdot (conjugate dot): flip sign of imag lane 1 instead
     sum_imag_f64x2 = wasm_v128_xor(sum_imag_f64x2, sign_flip_i64x2);
 
     nk_f64_t real_part = wasm_f64x2_extract_lane(sum_real_f64x2, 0) + wasm_f64x2_extract_lane(sum_real_f64x2, 1);
@@ -1018,7 +1018,7 @@ NK_PUBLIC void nk_dot_f64c_v128relaxed(nk_f64c_t const *a_pairs, nk_f64c_t const
                                        nk_f64c_t *result) {
     v128_t sum_real_f64x2 = wasm_f64x2_splat(0.0);
     v128_t sum_imag_f64x2 = wasm_f64x2_splat(0.0);
-    v128_t sign_flip_i64x2 = wasm_i64x2_const(0x8000000000000000ULL, 0);
+    v128_t sign_flip_i64x2 = wasm_i64x2_const(0, 0x8000000000000000ULL);
 
     nk_size_t idx_pairs = 0;
     for (; idx_pairs != count_pairs; ++idx_pairs) {
@@ -1040,7 +1040,7 @@ NK_PUBLIC void nk_vdot_f64c_v128relaxed(nk_f64c_t const *a_pairs, nk_f64c_t cons
                                         nk_f64c_t *result) {
     v128_t sum_real_f64x2 = wasm_f64x2_splat(0.0);
     v128_t sum_imag_f64x2 = wasm_f64x2_splat(0.0);
-    v128_t sign_flip_i64x2 = wasm_i64x2_const(0x8000000000000000ULL, 0);
+    v128_t sign_flip_i64x2 = wasm_i64x2_const(0, 0x8000000000000000ULL);
 
     nk_size_t idx_pairs = 0;
     for (; idx_pairs != count_pairs; ++idx_pairs) {
