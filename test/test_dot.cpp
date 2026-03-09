@@ -88,6 +88,7 @@ void test_dot() {
     run_if_matches("dot_u8", test_dot<u8_t>, nk_dot_u8);
     run_if_matches("dot_i4", test_dot<i4x2_t>, nk_dot_i4);
     run_if_matches("dot_u4", test_dot<u4x2_t>, nk_dot_u4);
+    run_if_matches("dot_u1", test_dot<u1x8_t>, nk_dot_u1);
     run_if_matches("dot_f32c", test_dot<f32c_t>, nk_dot_f32c);
     run_if_matches("vdot_f32c", test_vdot<f32c_t>, nk_vdot_f32c);
     run_if_matches("dot_f64c", test_dot<f64c_t>, nk_dot_f64c);
@@ -102,12 +103,16 @@ void test_dot() {
 #if NK_TARGET_NEON
     run_if_matches("dot_f32_neon", test_dot<f32_t>, nk_dot_f32_neon);
     run_if_matches("dot_f64_neon", test_dot<f64_t>, nk_dot_f64_neon);
-    run_if_matches("dot_e4m3_neon", test_dot<e4m3_t>, nk_dot_e4m3_neon);
-    run_if_matches("dot_e5m2_neon", test_dot<e5m2_t>, nk_dot_e5m2_neon);
     run_if_matches("dot_f32c_neon", test_dot<f32c_t>, nk_dot_f32c_neon);
     run_if_matches("vdot_f32c_neon", test_vdot<f32c_t>, nk_vdot_f32c_neon);
     run_if_matches("dot_f64c_neon", test_dot<f64c_t>, nk_dot_f64c_neon);
     run_if_matches("vdot_f64c_neon", test_vdot<f64c_t>, nk_vdot_f64c_neon);
+    run_if_matches("dot_bf16_neon", test_dot<bf16_t>, nk_dot_bf16_neon);
+    run_if_matches("dot_e4m3_neon", test_dot<e4m3_t>, nk_dot_e4m3_neon);
+    run_if_matches("dot_e5m2_neon", test_dot<e5m2_t>, nk_dot_e5m2_neon);
+    run_if_matches("dot_e2m3_neon", test_dot<e2m3_t>, nk_dot_e2m3_neon);
+    run_if_matches("dot_e3m2_neon", test_dot<e3m2_t>, nk_dot_e3m2_neon);
+    run_if_matches("dot_u1_neon", test_dot<u1x8_t>, nk_dot_u1_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -115,12 +120,6 @@ void test_dot() {
     run_if_matches("dot_f16c_neonhalf", test_dot<f16c_t>, nk_dot_f16c_neonhalf);
     run_if_matches("vdot_f16c_neonhalf", test_vdot<f16c_t>, nk_vdot_f16c_neonhalf);
 #endif // NK_TARGET_NEONHALF
-
-#if NK_TARGET_NEONBFDOT
-    run_if_matches("dot_bf16_neonbfdot", test_dot<bf16_t>, nk_dot_bf16_neonbfdot);
-    run_if_matches("dot_bf16c_neonbfdot", test_dot<bf16c_t>, nk_dot_bf16c_neonbfdot);
-    run_if_matches("vdot_bf16c_neonbfdot", test_vdot<bf16c_t>, nk_vdot_bf16c_neonbfdot);
-#endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
     run_if_matches("dot_i8_neonsdot", test_dot<i8_t>, nk_dot_i8_neonsdot);
@@ -130,6 +129,39 @@ void test_dot() {
     run_if_matches("dot_e2m3_neonsdot", test_dot<e2m3_t>, nk_dot_e2m3_neonsdot);
     run_if_matches("dot_e3m2_neonsdot", test_dot<e3m2_t>, nk_dot_e3m2_neonsdot);
 #endif // NK_TARGET_NEONSDOT
+
+#if NK_TARGET_NEONFHM
+    run_if_matches("dot_f16_neonfhm", test_dot<f16_t>, nk_dot_f16_neonfhm);
+    run_if_matches("dot_f16c_neonfhm", test_dot<f16c_t>, nk_dot_f16c_neonfhm);
+    run_if_matches("vdot_f16c_neonfhm", test_vdot<f16c_t>, nk_vdot_f16c_neonfhm);
+    run_if_matches("dot_e2m3_neonfhm", test_dot<e2m3_t>, nk_dot_e2m3_neonfhm);
+    run_if_matches("dot_e3m2_neonfhm", test_dot<e3m2_t>, nk_dot_e3m2_neonfhm);
+    run_if_matches("dot_e4m3_neonfhm", test_dot<e4m3_t>, nk_dot_e4m3_neonfhm);
+    run_if_matches("dot_e5m2_neonfhm", test_dot<e5m2_t>, nk_dot_e5m2_neonfhm);
+#endif // NK_TARGET_NEONFHM
+
+#if NK_TARGET_NEONBFDOT
+    run_if_matches("dot_bf16_neonbfdot", test_dot<bf16_t>, nk_dot_bf16_neonbfdot);
+    run_if_matches("dot_bf16c_neonbfdot", test_dot<bf16c_t>, nk_dot_bf16c_neonbfdot);
+    run_if_matches("vdot_bf16c_neonbfdot", test_vdot<bf16c_t>, nk_vdot_bf16c_neonbfdot);
+    run_if_matches("dot_e4m3_neonbfdot", test_dot<e4m3_t>, nk_dot_e4m3_neonbfdot);
+    run_if_matches("dot_e5m2_neonbfdot", test_dot<e5m2_t>, nk_dot_e5m2_neonbfdot);
+#endif // NK_TARGET_NEONBFDOT
+
+#if NK_TARGET_SVE
+    run_if_matches("dot_f32_sve", test_dot<f32_t>, nk_dot_f32_sve);
+    run_if_matches("dot_f64_sve", test_dot<f64_t>, nk_dot_f64_sve);
+    run_if_matches("dot_f32c_sve", test_dot<f32c_t>, nk_dot_f32c_sve);
+    run_if_matches("vdot_f32c_sve", test_vdot<f32c_t>, nk_vdot_f32c_sve);
+    run_if_matches("dot_f64c_sve", test_dot<f64c_t>, nk_dot_f64c_sve);
+    run_if_matches("vdot_f64c_sve", test_vdot<f64c_t>, nk_vdot_f64c_sve);
+#endif // NK_TARGET_SVE
+
+#if NK_TARGET_SVEHALF
+    run_if_matches("dot_f16_svehalf", test_dot<f16_t>, nk_dot_f16_svehalf);
+    run_if_matches("dot_f16c_svehalf", test_dot<f16c_t>, nk_dot_f16c_svehalf);
+    run_if_matches("vdot_f16c_svehalf", test_vdot<f16c_t>, nk_vdot_f16c_svehalf);
+#endif // NK_TARGET_SVEHALF
 
 #if NK_TARGET_HASWELL
     run_if_matches("dot_f32_haswell", test_dot<f32_t>, nk_dot_f32_haswell);
@@ -150,6 +182,7 @@ void test_dot() {
     run_if_matches("vdot_bf16c_haswell", test_vdot<bf16c_t>, nk_vdot_bf16c_haswell);
     run_if_matches("dot_i4_haswell", test_dot<i4x2_t>, nk_dot_i4_haswell);
     run_if_matches("dot_u4_haswell", test_dot<u4x2_t>, nk_dot_u4_haswell);
+    run_if_matches("dot_u1_haswell", test_dot<u1x8_t>, nk_dot_u1_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -176,6 +209,7 @@ void test_dot() {
     run_if_matches("dot_u4_icelake", test_dot<u4x2_t>, nk_dot_u4_icelake);
     run_if_matches("dot_e2m3_icelake", test_dot<e2m3_t>, nk_dot_e2m3_icelake);
     run_if_matches("dot_e3m2_icelake", test_dot<e3m2_t>, nk_dot_e3m2_icelake);
+    run_if_matches("dot_u1_icelake", test_dot<u1x8_t>, nk_dot_u1_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_ALDER
@@ -211,6 +245,7 @@ void test_dot() {
     run_if_matches("dot_e3m2_rvv", test_dot<e3m2_t>, nk_dot_e3m2_rvv);
     run_if_matches("dot_i4_rvv", test_dot<i4x2_t>, nk_dot_i4_rvv);
     run_if_matches("dot_u4_rvv", test_dot<u4x2_t>, nk_dot_u4_rvv);
+    run_if_matches("dot_u1_rvv", test_dot<u1x8_t>, nk_dot_u1_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
@@ -222,6 +257,7 @@ void test_dot() {
     run_if_matches("dot_u8_v128relaxed", test_dot<u8_t>, nk_dot_u8_v128relaxed);
     run_if_matches("dot_e2m3_v128relaxed", test_dot<e2m3_t>, nk_dot_e2m3_v128relaxed);
     run_if_matches("dot_e3m2_v128relaxed", test_dot<e3m2_t>, nk_dot_e3m2_v128relaxed);
+    run_if_matches("dot_u1_v128relaxed", test_dot<u1x8_t>, nk_dot_u1_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF
@@ -249,6 +285,7 @@ void test_dot() {
     run_if_matches("dot_u8_serial", test_dot<u8_t>, nk_dot_u8_serial);
     run_if_matches("dot_i4_serial", test_dot<i4x2_t>, nk_dot_i4_serial);
     run_if_matches("dot_u4_serial", test_dot<u4x2_t>, nk_dot_u4_serial);
+    run_if_matches("dot_u1_serial", test_dot<u1x8_t>, nk_dot_u1_serial);
     run_if_matches("dot_f32c_serial", test_dot<f32c_t>, nk_dot_f32c_serial);
     run_if_matches("vdot_f32c_serial", test_vdot<f32c_t>, nk_vdot_f32c_serial);
     run_if_matches("dot_f64c_serial", test_dot<f64c_t>, nk_dot_f64c_serial);
