@@ -4049,7 +4049,7 @@ struct u32_t {
         return *this;
     }
 
-    constexpr auto operator<=>(u32_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(u32_t const &o) const noexcept = default;
 
     constexpr int order(u32_t o) const noexcept { return (raw_ > o.raw_) - (raw_ < o.raw_); }
     constexpr int total_cmp(u32_t o) const noexcept { return order(o); }
@@ -4327,7 +4327,7 @@ struct u64_t {
         return *this;
     }
 
-    constexpr auto operator<=>(u64_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(u64_t const &o) const noexcept = default;
 
     constexpr int order(u64_t o) const noexcept { return (raw_ > o.raw_) - (raw_ < o.raw_); }
     constexpr int total_cmp(u64_t o) const noexcept { return order(o); }
@@ -4457,7 +4457,7 @@ struct i16_t {
         return *this;
     }
 
-    constexpr auto operator<=>(i16_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(i16_t const &o) const noexcept = default;
 
     constexpr i16_t abs() const noexcept { return raw_ < 0 ? i16_t {static_cast<raw_t>(-raw_)} : *this; }
     constexpr i16_t signum() const noexcept {
@@ -4600,7 +4600,7 @@ struct u16_t {
         return *this;
     }
 
-    constexpr auto operator<=>(u16_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(u16_t const &o) const noexcept = default;
 
     constexpr int order(u16_t o) const noexcept { return (raw_ > o.raw_) - (raw_ < o.raw_); }
     constexpr int total_cmp(u16_t o) const noexcept { return order(o); }
@@ -4791,7 +4791,7 @@ struct u1x8_t {
         return *this;
     }
 
-    constexpr auto operator<=>(u1x8_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(u1x8_t const &o) const noexcept = default;
     constexpr unsigned popcount() const noexcept { return std::popcount(raw_); }
     constexpr unsigned hamming(u1x8_t o) const noexcept { return (*this ^ o).popcount(); }
     constexpr unsigned intersection(u1x8_t o) const noexcept { return (*this & o).popcount(); }
@@ -4922,7 +4922,7 @@ struct i4x2_t {
                        component_t(static_cast<nk_i8_t>((high() + o.high()).raw() & 0x0F))};
     }
 
-    constexpr auto operator<=>(i4x2_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(i4x2_t const &o) const noexcept = default;
 };
 
 /**
@@ -5034,7 +5034,7 @@ struct u4x2_t {
                        component_t(static_cast<nk_u8_t>((high() + o.high()).raw() & 0x0F))};
     }
 
-    constexpr auto operator<=>(u4x2_t const &o) const noexcept = default;
+    constexpr std::strong_ordering operator<=>(u4x2_t const &o) const noexcept = default;
 };
 
 #pragma region - Enum Conversion
@@ -5119,14 +5119,14 @@ constexpr bool is_signed() noexcept {
 
 /** @brief Get the maximum representable value for a type. */
 template <typename scalar_type_>
-constexpr auto finite_max() noexcept {
+constexpr scalar_type_ finite_max() noexcept {
     if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::finite_max();
     else return std::numeric_limits<scalar_type_>::max();
 }
 
 /** @brief Get the lowest representable value for a type. */
 template <typename scalar_type_>
-constexpr auto finite_min() noexcept {
+constexpr scalar_type_ finite_min() noexcept {
     if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::finite_min();
     return std::numeric_limits<scalar_type_>::lowest();
 }

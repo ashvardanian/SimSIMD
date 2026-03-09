@@ -82,6 +82,9 @@ struct shape_storage_ {
 
 #pragma region - Tensor View
 
+template <typename view_type_>
+class axis_iterator;
+
 /**
  *  @brief Non-owning, immutable, N-dimensional view.
  *  @tparam value_type_ Element type.
@@ -188,14 +191,13 @@ struct tensor_view {
     }
 
     /** @brief Range of sub-views along the leading dimension. */
-    auto rows() const noexcept {
-        struct range_t {
-            tensor_view parent;
-            auto begin() const noexcept { return axis_iterator<tensor_view>(parent, 0); }
-            auto end() const noexcept { return axis_iterator<tensor_view>(parent, parent.extent(0)); }
-        };
-        return range_t {*this};
-    }
+    struct rows_views_t {
+        tensor_view parent;
+        axis_iterator<tensor_view> begin() const noexcept { return {parent, 0}; }
+        axis_iterator<tensor_view> end() const noexcept { return {parent, parent.extent(0)}; }
+    };
+
+    rows_views_t rows() const noexcept { return {*this}; }
 
     /** @brief Flatten to 1D view (requires contiguous layout). Returns empty view if not contiguous. */
     tensor_view flatten() const noexcept { return reshape({numel()}); }
@@ -346,26 +348,24 @@ struct tensor_span {
     }
 
     /** @brief Range of mutable sub-spans along the leading dimension. */
-    auto rows() noexcept {
-        struct range_t {
-            tensor_span parent;
-            auto begin() noexcept { return axis_iterator<tensor_span>(parent, 0); }
-            auto end() noexcept { return axis_iterator<tensor_span>(parent, parent.extent(0)); }
-        };
-        return range_t {*this};
-    }
+    struct rows_spans_t {
+        tensor_span parent;
+        axis_iterator<tensor_span> begin() noexcept { return {parent, 0}; }
+        axis_iterator<tensor_span> end() noexcept { return {parent, parent.extent(0)}; }
+    };
+
+    rows_spans_t rows() noexcept { return {*this}; }
 
     /** @brief Range of immutable sub-views along the leading dimension. */
-    auto rows() const noexcept {
+    struct rows_views_t {
+        tensor_view<value_type_, max_rank_> parent;
+        axis_iterator<tensor_view<value_type_, max_rank_>> begin() const noexcept { return {parent, 0}; }
+        axis_iterator<tensor_view<value_type_, max_rank_>> end() const noexcept { return {parent, parent.extent(0)}; }
+    };
+
+    rows_views_t rows() const noexcept {
         tensor_view<value_type_, max_rank_> v = *this;
-        struct range_t {
-            tensor_view<value_type_, max_rank_> parent;
-            auto begin() const noexcept { return axis_iterator<tensor_view<value_type_, max_rank_>>(parent, 0); }
-            auto end() const noexcept {
-                return axis_iterator<tensor_view<value_type_, max_rank_>>(parent, parent.extent(0));
-            }
-        };
-        return range_t {v};
+        return {v};
     }
 
     /** @brief Flatten to 1D span (requires contiguous layout). Returns empty span if not contiguous. */
@@ -421,7 +421,9 @@ class axis_iterator {
     constexpr axis_iterator(view_type_ const &parent, std::size_t index) noexcept
         : data_(parent.byte_data()), stride_(parent.stride_bytes(0)), index_(index), parent_(parent) {}
 
-    constexpr auto operator*() const noexcept { return parent_.slice_leading(static_cast<difference_type>(index_)); }
+    constexpr view_type_ operator*() const noexcept {
+        return parent_.slice_leading(static_cast<difference_type>(index_));
+    }
 
     constexpr axis_iterator &operator++() noexcept {
         ++index_;
@@ -685,15 +687,15 @@ struct tensor {
     /** @brief Range of immutable row views (slices along leading dimension). */
     struct rows_views_t {
         view_type parent;
-        auto begin() const noexcept { return axis_iterator<view_type>(parent, 0); }
-        auto end() const noexcept { return axis_iterator<view_type>(parent, parent.extent(0)); }
+        axis_iterator<view_type> begin() const noexcept { return {parent, 0}; }
+        axis_iterator<view_type> end() const noexcept { return {parent, parent.extent(0)}; }
     };
 
     /** @brief Range of mutable row spans (slices along leading dimension). */
     struct rows_spans_t {
         span_type parent;
-        auto begin() noexcept { return axis_iterator<span_type>(parent, 0); }
-        auto end() noexcept { return axis_iterator<span_type>(parent, parent.extent(0)); }
+        axis_iterator<span_type> begin() noexcept { return {parent, 0}; }
+        axis_iterator<span_type> end() noexcept { return {parent, parent.extent(0)}; }
     };
 
     /** @brief Iterate rows as immutable views. */
@@ -703,10 +705,10 @@ struct tensor {
     rows_spans_t rows_spans() noexcept { return {span()}; }
 
     /** @brief Iterate rows as immutable views (convenience alias for rows_views). */
-    auto rows() const noexcept { return view().rows(); }
+    typename view_type::rows_views_t rows() const noexcept { return view().rows(); }
 
     /** @brief Iterate rows as mutable spans (convenience alias for rows_spans). */
-    auto rows() noexcept { return span().rows(); }
+    typename span_type::rows_spans_t rows() noexcept { return span().rows(); }
 
     /** @brief Reinterpret as a 2D immutable matrix view. Requires rank >= 2. */
     tensor_view<value_type_, 2> as_matrix_view() const noexcept { return view().as_matrix(); }
