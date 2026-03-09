@@ -101,9 +101,7 @@ impl ShapeDescriptor {
     }
 
     /// Return as a slice.
-    pub fn as_slice(&self) -> &[usize] {
-        &self.dims[..self.ndim]
-    }
+    pub fn as_slice(&self) -> &[usize] { &self.dims[..self.ndim] }
 }
 
 impl core::fmt::Display for ShapeDescriptor {
@@ -445,52 +443,34 @@ impl<T: Clone, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 
     /// Returns a reference to the allocator.
-    pub fn allocator(&self) -> &A {
-        &self.alloc
-    }
+    pub fn allocator(&self) -> &A { &self.alloc }
 }
 
 // Methods that don't require Clone
 impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Returns the shape of the array.
-    pub fn shape(&self) -> &[usize] {
-        &self.shape[..self.ndim]
-    }
+    pub fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
 
     /// Returns the number of dimensions.
-    pub fn ndim(&self) -> usize {
-        self.ndim
-    }
+    pub fn ndim(&self) -> usize { self.ndim }
 
     /// Returns the number of dimensions (alias for `ndim()`).
-    pub fn rank(&self) -> usize {
-        self.ndim
-    }
+    pub fn rank(&self) -> usize { self.ndim }
 
     /// Returns the total number of elements.
-    pub fn numel(&self) -> usize {
-        self.len
-    }
+    pub fn numel(&self) -> usize { self.len }
 
     /// Returns true if the array has no elements.
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
+    pub fn is_empty(&self) -> bool { self.len == 0 }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride_bytes(&self, dim: usize) -> isize {
-        self.strides[dim]
-    }
+    pub fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
 
     /// Returns a pointer to the data.
-    pub fn as_ptr(&self) -> *const T {
-        self.data.as_ptr()
-    }
+    pub fn as_ptr(&self) -> *const T { self.data.as_ptr() }
 
     /// Returns a mutable pointer to the data.
-    pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.data.as_ptr()
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut T { self.data.as_ptr() }
 
     /// Returns the underlying data as a slice.
     pub fn as_slice(&self) -> &[T] {
@@ -608,19 +588,13 @@ pub enum SliceRange {
 
 impl SliceRange {
     /// Create a full range.
-    pub fn full() -> Self {
-        Self::Full
-    }
+    pub fn full() -> Self { Self::Full }
 
     /// Create a single index.
-    pub fn index(i: usize) -> Self {
-        Self::Index(i)
-    }
+    pub fn index(i: usize) -> Self { Self::Index(i) }
 
     /// Create a range from start to end.
-    pub fn range(start: usize, end: usize) -> Self {
-        Self::Range { start, end }
-    }
+    pub fn range(start: usize, end: usize) -> Self { Self::Range { start, end } }
 
     /// Create a range with step.
     pub fn range_step(start: usize, end: usize, step: isize) -> Self {
@@ -653,39 +627,25 @@ pub struct TensorView<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
 
 impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     /// Returns the shape of the view.
-    pub fn shape(&self) -> &[usize] {
-        &self.shape[..self.ndim]
-    }
+    pub fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
 
     /// Returns the number of dimensions.
-    pub fn ndim(&self) -> usize {
-        self.ndim
-    }
+    pub fn ndim(&self) -> usize { self.ndim }
 
     /// Returns the number of dimensions (alias for `ndim()`).
-    pub fn rank(&self) -> usize {
-        self.ndim
-    }
+    pub fn rank(&self) -> usize { self.ndim }
 
     /// Returns the total number of elements.
-    pub fn numel(&self) -> usize {
-        self.len
-    }
+    pub fn numel(&self) -> usize { self.len }
 
     /// Returns true if the view has no elements.
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
+    pub fn is_empty(&self) -> bool { self.len == 0 }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride_bytes(&self, dim: usize) -> isize {
-        self.strides[dim]
-    }
+    pub fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
 
     /// Returns a pointer to the first element.
-    pub fn as_ptr(&self) -> *const T {
-        self.data
-    }
+    pub fn as_ptr(&self) -> *const T { self.data }
 
     /// Check if the view has contiguous rows.
     pub fn has_contiguous_rows(&self) -> bool {
@@ -715,9 +675,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     ///
     /// # Safety
     /// Caller must ensure the view is contiguous and index is in bounds.
-    pub unsafe fn get_unchecked(&self, index: usize) -> &T {
-        &*self.data.add(index)
-    }
+    pub unsafe fn get_unchecked(&self, index: usize) -> &T { &*self.data.add(index) }
 
     /// Convert to slice (only valid for contiguous views).
     pub fn as_contiguous_slice(&self) -> Option<&[T]> {
@@ -807,44 +765,28 @@ pub struct TensorSpan<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
 
 impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
     /// Returns the shape of the view.
-    pub fn shape(&self) -> &[usize] {
-        &self.shape[..self.ndim]
-    }
+    pub fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
 
     /// Returns the number of dimensions.
-    pub fn ndim(&self) -> usize {
-        self.ndim
-    }
+    pub fn ndim(&self) -> usize { self.ndim }
 
     /// Returns the number of dimensions (alias for `ndim()`).
-    pub fn rank(&self) -> usize {
-        self.ndim
-    }
+    pub fn rank(&self) -> usize { self.ndim }
 
     /// Returns the total number of elements.
-    pub fn numel(&self) -> usize {
-        self.len
-    }
+    pub fn numel(&self) -> usize { self.len }
 
     /// Returns true if the view has no elements.
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
+    pub fn is_empty(&self) -> bool { self.len == 0 }
 
     /// Returns the stride in bytes for the given dimension.
-    pub fn stride_bytes(&self, dim: usize) -> isize {
-        self.strides[dim]
-    }
+    pub fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
 
     /// Returns a pointer to the first element.
-    pub fn as_ptr(&self) -> *const T {
-        self.data
-    }
+    pub fn as_ptr(&self) -> *const T { self.data }
 
     /// Returns a mutable pointer to the first element.
-    pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.data
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut T { self.data }
 
     /// Check if the view has contiguous rows.
     pub fn has_contiguous_rows(&self) -> bool {
@@ -1308,28 +1250,32 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         })
     }
 
-    /// Transpose a 2D array (swaps strides, no data copy).
+    /// Transpose (reverse all dimensions, no data copy).
     pub fn t(&self) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
-        if self.ndim != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: self.ndim,
+        if self.ndim < 2 {
+            return Ok(TensorView {
+                data: self.data.as_ptr(),
+                len: self.len,
+                shape: self.shape,
+                strides: self.strides,
+                ndim: self.ndim,
+                _marker: PhantomData,
             });
         }
 
         let mut new_shape = [0usize; MAX_RANK];
         let mut new_strides = [0isize; MAX_RANK];
-        new_shape[0] = self.shape[1];
-        new_shape[1] = self.shape[0];
-        new_strides[0] = self.strides[1];
-        new_strides[1] = self.strides[0];
+        for i in 0..self.ndim {
+            new_shape[i] = self.shape[self.ndim - 1 - i];
+            new_strides[i] = self.strides[self.ndim - 1 - i];
+        }
 
         Ok(TensorView {
             data: self.data.as_ptr(),
             len: self.len,
             shape: new_shape,
             strides: new_strides,
-            ndim: 2,
+            ndim: self.ndim,
             _marker: PhantomData,
         })
     }
@@ -1957,24 +1903,16 @@ pub trait SumSqToF64 {
 }
 
 impl SumSqToF64 for f32 {
-    fn to_f64(self) -> f64 {
-        self as f64
-    }
+    fn to_f64(self) -> f64 { self as f64 }
 }
 impl SumSqToF64 for f64 {
-    fn to_f64(self) -> f64 {
-        self
-    }
+    fn to_f64(self) -> f64 { self }
 }
 impl SumSqToF64 for u64 {
-    fn to_f64(self) -> f64 {
-        self as f64
-    }
+    fn to_f64(self) -> f64 { self as f64 }
 }
 impl SumSqToF64 for i64 {
-    fn to_f64(self) -> f64 {
-        self as f64
-    }
+    fn to_f64(self) -> f64 { self as f64 }
 }
 
 fn try_alloc_output_like<D: Clone, F, const MAX_RANK: usize>(
@@ -2680,18 +2618,14 @@ impl<T: Clone + EachSin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise sine: result\[i\] = sin(self\[i\])
     ///
     /// Input values are in radians.
-    pub fn sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_sin()
-    }
+    pub fn sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_sin() }
 
     pub fn try_sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_sin()
     }
 
     /// Element-wise sine in-place: self\[i\] = sin(self\[i\])
-    pub fn sin_inplace(&mut self) {
-        let _ = self.try_sin_inplace();
-    }
+    pub fn sin_inplace(&mut self) { let _ = self.try_sin_inplace(); }
 
     pub fn try_sin_inplace(&mut self) -> Result<(), TensorError> {
         try_reborrow_tensor_inplace(self, |view, span| view.try_sin_into(span))
@@ -2702,18 +2636,14 @@ impl<T: Clone + EachCos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise cosine: result\[i\] = cos(self\[i\])
     ///
     /// Input values are in radians.
-    pub fn cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_cos()
-    }
+    pub fn cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_cos() }
 
     pub fn try_cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_cos()
     }
 
     /// Element-wise cosine in-place: self\[i\] = cos(self\[i\])
-    pub fn cos_inplace(&mut self) {
-        let _ = self.try_cos_inplace();
-    }
+    pub fn cos_inplace(&mut self) { let _ = self.try_cos_inplace(); }
 
     pub fn try_cos_inplace(&mut self) -> Result<(), TensorError> {
         try_reborrow_tensor_inplace(self, |view, span| view.try_cos_into(span))
@@ -2733,9 +2663,7 @@ impl<T: Clone + EachATan, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 
     /// Element-wise arctangent in-place: self\[i\] = atan(self\[i\])
-    pub fn atan_inplace(&mut self) {
-        let _ = self.try_atan_inplace();
-    }
+    pub fn atan_inplace(&mut self) { let _ = self.try_atan_inplace(); }
 
     pub fn try_atan_inplace(&mut self) -> Result<(), TensorError> {
         try_reborrow_tensor_inplace(self, |view, span| view.try_atan_into(span))
@@ -2838,9 +2766,7 @@ where
         Ok(())
     }
 
-    pub fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> {
-        Ok(self.try_moments_all()?.0)
-    }
+    pub fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> { Ok(self.try_moments_all()?.0) }
 
     pub fn try_sum_axis<I: VecIndex>(
         &self,
@@ -3020,21 +2946,13 @@ where
         Ok(())
     }
 
-    pub fn try_min_all(&self) -> Result<T::Output, TensorError> {
-        Ok(self.try_minmax_all()?.0)
-    }
+    pub fn try_min_all(&self) -> Result<T::Output, TensorError> { Ok(self.try_minmax_all()?.0) }
 
-    pub fn try_argmin_all(&self) -> Result<usize, TensorError> {
-        Ok(self.try_minmax_all()?.1)
-    }
+    pub fn try_argmin_all(&self) -> Result<usize, TensorError> { Ok(self.try_minmax_all()?.1) }
 
-    pub fn try_max_all(&self) -> Result<T::Output, TensorError> {
-        Ok(self.try_minmax_all()?.2)
-    }
+    pub fn try_max_all(&self) -> Result<T::Output, TensorError> { Ok(self.try_minmax_all()?.2) }
 
-    pub fn try_argmax_all(&self) -> Result<usize, TensorError> {
-        Ok(self.try_minmax_all()?.3)
-    }
+    pub fn try_argmax_all(&self) -> Result<usize, TensorError> { Ok(self.try_minmax_all()?.3) }
 
     pub fn try_min_axis<I: VecIndex>(
         &self,
@@ -3107,9 +3025,7 @@ where
             .try_moments_axis_into(axis, keep_dims, sum_out, sumsq_out)
     }
 
-    pub fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> {
-        self.view().try_sum_all()
-    }
+    pub fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> { self.view().try_sum_all() }
 
     pub fn try_sum_axis<I: VecIndex>(
         &self,
@@ -3128,9 +3044,7 @@ where
         self.view().try_sum_axis_into(axis, keep_dims, out)
     }
 
-    pub fn try_norm_all(&self) -> Result<f64, TensorError> {
-        self.view().try_norm_all()
-    }
+    pub fn try_norm_all(&self) -> Result<f64, TensorError> { self.view().try_norm_all() }
 
     pub fn try_norm_axis<I: VecIndex>(
         &self,
@@ -3187,21 +3101,13 @@ where
             .try_minmax_axis_into(axis, keep_dims, min_out, argmin_out, max_out, argmax_out)
     }
 
-    pub fn try_min_all(&self) -> Result<T::Output, TensorError> {
-        self.view().try_min_all()
-    }
+    pub fn try_min_all(&self) -> Result<T::Output, TensorError> { self.view().try_min_all() }
 
-    pub fn try_argmin_all(&self) -> Result<usize, TensorError> {
-        self.view().try_argmin_all()
-    }
+    pub fn try_argmin_all(&self) -> Result<usize, TensorError> { self.view().try_argmin_all() }
 
-    pub fn try_max_all(&self) -> Result<T::Output, TensorError> {
-        self.view().try_max_all()
-    }
+    pub fn try_max_all(&self) -> Result<T::Output, TensorError> { self.view().try_max_all() }
 
-    pub fn try_argmax_all(&self) -> Result<usize, TensorError> {
-        self.view().try_argmax_all()
-    }
+    pub fn try_argmax_all(&self) -> Result<usize, TensorError> { self.view().try_argmax_all() }
 
     pub fn try_min_axis<I: VecIndex>(
         &self,
@@ -3238,16 +3144,12 @@ where
 
 impl<const MAX_RANK: usize> Tensor<f32, Global, MAX_RANK> {
     /// Sum all elements of the tensor.
-    pub fn sum(&self) -> f32 {
-        self.try_sum_all().unwrap_or(0.0) as f32
-    }
+    pub fn sum(&self) -> f32 { self.try_sum_all().unwrap_or(0.0) as f32 }
 }
 
 impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
     /// Sum all elements of the tensor.
-    pub fn sum(&self) -> f64 {
-        self.try_sum_all().unwrap_or(0.0)
-    }
+    pub fn sum(&self) -> f64 { self.try_sum_all().unwrap_or(0.0) }
 }
 
 // endregion: Tensor Reductions

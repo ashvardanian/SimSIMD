@@ -166,12 +166,14 @@ struct tensor_view {
         return true;
     }
 
-    /** @brief Transpose the first two dimensions (swap extents and strides). Requires rank >= 2. */
+    /** @brief Transpose: reverse the order of all dimensions (swap extents and strides). */
     constexpr tensor_view transpose() const noexcept {
         if (shape_.rank < 2) return *this;
         auto transposed = shape_;
-        std::swap(transposed.extents[0], transposed.extents[1]);
-        std::swap(transposed.strides[0], transposed.strides[1]);
+        for (size_type i = 0; i < transposed.rank / 2; ++i) {
+            std::swap(transposed.extents[i], transposed.extents[transposed.rank - 1 - i]);
+            std::swap(transposed.strides[i], transposed.strides[transposed.rank - 1 - i]);
+        }
         return {data_, transposed};
     }
 
@@ -289,12 +291,14 @@ struct tensor_span {
         return true;
     }
 
-    /** @brief Transpose the first two dimensions. Requires rank >= 2. */
+    /** @brief Transpose: reverse the order of all dimensions (swap extents and strides). */
     constexpr tensor_span transpose() noexcept {
         if (shape_.rank < 2) return *this;
         auto transposed = shape_;
-        std::swap(transposed.extents[0], transposed.extents[1]);
-        std::swap(transposed.strides[0], transposed.strides[1]);
+        for (size_type i = 0; i < transposed.rank / 2; ++i) {
+            std::swap(transposed.extents[i], transposed.extents[transposed.rank - 1 - i]);
+            std::swap(transposed.strides[i], transposed.strides[transposed.rank - 1 - i]);
+        }
         return {data_, transposed};
     }
 
@@ -624,6 +628,20 @@ struct tensor {
 
     /** @brief Reinterpret as a 2D mutable matrix span. Requires rank >= 2. */
     tensor_span<value_type_, 2> as_matrix_span() noexcept { return span().as_matrix(); }
+
+    /** @brief Transpose: reverse dimension order (immutable view). */
+    view_type transpose() const noexcept { return view().transpose(); }
+
+    /** @brief Transpose: reverse dimension order (mutable span). */
+    span_type transpose() noexcept { return span().transpose(); }
+
+    /** @brief Reshape (immutable view). Requires contiguous layout and matching element count. */
+    view_type reshape(std::initializer_list<size_type> new_extents) const noexcept {
+        return view().reshape(new_extents);
+    }
+
+    /** @brief Reshape (mutable span). Requires contiguous layout and matching element count. */
+    span_type reshape(std::initializer_list<size_type> new_extents) noexcept { return span().reshape(new_extents); }
 };
 
 /** @brief Non-member swap. */
