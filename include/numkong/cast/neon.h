@@ -465,8 +465,8 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     float32x4_t abs_f32_hi = vabsq_f32(vcvt_f32_f16(vget_high_f16(f16x8)));
     float32x4_t scaled_lo = vmulq_n_f32(abs_f32_lo, 512.0f);
     float32x4_t scaled_hi = vmulq_n_f32(abs_f32_hi, 512.0f);
-    int32x4_t sub_mant_lo = vcvtq_s32_f32(scaled_lo); // Round to nearest
-    int32x4_t sub_mant_hi = vcvtq_s32_f32(scaled_hi);
+    int32x4_t sub_mant_lo = vcvtnq_s32_f32(scaled_lo); // Round to nearest even
+    int32x4_t sub_mant_hi = vcvtnq_s32_f32(scaled_hi);
     sub_mant_lo = vmaxq_s32(vminq_s32(sub_mant_lo, vdupq_n_s32(7)), vdupq_n_s32(0));
     sub_mant_hi = vmaxq_s32(vminq_s32(sub_mant_hi, vdupq_n_s32(7)), vdupq_n_s32(0));
     int16x4_t sub_mant_lo16 = vmovn_s32(sub_mant_lo);
@@ -697,7 +697,7 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e4m3x4_neon_(float32x4_t f32x4) {
     // If mantissa rounds to 8 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x08
     float32x4_t abs_f32x4 = vabsq_f32(f32x4);
     float32x4_t scaled_f32x4 = vmulq_n_f32(abs_f32x4, 512.0f);
-    int32x4_t subnorm_mantissa_i32x4 = vcvtq_s32_f32(scaled_f32x4);
+    int32x4_t subnorm_mantissa_i32x4 = vcvtnq_s32_f32(scaled_f32x4);
     uint32x4_t promotes_to_normal_u32x4 = vcgtq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(7));
     subnorm_mantissa_i32x4 = vminq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(7));
     subnorm_mantissa_i32x4 = vmaxq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(0));
@@ -759,7 +759,7 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e5m2x4_neon_(float32x4_t f32x4) {
     // If mantissa rounds to 4 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x04
     float32x4_t abs_f32x4 = vabsq_f32(f32x4);
     float32x4_t scaled_f32x4 = vmulq_n_f32(abs_f32x4, 65536.0f);
-    int32x4_t subnorm_mantissa_i32x4 = vcvtq_s32_f32(scaled_f32x4);
+    int32x4_t subnorm_mantissa_i32x4 = vcvtnq_s32_f32(scaled_f32x4);
     uint32x4_t promotes_to_normal_u32x4 = vcgtq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(3));
     subnorm_mantissa_i32x4 = vminq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(3));
     subnorm_mantissa_i32x4 = vmaxq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(0));
@@ -872,7 +872,7 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e2m3x4_neon_(float32x4_t f32x4) {
     // If mantissa rounds to 8 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x08
     float32x4_t abs_f32x4 = vabsq_f32(f32x4);
     float32x4_t scaled_f32x4 = vmulq_n_f32(abs_f32x4, 8.0f);
-    int32x4_t subnorm_mantissa_i32x4 = vcvtq_s32_f32(scaled_f32x4);
+    int32x4_t subnorm_mantissa_i32x4 = vcvtnq_s32_f32(scaled_f32x4);
     uint32x4_t promotes_to_normal_u32x4 = vcgtq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(7));
     subnorm_mantissa_i32x4 = vminq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(7));
     subnorm_mantissa_i32x4 = vmaxq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(0));
@@ -933,7 +933,7 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e3m2x4_neon_(float32x4_t f32x4) {
     // If mantissa rounds to 4 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x04
     float32x4_t abs_f32x4 = vabsq_f32(f32x4);
     float32x4_t scaled_f32x4 = vmulq_n_f32(abs_f32x4, 16.0f);
-    int32x4_t subnorm_mantissa_i32x4 = vcvtq_s32_f32(scaled_f32x4);
+    int32x4_t subnorm_mantissa_i32x4 = vcvtnq_s32_f32(scaled_f32x4);
     uint32x4_t promotes_to_normal_u32x4 = vcgtq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(3));
     subnorm_mantissa_i32x4 = vminq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(3));
     subnorm_mantissa_i32x4 = vmaxq_s32(subnorm_mantissa_i32x4, vdupq_n_s32(0));
