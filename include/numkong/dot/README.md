@@ -119,6 +119,8 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 
 ### Intel Sapphire Rapids
 
+#### Native
+
 <table>
 <tr>
   <th>Kernel</th>
@@ -385,7 +387,157 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 </tr>
 </table>
 
+#### V8 (Chromium)
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256</th>
+  <th>1024</th>
+  <th>4096</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_dot_bf16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_dot_f16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e3m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e3m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e2m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e2m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i8</b></td></tr>
+<tr>
+  <td><code>nk_dot_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u8</b></td></tr>
+<tr>
+  <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u1</b></td></tr>
+<tr>
+  <td><code>nk_dot_u1_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>
+
+#### Wasmtime (Cranelift)
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256</th>
+  <th>1024</th>
+  <th>4096</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_dot_bf16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_dot_f16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e3m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e3m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e2m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e2m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i8</b></td></tr>
+<tr>
+  <td><code>nk_dot_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u8</b></td></tr>
+<tr>
+  <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u1</b></td></tr>
+<tr>
+  <td><code>nk_dot_u1_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>
+
 ### Apple M4 Pro
+
+#### Native
 
 <table>
 <tr>
@@ -605,6 +757,154 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 <tr><td colspan="4"><b>u1</b></td></tr>
 <tr>
   <td><code>nk_dot_u1_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>
+
+#### V8 (Chromium)
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256</th>
+  <th>1024</th>
+  <th>4096</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_dot_bf16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_dot_f16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e3m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e3m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e2m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e2m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i8</b></td></tr>
+<tr>
+  <td><code>nk_dot_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u8</b></td></tr>
+<tr>
+  <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u1</b></td></tr>
+<tr>
+  <td><code>nk_dot_u1_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>
+
+#### Wasmtime (Cranelift)
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256</th>
+  <th>1024</th>
+  <th>4096</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_dot_bf16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_dot_f16_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e3m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e3m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e2m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e2m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i8</b></td></tr>
+<tr>
+  <td><code>nk_dot_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u8</b></td></tr>
+<tr>
+  <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u1</b></td></tr>
+<tr>
+  <td><code>nk_dot_u1_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
