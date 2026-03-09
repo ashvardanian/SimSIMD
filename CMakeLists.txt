@@ -529,6 +529,19 @@ if (NK_BUILD_SHARED)
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
         set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
 
+        # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
+        # Strip unwind tables from this pure-C library (saves ~78 KB).
+        if (NOT MSVC)
+            target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+        endif ()
+
+        # Enable link-time optimization for Release builds.
+        include(CheckIPOSupported)
+        check_ipo_supported(RESULT NK_IPO_SUPPORTED_)
+        if (NK_IPO_SUPPORTED_)
+            set_target_properties(nk_shared PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        endif ()
+
         # NK_TARGET_* defines — match the OS×arch matrix from setup.py
         # x86-64
         if (NK_IS_64BIT_X86_)
