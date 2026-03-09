@@ -195,11 +195,6 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
         return NULL;
     }
 
-    if (is_complex(a->dtype)) {
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul");
-        return NULL;
-    }
-
     if (a->strides[0] < 0 || a->strides[1] < 0) {
         PyErr_SetString(PyExc_ValueError, "matmul does not support negative strides");
         return NULL;
@@ -255,7 +250,7 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
 
 typedef struct matrix_metric_spec_t {
     char const *name;
-    char const *pack_hint;
+    char const *pack_name;
     nk_kernel_kind_t packed_kind;
     nk_kernel_kind_t symmetric_kind;
     nk_kernel_kind_t metric_kind;
@@ -263,7 +258,7 @@ typedef struct matrix_metric_spec_t {
 
 static matrix_metric_spec_t const spec_dots = {
     .name = "dots",
-    .pack_hint = "dots_pack",
+    .pack_name = "dots_pack",
     .packed_kind = nk_kernel_dots_packed_k,
     .symmetric_kind = nk_kernel_dots_symmetric_k,
     .metric_kind = nk_kernel_dot_k,
@@ -271,7 +266,7 @@ static matrix_metric_spec_t const spec_dots = {
 
 static matrix_metric_spec_t const spec_angulars = {
     .name = "angulars",
-    .pack_hint = "dots_pack",
+    .pack_name = "dots_pack",
     .packed_kind = nk_kernel_angulars_packed_k,
     .symmetric_kind = nk_kernel_angulars_symmetric_k,
     .metric_kind = nk_kernel_angular_k,
@@ -279,7 +274,7 @@ static matrix_metric_spec_t const spec_angulars = {
 
 static matrix_metric_spec_t const spec_euclideans = {
     .name = "euclideans",
-    .pack_hint = "dots_pack",
+    .pack_name = "dots_pack",
     .packed_kind = nk_kernel_euclideans_packed_k,
     .symmetric_kind = nk_kernel_euclideans_symmetric_k,
     .metric_kind = nk_kernel_euclidean_k,
@@ -287,7 +282,7 @@ static matrix_metric_spec_t const spec_euclideans = {
 
 static matrix_metric_spec_t const spec_hammings = {
     .name = "hammings",
-    .pack_hint = "hammings_pack",
+    .pack_name = "hammings_pack",
     .packed_kind = nk_kernel_hammings_packed_k,
     .symmetric_kind = nk_kernel_hammings_symmetric_k,
     .metric_kind = nk_kernel_hamming_k,
@@ -295,7 +290,7 @@ static matrix_metric_spec_t const spec_hammings = {
 
 static matrix_metric_spec_t const spec_jaccards = {
     .name = "jaccards",
-    .pack_hint = "hammings_pack",
+    .pack_name = "hammings_pack",
     .packed_kind = nk_kernel_jaccards_packed_k,
     .symmetric_kind = nk_kernel_jaccards_symmetric_k,
     .metric_kind = nk_kernel_jaccard_k,
@@ -384,7 +379,7 @@ static PyObject *api_packed_common( //
     }
 
     if (!PyObject_TypeCheck(b_obj, &PackedMatrixType)) {
-        PyErr_Format(PyExc_TypeError, "b must be a PackedMatrix (use %s() first)", spec->pack_hint);
+        PyErr_Format(PyExc_TypeError, "b must be a PackedMatrix (use %s() first)", spec->pack_name);
         return NULL;
     }
     PackedMatrix *packed = (PackedMatrix *)b_obj;
@@ -406,11 +401,6 @@ static PyObject *api_packed_common( //
         PyBuffer_Release(&a_buffer);
         return NULL;
     }
-    if (is_complex(src_dtype)) {
-        PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported");
-        return NULL;
-    }
     if (a_buffer.strides[0] < 0 || a_buffer.strides[1] < 0) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_ValueError, "%s_packed does not support negative strides", spec->name);
@@ -421,9 +411,8 @@ static PyObject *api_packed_common( //
     nk_size_t depth = (nk_size_t)a_buffer.shape[1];
     nk_size_t input_row_stride = (nk_size_t)a_buffer.strides[0];
     nk_size_t input_col_stride = (nk_size_t)a_buffer.strides[1];
-    int const accepts_bitpacked_u1 = ( //
-        same_string(spec->pack_hint, "hammings_pack") && src_dtype == nk_u8_k && packed->dtype == nk_u1_k);
-    if (accepts_bitpacked_u1) depth *= nk_dtype_dimensions_per_value(packed->dtype);
+    int is_subbyte = nk_dtype_dimensions_per_value(packed->dtype) > 1;
+    if (is_subbyte) depth *= nk_dtype_dimensions_per_value(packed->dtype);
 
     if (depth != packed->depth) {
         PyBuffer_Release(&a_buffer);
@@ -432,16 +421,14 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    if (src_dtype != packed->dtype && !accepts_bitpacked_u1) {
+    if (src_dtype != packed->dtype && !(is_subbyte && src_dtype == nk_u8_k)) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_TypeError, "dtype mismatch: input is '%s' but packed matrix is '%s'",
                      dtype_to_python_string(src_dtype), dtype_to_python_string(packed->dtype));
         return NULL;
     }
 
-    nk_size_t expected_col_stride = accepts_bitpacked_u1 ? (nk_size_t)a_buffer.itemsize
-                                                         : (nk_size_t)bytes_per_dtype(packed->dtype);
-    if (input_col_stride != expected_col_stride) {
+    if (input_col_stride != (nk_size_t)a_buffer.itemsize) {
         PyBuffer_Release(&a_buffer);
         PyErr_SetString(PyExc_ValueError, "left operand must be row-contiguous");
         return NULL;
@@ -635,17 +622,17 @@ char const doc_dots_pack[] =                                                    
     "Signature:\n"                                                                   //
     "    >>> def dots_pack(b, /, dtype='bf16') -> PackedMatrix: ...";
 
-PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
+                                 char const *default_dtype) {
 
     PyObject *b_obj = NULL;
-    char const *dtype_str = "bf16";
+    char const *dtype_str = default_dtype;
 
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 1 || total > 2) {
-        PyErr_SetString(PyExc_TypeError, "dots_pack() requires 1-2 arguments: b, dtype='bf16'");
+        PyErr_SetString(PyExc_TypeError, "pack requires 1-2 arguments: b, dtype");
         return NULL;
     }
 
@@ -655,7 +642,7 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         PyObject *name = PyTuple_GET_ITEM(kwnames, i);
         if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
             if (nargs >= 2) {
-                PyErr_SetString(PyExc_TypeError, "dots_pack() got multiple values for argument 'dtype'");
+                PyErr_SetString(PyExc_TypeError, "got multiple values for argument 'dtype'");
                 return NULL;
             }
             PyObject *val = args[nargs + i];
@@ -666,8 +653,7 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
             dtype_str = PyUnicode_AsUTF8(val);
         }
         else {
-            char const *name_str = PyUnicode_AsUTF8(name);
-            PyErr_Format(PyExc_TypeError, "dots_pack() got unexpected keyword argument '%s'", name_str);
+            PyErr_Format(PyExc_TypeError, "unexpected keyword argument '%s'", PyUnicode_AsUTF8(name));
             return NULL;
         }
     }
@@ -679,14 +665,12 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         dtype_str = PyUnicode_AsUTF8(args[1]);
     }
 
-    // Resolve the target packing dtype
     nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
     if (target_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
         return NULL;
     }
 
-    // Get the input buffer
     Py_buffer b_buffer;
     if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
@@ -704,32 +688,28 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         PyBuffer_Release(&b_buffer);
         return NULL;
     }
-    if (is_complex(src_dtype)) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul packing");
-        return NULL;
-    }
     if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
         PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "matmul packing does not support negative strides");
+        PyErr_SetString(PyExc_ValueError, "packing does not support negative strides");
         return NULL;
     }
 
     nk_size_t width = (nk_size_t)b_buffer.shape[0];
     nk_size_t depth = (nk_size_t)b_buffer.shape[1];
+    // For sub-byte types (e.g. uint1), shape[1] is in bytes but kernels expect logical dimensions
+    depth *= nk_dtype_dimensions_per_value(target_dtype);
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
-    // Require row-contiguous input with matching dtype
-    if (src_dtype != target_dtype) {
+    // Allow uint8 input when target is a sub-byte type like uint1 (bits stored as uint8 bytes)
+    int is_subbyte = nk_dtype_dimensions_per_value(target_dtype) > 1;
+    if (src_dtype != target_dtype && !(is_subbyte && src_dtype == nk_u8_k)) {
         PyBuffer_Release(&b_buffer);
-        PyErr_Format(
-            PyExc_TypeError,
-            "Input dtype '%s' does not match target dtype '%s'. " "Cast the input first (e.g., " "array.astype(np." "fl" "oa" "t3" "2)" ")" ".",
-            dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'.",
+                     dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
         return NULL;
     }
-    if (col_stride != (nk_size_t)bytes_per_dtype(target_dtype)) {
+    if (col_stride != (nk_size_t)b_buffer.itemsize) {
         PyBuffer_Release(&b_buffer);
         PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
         return NULL;
@@ -758,7 +738,6 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     packed->width = width;
     packed->depth = depth;
 
-    // Pack via punned dispatch
     nk_dots_pack_punned_t pack_fn = NULL;
     cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
@@ -778,6 +757,11 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
 
     PyBuffer_Release(&b_buffer);
     return (PyObject *)packed;
+}
+
+PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    (void)self;
+    return api_pack_common(args, nargs, kwnames, "bf16");
 }
 
 char const doc_dots_packed[] =                                                             //
@@ -818,140 +802,7 @@ char const doc_hammings_pack[] =                                             //
 
 PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;
-
-    PyObject *b_obj = NULL;
-    char const *dtype_str = "uint1";
-
-    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
-    Py_ssize_t total = nargs + nkw;
-
-    if (nargs < 1 || total > 2) {
-        PyErr_SetString(PyExc_TypeError, "hammings_pack() requires 1-2 arguments: b, dtype='uint1'");
-        return NULL;
-    }
-
-    b_obj = args[0];
-
-    for (Py_ssize_t i = 0; i < nkw; i++) {
-        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
-        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
-            if (nargs >= 2) {
-                PyErr_SetString(PyExc_TypeError, "hammings_pack() got multiple values for argument 'dtype'");
-                return NULL;
-            }
-            PyObject *val = args[nargs + i];
-            if (!PyUnicode_Check(val)) {
-                PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-                return NULL;
-            }
-            dtype_str = PyUnicode_AsUTF8(val);
-        }
-        else {
-            char const *name_str = PyUnicode_AsUTF8(name);
-            PyErr_Format(PyExc_TypeError, "hammings_pack() got unexpected keyword argument '%s'", name_str);
-            return NULL;
-        }
-    }
-    if (nargs >= 2) {
-        if (!PyUnicode_Check(args[1])) {
-            PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-            return NULL;
-        }
-        dtype_str = PyUnicode_AsUTF8(args[1]);
-    }
-
-    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
-        return NULL;
-    }
-
-    Py_buffer b_buffer;
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
-        return NULL;
-    }
-
-    if (b_buffer.ndim != 2) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "b must be a 2D matrix");
-        return NULL;
-    }
-
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&b_buffer, &src_dtype)) {
-        PyBuffer_Release(&b_buffer);
-        return NULL;
-    }
-
-    if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "hammings packing does not support negative strides");
-        return NULL;
-    }
-
-    nk_size_t width = (nk_size_t)b_buffer.shape[0];
-    nk_size_t depth = (nk_size_t)b_buffer.shape[1];
-    // For sub-byte types, shape[1] is in bytes but the kernel expects depth in logical dimensions
-    depth *= nk_dtype_dimensions_per_value(target_dtype);
-    nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
-    nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
-
-    // Allow uint8 input when target is uint1 (packed bits are stored as uint8 bytes)
-    if (src_dtype != target_dtype && !(src_dtype == nk_u8_k && target_dtype == nk_u1_k)) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'.",
-                     dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
-        return NULL;
-    }
-    if (col_stride != (nk_size_t)b_buffer.itemsize) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
-        return NULL;
-    }
-
-    nk_dots_packed_size_punned_t size_fn = NULL;
-    nk_capability_t cap = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
-                          (nk_kernel_punned_t *)&size_fn, &cap);
-    if (!size_fn) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_LookupError, "No hammings packing kernel for dtype '%s'",
-                     dtype_to_python_string(target_dtype));
-        return NULL;
-    }
-    nk_size_t packed_size = size_fn(width, depth);
-
-    PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
-    if (!packed) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_NoMemory();
-        return NULL;
-    }
-
-    packed->dtype = target_dtype;
-    packed->width = width;
-    packed->depth = depth;
-
-    nk_dots_pack_punned_t pack_fn = NULL;
-    cap = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
-                          (nk_kernel_punned_t *)&pack_fn, &cap);
-    if (!pack_fn) {
-        Py_DECREF(packed);
-        PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_LookupError, "No hammings pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
-        return NULL;
-    }
-
-    {
-        PyThreadState *save = PyEval_SaveThread();
-        pack_fn(b_buffer.buf, width, depth, row_stride, packed->start);
-        PyEval_RestoreThread(save);
-    }
-
-    PyBuffer_Release(&b_buffer);
-    return (PyObject *)packed;
+    return api_pack_common(args, nargs, kwnames, "uint1");
 }
 
 char const doc_hammings_packed[] =                                                         //
