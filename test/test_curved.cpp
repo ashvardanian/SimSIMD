@@ -134,6 +134,15 @@ void test_curved() {
     run_if_matches("mahalanobis_bf16_neonbfdot", test_mahalanobis<bf16_t>, nk_mahalanobis_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
+#if NK_TARGET_HASWELL
+    run_if_matches("bilinear_f32_haswell", test_bilinear<f32_t>, nk_bilinear_f32_haswell);
+    run_if_matches("bilinear_f16_haswell", test_bilinear<f16_t>, nk_bilinear_f16_haswell);
+    run_if_matches("bilinear_bf16_haswell", test_bilinear<bf16_t>, nk_bilinear_bf16_haswell);
+    run_if_matches("mahalanobis_f32_haswell", test_mahalanobis<f32_t>, nk_mahalanobis_f32_haswell);
+    run_if_matches("mahalanobis_f16_haswell", test_mahalanobis<f16_t>, nk_mahalanobis_f16_haswell);
+    run_if_matches("mahalanobis_bf16_haswell", test_mahalanobis<bf16_t>, nk_mahalanobis_bf16_haswell);
+#endif // NK_TARGET_HASWELL
+
 #if NK_TARGET_SKYLAKE
     run_if_matches("bilinear_f32_skylake", test_bilinear<f32_t>, nk_bilinear_f32_skylake);
     run_if_matches("bilinear_f64_skylake", test_bilinear<f64_t>, nk_bilinear_f64_skylake);

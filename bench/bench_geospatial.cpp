@@ -88,6 +88,20 @@ void bench_geospatial() {
     run_geospatial<f64_k>("vincenty_f64_skylake", nk_vincenty_f64_skylake);
 #endif
 
+#if NK_TARGET_RVV
+    run_geospatial<f32_k>("haversine_f32_rvv", nk_haversine_f32_rvv);
+    run_geospatial<f64_k>("haversine_f64_rvv", nk_haversine_f64_rvv);
+    run_geospatial<f32_k>("vincenty_f32_rvv", nk_vincenty_f32_rvv);
+    run_geospatial<f64_k>("vincenty_f64_rvv", nk_vincenty_f64_rvv);
+#endif
+
+#if NK_TARGET_V128RELAXED
+    run_geospatial<f32_k>("haversine_f32_v128relaxed", nk_haversine_f32_v128relaxed);
+    run_geospatial<f64_k>("haversine_f64_v128relaxed", nk_haversine_f64_v128relaxed);
+    run_geospatial<f32_k>("vincenty_f32_v128relaxed", nk_vincenty_f32_v128relaxed);
+    run_geospatial<f64_k>("vincenty_f64_v128relaxed", nk_vincenty_f64_v128relaxed);
+#endif
+
     // Serial fallbacks
     run_geospatial<f32_k>("haversine_f32_serial", nk_haversine_f32_serial);
     run_geospatial<f64_k>("haversine_f64_serial", nk_haversine_f64_serial);

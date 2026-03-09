@@ -145,6 +145,12 @@ void test_spatial() {
     run_if_matches("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
     run_if_matches("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
     run_if_matches("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
+    run_if_matches("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
+    run_if_matches("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
+    run_if_matches("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
+    run_if_matches("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
+    run_if_matches("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
+    run_if_matches("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF

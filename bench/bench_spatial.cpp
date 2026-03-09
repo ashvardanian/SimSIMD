@@ -31,6 +31,18 @@ void bench_spatial() {
     run_dense<f64_k, f64_k>("angular_f64_neon", nk_angular_f64_neon);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_neon", nk_sqeuclidean_f64_neon);
     run_dense<f64_k, f64_k>("euclidean_f64_neon", nk_euclidean_f64_neon);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_neon", nk_angular_e4m3_neon);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_neon", nk_sqeuclidean_e4m3_neon);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_neon", nk_euclidean_e4m3_neon);
+    run_dense<e5m2_k, f32_k>("angular_e5m2_neon", nk_angular_e5m2_neon);
+    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_neon", nk_sqeuclidean_e5m2_neon);
+    run_dense<e5m2_k, f32_k>("euclidean_e5m2_neon", nk_euclidean_e5m2_neon);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_neon", nk_angular_e2m3_neon);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_neon", nk_sqeuclidean_e2m3_neon);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_neon", nk_euclidean_e2m3_neon);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_neon", nk_angular_e3m2_neon);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_neon", nk_sqeuclidean_e3m2_neon);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_neon", nk_euclidean_e3m2_neon);
 #endif
 
 #if NK_TARGET_NEONSDOT

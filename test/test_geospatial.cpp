@@ -104,6 +104,13 @@ void test_geospatial() {
     run_if_matches("vincenty_f32_skylake", test_vincenty<f32_t>, nk_vincenty_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_RVV
+    run_if_matches("haversine_f64_rvv", test_haversine<f64_t>, nk_haversine_f64_rvv);
+    run_if_matches("haversine_f32_rvv", test_haversine<f32_t>, nk_haversine_f32_rvv);
+    run_if_matches("vincenty_f64_rvv", test_vincenty<f64_t>, nk_vincenty_f64_rvv);
+    run_if_matches("vincenty_f32_rvv", test_vincenty<f32_t>, nk_vincenty_f32_rvv);
+#endif // NK_TARGET_RVV
+
 #if NK_TARGET_V128RELAXED
     run_if_matches("haversine_f64_v128relaxed", test_haversine<f64_t>, nk_haversine_f64_v128relaxed);
     run_if_matches("haversine_f32_v128relaxed", test_haversine<f32_t>, nk_haversine_f32_v128relaxed);

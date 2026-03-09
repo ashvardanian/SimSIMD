@@ -168,6 +168,8 @@ void bench_curved() {
 #endif
 
 #if NK_TARGET_HASWELL
+    run_curved<f32_k>("bilinear_f32_haswell", nk_bilinear_f32_haswell);
+    run_curved<f32_k>("mahalanobis_f32_haswell", nk_mahalanobis_f32_haswell);
     run_curved<f16_k>("bilinear_f16_haswell", nk_bilinear_f16_haswell);
     run_curved<f16_k>("mahalanobis_f16_haswell", nk_mahalanobis_f16_haswell);
     run_curved<bf16_k>("bilinear_bf16_haswell", nk_bilinear_bf16_haswell);
