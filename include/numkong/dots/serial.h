@@ -2722,7 +2722,7 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
                 store_fn(&results_vec, r_row_out + column_index);                                                     \
             }                                                                                                         \
             if (column_index < column_count) {                                                                        \
-                vec_type dots_vec = {{0}}, norms_vec = {{0}}, results_vec;                                            \
+                vec_type dots_vec = {0}, norms_vec = {0}, results_vec;                                                \
                 partial_load_fn(r_row_dots + column_index, &dots_vec, column_count - column_index);                   \
                 partial_load_fn(b_norms + column_index, &norms_vec, column_count - column_index);                     \
                 from_dot_fn(dots_vec, query_norm, norms_vec, &results_vec);                                           \
@@ -2784,7 +2784,7 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
                 }                                                                                                     \
                 /* Remainder */                                                                                       \
                 if (j < column_chunk_end) {                                                                           \
-                    vec_type dots_vec = {{0}}, norms_vec = {{0}}, results_vec;                                        \
+                    vec_type dots_vec = {0}, norms_vec = {0}, results_vec;                                            \
                     partial_load_fn(r_dots + j, &dots_vec, column_chunk_end - j);                                     \
                     partial_load_fn(&column_norms[j - column_chunk_start], &norms_vec, column_chunk_end - j);         \
                     from_dot_fn(dots_vec, sumsq_i, norms_vec, &results_vec);                                          \

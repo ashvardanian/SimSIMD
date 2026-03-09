@@ -191,7 +191,7 @@ nk_define_cross_compensated_pack_size_(dots, i4, v128relaxed, i4x2, i4x2,
                                        /*sum_value_type=*/i32, /*norm_value_type=*/u32,
                                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 nk_define_cross_compensated_pack_(dots, i4, v128relaxed, i4x2, i4x2, nk_assign_from_to_,
-                                  /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_dots_reduce_sumsq_i4_,
+                                  /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_dots_reduce_moments_i4_,
                                   /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 nk_define_cross_compensated_symmetric_(dots, i4, v128relaxed, i4x2, i32,
                                        /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_b128_vec_t,

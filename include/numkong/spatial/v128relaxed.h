@@ -444,7 +444,7 @@ NK_PUBLIC void nk_sqeuclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b,
 
 nk_sqeuclidean_u8_v128relaxed_cycle:
     if (count_scalars < 16) {
-        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_b128_vec_t a_vec = {0}, b_vec = {0};
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         a_u8x16 = a_vec.v128;
@@ -513,8 +513,8 @@ NK_PUBLIC void nk_angular_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_
             dot_bb_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(b_u8x16, b_signed_i8x16, dot_bb_i32x4);
 
             // Sum accumulators for correction: u8→u16 only (1 widening/iter)
-            sum_a_u16x8 = wasm_u16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
-            sum_b_u16x8 = wasm_u16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
+            sum_a_u16x8 = wasm_i16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
+            sum_b_u16x8 = wasm_i16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
         }
 
         // Deferred widening: u16 → u32 once per window
@@ -557,7 +557,7 @@ NK_PUBLIC void nk_sqeuclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b,
 
 nk_sqeuclidean_i8_v128relaxed_cycle:
     if (count_scalars < 16) {
-        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_b128_vec_t a_vec = {0}, b_vec = {0};
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         a_u8x16 = wasm_v128_xor(a_vec.v128, bias_u8x16);
