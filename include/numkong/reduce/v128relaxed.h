@@ -327,10 +327,10 @@ NK_INTERNAL void nk_reduce_minmax_f32_v128relaxed_contiguous_( //
         v128_t data_f32x4 = wasm_v128_load(data + idx);
         v128_t less_b32x4 = wasm_f32x4_lt(data_f32x4, min_f32x4);
         v128_t greater_b32x4 = wasm_f32x4_gt(data_f32x4, max_f32x4);
-        min_f32x4 = wasm_v128_bitselect(data_f32x4, min_f32x4, less_b32x4);
-        max_f32x4 = wasm_v128_bitselect(data_f32x4, max_f32x4, greater_b32x4);
-        min_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, min_iter_u32x4, less_b32x4);
-        max_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
+        min_f32x4 = wasm_i32x4_relaxed_laneselect(data_f32x4, min_f32x4, less_b32x4);
+        max_f32x4 = wasm_i32x4_relaxed_laneselect(data_f32x4, max_f32x4, greater_b32x4);
+        min_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, min_iter_u32x4, less_b32x4);
+        max_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
         iter_u32x4 = wasm_i32x4_add(iter_u32x4, one_u32x4);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -413,10 +413,10 @@ NK_INTERNAL void nk_reduce_minmax_f64_v128relaxed_contiguous_( //
         v128_t data_f64x2 = wasm_v128_load(data + idx);
         v128_t less_b64x2 = wasm_f64x2_lt(data_f64x2, min_f64x2);
         v128_t greater_b64x2 = wasm_f64x2_gt(data_f64x2, max_f64x2);
-        min_f64x2 = wasm_v128_bitselect(data_f64x2, min_f64x2, less_b64x2);
-        max_f64x2 = wasm_v128_bitselect(data_f64x2, max_f64x2, greater_b64x2);
-        min_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, min_iter_u64x2, less_b64x2);
-        max_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
+        min_f64x2 = wasm_i64x2_relaxed_laneselect(data_f64x2, min_f64x2, less_b64x2);
+        max_f64x2 = wasm_i64x2_relaxed_laneselect(data_f64x2, max_f64x2, greater_b64x2);
+        min_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, min_iter_u64x2, less_b64x2);
+        max_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
         iter_u64x2 = wasm_i64x2_add(iter_u64x2, one_u64x2);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -491,10 +491,10 @@ NK_INTERNAL void nk_reduce_minmax_bf16_v128relaxed_contiguous_( //
         // Compare as signed i16, masked by not-NaN
         v128_t less_i16x8 = wasm_v128_and(wasm_i16x8_lt(cmp_i16x8, min_cmp_i16x8), not_nan_i16x8);
         v128_t greater_i16x8 = wasm_v128_and(wasm_i16x8_gt(cmp_i16x8, max_cmp_i16x8), not_nan_i16x8);
-        min_cmp_i16x8 = wasm_v128_bitselect(cmp_i16x8, min_cmp_i16x8, less_i16x8);
-        max_cmp_i16x8 = wasm_v128_bitselect(cmp_i16x8, max_cmp_i16x8, greater_i16x8);
-        min_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, min_iter_u16x8, less_i16x8);
-        max_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, max_iter_u16x8, greater_i16x8);
+        min_cmp_i16x8 = wasm_i16x8_relaxed_laneselect(cmp_i16x8, min_cmp_i16x8, less_i16x8);
+        max_cmp_i16x8 = wasm_i16x8_relaxed_laneselect(cmp_i16x8, max_cmp_i16x8, greater_i16x8);
+        min_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, min_iter_u16x8, less_i16x8);
+        max_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, max_iter_u16x8, greater_i16x8);
         iter_u16x8 = wasm_i16x8_add(iter_u16x8, one_u16x8);
     }
     // Horizontal reduction over 8 lanes
@@ -588,10 +588,10 @@ NK_INTERNAL void nk_reduce_minmax_f16_v128relaxed_contiguous_( //
         v128_t data_f32x4 = nk_f16x4_to_f32x4_v128relaxed_(raw).v128;
         v128_t less_b32x4 = wasm_f32x4_lt(data_f32x4, min_f32x4);
         v128_t greater_b32x4 = wasm_f32x4_gt(data_f32x4, max_f32x4);
-        min_f32x4 = wasm_v128_bitselect(data_f32x4, min_f32x4, less_b32x4);
-        max_f32x4 = wasm_v128_bitselect(data_f32x4, max_f32x4, greater_b32x4);
-        min_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, min_iter_u32x4, less_b32x4);
-        max_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
+        min_f32x4 = wasm_i32x4_relaxed_laneselect(data_f32x4, min_f32x4, less_b32x4);
+        max_f32x4 = wasm_i32x4_relaxed_laneselect(data_f32x4, max_f32x4, greater_b32x4);
+        min_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, min_iter_u32x4, less_b32x4);
+        max_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
         iter_u32x4 = wasm_i32x4_add(iter_u32x4, one_u32x4);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1086,10 +1086,10 @@ NK_INTERNAL void nk_reduce_minmax_i8_v128relaxed_contiguous_( //
         v128_t data_i8x16 = wasm_v128_load(data + idx);
         v128_t less_b8x16 = wasm_i8x16_lt(data_i8x16, min_i8x16);
         v128_t greater_b8x16 = wasm_i8x16_gt(data_i8x16, max_i8x16);
-        min_i8x16 = wasm_v128_bitselect(data_i8x16, min_i8x16, less_b8x16);
-        max_i8x16 = wasm_v128_bitselect(data_i8x16, max_i8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_i8x16 = wasm_i8x16_relaxed_laneselect(data_i8x16, min_i8x16, less_b8x16);
+        max_i8x16 = wasm_i8x16_relaxed_laneselect(data_i8x16, max_i8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1165,10 +1165,10 @@ NK_INTERNAL void nk_reduce_minmax_u8_v128relaxed_contiguous_( //
         v128_t data_u8x16 = wasm_v128_load(data + idx);
         v128_t less_b8x16 = wasm_u8x16_lt(data_u8x16, min_u8x16);
         v128_t greater_b8x16 = wasm_u8x16_gt(data_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(data_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(data_u8x16, max_u8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_u8x16 = wasm_i8x16_relaxed_laneselect(data_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_i8x16_relaxed_laneselect(data_u8x16, max_u8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1243,10 +1243,10 @@ NK_INTERNAL void nk_reduce_minmax_i16_v128relaxed_contiguous_( //
         v128_t data_i16x8 = wasm_v128_load(data + idx);
         v128_t less_b16x8 = wasm_i16x8_lt(data_i16x8, min_i16x8);
         v128_t greater_b16x8 = wasm_i16x8_gt(data_i16x8, max_i16x8);
-        min_i16x8 = wasm_v128_bitselect(data_i16x8, min_i16x8, less_b16x8);
-        max_i16x8 = wasm_v128_bitselect(data_i16x8, max_i16x8, greater_b16x8);
-        min_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, min_iter_u16x8, less_b16x8);
-        max_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, max_iter_u16x8, greater_b16x8);
+        min_i16x8 = wasm_i16x8_relaxed_laneselect(data_i16x8, min_i16x8, less_b16x8);
+        max_i16x8 = wasm_i16x8_relaxed_laneselect(data_i16x8, max_i16x8, greater_b16x8);
+        min_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, min_iter_u16x8, less_b16x8);
+        max_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, max_iter_u16x8, greater_b16x8);
         iter_u16x8 = wasm_i16x8_add(iter_u16x8, one_u16x8);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1322,10 +1322,10 @@ NK_INTERNAL void nk_reduce_minmax_u16_v128relaxed_contiguous_( //
         v128_t data_u16x8 = wasm_v128_load(data + idx);
         v128_t less_b16x8 = wasm_u16x8_lt(data_u16x8, min_u16x8);
         v128_t greater_b16x8 = wasm_u16x8_gt(data_u16x8, max_u16x8);
-        min_u16x8 = wasm_v128_bitselect(data_u16x8, min_u16x8, less_b16x8);
-        max_u16x8 = wasm_v128_bitselect(data_u16x8, max_u16x8, greater_b16x8);
-        min_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, min_iter_u16x8, less_b16x8);
-        max_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, max_iter_u16x8, greater_b16x8);
+        min_u16x8 = wasm_i16x8_relaxed_laneselect(data_u16x8, min_u16x8, less_b16x8);
+        max_u16x8 = wasm_i16x8_relaxed_laneselect(data_u16x8, max_u16x8, greater_b16x8);
+        min_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, min_iter_u16x8, less_b16x8);
+        max_iter_u16x8 = wasm_i16x8_relaxed_laneselect(iter_u16x8, max_iter_u16x8, greater_b16x8);
         iter_u16x8 = wasm_i16x8_add(iter_u16x8, one_u16x8);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1400,10 +1400,10 @@ NK_INTERNAL void nk_reduce_minmax_i32_v128relaxed_contiguous_( //
         v128_t data_i32x4 = wasm_v128_load(data + idx);
         v128_t less_b32x4 = wasm_i32x4_lt(data_i32x4, min_i32x4);
         v128_t greater_b32x4 = wasm_i32x4_gt(data_i32x4, max_i32x4);
-        min_i32x4 = wasm_v128_bitselect(data_i32x4, min_i32x4, less_b32x4);
-        max_i32x4 = wasm_v128_bitselect(data_i32x4, max_i32x4, greater_b32x4);
-        min_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, min_iter_u32x4, less_b32x4);
-        max_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
+        min_i32x4 = wasm_i32x4_relaxed_laneselect(data_i32x4, min_i32x4, less_b32x4);
+        max_i32x4 = wasm_i32x4_relaxed_laneselect(data_i32x4, max_i32x4, greater_b32x4);
+        min_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, min_iter_u32x4, less_b32x4);
+        max_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
         iter_u32x4 = wasm_i32x4_add(iter_u32x4, one_u32x4);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1483,10 +1483,10 @@ NK_INTERNAL void nk_reduce_minmax_u32_v128relaxed_contiguous_( //
         v128_t max_biased_i32x4 = wasm_v128_xor(max_u32x4, sign_bit_i32x4);
         v128_t less_b32x4 = wasm_i32x4_lt(data_biased_i32x4, min_biased_i32x4);
         v128_t greater_b32x4 = wasm_i32x4_gt(data_biased_i32x4, max_biased_i32x4);
-        min_u32x4 = wasm_v128_bitselect(data_u32x4, min_u32x4, less_b32x4);
-        max_u32x4 = wasm_v128_bitselect(data_u32x4, max_u32x4, greater_b32x4);
-        min_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, min_iter_u32x4, less_b32x4);
-        max_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
+        min_u32x4 = wasm_i32x4_relaxed_laneselect(data_u32x4, min_u32x4, less_b32x4);
+        max_u32x4 = wasm_i32x4_relaxed_laneselect(data_u32x4, max_u32x4, greater_b32x4);
+        min_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, min_iter_u32x4, less_b32x4);
+        max_iter_u32x4 = wasm_i32x4_relaxed_laneselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
         iter_u32x4 = wasm_i32x4_add(iter_u32x4, one_u32x4);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1561,10 +1561,10 @@ NK_INTERNAL void nk_reduce_minmax_i64_v128relaxed_contiguous_( //
         v128_t data_i64x2 = wasm_v128_load(data + idx);
         v128_t less_b64x2 = wasm_i64x2_gt(min_i64x2, data_i64x2);
         v128_t greater_b64x2 = wasm_i64x2_gt(data_i64x2, max_i64x2);
-        min_i64x2 = wasm_v128_bitselect(data_i64x2, min_i64x2, less_b64x2);
-        max_i64x2 = wasm_v128_bitselect(data_i64x2, max_i64x2, greater_b64x2);
-        min_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, min_iter_u64x2, less_b64x2);
-        max_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
+        min_i64x2 = wasm_i64x2_relaxed_laneselect(data_i64x2, min_i64x2, less_b64x2);
+        max_i64x2 = wasm_i64x2_relaxed_laneselect(data_i64x2, max_i64x2, greater_b64x2);
+        min_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, min_iter_u64x2, less_b64x2);
+        max_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
         iter_u64x2 = wasm_i64x2_add(iter_u64x2, one_u64x2);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1627,10 +1627,10 @@ NK_INTERNAL void nk_reduce_minmax_u64_v128relaxed_contiguous_( //
         v128_t max_biased_i64x2 = wasm_v128_xor(max_u64x2, sign_bit_i64x2);
         v128_t less_b64x2 = wasm_i64x2_gt(min_biased_i64x2, data_biased_i64x2);
         v128_t greater_b64x2 = wasm_i64x2_gt(data_biased_i64x2, max_biased_i64x2);
-        min_u64x2 = wasm_v128_bitselect(data_u64x2, min_u64x2, less_b64x2);
-        max_u64x2 = wasm_v128_bitselect(data_u64x2, max_u64x2, greater_b64x2);
-        min_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, min_iter_u64x2, less_b64x2);
-        max_iter_u64x2 = wasm_v128_bitselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
+        min_u64x2 = wasm_i64x2_relaxed_laneselect(data_u64x2, min_u64x2, less_b64x2);
+        max_u64x2 = wasm_i64x2_relaxed_laneselect(data_u64x2, max_u64x2, greater_b64x2);
+        min_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, min_iter_u64x2, less_b64x2);
+        max_iter_u64x2 = wasm_i64x2_relaxed_laneselect(iter_u64x2, max_iter_u64x2, greater_b64x2);
         iter_u64x2 = wasm_i64x2_add(iter_u64x2, one_u64x2);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -1723,14 +1723,14 @@ NK_INTERNAL void nk_reduce_moments_e2m3_v128relaxed_contiguous_( //
     for (; idx + 16 <= count; idx += 16) {
         v128_t raw_u8x16 = wasm_v128_load(data_ptr + idx);
         v128_t magnitude_u8x16 = wasm_v128_and(raw_u8x16, magnitude_mask_u8x16);
-        v128_t from_low_u8x16 = wasm_i8x16_swizzle(lut_low_u8x16, magnitude_u8x16);
+        v128_t from_low_u8x16 = wasm_i8x16_relaxed_swizzle(lut_low_u8x16, magnitude_u8x16);
         v128_t high_indices_u8x16 = wasm_i8x16_sub(magnitude_u8x16, sixteen_u8x16);
-        v128_t from_high_u8x16 = wasm_i8x16_swizzle(lut_high_u8x16, high_indices_u8x16);
+        v128_t from_high_u8x16 = wasm_i8x16_relaxed_swizzle(lut_high_u8x16, high_indices_u8x16);
         v128_t in_high_b8x16 = wasm_u8x16_ge(magnitude_u8x16, sixteen_u8x16);
-        v128_t unsigned_u8x16 = wasm_v128_bitselect(from_high_u8x16, from_low_u8x16, in_high_b8x16);
+        v128_t unsigned_u8x16 = wasm_i8x16_relaxed_laneselect(from_high_u8x16, from_low_u8x16, in_high_b8x16);
         v128_t is_negative_b8x16 = wasm_i8x16_eq(wasm_v128_and(raw_u8x16, sign_mask_u8x16), sign_mask_u8x16);
         v128_t negated_i8x16 = wasm_i8x16_sub(wasm_i8x16_splat(0), unsigned_u8x16);
-        v128_t scaled_i8x16 = wasm_v128_bitselect(negated_i8x16, unsigned_u8x16, is_negative_b8x16);
+        v128_t scaled_i8x16 = wasm_i8x16_relaxed_laneselect(negated_i8x16, unsigned_u8x16, is_negative_b8x16);
         v128_t pairwise_i16x8 = wasm_i16x8_extadd_pairwise_i8x16(scaled_i8x16);
         v128_t pairwise_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(pairwise_i16x8);
         sum_i32x4 = wasm_i32x4_add(sum_i32x4, pairwise_i32x4);
@@ -1788,11 +1788,11 @@ NK_INTERNAL void nk_reduce_moments_e3m2_v128relaxed_contiguous_( //
     for (; idx + 16 <= count; idx += 16) {
         v128_t raw_u8x16 = wasm_v128_load(data_ptr + idx);
         v128_t magnitude_u8x16 = wasm_v128_and(raw_u8x16, magnitude_mask_u8x16);
-        v128_t from_low_u8x16 = wasm_i8x16_swizzle(lut_low_u8x16, magnitude_u8x16);
+        v128_t from_low_u8x16 = wasm_i8x16_relaxed_swizzle(lut_low_u8x16, magnitude_u8x16);
         v128_t high_indices_u8x16 = wasm_i8x16_sub(magnitude_u8x16, sixteen_u8x16);
-        v128_t from_high_u8x16 = wasm_i8x16_swizzle(lut_high_u8x16, high_indices_u8x16);
+        v128_t from_high_u8x16 = wasm_i8x16_relaxed_swizzle(lut_high_u8x16, high_indices_u8x16);
         v128_t in_high_b8x16 = wasm_u8x16_ge(magnitude_u8x16, sixteen_u8x16);
-        v128_t low_byte_u8x16 = wasm_v128_bitselect(from_high_u8x16, from_low_u8x16, in_high_b8x16);
+        v128_t low_byte_u8x16 = wasm_i8x16_relaxed_laneselect(from_high_u8x16, from_low_u8x16, in_high_b8x16);
         v128_t high_byte_u8x16 = wasm_v128_and(wasm_u8x16_gt(magnitude_u8x16, threshold_u8x16), wasm_i8x16_splat(1));
         v128_t is_negative_b8x16 = wasm_i8x16_eq(wasm_v128_and(raw_u8x16, sign_mask_u8x16), sign_mask_u8x16);
         v128_t unsigned_low_u16x8 = wasm_i8x16_shuffle(low_byte_u8x16, high_byte_u8x16, 0, 16, 1, 17, 2, 18, 3, 19, 4,
@@ -1802,9 +1802,10 @@ NK_INTERNAL void nk_reduce_moments_e3m2_v128relaxed_contiguous_( //
         v128_t is_neg_low_i16x8 = wasm_i16x8_extend_low_i8x16(is_negative_b8x16);
         v128_t is_neg_high_i16x8 = wasm_i16x8_extend_high_i8x16(is_negative_b8x16);
         v128_t neg_low_i16x8 = wasm_i16x8_neg(unsigned_low_u16x8);
-        v128_t scaled_low_i16x8 = wasm_v128_bitselect(neg_low_i16x8, unsigned_low_u16x8, is_neg_low_i16x8);
+        v128_t scaled_low_i16x8 = wasm_i16x8_relaxed_laneselect(neg_low_i16x8, unsigned_low_u16x8, is_neg_low_i16x8);
         v128_t neg_high_i16x8 = wasm_i16x8_neg(unsigned_high_u16x8);
-        v128_t scaled_high_i16x8 = wasm_v128_bitselect(neg_high_i16x8, unsigned_high_u16x8, is_neg_high_i16x8);
+        v128_t scaled_high_i16x8 = wasm_i16x8_relaxed_laneselect(neg_high_i16x8, unsigned_high_u16x8,
+                                                                 is_neg_high_i16x8);
         v128_t sum_low_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(scaled_low_i16x8);
         v128_t sum_high_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(scaled_high_i16x8);
         sum_i32x4 = wasm_i32x4_add(sum_i32x4, sum_low_i32x4);
@@ -1889,7 +1890,7 @@ NK_INTERNAL v128_t nk_fp8x16_to_comparable_v128relaxed_(v128_t raw_u8x16) {
     v128_t is_negative_b8x16 = wasm_i8x16_eq(wasm_v128_and(raw_u8x16, sign_mask_u8x16), sign_mask_u8x16);
     v128_t flip_positive_u8x16 = wasm_v128_xor(raw_u8x16, sign_mask_u8x16);
     v128_t flip_negative_u8x16 = wasm_v128_not(raw_u8x16);
-    return wasm_v128_bitselect(flip_negative_u8x16, flip_positive_u8x16, is_negative_b8x16);
+    return wasm_i8x16_relaxed_laneselect(flip_negative_u8x16, flip_positive_u8x16, is_negative_b8x16);
 }
 
 NK_INTERNAL nk_u8_t nk_comparable_to_fp8_v128relaxed_(nk_u8_t comparable) {
@@ -1903,7 +1904,7 @@ NK_INTERNAL v128_t nk_fp6x16_to_comparable_v128relaxed_(v128_t raw_u8x16) {
     v128_t is_negative_b8x16 = wasm_i8x16_eq(wasm_v128_and(raw_u8x16, sign_mask_u8x16), sign_mask_u8x16);
     v128_t positive_u8x16 = wasm_v128_or(magnitude_u8x16, sign_mask_u8x16);
     v128_t negative_u8x16 = wasm_i8x16_sub(wasm_i8x16_splat(0x1F), magnitude_u8x16);
-    return wasm_v128_bitselect(negative_u8x16, positive_u8x16, is_negative_b8x16);
+    return wasm_i8x16_relaxed_laneselect(negative_u8x16, positive_u8x16, is_negative_b8x16);
 }
 
 NK_INTERNAL nk_u8_t nk_comparable_to_fp6_v128relaxed_(nk_u8_t comparable) {
@@ -1926,15 +1927,15 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_v128relaxed_contiguous_( //
         v128_t is_nan_low_u8x16 = wasm_i8x16_eq(comparable_u8x16, wasm_i8x16_splat(0));
         v128_t is_nan_high_u8x16 = wasm_i8x16_eq(comparable_u8x16, wasm_i8x16_splat((signed char)0xFF));
         v128_t is_nan_u8x16 = wasm_v128_or(is_nan_low_u8x16, is_nan_high_u8x16);
-        v128_t data_min_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
-                                                    is_nan_u8x16);
-        v128_t data_max_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
+        v128_t data_min_u8x16 = wasm_i8x16_relaxed_laneselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
+                                                              is_nan_u8x16);
+        v128_t data_max_u8x16 = wasm_i8x16_relaxed_laneselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
         v128_t less_b8x16 = wasm_u8x16_lt(data_min_u8x16, min_u8x16);
         v128_t greater_b8x16 = wasm_u8x16_gt(data_max_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(data_min_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(data_max_u8x16, max_u8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_u8x16 = wasm_i8x16_relaxed_laneselect(data_min_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_i8x16_relaxed_laneselect(data_max_u8x16, max_u8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -2031,15 +2032,15 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_v128relaxed_contiguous_( //
         v128_t is_nan_low_u8x16 = wasm_u8x16_le(comparable_u8x16, low_bound_u8x16);
         v128_t is_nan_high_u8x16 = wasm_u8x16_ge(comparable_u8x16, high_bound_u8x16);
         v128_t is_nan_u8x16 = wasm_v128_or(is_nan_low_u8x16, is_nan_high_u8x16);
-        v128_t data_min_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
-                                                    is_nan_u8x16);
-        v128_t data_max_u8x16 = wasm_v128_bitselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
+        v128_t data_min_u8x16 = wasm_i8x16_relaxed_laneselect(wasm_i8x16_splat((signed char)0xFF), comparable_u8x16,
+                                                              is_nan_u8x16);
+        v128_t data_max_u8x16 = wasm_i8x16_relaxed_laneselect(wasm_i8x16_splat(0), comparable_u8x16, is_nan_u8x16);
         v128_t less_b8x16 = wasm_u8x16_lt(data_min_u8x16, min_u8x16);
         v128_t greater_b8x16 = wasm_u8x16_gt(data_max_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(data_min_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(data_max_u8x16, max_u8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_u8x16 = wasm_i8x16_relaxed_laneselect(data_min_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_i8x16_relaxed_laneselect(data_max_u8x16, max_u8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -2132,10 +2133,10 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_v128relaxed_contiguous_( //
         v128_t comparable_u8x16 = nk_fp6x16_to_comparable_v128relaxed_(raw_u8x16);
         v128_t less_b8x16 = wasm_u8x16_lt(comparable_u8x16, min_u8x16);
         v128_t greater_b8x16 = wasm_u8x16_gt(comparable_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(comparable_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(comparable_u8x16, max_u8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_u8x16 = wasm_i8x16_relaxed_laneselect(comparable_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_i8x16_relaxed_laneselect(comparable_u8x16, max_u8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
@@ -2217,10 +2218,10 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_v128relaxed_contiguous_( //
         v128_t comparable_u8x16 = nk_fp6x16_to_comparable_v128relaxed_(raw_u8x16);
         v128_t less_b8x16 = wasm_u8x16_lt(comparable_u8x16, min_u8x16);
         v128_t greater_b8x16 = wasm_u8x16_gt(comparable_u8x16, max_u8x16);
-        min_u8x16 = wasm_v128_bitselect(comparable_u8x16, min_u8x16, less_b8x16);
-        max_u8x16 = wasm_v128_bitselect(comparable_u8x16, max_u8x16, greater_b8x16);
-        min_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, min_iter_u8x16, less_b8x16);
-        max_iter_u8x16 = wasm_v128_bitselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
+        min_u8x16 = wasm_i8x16_relaxed_laneselect(comparable_u8x16, min_u8x16, less_b8x16);
+        max_u8x16 = wasm_i8x16_relaxed_laneselect(comparable_u8x16, max_u8x16, greater_b8x16);
+        min_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, min_iter_u8x16, less_b8x16);
+        max_iter_u8x16 = wasm_i8x16_relaxed_laneselect(iter_u8x16, max_iter_u8x16, greater_b8x16);
         iter_u8x16 = wasm_i8x16_add(iter_u8x16, one_u8x16);
     }
     nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;

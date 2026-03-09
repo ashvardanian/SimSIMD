@@ -235,7 +235,7 @@ NK_PUBLIC void nk_dot_e2m3_v128relaxed(nk_e2m3_t const *a_scalars, nk_e2m3_t con
     // The relaxed dot takes i8 × u7 (first signed, second unsigned [0,127]). Our magnitudes [0,120] fit.
     // Result = i32_dot / 256.0f (exact, no rounding error).
     //
-    // 32-entry LUT split into two 16-entry halves for wasm_i8x16_swizzle (indexes 0-15).
+    // 32-entry LUT split into two 16-entry halves for wasm_i8x16_relaxed_swizzle (indexes 0-15).
     v128_t lut_lower_u8x16 = wasm_i8x16_const(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30);
     v128_t lut_upper_u8x16 = wasm_i8x16_const(32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120);
     v128_t magnitude_mask_u8x16 = wasm_u8x16_splat(0x1F);
@@ -266,24 +266,24 @@ nk_dot_e2m3_v128relaxed_cycle:
 
     // Dual swizzle + bitselect for 32-entry LUT (a)
     v128_t a_shuffle_index_u8x16 = wasm_v128_and(a_magnitude_u8x16, nibble_mask_u8x16);
-    v128_t a_lower_u8x16 = wasm_i8x16_swizzle(lut_lower_u8x16, a_shuffle_index_u8x16);
-    v128_t a_upper_u8x16 = wasm_i8x16_swizzle(lut_upper_u8x16, a_shuffle_index_u8x16);
+    v128_t a_lower_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lower_u8x16, a_shuffle_index_u8x16);
+    v128_t a_upper_u8x16 = wasm_i8x16_relaxed_swizzle(lut_upper_u8x16, a_shuffle_index_u8x16);
     v128_t a_upper_select_u8x16 = wasm_i8x16_eq(wasm_v128_and(a_magnitude_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t a_unsigned_u8x16 = wasm_v128_bitselect(a_upper_u8x16, a_lower_u8x16, a_upper_select_u8x16);
+    v128_t a_unsigned_u8x16 = wasm_i8x16_relaxed_laneselect(a_upper_u8x16, a_lower_u8x16, a_upper_select_u8x16);
 
     // Dual swizzle + bitselect for 32-entry LUT (b)
     v128_t b_shuffle_index_u8x16 = wasm_v128_and(b_magnitude_u8x16, nibble_mask_u8x16);
-    v128_t b_lower_u8x16 = wasm_i8x16_swizzle(lut_lower_u8x16, b_shuffle_index_u8x16);
-    v128_t b_upper_u8x16 = wasm_i8x16_swizzle(lut_upper_u8x16, b_shuffle_index_u8x16);
+    v128_t b_lower_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lower_u8x16, b_shuffle_index_u8x16);
+    v128_t b_upper_u8x16 = wasm_i8x16_relaxed_swizzle(lut_upper_u8x16, b_shuffle_index_u8x16);
     v128_t b_upper_select_u8x16 = wasm_i8x16_eq(wasm_v128_and(b_magnitude_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t b_unsigned_u8x16 = wasm_v128_bitselect(b_upper_u8x16, b_lower_u8x16, b_upper_select_u8x16);
+    v128_t b_unsigned_u8x16 = wasm_i8x16_relaxed_laneselect(b_upper_u8x16, b_lower_u8x16, b_upper_select_u8x16);
 
     // Combined sign: (a ^ b) & 0x20 — nonzero means negative product
     // Apply sign to a (relaxed_dot wants i8 × u7: a_signed, b_unsigned)
     v128_t sign_combined_u8x16 = wasm_v128_and(wasm_v128_xor(a_e2m3_u8x16, b_e2m3_u8x16), sign_mask_u8x16);
     v128_t negate_mask_u8x16 = wasm_i8x16_eq(sign_combined_u8x16, sign_mask_u8x16);
     v128_t a_negated_u8x16 = wasm_i8x16_neg(a_unsigned_u8x16);
-    v128_t a_signed_i8x16 = wasm_v128_bitselect(a_negated_u8x16, a_unsigned_u8x16, negate_mask_u8x16);
+    v128_t a_signed_i8x16 = wasm_i8x16_relaxed_laneselect(a_negated_u8x16, a_unsigned_u8x16, negate_mask_u8x16);
 
     // relaxed_dot: a_signed[i8] × b_unsigned[u7] → i32 accumulate
     sum_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_signed_i8x16, b_unsigned_u8x16, sum_i32x4);
@@ -336,20 +336,20 @@ nk_dot_e3m2_v128relaxed_cycle:
 
     // Dual swizzle + bitselect for 32-entry low-byte LUT (a)
     v128_t a_shuffle_index_u8x16 = wasm_v128_and(a_magnitude_u8x16, nibble_mask_u8x16);
-    v128_t a_lower_u8x16 = wasm_i8x16_swizzle(lut_lo_lower_u8x16, a_shuffle_index_u8x16);
-    v128_t a_upper_u8x16 = wasm_i8x16_swizzle(lut_lo_upper_u8x16, a_shuffle_index_u8x16);
+    v128_t a_lower_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lo_lower_u8x16, a_shuffle_index_u8x16);
+    v128_t a_upper_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lo_upper_u8x16, a_shuffle_index_u8x16);
     v128_t a_upper_select_u8x16 = wasm_i8x16_eq(wasm_v128_and(a_magnitude_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t a_lo_bytes_u8x16 = wasm_v128_bitselect(a_upper_u8x16, a_lower_u8x16, a_upper_select_u8x16);
+    v128_t a_lo_bytes_u8x16 = wasm_i8x16_relaxed_laneselect(a_upper_u8x16, a_lower_u8x16, a_upper_select_u8x16);
 
     // High byte is 1 iff magnitude index >= 28 (values 256, 320, 384, 448), else 0
     v128_t a_hi_bytes_u8x16 = wasm_v128_and(wasm_u8x16_ge(a_magnitude_u8x16, hi_threshold_u8x16), wasm_u8x16_splat(1));
 
     // Dual swizzle + bitselect for 32-entry low-byte LUT (b)
     v128_t b_shuffle_index_u8x16 = wasm_v128_and(b_magnitude_u8x16, nibble_mask_u8x16);
-    v128_t b_lower_u8x16 = wasm_i8x16_swizzle(lut_lo_lower_u8x16, b_shuffle_index_u8x16);
-    v128_t b_upper_u8x16 = wasm_i8x16_swizzle(lut_lo_upper_u8x16, b_shuffle_index_u8x16);
+    v128_t b_lower_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lo_lower_u8x16, b_shuffle_index_u8x16);
+    v128_t b_upper_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lo_upper_u8x16, b_shuffle_index_u8x16);
     v128_t b_upper_select_u8x16 = wasm_i8x16_eq(wasm_v128_and(b_magnitude_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t b_lo_bytes_u8x16 = wasm_v128_bitselect(b_upper_u8x16, b_lower_u8x16, b_upper_select_u8x16);
+    v128_t b_lo_bytes_u8x16 = wasm_i8x16_relaxed_laneselect(b_upper_u8x16, b_lower_u8x16, b_upper_select_u8x16);
 
     // High byte is 1 iff magnitude index >= 28
     v128_t b_hi_bytes_u8x16 = wasm_v128_and(wasm_u8x16_ge(b_magnitude_u8x16, hi_threshold_u8x16), wasm_u8x16_splat(1));
@@ -371,10 +371,10 @@ nk_dot_e3m2_v128relaxed_cycle:
                                                  5, 6, 6, 7, 7);
     v128_t negate_high_i16x8 = wasm_i8x16_shuffle(negate_mask_u8x16, negate_mask_u8x16, 8, 8, 9, 9, 10, 10, 11, 11, 12,
                                                   12, 13, 13, 14, 14, 15, 15);
-    b_unsigned_low_i16x8 = wasm_v128_bitselect(wasm_i16x8_neg(b_unsigned_low_i16x8), b_unsigned_low_i16x8,
-                                               negate_low_i16x8);
-    b_unsigned_high_i16x8 = wasm_v128_bitselect(wasm_i16x8_neg(b_unsigned_high_i16x8), b_unsigned_high_i16x8,
-                                                negate_high_i16x8);
+    b_unsigned_low_i16x8 = wasm_i16x8_relaxed_laneselect(wasm_i16x8_neg(b_unsigned_low_i16x8), b_unsigned_low_i16x8,
+                                                         negate_low_i16x8);
+    b_unsigned_high_i16x8 = wasm_i16x8_relaxed_laneselect(wasm_i16x8_neg(b_unsigned_high_i16x8), b_unsigned_high_i16x8,
+                                                          negate_high_i16x8);
 
     // Widening multiply: i16×i16 → i32, accumulate (a is unsigned magnitude, b has combined sign)
     sum_i32x4 = wasm_i32x4_add(sum_i32x4, wasm_i32x4_extmul_low_i16x8(a_unsigned_low_i16x8, b_unsigned_low_i16x8));
@@ -600,23 +600,23 @@ NK_INTERNAL void nk_dot_e2m3x16_update_v128relaxed(nk_dot_e2m3x16_state_v128rela
 
     // Dual swizzle LUT for a
     v128_t a_idx_u8x16 = wasm_v128_and(a_mag_u8x16, nibble_mask_u8x16);
-    v128_t a_lo_u8x16 = wasm_i8x16_swizzle(lut_lower_u8x16, a_idx_u8x16);
-    v128_t a_hi_u8x16 = wasm_i8x16_swizzle(lut_upper_u8x16, a_idx_u8x16);
+    v128_t a_lo_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lower_u8x16, a_idx_u8x16);
+    v128_t a_hi_u8x16 = wasm_i8x16_relaxed_swizzle(lut_upper_u8x16, a_idx_u8x16);
     v128_t a_sel_u8x16 = wasm_i8x16_eq(wasm_v128_and(a_mag_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t a_unsigned_u8x16 = wasm_v128_bitselect(a_hi_u8x16, a_lo_u8x16, a_sel_u8x16);
+    v128_t a_unsigned_u8x16 = wasm_i8x16_relaxed_laneselect(a_hi_u8x16, a_lo_u8x16, a_sel_u8x16);
 
     // Dual swizzle LUT for b
     v128_t b_idx_u8x16 = wasm_v128_and(b_mag_u8x16, nibble_mask_u8x16);
-    v128_t b_lo_u8x16 = wasm_i8x16_swizzle(lut_lower_u8x16, b_idx_u8x16);
-    v128_t b_hi_u8x16 = wasm_i8x16_swizzle(lut_upper_u8x16, b_idx_u8x16);
+    v128_t b_lo_u8x16 = wasm_i8x16_relaxed_swizzle(lut_lower_u8x16, b_idx_u8x16);
+    v128_t b_hi_u8x16 = wasm_i8x16_relaxed_swizzle(lut_upper_u8x16, b_idx_u8x16);
     v128_t b_sel_u8x16 = wasm_i8x16_eq(wasm_v128_and(b_mag_u8x16, half_select_u8x16), half_select_u8x16);
-    v128_t b_unsigned_u8x16 = wasm_v128_bitselect(b_hi_u8x16, b_lo_u8x16, b_sel_u8x16);
+    v128_t b_unsigned_u8x16 = wasm_i8x16_relaxed_laneselect(b_hi_u8x16, b_lo_u8x16, b_sel_u8x16);
 
     // Combined sign → apply to a (relaxed_dot wants i8 × u7)
     v128_t sign_u8x16 = wasm_v128_and(wasm_v128_xor(a.v128, b.v128), sign_mask_u8x16);
     v128_t neg_mask_u8x16 = wasm_i8x16_eq(sign_u8x16, sign_mask_u8x16);
     v128_t a_neg_u8x16 = wasm_i8x16_neg(a_unsigned_u8x16);
-    v128_t a_signed_i8x16 = wasm_v128_bitselect(a_neg_u8x16, a_unsigned_u8x16, neg_mask_u8x16);
+    v128_t a_signed_i8x16 = wasm_i8x16_relaxed_laneselect(a_neg_u8x16, a_unsigned_u8x16, neg_mask_u8x16);
 
     // relaxed_dot accumulate
     state->sum_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_signed_i8x16, b_unsigned_u8x16, state->sum_i32x4);
