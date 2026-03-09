@@ -396,6 +396,32 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <th>1024</th>
   <th>4096</th>
 </tr>
+<tr><td colspan="4"><b>f64c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>f64</b></td></tr>
 <tr>
   <td><code>nk_dot_f64_v128relaxed</code></td>
@@ -424,6 +450,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr><td colspan="4"><b>e5m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e5m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e4m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e4m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>e3m2</b></td></tr>
 <tr>
   <td><code>nk_dot_e3m2_v128relaxed</code></td>
@@ -448,6 +488,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i4</b></td></tr>
+<tr>
+  <td><code>nk_dot_i4_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u4</b></td></tr>
+<tr>
+  <td><code>nk_dot_u4_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -470,6 +524,32 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <th>1024</th>
   <th>4096</th>
 </tr>
+<tr><td colspan="4"><b>f64c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>f64</b></td></tr>
 <tr>
   <td><code>nk_dot_f64_v128relaxed</code></td>
@@ -498,6 +578,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr><td colspan="4"><b>e5m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e5m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e4m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e4m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>e3m2</b></td></tr>
 <tr>
   <td><code>nk_dot_e3m2_v128relaxed</code></td>
@@ -522,6 +616,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i4</b></td></tr>
+<tr>
+  <td><code>nk_dot_i4_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u4</b></td></tr>
+<tr>
+  <td><code>nk_dot_u4_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -772,6 +880,32 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <th>1024</th>
   <th>4096</th>
 </tr>
+<tr><td colspan="4"><b>f64c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>f64</b></td></tr>
 <tr>
   <td><code>nk_dot_f64_v128relaxed</code></td>
@@ -800,6 +934,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr><td colspan="4"><b>e5m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e5m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e4m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e4m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>e3m2</b></td></tr>
 <tr>
   <td><code>nk_dot_e3m2_v128relaxed</code></td>
@@ -824,6 +972,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i4</b></td></tr>
+<tr>
+  <td><code>nk_dot_i4_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u4</b></td></tr>
+<tr>
+  <td><code>nk_dot_u4_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -846,6 +1008,32 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <th>1024</th>
   <th>4096</th>
 </tr>
+<tr><td colspan="4"><b>f64c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f64c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32c</b></td></tr>
+<tr>
+  <td><code>nk_dot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_vdot_f32c_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>f64</b></td></tr>
 <tr>
   <td><code>nk_dot_f64_v128relaxed</code></td>
@@ -874,6 +1062,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr><td colspan="4"><b>e5m2</b></td></tr>
+<tr>
+  <td><code>nk_dot_e5m2_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>e4m3</b></td></tr>
+<tr>
+  <td><code>nk_dot_e4m3_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>e3m2</b></td></tr>
 <tr>
   <td><code>nk_dot_e3m2_v128relaxed</code></td>
@@ -898,6 +1100,20 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_dot_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>i4</b></td></tr>
+<tr>
+  <td><code>nk_dot_i4_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>u4</b></td></tr>
+<tr>
+  <td><code>nk_dot_u4_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>

@@ -1,0 +1,397 @@
+# Point Cloud Alignment in NumKong
+
+NumKong implements RMSD, Kabsch, and Umeyama algorithms for rigid-body superposition of 3D point clouds.
+RMSD measures alignment quality, Kabsch finds the optimal rotation minimizing RMSD, and Umeyama extends Kabsch with uniform scaling.
+Used in structural biology (protein alignment), robotics (point cloud registration), and computer graphics (mesh registration).
+
+Centroid:
+
+```math
+\bar{a} = \frac{1}{n}\sum a_i
+```
+
+Cross-covariance matrix:
+
+```math
+H = \sum (a_i - \bar{a})(b_i - \bar{b})^T
+```
+
+SVD-based rotation:
+
+```math
+H = U \Sigma V^T, \quad R = V U^T
+```
+
+Umeyama scale factor:
+
+```math
+s = \frac{\text{tr}(\Sigma)}{n \cdot \sigma_a^2}
+```
+
+RMSD after alignment:
+
+```math
+\text{RMSD} = \sqrt{\frac{1}{n}\sum \|s \cdot R(a_i - \bar{a}) - (b_i - \bar{b})\|^2}
+```
+
+Reformulating as Python pseudocode:
+
+```python
+import numpy as np
+
+def kabsch(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a_c, b_c = a - a.mean(0), b - b.mean(0)
+    H = a_c.T @ b_c
+    U, S, Vt = np.linalg.svd(H)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    R = Vt.T @ np.diag([1, 1, d]) @ U.T
+    return R
+
+def umeyama(a: np.ndarray, b: np.ndarray) -> tuple:
+    a_c, b_c = a - a.mean(0), b - b.mean(0)
+    H = a_c.T @ b_c
+    U, S, Vt = np.linalg.svd(H)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    R = Vt.T @ np.diag([1, 1, d]) @ U.T
+    scale = S.sum() / (len(a) * np.var(a_c))
+    return R, scale
+
+def rmsd(a: np.ndarray, b: np.ndarray) -> float:
+    return np.sqrt(np.mean(np.sum((a - b) ** 2, axis=1)))
+```
+
+## Input & Output Types
+
+| Input Type | Output Type | Description                                    |
+| ---------- | ----------- | ---------------------------------------------- |
+| `f64`      | `f64`       | 64-bit IEEE 754 double precision               |
+| `f32`      | `f32`       | 32-bit IEEE 754 single precision               |
+| `f16`      | `f32`       | 16-bit IEEE 754 half precision, widened output |
+| `bf16`     | `f32`       | 16-bit brain float, widened output             |
+
+## Optimizations
+
+### McAdams Branching-Free 3×3 SVD
+
+`nk_kabsch_f32_serial`, `nk_kabsch_f64_haswell`, `nk_umeyama_f32_neon` use a Jacobi eigenanalysis with fixed 16 iterations (no convergence check) for deterministic behavior.
+Quaternion-accumulated rotations: each Jacobi sweep updates a 4-element quaternion instead of recomputing eigenvectors.
+Approximate Givens angles via `nk_approximate_givens_quaternion_` — a γ-threshold test selects between computed angles and precomputed cos(π/8), sin(π/8) constants.
+Cyclic permutation of matrix elements avoids explicit sorting of eigenvalues.
+
+### Stride-3 Deinterleaving
+
+Point clouds are stored interleaved as [x₀,y₀,z₀, x₁,y₁,z₁, ...].
+NEON uses `vld3q_f32` to hardware-deinterleave 4 XYZ triplets in one instruction — no gather needed.
+Haswell uses `_mm256_i32gather_ps` with indices [0,3,6,9,12,15,18,21] to load 8 x-coordinates from 8 points.
+RVV uses indexed loads with dynamic stride to adapt to variable vector length.
+
+### Reflection Correction
+
+`nk_kabsch_f32_haswell`, `nk_kabsch_f64_skylake` check for improper rotations (det(R) = -1, reflections) after computing R = V·Uᵀ.
+If det(R) is negative, the last column of V is flipped.
+This ensures the output is always a proper rotation matrix (det = +1).
+
+### Pre-Scaled Rotation for Umeyama
+
+`nk_umeyama_f32_haswell`, `nk_umeyama_f64_skylake` fold the computed scale factor into the rotation matrix before applying to points.
+`sr[i] = scale * r[i]` is computed once and broadcast — avoiding a per-point scalar multiply.
+
+### Why SME and SVE Were Removed
+
+SME mesh kernels (`nk_rmsd_f32_sme`, `nk_kabsch_f32_sme`, `nk_umeyama_f32_sme`, plus f64 variants) were implemented in 1,052 lines across `sme.h` and `smef64.h` (commit `0e0bc30c`) and removed 4 days later (commit `f55e9a71`).
+The fundamental mismatch: the algorithm computes a 3×3 cross-covariance matrix $H = \sum (a_i - \bar{a})(b_i - \bar{b})^T$ — a sum of outer products of 3D vectors.
+SME's `FMOPA` operates on SVL-wide vectors (16+ elements at SVL=512), but the outer products here are 3×3 — the tile is 99.6% wasted (9 useful cells out of 256).
+Three approaches were explored in a design document (`sme_design.h`, 398 lines):
+(1) batched outer products — reformulates as 9 independent dot products but loses SME's outer-product strength, falling back to what NEON already does;
+(2) streaming SVE with `svld3` — hardware stride-3 deinterleaving processes 16 points per iteration vs NEON's 4, but `SMSTART`/`SMSTOP` mode transitions cost ~100 cycles and the 3×3 SVD step cannot use streaming mode at all;
+(3) SME for SVD — the 3×3 matrix cannot fill even one 16×16 tile.
+Performance estimates from the design document: NEON baseline ~2.25N cycles for N points; streaming SVE ~1.2N cycles but with ~100-cycle mode transition overhead — for typical protein alignment workloads (N = 100–500 atoms), the overhead dominates.
+SVE mesh kernels (`sve.h`, `svehalf.h`, 112 lines total) were removed in the same commit — variable vector length added complexity without clear benefit over fixed-width NEON for the 3D point cloud problem.
+
+## Performance
+
+### Intel Sapphire Rapids
+
+#### Native
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256³</th>
+  <th>1024³</th>
+  <th>4096³</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f64_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f64_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f64_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f64_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f64_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f64_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f32_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f32_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f32_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f32_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f32_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f32_skylake</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_bf16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_bf16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_bf16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f16_haswell</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>
+
+### Apple M4 Pro
+
+#### Native
+
+<table>
+<tr>
+  <th>Kernel</th>
+  <th>256³</th>
+  <th>1024³</th>
+  <th>4096³</th>
+</tr>
+<tr><td colspan="4"><b>f64</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f64_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f64_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f64_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f64_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f32</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f32_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_rmsd_f32_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f32_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f32_neon</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>bf16</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_bf16_neonbfdot</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_bf16_neonbfdot</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_bf16_neonbfdot</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr><td colspan="4"><b>f16</b></td></tr>
+<tr>
+  <td><code>nk_rmsd_f16_neonhalf</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_kabsch_f16_neonhalf</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_umeyama_f16_neonhalf</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+</table>

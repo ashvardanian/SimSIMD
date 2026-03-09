@@ -1144,6 +1144,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr>
+  <td><code>nk_sqeuclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_sqeuclidean_u8_serial</code></td>
@@ -1159,6 +1177,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
 </tr>
 <tr>
   <td><code>nk_angular_u8_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_sqeuclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_u8_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -1455,6 +1491,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr>
+  <td><code>nk_sqeuclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_sqeuclidean_u8_serial</code></td>
@@ -1470,6 +1524,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
 </tr>
 <tr>
   <td><code>nk_angular_u8_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_sqeuclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_u8_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -2149,6 +2221,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr>
+  <td><code>nk_sqeuclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_sqeuclidean_u8_serial</code></td>
@@ -2164,6 +2254,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
 </tr>
 <tr>
   <td><code>nk_angular_u8_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_sqeuclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_u8_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
@@ -2460,6 +2568,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
 </tr>
+<tr>
+  <td><code>nk_sqeuclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_i8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
 <tr><td colspan="4"><b>u8</b></td></tr>
 <tr>
   <td><code>nk_sqeuclidean_u8_serial</code></td>
@@ -2475,6 +2601,24 @@ This avoids the need for a separate scalar tail loop that would otherwise lose t
 </tr>
 <tr>
   <td><code>nk_angular_u8_serial</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_sqeuclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_euclidean_u8_v128relaxed</code></td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+  <td>0 GB/s<br>0 ULP, 0%</td>
+</tr>
+<tr>
+  <td><code>nk_angular_u8_v128relaxed</code></td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
   <td>0 GB/s<br>0 ULP, 0%</td>
