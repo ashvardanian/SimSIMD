@@ -409,6 +409,7 @@ base_sources = [
     "python/distance.c",
     "python/each.c",
     "python/mesh.c",
+    "python/maxsim.c",
     "c/numkong.c",
 ]
 

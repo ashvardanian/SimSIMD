@@ -36,9 +36,8 @@ static size_t packed_matrix_nbytes(PackedMatrix *mm) {
 static PyObject *PackedMatrix_repr(PyObject *self) {
     PackedMatrix *mm = (PackedMatrix *)self;
     size_t packed_size = packed_matrix_nbytes(mm);
-    char const *kind_str = (mm->kind == nk_kernel_hammings_packed_k) ? "hammings" : "dots";
-    return PyUnicode_FromFormat("<PackedMatrix kind='%s' n=%zu k=%zu dtype='%s' nbytes=%zu>", kind_str, (size_t)mm->n,
-                                (size_t)mm->k, dtype_to_string(mm->dtype), packed_size);
+    return PyUnicode_FromFormat("<PackedMatrix n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n, (size_t)mm->k,
+                                dtype_to_string(mm->dtype), packed_size);
 }
 
 static PyObject *PackedMatrix_get_n(PyObject *self, void *closure) {
@@ -61,30 +60,23 @@ static PyObject *PackedMatrix_get_nbytes(PyObject *self, void *closure) {
     return PyLong_FromSize_t(packed_matrix_nbytes((PackedMatrix *)self));
 }
 
-static PyObject *PackedMatrix_get_kind(PyObject *self, void *closure) {
-    (void)closure;
-    PackedMatrix *mm = (PackedMatrix *)self;
-    return PyUnicode_FromString((mm->kind == nk_kernel_hammings_packed_k) ? "hammings" : "dots");
-}
-
 static PyGetSetDef PackedMatrix_getset[] = {
     {"n", PackedMatrix_get_n, NULL, "Number of rows in the original matrix", NULL},
     {"k", PackedMatrix_get_k, NULL, "Number of columns in the original matrix", NULL},
     {"dtype", PackedMatrix_get_dtype, NULL, "Data type of the matrix elements", NULL},
     {"nbytes", PackedMatrix_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
-    {"kind", PackedMatrix_get_kind, NULL, "Kind of packed matrix ('dots' or 'hammings')", NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
 static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)cls;
 
-    PyObject *n_obj = NULL, *k_obj = NULL, *dtype_obj = NULL, *kind_obj = NULL;
+    PyObject *n_obj = NULL, *k_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
 
-    if (nargs < 2 || total > 4 || nargs > 3) {
-        PyErr_SetString(PyExc_TypeError, "packed_size(n, k, dtype, *, kind='dots')");
+    if (nargs < 2 || total > 3 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "packed_size(n, k, /, dtype='bf16')");
         return NULL;
     }
 
@@ -102,7 +94,6 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
             }
             dtype_obj = value;
         }
-        else if (PyUnicode_CompareWithASCIIString(name, "kind") == 0) kind_obj = value;
         else {
             PyErr_Format(PyExc_TypeError, "packed_size() got unexpected keyword argument '%S'", name);
             return NULL;
@@ -127,19 +118,10 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
         return NULL;
     }
 
-    nk_kernel_kind_t size_kind = nk_kernel_dots_packed_size_k;
-    if (kind_obj) {
-        char const *kind_str = PyUnicode_AsUTF8(kind_obj);
-        if (!kind_str) return NULL;
-        if (!same_string(kind_str, "hammings") && !same_string(kind_str, "dots")) {
-            PyErr_Format(PyExc_ValueError, "Unknown kind: '%s'. Expected 'dots' or 'hammings'.", kind_str);
-            return NULL;
-        }
-    }
-
     nk_dots_packed_size_punned_t size_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
-    nk_find_kernel_punned(size_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&size_fn, &cap);
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn) {
         PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_str);
         return NULL;
@@ -167,7 +149,7 @@ PyTypeObject PackedMatrixType = {
 };
 
 /** @brief Parse a Python buffer format string into a NumKong dtype. */
-static int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
+int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
     // If the source object is a Tensor, use its dtype directly —
     // the PEP 3118 format string may be a placeholder for exotic types.
     if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) {
@@ -198,11 +180,6 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     }
 
     PackedMatrix *packed = (PackedMatrix *)other;
-
-    if (packed->kind != nk_kernel_dots_packed_k) {
-        PyErr_SetString(PyExc_TypeError, "@ operator requires a dots-packed matrix (use nk.dots_packed() for dots)");
-        return NULL;
-    }
 
     if (a->rank != 2) {
         PyErr_SetString(PyExc_ValueError, "matmul requires 2D array as left operand");
@@ -282,7 +259,6 @@ typedef struct matrix_metric_spec_t {
     nk_kernel_kind_t packed_kind;
     nk_kernel_kind_t symmetric_kind;
     nk_kernel_kind_t metric_kind;
-    nk_kernel_kind_t required_packed_kind;
 } matrix_metric_spec_t;
 
 static matrix_metric_spec_t const spec_dots = {
@@ -291,7 +267,6 @@ static matrix_metric_spec_t const spec_dots = {
     .packed_kind = nk_kernel_dots_packed_k,
     .symmetric_kind = nk_kernel_dots_symmetric_k,
     .metric_kind = nk_kernel_dot_k,
-    .required_packed_kind = nk_kernel_dots_packed_k,
 };
 
 static matrix_metric_spec_t const spec_angulars = {
@@ -300,7 +275,6 @@ static matrix_metric_spec_t const spec_angulars = {
     .packed_kind = nk_kernel_angulars_packed_k,
     .symmetric_kind = nk_kernel_angulars_symmetric_k,
     .metric_kind = nk_kernel_angular_k,
-    .required_packed_kind = nk_kernel_dots_packed_k,
 };
 
 static matrix_metric_spec_t const spec_euclideans = {
@@ -309,7 +283,6 @@ static matrix_metric_spec_t const spec_euclideans = {
     .packed_kind = nk_kernel_euclideans_packed_k,
     .symmetric_kind = nk_kernel_euclideans_symmetric_k,
     .metric_kind = nk_kernel_euclidean_k,
-    .required_packed_kind = nk_kernel_dots_packed_k,
 };
 
 static matrix_metric_spec_t const spec_hammings = {
@@ -318,7 +291,6 @@ static matrix_metric_spec_t const spec_hammings = {
     .packed_kind = nk_kernel_hammings_packed_k,
     .symmetric_kind = nk_kernel_hammings_symmetric_k,
     .metric_kind = nk_kernel_hamming_k,
-    .required_packed_kind = nk_kernel_hammings_packed_k,
 };
 
 static matrix_metric_spec_t const spec_jaccards = {
@@ -327,7 +299,6 @@ static matrix_metric_spec_t const spec_jaccards = {
     .packed_kind = nk_kernel_jaccards_packed_k,
     .symmetric_kind = nk_kernel_jaccards_symmetric_k,
     .metric_kind = nk_kernel_jaccard_k,
-    .required_packed_kind = nk_kernel_hammings_packed_k,
 };
 
 static int resolve_output_tensor(                                            //
@@ -418,11 +389,6 @@ static PyObject *api_packed_common( //
     }
     PackedMatrix *packed = (PackedMatrix *)b_obj;
 
-    if (packed->kind != spec->required_packed_kind) {
-        PyErr_Format(PyExc_TypeError, "b must be packed with %s()", spec->pack_hint);
-        return NULL;
-    }
-
     Py_buffer a_buffer;
     if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "a must support buffer protocol");
@@ -456,7 +422,7 @@ static PyObject *api_packed_common( //
     nk_size_t input_row_stride = (nk_size_t)a_buffer.strides[0];
     nk_size_t input_col_stride = (nk_size_t)a_buffer.strides[1];
     int const accepts_bitpacked_u1 = ( //
-        spec->required_packed_kind == nk_kernel_hammings_packed_k && src_dtype == nk_u8_k && packed->dtype == nk_u1_k);
+        same_string(spec->pack_hint, "hammings_pack") && src_dtype == nk_u8_k && packed->dtype == nk_u1_k);
     if (accepts_bitpacked_u1) depth *= nk_dtype_dimensions_per_value(packed->dtype);
 
     if (depth != packed->k) {
@@ -788,7 +754,6 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         return NULL;
     }
 
-    packed->kind = nk_kernel_dots_packed_k;
     packed->dtype = target_dtype;
     packed->n = n;
     packed->k = k;
@@ -964,7 +929,6 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
         return NULL;
     }
 
-    packed->kind = nk_kernel_hammings_packed_k;
     packed->dtype = target_dtype;
     packed->n = n;
     packed->k = k;

@@ -227,11 +227,6 @@ class PackedMatrix:
     """
 
     @property
-    def kind(self) -> str:
-        """Kernel kind ('dots' or 'hammings')."""
-        ...
-
-    @property
     def n(self) -> int:
         """Number of rows in the original matrix."""
         ...
@@ -258,8 +253,39 @@ class PackedMatrix:
         k: int,
         /,
         dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
-        kind: str = "dots",
     ) -> int:
+        """Return packed buffer size in bytes for given dimensions and dtype."""
+        ...
+
+    def __repr__(self) -> str:
+        """Return a string representation."""
+        ...
+
+class MaxSimPackedMatrix:
+    """Opaque pre-packed matrix for MaxSim late-interaction scoring."""
+
+    @property
+    def n(self) -> int:
+        """Number of vectors."""
+        ...
+
+    @property
+    def k(self) -> int:
+        """Number of dimensions per vector (depth)."""
+        ...
+
+    @property
+    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
+        """Data type of the packed vectors."""
+        ...
+
+    @property
+    def nbytes(self) -> int:
+        """Size of the packed buffer in bytes."""
+        ...
+
+    @classmethod
+    def packed_size(cls, n: int, k: int, /, dtype: _FloatType = "bf16") -> int:
         """Return packed buffer size in bytes for given dimensions and dtype."""
         ...
 
@@ -805,6 +831,13 @@ def euclideans_packed(
 ) -> Tensor: ...
 
 # endregion Packed Matrix Operations
+
+# region MaxSim
+def maxsim_pack(b: _BufferType, /, dtype: Optional[_FloatType] = None) -> MaxSimPackedMatrix: ...
+def maxsim_packed(q: MaxSimPackedMatrix, d: MaxSimPackedMatrix, /) -> float: ...
+def maxsim(q: _BufferType, d: _BufferType, /, dtype: Optional[_FloatType] = None) -> float: ...
+
+# endregion MaxSim
 
 # region Mesh Alignment
 

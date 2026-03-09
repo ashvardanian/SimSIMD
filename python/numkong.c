@@ -99,6 +99,7 @@
 #include "distance.h"
 #include "each.h"
 #include "mesh.h"
+#include "maxsim.h"
 
 nk_capability_t static_capabilities = 0;
 
@@ -332,7 +333,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-        // Platform-specific integer formats (Windows vs Unix):
+    // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -968,6 +969,11 @@ static PyMethodDef nk_methods[] = {
     {"angulars_packed", (PyCFunction)api_angulars_packed, METH_FASTCALL | METH_KEYWORDS, doc_angulars_packed},
     {"euclideans_packed", (PyCFunction)api_euclideans_packed, METH_FASTCALL | METH_KEYWORDS, doc_euclideans_packed},
 
+    // MaxSim (ColBERT late-interaction)
+    {"maxsim_pack", (PyCFunction)api_maxsim_pack, METH_FASTCALL | METH_KEYWORDS, doc_maxsim_pack},
+    {"maxsim_packed", (PyCFunction)api_maxsim_packed, METH_FASTCALL | METH_KEYWORDS, doc_maxsim_packed},
+    {"maxsim", (PyCFunction)api_maxsim, METH_FASTCALL | METH_KEYWORDS, doc_maxsim},
+
     // Sentinel
     {NULL, NULL, 0, NULL}};
 
@@ -1013,6 +1019,7 @@ PyMODINIT_FUNC PyInit_numkong(void) {
     if (PyType_Ready(&TensorType) < 0) return NULL;
     if (PyType_Ready(&TensorIterType) < 0) return NULL;
     if (PyType_Ready(&PackedMatrixType) < 0) return NULL;
+    if (PyType_Ready(&MaxSimPackedMatrixType) < 0) return NULL;
     if (PyType_Ready(&MeshAlignmentResultType) < 0) return NULL;
 
     m = PyModule_Create(&nk_module);
@@ -1041,6 +1048,14 @@ PyMODINIT_FUNC PyInit_numkong(void) {
     Py_INCREF(&PackedMatrixType);
     if (PyModule_AddObject(m, "PackedMatrix", (PyObject *)&PackedMatrixType) < 0) {
         Py_XDECREF(&PackedMatrixType);
+        Py_XDECREF(m);
+        return NULL;
+    }
+
+    // Register MaxSimPackedMatrix type
+    Py_INCREF(&MaxSimPackedMatrixType);
+    if (PyModule_AddObject(m, "MaxSimPackedMatrix", (PyObject *)&MaxSimPackedMatrixType) < 0) {
+        Py_XDECREF(&MaxSimPackedMatrixType);
         Py_XDECREF(m);
         return NULL;
     }

@@ -237,6 +237,9 @@ nk_dtype_t promote_dtypes(nk_dtype_t a, nk_dtype_t b);
  */
 int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed);
 
+/** @brief Parse a Python buffer format string into a NumKong dtype. */
+int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype);
+
 /**
  *  @brief Check if a Python object is a numeric scalar.
  *  @param[in] obj Python object.

@@ -25,8 +25,6 @@ extern "C" {
  */
 typedef struct PackedMatrix {
     PyObject_HEAD
-    /** Kernel kind: `nk_kernel_dots_packed_k` or `nk_kernel_hammings_packed_k`. */
-    nk_kernel_kind_t kind;
     /** Packed dtype (bf16, i8, f32, etc.). */
     nk_dtype_t dtype;
     /** Number of rows in original matrix. */
