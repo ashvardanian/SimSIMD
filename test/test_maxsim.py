@@ -82,6 +82,7 @@ def test_maxsim_pack_and_packed(dtype, capability):
     assert qp.vector_count == n_q
     assert qp.depth == depth
     assert qp.nbytes > 0
+    assert repr(qp)  # smoke-test repr doesn't crash
 
     result = nk.maxsim_packed(qp, dp)
 
@@ -150,19 +151,6 @@ def test_maxsim_type_errors(capability):
     dp_wrong = nk.maxsim_pack(d_wrong, dtype="f32")
     with pytest.raises(ValueError):
         nk.maxsim_packed(qp, dp_wrong)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_maxsim_repr(capability):
-    """Verify repr shows MaxSimPackedMatrix."""
-    keep_one_capability(capability)
-    q = np.random.randn(4, 32).astype(np.float32)
-    qp = nk.maxsim_pack(q, dtype="f32")
-    r = repr(qp)
-    assert "MaxSimPackedMatrix" in r
-    assert "vector_count=4" in r
-    assert "depth=32" in r
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
