@@ -1,8 +1,14 @@
 {
     "C_Cpp.default.cppStandard": "c++23",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/include"
+    ],
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}",
         "-std=c++23"
+    ],
+    "clangd.fallbackFlags": [
+        "-I${workspaceFolder}/include"
     ],
     "cSpell.words": [
         "allclose",

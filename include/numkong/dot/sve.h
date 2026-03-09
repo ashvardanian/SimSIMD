@@ -38,7 +38,7 @@
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 
-#include "numkong/types.h"     // `nk_f32_t`
+#include "numkong/types.h"      // `nk_f32_t`
 #include "numkong/dot/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)

@@ -1128,7 +1128,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
     nk_amx_tile_configure_sapphireamx_();
 
     // Tile dimensions
-    nk_size_t tiles_per_depth = head_dim_padded / 32;         // 4 for d=128
+    nk_size_t tiles_per_depth = head_dim_padded / 32;                           // 4 for d=128
     nk_size_t v_tiles_per_head = nk_size_divide_round_up_(head_dim_padded, 16); // 8 for d=128
 
     // K packing layout (16 seq positions per tile)

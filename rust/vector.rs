@@ -15,8 +15,8 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::types::{FloatConvertible, NumberLike, StorageElement};
 use crate::tensor::{Allocator, Global, TensorError, SIMD_ALIGNMENT};
+use crate::types::{FloatConvertible, NumberLike, StorageElement};
 
 // region: VecIndex — Signed Indexing
 
@@ -153,9 +153,7 @@ impl<'a> NibbleRefMut<'a> {
 
     /// Set the nibble to a signed value (low 4 bits used).
     #[inline]
-    pub fn set_signed(&self, val: i8) {
-        self.set_unsigned(val as u8);
-    }
+    pub fn set_signed(&self, val: i8) { self.set_unsigned(val as u8); }
 }
 
 /// Immutable reference to a single bit within a packed byte.
@@ -256,11 +254,11 @@ impl<T: StorageElement, A: Allocator> Drop for Vector<T, A> {
 /// Convert dimension count to value count for type T.
 ///
 /// For sub-byte types where `dimensions_per_value() > 1`, this performs ceiling
-/// division: `(dims + dpv - 1) / dpv`.
+/// division: `(dims + dims_per_value - 1) / dims_per_value`.
 #[inline]
 fn dims_to_values<T: StorageElement>(dims: usize) -> usize {
-    let dpv = T::dimensions_per_value();
-    (dims + dpv - 1) / dpv
+    let dims_per_value = T::dimensions_per_value();
+    (dims + dims_per_value - 1) / dims_per_value
 }
 
 impl<T: StorageElement, A: Allocator> Vector<T, A> {
@@ -371,45 +369,31 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
 
     /// Number of logical dimensions.
     #[inline]
-    pub fn dims(&self) -> usize {
-        self.dims
-    }
+    pub fn dims(&self) -> usize { self.dims }
 
     /// Number of logical dimensions (same as `dims()`).
     #[inline]
-    pub fn size(&self) -> usize {
-        self.dims
-    }
+    pub fn size(&self) -> usize { self.dims }
 
     /// Number of underlying storage values (T instances).
     #[inline]
-    pub fn size_values(&self) -> usize {
-        self.values
-    }
+    pub fn size_values(&self) -> usize { self.values }
 
     /// Returns true if the vector has zero dimensions.
     #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.dims == 0
-    }
+    pub fn is_empty(&self) -> bool { self.dims == 0 }
 
     /// Raw pointer to the underlying data.
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
-        self.data.as_ptr()
-    }
+    pub fn as_ptr(&self) -> *const T { self.data.as_ptr() }
 
     /// Mutable raw pointer to the underlying data.
     #[inline]
-    pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.data.as_ptr()
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut T { self.data.as_ptr() }
 
     /// Size in bytes.
     #[inline]
-    pub fn size_bytes(&self) -> usize {
-        self.values * core::mem::size_of::<T>()
-    }
+    pub fn size_bytes(&self) -> usize { self.values * core::mem::size_of::<T>() }
 
     /// Create an immutable view of this vector.
     #[inline]
@@ -510,9 +494,7 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
 
 impl<T: StorageElement> Vector<T, Global> {
     /// Create a zero-initialized vector with the global allocator.
-    pub fn try_zeros(dims: usize) -> Result<Self, TensorError> {
-        Self::try_zeros_in(dims, Global)
-    }
+    pub fn try_zeros(dims: usize) -> Result<Self, TensorError> { Self::try_zeros_in(dims, Global) }
 
     /// Create a vector filled with `value`.
     pub fn try_full(dims: usize, value: T) -> Result<Self, TensorError> {
@@ -598,48 +580,34 @@ unsafe impl<'a, T: StorageElement + Sync> Send for VectorView<'a, T> {}
 unsafe impl<'a, T: StorageElement + Sync> Sync for VectorView<'a, T> {}
 
 impl<'a, T: StorageElement> Clone for VectorView<'a, T> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    fn clone(&self) -> Self { *self }
 }
 impl<'a, T: StorageElement> Copy for VectorView<'a, T> {}
 
 impl<'a, T: StorageElement> VectorView<'a, T> {
     /// Number of logical dimensions.
     #[inline]
-    pub fn dims(&self) -> usize {
-        self.dims
-    }
+    pub fn dims(&self) -> usize { self.dims }
 
     /// Number of logical dimensions (alias for dims).
     #[inline]
-    pub fn size(&self) -> usize {
-        self.dims
-    }
+    pub fn size(&self) -> usize { self.dims }
 
     /// Returns true if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.dims == 0
-    }
+    pub fn is_empty(&self) -> bool { self.dims == 0 }
 
     /// Stride in bytes between consecutive elements.
     #[inline]
-    pub fn stride_bytes(&self) -> isize {
-        self.stride_bytes
-    }
+    pub fn stride_bytes(&self) -> isize { self.stride_bytes }
 
     /// Returns true if elements are stored contiguously (stride == sizeof(T)).
     #[inline]
-    pub fn is_contiguous(&self) -> bool {
-        self.stride_bytes == core::mem::size_of::<T>() as isize
-    }
+    pub fn is_contiguous(&self) -> bool { self.stride_bytes == core::mem::size_of::<T>() as isize }
 
     /// Get the underlying pointer.
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
-        self.data
-    }
+    pub fn as_ptr(&self) -> *const T { self.data }
 
     /// Get a contiguous slice, if this view is contiguous.
     #[inline]
@@ -777,45 +745,31 @@ unsafe impl<'a, T: StorageElement + Sync> Sync for VectorSpan<'a, T> {}
 impl<'a, T: StorageElement> VectorSpan<'a, T> {
     /// Number of logical dimensions.
     #[inline]
-    pub fn dims(&self) -> usize {
-        self.dims
-    }
+    pub fn dims(&self) -> usize { self.dims }
 
     /// Number of logical dimensions (alias for dims).
     #[inline]
-    pub fn size(&self) -> usize {
-        self.dims
-    }
+    pub fn size(&self) -> usize { self.dims }
 
     /// Returns true if empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.dims == 0
-    }
+    pub fn is_empty(&self) -> bool { self.dims == 0 }
 
     /// Stride in bytes.
     #[inline]
-    pub fn stride_bytes(&self) -> isize {
-        self.stride_bytes
-    }
+    pub fn stride_bytes(&self) -> isize { self.stride_bytes }
 
     /// Returns true if contiguous.
     #[inline]
-    pub fn is_contiguous(&self) -> bool {
-        self.stride_bytes == core::mem::size_of::<T>() as isize
-    }
+    pub fn is_contiguous(&self) -> bool { self.stride_bytes == core::mem::size_of::<T>() as isize }
 
     /// Get the underlying pointer.
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
-        self.data
-    }
+    pub fn as_ptr(&self) -> *const T { self.data }
 
     /// Get the mutable underlying pointer.
     #[inline]
-    pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.data
-    }
+    pub fn as_mut_ptr(&mut self) -> *mut T { self.data }
 
     /// Reborrow as an immutable view, sharing the same data pointer and stride.
     pub fn as_view(&self) -> VectorView<'_, T> {
