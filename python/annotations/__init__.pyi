@@ -173,6 +173,19 @@ class Tensor(memoryview):
         """Return tensor reshaped to given dimensions."""
         ...
 
+    def flatten(self) -> "Tensor":
+        """Return a flattened 1D view (copies if non-contiguous)."""
+        ...
+
+    def squeeze(self, axis: Optional[int] = None) -> "Tensor":
+        """Remove dimensions of size 1."""
+        ...
+
+    @property
+    def is_contiguous(self) -> bool:
+        """Whether the tensor is C-contiguous in memory."""
+        ...
+
     def sum(
         self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
     ) -> Union[float, int, "Tensor"]:

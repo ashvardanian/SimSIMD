@@ -991,6 +991,240 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 }
 
+impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Transpose (reverse all dimensions, no data copy).
+    pub fn transpose(&self) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
+        if self.ndim < 2 {
+            return Ok(TensorView {
+                data: self.data,
+                len: self.len,
+                shape: self.shape,
+                strides: self.strides,
+                ndim: self.ndim,
+                _marker: PhantomData,
+            });
+        }
+
+        let mut new_shape = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
+        for i in 0..self.ndim {
+            new_shape[i] = self.shape[self.ndim - 1 - i];
+            new_strides[i] = self.strides[self.ndim - 1 - i];
+        }
+
+        Ok(TensorView {
+            data: self.data,
+            len: self.len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Reshape the view (must have same total elements, contiguous only).
+    pub fn reshape(&self, new_shape: &[usize]) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
+        if new_shape.len() > MAX_RANK {
+            return Err(TensorError::TooManyRanks {
+                got: new_shape.len(),
+            });
+        }
+
+        let new_len: usize = new_shape.iter().product();
+        if new_len != self.len {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(new_shape),
+                got: ShapeDescriptor::from_slice(self.shape()),
+            });
+        }
+
+        if !self.is_contiguous() {
+            return Err(TensorError::NonContiguousRows);
+        }
+
+        let mut shape_arr = [0usize; MAX_RANK];
+        shape_arr[..new_shape.len()].copy_from_slice(new_shape);
+
+        let mut strides_arr = [0isize; MAX_RANK];
+        Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
+
+        Ok(TensorView {
+            data: self.data,
+            len: self.len,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: new_shape.len(),
+            _marker: PhantomData,
+        })
+    }
+
+    /// Flatten to 1D (requires contiguous layout).
+    pub fn flatten(&self) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
+        self.reshape(&[self.len])
+    }
+
+    /// Remove dimensions of size 1.
+    pub fn squeeze(&self) -> TensorView<'a, T, MAX_RANK> {
+        let mut new_shape = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
+        let mut new_ndim = 0;
+        for i in 0..self.ndim {
+            if self.shape[i] != 1 {
+                new_shape[new_ndim] = self.shape[i];
+                new_strides[new_ndim] = self.strides[i];
+                new_ndim += 1;
+            }
+        }
+        if new_ndim == 0 {
+            new_ndim = 1;
+            new_shape[0] = 1;
+            new_strides[0] = core::mem::size_of::<T>() as isize;
+        }
+        TensorView {
+            data: self.data,
+            len: self.len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: new_ndim,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Clone, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Transpose (reverse all dimensions, no data copy).
+    pub fn transpose(&self) -> Result<TensorSpan<'a, T, MAX_RANK>, TensorError> {
+        if self.ndim < 2 {
+            return Ok(TensorSpan {
+                data: self.data,
+                len: self.len,
+                shape: self.shape,
+                strides: self.strides,
+                ndim: self.ndim,
+                _marker: PhantomData,
+            });
+        }
+
+        let mut new_shape = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
+        for i in 0..self.ndim {
+            new_shape[i] = self.shape[self.ndim - 1 - i];
+            new_strides[i] = self.strides[self.ndim - 1 - i];
+        }
+
+        Ok(TensorSpan {
+            data: self.data,
+            len: self.len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Reshape the span (must have same total elements, contiguous only).
+    pub fn reshape(&self, new_shape: &[usize]) -> Result<TensorSpan<'a, T, MAX_RANK>, TensorError> {
+        if new_shape.len() > MAX_RANK {
+            return Err(TensorError::TooManyRanks {
+                got: new_shape.len(),
+            });
+        }
+
+        let new_len: usize = new_shape.iter().product();
+        if new_len != self.len {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(new_shape),
+                got: ShapeDescriptor::from_slice(self.shape()),
+            });
+        }
+
+        if !self.is_contiguous() {
+            return Err(TensorError::NonContiguousRows);
+        }
+
+        let mut shape_arr = [0usize; MAX_RANK];
+        shape_arr[..new_shape.len()].copy_from_slice(new_shape);
+
+        let mut strides_arr = [0isize; MAX_RANK];
+        Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
+
+        Ok(TensorSpan {
+            data: self.data,
+            len: self.len,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: new_shape.len(),
+            _marker: PhantomData,
+        })
+    }
+
+    /// Flatten to 1D (requires contiguous layout).
+    pub fn flatten(&self) -> Result<TensorSpan<'a, T, MAX_RANK>, TensorError> {
+        self.reshape(&[self.len])
+    }
+
+    /// Remove dimensions of size 1.
+    pub fn squeeze(&self) -> TensorSpan<'a, T, MAX_RANK> {
+        let mut new_shape = [0usize; MAX_RANK];
+        let mut new_strides = [0isize; MAX_RANK];
+        let mut new_ndim = 0;
+        for i in 0..self.ndim {
+            if self.shape[i] != 1 {
+                new_shape[new_ndim] = self.shape[i];
+                new_strides[new_ndim] = self.strides[i];
+                new_ndim += 1;
+            }
+        }
+        if new_ndim == 0 {
+            new_ndim = 1;
+            new_shape[0] = 1;
+            new_strides[0] = core::mem::size_of::<T>() as isize;
+        }
+        TensorSpan {
+            data: self.data,
+            len: self.len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: new_ndim,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Clone, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Copy the span contents to a new owned Tensor.
+    pub fn to_owned(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
+        self.as_view().to_owned()
+    }
+}
+
+impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Iterate mutably along the given axis, yielding sub-tensor spans with rank-1.
+    pub fn axis_spans<I: VecIndex>(
+        &mut self,
+        axis: I,
+    ) -> Result<AxisIteratorMut<'a, T, MAX_RANK>, TensorError> {
+        let axis = normalize_axis(axis, self.ndim)?;
+        if self.ndim == 0 {
+            return Err(TensorError::IndexOutOfBounds {
+                index: 0,
+                size: self.ndim,
+            });
+        }
+        Ok(AxisIteratorMut {
+            data: self.data,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            axis,
+            axis_size: self.shape[axis],
+            axis_stride: self.strides[axis],
+            current: 0,
+            _marker: PhantomData,
+        })
+    }
+}
+
 impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Iterate along the given axis, yielding sub-tensor views with rank-1.
     pub fn axis_views<I: VecIndex>(
@@ -1251,33 +1485,8 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 
     /// Transpose (reverse all dimensions, no data copy).
-    pub fn t(&self) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
-        if self.ndim < 2 {
-            return Ok(TensorView {
-                data: self.data.as_ptr(),
-                len: self.len,
-                shape: self.shape,
-                strides: self.strides,
-                ndim: self.ndim,
-                _marker: PhantomData,
-            });
-        }
-
-        let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0isize; MAX_RANK];
-        for i in 0..self.ndim {
-            new_shape[i] = self.shape[self.ndim - 1 - i];
-            new_strides[i] = self.strides[self.ndim - 1 - i];
-        }
-
-        Ok(TensorView {
-            data: self.data.as_ptr(),
-            len: self.len,
-            shape: new_shape,
-            strides: new_strides,
-            ndim: self.ndim,
-            _marker: PhantomData,
-        })
+    pub fn transpose(&self) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
+        self.view().transpose()
     }
 
     /// Reshape the array (must have same total elements, contiguous only).
@@ -1316,6 +1525,14 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             _marker: PhantomData,
         })
     }
+
+    /// Flatten to 1D (requires contiguous layout).
+    pub fn flatten(&self) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
+        self.view().flatten()
+    }
+
+    /// Remove dimensions of size 1.
+    pub fn squeeze(&self) -> TensorView<'_, T, MAX_RANK> { self.view().squeeze() }
 }
 
 // endregion: Tensor View and Slice Methods
@@ -3217,7 +3434,7 @@ mod tests {
 
         // Transpose
         let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
-        let transposed = arr.t().unwrap();
+        let transposed = arr.transpose().unwrap();
         assert_eq!(transposed.shape(), &[4, 3]);
 
         // Contiguous check

@@ -830,6 +830,13 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
     return dict;
 }
 
+static PyObject *Tensor_get_is_contiguous(PyObject *self, void *closure) {
+    (void)closure;
+    Tensor *tensor = (Tensor *)self;
+    size_t item_size = bytes_per_dtype(tensor->dtype);
+    return PyBool_FromLong(tensor_is_c_contig(tensor, item_size));
+}
+
 static PyGetSetDef Tensor_getset[] = {
     {"shape", Tensor_get_shape, NULL, "Shape of the array", NULL},
     {"dtype", Tensor_get_dtype, NULL, "Data type of the array", NULL},
@@ -840,6 +847,7 @@ static PyGetSetDef Tensor_getset[] = {
     {"itemsize", Tensor_get_itemsize, NULL, "Size of one element in bytes", NULL},
     {"T", Tensor_get_T, NULL, "Transposed view of the array", NULL},
     {"__array_interface__", Tensor_get_array_interface, NULL, "NumPy array interface", NULL},
+    {"is_contiguous", Tensor_get_is_contiguous, NULL, "Whether the tensor is C-contiguous", NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
@@ -936,6 +944,89 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs
     linearize_cast_into(tensor->data, tensor->dtype, result->data, tensor->dtype, tensor->rank, tensor->shape,
                         tensor->strides, (size_t)old_total);
     return (PyObject *)result;
+}
+
+PyObject *Tensor_flatten(PyObject *self, PyObject *args) {
+    (void)args;
+    Tensor *tensor = (Tensor *)self;
+
+    Py_ssize_t total_elements = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elements *= tensor->shape[i];
+
+    size_t item_size = bytes_per_dtype(tensor->dtype);
+
+    if (tensor_is_c_contig(tensor, item_size)) {
+        Py_ssize_t flat_shape[1] = {total_elements};
+        Py_ssize_t flat_strides[1] = {(Py_ssize_t)item_size};
+        Tensor *root_parent = tensor->parent ? (Tensor *)tensor->parent : tensor;
+        return (PyObject *)Tensor_view(root_parent, tensor->data, tensor->dtype, 1, flat_shape, flat_strides);
+    }
+
+    // Non-contiguous: must copy then flatten
+    Py_ssize_t flat_shape[1] = {total_elements};
+    Tensor *result = Tensor_new(tensor->dtype, 1, flat_shape);
+    if (!result) return NULL;
+
+    linearize_cast_into(tensor->data, tensor->dtype, result->data, tensor->dtype, tensor->rank, tensor->shape,
+                        tensor->strides, (size_t)total_elements);
+    return (PyObject *)result;
+}
+
+PyObject *Tensor_squeeze(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
+    Tensor *tensor = (Tensor *)self;
+
+    if (nargs > 1) {
+        PyErr_SetString(PyExc_TypeError, "squeeze() takes at most 1 argument");
+        return NULL;
+    }
+
+    Py_ssize_t new_shape[NK_TENSOR_MAX_RANK];
+    Py_ssize_t new_strides[NK_TENSOR_MAX_RANK];
+    size_t new_rank = 0;
+
+    if (nargs == 1) {
+        // Squeeze a specific axis
+        Py_ssize_t axis = PyLong_AsSsize_t(args[0]);
+        if (axis == -1 && PyErr_Occurred()) return NULL;
+        if (axis < 0) axis += (Py_ssize_t)tensor->rank;
+        if (axis < 0 || (size_t)axis >= tensor->rank) {
+            PyErr_Format(PyExc_ValueError, "squeeze: axis %zd out of range for tensor with %zu dimensions", axis,
+                         tensor->rank);
+            return NULL;
+        }
+        if (tensor->shape[axis] != 1) {
+            // Axis is not size 1, return a view of the same tensor
+            Tensor *root_parent = tensor->parent ? (Tensor *)tensor->parent : tensor;
+            return (PyObject *)Tensor_view(root_parent, tensor->data, tensor->dtype, tensor->rank, tensor->shape,
+                                           tensor->strides);
+        }
+        for (size_t i = 0; i < tensor->rank; i++) {
+            if ((size_t)i != (size_t)axis) {
+                new_shape[new_rank] = tensor->shape[i];
+                new_strides[new_rank] = tensor->strides[i];
+                new_rank++;
+            }
+        }
+    }
+    else {
+        // Squeeze all size-1 dimensions
+        for (size_t i = 0; i < tensor->rank; i++) {
+            if (tensor->shape[i] != 1) {
+                new_shape[new_rank] = tensor->shape[i];
+                new_strides[new_rank] = tensor->strides[i];
+                new_rank++;
+            }
+        }
+    }
+
+    if (new_rank == 0) {
+        new_rank = 1;
+        new_shape[0] = 1;
+        new_strides[0] = (Py_ssize_t)bytes_per_dtype(tensor->dtype);
+    }
+
+    Tensor *root_parent = tensor->parent ? (Tensor *)tensor->parent : tensor;
+    return (PyObject *)Tensor_view(root_parent, tensor->data, tensor->dtype, new_rank, new_shape, new_strides);
 }
 
 /** @brief Add a partial sum value into a running accumulator, using the accumulator dtype. */
@@ -1602,6 +1693,8 @@ static PyMethodDef Tensor_methods[] = {
     {"argmin", (PyCFunction)Tensor_argmin, METH_FASTCALL | METH_KEYWORDS, "Return the index of the minimum element."},
     {"argmax", (PyCFunction)Tensor_argmax, METH_FASTCALL | METH_KEYWORDS, "Return the index of the maximum element."},
     {"astype", Tensor_astype, METH_O, "Cast tensor to a different dtype. Returns a new tensor."},
+    {"flatten", Tensor_flatten, METH_NOARGS, "Return a flattened 1D view (copies if non-contiguous)"},
+    {"squeeze", (PyCFunction)Tensor_squeeze, METH_FASTCALL, "Remove dimensions of size 1"},
     {"__array__", (PyCFunction)Tensor___array__, METH_FASTCALL | METH_KEYWORDS,
      "Convert to NumPy array. Raises TypeError for exotic dtypes."},
     {NULL, NULL, 0, NULL},

@@ -186,6 +186,39 @@ struct tensor_view {
         if (new_shape.numel() != shape_.numel()) return {};
         return {data_, new_shape};
     }
+
+    /** @brief Range of sub-views along the leading dimension. */
+    auto rows() const noexcept {
+        struct range_t {
+            tensor_view parent;
+            auto begin() const noexcept { return axis_iterator<tensor_view>(parent, 0); }
+            auto end() const noexcept { return axis_iterator<tensor_view>(parent, parent.extent(0)); }
+        };
+        return range_t {*this};
+    }
+
+    /** @brief Flatten to 1D view (requires contiguous layout). Returns empty view if not contiguous. */
+    tensor_view flatten() const noexcept { return reshape({numel()}); }
+
+    /** @brief Remove dimensions of size 1. */
+    tensor_view squeeze() const noexcept {
+        auto result = shape_;
+        size_type new_rank = 0;
+        for (size_type i = 0; i < shape_.rank; ++i) {
+            if (shape_.extents[i] != 1) {
+                result.extents[new_rank] = shape_.extents[i];
+                result.strides[new_rank] = shape_.strides[i];
+                ++new_rank;
+            }
+        }
+        if (new_rank == 0) {
+            new_rank = 1;
+            result.extents[0] = 1;
+            result.strides[0] = static_cast<difference_type>(sizeof(value_type));
+        }
+        result.rank = new_rank;
+        return {data_, result};
+    }
 };
 
 #pragma endregion - Tensor View
@@ -310,6 +343,52 @@ struct tensor_span {
         auto new_shape = shape_storage_<max_rank_>::contiguous(new_extents.begin(), new_rank, sizeof(value_type));
         if (new_shape.numel() != shape_.numel()) return {};
         return {data_, new_shape};
+    }
+
+    /** @brief Range of mutable sub-spans along the leading dimension. */
+    auto rows() noexcept {
+        struct range_t {
+            tensor_span parent;
+            auto begin() noexcept { return axis_iterator<tensor_span>(parent, 0); }
+            auto end() noexcept { return axis_iterator<tensor_span>(parent, parent.extent(0)); }
+        };
+        return range_t {*this};
+    }
+
+    /** @brief Range of immutable sub-views along the leading dimension. */
+    auto rows() const noexcept {
+        tensor_view<value_type_, max_rank_> v = *this;
+        struct range_t {
+            tensor_view<value_type_, max_rank_> parent;
+            auto begin() const noexcept { return axis_iterator<tensor_view<value_type_, max_rank_>>(parent, 0); }
+            auto end() const noexcept {
+                return axis_iterator<tensor_view<value_type_, max_rank_>>(parent, parent.extent(0));
+            }
+        };
+        return range_t {v};
+    }
+
+    /** @brief Flatten to 1D span (requires contiguous layout). Returns empty span if not contiguous. */
+    tensor_span flatten() noexcept { return reshape({numel()}); }
+
+    /** @brief Remove dimensions of size 1. */
+    tensor_span squeeze() noexcept {
+        auto result = shape_;
+        size_type new_rank = 0;
+        for (size_type i = 0; i < shape_.rank; ++i) {
+            if (shape_.extents[i] != 1) {
+                result.extents[new_rank] = shape_.extents[i];
+                result.strides[new_rank] = shape_.strides[i];
+                ++new_rank;
+            }
+        }
+        if (new_rank == 0) {
+            new_rank = 1;
+            result.extents[0] = 1;
+            result.strides[0] = static_cast<difference_type>(sizeof(value_type));
+        }
+        result.rank = new_rank;
+        return {data_, result};
     }
 };
 
@@ -623,6 +702,12 @@ struct tensor {
     /** @brief Iterate rows as mutable spans. */
     rows_spans_t rows_spans() noexcept { return {span()}; }
 
+    /** @brief Iterate rows as immutable views (convenience alias for rows_views). */
+    auto rows() const noexcept { return view().rows(); }
+
+    /** @brief Iterate rows as mutable spans (convenience alias for rows_spans). */
+    auto rows() noexcept { return span().rows(); }
+
     /** @brief Reinterpret as a 2D immutable matrix view. Requires rank >= 2. */
     tensor_view<value_type_, 2> as_matrix_view() const noexcept { return view().as_matrix(); }
 
@@ -642,6 +727,33 @@ struct tensor {
 
     /** @brief Reshape (mutable span). Requires contiguous layout and matching element count. */
     span_type reshape(std::initializer_list<size_type> new_extents) noexcept { return span().reshape(new_extents); }
+
+    /** @brief Check if contiguous in memory. Always true for freshly-constructed tensors. */
+    constexpr bool is_contiguous() const noexcept { return view().is_contiguous(); }
+
+    /** @brief Slice along leading dimension (immutable view). */
+    view_type slice_leading(difference_type idx) const noexcept { return view().slice_leading(idx); }
+
+    /** @brief Slice along leading dimension (mutable span). */
+    span_type slice_leading(difference_type idx) noexcept { return span().slice_leading(idx); }
+
+    /** @brief Convert to vector_view (requires rank == 1). */
+    vector_view<value_type> as_vector_view() const noexcept { return view().as_vector(); }
+
+    /** @brief Convert to vector_span (requires rank == 1). */
+    vector_span<value_type> as_vector_span() noexcept { return span().as_vector(); }
+
+    /** @brief Flatten (immutable view). Requires contiguous layout. */
+    view_type flatten() const noexcept { return view().flatten(); }
+
+    /** @brief Flatten (mutable span). Requires contiguous layout. */
+    span_type flatten() noexcept { return span().flatten(); }
+
+    /** @brief Squeeze (immutable view). Removes size-1 dimensions. */
+    view_type squeeze() const noexcept { return view().squeeze(); }
+
+    /** @brief Squeeze (mutable span). Removes size-1 dimensions. */
+    span_type squeeze() noexcept { return span().squeeze(); }
 };
 
 /** @brief Non-member swap. */
