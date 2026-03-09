@@ -211,6 +211,37 @@ void fill_coordinates(generator_type_ &generator, value_type_ *lats_ptr, value_t
 }
 
 /**
+ *  @brief Fill destination coordinate arrays within a max angular separation of origin coordinates.
+ *
+ *  Uses the great-circle destination formula to place each destination point at a random
+ *  angular distance (uniform in [0, max_separation_rad]) and random bearing from the
+ *  corresponding origin point. Coordinates are in radians.
+ */
+template <typename value_type_, typename generator_type_>
+void fill_nearby_coordinates(generator_type_ &generator, value_type_ const *origin_lats_ptr,
+                             value_type_ const *origin_lons_ptr, value_type_ *dest_lats_ptr, value_type_ *dest_lons_ptr,
+                             std::size_t values_count, double max_separation_rad) noexcept {
+
+    using float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
+    constexpr float_t pi = float_t(3.14159265358979323846);
+    std::uniform_real_distribution<float_t> separation_distribution(0, float_t(max_separation_rad));
+    std::uniform_real_distribution<float_t> bearing_distribution(0, float_t(2) * pi);
+    for (std::size_t i = 0; i < values_count; ++i) {
+        float_t origin_lat = float_t(origin_lats_ptr[i]);
+        float_t origin_lon = float_t(origin_lons_ptr[i]);
+        float_t separation = separation_distribution(generator);
+        float_t bearing = bearing_distribution(generator);
+        float_t sin_origin_lat = std::sin(origin_lat), cos_origin_lat = std::cos(origin_lat);
+        float_t sin_sep = std::sin(separation), cos_sep = std::cos(separation);
+        float_t dest_lat = std::asin(sin_origin_lat * cos_sep + cos_origin_lat * sin_sep * std::cos(bearing));
+        float_t dest_lon = origin_lon + std::atan2(std::sin(bearing) * sin_sep * cos_origin_lat,
+                                                   cos_sep - sin_origin_lat * std::sin(dest_lat));
+        dest_lats_ptr[i] = value_type_(dest_lat);
+        dest_lons_ptr[i] = value_type_(dest_lon);
+    }
+}
+
+/**
  *  @brief Fill array as a probability distribution (sums to 1.0).
  */
 template <typename value_type_, typename generator_type_>

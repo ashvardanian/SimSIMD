@@ -119,6 +119,10 @@ int main(int argc, char **argv) {
         double parsed = std::atof(env_sparse_intersection);
         if (parsed >= 0.0 && parsed <= 1.0) bench_config.sparse_intersection_share = parsed;
     }
+    if (char const *env_geo_angle = std::getenv("NK_GEOSPATIAL_MAX_ANGLE")) {
+        float parsed = static_cast<float>(std::atof(env_geo_angle));
+        if (parsed > 0.0f && parsed <= 180.0f) bench_config.geospatial_max_angle = parsed;
+    }
     if (char const *env_budget = std::getenv("NK_BUDGET_MB")) {
         std::size_t parsed_mb = static_cast<std::size_t>(std::atoll(env_budget));
         if (parsed_mb > 0) bench_config.budget_bytes = parsed_mb * 1024 * 1024;
@@ -180,11 +184,11 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Dimensions row
-    std::printf("  Dimensions: dense=%zu  curved=%zu  mesh=%zu  matrix=%zux%zux%zu  sparse=%zu/%zu@%.2f\n",
+    std::printf("  Dimensions: dense=%zu  curved=%zu  mesh=%zu  matrix=%zux%zux%zu  sparse=%zu/%zu@%.2f  geo=%.0f°\n",
                 bench_config.dense_dimensions, bench_config.curved_dimensions, bench_config.mesh_points,
                 bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth,
                 bench_config.sparse_first_length, bench_config.sparse_second_length,
-                bench_config.sparse_intersection_share);
+                bench_config.sparse_intersection_share, bench_config.geospatial_max_angle);
 
     // Bench-specific config
     std::printf("  Bench: seed=%u\n", bench_config.seed);
@@ -268,11 +272,15 @@ int main(int argc, char **argv) {
             "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                       //
             "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                      //
             "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                    //
-            "  NK_BUDGET_MB=N                 Memory budget in MB for inputs (default: 1024)\n"   //
-            "  NO_COLOR=1                     Disable colored output\n"                           //
-            "  FORCE_COLOR=1                  Force colored output\n"                             //
-            "\n"                                                                                  //
-            "Google Benchmark flags (passed through):\n");                                        //
+            "  NK_GEOSPATIAL_MAX_ANGLE=F      Max angular separation in degrees (default: 180)\n" "  NK_BUDGET_MB=N    "
+                                                                                                  "             Memory "
+                                                                                                  "budget in MB for "
+                                                                                                  "inputs (default: "
+                                                                                                  "1024)\n" //
+            "  NO_COLOR=1                     Disable colored output\n"                                     //
+            "  FORCE_COLOR=1                  Force colored output\n"                                       //
+            "\n"                                                                                            //
+            "Google Benchmark flags (passed through):\n");                                                  //
     }
 
     bm::Initialize(&bench_argc, argv_ptrs.data());

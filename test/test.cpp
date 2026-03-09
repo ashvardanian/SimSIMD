@@ -181,7 +181,8 @@ int main(int argc, char **argv) {
                 "  NK_RANDOM_DISTRIBUTION=X   uniform_k, cauchy_k, lognormal_k\n"                          //
                 "  NK_DENSE_DIMENSIONS=N      Override dense vector dimensions\n"                          //
                 "  NK_CURVED_DIMENSIONS=N     Override curved vector dimensions\n"                         //
-                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n");                       //
+                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n"                        //
+                "  NK_GEOSPATIAL_MAX_ANGLE=N  Max angular separation in degrees (default: 180)\n");        //
             return 0;
         }
         else {
@@ -241,6 +242,10 @@ int main(int argc, char **argv) {
     if (char const *env = std::getenv("NK_MATRIX_DEPTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) global_config.matrix_depth = val;
+    }
+    if (char const *env = std::getenv("NK_GEOSPATIAL_MAX_ANGLE")) {
+        float val = static_cast<float>(std::atof(env));
+        if (val > 0) global_config.geospatial_max_angle = val;
     }
 
     nk_capability_t runtime_caps = nk_capabilities();

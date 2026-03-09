@@ -74,6 +74,8 @@ struct bench_config_t {
     std::size_t sparse_second_length = 8192;
     /** Sparse intersection share [0.0, 1.0]. Override: `NK_SPARSE_INTERSECTION`. */
     double sparse_intersection_share = 0.5;
+    /** Max angular separation in degrees for geospatial benchmarks. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
+    float geospatial_max_angle = 180.0f;
     /** Memory budget in bytes for pre-allocated inputs. Override: `NK_BUDGET_MB`. */
     std::size_t budget_bytes = std::size_t(1024) * 1024 * 1024;
 };
