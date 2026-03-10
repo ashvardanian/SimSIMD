@@ -453,8 +453,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
-    unsigned supports_sierra = supports_haswell && supports_avxvnniint8 && !supports_avx512f;
-    unsigned supports_alder = supports_haswell && supports_avxvnni && !supports_avx512f;
+    unsigned supports_sierra = supports_haswell && supports_avxvnniint8;
+    unsigned supports_alder = supports_haswell && supports_avxvnni;
     unsigned supports_sapphireamx = supports_amx_tile && supports_amx_bf16 && supports_amx_int8;
     unsigned supports_graniteamx = supports_sapphireamx && supports_amx_fp16;
 
