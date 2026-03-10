@@ -462,7 +462,7 @@ NK_INTERNAL void nk_e4m3_to_f16_serial(nk_e4m3_t const *src, nk_f16_t *dest) {
  *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *      https://onnx.ai/onnx/technical/float8.html
  */
-NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
+NK_INTERNAL void nk_e5m2_to_f32_manual_(nk_e5m2_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
     nk_u32_t exponent = (raw >> 2) & 0x1Fu;
@@ -489,6 +489,48 @@ NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
     nk_u32_t f32_exponent = (exponent + 112u) << 23;
     nk_u32_t f32_mantissa = mantissa << 21;
     conv.u = sign | f32_exponent | f32_mantissa;
+    *dest = conv.f;
+}
+
+NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
+    static nk_u32_t const lut[128] = {
+        0x00000000, 0x37800000, 0x38000000, 0x38400000, // exp=0  sub
+        0x38800000, 0x38A00000, 0x38C00000, 0x38E00000, // exp=1
+        0x39000000, 0x39200000, 0x39400000, 0x39600000, // exp=2
+        0x39800000, 0x39A00000, 0x39C00000, 0x39E00000, // exp=3
+        0x3A000000, 0x3A200000, 0x3A400000, 0x3A600000, // exp=4
+        0x3A800000, 0x3AA00000, 0x3AC00000, 0x3AE00000, // exp=5
+        0x3B000000, 0x3B200000, 0x3B400000, 0x3B600000, // exp=6
+        0x3B800000, 0x3BA00000, 0x3BC00000, 0x3BE00000, // exp=7
+        0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000, // exp=8
+        0x3C800000, 0x3CA00000, 0x3CC00000, 0x3CE00000, // exp=9
+        0x3D000000, 0x3D200000, 0x3D400000, 0x3D600000, // exp=10
+        0x3D800000, 0x3DA00000, 0x3DC00000, 0x3DE00000, // exp=11
+        0x3E000000, 0x3E200000, 0x3E400000, 0x3E600000, // exp=12
+        0x3E800000, 0x3EA00000, 0x3EC00000, 0x3EE00000, // exp=13
+        0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000, // exp=14
+        0x3F800000, 0x3FA00000, 0x3FC00000, 0x3FE00000, // exp=15
+        0x40000000, 0x40200000, 0x40400000, 0x40600000, // exp=16
+        0x40800000, 0x40A00000, 0x40C00000, 0x40E00000, // exp=17
+        0x41000000, 0x41200000, 0x41400000, 0x41600000, // exp=18
+        0x41800000, 0x41A00000, 0x41C00000, 0x41E00000, // exp=19
+        0x42000000, 0x42200000, 0x42400000, 0x42600000, // exp=20
+        0x42800000, 0x42A00000, 0x42C00000, 0x42E00000, // exp=21
+        0x43000000, 0x43200000, 0x43400000, 0x43600000, // exp=22
+        0x43800000, 0x43A00000, 0x43C00000, 0x43E00000, // exp=23
+        0x44000000, 0x44200000, 0x44400000, 0x44600000, // exp=24
+        0x44800000, 0x44A00000, 0x44C00000, 0x44E00000, // exp=25
+        0x45000000, 0x45200000, 0x45400000, 0x45600000, // exp=26
+        0x45800000, 0x45A00000, 0x45C00000, 0x45E00000, // exp=27
+        0x46000000, 0x46200000, 0x46400000, 0x46600000, // exp=28
+        0x46800000, 0x46A00000, 0x46C00000, 0x46E00000, // exp=29
+        0x47000000, 0x47200000, 0x47400000, 0x47600000, // exp=30
+        0x7F800000, 0x7FC00000, 0x7FC00000, 0x7FC00000, // inf, nan
+    };
+    nk_u8_t raw = *src;
+    nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
+    nk_fui32_t conv;
+    conv.u = sign | lut[raw & 0x7F];
     *dest = conv.f;
 }
 
@@ -607,7 +649,7 @@ NK_PUBLIC void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest) {
  *  - Infinity (0x7C): maps to F16 infinity (0x7C00)
  *  - NaN (0x7D-0x7F): maps to F16 quiet NaN (0x7E00)
  */
-NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
+NK_INTERNAL void nk_e5m2_to_f16_manual_(nk_e5m2_t const *src, nk_f16_t *dest) {
     nk_u8_t raw = *src;
     nk_u16_t sign = ((nk_u16_t)(raw & 0x80)) << 8;
     nk_u16_t mag = raw & 0x7F;
@@ -641,6 +683,48 @@ NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
     *dest = result.f;
 }
 
+NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
+    static nk_u16_t const lut[128] = {
+        0x0000, 0x0100, 0x0200, 0x0300, // exp=0  sub
+        0x0400, 0x0500, 0x0600, 0x0700, // exp=1
+        0x0800, 0x0900, 0x0A00, 0x0B00, // exp=2
+        0x0C00, 0x0D00, 0x0E00, 0x0F00, // exp=3
+        0x1000, 0x1100, 0x1200, 0x1300, // exp=4
+        0x1400, 0x1500, 0x1600, 0x1700, // exp=5
+        0x1800, 0x1900, 0x1A00, 0x1B00, // exp=6
+        0x1C00, 0x1D00, 0x1E00, 0x1F00, // exp=7
+        0x2000, 0x2100, 0x2200, 0x2300, // exp=8
+        0x2400, 0x2500, 0x2600, 0x2700, // exp=9
+        0x2800, 0x2900, 0x2A00, 0x2B00, // exp=10
+        0x2C00, 0x2D00, 0x2E00, 0x2F00, // exp=11
+        0x3000, 0x3100, 0x3200, 0x3300, // exp=12
+        0x3400, 0x3500, 0x3600, 0x3700, // exp=13
+        0x3800, 0x3900, 0x3A00, 0x3B00, // exp=14
+        0x3C00, 0x3D00, 0x3E00, 0x3F00, // exp=15
+        0x4000, 0x4100, 0x4200, 0x4300, // exp=16
+        0x4400, 0x4500, 0x4600, 0x4700, // exp=17
+        0x4800, 0x4900, 0x4A00, 0x4B00, // exp=18
+        0x4C00, 0x4D00, 0x4E00, 0x4F00, // exp=19
+        0x5000, 0x5100, 0x5200, 0x5300, // exp=20
+        0x5400, 0x5500, 0x5600, 0x5700, // exp=21
+        0x5800, 0x5900, 0x5A00, 0x5B00, // exp=22
+        0x5C00, 0x5D00, 0x5E00, 0x5F00, // exp=23
+        0x6000, 0x6100, 0x6200, 0x6300, // exp=24
+        0x6400, 0x6500, 0x6600, 0x6700, // exp=25
+        0x6800, 0x6900, 0x6A00, 0x6B00, // exp=26
+        0x6C00, 0x6D00, 0x6E00, 0x6F00, // exp=27
+        0x7000, 0x7100, 0x7200, 0x7300, // exp=28
+        0x7400, 0x7500, 0x7600, 0x7700, // exp=29
+        0x7800, 0x7900, 0x7A00, 0x7B00, // exp=30
+        0x7C00, 0x7E00, 0x7E00, 0x7E00, // inf, nan
+    };
+    nk_u8_t raw = *src;
+    nk_u16_t sign = ((nk_u16_t)(raw & 0x80)) << 8;
+    nk_fui16_t result;
+    result.u = sign | lut[raw & 0x7F];
+    *dest = result.f;
+}
+
 /**
  *  @brief Convert FP6 E2M3FN to IEEE 754 single-precision float.
  *
@@ -652,7 +736,7 @@ NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
  *      https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
  *      https://arxiv.org/abs/2401.14112 (FP6-LLM)
  */
-NK_PUBLIC void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
+NK_INTERNAL void nk_e2m3_to_f32_manual_(nk_e2m3_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
     nk_u32_t exponent = (raw >> 3) & 0x03u;
@@ -680,6 +764,20 @@ NK_PUBLIC void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
     nk_u32_t f32_exponent = (exponent + 126u) << 23;
     nk_u32_t f32_mantissa = mantissa << 20;
     conv.u = sign | f32_exponent | f32_mantissa;
+    *dest = conv.f;
+}
+
+NK_PUBLIC void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
+    static nk_u32_t const lut[32] = {
+        0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000, 0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000, // exp=0 sub
+        0x3F800000, 0x3F900000, 0x3FA00000, 0x3FB00000, 0x3FC00000, 0x3FD00000, 0x3FE00000, 0x3FF00000, // exp=1
+        0x40000000, 0x40100000, 0x40200000, 0x40300000, 0x40400000, 0x40500000, 0x40600000, 0x40700000, // exp=2
+        0x40800000, 0x40900000, 0x40A00000, 0x40B00000, 0x40C00000, 0x40D00000, 0x40E00000, 0x40F00000, // exp=3
+    };
+    nk_u8_t raw = *src;
+    nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
+    nk_fui32_t conv;
+    conv.u = sign | lut[raw & 0x1F];
     *dest = conv.f;
 }
 
@@ -775,7 +873,7 @@ NK_PUBLIC void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
  *  E3M2FN (FP6) format: 1 sign bit, 3 exponent bits (bias=3), 2 mantissa bits.
  *  Range: [-28, +28], no infinity or NaN (OCP Microscaling FN format).
  */
-NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
+NK_INTERNAL void nk_e3m2_to_f32_manual_(nk_e3m2_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
     nk_u32_t exponent = (raw >> 2) & 0x07u;
@@ -803,6 +901,24 @@ NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
     nk_u32_t f32_exponent = (exponent + 124u) << 23;
     nk_u32_t f32_mantissa = mantissa << 21;
     conv.u = sign | f32_exponent | f32_mantissa;
+    *dest = conv.f;
+}
+
+NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
+    static nk_u32_t const lut[32] = {
+        0x00000000, 0x3D800000, 0x3E000000, 0x3E400000, // exp=0 sub
+        0x3E800000, 0x3EA00000, 0x3EC00000, 0x3EE00000, // exp=1
+        0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000, // exp=2
+        0x3F800000, 0x3FA00000, 0x3FC00000, 0x3FE00000, // exp=3
+        0x40000000, 0x40200000, 0x40400000, 0x40600000, // exp=4
+        0x40800000, 0x40A00000, 0x40C00000, 0x40E00000, // exp=5
+        0x41000000, 0x41200000, 0x41400000, 0x41600000, // exp=6
+        0x41800000, 0x41A00000, 0x41C00000, 0x41E00000, // exp=7
+    };
+    nk_u8_t raw = *src;
+    nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
+    nk_fui32_t conv;
+    conv.u = sign | lut[raw & 0x1F];
     *dest = conv.f;
 }
 
