@@ -46,8 +46,7 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
         iterations++;
     }
 
-    std::size_t ops_per_call = points_count * 9; // unified 9N scalar-ops for RMSD/Kabsch/Umeyama
-    state.counters["scalar-ops"] = bm::Counter(iterations * ops_per_call, bm::Counter::kIsRate);
+    state.counters["points"] = bm::Counter(iterations * points_count, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -122,6 +121,15 @@ void bench_mesh() {
     run_mesh<bf16_k>("rmsd_bf16_rvv", nk_rmsd_bf16_rvv);
     run_mesh<bf16_k>("kabsch_bf16_rvv", nk_kabsch_bf16_rvv);
     run_mesh<bf16_k>("umeyama_bf16_rvv", nk_umeyama_bf16_rvv);
+#endif
+
+#if NK_TARGET_V128RELAXED
+    run_mesh<f32_k>("rmsd_f32_v128relaxed", nk_rmsd_f32_v128relaxed);
+    run_mesh<f32_k>("kabsch_f32_v128relaxed", nk_kabsch_f32_v128relaxed);
+    run_mesh<f32_k>("umeyama_f32_v128relaxed", nk_umeyama_f32_v128relaxed);
+    run_mesh<f64_k>("rmsd_f64_v128relaxed", nk_rmsd_f64_v128relaxed);
+    run_mesh<f64_k>("kabsch_f64_v128relaxed", nk_kabsch_f64_v128relaxed);
+    run_mesh<f64_k>("umeyama_f64_v128relaxed", nk_umeyama_f64_v128relaxed);
 #endif
 
     // Serial fallbacks

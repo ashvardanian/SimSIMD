@@ -355,6 +355,29 @@ NK_PUBLIC void nk_umeyama_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
 #endif // NK_TARGET_RVV
 
+/*  WASM Relaxed SIMD backends using wasm_f32x4_relaxed_madd for FMA.
+ */
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_rmsd_f32 */
+NK_PUBLIC void nk_rmsd_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                       nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_f32 */
+NK_PUBLIC void nk_kabsch_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                         nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_f32 */
+NK_PUBLIC void nk_umeyama_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                          nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_rmsd_f64 */
+NK_PUBLIC void nk_rmsd_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                       nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_kabsch_f64 */
+NK_PUBLIC void nk_kabsch_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                         nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_umeyama_f64 */
+NK_PUBLIC void nk_umeyama_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                          nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+#endif // NK_TARGET_V128RELAXED
+
 /**
  *  @brief  Returns the output dtype for RMSD.
  */
@@ -405,6 +428,7 @@ NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
 #include "numkong/mesh/haswell.h"
 #include "numkong/mesh/skylake.h"
 #include "numkong/mesh/rvv.h"
+#include "numkong/mesh/v128relaxed.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -422,6 +446,8 @@ NK_PUBLIC void nk_rmsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk
     nk_rmsd_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_rmsd_f64_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_rmsd_f64_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_rmsd_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -437,6 +463,8 @@ NK_PUBLIC void nk_rmsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk
     nk_rmsd_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_rmsd_f32_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_rmsd_f32_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_rmsd_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -478,6 +506,8 @@ NK_PUBLIC void nk_kabsch_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, 
     nk_kabsch_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_kabsch_f64_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_kabsch_f64_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_kabsch_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -493,6 +523,8 @@ NK_PUBLIC void nk_kabsch_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, 
     nk_kabsch_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_kabsch_f32_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_kabsch_f32_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_kabsch_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -534,6 +566,8 @@ NK_PUBLIC void nk_umeyama_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     nk_umeyama_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_umeyama_f64_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_umeyama_f64_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_umeyama_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -549,6 +583,8 @@ NK_PUBLIC void nk_umeyama_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
     nk_umeyama_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_umeyama_f32_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_V128RELAXED
+    nk_umeyama_f32_v128relaxed(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_umeyama_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
