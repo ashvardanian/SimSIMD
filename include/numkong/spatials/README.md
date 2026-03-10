@@ -76,532 +76,503 @@ Angular and Euclidean finalizers read norms from packed buffer metadata, elimina
 
 ## Performance
 
-Controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, `NK_MATRIX_DEPTH`.
-All values are set to the same value for products of two square-shaped matrices.
-Columns show for matrixes with 256, 1024, and 4096 sides.
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for batched distance computations over square matrices.
+Columns show throughput for 256³, 1024³, and 4096³ configurations.
+The throughput is measured in GSO/s as Giga scalar operations per second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ complexity for computing $M \times N$ pairwise distances over $K$-dimensional vectors.
+Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
 
 ### Intel Sapphire Rapids
 
 #### Native
 
-| Kernel                                     |            256³ |           1024³ |           4096³ |
-| :----------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                    |                 |                 |                 |
-| `nk_angulars_packed_f64_serial`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f64_haswell`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_haswell`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_haswell`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f64_skylake`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_skylake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_skylake`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                    |                 |                 |                 |
-| `nk_angulars_packed_f32_serial`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f32_haswell`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_haswell`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_haswell`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f32_skylake`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_skylake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_skylake`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                   |                 |                 |                 |
-| `nk_angulars_packed_bf16_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_haswell`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_skylake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_skylake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_skylake`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_genoa`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_genoa`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_genoa`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_genoa`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_sapphireamx`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_sapphireamx` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f16__                                    |                 |                 |                 |
-| `nk_angulars_packed_f16_serial`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f16_haswell`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_haswell`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_haswell`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f16_skylake`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_skylake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_skylake`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e5m2__                                   |                 |                 |                 |
-| `nk_angulars_packed_e5m2_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_haswell`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_skylake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_skylake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_skylake`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_genoa`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_genoa`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_genoa`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_genoa`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_sapphireamx`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_sapphireamx` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e4m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e4m3_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_haswell`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_skylake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_skylake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_skylake`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_genoa`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_genoa`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_genoa`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_genoa`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_sapphireamx`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_sapphireamx` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e3m2__                                   |                 |                 |                 |
-| `nk_angulars_packed_e3m2_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_haswell`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_skylake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_skylake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_skylake`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_genoa`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_genoa`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_genoa`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_genoa`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_sapphireamx`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_sapphireamx` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e2m3_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_haswell`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_haswell`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_skylake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_skylake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_skylake`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_skylake`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_genoa`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_genoa`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_genoa`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_genoa`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_sapphireamx`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_sapphireamx` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                     |                 |                 |                 |
-| `nk_angulars_packed_i8_serial`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_haswell`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_haswell`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_icelake`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_icelake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_icelake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_icelake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_sapphireamx`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_sapphireamx`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_alder`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_alder`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_alder`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_alder`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_sierra`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_sierra`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_sierra`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_sierra`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                     |                 |                 |                 |
-| `nk_angulars_packed_u8_serial`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_haswell`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_haswell`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_haswell`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_haswell`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_icelake`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_icelake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_icelake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_icelake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_sapphireamx`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_sapphireamx`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_sapphireamx`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_sapphireamx`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_alder`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_alder`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_alder`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_alder`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_sierra`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_sierra`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_sierra`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_sierra`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i4__                                     |                 |                 |                 |
-| `nk_angulars_packed_i4_serial`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i4_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i4_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i4_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i4_icelake`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i4_icelake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i4_icelake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i4_icelake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u4__                                     |                 |                 |                 |
-| `nk_angulars_packed_u4_serial`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u4_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u4_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u4_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u4_icelake`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u4_icelake`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u4_icelake`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u4_icelake`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| Kernel                                     |                     256³ |                    1024³ |                    4096³ |
+| :----------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f64_serial`            |       0.578 gso/s, 0 ulp |       0.691 gso/s, 0 ulp |       0.787 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f64_serial`         |       0.477 gso/s, 0 ulp |       0.569 gso/s, 0 ulp |        1.24 gso/s, 0 ulp |
+| `nk_euclideans_packed_f64_serial`          |     0.569 gso/s, 0.6 ulp |     0.692 gso/s, 0.6 ulp |     0.775 gso/s, 0.6 ulp |
+| `nk_euclideans_symmetric_f64_serial`       |     0.477 gso/s, 0.6 ulp |     0.562 gso/s, 0.6 ulp |      1.26 gso/s, 0.3 ulp |
+| `nk_angulars_packed_f64_haswell`           |        5.61 gso/s, 0 ulp |        5.90 gso/s, 0 ulp |        2.97 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f64_haswell`        |        5.32 gso/s, 0 ulp |        5.71 gso/s, 0 ulp |        6.34 gso/s, 0 ulp |
+| `nk_euclideans_packed_f64_haswell`         |      5.72 gso/s, 0.2 ulp |      6.00 gso/s, 0.2 ulp |      5.96 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_f64_haswell`      |      5.35 gso/s, 0.2 ulp |      5.88 gso/s, 0.2 ulp |      11.6 gso/s, 0.2 ulp |
+| `nk_angulars_packed_f64_skylake`           |        7.61 gso/s, 0 ulp |        4.84 gso/s, 0 ulp |        9.10 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f64_skylake`        |        4.57 gso/s, 0 ulp |        5.31 gso/s, 0 ulp |        15.9 gso/s, 0 ulp |
+| `nk_euclideans_packed_f64_skylake`         |      4.76 gso/s, 0.2 ulp |      4.93 gso/s, 0.2 ulp |      8.66 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_f64_skylake`      |      4.47 gso/s, 0.2 ulp |      4.81 gso/s, 0.2 ulp |        13.5 gso/s, ? ulp |
+| __f32__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f32_serial`            |      15.0 gso/s, 0.1 ulp |      16.3 gso/s, 0.1 ulp |      16.4 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f32_serial`         |      3.86 gso/s, 0.1 ulp |      4.29 gso/s, 0.1 ulp |      8.62 gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f32_serial`          |      15.3 gso/s, 0.6 ulp |      17.0 gso/s, 0.5 ulp |      17.0 gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_f32_serial`       |      3.97 gso/s, 0.6 ulp |      4.16 gso/s, 0.5 ulp |      8.38 gso/s, 0.3 ulp |
+| `nk_angulars_packed_f32_haswell`           |        29.3 gso/s, 0 ulp |        31.8 gso/s, 0 ulp |        21.3 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f32_haswell`        |        15.7 gso/s, 0 ulp |        17.4 gso/s, 0 ulp |        22.1 gso/s, 0 ulp |
+| `nk_euclideans_packed_f32_haswell`         |      29.1 gso/s, 0.2 ulp |      31.6 gso/s, 0.2 ulp |      31.2 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_f32_haswell`      |      15.8 gso/s, 0.2 ulp |      17.5 gso/s, 0.2 ulp |      35.9 gso/s, 0.2 ulp |
+| `nk_angulars_packed_f32_skylake`           |        34.3 gso/s, 0 ulp |        23.9 gso/s, 0 ulp |        39.5 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f32_skylake`        |        15.1 gso/s, 0 ulp |        18.7 gso/s, 0 ulp |        52.8 gso/s, 0 ulp |
+| `nk_euclideans_packed_f32_skylake`         |      18.9 gso/s, 0.2 ulp |      22.1 gso/s, 0.2 ulp |      38.1 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_f32_skylake`      |      14.0 gso/s, 0.2 ulp |      17.3 gso/s, 0.2 ulp |        51.3 gso/s, ? ulp |
+| __bf16__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_bf16_serial`           |        1.18 gso/s, 0 ulp |        1.21 gso/s, 0 ulp |      1.19 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_bf16_serial`        |        1.19 gso/s, 0 ulp |        1.18 gso/s, 0 ulp |        2.35 gso/s, 0 ulp |
+| `nk_euclideans_packed_bf16_serial`         |      1.20 gso/s, 0.6 ulp |      1.18 gso/s, 0.6 ulp |      1.16 gso/s, 6.0 ulp |
+| `nk_euclideans_symmetric_bf16_serial`      |      1.11 gso/s, 0.6 ulp |      1.14 gso/s, 0.6 ulp |      2.34 gso/s, 0.4 ulp |
+| `nk_angulars_packed_bf16_haswell`          |        52.3 gso/s, 0 ulp |        64.6 gso/s, 0 ulp |      35.8 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_bf16_haswell`       |        29.8 gso/s, 0 ulp |        36.1 gso/s, 0 ulp |        72.8 gso/s, 0 ulp |
+| `nk_euclideans_packed_bf16_haswell`        |      53.6 gso/s, 0.2 ulp |      66.3 gso/s, 0.3 ulp |      69.0 gso/s, 5.8 ulp |
+| `nk_euclideans_symmetric_bf16_haswell`     |      29.5 gso/s, 0.2 ulp |      36.3 gso/s, 0.3 ulp |      75.1 gso/s, 0.3 ulp |
+| `nk_angulars_packed_bf16_skylake`          |        68.2 gso/s, 0 ulp |        59.9 gso/s, 0 ulp |      90.9 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_bf16_skylake`       |        24.0 gso/s, 0 ulp |        30.7 gso/s, 0 ulp |         112 gso/s, 0 ulp |
+| `nk_euclideans_packed_bf16_skylake`        |      48.0 gso/s, 0.2 ulp |      62.0 gso/s, 0.3 ulp |      81.3 gso/s, 5.8 ulp |
+| `nk_euclideans_symmetric_bf16_skylake`     |      25.5 gso/s, 0.2 ulp |      30.6 gso/s, 0.3 ulp |         103 gso/s, ? ulp |
+| `nk_angulars_packed_bf16_genoa`            |        38.8 gso/s, 0 ulp |        55.2 gso/s, 0 ulp |        59.2 gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_genoa`         |        31.4 gso/s, 0 ulp |        36.2 gso/s, 0 ulp |        92.7 gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_genoa`          |      38.6 gso/s, 0.2 ulp |      60.8 gso/s, 0.3 ulp |        54.5 gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_genoa`       |      34.7 gso/s, 0.2 ulp |      46.6 gso/s, 0.3 ulp |         152 gso/s, ? ulp |
+| `nk_angulars_packed_bf16_sapphireamx`      |         166 gso/s, ? ulp |         363 gso/s, ? ulp |         599 gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_sapphireamx`   |        43.0 gso/s, ? ulp |        83.5 gso/s, ? ulp |         116 gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_sapphireamx`    |         204 gso/s, ? ulp |         369 gso/s, ? ulp |         596 gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_sapphireamx` |        53.2 gso/s, ? ulp |        85.7 gso/s, ? ulp |         121 gso/s, ? ulp |
+| __f16__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f16_serial`            |      7.46 gso/s, 0.1 ulp |      7.97 gso/s, 0.1 ulp |      8.12 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f16_serial`         |      4.04 gso/s, 0.1 ulp |      4.09 gso/s, 0.1 ulp |      8.13 gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f16_serial`          |      7.69 gso/s, 0.7 ulp |      7.73 gso/s, 1.1 ulp |      8.34 gso/s, 0.6 ulp |
+| `nk_euclideans_symmetric_f16_serial`       |      4.08 gso/s, 0.7 ulp |      4.19 gso/s, 1.1 ulp |      8.23 gso/s, 0.5 ulp |
+| `nk_angulars_packed_f16_haswell`           |      58.9 gso/s, 0.1 ulp |      70.4 gso/s, 0.1 ulp |      38.6 gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f16_haswell`        |      30.7 gso/s, 0.1 ulp |      42.4 gso/s, 0.1 ulp |      88.6 gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f16_haswell`         |      60.8 gso/s, 0.4 ulp |      71.3 gso/s, 0.9 ulp |      71.8 gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_f16_haswell`      |      31.7 gso/s, 0.4 ulp |      40.0 gso/s, 0.9 ulp |      88.1 gso/s, 0.3 ulp |
+| `nk_angulars_packed_f16_skylake`           |      63.7 gso/s, 0.1 ulp |      54.1 gso/s, 0.1 ulp |        93.2 gso/s, 0 ulp |
+| `nk_angulars_symmetric_f16_skylake`        |      22.9 gso/s, 0.1 ulp |      32.4 gso/s, 0.1 ulp |         112 gso/s, 0 ulp |
+| `nk_euclideans_packed_f16_skylake`         |      39.2 gso/s, 0.4 ulp |      62.5 gso/s, 0.9 ulp |      83.6 gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_f16_skylake`      |      23.5 gso/s, 0.4 ulp |      33.5 gso/s, 0.9 ulp |        99.3 gso/s, ? ulp |
+| __e5m2__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e5m2_serial`           |       0.587 gso/s, 0 ulp |       0.553 gso/s, 0 ulp |       0.563 gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_serial`        |       0.446 gso/s, 0 ulp |       0.427 gso/s, 0 ulp |       0.847 gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_serial`         |     0.576 gso/s, 0.5 ulp |     0.571 gso/s, 0.5 ulp |       0.557 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_serial`      |     0.424 gso/s, 0.5 ulp |     0.437 gso/s, 0.5 ulp |       0.836 gso/s, ? ulp |
+| `nk_angulars_packed_e5m2_haswell`          |        27.3 gso/s, 0 ulp |        29.9 gso/s, 0 ulp |        12.1 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e5m2_haswell`       |        15.1 gso/s, 0 ulp |        16.3 gso/s, 0 ulp |        32.8 gso/s, 0 ulp |
+| `nk_euclideans_packed_e5m2_haswell`        |        27.3 gso/s, 0 ulp |        28.8 gso/s, 0 ulp |        29.6 gso/s, 0 ulp |
+| `nk_euclideans_symmetric_e5m2_haswell`     |        14.7 gso/s, 0 ulp |        15.3 gso/s, 0 ulp |        33.4 gso/s, 0 ulp |
+| `nk_angulars_packed_e5m2_skylake`          |        18.1 gso/s, 0 ulp |        22.8 gso/s, 0 ulp |        36.6 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e5m2_skylake`       |        12.0 gso/s, 0 ulp |        12.6 gso/s, 0 ulp |        41.9 gso/s, 0 ulp |
+| `nk_euclideans_packed_e5m2_skylake`        |        18.6 gso/s, 0 ulp |        20.8 gso/s, 0 ulp |        36.3 gso/s, 0 ulp |
+| `nk_euclideans_symmetric_e5m2_skylake`     |        12.0 gso/s, 0 ulp |        13.6 gso/s, 0 ulp |        32.6 gso/s, ? ulp |
+| `nk_angulars_packed_e5m2_genoa`            |        24.6 gso/s, 0 ulp |        29.5 gso/s, 0 ulp |        34.7 gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_genoa`         |        16.0 gso/s, 0 ulp |        19.2 gso/s, 0 ulp |        51.7 gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_genoa`          |        27.0 gso/s, 0 ulp |        33.5 gso/s, 0 ulp |        34.2 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_genoa`       |        16.6 gso/s, 0 ulp |        19.9 gso/s, 0 ulp |        67.2 gso/s, ? ulp |
+| `nk_angulars_packed_e5m2_sapphireamx`      |         134 gso/s, ? ulp |         224 gso/s, ? ulp |         411 gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_sapphireamx`   |        23.6 gso/s, ? ulp |        29.1 gso/s, ? ulp |        71.8 gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_sapphireamx`    |         164 gso/s, ? ulp |         239 gso/s, ? ulp |         421 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_sapphireamx` |        30.8 gso/s, ? ulp |        32.4 gso/s, ? ulp |        72.3 gso/s, ? ulp |
+| __e4m3__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e4m3_serial`           |       0.479 gso/s, 0 ulp |       0.473 gso/s, 0 ulp |       0.485 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e4m3_serial`        |       0.395 gso/s, 0 ulp |       0.390 gso/s, 0 ulp |       0.795 gso/s, 0 ulp |
+| `nk_euclideans_packed_e4m3_serial`         |     0.467 gso/s, 0.5 ulp |     0.484 gso/s, 0.5 ulp |     0.480 gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_e4m3_serial`      |     0.395 gso/s, 0.5 ulp |     0.395 gso/s, 0.5 ulp |     0.781 gso/s, 0.3 ulp |
+| `nk_angulars_packed_e4m3_haswell`          |        20.0 gso/s, 0 ulp |        22.0 gso/s, 0 ulp |        9.50 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e4m3_haswell`       |        11.0 gso/s, 0 ulp |        11.6 gso/s, 0 ulp |        22.6 gso/s, 0 ulp |
+| `nk_euclideans_packed_e4m3_haswell`        |        20.6 gso/s, 0 ulp |        22.2 gso/s, 0 ulp |      21.8 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_e4m3_haswell`     |        11.0 gso/s, 0 ulp |        11.4 gso/s, 0 ulp |      22.4 gso/s, 0.1 ulp |
+| `nk_angulars_packed_e4m3_skylake`          |        17.1 gso/s, 0 ulp |        20.4 gso/s, 0 ulp |        30.4 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e4m3_skylake`       |        9.31 gso/s, 0 ulp |        9.51 gso/s, 0 ulp |        34.2 gso/s, 0 ulp |
+| `nk_euclideans_packed_e4m3_skylake`        |        18.1 gso/s, 0 ulp |        16.9 gso/s, 0 ulp |      29.1 gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_e4m3_skylake`     |        8.32 gso/s, 0 ulp |        9.35 gso/s, 0 ulp |        28.7 gso/s, ? ulp |
+| `nk_angulars_packed_e4m3_genoa`            |        29.1 gso/s, 0 ulp |        30.1 gso/s, 0 ulp |        37.3 gso/s, ? ulp |
+| `nk_angulars_symmetric_e4m3_genoa`         |        17.1 gso/s, 0 ulp |        18.1 gso/s, 0 ulp |        46.4 gso/s, ? ulp |
+| `nk_euclideans_packed_e4m3_genoa`          |        25.8 gso/s, 0 ulp |        32.3 gso/s, 0 ulp |        35.8 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e4m3_genoa`       |        17.6 gso/s, 0 ulp |        22.6 gso/s, 0 ulp |        68.4 gso/s, ? ulp |
+| `nk_angulars_packed_e4m3_sapphireamx`      |         138 gso/s, ? ulp |         224 gso/s, ? ulp |         415 gso/s, ? ulp |
+| `nk_angulars_symmetric_e4m3_sapphireamx`   |        23.9 gso/s, ? ulp |        28.7 gso/s, ? ulp |        72.3 gso/s, ? ulp |
+| `nk_euclideans_packed_e4m3_sapphireamx`    |         153 gso/s, ? ulp |         235 gso/s, ? ulp |         433 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e4m3_sapphireamx` |        27.6 gso/s, ? ulp |        32.0 gso/s, ? ulp |        72.4 gso/s, ? ulp |
+| __e3m2__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e3m2_serial`           |       0.554 gso/s, 0 ulp |       0.524 gso/s, 0 ulp |       0.534 gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_serial`        |       0.439 gso/s, 0 ulp |       0.427 gso/s, 0 ulp |       0.839 gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_serial`         |     0.556 gso/s, 0.5 ulp |     0.549 gso/s, 0.5 ulp |       0.509 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_serial`      |     0.413 gso/s, 0.5 ulp |     0.427 gso/s, 0.5 ulp |       0.829 gso/s, ? ulp |
+| `nk_angulars_packed_e3m2_haswell`          |        29.9 gso/s, 0 ulp |        31.0 gso/s, 0 ulp |        12.8 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e3m2_haswell`       |        26.9 gso/s, 0 ulp |        32.2 gso/s, 0 ulp |        63.1 gso/s, 0 ulp |
+| `nk_euclideans_packed_e3m2_haswell`        |        28.8 gso/s, 0 ulp |        31.2 gso/s, 0 ulp |        32.5 gso/s, 0 ulp |
+| `nk_euclideans_symmetric_e3m2_haswell`     |        28.0 gso/s, 0 ulp |        30.9 gso/s, 0 ulp |        58.5 gso/s, 0 ulp |
+| `nk_angulars_packed_e3m2_skylake`          |        27.5 gso/s, 0 ulp |        22.8 gso/s, 0 ulp |        42.2 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e3m2_skylake`       |        21.0 gso/s, 0 ulp |        23.7 gso/s, 0 ulp |        86.5 gso/s, 0 ulp |
+| `nk_euclideans_packed_e3m2_skylake`        |        24.4 gso/s, 0 ulp |        21.9 gso/s, 0 ulp |        38.1 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_skylake`     |        21.3 gso/s, 0 ulp |        21.9 gso/s, 0 ulp |        78.8 gso/s, ? ulp |
+| `nk_angulars_packed_e3m2_genoa`            |        28.6 gso/s, 0 ulp |        44.6 gso/s, 0 ulp |        44.1 gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_genoa`         |        20.3 gso/s, 0 ulp |        24.2 gso/s, 0 ulp |        58.5 gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_genoa`          |        32.1 gso/s, 0 ulp |        41.2 gso/s, 0 ulp |        57.9 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_genoa`       |        20.9 gso/s, 0 ulp |        27.1 gso/s, 0 ulp |        86.8 gso/s, ? ulp |
+| `nk_angulars_packed_e3m2_sapphireamx`      |         146 gso/s, ? ulp |         276 gso/s, ? ulp |         422 gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_sapphireamx`   |        31.6 gso/s, ? ulp |        43.0 gso/s, ? ulp |        89.5 gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_sapphireamx`    |         175 gso/s, ? ulp |         278 gso/s, ? ulp |         421 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_sapphireamx` |        41.0 gso/s, ? ulp |        63.3 gso/s, ? ulp |        90.8 gso/s, ? ulp |
+| __e2m3__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e2m3_serial`           |       0.332 gso/s, 0 ulp |       0.325 gso/s, 0 ulp |       0.320 gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_serial`        |       0.298 gso/s, 0 ulp |       0.305 gso/s, 0 ulp |       0.568 gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_serial`         |     0.324 gso/s, 0.5 ulp |     0.310 gso/s, 0.5 ulp |       0.313 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_serial`      |     0.293 gso/s, 0.5 ulp |     0.295 gso/s, 0.5 ulp |       0.586 gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_haswell`          |        51.9 gso/s, 0 ulp |        59.5 gso/s, 0 ulp |        24.8 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e2m3_haswell`       |        46.9 gso/s, 0 ulp |        57.4 gso/s, 0 ulp |         122 gso/s, 0 ulp |
+| `nk_euclideans_packed_e2m3_haswell`        |        55.6 gso/s, 0 ulp |        63.2 gso/s, 0 ulp |        63.6 gso/s, 0 ulp |
+| `nk_euclideans_symmetric_e2m3_haswell`     |        44.7 gso/s, 0 ulp |        55.4 gso/s, 0 ulp |         110 gso/s, 0 ulp |
+| `nk_angulars_packed_e2m3_skylake`          |        42.9 gso/s, 0 ulp |        52.4 gso/s, 0 ulp |        81.9 gso/s, 0 ulp |
+| `nk_angulars_symmetric_e2m3_skylake`       |        29.8 gso/s, 0 ulp |        45.2 gso/s, 0 ulp |         158 gso/s, 0 ulp |
+| `nk_euclideans_packed_e2m3_skylake`        |        38.6 gso/s, 0 ulp |        44.5 gso/s, 0 ulp |        76.3 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_skylake`     |        32.4 gso/s, 0 ulp |        47.7 gso/s, 0 ulp |         126 gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_genoa`            |        26.1 gso/s, 0 ulp |        37.1 gso/s, 0 ulp |        42.3 gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_genoa`         |        20.0 gso/s, 0 ulp |        24.4 gso/s, 0 ulp |        61.8 gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_genoa`          |        33.0 gso/s, 0 ulp |        43.7 gso/s, 0 ulp |        56.9 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_genoa`       |        21.6 gso/s, 0 ulp |        26.3 gso/s, 0 ulp |        87.3 gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_sapphireamx`      |         214 gso/s, ? ulp |         570 gso/s, ? ulp |        1045 gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_sapphireamx`   |        51.3 gso/s, ? ulp |         121 gso/s, ? ulp |         193 gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_sapphireamx`    |         250 gso/s, ? ulp |         568 gso/s, ? ulp |        1049 gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_sapphireamx` |        60.4 gso/s, ? ulp |         144 gso/s, ? ulp |         192 gso/s, ? ulp |
+| __i8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i8_serial`             |               8.84 gso/s |               9.49 gso/s |               10.1 gso/s |
+| `nk_angulars_symmetric_i8_serial`          |               4.40 gso/s |               4.45 gso/s |               9.58 gso/s |
+| `nk_euclideans_packed_i8_serial`           |               8.64 gso/s |               9.84 gso/s |               9.94 gso/s |
+| `nk_euclideans_symmetric_i8_serial`        |               4.47 gso/s |               4.64 gso/s |               9.15 gso/s |
+| `nk_angulars_packed_i8_haswell`            |               72.8 gso/s |               94.0 gso/s |                109 gso/s |
+| `nk_angulars_symmetric_i8_haswell`         |               51.1 gso/s |               77.3 gso/s |                159 gso/s |
+| `nk_euclideans_packed_i8_haswell`          |               82.8 gso/s |               94.3 gso/s |                104 gso/s |
+| `nk_euclideans_symmetric_i8_haswell`       |               53.8 gso/s |               77.0 gso/s |                169 gso/s |
+| `nk_angulars_packed_i8_icelake`            |               88.7 gso/s |                293 gso/s |                174 gso/s |
+| `nk_angulars_symmetric_i8_icelake`         |               62.1 gso/s |                122 gso/s |                262 gso/s |
+| `nk_euclideans_packed_i8_icelake`          |               94.2 gso/s |                164 gso/s |                188 gso/s |
+| `nk_euclideans_symmetric_i8_icelake`       |               62.2 gso/s |                145 gso/s |                247 gso/s |
+| `nk_angulars_packed_i8_sapphireamx`        |                271 gso/s |                752 gso/s |               1167 gso/s |
+| `nk_angulars_symmetric_i8_sapphireamx`     |               59.3 gso/s |                171 gso/s |                216 gso/s |
+| `nk_euclideans_packed_i8_sapphireamx`      |                299 gso/s |                746 gso/s |               1168 gso/s |
+| `nk_euclideans_symmetric_i8_sapphireamx`   |               72.4 gso/s |                175 gso/s |                209 gso/s |
+| __u8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u8_serial`             |               12.2 gso/s |               12.8 gso/s |               13.0 gso/s |
+| `nk_angulars_symmetric_u8_serial`          |               4.48 gso/s |               4.73 gso/s |               9.50 gso/s |
+| `nk_euclideans_packed_u8_serial`           |               12.0 gso/s |               13.1 gso/s |               13.4 gso/s |
+| `nk_euclideans_symmetric_u8_serial`        |               4.52 gso/s |               4.69 gso/s |               9.65 gso/s |
+| `nk_angulars_packed_u8_haswell`            |               52.9 gso/s |               85.2 gso/s |               77.6 gso/s |
+| `nk_angulars_symmetric_u8_haswell`         |               39.6 gso/s |               65.8 gso/s |                130 gso/s |
+| `nk_euclideans_packed_u8_haswell`          |               55.4 gso/s |               87.0 gso/s |                103 gso/s |
+| `nk_euclideans_symmetric_u8_haswell`       |               39.2 gso/s |               72.9 gso/s |                157 gso/s |
+| `nk_angulars_packed_u8_icelake`            |               89.2 gso/s |                293 gso/s |                171 gso/s |
+| `nk_angulars_symmetric_u8_icelake`         |               62.0 gso/s |                119 gso/s |                224 gso/s |
+| `nk_euclideans_packed_u8_icelake`          |               94.1 gso/s |                168 gso/s |                195 gso/s |
+| `nk_euclideans_symmetric_u8_icelake`       |               61.5 gso/s |                117 gso/s |                294 gso/s |
+| `nk_angulars_packed_u8_sapphireamx`        |                273 gso/s |                760 gso/s |               1174 gso/s |
+| `nk_angulars_symmetric_u8_sapphireamx`     |               57.8 gso/s |                167 gso/s |                211 gso/s |
+| `nk_euclideans_packed_u8_sapphireamx`      |                296 gso/s |                753 gso/s |               1144 gso/s |
+| `nk_euclideans_symmetric_u8_sapphireamx`   |               71.2 gso/s |                182 gso/s |                220 gso/s |
+| __i4__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i4_serial`             |               3.79 gso/s |               3.83 gso/s |               4.06 gso/s |
+| `nk_angulars_symmetric_i4_serial`          |               3.52 gso/s |               3.58 gso/s |               7.08 gso/s |
+| `nk_euclideans_packed_i4_serial`           |               3.69 gso/s |               3.91 gso/s |               3.76 gso/s |
+| `nk_euclideans_symmetric_i4_serial`        |               3.45 gso/s |               3.64 gso/s |               6.99 gso/s |
+| `nk_angulars_packed_i4_icelake`            |               65.5 gso/s |                203 gso/s |                122 gso/s |
+| `nk_angulars_symmetric_i4_icelake`         |               61.7 gso/s |                140 gso/s |                339 gso/s |
+| `nk_euclideans_packed_i4_icelake`          |               66.4 gso/s |                138 gso/s |                123 gso/s |
+| `nk_euclideans_symmetric_i4_icelake`       |               61.2 gso/s |                129 gso/s |                265 gso/s |
+| __u4__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u4_serial`             |               5.49 gso/s |               5.60 gso/s |               5.78 gso/s |
+| `nk_angulars_symmetric_u4_serial`          |               5.18 gso/s |               5.57 gso/s |               11.5 gso/s |
+| `nk_euclideans_packed_u4_serial`           |               5.23 gso/s |               5.50 gso/s |               5.64 gso/s |
+| `nk_euclideans_symmetric_u4_serial`        |               5.22 gso/s |               5.47 gso/s |               11.1 gso/s |
+| `nk_angulars_packed_u4_icelake`            |               92.2 gso/s |                274 gso/s |                176 gso/s |
+| `nk_angulars_symmetric_u4_icelake`         |               71.9 gso/s |                169 gso/s |                311 gso/s |
+| `nk_euclideans_packed_u4_icelake`          |               94.1 gso/s |                175 gso/s |                178 gso/s |
+| `nk_euclideans_symmetric_u4_icelake`       |               72.2 gso/s |                150 gso/s |                287 gso/s |
 
-#### V8 (Chromium)
+#### WASM
 
-| Kernel                                     |            256³ |           1024³ |           4096³ |
-| :----------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                    |                 |                 |                 |
-| `nk_angulars_packed_f64_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                    |                 |                 |                 |
-| `nk_angulars_packed_f32_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                   |                 |                 |                 |
-| `nk_angulars_packed_bf16_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e2m3_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                     |                 |                 |                 |
-| `nk_angulars_packed_i8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                     |                 |                 |                 |
-| `nk_angulars_packed_u8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-| Kernel                                     |            256³ |           1024³ |           4096³ |
-| :----------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                    |                 |                 |                 |
-| `nk_angulars_packed_f64_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                    |                 |                 |                 |
-| `nk_angulars_packed_f32_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                   |                 |                 |                 |
-| `nk_angulars_packed_bf16_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e2m3_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                     |                 |                 |                 |
-| `nk_angulars_packed_i8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                     |                 |                 |                 |
-| `nk_angulars_packed_u8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| Kernel                                     |                     256³ |                    1024³ |                    4096³ |
+| :----------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f64_serial`            |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_angulars_symmetric_f64_serial`         |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_euclideans_packed_f64_serial`          |         ? gso/s, 0.6 ulp |         ? gso/s, 0.6 ulp |         ? gso/s, 0.6 ulp |
+| `nk_euclideans_symmetric_f64_serial`       |         ? gso/s, 0.6 ulp |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |
+| `nk_angulars_packed_f64_v128relaxed`       |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f64_v128relaxed`    |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f64_v128relaxed`     |         ? gso/s, 0.6 ulp |         ? gso/s, 0.6 ulp |         ? gso/s, 0.6 ulp |
+| `nk_euclideans_symmetric_f64_v128relaxed`  |         ? gso/s, 0.6 ulp |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |
+| __f32__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f32_serial`            |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f32_serial`         |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f32_serial`          |         ? gso/s, 0.6 ulp |         ? gso/s, 0.6 ulp |         ? gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_f32_serial`       |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |
+| `nk_angulars_packed_f32_v128relaxed`       |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_angulars_symmetric_f32_v128relaxed`    |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |         ? gso/s, 0.1 ulp |
+| `nk_euclideans_packed_f32_v128relaxed`     |         ? gso/s, 0.2 ulp |         ? gso/s, 0.2 ulp |         ? gso/s, 0.2 ulp |
+| `nk_euclideans_symmetric_f32_v128relaxed`  |         ? gso/s, 0.2 ulp |         ? gso/s, 0.2 ulp |         ? gso/s, 0.2 ulp |
+| __bf16__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_bf16_serial`           |           ? gso/s, 0 ulp |         ? gso/s, 0.2 ulp |         ? gso/s, 0.6 ulp |
+| `nk_angulars_symmetric_bf16_serial`        |           ? gso/s, 0 ulp |         ? gso/s, 0.2 ulp |         ? gso/s, 0.6 ulp |
+| `nk_euclideans_packed_bf16_serial`         |         ? gso/s, 0.7 ulp |         ? gso/s, 6.1 ulp |          ? gso/s, 32 ulp |
+| `nk_euclideans_symmetric_bf16_serial`      |         ? gso/s, 0.6 ulp |         ? gso/s, 5.3 ulp |          ? gso/s, 28 ulp |
+| `nk_angulars_packed_bf16_v128relaxed`      |        ? gso/s, 231M ulp |        ? gso/s, 262M ulp |        ? gso/s, 201M ulp |
+| `nk_angulars_symmetric_bf16_v128relaxed`   |           ? gso/s, 0 ulp |         ? gso/s, 0.2 ulp |         ? gso/s, 0.6 ulp |
+| `nk_euclideans_packed_bf16_v128relaxed`    |          ? gso/s, 4M ulp |          ? gso/s, 4M ulp |          ? gso/s, 4M ulp |
+| `nk_euclideans_symmetric_bf16_v128relaxed` |         ? gso/s, 0.3 ulp |         ? gso/s, 5.1 ulp |          ? gso/s, 28 ulp |
+| __e2m3__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e2m3_serial`           |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_angulars_symmetric_e2m3_serial`        |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_euclideans_packed_e2m3_serial`         |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |         ? gso/s, 0.5 ulp |
+| `nk_euclideans_symmetric_e2m3_serial`      |         ? gso/s, 0.5 ulp |         ? gso/s, 0.4 ulp |         ? gso/s, 0.4 ulp |
+| `nk_angulars_packed_e2m3_v128relaxed`      |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_angulars_symmetric_e2m3_v128relaxed`   |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_euclideans_packed_e2m3_v128relaxed`    |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_euclideans_symmetric_e2m3_v128relaxed` |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| __i8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i8_serial`             |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_symmetric_i8_serial`          |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_packed_i8_serial`           |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_symmetric_i8_serial`        |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_packed_i8_v128relaxed`        |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_symmetric_i8_v128relaxed`     |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_packed_i8_v128relaxed`      |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_symmetric_i8_v128relaxed`   |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| __u8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u8_serial`             |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_symmetric_u8_serial`          |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_packed_u8_serial`           |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_symmetric_u8_serial`        |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_packed_u8_v128relaxed`        |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_angulars_symmetric_u8_v128relaxed`     |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_packed_u8_v128relaxed`      |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_euclideans_symmetric_u8_v128relaxed`   |                  0 gso/s |                  0 gso/s |                  0 gso/s |
 
 ### Apple M4 Pro
 
 #### Native
 
-| Kernel                                   |            256³ |           1024³ |           4096³ |
-| :--------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                  |                 |                 |                 |
-| `nk_angulars_packed_f64_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f64_neon`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_neon`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_neon`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_neon`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f64_smef64`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_smef64`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_smef64`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_smef64`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                  |                 |                 |                 |
-| `nk_angulars_packed_f32_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f32_neon`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_neon`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_neon`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_neon`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f32_smef64`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_smef64`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_smef64`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_smef64`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                 |                 |                 |                 |
-| `nk_angulars_packed_bf16_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_neonbfdot`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_neonbfdot`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_neonbfdot`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_neonbfdot` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_bf16_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_sme`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f16__                                  |                 |                 |                 |
-| `nk_angulars_packed_f16_serial`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_serial`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f16_neonhalf`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_neonhalf`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_neonhalf`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_neonhalf`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f16_neonfhm`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_neonfhm`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_neonfhm`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_neonfhm`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_f16_sme`             | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f16_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f16_sme`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f16_sme`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e5m2__                                 |                 |                 |                 |
-| `nk_angulars_packed_e5m2_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_neonfhm`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_neonfhm`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_neonfhm`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_neonfhm`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e5m2_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e5m2_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e5m2_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e5m2_sme`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e4m3__                                 |                 |                 |                 |
-| `nk_angulars_packed_e4m3_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_neonfhm`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_neonfhm`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_neonfhm`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_neonfhm`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e4m3_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e4m3_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e4m3_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e4m3_sme`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e3m2__                                 |                 |                 |                 |
-| `nk_angulars_packed_e3m2_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_neonfhm`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_neonfhm`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_neonfhm`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_neonfhm`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e3m2_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e3m2_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e3m2_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e3m2_sme`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                 |                 |                 |                 |
-| `nk_angulars_packed_e2m3_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_serial`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_serial`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_neonfhm`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_neonfhm`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_neonfhm`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_neonfhm`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_e2m3_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_sme`          | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_sme`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                   |                 |                 |                 |
-| `nk_angulars_packed_i8_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_neonsdot`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_neonsdot`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_neonsdot`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_neonsdot`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i8_sme`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_sme`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                   |                 |                 |                 |
-| `nk_angulars_packed_u8_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_neonsdot`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_neonsdot`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_neonsdot`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_neonsdot`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u8_sme`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_sme`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i4__                                   |                 |                 |                 |
-| `nk_angulars_packed_i4_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i4_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i4_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i4_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i4_neonsdot`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i4_neonsdot`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i4_neonsdot`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i4_neonsdot`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_i4_sme`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i4_sme`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i4_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i4_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u4__                                   |                 |                 |                 |
-| `nk_angulars_packed_u4_serial`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u4_serial`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u4_serial`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u4_serial`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u4_neonsdot`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u4_neonsdot`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u4_neonsdot`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u4_neonsdot`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_packed_u4_sme`              | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u4_sme`           | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u4_sme`            | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u4_sme`         | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| Kernel                                   |                     256³ |                    1024³ |                    4096³ |
+| :--------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f64_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f64_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f64_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f64_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f64_neon`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f64_neon`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f64_neon`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f64_neon`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f64_smef64`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f64_smef64`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f64_smef64`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f64_smef64`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f32__                                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f32_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f32_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f32_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f32_neon`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f32_neon`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f32_neon`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f32_neon`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f32_smef64`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f32_smef64`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f32_smef64`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f32_smef64`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __bf16__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_bf16_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_bf16_neonbfdot`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_neonbfdot`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_neonbfdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_neonbfdot` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_bf16_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f16__                                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f16_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f16_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f16_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f16_neonhalf`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f16_neonhalf`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f16_neonhalf`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f16_neonhalf`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f16_neonfhm`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f16_neonfhm`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f16_neonfhm`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f16_neonfhm`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f16_sme`             |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f16_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f16_sme`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f16_sme`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __e5m2__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e5m2_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e5m2_neonfhm`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_neonfhm`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_neonfhm`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_neonfhm`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e5m2_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e5m2_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e5m2_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e5m2_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __e4m3__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e4m3_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e4m3_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e4m3_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e4m3_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e4m3_neonfhm`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e4m3_neonfhm`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e4m3_neonfhm`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e4m3_neonfhm`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e4m3_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e4m3_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e4m3_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e4m3_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __e3m2__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e3m2_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e3m2_neonfhm`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_neonfhm`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_neonfhm`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_neonfhm`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e3m2_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e3m2_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e3m2_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e3m2_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __e2m3__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e2m3_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_neonfhm`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_neonfhm`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_neonfhm`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_neonfhm`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_sme`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __i8__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i8_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i8_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i8_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i8_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_i8_neonsdot`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i8_neonsdot`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i8_neonsdot`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i8_neonsdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_i8_sme`              |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i8_sme`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i8_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i8_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __u8__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u8_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u8_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u8_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u8_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_u8_neonsdot`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u8_neonsdot`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u8_neonsdot`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u8_neonsdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_u8_sme`              |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u8_sme`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u8_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u8_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __i4__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i4_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i4_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i4_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i4_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_i4_neonsdot`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i4_neonsdot`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i4_neonsdot`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i4_neonsdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_i4_sme`              |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i4_sme`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i4_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i4_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __u4__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u4_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u4_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u4_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u4_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_u4_neonsdot`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u4_neonsdot`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u4_neonsdot`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u4_neonsdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_u4_sme`              |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u4_sme`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u4_sme`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u4_sme`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-| Kernel                                     |            256³ |           1024³ |           4096³ |
-| :----------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                    |                 |                 |                 |
-| `nk_angulars_packed_f64_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                    |                 |                 |                 |
-| `nk_angulars_packed_f32_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                   |                 |                 |                 |
-| `nk_angulars_packed_bf16_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e2m3_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                     |                 |                 |                 |
-| `nk_angulars_packed_i8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                     |                 |                 |                 |
-| `nk_angulars_packed_u8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-| Kernel                                     |            256³ |           1024³ |           4096³ |
-| :----------------------------------------- | --------------: | --------------: | --------------: |
-| __f64__                                    |                 |                 |                 |
-| `nk_angulars_packed_f64_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f64_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f64_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f64_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __f32__                                    |                 |                 |                 |
-| `nk_angulars_packed_f32_v128relaxed`       | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_f32_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_f32_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_f32_v128relaxed`  | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __bf16__                                   |                 |                 |                 |
-| `nk_angulars_packed_bf16_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_bf16_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_bf16_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_bf16_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __e2m3__                                   |                 |                 |                 |
-| `nk_angulars_packed_e2m3_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_e2m3_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_e2m3_v128relaxed`    | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_e2m3_v128relaxed` | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __i8__                                     |                 |                 |                 |
-| `nk_angulars_packed_i8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_i8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_i8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_i8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| __u8__                                     |                 |                 |                 |
-| `nk_angulars_packed_u8_v128relaxed`        | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_angulars_symmetric_u8_v128relaxed`     | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_packed_u8_v128relaxed`      | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
-| `nk_euclideans_symmetric_u8_v128relaxed`   | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP | 0 GTOP/s, 0 ULP |
+| Kernel                                     |                     256³ |                    1024³ |                    4096³ |
+| :----------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f64_serial`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f64_v128relaxed`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f64_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f64_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f64_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f64_v128relaxed`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f64_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f64_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f32__                                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_f32_serial`            |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_f32_v128relaxed`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f32_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_f32_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f32_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_f32_v128relaxed`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_f32_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __bf16__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_bf16_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_bf16_v128relaxed`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_bf16_v128relaxed`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_bf16_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_bf16_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __e2m3__                                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_e2m3_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_e2m3_v128relaxed`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_e2m3_v128relaxed`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_e2m3_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_e2m3_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __i8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_i8_serial`             |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_i8_v128relaxed`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i8_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_i8_v128relaxed`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i8_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_i8_v128relaxed`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i8_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_i8_v128relaxed`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __u8__                                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_angulars_packed_u8_serial`             |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_packed_u8_v128relaxed`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u8_serial`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_angulars_symmetric_u8_v128relaxed`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u8_serial`           |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_packed_u8_v128relaxed`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u8_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_euclideans_symmetric_u8_v128relaxed`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
