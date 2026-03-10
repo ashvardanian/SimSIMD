@@ -110,7 +110,11 @@ inline std::size_t bench_input_count(std::size_t bytes_per_set) {
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t count) {
     auto result = nk::vector<type_>::try_zeros(count);
+#if defined(__cpp_exceptions) && __cpp_exceptions
     if (result.empty() && count > 0) throw std::bad_alloc();
+#else
+    if (result.empty() && count > 0) std::abort();
+#endif
     return result;
 }
 
@@ -138,7 +142,11 @@ template <nk_dtype_t dtype_>
 
     std::size_t total_dims = total_values * nk::dimensions_per_value<type_>();
     auto result = nk::vector<type_>::try_zeros(total_dims);
+#if defined(__cpp_exceptions) && __cpp_exceptions
     if (result.empty() && total_dims > 0) throw std::bad_alloc();
+#else
+    if (result.empty() && total_dims > 0) std::abort();
+#endif
     return result;
 }
 

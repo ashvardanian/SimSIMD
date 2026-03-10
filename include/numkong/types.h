@@ -128,6 +128,15 @@
 #endif
 #endif // !defined(NK_TARGET_WASM_)
 
+// Compiling for WASI (standalone runtimes): NK_DEFINED_WASI_
+#if !defined(NK_DEFINED_WASI_)
+#if defined(__wasi__)
+#define NK_DEFINED_WASI_ 1
+#else
+#define NK_DEFINED_WASI_ 0
+#endif
+#endif // !defined(NK_DEFINED_WASI_)
+
 // Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED
 // Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
 #if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)

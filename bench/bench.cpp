@@ -34,7 +34,7 @@
 #include <cstdio>  // `std::printf`, `std::fprintf`
 #include <cstdlib> // `std::getenv`, `std::atoll`
 #include <cstring> // `std::strcmp`
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <unistd.h>
 #endif
 
@@ -46,7 +46,7 @@ static bool colors_enabled() {
     static bool const result = [] {
         if (std::getenv("NO_COLOR")) return false;
         if (std::getenv("FORCE_COLOR")) return true;
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
         return isatty(fileno(stdout)) != 0;
 #else
         return false;
