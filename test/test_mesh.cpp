@@ -174,6 +174,15 @@ void test_mesh() {
     run_if_matches("umeyama_bf16_rvv", test_umeyama<bf16_t>, nk_umeyama_bf16_rvv);
 #endif // NK_TARGET_RVV
 
+#if NK_TARGET_V128RELAXED
+    run_if_matches("rmsd_f32_v128relaxed", test_rmsd<f32_t>, nk_rmsd_f32_v128relaxed);
+    run_if_matches("rmsd_f64_v128relaxed", test_rmsd<f64_t>, nk_rmsd_f64_v128relaxed);
+    run_if_matches("kabsch_f32_v128relaxed", test_kabsch<f32_t>, nk_kabsch_f32_v128relaxed);
+    run_if_matches("kabsch_f64_v128relaxed", test_kabsch<f64_t>, nk_kabsch_f64_v128relaxed);
+    run_if_matches("umeyama_f32_v128relaxed", test_umeyama<f32_t>, nk_umeyama_f32_v128relaxed);
+    run_if_matches("umeyama_f64_v128relaxed", test_umeyama<f64_t>, nk_umeyama_f64_v128relaxed);
+#endif // NK_TARGET_V128RELAXED
+
     // Serial always runs - baseline test
     run_if_matches("rmsd_f64_serial", test_rmsd<f64_t>, nk_rmsd_f64_serial);
     run_if_matches("rmsd_f32_serial", test_rmsd<f32_t>, nk_rmsd_f32_serial);

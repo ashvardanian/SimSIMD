@@ -335,7 +335,10 @@ struct error_stats_t {
 
     nk_f64_t mean_abs_err() const noexcept { return count > 0 ? sum_abs_err / count : 0; }
     nk_f64_t mean_rel_err() const noexcept { return count > 0 ? sum_rel_err / count : 0; }
-    nk_f64_t mean_ulp() const noexcept { return count > 0 ? static_cast<double>(sum_ulp / f118_t(count)) : 0; }
+    nk_f64_t mean_ulp() const noexcept {
+        // On 32-bit WASM we need this ugly casting sequence to avoid adding more `f118_t` constructors
+        return count > 0 ? static_cast<double>(sum_ulp / f118_t(static_cast<double>(count))) : 0;
+    }
 
     void reset() noexcept { *this = error_stats_t {}; }
 

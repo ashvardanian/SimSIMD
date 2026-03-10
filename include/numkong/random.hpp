@@ -10,7 +10,8 @@
 #ifndef NK_RANDOM_HPP
 #define NK_RANDOM_HPP
 
-#include <random>
+#include <algorithm> // `std::sort`
+#include <random>    // `std::uniform_int_distribution`
 
 #include "numkong/types.hpp"
 
@@ -259,6 +260,24 @@ void fill_probability(generator_type_ &generator, value_type_ *values_ptr, std::
     }
     for (std::size_t i = 0; i < values_count; ++i)
         values_ptr[i] = static_cast<value_type_>(static_cast<distribution_float_t>(values_ptr[i]) / sum);
+}
+
+/**
+ *  @brief Fill array with sorted unique random integer values (in-place).
+ *
+ *  Draws @p values_count values from [0, max_val - values_count], sorts once, then adds
+ *  the index to each element. This guarantees uniqueness (duplicates become distinct)
+ *  and preserves sorted order — all in O(n log n) with exactly one sort, no retry loop.
+ *  Requires @p max_val >= @p values_count.
+ */
+template <typename value_type_, typename generator_type_>
+void fill_sorted_unique(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count,
+                        value_type_ max_val) noexcept {
+    using raw_t = typename value_type_::raw_t;
+    raw_t range = raw_t(max_val) - raw_t(values_count);
+    fill_uniform(generator, values_ptr, values_count, raw_t(0), range);
+    std::sort(values_ptr, values_ptr + values_count);
+    for (std::size_t i = 0; i < values_count; ++i) values_ptr[i] = value_type_(raw_t(values_ptr[i]) + raw_t(i));
 }
 
 } // namespace ashvardanian::numkong

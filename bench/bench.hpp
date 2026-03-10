@@ -786,6 +786,7 @@ void bench_trigonometry();
 void bench_geospatial();
 void bench_mesh();
 void bench_sparse();
+void bench_sparse_dot();
 void bench_cast();
 void bench_reduce();
 void bench_maxsim();

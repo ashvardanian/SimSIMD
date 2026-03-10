@@ -16,14 +16,15 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 
-    error_stats_t stats;
+    error_stats_t ulp_stats, abs_stats;
     std::mt19937 generator(global_config.seed);
     auto a_lats = make_vector<scalar_t>(global_config.dense_dimensions),
          a_lons = make_vector<scalar_t>(global_config.dense_dimensions);
     auto b_lats = make_vector<scalar_t>(global_config.dense_dimensions),
          b_lons = make_vector<scalar_t>(global_config.dense_dimensions);
     auto results = make_vector<scalar_t>(global_config.dense_dimensions),
-         reference = make_vector<scalar_t>(global_config.dense_dimensions);
+         haversine_ref = make_vector<scalar_t>(global_config.dense_dimensions),
+         vincenty_ref = make_vector<scalar_t>(global_config.dense_dimensions);
 
     double const max_separation_rad = double(global_config.geospatial_max_angle) * 3.14159265358979323846 / 180.0;
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -35,11 +36,32 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
                global_config.dense_dimensions, results.raw_values_data());
         nk::haversine<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
                                                        b_lons.values_data(), global_config.dense_dimensions,
-                                                       reference.values_data());
+                                                       haversine_ref.values_data());
+        nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
+                                                      b_lons.values_data(), global_config.dense_dimensions,
+                                                      vincenty_ref.values_data());
 
-        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) {
+            ulp_stats.accumulate(results[i], haversine_ref[i]);
+            abs_stats.accumulate(results[i], vincenty_ref[i]);
+        }
     }
-    return stats;
+
+    // ULP measures implementation precision (vs haversine f118),
+    // abs/rel measures formula accuracy (vs vincenty f118)
+    error_stats_t combined;
+    combined.min_ulp = ulp_stats.min_ulp;
+    combined.max_ulp = ulp_stats.max_ulp;
+    combined.sum_ulp = ulp_stats.sum_ulp;
+    combined.count = ulp_stats.count;
+    combined.exact_matches = ulp_stats.exact_matches;
+    combined.min_abs_err = abs_stats.min_abs_err;
+    combined.max_abs_err = abs_stats.max_abs_err;
+    combined.sum_abs_err = abs_stats.sum_abs_err;
+    combined.min_rel_err = abs_stats.min_rel_err;
+    combined.max_rel_err = abs_stats.max_rel_err;
+    combined.sum_rel_err = abs_stats.sum_rel_err;
+    return combined;
 }
 
 /**

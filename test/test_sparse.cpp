@@ -9,31 +9,6 @@
 #include "numkong/sparse.hpp"
 
 /**
- *  @brief Generate a sorted array of unique random indices (in-place).
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_sorted_unique(generator_type_ &generator, nk::vector<scalar_type_> &vector, scalar_type_ max_val) {
-    using raw_t = typename scalar_type_::raw_t;
-    std::uniform_int_distribution<raw_t> distribution(0, static_cast<raw_t>(max_val));
-    std::size_t const count = vector.size_values();
-
-    // Fill and sort once
-    for (std::size_t i = 0; i < count; ++i) vector[i] = scalar_type_(distribution(generator));
-    std::sort(vector.values_data(), vector.values_data() + count);
-
-    // Compact duplicates; refill gaps until full
-    auto unique_end = std::unique(vector.values_data(), vector.values_data() + count);
-    std::size_t unique_count = static_cast<std::size_t>(unique_end - vector.values_data());
-
-    while (unique_count < count) {
-        for (std::size_t i = unique_count; i < count; ++i) vector[i] = scalar_type_(distribution(generator));
-        std::sort(vector.values_data(), vector.values_data() + count);
-        unique_end = std::unique(vector.values_data(), vector.values_data() + count);
-        unique_count = static_cast<std::size_t>(unique_end - vector.values_data());
-    }
-}
-
-/**
  *  @brief Test set intersection (unified template for u16/u32 index types).
  */
 template <typename index_type_>
@@ -45,8 +20,8 @@ error_stats_t test_intersect(typename index_type_::sparse_intersect_kernel_t ker
     auto a = make_vector<index_t>(dim), b = make_vector<index_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_sorted_unique(generator, a, index_t(dim * 4));
-        fill_sorted_unique(generator, b, index_t(dim * 4));
+        nk::fill_sorted_unique(generator, a.values_data(), a.size_values(), index_t(dim * 4));
+        nk::fill_sorted_unique(generator, b.values_data(), b.size_values(), index_t(dim * 4));
 
         nk_size_t count;
         kernel(a.raw_values_data(), b.raw_values_data(), dim, dim, nullptr, &count);
@@ -77,8 +52,8 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
     auto a_weights = make_vector<weight_t>(dim), b_weights = make_vector<weight_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_sorted_unique(generator, a_idx, index_t(dim * 4));
-        fill_sorted_unique(generator, b_idx, index_t(dim * 4));
+        nk::fill_sorted_unique(generator, a_idx.values_data(), a_idx.size_values(), index_t(dim * 4));
+        nk::fill_sorted_unique(generator, b_idx.values_data(), b_idx.size_values(), index_t(dim * 4));
         fill_random(generator, a_weights);
         fill_random(generator, b_weights);
 

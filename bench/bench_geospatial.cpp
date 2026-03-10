@@ -53,9 +53,8 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
         iterations++;
     }
 
-    std::size_t const bytes_per_call = latitudes_first[0].size_bytes() * 4; // 4 coordinate arrays
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
-    state.counters["calls"] = bm::Counter(iterations * coordinates_count, bm::Counter::kIsRate);
+    state.counters["ops"] = bm::Counter(iterations * coordinates_count, bm::Counter::kIsRate);
+    state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t dtype_, typename kernel_type_ = void>
