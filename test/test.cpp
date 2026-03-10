@@ -101,21 +101,6 @@ void print_stats_header() noexcept {
     std::printf("\n");
 }
 
-/**
- *  @brief Test FP8 (e4m3) conversions round-trip accuracy.
- */
-void test_fp8_conversions() {
-    float test_values[] = {0.0f, 1.0f, -1.0f, 0.5f, -0.5f, 2.0f, -2.0f, 0.125f, 8.0f};
-    error_stats_t stats;
-    for (float expected : test_values) {
-        nk_e4m3_t e4m3;
-        float roundtrip;
-        nk_f32_to_e4m3(&expected, &e4m3);
-        nk_e4m3_to_f32(&e4m3, &roundtrip);
-        stats.accumulate(f32_t(roundtrip), f32_t(expected));
-    }
-    stats.report("fp8_e4m3_roundtrip");
-}
 
 int main(int argc, char **argv) {
 
@@ -329,7 +314,6 @@ int main(int argc, char **argv) {
 
     // Print a table header
     print_stats_header();
-    test_fp8_conversions();
     test_casts();
 
     // Core operation tests

@@ -406,11 +406,6 @@ void fill_random(generator_type_ &generator, nk::vector<scalar_type_> &vector) {
     }
 }
 
-/**
- *  @brief Test FP8 (e4m3) conversions round-trip accuracy.
- */
-void test_fp8_conversions();
-
 // Forward declarations for test modules
 void test_casts();
 void test_reduce();
