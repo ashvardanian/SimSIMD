@@ -115,6 +115,8 @@ void test_casts() {
     run_if_matches("cast_f64_to_f32_skylake", test_cast<f64_t, f32_t>, nk_cast_skylake);
     run_if_matches("cast_f32_to_f64_skylake", test_cast<f32_t, f64_t>, nk_cast_skylake);
     run_if_matches("cast_i32_to_f64_skylake", test_cast<i32_t, f64_t>, nk_cast_skylake);
+    run_if_matches("cast_f64_to_i32_skylake", test_cast<f64_t, i32_t>, nk_cast_skylake);
+    run_if_matches("cast_i32_to_i8_skylake", test_cast<i32_t, i8_t>, nk_cast_skylake);
     // Verify serial fallbacks for rare paths
     run_if_matches("cast_i8_to_i32_skylake", test_cast<i8_t, i32_t>, nk_cast_skylake);
     run_if_matches("cast_i8_to_f64_skylake", test_cast<i8_t, f64_t>, nk_cast_skylake);
@@ -129,6 +131,10 @@ void test_casts() {
     run_if_matches("cast_bf16_to_e5m2_icelake", test_cast<bf16_t, e5m2_t>, nk_cast_icelake);
     run_if_matches("cast_e4m3_to_f16_icelake", test_cast<e4m3_t, f16_t>, nk_cast_icelake);
     run_if_matches("cast_e5m2_to_f16_icelake", test_cast<e5m2_t, f16_t>, nk_cast_icelake);
+    run_if_matches("cast_e4m3_to_f32_icelake", test_cast<e4m3_t, f32_t>, nk_cast_icelake);
+    run_if_matches("cast_f32_to_e4m3_icelake", test_cast<f32_t, e4m3_t>, nk_cast_icelake);
+    run_if_matches("cast_f16_to_f32_icelake", test_cast<f16_t, f32_t>, nk_cast_icelake);
+    run_if_matches("cast_f32_to_f16_icelake", test_cast<f32_t, f16_t>, nk_cast_icelake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
@@ -136,6 +142,8 @@ void test_casts() {
     run_if_matches("cast_f16_to_e4m3_sapphire", test_cast<f16_t, e4m3_t>, nk_cast_sapphire);
     run_if_matches("cast_e5m2_to_f16_sapphire", test_cast<e5m2_t, f16_t>, nk_cast_sapphire);
     run_if_matches("cast_f16_to_e5m2_sapphire", test_cast<f16_t, e5m2_t>, nk_cast_sapphire);
+    run_if_matches("cast_f16_to_f32_sapphire", test_cast<f16_t, f32_t>, nk_cast_sapphire);
+    run_if_matches("cast_f32_to_f16_sapphire", test_cast<f32_t, f16_t>, nk_cast_sapphire);
 #endif
 
 #if NK_TARGET_NEON
@@ -151,4 +159,23 @@ void test_casts() {
     run_if_matches("cast_e4m3_to_f32_rvv", test_cast<e4m3_t, f32_t>, nk_cast_rvv);
     run_if_matches("cast_e5m2_to_f32_rvv", test_cast<e5m2_t, f32_t>, nk_cast_rvv);
 #endif
+
+    // Serial always runs - baseline test
+    run_if_matches("cast_bf16_to_f32_serial", test_cast<bf16_t, f32_t>, nk_cast_serial);
+    run_if_matches("cast_f32_to_bf16_serial", test_cast<f32_t, bf16_t>, nk_cast_serial);
+    run_if_matches("cast_e4m3_to_f32_serial", test_cast<e4m3_t, f32_t>, nk_cast_serial);
+    run_if_matches("cast_f32_to_e4m3_serial", test_cast<f32_t, e4m3_t>, nk_cast_serial);
+    run_if_matches("cast_e5m2_to_f32_serial", test_cast<e5m2_t, f32_t>, nk_cast_serial);
+    run_if_matches("cast_f32_to_e5m2_serial", test_cast<f32_t, e5m2_t>, nk_cast_serial);
+    run_if_matches("cast_f16_to_f32_serial", test_cast<f16_t, f32_t>, nk_cast_serial);
+    run_if_matches("cast_f32_to_f16_serial", test_cast<f32_t, f16_t>, nk_cast_serial);
+    run_if_matches("cast_f32_to_f64_serial", test_cast<f32_t, f64_t>, nk_cast_serial);
+    run_if_matches("cast_f64_to_f32_serial", test_cast<f64_t, f32_t>, nk_cast_serial);
+    run_if_matches("cast_f64_to_i32_serial", test_cast<f64_t, i32_t>, nk_cast_serial);
+    run_if_matches("cast_i16_to_i64_serial", test_cast<i16_t, i64_t>, nk_cast_serial);
+    run_if_matches("cast_i32_to_f64_serial", test_cast<i32_t, f64_t>, nk_cast_serial);
+    run_if_matches("cast_i32_to_i8_serial", test_cast<i32_t, i8_t>, nk_cast_serial);
+    run_if_matches("cast_i8_to_f64_serial", test_cast<i8_t, f64_t>, nk_cast_serial);
+    run_if_matches("cast_i8_to_i32_serial", test_cast<i8_t, i32_t>, nk_cast_serial);
+    run_if_matches("cast_u8_to_f32_serial", test_cast<u8_t, f32_t>, nk_cast_serial);
 }

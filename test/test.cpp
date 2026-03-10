@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
                 "  NK_RANDOM_DISTRIBUTION=X   uniform_k, cauchy_k, lognormal_k\n"                          //
                 "  NK_DENSE_DIMENSIONS=N      Override dense vector dimensions\n"                          //
                 "  NK_CURVED_DIMENSIONS=N     Override curved vector dimensions\n"                         //
-                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n"                        //
+                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n"                         //
                 "  NK_GEOSPATIAL_MAX_ANGLE=N  Max angular separation in degrees (default: 180)\n");        //
             return 0;
         }
@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
     test_curved();
     test_probability();
     test_set();
-    test_elementwise();
+    test_each();
     test_trigonometry();
     test_reduce();
     test_geospatial();

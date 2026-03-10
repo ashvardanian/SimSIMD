@@ -146,7 +146,7 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     return stats;
 }
 
-void test_elementwise() {
+void test_each() {
     std::puts("");
     std::printf("Elementwise Operations:\n");
 
@@ -237,6 +237,25 @@ void test_elementwise() {
     run_if_matches("each_blend_f64c_haswell", test_blend<f64c_t>, nk_each_blend_f64c_haswell);
     run_if_matches("each_fma_f32c_haswell", test_fma<f32c_t>, nk_each_fma_f32c_haswell);
     run_if_matches("each_fma_f64c_haswell", test_fma<f64c_t>, nk_each_fma_f64c_haswell);
+    run_if_matches("each_blend_bf16_haswell", test_blend<bf16_t>, nk_each_blend_bf16_haswell);
+    run_if_matches("each_blend_f64_haswell", test_blend<f64_t>, nk_each_blend_f64_haswell);
+    run_if_matches("each_blend_i8_haswell", test_blend<i8_t>, nk_each_blend_i8_haswell);
+    run_if_matches("each_blend_u8_haswell", test_blend<u8_t>, nk_each_blend_u8_haswell);
+    run_if_matches("each_blend_f16_haswell", test_blend<f16_t>, nk_each_blend_f16_haswell);
+    run_if_matches("each_fma_bf16_haswell", test_fma<bf16_t>, nk_each_fma_bf16_haswell);
+    run_if_matches("each_fma_f64_haswell", test_fma<f64_t>, nk_each_fma_f64_haswell);
+    run_if_matches("each_fma_i16_haswell", test_fma<i16_t>, nk_each_fma_i16_haswell);
+    run_if_matches("each_fma_i8_haswell", test_fma<i8_t>, nk_each_fma_i8_haswell);
+    run_if_matches("each_fma_u16_haswell", test_fma<u16_t>, nk_each_fma_u16_haswell);
+    run_if_matches("each_fma_u8_haswell", test_fma<u8_t>, nk_each_fma_u8_haswell);
+    run_if_matches("each_fma_f16_haswell", test_fma<f16_t>, nk_each_fma_f16_haswell);
+    run_if_matches("each_scale_bf16_haswell", test_scale<bf16_t>, nk_each_scale_bf16_haswell);
+    run_if_matches("each_scale_f16_haswell", test_scale<f16_t>, nk_each_scale_f16_haswell);
+    run_if_matches("each_scale_f64_haswell", test_scale<f64_t>, nk_each_scale_f64_haswell);
+    run_if_matches("each_scale_i16_haswell", test_scale<i16_t>, nk_each_scale_i16_haswell);
+    run_if_matches("each_scale_i8_haswell", test_scale<i8_t>, nk_each_scale_i8_haswell);
+    run_if_matches("each_scale_u16_haswell", test_scale<u16_t>, nk_each_scale_u16_haswell);
+    run_if_matches("each_scale_u8_haswell", test_scale<u8_t>, nk_each_scale_u8_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -261,6 +280,10 @@ void test_elementwise() {
     run_if_matches("each_scale_f16_skylake", test_scale<f16_t>, nk_each_scale_f16_skylake);
     run_if_matches("each_blend_f16_skylake", test_blend<f16_t>, nk_each_blend_f16_skylake);
     run_if_matches("each_fma_f16_skylake", test_fma<f16_t>, nk_each_fma_f16_skylake);
+    run_if_matches("each_blend_bf16_skylake", test_blend<bf16_t>, nk_each_blend_bf16_skylake);
+    run_if_matches("each_blend_f64_skylake", test_blend<f64_t>, nk_each_blend_f64_skylake);
+    run_if_matches("each_fma_bf16_skylake", test_fma<bf16_t>, nk_each_fma_bf16_skylake);
+    run_if_matches("each_fma_f64_skylake", test_fma<f64_t>, nk_each_fma_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
@@ -321,6 +344,12 @@ void test_elementwise() {
     run_if_matches("each_blend_f64c_serial", test_blend<f64c_t>, nk_each_blend_f64c_serial);
     run_if_matches("each_fma_f32c_serial", test_fma<f32c_t>, nk_each_fma_f32c_serial);
     run_if_matches("each_fma_f64c_serial", test_fma<f64c_t>, nk_each_fma_f64c_serial);
+    run_if_matches("each_blend_f16_serial", test_blend<f16_t>, nk_each_blend_f16_serial);
+    run_if_matches("each_blend_i8_serial", test_blend<i8_t>, nk_each_blend_i8_serial);
+    run_if_matches("each_blend_u8_serial", test_blend<u8_t>, nk_each_blend_u8_serial);
+    run_if_matches("each_fma_f16_serial", test_fma<f16_t>, nk_each_fma_f16_serial);
+    run_if_matches("each_fma_i8_serial", test_fma<i8_t>, nk_each_fma_i8_serial);
+    run_if_matches("each_fma_u8_serial", test_fma<u8_t>, nk_each_fma_u8_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

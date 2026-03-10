@@ -23,6 +23,14 @@ void test_cross_x86() {
                    nk_dots_pack_e2m3_haswell, nk_dots_packed_e2m3_haswell);
     run_if_matches("dots_packed_e3m2_haswell", test_dots_packed<e3m2_t>, nk_dots_packed_size_e3m2_haswell,
                    nk_dots_pack_e3m2_haswell, nk_dots_packed_e3m2_haswell);
+    run_if_matches("dots_packed_f16_haswell", test_dots_packed<f16_t>, nk_dots_packed_size_f16_haswell,
+                   nk_dots_pack_f16_haswell, nk_dots_packed_f16_haswell);
+    run_if_matches("dots_packed_bf16_haswell", test_dots_packed<bf16_t>, nk_dots_packed_size_bf16_haswell,
+                   nk_dots_pack_bf16_haswell, nk_dots_packed_bf16_haswell);
+    run_if_matches("dots_packed_i8_haswell", test_dots_packed<i8_t>, nk_dots_packed_size_i8_haswell,
+                   nk_dots_pack_i8_haswell, nk_dots_packed_i8_haswell);
+    run_if_matches("dots_packed_u8_haswell", test_dots_packed<u8_t>, nk_dots_packed_size_u8_haswell,
+                   nk_dots_pack_u8_haswell, nk_dots_packed_u8_haswell);
     run_if_matches("dots_packed_u1_haswell", test_dots_packed<u1x8_t>, nk_dots_packed_size_u1_serial,
                    nk_dots_pack_u1_serial, nk_dots_packed_u1_haswell);
 
@@ -131,6 +139,10 @@ void test_cross_x86() {
                    nk_dots_pack_f64_skylake, nk_dots_packed_f64_skylake);
     run_if_matches("dots_packed_f32_skylake", test_dots_packed<f32_t>, nk_dots_packed_size_f32_skylake,
                    nk_dots_pack_f32_skylake, nk_dots_packed_f32_skylake);
+    run_if_matches("dots_packed_f16_skylake", test_dots_packed<f16_t>, nk_dots_packed_size_f16_skylake,
+                   nk_dots_pack_f16_skylake, nk_dots_packed_f16_skylake);
+    run_if_matches("dots_packed_bf16_skylake", test_dots_packed<bf16_t>, nk_dots_packed_size_bf16_skylake,
+                   nk_dots_pack_bf16_skylake, nk_dots_packed_bf16_skylake);
     run_if_matches("dots_packed_e4m3_skylake", test_dots_packed<e4m3_t>, nk_dots_packed_size_e4m3_skylake,
                    nk_dots_pack_e4m3_skylake, nk_dots_packed_e4m3_skylake);
     run_if_matches("dots_packed_e5m2_skylake", test_dots_packed<e5m2_t>, nk_dots_packed_size_e5m2_skylake,

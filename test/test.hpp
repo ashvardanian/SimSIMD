@@ -419,7 +419,7 @@ void test_spatial();
 void test_set();
 void test_curved();
 void test_probability();
-void test_elementwise();
+void test_each();
 void test_trigonometry();
 void test_geospatial();
 void test_mesh();
