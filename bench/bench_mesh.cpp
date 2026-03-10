@@ -46,7 +46,8 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * first_clouds[0].size_bytes() * 2, bm::Counter::kIsRate);
+    std::size_t ops_per_call = points_count * 9; // unified 9N scalar-ops for RMSD/Kabsch/Umeyama
+    state.counters["scalar-ops"] = bm::Counter(iterations * ops_per_call, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
