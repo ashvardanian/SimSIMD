@@ -363,10 +363,14 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a reference to the allocator.
-    pub fn allocator(&self) -> &A { &self.alloc }
+    pub fn allocator(&self) -> &A {
+        &self.alloc
+    }
 
     /// Returns dimensions (vector_count, depth) of the original vector set.
-    pub fn dims(&self) -> (usize, usize) { (self.vector_count, self.depth) }
+    pub fn dims(&self) -> (usize, usize) {
+        (self.vector_count, self.depth)
+    }
 
     /// Returns the packed data buffer.
     pub fn as_bytes(&self) -> &[u8] {
@@ -374,7 +378,9 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a pointer to the packed data.
-    pub fn as_ptr(&self) -> *const u8 { self.data.as_ptr() }
+    pub fn as_ptr(&self) -> *const u8 {
+        self.data.as_ptr()
+    }
 }
 
 // Convenience methods using Global allocator
@@ -463,7 +469,7 @@ mod tests {
     #[test]
     fn maxsim_rejects_non_contiguous_depth_axis() {
         let queries = Tensor::<f32>::try_full(&[4, 16], 1.0).unwrap();
-        let transposed = queries.t().unwrap();
+        let transposed = queries.transpose().unwrap();
         let result = transposed.try_maxsim_pack();
         assert!(matches!(result, Err(TensorError::NonContiguousRows)));
     }

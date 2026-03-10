@@ -88,7 +88,7 @@ NK_INTERNAL nk_f32_t nk_f32_log_serial_(nk_f32_t x) {
  *  since `u` is bounded to approximately `[-0.17, 0.17]` after range reduction.
  *
  *  Uses more series terms than the f32 version to achieve near-full f64 precision,
- *  with maximum relative error approximately 0.0000000001% across all positive doubles.
+ *  with maximum relative error approximately 0.00000000000001% across all positive doubles.
  *
  *  https://en.wikipedia.org/wiki/Logarithm#Power_series
  */
@@ -103,13 +103,22 @@ NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
     // Use (m-1)/(m+1) transformation for faster convergence
     nk_f64_t u = (m - 1.0) / (m + 1.0);
     nk_f64_t u2 = u * u;
-    // log(m) = 2 × (u + u³/3 + u⁵/5 + u⁷/7 + u⁹/9 + u¹¹/11 + u¹³/13)
-    nk_f64_t log_m = 2.0 * u *
-                     (1.0 + u2 * (0.3333333333333333 +
-                                  u2 * (0.2 + u2 * (0.14285714285714285 +
-                                                    u2 * (0.1111111111111111 +
-                                                          u2 * (0.09090909090909091 + u2 * 0.07692307692307693))))));
-    return (nk_f64_t)exp * 0.6931471805599453 + log_m;
+    // 14-term Horner: P(u²) = 1 + u²/3 + u⁴/5 + ... + u²⁶/27, matching SIMD
+    nk_f64_t poly = 1.0 / 27.0;
+    poly = u2 * poly + 1.0 / 25.0;
+    poly = u2 * poly + 1.0 / 23.0;
+    poly = u2 * poly + 1.0 / 21.0;
+    poly = u2 * poly + 1.0 / 19.0;
+    poly = u2 * poly + 1.0 / 17.0;
+    poly = u2 * poly + 1.0 / 15.0;
+    poly = u2 * poly + 1.0 / 13.0;
+    poly = u2 * poly + 1.0 / 11.0;
+    poly = u2 * poly + 1.0 / 9.0;
+    poly = u2 * poly + 1.0 / 7.0;
+    poly = u2 * poly + 1.0 / 5.0;
+    poly = u2 * poly + 1.0 / 3.0;
+    poly = u2 * poly + 1.0;
+    return (nk_f64_t)exp * 0.6931471805599453 + 2.0 * u * poly;
 }
 
 nk_define_kld_(f32, f64, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)

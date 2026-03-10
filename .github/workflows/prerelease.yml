@@ -159,7 +159,7 @@ jobs:
 
       - name: Build and Test
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
           npm test
@@ -199,7 +199,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Test Emscripten runtime
@@ -240,7 +240,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Test Emscripten64 runtime
@@ -318,7 +318,7 @@ jobs:
 
       - name: Build JavaScript bindings
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run build-js
 
       - name: Install Playwright
@@ -364,7 +364,7 @@ jobs:
       - name: Build WASI
         run: |
           export WASI_SDK_PATH=~/wasi-sdk
-          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
           cmake --build build-wasi
 
       - name: Install Wasmer (HEAD for relaxed-SIMD support, not yet in stable)
@@ -402,7 +402,7 @@ jobs:
       - name: Build WASI
         run: |
           export WASI_SDK_PATH=~/wasi-sdk
-          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
           cmake --build build-wasi
 
       - name: Test Wasmtime runtime
@@ -443,7 +443,7 @@ jobs:
 
       - name: Build and Test with Node
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
           npm test
@@ -489,7 +489,7 @@ jobs:
 
       - name: Build prebuilds and JS
         run: |
-          npm ci --ignore-scripts
+          npm install --ignore-scripts
           npm run prebuild-single
           npm run build-js
 

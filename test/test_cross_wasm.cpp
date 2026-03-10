@@ -19,12 +19,15 @@ void test_cross_wasm() {
                    nk_dots_pack_u8_v128relaxed, nk_dots_packed_u8_v128relaxed);
     run_if_matches("dots_packed_e2m3_v128relaxed", test_dots_packed<e2m3_t>, nk_dots_packed_size_e2m3_v128relaxed,
                    nk_dots_pack_e2m3_v128relaxed, nk_dots_packed_e2m3_v128relaxed);
+    run_if_matches("dots_packed_u1_v128relaxed", test_dots_packed<u1x8_t>, nk_dots_packed_size_u1_v128relaxed,
+                   nk_dots_pack_u1_v128relaxed, nk_dots_packed_u1_v128relaxed);
 
     run_if_matches("dots_symmetric_f64_v128relaxed", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_v128relaxed);
     run_if_matches("dots_symmetric_f32_v128relaxed", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_v128relaxed);
     run_if_matches("dots_symmetric_i8_v128relaxed", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_v128relaxed);
     run_if_matches("dots_symmetric_u8_v128relaxed", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_v128relaxed);
     run_if_matches("dots_symmetric_e2m3_v128relaxed", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_v128relaxed);
+    run_if_matches("dots_symmetric_u1_v128relaxed", test_dots_symmetric<u1x8_t>, nk_dots_symmetric_u1_v128relaxed);
 
     run_if_matches("angulars_packed_f64_v128relaxed", test_angulars_packed<f64_t>, nk_dots_packed_size_f64_v128relaxed,
                    nk_dots_pack_f64_v128relaxed, nk_angulars_packed_f64_v128relaxed);
@@ -89,5 +92,15 @@ void test_cross_wasm() {
                    nk_euclideans_packed_bf16_v128relaxed);
     run_if_matches("euclideans_symmetric_bf16_v128relaxed", test_euclideans_symmetric<bf16_t>,
                    nk_euclideans_symmetric_bf16_v128relaxed);
+
+    run_if_matches("hammings_packed_u1_v128relaxed", test_hammings_packed<u1x8_t>, nk_dots_packed_size_u1_v128relaxed,
+                   nk_dots_pack_u1_v128relaxed, nk_hammings_packed_u1_v128relaxed);
+    run_if_matches("jaccards_packed_u1_v128relaxed", test_jaccards_packed<u1x8_t>, nk_dots_packed_size_u1_v128relaxed,
+                   nk_dots_pack_u1_v128relaxed, nk_jaccards_packed_u1_v128relaxed);
+    run_if_matches("hammings_symmetric_u1_v128relaxed", test_hammings_symmetric<u1x8_t>,
+                   nk_hammings_symmetric_u1_v128relaxed);
+    run_if_matches("jaccards_symmetric_u1_v128relaxed", test_jaccards_symmetric<u1x8_t>,
+                   nk_jaccards_symmetric_u1_v128relaxed);
+
 #endif
 }

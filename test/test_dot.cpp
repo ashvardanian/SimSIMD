@@ -230,6 +230,8 @@ void test_dot() {
     run_if_matches("dot_e5m2_genoa", test_dot<e5m2_t>, nk_dot_e5m2_genoa);
     run_if_matches("dot_e2m3_genoa", test_dot<e2m3_t>, nk_dot_e2m3_genoa);
     run_if_matches("dot_e3m2_genoa", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
+    run_if_matches("dot_bf16c_genoa", test_dot<bf16c_t>, nk_dot_bf16c_genoa);
+    run_if_matches("vdot_bf16c_genoa", test_vdot<bf16c_t>, nk_vdot_bf16c_genoa);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_RVV

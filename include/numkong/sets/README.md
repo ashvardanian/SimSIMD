@@ -67,318 +67,84 @@ Streaming mode overhead (~50–100 cycles for `SMSTART`/`SMSTOP`) is amortized a
 
 ## Performance
 
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for batched set operations over square matrices.
+Columns show throughput for 256³, 1024³, and 4096³ configurations.
+The throughput is measured in GSO/s as Giga scalar operations per second.
+Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                             |                     256³ |                    1024³ |                    4096³ |
+| :--------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hammings_packed_u1_serial`     |                116 gso/s |                125 gso/s |                279 gso/s |
+| `nk_hammings_symmetric_u1_serial`  |               41.3 gso/s |               73.9 gso/s |                300 gso/s |
+| `nk_jaccards_packed_u1_serial`     |        56.9 gso/s, 0 ulp |        99.1 gso/s, 0 ulp |         248 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`  |        33.2 gso/s, 0 ulp |        59.7 gso/s, 0 ulp |   277 gso/s, 6520000 ulp |
+| `nk_hammings_packed_u1_haswell`    |               66.8 gso/s |               90.1 gso/s |                166 gso/s |
+| `nk_hammings_symmetric_u1_haswell` |               44.3 gso/s |               77.7 gso/s |                299 gso/s |
+| `nk_jaccards_packed_u1_haswell`    |      58.2 gso/s, 0.3 ulp |      74.8 gso/s, 0.3 ulp |       104 gso/s, 0.3 ulp |
+| `nk_jaccards_symmetric_u1_haswell` |      41.5 gso/s, 0.3 ulp |      72.3 gso/s, 0.3 ulp |   315 gso/s, 6520000 ulp |
+| `nk_hammings_packed_u1_icelake`    |               92.7 gso/s |                242 gso/s |                611 gso/s |
+| `nk_hammings_symmetric_u1_icelake` |               62.5 gso/s |                182 gso/s |                903 gso/s |
+| `nk_jaccards_packed_u1_icelake`    |      81.1 gso/s, 0.3 ulp |       220 gso/s, 0.3 ulp |       600 gso/s, 0.3 ulp |
+| `nk_jaccards_symmetric_u1_icelake` |      53.9 gso/s, 0.3 ulp |       250 gso/s, 0.3 ulp |   694 gso/s, 6570000 ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                                 |                     256³ |                    1024³ |                    4096³ |
+| :------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hammings_packed_u1_serial`         |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_packed_u1_v128relaxed`    |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_symmetric_u1_serial`      |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_symmetric_u1_v128relaxed` |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_jaccards_packed_u1_serial`         |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_jaccards_packed_u1_v128relaxed`    |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`      |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_v128relaxed` |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_smebi32</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_smebi32</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_smebi32</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_smebi32</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                             |                     256³ |                    1024³ |                    4096³ |
+| :--------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hammings_packed_u1_serial`     |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_symmetric_u1_serial`  |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_jaccards_packed_u1_serial`     |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`  |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_neon`       |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_symmetric_u1_neon`    |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_jaccards_packed_u1_neon`       |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_neon`    |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_smebi32`    |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_hammings_symmetric_u1_smebi32` |                  0 gso/s |                  0 gso/s |                  0 gso/s |
+| `nk_jaccards_packed_u1_smebi32`    |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_smebi32` |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |           0 gso/s, 0 ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
+| Kernel                                 |                     256³ |                    1024³ |                    4096³ |
+| :------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hammings_packed_u1_serial`         |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_packed_u1_v128relaxed`    |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_symmetric_u1_serial`      |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_symmetric_u1_v128relaxed` |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_jaccards_packed_u1_serial`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_jaccards_packed_u1_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_jaccards_symmetric_u1_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_jaccards_symmetric_u1_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hammings_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hammings_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_packed_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccards_symmetric_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>

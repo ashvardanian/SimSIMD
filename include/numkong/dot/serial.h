@@ -141,9 +141,9 @@ extern "C" {
 
 #pragma region - Traditional Floats
 
-nk_define_dot_(f32, f32, f32, nk_assign_from_to_)            // nk_dot_f32_serial
-nk_define_dot_complex_(f32c, f32, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
-nk_define_vdot_complex_(f32c, f32, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
+nk_define_dot_(f32, f64, f32, nk_assign_from_to_)            // nk_dot_f32_serial
+nk_define_dot_complex_(f32c, f64, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
+nk_define_vdot_complex_(f32c, f64, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
 
 #pragma endregion - Traditional Floats
 

@@ -161,6 +161,8 @@ struct test_config_t {
     std::size_t matrix_width = 128;
     /** GEMM K dimension. Override: `NK_MATRIX_DEPTH`. */
     std::size_t matrix_depth = 1536;
+    /** Max angular separation in degrees for geospatial tests. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
+    float geospatial_max_angle = 180.0f;
     /** Count of kernels that exceeded ULP thresholds. */
     std::size_t failure_count = 0;
 
@@ -282,7 +284,7 @@ struct error_stats_t {
 
     std::uint64_t min_ulp = std::numeric_limits<std::uint64_t>::max();
     std::uint64_t max_ulp = 0;
-    std::uint64_t sum_ulp = 0;
+    f118_t sum_ulp = f118_t();
 
     std::size_t count = 0;
     std::size_t exact_matches = 0;
@@ -325,7 +327,7 @@ struct error_stats_t {
         // Always update ULP metrics (works for both integer and float)
         min_ulp = std::min(min_ulp, ulps);
         max_ulp = std::max(max_ulp, ulps);
-        sum_ulp += ulps;
+        sum_ulp += f118_t(ulps);
 
         count++;
         if (ulps == 0) exact_matches++;
@@ -333,7 +335,10 @@ struct error_stats_t {
 
     nk_f64_t mean_abs_err() const noexcept { return count > 0 ? sum_abs_err / count : 0; }
     nk_f64_t mean_rel_err() const noexcept { return count > 0 ? sum_rel_err / count : 0; }
-    nk_f64_t mean_ulp() const noexcept { return count > 0 ? static_cast<nk_f64_t>(sum_ulp) / count : 0; }
+    nk_f64_t mean_ulp() const noexcept {
+        // On 32-bit WASM we need this ugly casting sequence to avoid adding more `f118_t` constructors
+        return count > 0 ? static_cast<double>(sum_ulp / f118_t(static_cast<double>(count))) : 0;
+    }
 
     void reset() noexcept { *this = error_stats_t {}; }
 
@@ -404,11 +409,6 @@ void fill_random(generator_type_ &generator, nk::vector<scalar_type_> &vector) {
     }
 }
 
-/**
- *  @brief Test FP8 (e4m3) conversions round-trip accuracy.
- */
-void test_fp8_conversions();
-
 // Forward declarations for test modules
 void test_casts();
 void test_reduce();
@@ -417,7 +417,7 @@ void test_spatial();
 void test_set();
 void test_curved();
 void test_probability();
-void test_elementwise();
+void test_each();
 void test_trigonometry();
 void test_geospatial();
 void test_mesh();

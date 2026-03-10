@@ -152,6 +152,12 @@ void test_curved() {
     run_if_matches("mahalanobis_f64_skylake", test_mahalanobis<f64_t>, nk_mahalanobis_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_GENOA
+    run_if_matches("bilinear_bf16_genoa", test_bilinear<bf16_t>, nk_bilinear_bf16_genoa);
+    run_if_matches("bilinear_bf16c_genoa", test_bilinear<bf16c_t>, nk_bilinear_bf16c_genoa);
+    run_if_matches("mahalanobis_bf16_genoa", test_mahalanobis<bf16_t>, nk_mahalanobis_bf16_genoa);
+#endif // NK_TARGET_GENOA
+
 #if NK_TARGET_SMEF64
     run_if_matches("bilinear_f32_smef64", test_bilinear<f32_t>, nk_bilinear_f32_smef64);
     run_if_matches("bilinear_f32c_smef64", test_bilinear<f32c_t>, nk_bilinear_f32c_smef64);

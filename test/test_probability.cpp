@@ -79,8 +79,12 @@ void test_probability() {
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("kld_f32", test_kld<f32_t>, nk_kld_f32);
     run_if_matches("kld_f64", test_kld<f64_t>, nk_kld_f64);
+    run_if_matches("kld_f16", test_kld<f16_t>, nk_kld_f16);
+    run_if_matches("kld_bf16", test_kld<bf16_t>, nk_kld_bf16);
     run_if_matches("jsd_f32", test_jsd<f32_t>, nk_jsd_f32);
     run_if_matches("jsd_f64", test_jsd<f64_t>, nk_jsd_f64);
+    run_if_matches("jsd_f16", test_jsd<f16_t>, nk_jsd_f16);
+    run_if_matches("jsd_bf16", test_jsd<bf16_t>, nk_jsd_bf16);
 #else
 
 #if NK_TARGET_NEON
@@ -123,8 +127,12 @@ void test_probability() {
     // Serial always runs - baseline test
     run_if_matches("kld_f32_serial", test_kld<f32_t>, nk_kld_f32_serial);
     run_if_matches("kld_f64_serial", test_kld<f64_t>, nk_kld_f64_serial);
+    run_if_matches("kld_bf16_serial", test_kld<bf16_t>, nk_kld_bf16_serial);
+    run_if_matches("kld_f16_serial", test_kld<f16_t>, nk_kld_f16_serial);
     run_if_matches("jsd_f32_serial", test_jsd<f32_t>, nk_jsd_f32_serial);
     run_if_matches("jsd_f64_serial", test_jsd<f64_t>, nk_jsd_f64_serial);
+    run_if_matches("jsd_bf16_serial", test_jsd<bf16_t>, nk_jsd_bf16_serial);
+    run_if_matches("jsd_f16_serial", test_jsd<f16_t>, nk_jsd_f16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

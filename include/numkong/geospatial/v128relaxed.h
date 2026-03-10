@@ -278,7 +278,7 @@ NK_INTERNAL v128_t nk_vincenty_f64x2_v128relaxed_(   //
         v128_t safe_sin_angular = wasm_i64x2_relaxed_laneselect(one, sin_angular_distance, coincident_mask);
         sin_azimuth = wasm_f64x2_div(wasm_f64x2_mul(wasm_f64x2_mul(cos_reduced_first, cos_reduced_second), sin_lambda),
                                      safe_sin_angular);
-        cos_squared_azimuth = wasm_f64x2_sub(one, wasm_f64x2_mul(sin_azimuth, sin_azimuth));
+        cos_squared_azimuth = wasm_f64x2_relaxed_nmadd(sin_azimuth, sin_azimuth, one);
 
         // Handle equatorial case: cos^2(a) ~ 0
         v128_t equatorial_mask = wasm_f64x2_lt(cos_squared_azimuth, epsilon);
@@ -483,7 +483,7 @@ NK_INTERNAL v128_t nk_vincenty_f32x4_v128relaxed_(   //
         v128_t safe_sin_angular = wasm_i32x4_relaxed_laneselect(one, sin_angular_distance, coincident_mask);
         sin_azimuth = wasm_f32x4_div(wasm_f32x4_mul(wasm_f32x4_mul(cos_reduced_first, cos_reduced_second), sin_lambda),
                                      safe_sin_angular);
-        cos_squared_azimuth = wasm_f32x4_sub(one, wasm_f32x4_mul(sin_azimuth, sin_azimuth));
+        cos_squared_azimuth = wasm_f32x4_relaxed_nmadd(sin_azimuth, sin_azimuth, one);
 
         // Handle equatorial case: cos^2(a) ~ 0
         v128_t equatorial_mask = wasm_f32x4_lt(cos_squared_azimuth, epsilon);

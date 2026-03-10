@@ -18,6 +18,8 @@
  *  For small numeric types (F16, BF16, E4M3, E5M2) we use F32 accumulators. For F32 dot products,
  *  upcasting to F64 and downcasting back is faster than stable summation algorithms. For F64 we
  *  use the Dot2 algorithm (Ogita-Rump-Oishi, 2005) for compensated accumulation via TwoSum/TwoProd.
+ *  For F32 complex dot products, upcasting to F64 absorbs the deferred sign-flip error.
+ *  BF16c and F16c use the same deferred sign-flip with F32 accumulators.
  *
  *  @section dot_haswell_stateful Stateful Streaming Logic
  *

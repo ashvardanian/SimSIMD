@@ -34,7 +34,7 @@
 #include <cstdio>  // `std::printf`, `std::fprintf`
 #include <cstdlib> // `std::getenv`, `std::atoll`
 #include <cstring> // `std::strcmp`
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <unistd.h>
 #endif
 
@@ -46,7 +46,7 @@ static bool colors_enabled() {
     static bool const result = [] {
         if (std::getenv("NO_COLOR")) return false;
         if (std::getenv("FORCE_COLOR")) return true;
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
         return isatty(fileno(stdout)) != 0;
 #else
         return false;
@@ -119,6 +119,10 @@ int main(int argc, char **argv) {
         double parsed = std::atof(env_sparse_intersection);
         if (parsed >= 0.0 && parsed <= 1.0) bench_config.sparse_intersection_share = parsed;
     }
+    if (char const *env_geo_angle = std::getenv("NK_GEOSPATIAL_MAX_ANGLE")) {
+        float parsed = static_cast<float>(std::atof(env_geo_angle));
+        if (parsed > 0.0f && parsed <= 180.0f) bench_config.geospatial_max_angle = parsed;
+    }
     if (char const *env_budget = std::getenv("NK_BUDGET_MB")) {
         std::size_t parsed_mb = static_cast<std::size_t>(std::atoll(env_budget));
         if (parsed_mb > 0) bench_config.budget_bytes = parsed_mb * 1024 * 1024;
@@ -180,11 +184,11 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Dimensions row
-    std::printf("  Dimensions: dense=%zu  curved=%zu  mesh=%zu  matrix=%zux%zux%zu  sparse=%zu/%zu@%.2f\n",
+    std::printf("  Dimensions: dense=%zu  curved=%zu  mesh=%zu  matrix=%zux%zux%zu  sparse=%zu/%zu@%.2f  geo=%.0f°\n",
                 bench_config.dense_dimensions, bench_config.curved_dimensions, bench_config.mesh_points,
                 bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth,
                 bench_config.sparse_first_length, bench_config.sparse_second_length,
-                bench_config.sparse_intersection_share);
+                bench_config.sparse_intersection_share, bench_config.geospatial_max_angle);
 
     // Bench-specific config
     std::printf("  Bench: seed=%u\n", bench_config.seed);
@@ -253,26 +257,27 @@ int main(int argc, char **argv) {
     if (wants_help) {
         std::fprintf( //
             stdout,
-            "Usage: nk_bench [--benchmark_filter=<regex>] [--benchmark_min_time=<N>s] [--help]\n" //
-            "\n"                                                                                  //
-            "NumKong Environment Variables:\n"                                                    //
-            "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                       //
-            "  NK_BUDGET_SECS=<seconds>       Min time per benchmark (default: 10)\n"             //
-            "  NK_SEED=<int>                  Random seed\n"                                      //
-            "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"          //
-            "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"           //
-            "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"                 //
-            "  NK_MATRIX_HEIGHT=N             Matrix height\n"                                    //
-            "  NK_MATRIX_WIDTH=N              Matrix width\n"                                     //
-            "  NK_MATRIX_DEPTH=N              Matrix depth\n"                                     //
-            "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                       //
-            "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                      //
-            "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                    //
-            "  NK_BUDGET_MB=N                 Memory budget in MB for inputs (default: 1024)\n"   //
-            "  NO_COLOR=1                     Disable colored output\n"                           //
-            "  FORCE_COLOR=1                  Force colored output\n"                             //
-            "\n"                                                                                  //
-            "Google Benchmark flags (passed through):\n");                                        //
+            "Usage: nk_bench [--benchmark_filter=<regex>] [--benchmark_min_time=<N>s] [--help]\n"        //
+            "\n"                                                                                         //
+            "NumKong Environment Variables:\n"                                                           //
+            "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                              //
+            "  NK_BUDGET_SECS=<seconds>       Min time per benchmark (default: 10)\n"                    //
+            "  NK_SEED=<int>                  Random seed\n"                                             //
+            "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"                 //
+            "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"                  //
+            "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"                        //
+            "  NK_MATRIX_HEIGHT=N             Matrix height\n"                                           //
+            "  NK_MATRIX_WIDTH=N              Matrix width\n"                                            //
+            "  NK_MATRIX_DEPTH=N              Matrix depth\n"                                            //
+            "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                              //
+            "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                             //
+            "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                           //
+            "  NK_GEOSPATIAL_MAX_ANGLE=F      Max angular separation in degrees (default: 180)\n"        //
+            "  NK_BUDGET_MB=N                 Memory " "budget in MB for " "inputs (default: " "1024)\n" //
+            "  NO_COLOR=1                     Disable colored output\n"                                  //
+            "  FORCE_COLOR=1                  Force colored output\n"                                    //
+            "\n"                                                                                         //
+            "Google Benchmark flags (passed through):\n");                                               //
     }
 
     bm::Initialize(&bench_argc, argv_ptrs.data());
@@ -289,6 +294,7 @@ int main(int argc, char **argv) {
     bench_geospatial();
     bench_mesh();
     bench_sparse();
+    bench_sparse_dot();
     bench_cast();
     bench_reduce();
     bench_maxsim();

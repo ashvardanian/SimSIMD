@@ -85,468 +85,81 @@ This keeps the accumulated error bounded by $O(1)$ ULP regardless of vector leng
 
 ## Performance
 
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by the `NK_DENSE_DIMENSIONS` environment variable and set to 256, 1024, and 4096 elements.
+The throughput is measured in GB/s as the number of input bytes per second.
+Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel               |                      256 |                     1024 |                     4096 |
+| :------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f64_serial`  |     0.928 gb/s, 5.6K ulp |       1.18 gb/s, 25K ulp |      0.842 gb/s, 99K ulp |
+| `nk_jsd_f64_serial`  |      0.512 gb/s, 0.4 ulp |      0.578 gb/s, 0.4 ulp |      0.427 gb/s, 0.5 ulp |
+| `nk_kld_f64_haswell` |      9.00 gb/s, 5.6K ulp |       9.07 gb/s, 25K ulp |       8.85 gb/s, 99K ulp |
+| `nk_jsd_f64_haswell` |       4.70 gb/s, 1.7 ulp |       4.88 gb/s, 1.4 ulp |       4.79 gb/s, 1.4 ulp |
+| `nk_kld_f64_skylake` |      10.7 gb/s, 5.6K ulp |       11.7 gb/s, 25K ulp |       8.31 gb/s, 99K ulp |
+| `nk_jsd_f64_skylake` |       5.82 gb/s, 1.7 ulp |       6.01 gb/s, 1.4 ulp |       4.59 gb/s, 1.4 ulp |
+| __f32__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f32_serial`  |       0.610 gb/s, 1K ulp |       0.714 gb/s, 5K ulp |      0.652 gb/s, 18K ulp |
+| `nk_jsd_f32_serial`  |      0.322 gb/s, 0.4 ulp |      0.383 gb/s, 0.4 ulp |      0.324 gb/s, 4.6 ulp |
+| `nk_kld_f32_skylake` |        14.8 gb/s, 1K ulp |        17.0 gb/s, 5K ulp |       17.7 gb/s, 18K ulp |
+| `nk_jsd_f32_skylake` |       9.04 gb/s, 6.5 ulp |       8.86 gb/s, 6.9 ulp |        7.01 gb/s, 11 ulp |
+| __bf16__             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_bf16_serial` |       0.155 gb/s, 1K ulp |       0.209 gb/s, 5K ulp |      0.191 gb/s, 18K ulp |
+| `nk_jsd_bf16_serial` |      0.097 gb/s, 1.5 ulp |      0.121 gb/s, 2.8 ulp |      0.112 gb/s, 9.1 ulp |
+| __f16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f16_serial`  |       0.181 gb/s, 1K ulp |       0.181 gb/s, 5K ulp |      0.169 gb/s, 18K ulp |
+| `nk_jsd_f16_serial`  |      0.185 gb/s, 1.4 ulp |      0.218 gb/s, 2.8 ulp |      0.204 gb/s, 8.1 ulp |
+| `nk_kld_f16_haswell` |        8.82 gb/s, 1K ulp |        8.68 gb/s, 5K ulp |       8.42 gb/s, 18K ulp |
+| `nk_jsd_f16_haswell` |       4.38 gb/s, 6.5 ulp |       4.53 gb/s, 6.9 ulp |        4.29 gb/s, 11 ulp |
+| `nk_kld_f16_skylake` |        9.87 gb/s, 1K ulp |        9.47 gb/s, 5K ulp |       7.25 gb/s, 18K ulp |
+| `nk_jsd_f16_skylake` |       4.60 gb/s, 6.5 ulp |       5.00 gb/s, 6.9 ulp |        3.87 gb/s, 11 ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel               |                      256 |                     1024 |                     4096 |
+| :------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f64_serial`  |         ? gb/s, 5.7K ulp |          ? gb/s, 23K ulp |          ? gb/s, 99K ulp |
+| `nk_jsd_f64_serial`  |          ? gb/s, 0.5 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 0.7 ulp |
+| __f32__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f32_serial`  |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
+| `nk_jsd_f32_serial`  |          ? gb/s, 0.5 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 4.3 ulp |
+| __bf16__             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_bf16_serial` |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
+| `nk_jsd_bf16_serial` |          ? gb/s, 1.3 ulp |          ? gb/s, 3.2 ulp |          ? gb/s, 8.3 ulp |
+| __f16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f16_serial`  |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
+| `nk_jsd_f16_serial`  |          ? gb/s, 1.5 ulp |          ? gb/s, 2.4 ulp |          ? gb/s, 9.2 ulp |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_kld_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_neonhalf</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
-
-#### V8 (Chromium)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
-
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_kld_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_kld_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_kld_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_kld_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jsd_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                |                      256 |                     1024 |                     4096 |
+| :-------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f64_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_f64_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| __f32__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f32_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_f32_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_f32_neon`     |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_f32_neon`     |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| __bf16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_bf16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_bf16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| __f16__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_kld_f16_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_f16_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_f16_neonhalf` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_jsd_f16_neonhalf` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |

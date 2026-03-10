@@ -26,6 +26,7 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
     std::vector<vector_t> latitudes_first(batches_count), longitudes_first(batches_count);
     std::vector<vector_t> latitudes_second(batches_count), longitudes_second(batches_count);
     auto generator = make_random_engine();
+    double const max_separation_rad = double(bench_config.geospatial_max_angle) * 3.14159265358979323846 / 180.0;
     for (std::size_t index = 0; index != batches_count; ++index) {
         latitudes_first[index] = make_vector<scalar_t>(coordinates_count);
         longitudes_first[index] = make_vector<scalar_t>(coordinates_count);
@@ -33,8 +34,9 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
         longitudes_second[index] = make_vector<scalar_t>(coordinates_count);
         nk::fill_coordinates(generator, latitudes_first[index].values_data(), longitudes_first[index].values_data(),
                              coordinates_count);
-        nk::fill_coordinates(generator, latitudes_second[index].values_data(), longitudes_second[index].values_data(),
-                             coordinates_count);
+        nk::fill_nearby_coordinates(generator, latitudes_first[index].values_data(),
+                                    longitudes_first[index].values_data(), latitudes_second[index].values_data(),
+                                    longitudes_second[index].values_data(), coordinates_count, max_separation_rad);
     }
 
     // Output distances buffer
@@ -51,14 +53,14 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
         iterations++;
     }
 
-    std::size_t const bytes_per_call = latitudes_first[0].size_bytes() * 4; // 4 coordinate arrays
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
-    state.counters["calls"] = bm::Counter(iterations * coordinates_count, bm::Counter::kIsRate);
+    state.counters["ops"] = bm::Counter(iterations * coordinates_count, bm::Counter::kIsRate);
+    state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t dtype_, typename kernel_type_ = void>
 void run_geospatial(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d," +
+                             std::to_string(static_cast<int>(bench_config.geospatial_max_angle)) + "°>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_geospatial<dtype_, kernel_type_ *>, kernel,
                           bench_config.dense_dimensions);
 }

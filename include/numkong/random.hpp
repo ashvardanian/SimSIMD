@@ -10,7 +10,8 @@
 #ifndef NK_RANDOM_HPP
 #define NK_RANDOM_HPP
 
-#include <random>
+#include <algorithm> // `std::sort`
+#include <random>    // `std::uniform_int_distribution`
 
 #include "numkong/types.hpp"
 
@@ -211,6 +212,37 @@ void fill_coordinates(generator_type_ &generator, value_type_ *lats_ptr, value_t
 }
 
 /**
+ *  @brief Fill destination coordinate arrays within a max angular separation of origin coordinates.
+ *
+ *  Uses the great-circle destination formula to place each destination point at a random
+ *  angular distance (uniform in [0, max_separation_rad]) and random bearing from the
+ *  corresponding origin point. Coordinates are in radians.
+ */
+template <typename value_type_, typename generator_type_>
+void fill_nearby_coordinates(generator_type_ &generator, value_type_ const *origin_lats_ptr,
+                             value_type_ const *origin_lons_ptr, value_type_ *dest_lats_ptr, value_type_ *dest_lons_ptr,
+                             std::size_t values_count, double max_separation_rad) noexcept {
+
+    using float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
+    constexpr float_t pi = float_t(3.14159265358979323846);
+    std::uniform_real_distribution<float_t> separation_distribution(0, float_t(max_separation_rad));
+    std::uniform_real_distribution<float_t> bearing_distribution(0, float_t(2) * pi);
+    for (std::size_t i = 0; i < values_count; ++i) {
+        float_t origin_lat = float_t(origin_lats_ptr[i]);
+        float_t origin_lon = float_t(origin_lons_ptr[i]);
+        float_t separation = separation_distribution(generator);
+        float_t bearing = bearing_distribution(generator);
+        float_t sin_origin_lat = std::sin(origin_lat), cos_origin_lat = std::cos(origin_lat);
+        float_t sin_sep = std::sin(separation), cos_sep = std::cos(separation);
+        float_t dest_lat = std::asin(sin_origin_lat * cos_sep + cos_origin_lat * sin_sep * std::cos(bearing));
+        float_t dest_lon = origin_lon + std::atan2(std::sin(bearing) * sin_sep * cos_origin_lat,
+                                                   cos_sep - sin_origin_lat * std::sin(dest_lat));
+        dest_lats_ptr[i] = value_type_(dest_lat);
+        dest_lons_ptr[i] = value_type_(dest_lon);
+    }
+}
+
+/**
  *  @brief Fill array as a probability distribution (sums to 1.0).
  */
 template <typename value_type_, typename generator_type_>
@@ -228,6 +260,24 @@ void fill_probability(generator_type_ &generator, value_type_ *values_ptr, std::
     }
     for (std::size_t i = 0; i < values_count; ++i)
         values_ptr[i] = static_cast<value_type_>(static_cast<distribution_float_t>(values_ptr[i]) / sum);
+}
+
+/**
+ *  @brief Fill array with sorted unique random integer values (in-place).
+ *
+ *  Draws @p values_count values from [0, max_val - values_count], sorts once, then adds
+ *  the index to each element. This guarantees uniqueness (duplicates become distinct)
+ *  and preserves sorted order — all in O(n log n) with exactly one sort, no retry loop.
+ *  Requires @p max_val >= @p values_count.
+ */
+template <typename value_type_, typename generator_type_>
+void fill_sorted_unique(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count,
+                        value_type_ max_val) noexcept {
+    using raw_t = typename value_type_::raw_t;
+    raw_t range = raw_t(max_val) - raw_t(values_count);
+    fill_uniform(generator, values_ptr, values_count, raw_t(0), range);
+    std::sort(values_ptr, values_ptr + values_count);
+    for (std::size_t i = 0; i < values_count; ++i) values_ptr[i] = value_type_(raw_t(values_ptr[i]) + raw_t(i));
 }
 
 } // namespace ashvardanian::numkong

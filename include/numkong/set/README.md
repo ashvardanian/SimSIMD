@@ -86,486 +86,89 @@ Since XOR results are either 0 or nonzero (not necessarily 1), the kernel masks 
 
 ## Performance
 
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by the `NK_DENSE_DIMENSIONS` environment variable and set to 256, 1024, and 4096 elements.
+The throughput is measured in GB/s as the number of input bytes per second.
+Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                   |                      256 |                     1024 |                     4096 |
+| :----------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u1_serial`   |                2.74 gb/s |                2.50 gb/s |                4.14 gb/s |
+| `nk_jaccard_u1_serial`   |         1.80 gb/s, 0 ulp |         1.51 gb/s, 0 ulp |         2.26 gb/s, 0 ulp |
+| `nk_hamming_u1_haswell`  |                14.7 gb/s |                39.8 gb/s |                64.0 gb/s |
+| `nk_jaccard_u1_haswell`  |         10.1 gb/s, 0 ulp |         27.0 gb/s, 0 ulp |         44.7 gb/s, 0 ulp |
+| `nk_hamming_u1_icelake`  |                22.2 gb/s |                66.2 gb/s |                 100 gb/s |
+| `nk_jaccard_u1_icelake`  |         12.2 gb/s, 0 ulp |         40.3 gb/s, 0 ulp |         69.8 gb/s, 0 ulp |
+| __u8__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u8_serial`   |                21.8 gb/s |                20.9 gb/s |                19.6 gb/s |
+| `nk_hamming_u8_haswell`  |                41.0 gb/s |                30.8 gb/s |                27.4 gb/s |
+| `nk_hamming_u8_icelake`  |                93.4 gb/s |                48.1 gb/s |                31.3 gb/s |
+| __u16__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u16_serial`  |         53.3 gb/s, 0 ulp |         27.6 gb/s, 0 ulp |         28.6 gb/s, 0 ulp |
+| `nk_jaccard_u16_haswell` |         35.5 gb/s, 0 ulp |         25.3 gb/s, 0 ulp |         27.2 gb/s, 0 ulp |
+| `nk_jaccard_u16_icelake` |         95.2 gb/s, 0 ulp |         28.5 gb/s, 0 ulp |         31.4 gb/s, 0 ulp |
+| __u32__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u32_serial`  |         48.4 gb/s, 0 ulp |         27.7 gb/s, 0 ulp |         29.3 gb/s, 0 ulp |
+| `nk_jaccard_u32_haswell` |         33.2 gb/s, 0 ulp |         25.0 gb/s, 0 ulp |         28.0 gb/s, 0 ulp |
+| `nk_jaccard_u32_icelake` |         40.2 gb/s, 0 ulp |         27.6 gb/s, 0 ulp |         30.8 gb/s, 0 ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                       |                      256 |                     1024 |                     4096 |
+| :--------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u1_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_jaccard_u1_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u8__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u8_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| __u16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u16_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u32_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                  |                      256 |                     1024 |                     4096 |
+| :---------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u1_serial`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_jaccard_u1_serial`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_hamming_u1_neon`    |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_jaccard_u1_neon`    |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u8__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u8_serial`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_hamming_u8_neon`    |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| __u16__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u16_serial` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_jaccard_u16_neon`   |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u32__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u32_serial` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_jaccard_u32_neon`   |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>u1</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u1_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u8</b></td></tr>
-<tr>
-  <td><code>nk_hamming_u8_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_hamming_u8_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u16</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>u32</b></td></tr>
-<tr>
-  <td><code>nk_jaccard_u32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_jaccard_u32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                       |                      256 |                     1024 |                     4096 |
+| :--------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __u1__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u1_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_jaccard_u1_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u8__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_hamming_u8_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| __u16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u16_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| __u32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_jaccard_u32_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |

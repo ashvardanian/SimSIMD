@@ -453,8 +453,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
-    unsigned supports_sierra = supports_haswell && supports_avxvnniint8 && !supports_avx512f;
-    unsigned supports_alder = supports_haswell && supports_avxvnni && !supports_avx512f;
+    unsigned supports_sierra = supports_haswell && supports_avxvnniint8;
+    unsigned supports_alder = supports_haswell && supports_avxvnni;
     unsigned supports_sapphireamx = supports_amx_tile && supports_amx_bf16 && supports_amx_int8;
     unsigned supports_graniteamx = supports_sapphireamx && supports_amx_fp16;
 
@@ -675,7 +675,7 @@ extern int nk_detect_relaxed_(void);
 NK_PUBLIC int nk_detect_v128_(void) { return 0; }
 NK_PUBLIC int nk_detect_relaxed_(void) { return 0; }
 #endif // NK_DYNAMIC_DISPATCH
-#elif defined(__wasi__) && !defined(NK_WASI_STANDALONE)
+#elif defined(__wasi__) && !NK_DEFINED_WASI_
 // When hosted (e.g. Node.js WASI polyfill), the host provides capability probes.
 __attribute__((__import_module__("env"), __import_name__("nk_has_v128"))) extern int nk_has_v128(void);
 __attribute__((__import_module__("env"), __import_name__("nk_has_relaxed"))) extern int nk_has_relaxed(void);
@@ -685,7 +685,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_v128relaxed_(void) {
 #if defined(__EMSCRIPTEN__)
     int has_relaxed = nk_detect_relaxed_();
     return has_relaxed ? nk_cap_v128relaxed_k : nk_cap_serial_k;
-#elif defined(__wasi__) && !defined(NK_WASI_STANDALONE)
+#elif defined(__wasi__) && !NK_DEFINED_WASI_
     int has_relaxed = nk_has_relaxed();
     return has_relaxed ? nk_cap_v128relaxed_k : nk_cap_serial_k;
 #elif defined(__wasm_relaxed_simd__)

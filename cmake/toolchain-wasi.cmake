@@ -29,8 +29,8 @@ set(CMAKE_FIND_ROOT_PATH "${WASI_SDK_PATH}")
 
 # WASM SIMD flags (same as Emscripten for consistency)
 set(WASM_SIMD_FLAGS "-msimd128 -mrelaxed-simd")
-set(CMAKE_C_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasi")
-set(CMAKE_CXX_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasi -fno-exceptions")
+set(CMAKE_C_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasip1-threads -pthread")
+set(CMAKE_CXX_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasip1-threads -pthread -fno-exceptions")
 
 # Optimization flags
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
@@ -41,6 +41,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 # Linker flags for WASI
 set(CMAKE_EXE_LINKER_FLAGS_INIT
     "-Wl,--allow-undefined \
+     -Wl,--import-memory -Wl,--export-memory \
+     -Wl,--shared-memory -Wl,--max-memory=67108864 \
      -Wl,--export=main \
      -Wl,--export=_start")
 

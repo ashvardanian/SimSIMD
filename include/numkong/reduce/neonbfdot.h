@@ -93,7 +93,7 @@ NK_INTERNAL void nk_reduce_moments_bf16_neonbfdot_strided_(                //
 
     // Gather tail into contiguous buffer, then dot with ones
     if (idx < count) {
-        nk_b128_vec_t tail_vec = {{0}};
+        nk_b128_vec_t tail_vec = {0};
         nk_size_t remaining = count - idx;
         for (nk_size_t k = 0; k < remaining; ++k)
             tail_vec.u16s[k] = *(nk_u16_t const *)(data_ptr + (idx + k) * stride_elements);

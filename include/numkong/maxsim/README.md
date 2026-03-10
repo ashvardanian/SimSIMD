@@ -55,12 +55,12 @@ No output matrix materialization: dots_packed writes a full M×N f32 result matr
 Benchmark data (Apple M4, SVL=512):
 
 | Dimensions           | dots_packed GEMM | maxsim fused | GEMM speedup | End-to-end |
-| -------------------- | ---------------- | ------------ | ------------ | ---------- |
-| 32×128×128 (ColBERT) | 840 GFLOPS       | 1516 GFLOPS  | 1.81×        | 5.10×      |
-| 32×256×128           | 1037 GFLOPS      | 1591 GFLOPS  | 1.53×        | 5.17×      |
-| 64×512×128           | 1016 GFLOPS      | 1651 GFLOPS  | 1.62×        | 5.42×      |
-| 32×128×256           | 859 GFLOPS       | 1725 GFLOPS  | 2.01×        | 4.06×      |
-| 32×1024×768 (BERT)   | 1124 GFLOPS      | 1932 GFLOPS  | 1.72×        | 2.61×      |
+| -------------------- | ---------------: | -----------: | -----------: | ---------: |
+| 32×128×128 (ColBERT) |       840 GFLOPS |  1516 GFLOPS |        1.81× |      5.10× |
+| 32×256×128           |      1037 GFLOPS |  1591 GFLOPS |        1.53× |      5.17× |
+| 64×512×128           |      1016 GFLOPS |  1651 GFLOPS |        1.62× |      5.42× |
+| 32×128×256           |       859 GFLOPS |  1725 GFLOPS |        2.01× |      4.06× |
+| 32×1024×768 (BERT)   |      1124 GFLOPS |  1932 GFLOPS |        1.72× |      2.61× |
 
 End-to-end speedup (5×) exceeds GEMM-only speedup (1.5–2×) because maxsim eliminates output materialization and fuses argmax+angular refinement into the tile extraction loop.
 
@@ -101,276 +101,84 @@ The originals region stores full-precision vectors for refinement via existing `
 
 ## Performance
 
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for late-interaction scoring over square matrices.
+Columns show throughput for 256³, 1024³, and 4096³ configurations.
+The throughput is measured in GSO/s as Giga scalar operations per second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ complexity for scoring $M$ query tokens against $N$ document tokens of dimension $K$.
+Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_sapphireamx</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_alder</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_sapphireamx</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_icelake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                              |                     256³ |                    1024³ |                    4096³ |
+| :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f32_serial`       |     20.3 gso/s, 169K ulp |     19.3 gso/s, 102K ulp |    15.6 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_f32_haswell`      |      102 gso/s, 168K ulp |     81.4 gso/s, 101K ulp |    69.3 gso/s, 55.6K ulp |
+| `nk_maxsim_packed_f32_icelake`      |      142 gso/s, 166K ulp |      112 gso/s, 102K ulp |     183 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_f32_sapphireamx`  |      243 gso/s, 163K ulp |      776 gso/s, 101K ulp |       833 gso/s, 56K ulp |
+| __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_bf16_serial`      |     20.9 gso/s, 166K ulp |     18.6 gso/s, 103K ulp |    15.2 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_bf16_haswell`     |      101 gso/s, 167K ulp |     89.8 gso/s, 103K ulp |    70.8 gso/s, 55.6K ulp |
+| `nk_maxsim_packed_bf16_genoa`       |      139 gso/s, 168K ulp |      177 gso/s, 103K ulp |     201 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_bf16_sapphireamx` |       309 gso/s, 16K ulp |        463 gso/s, 3K ulp |       458 gso/s, 665 ulp |
+| __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f16_serial`       |     20.9 gso/s, 167K ulp |     18.8 gso/s, 103K ulp |    14.7 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_f16_haswell`      |     96.8 gso/s, 168K ulp |     64.4 gso/s, 102K ulp |    88.8 gso/s, 55.7K ulp |
+| `nk_maxsim_packed_f16_icelake`      |      145 gso/s, 170K ulp |      166 gso/s, 103K ulp |     212 gso/s, 55.9K ulp |
+| `nk_maxsim_packed_f16_sapphireamx`  |      333 gso/s, 162K ulp |      893 gso/s, 101K ulp |       858 gso/s, 56K ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                              |                     256³ |                    1024³ |                    4096³ |
+| :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_neonsdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_sme</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_neonsdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_sme</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_neonsdot</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                           |                     256³ |                    1024³ |                    4096³ |
+| :------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f32_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_neonsdot`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __bf16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_bf16_serial`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_neonsdot` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_sme`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f16_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_neonsdot`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256³</th>
-  <th>1024³</th>
-  <th>4096³</th>
-</tr>
-<tr><td colspan="4"><b>bf16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_bf16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f16</b></td></tr>
-<tr>
-  <td><code>nk_maxsim_packed_f16_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                              |                     256³ |                    1024³ |                    4096³ |
+| :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_maxsim_packed_f16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |

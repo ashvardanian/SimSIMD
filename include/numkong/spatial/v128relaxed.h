@@ -378,9 +378,9 @@ NK_INTERNAL void nk_euclidean_through_f32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = dots.v128;
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat(query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, target_sumsqs.v128);
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
@@ -402,9 +402,9 @@ NK_INTERNAL void nk_euclidean_through_i32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = wasm_f32x4_convert_i32x4(dots.v128);
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat((nk_f32_t)query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, wasm_f32x4_convert_i32x4(target_sumsqs.v128));
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
@@ -426,9 +426,9 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = wasm_f32x4_convert_u32x4(dots.v128);
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat((nk_f32_t)query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, wasm_f32x4_convert_u32x4(target_sumsqs.v128));
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
@@ -444,7 +444,7 @@ NK_PUBLIC void nk_sqeuclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b,
 
 nk_sqeuclidean_u8_v128relaxed_cycle:
     if (count_scalars < 16) {
-        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_b128_vec_t a_vec = {0}, b_vec = {0};
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         a_u8x16 = a_vec.v128;
@@ -513,8 +513,8 @@ NK_PUBLIC void nk_angular_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_
             dot_bb_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(b_u8x16, b_signed_i8x16, dot_bb_i32x4);
 
             // Sum accumulators for correction: u8→u16 only (1 widening/iter)
-            sum_a_u16x8 = wasm_u16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
-            sum_b_u16x8 = wasm_u16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
+            sum_a_u16x8 = wasm_i16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
+            sum_b_u16x8 = wasm_i16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
         }
 
         // Deferred widening: u16 → u32 once per window
@@ -557,7 +557,7 @@ NK_PUBLIC void nk_sqeuclidean_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b,
 
 nk_sqeuclidean_i8_v128relaxed_cycle:
     if (count_scalars < 16) {
-        nk_b128_vec_t a_vec = {{0}}, b_vec = {{0}};
+        nk_b128_vec_t a_vec = {0}, b_vec = {0};
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         a_u8x16 = wasm_v128_xor(a_vec.v128, bias_u8x16);

@@ -139,7 +139,7 @@ NK_PUBLIC void maxsim_reference(typename in_type_::raw_t const *queries, std::si
         in_type_ const *query_row = reinterpret_cast<in_type_ const *>(reinterpret_cast<char const *>(queries) +
                                                                        query_index * query_stride);
 
-        result_type_ min_angular = result_type_::from_raw(std::numeric_limits<float>::max());
+        result_type_ min_angular = result_type_::finite_max();
 
         for (std::size_t document_index = 0; document_index < document_count; document_index++) {
             in_type_ const *document_row = reinterpret_cast<in_type_ const *>(
@@ -148,7 +148,7 @@ NK_PUBLIC void maxsim_reference(typename in_type_::raw_t const *queries, std::si
             result_type_ angular_distance {};
             angular<in_type_, result_type_, allow_simd_>(query_row, document_row, depth, &angular_distance);
 
-            if (angular_distance.raw_ < min_angular.raw_) min_angular = angular_distance;
+            if (angular_distance < min_angular) min_angular = angular_distance;
         }
 
         total_angular_distance = total_angular_distance + min_angular;

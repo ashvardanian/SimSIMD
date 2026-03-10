@@ -74,6 +74,8 @@ struct bench_config_t {
     std::size_t sparse_second_length = 8192;
     /** Sparse intersection share [0.0, 1.0]. Override: `NK_SPARSE_INTERSECTION`. */
     double sparse_intersection_share = 0.5;
+    /** Max angular separation in degrees for geospatial benchmarks. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
+    float geospatial_max_angle = 180.0f;
     /** Memory budget in bytes for pre-allocated inputs. Override: `NK_BUDGET_MB`. */
     std::size_t budget_bytes = std::size_t(1024) * 1024 * 1024;
 };
@@ -108,7 +110,11 @@ inline std::size_t bench_input_count(std::size_t bytes_per_set) {
 template <typename type_>
 [[nodiscard]] nk::vector<type_> make_vector(std::size_t count) {
     auto result = nk::vector<type_>::try_zeros(count);
+#if defined(__cpp_exceptions) && __cpp_exceptions
     if (result.empty() && count > 0) throw std::bad_alloc();
+#else
+    if (result.empty() && count > 0) std::abort();
+#endif
     return result;
 }
 
@@ -136,7 +142,11 @@ template <nk_dtype_t dtype_>
 
     std::size_t total_dims = total_values * nk::dimensions_per_value<type_>();
     auto result = nk::vector<type_>::try_zeros(total_dims);
+#if defined(__cpp_exceptions) && __cpp_exceptions
     if (result.empty() && total_dims > 0) throw std::bad_alloc();
+#else
+    if (result.empty() && total_dims > 0) std::abort();
+#endif
     return result;
 }
 
@@ -784,6 +794,7 @@ void bench_trigonometry();
 void bench_geospatial();
 void bench_mesh();
 void bench_sparse();
+void bench_sparse_dot();
 void bench_cast();
 void bench_reduce();
 void bench_maxsim();

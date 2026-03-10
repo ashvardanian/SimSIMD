@@ -35,10 +35,10 @@ Input coordinates are in radians, output distances are in meters.
 
 ## Input & Output Types
 
-| Input Type | Output Type | Description                      |
-| ---------- | ----------- | -------------------------------- |
-| `f64`      | `f64`       | 64-bit double precision          |
-| `f32`      | `f32`       | 32-bit single precision          |
+| Input Type | Output Type | Description             |
+| ---------- | ----------- | ----------------------- |
+| `f64`      | `f64`       | 64-bit double precision |
+| `f32`      | `f32`       | 32-bit single precision |
 
 ## Optimizations
 
@@ -65,396 +65,83 @@ The kernels compute the full distance by default, but the streaming API can opti
 
 ## Performance
 
+The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
+The input size is controlled by the `NK_GEOSPATIAL_MAX_ANGLE` environment variable and set to ≤1°, ≤30°, and ≤180° maximum angular separation between pairs of coordinates.
+The larger the angular separation between pairs, the longer the algorithm may take to converge and the higher the error.
+The throughput is measured in MP/s as the number of Millions of pairwise point distances computed per second - amortized for a large batch size, with `NK_DENSE_DIMENSIONS=1536` by default.
+Accuracy is reported as max absolute error in meters using SI prefixes (nm, µm, mm, m), measuring the distance difference from Vincenty's formula computed at double-double (f118) precision.
+Each kernel runs for at least 20 seconds per configuration.
+Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
+Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+
 ### Intel Sapphire Rapids
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_haswell</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_skylake</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                     |                      ≤1° |                     ≤30° |                    ≤180° |
+| :------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f64_serial`  |       61.2 mp/s, 1.12 km |       59.2 mp/s, 32.8 km |        66.3 mp/s, 148 km |
+| `nk_vincenty_f64_serial`   |       18.0 mp/s, 2.07 nm |       15.1 mp/s, 2.79 nm |        14.6 mp/s, 594 nm |
+| `nk_haversine_f64_haswell` |      2,340 mp/s, 1.12 km |      2,420 mp/s, 32.8 km |       2,250 mp/s, 148 km |
+| `nk_vincenty_f64_haswell`  |        375 mp/s, 1.96 nm |        288 mp/s, 2.79 nm |         229 mp/s, 594 nm |
+| `nk_haversine_f64_skylake` |      3,480 mp/s, 1.12 km |      3,810 mp/s, 32.8 km |       3,230 mp/s, 148 km |
+| `nk_vincenty_f64_skylake`  |        623 mp/s, 6.32 µm |        593 mp/s, 6.16 µm |        342 mp/s, 6.32 µm |
+| __f32__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f32_serial`  |      786 mp/s, 20,000 km |        826 mp/s, 32.8 km |         964 mp/s, 146 km |
+| `nk_vincenty_f32_serial`   |     49.0 mp/s, 20,000 km |        36.4 mp/s, 12.2 m |        28.9 mp/s, 22.0 m |
+| `nk_haversine_f32_haswell` |    4,200 mp/s, 20,000 km |      4,440 mp/s, 32.8 km |       3,440 mp/s, 146 km |
+| `nk_vincenty_f32_haswell`  |         891 mp/s, 11.7 m |         704 mp/s, 12.5 m |         268 mp/s, 22.0 m |
+| `nk_haversine_f32_skylake` |    5,920 mp/s, 20,000 km |      6,550 mp/s, 32.8 km |       5,260 mp/s, 146 km |
+| `nk_vincenty_f32_skylake`  |       1,290 mp/s, 11.7 m |       1,350 mp/s, 12.5 m |         325 mp/s, 22.0 m |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                         |                      ≤1° |                     ≤30° |                    ≤180° |
+| :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f64_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f64_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f32_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f32_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
 
 ### Apple M4 Pro
 
 #### Native
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_neon</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                    |                      ≤1° |                     ≤30° |                    ≤180° |
+| :------------------------ | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f64_serial` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_serial`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f64_neon`   |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_neon`    |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| __f32__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f32_serial` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_serial`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f32_neon`   |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_neon`    |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
 
-#### V8 (Chromium)
+#### WASM
 
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+Measured with Wasmtime v42 (Cranelift backend).
 
-#### Wasmtime (Cranelift)
-
-<table>
-<tr>
-  <th>Kernel</th>
-  <th>256</th>
-  <th>1024</th>
-  <th>4096</th>
-</tr>
-<tr><td colspan="4"><b>f64</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f64_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr><td colspan="4"><b>f32</b></td></tr>
-<tr>
-  <td><code>nk_haversine_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_serial</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_haversine_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-<tr>
-  <td><code>nk_vincenty_f32_v128relaxed</code></td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-  <td>0 GB/s<br>0 ULP, 0%</td>
-</tr>
-</table>
+| Kernel                         |                      ≤1° |                     ≤30° |                    ≤180° |
+| :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
+| __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f64_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f64_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f64_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_haversine_f32_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f32_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_vincenty_f32_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |

@@ -46,7 +46,7 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * first_clouds[0].size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["points"] = bm::Counter(iterations * points_count, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -121,6 +121,15 @@ void bench_mesh() {
     run_mesh<bf16_k>("rmsd_bf16_rvv", nk_rmsd_bf16_rvv);
     run_mesh<bf16_k>("kabsch_bf16_rvv", nk_kabsch_bf16_rvv);
     run_mesh<bf16_k>("umeyama_bf16_rvv", nk_umeyama_bf16_rvv);
+#endif
+
+#if NK_TARGET_V128RELAXED
+    run_mesh<f32_k>("rmsd_f32_v128relaxed", nk_rmsd_f32_v128relaxed);
+    run_mesh<f32_k>("kabsch_f32_v128relaxed", nk_kabsch_f32_v128relaxed);
+    run_mesh<f32_k>("umeyama_f32_v128relaxed", nk_umeyama_f32_v128relaxed);
+    run_mesh<f64_k>("rmsd_f64_v128relaxed", nk_rmsd_f64_v128relaxed);
+    run_mesh<f64_k>("kabsch_f64_v128relaxed", nk_kabsch_f64_v128relaxed);
+    run_mesh<f64_k>("umeyama_f64_v128relaxed", nk_umeyama_f64_v128relaxed);
 #endif
 
     // Serial fallbacks

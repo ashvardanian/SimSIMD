@@ -87,6 +87,8 @@ void test_cross_serial() {
     run_if_matches("dots_symmetric_e3m2_serial", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_serial);
     run_if_matches("dots_symmetric_i8_serial", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_serial);
     run_if_matches("dots_symmetric_u8_serial", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_serial);
+    run_if_matches("dots_symmetric_i4_serial", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_serial);
+    run_if_matches("dots_symmetric_u4_serial", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_serial);
     run_if_matches("dots_symmetric_u1_serial", test_dots_symmetric<u1x8_t>, nk_dots_symmetric_u1_serial);
 
     // Serial hammings tests

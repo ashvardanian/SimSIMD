@@ -101,21 +101,6 @@ void print_stats_header() noexcept {
     std::printf("\n");
 }
 
-/**
- *  @brief Test FP8 (e4m3) conversions round-trip accuracy.
- */
-void test_fp8_conversions() {
-    float test_values[] = {0.0f, 1.0f, -1.0f, 0.5f, -0.5f, 2.0f, -2.0f, 0.125f, 8.0f};
-    error_stats_t stats;
-    for (float expected : test_values) {
-        nk_e4m3_t e4m3;
-        float roundtrip;
-        nk_f32_to_e4m3(&expected, &e4m3);
-        nk_e4m3_to_f32(&e4m3, &roundtrip);
-        stats.accumulate(f32_t(roundtrip), f32_t(expected));
-    }
-    stats.report("fp8_e4m3_roundtrip");
-}
 
 int main(int argc, char **argv) {
 
@@ -181,7 +166,8 @@ int main(int argc, char **argv) {
                 "  NK_RANDOM_DISTRIBUTION=X   uniform_k, cauchy_k, lognormal_k\n"                          //
                 "  NK_DENSE_DIMENSIONS=N      Override dense vector dimensions\n"                          //
                 "  NK_CURVED_DIMENSIONS=N     Override curved vector dimensions\n"                         //
-                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n");                       //
+                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n"                         //
+                "  NK_GEOSPATIAL_MAX_ANGLE=N  Max angular separation in degrees (default: 180)\n");        //
             return 0;
         }
         else {
@@ -241,6 +227,10 @@ int main(int argc, char **argv) {
     if (char const *env = std::getenv("NK_MATRIX_DEPTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) global_config.matrix_depth = val;
+    }
+    if (char const *env = std::getenv("NK_GEOSPATIAL_MAX_ANGLE")) {
+        float val = static_cast<float>(std::atof(env));
+        if (val > 0) global_config.geospatial_max_angle = val;
     }
 
     nk_capability_t runtime_caps = nk_capabilities();
@@ -324,7 +314,6 @@ int main(int argc, char **argv) {
 
     // Print a table header
     print_stats_header();
-    test_fp8_conversions();
     test_casts();
 
     // Core operation tests
@@ -333,7 +322,7 @@ int main(int argc, char **argv) {
     test_curved();
     test_probability();
     test_set();
-    test_elementwise();
+    test_each();
     test_trigonometry();
     test_reduce();
     test_geospatial();

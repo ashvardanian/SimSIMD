@@ -14,7 +14,7 @@
 #   -D NK_COMPARE_TO_MKL=<ON|OFF>       (default: OFF)
 #   -D NK_BUILD_SHARED=<ON|OFF>         (default: OFF)
 #   -D NK_BUILD_SHARED_TEST=<ON|OFF>    (default: OFF, requires NK_BUILD_SHARED)
-#   -D NK_WASI_STANDALONE=<ON|OFF>      (default: OFF, no host imports)
+#   -D NK_WASI_HOSTED=<ON|OFF>          (default: OFF, import capability probes from host)
 #
 # Different SIMD ISA extensions reqiore different compiler versions:
 #
@@ -93,7 +93,7 @@ option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT_})
 option(NK_BUILD_SHARED_TEST "Compile shared-library tests (requires NK_BUILD_SHARED)" OFF)
 option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF)
 option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
-option(NK_WASI_STANDALONE "Build for standalone WASI runtimes (no host imports)" OFF)
+option(NK_WASI_HOSTED "Import capability probes from WASI host environment" OFF)
 
 # `add_test()` entries are only generated when testing is enabled.
 if (NK_BUILD_TEST OR NK_BUILD_SHARED_TEST)
@@ -356,7 +356,11 @@ if (NK_BUILD_BENCH)
     set(BENCHMARK_USE_BUNDLED_GTEST ON CACHE BOOL "" FORCE)
     set(HAVE_STD_REGEX ON CACHE BOOL "Force std::regex for Google Benchmark" FORCE)
 
-    FetchContent_Declare(benchmark GIT_REPOSITORY https://github.com/google/benchmark.git GIT_TAG v1.9.4)
+    FetchContent_Declare(
+        benchmark
+        GIT_REPOSITORY https://github.com/ashvardanian/benchmark.git
+        GIT_TAG acaa13e7ebc08fad0a0017dbed0ea2e38497c677
+    )
     FetchContent_MakeAvailable(benchmark)
 
     # Remove the Google Benchmark's "built in debug warning"
@@ -377,19 +381,30 @@ if (NK_BUILD_BENCH)
     )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
-    if (NK_BLAS_FOUND)
+    # WASI-specific configuration for benchmarks
+    if (NK_IS_WASI_PROJECT_)
+        if (NK_WASI_HOSTED)
+            target_compile_definitions(nk_bench PRIVATE NK_DEFINED_WASI_=0)
+        endif ()
+
+        set_target_properties(nk_bench PROPERTIES OUTPUT_NAME "nk_bench.wasm")
+        target_link_options(nk_bench PRIVATE -Wl,--export=main -Wl,--export=_start)
+        message(STATUS "NumKong: Building benchmarks for WASI (output: nk_bench.wasm)")
+    endif ()
+
+    if (NK_BLAS_FOUND AND NOT NK_IS_WASI_PROJECT_)
         target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_BLAS=1)
         target_include_directories(nk_bench PRIVATE ${NK_BLAS_INCLUDE_DIRS})
         target_link_libraries(nk_bench ${NK_BLAS_LIBRARIES})
     endif ()
 
-    if (NK_ACCELERATE_FOUND)
+    if (NK_ACCELERATE_FOUND AND NOT NK_IS_WASI_PROJECT_)
         target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_ACCELERATE=1 ACCELERATE_NEW_LAPACK)
         target_include_directories(nk_bench PRIVATE ${NK_ACCELERATE_INCLUDE_DIRS})
         target_link_libraries(nk_bench ${NK_ACCELERATE_LIBRARIES})
     endif ()
 
-    if (NK_MKL_FOUND)
+    if (NK_MKL_FOUND AND NOT NK_IS_WASI_PROJECT_)
         target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_MKL=1)
         target_include_directories(nk_bench PRIVATE ${NK_MKL_INCLUDE_DIRS})
         target_link_libraries(nk_bench ${NK_MKL_LIBRARIES})
@@ -425,15 +440,13 @@ if (NK_BUILD_TEST)
 
     # WASI-specific configuration
     if (NK_IS_WASI_PROJECT_)
-        target_compile_definitions(nk_test PRIVATE NK_WASI_BUILD=1)
-
-        if (NK_WASI_STANDALONE)
-            target_compile_definitions(nk_test PRIVATE NK_WASI_STANDALONE=1)
+        if (NK_WASI_HOSTED)
+            target_compile_definitions(nk_test PRIVATE NK_DEFINED_WASI_=0)
         endif ()
 
-        set_target_properties(nk_test PROPERTIES OUTPUT_NAME "test.wasm")
+        set_target_properties(nk_test PROPERTIES OUTPUT_NAME "nk_test.wasm")
         target_link_options(nk_test PRIVATE -Wl,--export=main -Wl,--export=_start)
-        message(STATUS "NumKong: Building tests for WASI (output: test.wasm)")
+        message(STATUS "NumKong: Building tests for WASI (output: nk_test.wasm)")
     endif ()
 
     if (NK_BLAS_FOUND AND NOT NK_IS_WASI_PROJECT_)
@@ -528,6 +541,19 @@ if (NK_BUILD_SHARED)
         add_library(nk_shared SHARED ${NK_SOURCES})
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
         set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
+
+        # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
+        # Strip unwind tables from this pure-C library (saves ~78 KB).
+        if (NOT MSVC)
+            target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+        endif ()
+
+        # Enable link-time optimization for Release builds.
+        include(CheckIPOSupported)
+        check_ipo_supported(RESULT NK_IPO_SUPPORTED_)
+        if (NK_IPO_SUPPORTED_)
+            set_target_properties(nk_shared PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        endif ()
 
         # NK_TARGET_* defines — match the OS×arch matrix from setup.py
         # x86-64
