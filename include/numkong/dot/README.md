@@ -103,6 +103,14 @@ For u8 × u8, $b$ is XORed with `0x80` to shift into signed range, same as Ice L
 Each `VDPBF16PS` fuses two BF16 multiply-adds per 32-bit lane at 6-cycle throughput.
 `nk_dot_bf16c_genoa` uses the same instruction for complex BF16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
 
+### Deferred Sign-Flip in Complex Dot Products
+
+The Haswell bf16c/f16c/f32c kernels compute $\sum (a_r b_r - a_i b_i)$ without per-pair subtraction.
+Instead, two accumulators collect interleaved products $[a_r b_r, a_i b_i, \ldots]$ and $[a_r b_i, a_i b_r, \ldots]$, and a post-loop XOR flips the sign of every odd lane to produce the subtraction.
+This gives one FMA per accumulator per iteration, but each lane grows $O(n)$ while the true result is $O(\sqrt{n})$.
+The f32c kernel absorbs this via f64 accumulators; Genoa's `VDPBF16PS` and ARM's `FMLSL` pair terms naturally.
+For bf16c/f16c on Haswell the accumulator is f32, so the $O(\log n)$ precision loss from lane separation is visible in max ULP at large $n$, though mean ULP remains low.
+
 ### Widening Fusion Through F16 on Arm
 
 `nk_dot_f16_neonfhm`, `nk_dot_f16c_neonfhm`, `nk_dot_e2m3_neonfhm`, `nk_dot_e3m2_neonfhm` use the ARMv8.4-FHM instructions `FMLAL`/`FMLSL`, which fuse FP16-to-FP32 conversion with multiply-accumulate in a single operation.
