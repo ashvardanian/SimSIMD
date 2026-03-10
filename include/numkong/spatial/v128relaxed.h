@@ -378,9 +378,9 @@ NK_INTERNAL void nk_euclidean_through_f32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = dots.v128;
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat(query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, target_sumsqs.v128);
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
@@ -402,9 +402,9 @@ NK_INTERNAL void nk_euclidean_through_i32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = wasm_f32x4_convert_i32x4(dots.v128);
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat((nk_f32_t)query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, wasm_f32x4_convert_i32x4(target_sumsqs.v128));
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
@@ -426,9 +426,9 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_v128relaxed_(nk_b128_vec_t do
                                                                 nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
     v128_t dots_f32x4 = wasm_f32x4_convert_u32x4(dots.v128);
     v128_t query_sumsq_f32x4 = wasm_f32x4_splat((nk_f32_t)query_sumsq);
+    v128_t two_f32x4 = wasm_f32x4_splat(2.0f);
     v128_t sum_sq_f32x4 = wasm_f32x4_add(query_sumsq_f32x4, wasm_f32x4_convert_u32x4(target_sumsqs.v128));
-    v128_t two_dot_f32x4 = wasm_f32x4_mul(wasm_f32x4_splat(2.0f), dots_f32x4);
-    v128_t dist_sq_f32x4 = wasm_f32x4_sub(sum_sq_f32x4, two_dot_f32x4);
+    v128_t dist_sq_f32x4 = wasm_f32x4_relaxed_nmadd(two_f32x4, dots_f32x4, sum_sq_f32x4);
     dist_sq_f32x4 = wasm_f32x4_max(dist_sq_f32x4, wasm_f32x4_splat(0.0f));
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }

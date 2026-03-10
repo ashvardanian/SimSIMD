@@ -98,7 +98,8 @@ NK_INTERNAL v128_t nk_f32x4_cos_v128relaxed_(v128_t const angles_radians) {
     v128_t const coeff_1 = wasm_f32x4_splat(-0.1666651368f);
 
     // Compute round((angle / pi) - 0.5)
-    v128_t quotients = wasm_f32x4_sub(wasm_f32x4_mul(angles_radians, pi_reciprocal), wasm_f32x4_splat(0.5f));
+    v128_t const neg_half = wasm_f32x4_splat(-0.5f);
+    v128_t quotients = wasm_f32x4_relaxed_madd(angles_radians, pi_reciprocal, neg_half);
     v128_t rounded_quotients = wasm_f32x4_nearest(quotients);
     // relaxed_trunc: 1 instruction (cvttps2dq) vs 7 (with NaN/overflow fixup) on x86.
     // Safe because rounded_quotients are small integers from nearest(), never NaN or out of i32 range.
@@ -336,7 +337,8 @@ NK_INTERNAL v128_t nk_f64x2_cos_v128relaxed_(v128_t const angles_radians) {
     v128_t const coeff_8 = wasm_f64x2_splat(-0.166666666666666657414808);
 
     // Compute 2 * round(angle / pi - 0.5) + 1
-    v128_t const quotients = wasm_f64x2_sub(wasm_f64x2_mul(angles_radians, pi_reciprocal), wasm_f64x2_splat(0.5));
+    v128_t const neg_half = wasm_f64x2_splat(-0.5);
+    v128_t const quotients = wasm_f64x2_relaxed_madd(angles_radians, pi_reciprocal, neg_half);
     v128_t const rounded = wasm_f64x2_nearest(quotients);
     v128_t const rounded_quotients = wasm_f64x2_relaxed_madd(wasm_f64x2_splat(2.0), rounded, wasm_f64x2_splat(1.0));
     // relaxed_trunc: 1 instruction (cvttpd2dq) vs 7 (with NaN/overflow fixup) on x86.
