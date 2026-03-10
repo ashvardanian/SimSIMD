@@ -26,6 +26,11 @@ extern "C" {
 #pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
 #endif
 
+/** @brief Native WASM SIMD 128-bit load. */
+NK_INTERNAL void nk_load_b128_v128relaxed_(void const *src, nk_b128_vec_t *dst) { dst->v128 = wasm_v128_load(src); }
+/** @brief Native WASM SIMD 128-bit store. */
+NK_INTERNAL void nk_store_b128_v128relaxed_(nk_b128_vec_t const *src, void *dst) { wasm_v128_store(dst, src->v128); }
+
 NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec) {
     // Load 4x u16 (64 bits) into lower half of v128, zero upper half
     v128_t bf16_u16x4_in_u64 = wasm_v128_load64_zero(&bf16_vec.u64);
