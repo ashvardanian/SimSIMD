@@ -1058,6 +1058,47 @@ NK_PUBLIC void nk_vdot_f64c_v128relaxed(nk_f64c_t const *a_pairs, nk_f64c_t cons
     result->imag = wasm_f64x2_extract_lane(sum_imag_f64x2, 0) + wasm_f64x2_extract_lane(sum_imag_f64x2, 1);
 }
 
+typedef struct nk_dot_u1x128_state_v128relaxed_t {
+    v128_t dot_count_u32x4;
+} nk_dot_u1x128_state_v128relaxed_t;
+
+NK_INTERNAL void nk_dot_u1x128_init_v128relaxed(nk_dot_u1x128_state_v128relaxed_t *state) {
+    state->dot_count_u32x4 = wasm_u32x4_const(0, 0, 0, 0);
+}
+
+NK_INTERNAL void nk_dot_u1x128_update_v128relaxed(nk_dot_u1x128_state_v128relaxed_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
+    (void)depth_offset;
+    (void)active_dimensions;
+    v128_t and_u8x16 = wasm_v128_and(a.v128, b.v128);
+    v128_t popcount_u8x16 = wasm_i8x16_popcnt(and_u8x16);
+    v128_t popcount_u16x8 = wasm_u16x8_extadd_pairwise_u8x16(popcount_u8x16);
+    v128_t popcount_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(popcount_u16x8);
+    state->dot_count_u32x4 = wasm_i32x4_add(state->dot_count_u32x4, popcount_u32x4);
+}
+
+NK_INTERNAL void nk_dot_u1x128_finalize_v128relaxed(                                                    //
+    nk_dot_u1x128_state_v128relaxed_t const *state_a, nk_dot_u1x128_state_v128relaxed_t const *state_b, //
+    nk_dot_u1x128_state_v128relaxed_t const *state_c, nk_dot_u1x128_state_v128relaxed_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    v128_t a_u32x4 = state_a->dot_count_u32x4, b_u32x4 = state_b->dot_count_u32x4;
+    v128_t c_u32x4 = state_c->dot_count_u32x4, d_u32x4 = state_d->dot_count_u32x4;
+    // Step 1: interleave pairs
+    v128_t ab_lo_u32x4 = wasm_i32x4_shuffle(a_u32x4, b_u32x4, 0, 4, 1, 5); // a0 b0 a1 b1
+    v128_t ab_hi_u32x4 = wasm_i32x4_shuffle(a_u32x4, b_u32x4, 2, 6, 3, 7); // a2 b2 a3 b3
+    v128_t cd_lo_u32x4 = wasm_i32x4_shuffle(c_u32x4, d_u32x4, 0, 4, 1, 5); // c0 d0 c1 d1
+    v128_t cd_hi_u32x4 = wasm_i32x4_shuffle(c_u32x4, d_u32x4, 2, 6, 3, 7); // c2 d2 c3 d3
+    // Step 2: pairwise add
+    v128_t sum_02_u32x4 = wasm_i32x4_add(ab_lo_u32x4, ab_hi_u32x4); // a02 b02 a13 b13
+    v128_t sum_13_u32x4 = wasm_i32x4_add(cd_lo_u32x4, cd_hi_u32x4); // c02 d02 c13 d13
+    // Step 3: final interleave
+    v128_t even_u32x4 = wasm_i32x4_shuffle(sum_02_u32x4, sum_13_u32x4, 0, 1, 4, 5);
+    v128_t odd_u32x4 = wasm_i32x4_shuffle(sum_02_u32x4, sum_13_u32x4, 2, 3, 6, 7);
+    result->v128 = wasm_i32x4_add(even_u32x4, odd_u32x4); // [sum_a, sum_b, sum_c, sum_d]
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #endif
