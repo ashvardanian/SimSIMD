@@ -199,40 +199,56 @@ NK_PUBLIC void nk_dot_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_dot_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
-    nk_i64_t sum_total = 0;
+    nk_i64_t biased_sum_total = 0;
     nk_i64_t sum_a_total = 0;
+    nk_i64_t sum_b_total = 0;
     nk_size_t i = 0;
 
-    // Windowed accumulation loop
+    // Bias u8 [0,255] → i8 [-128,127] before relaxed_dot to avoid the internal i16 saturation.
     while (i + 16 <= n) {
-        v128_t sum_dot_i32x4 = wasm_i32x4_splat(0);
-        v128_t sum_a_u16x8 = wasm_u16x8_splat(0); // accumulate in u16
+        v128_t biased_dot_i32x4 = wasm_i32x4_splat(0);
+        v128_t correction_i16x8 = wasm_i16x8_splat(0);
+        v128_t sum_a_u16x8 = wasm_u16x8_splat(0);
+        v128_t sum_b_u16x8 = wasm_u16x8_splat(0);
 
-        // Inner loop: accumulate 128 iterations before widening sum_a
-        // Overflow safety: max u16 lane = 128 × 510 = 65280 < 65535
+        // Overflow safety:
+        // - correction_i16x8 max lane magnitude is 127 * 128 = 16256 < 32767
+        // - sum_a/sum_b max lane is 127 * 510 = 64770 < 65535
         nk_size_t cycle = 0;
-        for (; cycle < 128 && i + 16 <= n; ++cycle, i += 16) {
+        for (; cycle < 127 && i + 16 <= n; ++cycle, i += 16) {
             v128_t a_u8x16 = wasm_v128_load(a + i);
             v128_t b_u8x16 = wasm_v128_load(b + i);
-            v128_t b_signed_i8x16 = wasm_v128_xor(b_u8x16, wasm_i8x16_splat((char)0x80));
-            sum_dot_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_u8x16, b_signed_i8x16, sum_dot_i32x4);
-            sum_a_u16x8 = wasm_i16x8_add(sum_a_u16x8,
-                                         wasm_u16x8_extadd_pairwise_u8x16(a_u8x16)); // 1 widening/iter
+            v128_t a_i8x16 = wasm_v128_xor(a_u8x16, wasm_i8x16_splat((char)0x80));
+            v128_t b_i8x16 = wasm_v128_xor(b_u8x16, wasm_i8x16_splat((char)0x80));
+            v128_t b_7bit_u8x16 = wasm_v128_and(b_i8x16, wasm_i8x16_splat(0x7F));
+            v128_t b_neg_mask_i8x16 = wasm_i8x16_lt(b_i8x16, wasm_i8x16_splat(0));
+
+            biased_dot_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_i8x16, b_7bit_u8x16, biased_dot_i32x4);
+            correction_i16x8 = wasm_i16x8_add(
+                correction_i16x8, wasm_i16x8_extadd_pairwise_i8x16(wasm_v128_and(a_i8x16, b_neg_mask_i8x16)));
+            sum_a_u16x8 = wasm_i16x8_add(sum_a_u16x8, wasm_u16x8_extadd_pairwise_u8x16(a_u8x16));
+            sum_b_u16x8 = wasm_i16x8_add(sum_b_u16x8, wasm_u16x8_extadd_pairwise_u8x16(b_u8x16));
         }
 
-        // Deferred widening: u16 → u32 once per window
+        v128_t correction_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(correction_i16x8);
         v128_t sum_a_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(sum_a_u16x8);
-        sum_total += nk_reduce_add_i32x4_v128relaxed_(sum_dot_i32x4);
+        v128_t sum_b_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(sum_b_u16x8);
+        biased_sum_total += nk_reduce_add_i32x4_v128relaxed_(biased_dot_i32x4) -
+                            128LL * nk_reduce_add_i32x4_v128relaxed_(correction_i32x4);
         sum_a_total += nk_reduce_add_u32x4_v128relaxed_(sum_a_u32x4);
+        sum_b_total += nk_reduce_add_u32x4_v128relaxed_(sum_b_u32x4);
     }
 
-    // Scalar tail
     for (; i < n; i++) {
-        sum_total += (nk_i32_t)a[i] * (nk_i32_t)b[i];
+        nk_i32_t a_biased = (nk_i32_t)a[i] - 128;
+        nk_i32_t b_biased = (nk_i32_t)b[i] - 128;
+        biased_sum_total += (nk_i64_t)a_biased * b_biased;
         sum_a_total += a[i];
+        sum_b_total += b[i];
     }
 
-    *result = (nk_u32_t)(sum_total + 128LL * sum_a_total);
+    biased_sum_total += 128LL * (sum_a_total + sum_b_total) - (nk_i64_t)n * 16384LL;
+    *result = (nk_u32_t)biased_sum_total;
 }
 
 NK_PUBLIC void nk_dot_e2m3_v128relaxed(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
