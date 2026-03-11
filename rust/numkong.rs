@@ -24,7 +24,7 @@
 //!
 //! * Euclidean (L2), inner product, and angular (cosine) spatial distances.
 //! * Hamming and Jaccard binary distances.
-//! * Kullback-Leibler and Jensen-Shannon divergences.
+//! * Kullback-Leibler divergence and Jensen-Shannon distance.
 //! * Elementwise scale, sum, blend, and FMA operations.
 //! * Trigonometric functions (sin, cos, atan).
 //! * Type casting between all scalar formats.
@@ -83,7 +83,7 @@
 //!
 //! The `ProbabilitySimilarity` trait (combining `KullbackLeibler`, `JensenShannon`) covers:
 //!
-//! - `jensenshannon(a, b)`: Computes Jensen-Shannon divergence.
+//! - `jensenshannon(a, b)`: Computes Jensen-Shannon distance.
 //! - `kullbackleibler(a, b)`: Computes Kullback-Leibler divergence.
 //!
 //! The elementwise traits (including `EachScale`, `EachSum`, `EachBlend`, `EachFMA`) covers:

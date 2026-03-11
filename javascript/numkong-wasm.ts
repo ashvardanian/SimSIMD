@@ -475,10 +475,10 @@ export function kullbackleibler(a: TensorBase | Float64Array | Float32Array, b: 
 }
 
 /**
- * Computes the Jensen-Shannon divergence between two probability distributions.
+ * Computes the Jensen-Shannon distance between two probability distributions.
  * @param a - First probability distribution (Float32Array, Float64Array, or TensorBase).
  * @param b - Second probability distribution (must match type and length of a).
- * @returns The Jensen-Shannon divergence between a and b.
+ * @returns The Jensen-Shannon distance between a and b.
  */
 export function jensenshannon(a: TensorBase | Float64Array | Float32Array, b: TensorBase | Float64Array | Float32Array): number {
   if (!Module) {

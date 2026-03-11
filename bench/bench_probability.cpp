@@ -1,5 +1,5 @@
 /**
- *  @brief KL-divergence and Jensen-Shannon divergence benchmarks.
+ *  @brief KL-divergence and Jensen-Shannon distance benchmarks.
  *  @file bench/bench_probability.cpp
  *  @author Ash Vardanian
  *  @date March 14, 2023

@@ -69,7 +69,7 @@ fn main() {
 
 Complex inner products are available for `f64`, `f32`, and `f16` types.
 
-## Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
+## Probability Distributions: Jensen-Shannon Distance and Kullback-Leibler Divergence
 
 ```rust
 use numkong::ProbabilitySimilarity;
@@ -81,7 +81,7 @@ fn main() {
     let jensen_shannon = f32::jensenshannon(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Jensen-Shannon Divergence: {}", jensen_shannon);
+    println!("Jensen-Shannon Distance: {}", jensen_shannon);
 
     let kullback_leibler = f32::kullbackleibler(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");

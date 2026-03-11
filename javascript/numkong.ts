@@ -347,16 +347,16 @@ export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array | T
 }
 
 /**
- * Computes the Jensen-Shannon divergence between two probability distributions.
+ * Computes the Jensen-Shannon distance between two probability distributions.
  *
  * Both vectors must represent valid probability distributions (non-negative, sum to 1).
  * Supports f64, f32 (auto-detected) and f16, bf16 (with explicit dtype).
- * JSD is the symmetrized version of KL divergence.
+ * JSD is the square root of the symmetrized KL divergence, forming a true metric.
  *
  * @param a - The first probability distribution.
  * @param b - The second probability distribution (must match the type of a).
  * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16').
- * @returns {number} The Jensen-Shannon divergence JS(a, b) = 0.5 * (KL(a || m) + KL(b || m)) where m = (a + b) / 2.
+ * @returns {number} The Jensen-Shannon distance d_JS(a, b) = √(0.5 × (KL(a‖m) + KL(b‖m))), where m = (a + b) / 2.
  */
 export function jensenshannon(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number;
 export function jensenshannon(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype: DType): number;

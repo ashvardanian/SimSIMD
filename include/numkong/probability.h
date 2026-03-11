@@ -7,7 +7,7 @@
  *  Contains following similarity measures:
  *
  *  - Kullback-Leibler Divergence (KLD)
- *  - Jensen-Shannon Divergence (JSD)
+ *  - Jensen-Shannon Distance (JSD)
  *
  *  For dtypes:
  *
@@ -117,55 +117,55 @@ NK_DYNAMIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk
  */
 NK_DYNAMIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /**
- *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *  @brief Jensen-Shannon distance between two discrete probability distributions.
  *
  *  @param[in] a The first discrete probability distribution.
  *  @param[in] b The second discrete probability distribution.
  *  @param[in] n The number of elements in the distributions.
- *  @param[out] result The output divergence value.
+ *  @param[out] result The output distance value.
  *
  *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two distributions are identical.
  */
 NK_DYNAMIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /**
- *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *  @brief Jensen-Shannon distance between two discrete probability distributions.
  *
  *  @param[in] a The first discrete probability distribution.
  *  @param[in] b The second discrete probability distribution.
  *  @param[in] n The number of elements in the distributions.
- *  @param[out] result The output divergence value.
+ *  @param[out] result The output distance value.
  *
  *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two distributions are identical.
  */
 NK_DYNAMIC void nk_jsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /**
- *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *  @brief Jensen-Shannon distance between two discrete probability distributions.
  *
  *  @param[in] a The first discrete probability distribution.
  *  @param[in] b The second discrete probability distribution.
  *  @param[in] n The number of elements in the distributions.
- *  @param[out] result The output divergence value.
+ *  @param[out] result The output distance value.
  *
  *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two distributions are identical.
  */
 NK_DYNAMIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /**
- *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *  @brief Jensen-Shannon distance between two discrete probability distributions.
  *
  *  @param[in] a The first discrete probability distribution.
  *  @param[in] b The second discrete probability distribution.
  *  @param[in] n The number of elements in the distributions.
- *  @param[out] result The output divergence value.
+ *  @param[out] result The output distance value.
  *
  *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two distributions are identical.
  */
 NK_DYNAMIC void nk_jsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 
@@ -245,7 +245,7 @@ NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_RVV
 
-/** @brief Returns the output dtype for probability divergences (KLD, JSD). */
+/** @brief Returns the output dtype for probability measures (KLD, JSD). */
 NK_INTERNAL nk_dtype_t nk_probability_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;

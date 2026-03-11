@@ -48,10 +48,10 @@ void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) n
 }
 
 /**
- *  @brief Jensen-Shannon divergence: ½ × (KL(p‖m) + KL(q‖m)) where m = (p + q) / 2
+ *  @brief Jensen-Shannon distance: √(½ × (KL(p‖m) + KL(q‖m))), where m = (p + q) / 2
  *  @param[in] p,q First and second probability distributions
  *  @param[in] d Number of dimensions in input vectors
- *  @param[out] r Pointer to output divergence value
+ *  @param[out] r Pointer to output distance value
  *
  *  @tparam in_type_ Input distribution type (probability vectors)
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`

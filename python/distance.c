@@ -1178,7 +1178,7 @@ PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const positi
 }
 
 char const doc_jsd[] =                                                                                 //
-    "Compute Jensen-Shannon divergences between two matrices.\n\n"                                     //
+    "Compute Jensen-Shannon distances between two matrices.\n\n"                                       //
     "Parameters:\n"                                                                                    //
     "    a (Tensor): First floating-point matrix or vector.\n"                                         //
     "    b (Tensor): Second floating-point matrix or vector.\n"                                        //

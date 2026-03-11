@@ -219,7 +219,7 @@ napi_value api_euclidean(napi_env env, napi_callback_info info) {
 napi_value api_kld(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_kld_k, nk_dtype_unknown_k);
 }
-/** @brief N-API entry for Jensen-Shannon divergence.  */
+/** @brief N-API entry for Jensen-Shannon distance.  */
 napi_value api_jsd(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_jsd_k, nk_dtype_unknown_k);
 }

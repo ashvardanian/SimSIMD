@@ -1,9 +1,9 @@
-//! Probability divergences: Kullback-Leibler and Jensen-Shannon.
+//! Probability measures: Kullback-Leibler divergence and Jensen-Shannon distance.
 //!
 //! This module provides:
 //!
 //! - [`KullbackLeibler`]: KL divergence between two distributions
-//! - [`JensenShannon`]: Jensen-Shannon divergence (symmetric)
+//! - [`JensenShannon`]: Jensen-Shannon distance (symmetric metric)
 //! - [`ProbabilitySimilarity`]: Blanket trait combining `KullbackLeibler + JensenShannon`
 
 use crate::types::{bf16, f16};
@@ -35,9 +35,7 @@ pub trait KullbackLeibler: Sized {
     fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `kullbackleibler`.
-    fn kl(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        Self::kullbackleibler(a, b)
-    }
+    fn kl(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::kullbackleibler(a, b) }
 }
 
 impl KullbackLeibler for f64 {
@@ -106,11 +104,11 @@ impl KullbackLeibler for bf16 {
 
 // region: JensenShannon
 
-/// Computes the **Jensen-Shannon divergence** between two probability distributions.
+/// Computes the **Jensen-Shannon distance** between two probability distributions.
 ///
-/// JS(P, Q) = ½(D_KL(P‖M) + D_KL(Q‖M)), where M = (P + Q) / 2
+/// d_JS(P, Q) = √(½(D_KL(P‖M) + D_KL(Q‖M))), where M = (P + Q) / 2
 ///
-/// Range: \[0, ln2\]. Symmetric. Returns `None` if lengths differ.
+/// Range: \[0, √ln2\]. Symmetric. Returns `None` if lengths differ.
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`.
 pub trait JensenShannon: Sized {
@@ -118,9 +116,7 @@ pub trait JensenShannon: Sized {
     fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `jensenshannon`.
-    fn js(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        Self::jensenshannon(a, b)
-    }
+    fn js(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::jensenshannon(a, b) }
 }
 
 impl JensenShannon for f64 {

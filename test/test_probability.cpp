@@ -1,5 +1,5 @@
 /**
- *  @brief KL-divergence and Jensen-Shannon tests.
+ *  @brief KL-divergence and Jensen-Shannon distance tests.
  *  @file test/test_probability.cpp
  *  @author Ash Vardanian
  *  @date December 28, 2025
@@ -41,7 +41,7 @@ error_stats_t test_kld(typename scalar_type_::probability_kernel_t kernel) {
 }
 
 /**
- *  @brief Template for Jensen-Shannon divergence test.
+ *  @brief Template for Jensen-Shannon distance test.
  *  JSD requires probability distributions: all values > 0, sum to 1.
  */
 template <typename scalar_type_>

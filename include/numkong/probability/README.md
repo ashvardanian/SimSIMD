@@ -1,6 +1,6 @@
 # Divergence Measures for Probability Distributions in NumKong
 
-NumKong implements divergence functions between discrete probability distributions: Kullback-Leibler divergence measures the information lost when one distribution approximates another, while Jensen-Shannon divergence provides a symmetric and bounded alternative.
+NumKong implements divergence functions between discrete probability distributions: Kullback-Leibler divergence measures the information lost when one distribution approximates another, while Jensen-Shannon distance provides a symmetric and bounded alternative.
 These are used in variational inference, topic modeling, and distribution comparison tasks.
 
 Kullback-Leibler divergence from $P$ to $Q$:
@@ -9,13 +9,15 @@ Kullback-Leibler divergence from $P$ to $Q$:
 \text{KLD}(P \| Q) = \sum_{i=0}^{n-1} P(i) \log_2 \frac{P(i)}{Q(i)}
 ```
 
-Jensen-Shannon divergence symmetrizes KLD through a mixture:
+Jensen-Shannon distance is the square root of the symmetrized KLD through a mixture:
 
-```math
-\text{JSD}(P, Q) = \frac{1}{2} \text{KLD}(P \| M) + \frac{1}{2} \text{KLD}(Q \| M)
-```
+$$\text{JSD}(P, Q) = \frac{1}{2} \text{KLD}(P \| M) + \frac{1}{2} \text{KLD}(Q \| M)$$
 
-where $M = \frac{P + Q}{2}$.
+where $M = \frac{P + Q}{2}$, yielding the distance:
+
+$$d_{JS}(P, Q) = \sqrt{\text{JSD}(P, Q)}$$
+
+Unlike the raw divergence, $d_{JS}$ is a true metric satisfying the triangle inequality.
 
 Reformulating as Python pseudocode:
 
@@ -28,8 +30,14 @@ def kld(p: np.ndarray, q: np.ndarray) -> float:
 
 def jsd(p: np.ndarray, q: np.ndarray) -> float:
     m = (p + q) / 2
-    return (kld(p, m) + kld(q, m)) / 2
+    return np.sqrt((kld(p, m) + kld(q, m)) / 2)
 ```
+
+## Use Cases
+
+__Kullback-Leibler divergence__ is the workhorse of variational inference (ELBO objective), knowledge distillation between neural networks, information gain in decision trees, and measuring fit between a model and observed data.
+
+__Jensen-Shannon distance__ sees primary use in microbiome community comparison (enterotyping), where its metric property enables clustering with standard algorithms. It also appears in distribution drift detection, topic model evaluation, and as the theoretical foundation of the original GAN objective — though in practice GAN training uses proxy losses rather than computing JSD directly.
 
 ## Input & Output Types
 
