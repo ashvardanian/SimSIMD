@@ -17,6 +17,7 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::sqeuclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -30,9 +31,9 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::sqeuclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(),
-                                                         global_config.dense_dimensions, &reference);
+        reference_t reference;
+        nk::sqeuclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                              global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -48,6 +49,7 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::angular_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -61,9 +63,9 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::angular<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                     &reference);
+        reference_t reference;
+        nk::angular<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                          global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -79,6 +81,7 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::euclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -92,9 +95,9 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::euclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                       &reference);
+        reference_t reference;
+        nk::euclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                            global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }

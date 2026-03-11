@@ -17,6 +17,7 @@ error_stats_t test_kld(typename scalar_type_::probability_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::probability_result_t;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -30,9 +31,9 @@ error_stats_t test_kld(typename scalar_type_::probability_kernel_t kernel) {
         result_t result;
         kernel(p.raw_values_data(), q.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
-                                                 &reference);
+        reference_t reference;
+        nk::kld<scalar_t, reference_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
+                                                      &reference);
 
         stats.accumulate(result, reference);
     }
@@ -49,6 +50,7 @@ error_stats_t test_jsd(typename scalar_type_::probability_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::probability_result_t;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -62,9 +64,9 @@ error_stats_t test_jsd(typename scalar_type_::probability_kernel_t kernel) {
         result_t result;
         kernel(p.raw_values_data(), q.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
-                                                 &reference);
+        reference_t reference;
+        nk::jsd<scalar_t, reference_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
+                                                      &reference);
 
         stats.accumulate(result, reference);
     }

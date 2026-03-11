@@ -58,7 +58,7 @@ template <typename scalar_type_>
 error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using scale_t = typename scalar_t::scale_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -87,7 +87,7 @@ template <typename scalar_type_>
 error_stats_t test_blend(typename scalar_type_::blend_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using scale_t = typename scalar_t::scale_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -119,7 +119,7 @@ template <typename scalar_type_>
 error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using scale_t = typename scalar_t::scale_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -350,6 +350,16 @@ void test_each() {
     run_if_matches("each_fma_f16_serial", test_fma<f16_t>, nk_each_fma_f16_serial);
     run_if_matches("each_fma_i8_serial", test_fma<i8_t>, nk_each_fma_i8_serial);
     run_if_matches("each_fma_u8_serial", test_fma<u8_t>, nk_each_fma_u8_serial);
+    run_if_matches("each_sum_f64_serial", test_sum<f64_t>, nk_each_sum_f64_serial);
+    run_if_matches("each_scale_f64_serial", test_scale<f64_t>, nk_each_scale_f64_serial);
+    run_if_matches("each_blend_f64_serial", test_blend<f64_t>, nk_each_blend_f64_serial);
+    run_if_matches("each_fma_f64_serial", test_fma<f64_t>, nk_each_fma_f64_serial);
+    run_if_matches("each_sum_bf16_serial", test_sum<bf16_t>, nk_each_sum_bf16_serial);
+    run_if_matches("each_scale_bf16_serial", test_scale<bf16_t>, nk_each_scale_bf16_serial);
+    run_if_matches("each_blend_bf16_serial", test_blend<bf16_t>, nk_each_blend_bf16_serial);
+    run_if_matches("each_fma_bf16_serial", test_fma<bf16_t>, nk_each_fma_bf16_serial);
+    run_if_matches("each_sum_f16_serial", test_sum<f16_t>, nk_each_sum_f16_serial);
+    run_if_matches("each_scale_f16_serial", test_scale<f16_t>, nk_each_scale_f16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

@@ -19,7 +19,7 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
                                  typename scalar_type_::maxsim_packed_kernel_t maxsim_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::maxsim_result_t;
-    using precision_t = f118_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -49,8 +49,8 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
                   &result.raw_);
 
         // Exhaustive scalar reference
-        precision_t reference;
-        nk::maxsim_reference<scalar_t, precision_t, nk::no_simd_k>(queries.raw_values_data(), query_count, stride,
+        reference_t reference;
+        nk::maxsim_reference<scalar_t, reference_t, nk::no_simd_k>(queries.raw_values_data(), query_count, stride,
                                                                    documents.raw_values_data(), document_count, stride,
                                                                    depth, &reference);
 

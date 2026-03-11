@@ -442,6 +442,12 @@ struct f64_t {
     constexpr explicit f64_t(float v) noexcept : raw_(static_cast<double>(v)) {}
     template <std::integral integral_type_>
     constexpr f64_t(integral_type_ v) noexcept : raw_(static_cast<double>(v)) {}
+
+    /** @brief Upcast from any nk numeric wrapper with `operator float()` (f16_t, bf16_t, e4m3_t, i8_t, …). */
+    template <typename nk_type_>
+        requires(std::is_class_v<nk_type_> && std::is_convertible_v<nk_type_, float>)
+    f64_t(nk_type_ v) noexcept : raw_(static_cast<double>(v)) {}
+
     constexpr operator double() const noexcept { return raw_; }
     constexpr double raw() const noexcept { return raw_; }
     static constexpr f64_t from_raw(raw_t r) noexcept { return f64_t {r}; }
@@ -562,6 +568,7 @@ struct f64_t {
     NK_CMATH_CONSTEXPR_ f64_t exp2() const noexcept { return f64_t {std::exp2(raw_)}; }
     NK_CMATH_CONSTEXPR_ f64_t exp_m1() const noexcept { return f64_t {std::expm1(raw_)}; }
     NK_CMATH_CONSTEXPR_ f64_t ln() const noexcept { return f64_t {std::log(raw_)}; }
+    NK_CMATH_CONSTEXPR_ f64_t log() const noexcept { return f64_t {std::log(raw_)}; }
     NK_CMATH_CONSTEXPR_ f64_t ln_1p() const noexcept { return f64_t {std::log1p(raw_)}; }
     NK_CMATH_CONSTEXPR_ f64_t log2() const noexcept { return f64_t {std::log2(raw_)}; }
     NK_CMATH_CONSTEXPR_ f64_t log10() const noexcept { return f64_t {std::log10(raw_)}; }
@@ -900,6 +907,15 @@ struct f64c_t {
     constexpr f64c_t(f64_t r, f64_t i) noexcept : raw_ {r.raw_, i.raw_} {}
     constexpr f64c_t(double r, double i) noexcept : raw_ {r, i} {}
     constexpr f64c_t(raw_t r) noexcept : raw_(r) {}
+
+    /** @brief Upcast from any nk complex wrapper with `.real()` / `.imag()` (f16c_t, bf16c_t, f32c_t). */
+    template <typename nk_type_>
+        requires(!std::is_same_v<nk_type_, f64c_t> && !std::is_same_v<nk_type_, nk_f64c_t> &&
+                 requires(nk_type_ v) {
+                     { static_cast<double>(v.real()) };
+                     { static_cast<double>(v.imag()) };
+                 })
+    f64c_t(nk_type_ v) noexcept : raw_ {static_cast<double>(v.real()), static_cast<double>(v.imag())} {}
 
     static constexpr f64c_t from_raw(raw_t r) noexcept { return f64c_t {r.real, r.imag}; }
 

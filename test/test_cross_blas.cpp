@@ -14,19 +14,18 @@
  *  @brief Unified template to test unpacked GEMM against high-precision reference.
  *
  *  Validates BLAS/MKL/Accelerate GEMM implementations by comparing against
- *  nk::dots_unpacked with f118_t accumulation.
+ *  nk::dots_unpacked with high-precision reference accumulation.
  *
  *  @tparam scalar_type_ Input element type (e.g., f32_t, bf16_t)
  *  @tparam accumulator_type_ Output type from BLAS kernel (e.g., f32_t for bf16 GEMM)
- *  @tparam reference_type_ High-precision reference type (f118_t for real, f118c_t for complex)
  *  @tparam kernel_type_ Deduced function pointer type for the BLAS kernel
  */
-template <typename scalar_type_, typename accumulator_type_, typename reference_type_ = f118_t, typename kernel_type_>
+template <typename scalar_type_, typename accumulator_type_, typename kernel_type_>
 error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = accumulator_type_;
-    using reference_t = reference_type_;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -58,12 +57,12 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
  *  For complex GEMM, BLAS computes the Hermitian inner product when called with
  *  CblasConjTrans. The reference must also conjugate B to match.
  */
-template <typename scalar_type_, typename accumulator_type_, typename reference_type_ = f118_t, typename kernel_type_>
+template <typename scalar_type_, typename accumulator_type_, typename kernel_type_>
 error_stats_t test_dots_unpacked_conjugated(kernel_type_ dots_fn) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = accumulator_type_;
-    using reference_t = reference_type_;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -250,7 +249,7 @@ template <typename scalar_type_>
 error_stats_t test_dot_blas(typename scalar_type_::dot_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::dot_result_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -280,6 +279,7 @@ template <typename scalar_type_>
 error_stats_t test_vdot_blas(typename scalar_type_::vdot_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::vdot_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -293,9 +293,9 @@ error_stats_t test_vdot_blas(typename scalar_type_::vdot_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                   &reference);
+        reference_t reference;
+        nk::vdot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &reference);
 
         stats.accumulate(result, reference);
     }
@@ -313,15 +313,13 @@ void test_cross_blas() {
     run_if_matches("vdot_with_blas_f64c", test_vdot_blas<f64c_t>, vdot_f64c_with_blas);
 
     // BLAS/MKL/Accelerate GEMM precision comparison
-    run_if_matches("dots_with_blas_f32", test_dots_unpacked<f32_t, f32_t, f118_t, decltype(&dots_f32_with_blas)>,
+    run_if_matches("dots_with_blas_f32", test_dots_unpacked<f32_t, f32_t, decltype(&dots_f32_with_blas)>,
                    dots_f32_with_blas);
-    run_if_matches("dots_with_blas_f64", test_dots_unpacked<f64_t, f64_t, f118_t, decltype(&dots_f64_with_blas)>,
+    run_if_matches("dots_with_blas_f64", test_dots_unpacked<f64_t, f64_t, decltype(&dots_f64_with_blas)>,
                    dots_f64_with_blas);
-    run_if_matches("dots_with_blas_f32c",
-                   test_dots_unpacked_conjugated<f32c_t, f32c_t, f118c_t, decltype(&dots_f32c_with_blas)>,
+    run_if_matches("dots_with_blas_f32c", test_dots_unpacked_conjugated<f32c_t, f32c_t, decltype(&dots_f32c_with_blas)>,
                    dots_f32c_with_blas);
-    run_if_matches("dots_with_blas_f64c",
-                   test_dots_unpacked_conjugated<f64c_t, f64c_t, f118c_t, decltype(&dots_f64c_with_blas)>,
+    run_if_matches("dots_with_blas_f64c", test_dots_unpacked_conjugated<f64c_t, f64c_t, decltype(&dots_f64c_with_blas)>,
                    dots_f64c_with_blas);
 
     // BLAS SYRK precision comparison (symmetric A x A^T)
@@ -331,11 +329,11 @@ void test_cross_blas() {
 
 #if NK_COMPARE_TO_MKL
     // MKL-specific GEMM with widening accumulation
-    run_if_matches("dots_with_mkl_bf16", test_dots_unpacked<bf16_t, f32_t, f118_t, decltype(&dots_bf16_with_mkl)>,
+    run_if_matches("dots_with_mkl_bf16", test_dots_unpacked<bf16_t, f32_t, decltype(&dots_bf16_with_mkl)>,
                    dots_bf16_with_mkl);
-    run_if_matches("dots_with_mkl_f16", test_dots_unpacked<f16_t, f32_t, f118_t, decltype(&dots_f16_with_mkl)>,
+    run_if_matches("dots_with_mkl_f16", test_dots_unpacked<f16_t, f32_t, decltype(&dots_f16_with_mkl)>,
                    dots_f16_with_mkl);
-    run_if_matches("dots_with_mkl_i16", test_dots_unpacked<i16_t, i32_t, i64_t, decltype(&dots_i16_with_mkl)>,
+    run_if_matches("dots_with_mkl_i16", test_dots_unpacked<i16_t, i32_t, decltype(&dots_i16_with_mkl)>,
                    dots_i16_with_mkl);
 #endif
 }

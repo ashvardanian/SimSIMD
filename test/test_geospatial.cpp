@@ -15,6 +15,7 @@ template <typename scalar_type_>
 error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t ulp_stats, abs_stats;
     std::mt19937 generator(global_config.seed);
@@ -34,12 +35,12 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
                global_config.dense_dimensions, results.raw_values_data());
-        nk::haversine<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                       b_lons.values_data(), global_config.dense_dimensions,
-                                                       haversine_ref.values_data());
-        nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                      b_lons.values_data(), global_config.dense_dimensions,
-                                                      vincenty_ref.values_data());
+        nk::haversine<scalar_t, reference_t, nk::no_simd_k>(
+            a_lats.values_data(), a_lons.values_data(), b_lats.values_data(), b_lons.values_data(),
+            global_config.dense_dimensions, haversine_ref.values_data());
+        nk::vincenty<scalar_t, reference_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(),
+                                                           b_lats.values_data(), b_lons.values_data(),
+                                                           global_config.dense_dimensions, vincenty_ref.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) {
             ulp_stats.accumulate(results[i], haversine_ref[i]);
@@ -71,6 +72,7 @@ template <typename scalar_type_>
 error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -89,9 +91,9 @@ error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
                global_config.dense_dimensions, results.raw_values_data());
-        nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                      b_lons.values_data(), global_config.dense_dimensions,
-                                                      reference.values_data());
+        nk::vincenty<scalar_t, reference_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(),
+                                                           b_lats.values_data(), b_lons.values_data(),
+                                                           global_config.dense_dimensions, reference.values_data());
 
         for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
     }
