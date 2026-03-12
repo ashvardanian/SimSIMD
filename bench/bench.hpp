@@ -77,7 +77,11 @@ struct bench_config_t {
     /** Max angular separation in degrees for geospatial benchmarks. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
     float geospatial_max_angle = 180.0f;
     /** Memory budget in bytes for pre-allocated inputs. Override: `NK_BUDGET_MB`. */
+#if defined(__wasi__)
+    std::size_t budget_bytes = std::size_t(32) * 1024 * 1024;
+#else
     std::size_t budget_bytes = std::size_t(1024) * 1024 * 1024;
+#endif
 };
 
 extern bench_config_t bench_config;

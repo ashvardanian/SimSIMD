@@ -257,27 +257,28 @@ int main(int argc, char **argv) {
     if (wants_help) {
         std::fprintf( //
             stdout,
-            "Usage: nk_bench [--benchmark_filter=<regex>] [--benchmark_min_time=<N>s] [--help]\n"        //
-            "\n"                                                                                         //
-            "NumKong Environment Variables:\n"                                                           //
-            "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                              //
-            "  NK_BUDGET_SECS=<seconds>       Min time per benchmark (default: 10)\n"                    //
-            "  NK_SEED=<int>                  Random seed\n"                                             //
-            "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"                 //
-            "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"                  //
-            "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"                        //
-            "  NK_MATRIX_HEIGHT=N             Matrix height\n"                                           //
-            "  NK_MATRIX_WIDTH=N              Matrix width\n"                                            //
-            "  NK_MATRIX_DEPTH=N              Matrix depth\n"                                            //
-            "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                              //
-            "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                             //
-            "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                           //
-            "  NK_GEOSPATIAL_MAX_ANGLE=F      Max angular separation in degrees (default: 180)\n"        //
-            "  NK_BUDGET_MB=N                 Memory " "budget in MB for " "inputs (default: " "1024)\n" //
-            "  NO_COLOR=1                     Disable colored output\n"                                  //
-            "  FORCE_COLOR=1                  Force colored output\n"                                    //
-            "\n"                                                                                         //
-            "Google Benchmark flags (passed through):\n");                                               //
+            "Usage: nk_bench [--benchmark_filter=<regex>] [--benchmark_min_time=<N>s] [--help]\n" //
+            "\n"                                                                                  //
+            "NumKong Environment Variables:\n"                                                    //
+            "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                       //
+            "  NK_BUDGET_SECS=<seconds>       Min time per benchmark (default: 10)\n"             //
+            "  NK_SEED=<int>                  Random seed\n"                                      //
+            "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"          //
+            "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"           //
+            "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"                 //
+            "  NK_MATRIX_HEIGHT=N             Matrix height\n"                                    //
+            "  NK_MATRIX_WIDTH=N              Matrix width\n"                                     //
+            "  NK_MATRIX_DEPTH=N              Matrix depth\n"                                     //
+            "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                       //
+            "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                      //
+            "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                    //
+            "  NK_GEOSPATIAL_MAX_ANGLE=F      Max angular separation in degrees (default: 180)\n" //
+            "  NK_BUDGET_MB=N                 Memory budget in MB for inputs (default: %zu)\n"    //
+            "  NO_COLOR=1                     Disable colored output\n"                           //
+            "  FORCE_COLOR=1                  Force colored output\n"                             //
+            "\n"                                                                                  //
+            "Google Benchmark flags (passed through):\n",
+            bench_config.budget_bytes / (1024 * 1024)); //
     }
 
     bm::Initialize(&bench_argc, argv_ptrs.data());

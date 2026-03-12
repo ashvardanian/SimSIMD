@@ -128,7 +128,14 @@ async function loadEmscripten() {
 
 async function loadWASI() {
     try {
-        const wasiPath = path.join(rootDir, 'build-wasi', 'test.wasm');
+        const wasiCandidates = [
+            path.join(rootDir, 'build-wasi', 'nk_test.wasm'),
+            path.join(rootDir, 'build-wasi', 'test.wasm'),
+        ];
+        const wasiPath = wasiCandidates.find(candidate => existsSync(candidate));
+        if (!wasiPath) {
+            throw new Error('Missing build-wasi/nk_test.wasm (or legacy build-wasi/test.wasm)');
+        }
 
         // SIMD capability test bytecode
         const simd128Test = new Uint8Array([
@@ -170,7 +177,7 @@ async function loadWASI() {
         console.log('✓ Loaded NumKong WASI');
         return instance.exports;
     } catch (e) {
-        throw new Error(`Failed to load WASI: ${e.message}\nBuild with: cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON && cmake --build build-wasi`);
+        throw new Error(`Failed to load WASI: ${e.message}\nBuild with: cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON && cmake --build build-wasi --target nk_test`);
     }
 }
 
