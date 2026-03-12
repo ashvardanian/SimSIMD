@@ -17,6 +17,13 @@
  *  - 64-bit IEEE-754 floating point → 64-bit
  *  - 32-bit IEEE-754 floating point → 32-bit
  *
+ *  Precision policy:
+ *
+ *  - `f32` remains the throughput-oriented lane and intentionally stays narrow end-to-end.
+ *  - `f64` is the higher-accuracy lane for the same formulas.
+ *  - We do not widen `f32` outputs here because the dominant error comes from the geodesic model
+ *    and transcendental approximations, not from long horizontal reductions.
+ *
  *  For hardware architectures:
  *
  *  - Arm: NEON

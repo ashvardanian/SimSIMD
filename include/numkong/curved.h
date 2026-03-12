@@ -13,7 +13,7 @@
  *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit floats
- *  - 32-bit floating point numbers → 32-bit floats
+ *  - 32-bit floating point numbers → 64-bit floats
  *  - 16-bit floating point numbers → 32-bit floats
  *  - 16-bit brain-floating point numbers → 32-bit floats
  *
@@ -26,7 +26,7 @@
  *  @section numerical_stability Numerical Stability
  *
  *  To minimize catastrophic cancellation in large-magnitude sums:
- *  - f32 kernels accumulate in f64 precision where possible
+ *  - f32 kernels widen public outputs to f64/f64c and accumulate in f64 precision where possible
  *  - f64 kernels use Dot2 algorithm (Ogita-Rump-Oishi 2005) in SIMD paths
  *  - Serial kernels use Neumaier compensated summation for all types
  *

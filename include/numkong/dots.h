@@ -29,7 +29,7 @@
  *  For dtypes:
  *
  *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
- *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 64-bit floats
  *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
  *  - bf16: 16-bit brain floating point numbers → 32-bit floats
  *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
@@ -50,8 +50,8 @@
  *
  *  @section numerical_stability Numerical Stability
  *
- *  - f64: Dot2 (Ogita-Rump-Oishi) on SVE/SME. f64 FMA on x86.
- *  - f32: f64 FMA accumulation on Haswell/Skylake. AMX (Sapphire) accumulates bf16→f32 tiles.
+ *  - f64: Dot2 (Ogita-Rump-Oishi) on the accurate backends, otherwise native f64 FMA accumulation.
+ *  - f32: public outputs widen to f64. Packed and symmetric kernels keep payloads narrow but widen accumulation.
  *  - bf16/f16: f32 accumulation. VDPBF16PS on Genoa does bf16×bf16→f32 natively.
  *  - e2m3/e3m2: f16 intermediate with flush to f32 every 128 elements (Sapphire).
  *  - i8: i32 accumulation. AMX TDPBSSD gives i8×i8→i32 tiles. Overflows at k > ~131K.

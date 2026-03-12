@@ -23,7 +23,7 @@ namespace ashvardanian::numkong {
  *  @param[out] r Pointer to output divergence value
  *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
+ *  @tparam result_type_ Result type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
@@ -54,7 +54,7 @@ void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) n
  *  @param[out] r Pointer to output distance value
  *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
+ *  @tparam result_type_ Result type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,

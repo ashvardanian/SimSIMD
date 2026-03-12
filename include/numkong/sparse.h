@@ -7,7 +7,7 @@
  *  Contains:
  *
  *  - Set intersection for sorted unique arrays → `u32` count
- *  - Sparse dot products for weighted sparse vectors → `f32` product
+ *  - Sparse dot products for weighted sparse vectors
  *
  *  For dtypes:
  *
@@ -15,7 +15,7 @@
  *  - `u32`: indices for vocabularies under 4 billion tokens
  *  - `u64`: indices for trillion-scale combinatorics and graphs
  *  - `u16` indices + `bf16` weights → `f32` product
- *  - `u32` indices + `f32` weights → `f32` product
+ *  - `u32` indices + `f32` weights → `f64` product
  *
  *  For hardware architectures:
  *
@@ -36,7 +36,8 @@
  *      }
  *
  *  Weighted sparse dot-products follow the same merge loop, but accumulate a product
- *  for matching indices:
+ *  for matching indices. For the `u32+f32` family the matched products are widened before
+ *  accumulation, matching the widened `f64` public result.
  *
  *      double product = 0;
  *      while (i != a_length && j != b_length) {

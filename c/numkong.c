@@ -304,18 +304,18 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_unpoison_((void *)outputs, n * sizeof(nk_##extension##_t));                          \
     }
 
-#define nk_dispatch_mesh_(name, extension, mesh_type)                                                              \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
-                                            nk_##mesh_type##_t *a_centroid, nk_##mesh_type##_t *b_centroid,        \
-                                            nk_##mesh_type##_t *rotation, nk_##mesh_type##_t *scale,               \
-                                            nk_##mesh_type##_t *result) {                                          \
-        nk_dispatch_table.name##_##extension(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation,    \
-                                             (void *)scale, (void *)result);                                       \
-        if (a_centroid) nk_unpoison_((void *)a_centroid, 3 * sizeof(nk_##mesh_type##_t));                          \
-        if (b_centroid) nk_unpoison_((void *)b_centroid, 3 * sizeof(nk_##mesh_type##_t));                          \
-        if (rotation) nk_unpoison_((void *)rotation, 9 * sizeof(nk_##mesh_type##_t));                              \
-        if (scale) nk_unpoison_((void *)scale, sizeof(nk_##mesh_type##_t));                                        \
-        nk_unpoison_((void *)result, sizeof(nk_##mesh_type##_t));                                                  \
+#define nk_dispatch_mesh_(name, extension, transform_type, metric_type)                                               \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n,    \
+                                            nk_##transform_type##_t *a_centroid, nk_##transform_type##_t *b_centroid, \
+                                            nk_##transform_type##_t *rotation, nk_##transform_type##_t *scale,        \
+                                            nk_##metric_type##_t *result) {                                           \
+        nk_dispatch_table.name##_##extension(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation,       \
+                                             (void *)scale, (void *)result);                                          \
+        if (a_centroid) nk_unpoison_((void *)a_centroid, 3 * sizeof(nk_##transform_type##_t));                        \
+        if (b_centroid) nk_unpoison_((void *)b_centroid, 3 * sizeof(nk_##transform_type##_t));                        \
+        if (rotation) nk_unpoison_((void *)rotation, 9 * sizeof(nk_##transform_type##_t));                            \
+        if (scale) nk_unpoison_((void *)scale, sizeof(nk_##transform_type##_t));                                      \
+        nk_unpoison_((void *)result, sizeof(nk_##metric_type##_t));                                                   \
     }
 
 #define nk_dispatch_reduce_moments_(extension, data_type, sum_type, sumsq_type)                                      \
@@ -464,27 +464,27 @@ nk_dispatch_geospatial_(vincenty, f32, f32)
 
 // Probability distributions
 nk_dispatch_dense_(kld, f64, f64, f64)
-nk_dispatch_dense_(kld, f32, f32, f32)
+nk_dispatch_dense_(kld, f32, f32, f64)
 nk_dispatch_dense_(kld, bf16, bf16, f32)
 nk_dispatch_dense_(kld, f16, f16, f32)
 nk_dispatch_dense_(jsd, f64, f64, f64)
-nk_dispatch_dense_(jsd, f32, f32, f32)
+nk_dispatch_dense_(jsd, f32, f32, f64)
 nk_dispatch_dense_(jsd, bf16, bf16, f32)
 nk_dispatch_dense_(jsd, f16, f16, f32)
 
 // Mesh alignment (RMSD, Kabsch, Umeyama)
-nk_dispatch_mesh_(rmsd, f64, f64)
-nk_dispatch_mesh_(rmsd, f32, f32)
-nk_dispatch_mesh_(rmsd, bf16, f32)
-nk_dispatch_mesh_(rmsd, f16, f32)
-nk_dispatch_mesh_(kabsch, f64, f64)
-nk_dispatch_mesh_(kabsch, f32, f32)
-nk_dispatch_mesh_(kabsch, bf16, f32)
-nk_dispatch_mesh_(kabsch, f16, f32)
-nk_dispatch_mesh_(umeyama, f64, f64)
-nk_dispatch_mesh_(umeyama, f32, f32)
-nk_dispatch_mesh_(umeyama, bf16, f32)
-nk_dispatch_mesh_(umeyama, f16, f32)
+nk_dispatch_mesh_(rmsd, f64, f64, f64)
+nk_dispatch_mesh_(rmsd, f32, f32, f64)
+nk_dispatch_mesh_(rmsd, bf16, f32, f32)
+nk_dispatch_mesh_(rmsd, f16, f32, f32)
+nk_dispatch_mesh_(kabsch, f64, f64, f64)
+nk_dispatch_mesh_(kabsch, f32, f32, f64)
+nk_dispatch_mesh_(kabsch, bf16, f32, f32)
+nk_dispatch_mesh_(kabsch, f16, f32, f32)
+nk_dispatch_mesh_(umeyama, f64, f64, f64)
+nk_dispatch_mesh_(umeyama, f32, f32, f64)
+nk_dispatch_mesh_(umeyama, bf16, f32, f32)
+nk_dispatch_mesh_(umeyama, f16, f32, f32)
 
 // Sparse sets
 nk_dispatch_sparse_(sparse_intersect, u64, u64)

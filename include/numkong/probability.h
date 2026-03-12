@@ -12,9 +12,19 @@
  *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit
- *  - 32-bit floating point numbers → 32-bit
+ *  - 32-bit floating point numbers → 64-bit
  *  - 16-bit floating point numbers → 32-bit
  *  - 16-bit brain-floating point numbers → 32-bit
+ *
+ *  Precision policy:
+ *
+ *  - For `f32` inputs, the per-element vertical path stays in `f32` to preserve the fast ratio/log
+ *    approximations and SIMD throughput.
+ *  - The horizontal reduction over those per-element contributions widens to `f64`, and public
+ *    `f32` results are exposed as `f64`.
+ *  - For `f64` inputs, both the vertical path and the horizontal reduction stay in `f64`, with
+ *    stable summation in the serial kernels.
+ *  - For `f16` and `bf16` inputs, the kernels still widen to `f32`.
  *
  *  For hardware architectures:
  *
@@ -102,7 +112,7 @@ NK_DYNAMIC void nk_kld_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
  *  @note The output divergence value is non-negative.
  *  @note The output divergence value is zero if and only if the two distributions are identical.
  */
-NK_DYNAMIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_DYNAMIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /**
  *  @brief Kullback-Leibler divergence between two discrete probability distributions.
  *
@@ -154,7 +164,7 @@ NK_DYNAMIC void nk_jsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
  *  @note The output distance value is non-negative.
  *  @note The output distance value is zero if and only if the two distributions are identical.
  */
-NK_DYNAMIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_DYNAMIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /**
  *  @brief Jensen-Shannon distance between two discrete probability distributions.
  *
@@ -174,9 +184,9 @@ NK_PUBLIC void nk_kld_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 /** @copydoc nk_jsd_f64 */
 NK_PUBLIC void nk_jsd_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f32 */
-NK_PUBLIC void nk_kld_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f32 */
-NK_PUBLIC void nk_jsd_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jsd_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f16 */
 NK_PUBLIC void nk_kld_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f16 */
@@ -188,9 +198,9 @@ NK_PUBLIC void nk_jsd_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_siz
 
 #if NK_TARGET_NEON
 /** @copydoc nk_kld_f32 */
-NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f32 */
-NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -217,9 +227,9 @@ NK_PUBLIC void nk_kld_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 /** @copydoc nk_jsd_f64 */
 NK_PUBLIC void nk_jsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f32 */
-NK_PUBLIC void nk_kld_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f32 */
-NK_PUBLIC void nk_jsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f16 */
 NK_PUBLIC void nk_kld_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f16 */
@@ -228,9 +238,9 @@ NK_PUBLIC void nk_jsd_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 #if NK_TARGET_RVV
 /** @copydoc nk_kld_f32 */
-NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f32 */
-NK_PUBLIC void nk_jsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f64 */
 NK_PUBLIC void nk_kld_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f64 */
@@ -249,7 +259,7 @@ NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 NK_INTERNAL nk_dtype_t nk_probability_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
+    case nk_f32_k: return nk_f64_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     default: return nk_dtype_unknown_k;
@@ -294,7 +304,7 @@ NK_PUBLIC void nk_kld_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 #endif
 }
 
-NK_PUBLIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_NEON
     nk_kld_f32_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -340,7 +350,7 @@ NK_PUBLIC void nk_jsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 #endif
 }
 
-NK_PUBLIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_NEON
     nk_jsd_f32_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE

@@ -12,7 +12,7 @@
  *  For dtypes:
  *
  *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
- *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 64-bit floats
  *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
  *  - bf16: 16-bit brain floating point numbers → 32-bit floats
  *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
@@ -33,8 +33,8 @@
  *
  *  @section numerical_stability Numerical Stability
  *
- *  Serial kernels use Neumaier compensated summation for dot, a_norm_sq, b_norm_sq —
- *  O(1) error growth regardless of vector dimension. f32 serial accumulates in f64.
+ *  Serial kernels use compensated summation for dot, a_norm_sq, b_norm_sq — O(1) error growth regardless of vector
+ *  dimension. `f32` public outputs widen to `f64`, so widened paths use `f64` arithmetic and `sqrt64`.
  *  Angular finalization uses rsqrt via magic constant + 3 Newton-Raphson iterations (f32,
  *  ~34.9 correct bits) or 4 iterations (f64, ~69.3 correct bits), then clamps result ≥ 0.
  *  L2 uses conditional `dist_sq > 0 ? sqrt(dist_sq) : 0` to avoid NaN from rounding.

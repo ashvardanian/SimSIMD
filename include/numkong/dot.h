@@ -12,7 +12,7 @@
  *  For dtypes:
  *
  *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
- *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 64-bit floats
  *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
  *  - bf16: 16-bit brain floating point numbers → 32-bit floats
  *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
@@ -28,7 +28,7 @@
  *  Complex dot product variants:
  *
  *  - f64c: 64-bit complex pairs → 64-bit complex
- *  - f32c: 32-bit complex pairs → 32-bit complex
+ *  - f32c: 32-bit complex pairs → 64-bit complex
  *  - f16c: 16-bit complex pairs → 32-bit complex
  *  - bf16c: 16-bit brain complex pairs → 32-bit complex
  *
@@ -41,8 +41,8 @@
  *
  *  @section numerical_stability Numerical Stability
  *
- *  - f64: Neumaier compensated summation (serial). Dot2/Ogita-Rump-Oishi on Haswell/SVE.
- *  - f32: Serial accumulates in f32 (naive). SIMD widens to f64 FMA — rounding-free.
+ *  - f64: Dot2/Ogita-Rump-Oishi style compensated summation across serial and SIMD stateful paths.
+ *  - f32: public outputs widen to f64/f64c. Arithmetic widens before the first lossy reduction step.
  *  - f16/bf16: Promoted to f32 accumulator.
  *  - e4m3/e5m2: Promoted to f32. On Sapphire, e2m3/e3m2 use f16 intermediate with periodic
  *    flush to f32 every 128 elements to avoid f16 overflow (max lane sum ~225 / ~3136).

@@ -12,12 +12,12 @@ use crate::types::{bf16, f16};
 extern "C" {
     fn nk_jsd_f16(a: *const u16, b: *const u16, c: usize, d: *mut f32);
     fn nk_jsd_bf16(a: *const u16, b: *const u16, c: usize, d: *mut f32);
-    fn nk_jsd_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_jsd_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_jsd_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn nk_kld_f16(a: *const u16, b: *const u16, c: usize, d: *mut f32);
     fn nk_kld_bf16(a: *const u16, b: *const u16, c: usize, d: *mut f32);
-    fn nk_kld_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_kld_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_kld_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 }
 
@@ -51,7 +51,7 @@ impl KullbackLeibler for f64 {
 }
 
 impl KullbackLeibler for f32 {
-    type Output = f32;
+    type Output = f64;
     fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -132,7 +132,7 @@ impl JensenShannon for f64 {
 }
 
 impl JensenShannon for f32 {
-    type Output = f32;
+    type Output = f64;
     fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;

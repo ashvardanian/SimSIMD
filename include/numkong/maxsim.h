@@ -9,7 +9,11 @@
  *
  *  Strategy: coarse i8-quantized screening with running argmax (dot as proxy for argmin angular),
  *  then full-precision refinement of the winning pairs via nk_dot_* primitives,
- *  finalized with angular distance and accumulated with f64.
+ *  finalized with angular distance and accumulated with `f64`.
+ *
+ *  Precision policy:
+ *  - `f32` inputs keep packed payloads and metadata narrow for memory bandwidth.
+ *  - The refined scores and final late-interaction sum widen to `f64`.
  *
  *  It implements several operations:
  *

@@ -11,7 +11,7 @@
  *  For dtypes:
  *
  *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
- *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 64-bit floats
  *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
  *  - bf16: 16-bit brain floating point numbers → 32-bit floats
  *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
@@ -27,9 +27,8 @@
  *
  *  @section numerical_stability Numerical Stability
  *
- *  Inherits dot-product precision from nk_dots_packed_* (f64 FMA for f32, f32 for bf16/f16,
- *  i32 for i8). Finalization adds rsqrt + 3 NR iterations (angular) or sqrt with zero-clamp
- *  (euclidean), both in f32. Row norms precomputed during packing avoid redundant passes.
+ *  Inherits dot-product precision from nk_dots_packed_* and keeps packed payloads narrow. `f32` batched spatial
+ *  kernels now normalize from widened `f64` dots and norms and store `f64` results directly.
  *
  *  @section approach Two-Pass Approach
  *

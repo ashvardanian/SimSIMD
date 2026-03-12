@@ -121,8 +121,8 @@ NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
     return (nk_f64_t)exp * 0.6931471805599453 + 2.0 * u * poly;
 }
 
-nk_define_kld_(f32, f64, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
-nk_define_jsd_(f32, f64, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_, nk_f32_sqrt_serial)
+nk_define_kld_(f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+nk_define_jsd_(f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_, nk_f64_sqrt_serial)
 
 nk_define_kld_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
 nk_define_jsd_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
