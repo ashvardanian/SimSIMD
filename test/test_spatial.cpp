@@ -219,6 +219,8 @@ void test_spatial() {
 #if NK_TARGET_ICELAKE
     run_if_matches("sqeuclidean_i4_icelake", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_icelake);
     run_if_matches("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
+    run_if_matches("euclidean_i4_icelake", test_euclidean<i4x2_t>, nk_euclidean_i4_icelake);
+    run_if_matches("euclidean_u4_icelake", test_euclidean<u4x2_t>, nk_euclidean_u4_icelake);
     run_if_matches("angular_i4_icelake", test_angular<i4x2_t>, nk_angular_i4_icelake);
     run_if_matches("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
     run_if_matches("angular_i8_icelake", test_angular<i8_t>, nk_angular_i8_icelake);
@@ -355,6 +357,8 @@ void test_spatial() {
     run_if_matches("angular_e3m2_serial", test_angular<e3m2_t>, nk_angular_e3m2_serial);
     run_if_matches("sqeuclidean_i4_serial", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_serial);
     run_if_matches("sqeuclidean_u4_serial", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_serial);
+    run_if_matches("euclidean_i4_serial", test_euclidean<i4x2_t>, nk_euclidean_i4_serial);
+    run_if_matches("euclidean_u4_serial", test_euclidean<u4x2_t>, nk_euclidean_u4_serial);
     run_if_matches("angular_i4_serial", test_angular<i4x2_t>, nk_angular_i4_serial);
     run_if_matches("angular_u4_serial", test_angular<u4x2_t>, nk_angular_u4_serial);
     run_if_matches("angular_e4m3_serial", test_angular<e4m3_t>, nk_angular_e4m3_serial);

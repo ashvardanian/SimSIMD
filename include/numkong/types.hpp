@@ -4852,6 +4852,7 @@ struct i4x2_t {
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using reduce_moments_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *, nk_u64_t *);
     using reduce_minmax_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i8_t *, nk_size_t *, nk_i8_t *,
                                             nk_size_t *);
@@ -4975,6 +4976,7 @@ struct u4x2_t {
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using reduce_moments_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *, nk_u64_t *);
     using reduce_minmax_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u8_t *, nk_size_t *, nk_u8_t *,
                                             nk_size_t *);
