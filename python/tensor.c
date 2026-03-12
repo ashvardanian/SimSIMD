@@ -1487,7 +1487,7 @@ static void norm_slice(TensorView const *slice, nk_scalar_buffer_t *out) {
     nk_scalar_buffer_t sum_buf, sumsq_buf;
     nk_dtype_t sum_dtype, sumsq_dtype;
     impl_reduce_moments(slice, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype);
-    out->f64 = sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype));
+    out->f64 = nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype));
 }
 
 static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -1517,7 +1517,7 @@ static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t n
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "norm not supported for dtype '%s'",
                                 dtype_to_python_string(tensor->dtype));
-        return PyFloat_FromDouble(sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
+        return PyFloat_FromDouble(nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
     }
     return reduce_axis_dispatch(tensor, &parsed, nk_f64_k, norm_slice);
 }
