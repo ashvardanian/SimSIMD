@@ -253,11 +253,16 @@ mod wasm_runtime_tests {
     };
     use wasmtime_wasi::WasiCtx;
 
-    fn resolve_wasi_test_module() -> Option<&'static str> {
+    fn resolve_wasi_module() -> Option<String> {
+        if let Ok(path) = std::env::var("NK_WASI_MODULE") {
+            if Path::new(&path).exists() {
+                return Some(path);
+            }
+        }
         if Path::new("build-wasi/nk_test.wasm").exists() {
-            Some("build-wasi/nk_test.wasm")
+            Some("build-wasi/nk_test.wasm".to_string())
         } else if Path::new("build-wasi/test.wasm").exists() {
-            Some("build-wasi/test.wasm")
+            Some("build-wasi/test.wasm".to_string())
         } else {
             None
         }
@@ -268,7 +273,7 @@ mod wasm_runtime_tests {
     #[test]
     fn wasi_with_wasmtime() -> wasmtime::Result<()> {
         // Check if WASI build exists
-        let Some(wasm_path) = resolve_wasi_test_module() else {
+        let Some(wasm_path) = resolve_wasi_module() else {
             eprintln!("WASI build not found. Run:");
             eprintln!("  export WASI_SDK_PATH=~/wasi-sdk");
             eprintln!("  cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON");
@@ -290,7 +295,7 @@ mod wasm_runtime_tests {
 
         // Create WASI context (Wasmtime 41+ API)
         // Don't inherit_args() — cargo's test filter args would confuse the WASM test binary.
-        let wasi = WasiCtx::builder().inherit_stdio().build_p1();
+        let wasi = WasiCtx::builder().inherit_stdio().inherit_env().build_p1();
         let mut store = Store::new(&engine, wasi);
 
         // Add WASI support (Wasmtime 41+ requires p1 module)
@@ -313,7 +318,7 @@ mod wasm_runtime_tests {
         linker.func_wrap("wasi", "thread-spawn", |_start_arg: i32| -> i32 { -1 })?;
 
         // Load WASM module
-        let wasm_bytes = fs::read(wasm_path)?;
+        let wasm_bytes = fs::read(&wasm_path)?;
         let module = Module::new(&engine, wasm_bytes)?;
 
         for import in module.imports() {
