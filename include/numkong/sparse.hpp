@@ -63,7 +63,7 @@ void sparse_intersect(index_type_ const *a, index_type_ const *b, std::size_t a_
  *
  *  @note Computes sum of a_weights[i] * b_weights[j] for all i,j where a[i] == b[j]
  */
-template <typename index_type_, typename weight_t, typename result_type_ = f32_t,
+template <typename index_type_, typename weight_t, typename result_type_ = typename weight_t::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_weights, weight_t const *b_weights,
                 std::size_t a_length, std::size_t b_length, result_type_ *product) noexcept {

@@ -10,17 +10,17 @@ use crate::types::{bf16, bf16c, f16, f16c, f32c, f64c};
 #[link(name = "numkong")]
 extern "C" {
     fn nk_bilinear_f64(a: *const f64, b: *const f64, c: *const f64, n: usize, result: *mut f64);
-    fn nk_bilinear_f32(a: *const f32, b: *const f32, c: *const f32, n: usize, result: *mut f32);
+    fn nk_bilinear_f32(a: *const f32, b: *const f32, c: *const f32, n: usize, result: *mut f64);
     fn nk_bilinear_f16(a: *const u16, b: *const u16, c: *const u16, n: usize, result: *mut f32);
     fn nk_bilinear_bf16(a: *const u16, b: *const u16, c: *const u16, n: usize, result: *mut f32);
     fn nk_bilinear_f64c(a: *const f64, b: *const f64, c: *const f64, n: usize, results: *mut f64);
-    fn nk_bilinear_f32c(a: *const f32, b: *const f32, c: *const f32, n: usize, results: *mut f32);
+    fn nk_bilinear_f32c(a: *const f32, b: *const f32, c: *const f32, n: usize, results: *mut f64);
     fn nk_bilinear_f16c(a: *const u16, b: *const u16, c: *const u16, n: usize, results: *mut f32);
     fn nk_bilinear_bf16c(a: *const u16, b: *const u16, c: *const u16, n: usize, results: *mut f32);
 
     // Mahalanobis distance
     fn nk_mahalanobis_f64(a: *const f64, b: *const f64, c: *const f64, n: usize, result: *mut f64);
-    fn nk_mahalanobis_f32(a: *const f32, b: *const f32, c: *const f32, n: usize, result: *mut f32);
+    fn nk_mahalanobis_f32(a: *const f32, b: *const f32, c: *const f32, n: usize, result: *mut f64);
     fn nk_mahalanobis_f16(a: *const u16, b: *const u16, c: *const u16, n: usize, result: *mut f32);
     fn nk_mahalanobis_bf16(a: *const u16, b: *const u16, c: *const u16, n: usize, result: *mut f32);
 }
@@ -30,7 +30,7 @@ extern "C" {
 /// Computes the bilinear form of two vectors `a` and `b` with respect to
 /// a symmetric matrix `C` (given in row-major order as a flat slice of length n²).
 pub trait Bilinear: Sized {
-    /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
+    /// Output type for results. `f32` widens to `f64`; f16/bf16 use f32.
     type Output;
 
     /// Computes the bilinear form aᵀ × C × b.
@@ -62,14 +62,14 @@ impl Bilinear for f64 {
 }
 
 impl Bilinear for f32 {
-    type Output = f32;
+    type Output = f64;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
         if n == 0 || b.len() != n || c.len() != n * n {
             return None;
         }
-        let mut result: f32 = 0.0;
+        let mut result: f64 = 0.0;
         unsafe {
             nk_bilinear_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
         }
@@ -147,14 +147,14 @@ impl Bilinear for f64c {
 }
 
 impl Bilinear for f32c {
-    type Output = f32c;
+    type Output = f64c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
         if n == 0 || b.len() != n || c.len() != n * n {
             return None;
         }
-        let mut result = [0.0f32; 2];
+        let mut result = [0.0f64; 2];
         unsafe {
             nk_bilinear_f32c(
                 a.as_ptr() as *const f32,
@@ -164,7 +164,7 @@ impl Bilinear for f32c {
                 result.as_mut_ptr(),
             );
         }
-        Some(f32c {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })
@@ -226,7 +226,7 @@ impl Bilinear for bf16c {
 /// Computes the Mahalanobis distance between two vectors `a` and `b` with respect
 /// to an inverse covariance matrix `C` (given in row-major order as a flat slice of length n²).
 pub trait Mahalanobis: Sized {
-    /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
+    /// Output type for results. `f32` widens to `f64`; f16/bf16 use f32.
     type Output;
 
     /// Computes the Mahalanobis distance √((a−b)ᵀ × C × (a−b)).
@@ -258,14 +258,14 @@ impl Mahalanobis for f64 {
 }
 
 impl Mahalanobis for f32 {
-    type Output = f32;
+    type Output = f64;
 
     fn mahalanobis(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
         let n = a.len();
         if n == 0 || b.len() != n || c.len() != n * n {
             return None;
         }
-        let mut result: f32 = 0.0;
+        let mut result: f64 = 0.0;
         unsafe {
             nk_mahalanobis_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
         }

@@ -83,23 +83,24 @@ extern "C" {
         *count = intersection_size;                                                                                  \
     }
 
-#define nk_define_sparse_dot_(input_type, weight_type, accumulator_type, load_and_convert)                  \
-    NK_PUBLIC void nk_sparse_dot_##input_type##weight_type##_serial(                                        \
-        nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_##weight_type##_t const *a_weights,  \
-        nk_##weight_type##_t const *b_weights, nk_size_t a_length, nk_size_t b_length, nk_f32_t *product) { \
-        nk_##accumulator_type##_t weights_product = 0, awi, bwi;                                            \
-        nk_size_t i = 0, j = 0;                                                                             \
-        while (i != a_length && j != b_length) {                                                            \
-            nk_##input_type##_t ai = a[i];                                                                  \
-            nk_##input_type##_t bj = b[j];                                                                  \
-            int matches = ai == bj;                                                                         \
-            load_and_convert(a_weights + i, &awi);                                                          \
-            load_and_convert(b_weights + j, &bwi);                                                          \
-            weights_product += matches * awi * bwi;                                                         \
-            i += ai < bj;                                                                                   \
-            j += ai >= bj;                                                                                  \
-        }                                                                                                   \
-        *product = (nk_f32_t)weights_product;                                                               \
+#define nk_define_sparse_dot_(input_type, weight_type, accumulator_type, load_and_convert)                 \
+    NK_PUBLIC void nk_sparse_dot_##input_type##weight_type##_serial(                                       \
+        nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_##weight_type##_t const *a_weights, \
+        nk_##weight_type##_t const *b_weights, nk_size_t a_length, nk_size_t b_length,                     \
+        nk_##accumulator_type##_t *product) {                                                              \
+        nk_##accumulator_type##_t weights_product = 0, awi, bwi;                                           \
+        nk_size_t i = 0, j = 0;                                                                            \
+        while (i != a_length && j != b_length) {                                                           \
+            nk_##input_type##_t ai = a[i];                                                                 \
+            nk_##input_type##_t bj = b[j];                                                                 \
+            int matches = ai == bj;                                                                        \
+            load_and_convert(a_weights + i, &awi);                                                         \
+            load_and_convert(b_weights + j, &bwi);                                                         \
+            weights_product += matches * awi * bwi;                                                        \
+            i += ai < bj;                                                                                  \
+            j += ai >= bj;                                                                                 \
+        }                                                                                                  \
+        *product = weights_product;                                                                        \
     }
 
 nk_define_sparse_intersect_(u16) // nk_sparse_intersect_u16_serial
@@ -107,7 +108,7 @@ nk_define_sparse_intersect_(u32) // nk_sparse_intersect_u32_serial
 nk_define_sparse_intersect_(u64) // nk_sparse_intersect_u64_serial
 
 nk_define_sparse_dot_(u16, bf16, f32, nk_bf16_to_f32_serial) // nk_sparse_dot_u16bf16_serial
-nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u32f32_serial
+nk_define_sparse_dot_(u32, f32, f64, nk_assign_from_to_)     // nk_sparse_dot_u32f32_serial
 
 #if defined(__cplusplus)
 } // extern "C"

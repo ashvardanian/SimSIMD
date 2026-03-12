@@ -197,7 +197,7 @@ NK_PUBLIC void nk_maxsim_pack_f32_sapphireamx( //
 
 NK_PUBLIC void nk_maxsim_packed_f32_sapphireamx( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
-    nk_size_t depth, nk_f32_t *result) {
+    nk_size_t depth, nk_f64_t *result) {
 
     nk_maxsim_sapphireamx_i8_header_t const *query_header = (nk_maxsim_sapphireamx_i8_header_t const *)query_packed;
     nk_maxsim_sapphireamx_i8_header_t const *document_header =
@@ -331,20 +331,20 @@ NK_PUBLIC void nk_maxsim_packed_f32_sapphireamx( //
             nk_size_t query_index = query_row_start + query_in_tile;
             nk_u32_t best_document_index = (nk_u32_t)best_document_indices_i32[query_in_tile];
 
-            nk_f32_t dot_result_f32;
+            nk_f64_t dot_result_f64;
             nk_dot_f32((nk_f32_t const *)(query_originals + query_index * query_original_stride),
                        (nk_f32_t const *)(document_originals + best_document_index * document_original_stride), depth,
-                       &dot_result_f32);
+                       &dot_result_f64);
 
-            nk_f32_t cosine_f32 = dot_result_f32 * query_inverse_norms[query_index] *
-                                  document_inverse_norms[best_document_index];
-            nk_f32_t angular_distance_f32 = 1.0f - cosine_f32;
-            if (angular_distance_f32 < 0.0f) angular_distance_f32 = 0.0f;
-            total_angular_distance_f64 += (nk_f64_t)angular_distance_f32;
+            nk_f64_t cosine_f64 = dot_result_f64 * (nk_f64_t)query_inverse_norms[query_index] *
+                                  (nk_f64_t)document_inverse_norms[best_document_index];
+            nk_f64_t angular_distance_f64 = 1.0 - cosine_f64;
+            if (angular_distance_f64 < 0.0) angular_distance_f64 = 0.0;
+            total_angular_distance_f64 += angular_distance_f64;
         }
     }
 
-    *result = (nk_f32_t)total_angular_distance_f64;
+    *result = total_angular_distance_f64;
 }
 
 #pragma endregion

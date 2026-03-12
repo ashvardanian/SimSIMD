@@ -45,7 +45,7 @@ extern "C" {
         query_count: usize,
         document_count: usize,
         depth: usize,
-        result: *mut f32,
+        result: *mut f64,
     );
 
     fn nk_maxsim_packed_size_f16(vector_count: usize, depth: usize) -> usize;
@@ -89,7 +89,7 @@ extern "C" {
 
 /// Trait abstracting MaxSim pack/score operations per scalar type.
 pub trait MaxSim: Sized + Clone {
-    /// Score type returned by MaxSim scoring (always f32).
+    /// Score type returned by MaxSim scoring.
     type Score: Clone + Default;
 
     /// Returns the packed buffer size in bytes for `vector_count` vectors of given `depth`.
@@ -128,7 +128,7 @@ pub trait MaxSim: Sized + Clone {
 // region: MaxSim impls
 
 impl MaxSim for f32 {
-    type Score = f32;
+    type Score = f64;
 
     fn maxsim_packed_size(vector_count: usize, depth: usize) -> usize {
         unsafe { nk_maxsim_packed_size_f32(vector_count, depth) }
@@ -363,14 +363,10 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a reference to the allocator.
-    pub fn allocator(&self) -> &A {
-        &self.alloc
-    }
+    pub fn allocator(&self) -> &A { &self.alloc }
 
     /// Returns dimensions (vector_count, depth) of the original vector set.
-    pub fn dims(&self) -> (usize, usize) {
-        (self.vector_count, self.depth)
-    }
+    pub fn dims(&self) -> (usize, usize) { (self.vector_count, self.depth) }
 
     /// Returns the packed data buffer.
     pub fn as_bytes(&self) -> &[u8] {
@@ -378,9 +374,7 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a pointer to the packed data.
-    pub fn as_ptr(&self) -> *const u8 {
-        self.data.as_ptr()
-    }
+    pub fn as_ptr(&self) -> *const u8 { self.data.as_ptr() }
 }
 
 // Convenience methods using Global allocator

@@ -70,7 +70,7 @@ extern "C" {
  */
 NK_DYNAMIC void nk_bilinear_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_bilinear_f64 */
-NK_DYNAMIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t *result);
+NK_DYNAMIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_bilinear_f64 */
 NK_DYNAMIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_bilinear_f64 */
@@ -97,7 +97,7 @@ NK_DYNAMIC void nk_mahalanobis_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_
                                    nk_f64_t *result);
 /** @copydoc nk_mahalanobis_f64 */
 NK_DYNAMIC void nk_mahalanobis_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                   nk_f32_t *result);
+                                   nk_f64_t *result);
 /** @copydoc nk_mahalanobis_f64 */
 NK_DYNAMIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                    nk_f32_t *result);
@@ -118,7 +118,7 @@ NK_DYNAMIC void nk_bilinear_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c
                                  nk_f64c_t *results);
 /** @copydoc nk_bilinear_f64c */
 NK_DYNAMIC void nk_bilinear_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                 nk_f32c_t *results);
+                                 nk_f64c_t *results);
 /** @copydoc nk_bilinear_f64c */
 NK_DYNAMIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
                                  nk_f32c_t *results);
@@ -137,13 +137,13 @@ NK_PUBLIC void nk_mahalanobis_f64_serial(nk_f64_t const *a, nk_f64_t const *b, n
                                          nk_f64_t *result);
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                      nk_f32_t *result);
+                                      nk_f64_t *result);
 /** @copydoc nk_bilinear_f32c */
 NK_PUBLIC void nk_bilinear_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                       nk_f32c_t *results);
+                                       nk_f64c_t *results);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                         nk_f32_t *result);
+                                         nk_f64_t *result);
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                       nk_f32_t *result);
@@ -166,13 +166,13 @@ NK_PUBLIC void nk_mahalanobis_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b
 #if NK_TARGET_NEON
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                    nk_f32_t *result);
+                                    nk_f64_t *result);
 /** @copydoc nk_bilinear_f32c */
 NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                     nk_f32c_t *results);
+                                     nk_f64c_t *results);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                       nk_f32_t *result);
+                                       nk_f64_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -202,22 +202,22 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
 #if NK_TARGET_SMEF64
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                      nk_f32_t *result);
+                                      nk_f64_t *result);
 /** @copydoc nk_bilinear_f32c */
 NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                       nk_f32c_t *result);
+                                       nk_f64c_t *result);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                         nk_f32_t *result);
+                                         nk_f64_t *result);
 #endif // NK_TARGET_SMEF64
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                       nk_f32_t *result);
+                                       nk_f64_t *result);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                          nk_f32_t *result);
+                                          nk_f64_t *result);
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                        nk_f32_t *result);
@@ -244,13 +244,13 @@ NK_PUBLIC void nk_mahalanobis_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, 
                                           nk_f64_t *result);
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                       nk_f32_t *result);
+                                       nk_f64_t *result);
 /** @copydoc nk_bilinear_f32c */
 NK_PUBLIC void nk_bilinear_f32c_skylake(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                        nk_f32c_t *results);
+                                        nk_f64c_t *results);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                          nk_f32_t *result);
+                                          nk_f64_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_GENOA
@@ -274,10 +274,10 @@ NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f
                                       nk_f64_t *result);
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                   nk_f32_t *result);
+                                   nk_f64_t *result);
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                      nk_f32_t *result);
+                                      nk_f64_t *result);
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                    nk_f32_t *result);
@@ -298,11 +298,11 @@ NK_PUBLIC void nk_mahalanobis_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, n
 NK_INTERNAL nk_dtype_t nk_bilinear_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
+    case nk_f32_k: return nk_f64_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     case nk_f64c_k: return nk_f64c_k;
-    case nk_f32c_k: return nk_f32c_k;
+    case nk_f32c_k: return nk_f64c_k;
     case nk_f16c_k: return nk_f32c_k;
     case nk_bf16c_k: return nk_f32c_k;
     default: return nk_dtype_unknown_k;
@@ -315,7 +315,7 @@ NK_INTERNAL nk_dtype_t nk_bilinear_output_dtype(nk_dtype_t dtype) {
 NK_INTERNAL nk_dtype_t nk_mahalanobis_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
+    case nk_f32_k: return nk_f64_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     default: return nk_dtype_unknown_k;
@@ -352,7 +352,7 @@ NK_PUBLIC void nk_bilinear_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t co
 #endif
 }
 
-NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f32_skylake(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
@@ -403,7 +403,7 @@ NK_PUBLIC void nk_bilinear_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_
 }
 
 NK_PUBLIC void nk_bilinear_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                nk_f32c_t *results) {
+                                nk_f64c_t *results) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f32c_skylake(a, b, c, n, results);
 #elif NK_TARGET_NEON
@@ -445,7 +445,7 @@ NK_PUBLIC void nk_mahalanobis_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t
 }
 
 NK_PUBLIC void nk_mahalanobis_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                  nk_f32_t *result) {
+                                  nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_mahalanobis_f32_skylake(a, b, c, n, result);
 #elif NK_TARGET_HASWELL

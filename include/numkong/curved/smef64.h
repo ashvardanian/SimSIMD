@@ -93,7 +93,7 @@ NK_INTERNAL void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_
 __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32_smef64_streaming_(nk_f32_t const *a,
                                                                                       nk_f32_t const *b,
                                                                                       nk_f32_t const *c, nk_size_t n,
-                                                                                      nk_f32_t *result) {
+                                                                                      nk_f64_t *result) {
     svbool_t predicate_body_f64x = svptrue_b64();
     nk_size_t tile_dimension = svcntd();
     nk_f64_t outer_sum_f64 = 0.0;
@@ -128,11 +128,11 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32_smef64_strea
         outer_sum_f64 += svaddv_f64(predicate_body_f64x, svmul_f64_x(row_predicate_f64x, a_f64x, v_f64x));
     }
 
-    *result = (nk_f32_t)outer_sum_f64;
+    *result = outer_sum_f64;
 }
 
 NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                      nk_f32_t *result) {
+                                      nk_f64_t *result) {
     nk_bilinear_f32_smef64_streaming_(a, b, c, n, result);
 }
 
@@ -185,9 +185,9 @@ __arm_locally_streaming __arm_new("za") static inline nk_f64_t
 }
 
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                         nk_f32_t *result) {
+                                         nk_f64_t *result) {
     nk_f64_t quadratic = nk_mahalanobis_f32_smef64_streaming_(a, b, c, n);
-    *result = (nk_f32_t)nk_f64_sqrt_neon(quadratic > 0 ? quadratic : 0);
+    *result = nk_f64_sqrt_neon(quadratic > 0 ? quadratic : 0);
 }
 
 /**
@@ -341,7 +341,7 @@ NK_PUBLIC void nk_mahalanobis_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, n
  *  ZA0.D = C staging, ZA1.D = v_real accumulator, ZA2.D = v_imag accumulator.
  */
 __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_streaming_(
-    nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_f32c_t const *c_pairs, nk_size_t n, nk_f32c_t *results) {
+    nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_f32c_t const *c_pairs, nk_size_t n, nk_f64c_t *results) {
     svbool_t predicate_body_f64x = svptrue_b64();
     nk_size_t tile_dimension = svcntd();
     nk_f64_t outer_sum_real_f64 = 0.0, outer_sum_imag_f64 = 0.0;
@@ -411,12 +411,12 @@ __arm_locally_streaming __arm_new("za") static void nk_bilinear_f32c_smef64_stre
                                              svmul_f64_x(row_predicate_f64x, a_im_f64x, v_re_f64x)));
     }
 
-    results->real = (nk_f32_t)outer_sum_real_f64;
-    results->imag = (nk_f32_t)outer_sum_imag_f64;
+    results->real = outer_sum_real_f64;
+    results->imag = outer_sum_imag_f64;
 }
 
 NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_f32c_t const *c_pairs,
-                                       nk_size_t n, nk_f32c_t *results) {
+                                       nk_size_t n, nk_f64c_t *results) {
     nk_bilinear_f32c_smef64_streaming_(a_pairs, b_pairs, c_pairs, n, results);
 }
 

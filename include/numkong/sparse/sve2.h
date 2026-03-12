@@ -310,7 +310,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
     nk_u32_t const *a, nk_u32_t const *b,                 //
     nk_f32_t const *a_weights, nk_f32_t const *b_weights, //
     nk_size_t a_length, nk_size_t b_length,               //
-    nk_f32_t *product) {
+    nk_f64_t *product) {
 
     // A single SVE lane is 128 bits wide, so one lane fits 4 values.
     nk_size_t const register_size = svcntw();
@@ -382,7 +382,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
         a_idx += a_step;
         b_idx += b_step;
     }
-    *product = svaddv_f32(svptrue_b32(), product_f32x);
+    *product = (nk_f64_t)svaddv_f32(svptrue_b32(), product_f32x);
 }
 
 #if defined(__clang__)

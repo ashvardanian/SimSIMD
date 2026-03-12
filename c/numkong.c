@@ -367,11 +367,11 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_unpoison_((void *)result, row_count *result_stride);                                                 \
     }
 
-#define nk_dispatch_maxsim_packed_(name, input_type)                                                                  \
+#define nk_dispatch_maxsim_packed_(name, output_type)                                                                 \
     NK_DYNAMIC void nk_maxsim_packed_##name(void const *q_packed, void const *d_packed, nk_size_t n_q, nk_size_t n_d, \
-                                            nk_size_t depth, nk_f32_t *result) {                                      \
+                                            nk_size_t depth, nk_##output_type##_t *result) {                          \
         nk_dispatch_table.maxsim_packed_##name(q_packed, d_packed, n_q, n_d, depth, (void *)result);                  \
-        nk_unpoison_((void *)result, n_q * sizeof(nk_f32_t));                                                         \
+        nk_unpoison_((void *)result, sizeof(nk_##output_type##_t));                                                   \
     }
 
 // Dot products
@@ -444,15 +444,15 @@ nk_dispatch_dense_(jaccard, u1, u1x8, f32)
 
 // Curved spaces
 nk_dispatch_curved_(bilinear, f64c, f64c)
-nk_dispatch_curved_(bilinear, f32c, f32c)
+nk_dispatch_curved_(bilinear, f32c, f64c)
 nk_dispatch_curved_(bilinear, bf16c, f32c)
 nk_dispatch_curved_(bilinear, f16c, f32c)
 nk_dispatch_curved_(bilinear, f64, f64)
-nk_dispatch_curved_(bilinear, f32, f32)
+nk_dispatch_curved_(bilinear, f32, f64)
 nk_dispatch_curved_(bilinear, bf16, f32)
 nk_dispatch_curved_(bilinear, f16, f32)
 nk_dispatch_curved_(mahalanobis, f64, f64)
-nk_dispatch_curved_(mahalanobis, f32, f32)
+nk_dispatch_curved_(mahalanobis, f32, f64)
 nk_dispatch_curved_(mahalanobis, bf16, f32)
 nk_dispatch_curved_(mahalanobis, f16, f32)
 
@@ -490,7 +490,7 @@ nk_dispatch_mesh_(umeyama, f16, f32)
 nk_dispatch_sparse_(sparse_intersect, u64, u64)
 nk_dispatch_sparse_(sparse_intersect, u32, u32)
 nk_dispatch_sparse_(sparse_intersect, u16, u16)
-nk_dispatch_sparse_dot_(sparse_dot, u32, f32, f32)
+nk_dispatch_sparse_dot_(sparse_dot, u32, f32, f64)
 nk_dispatch_sparse_dot_(sparse_dot, u16, bf16, f32)
 
 // Element-wise operations
@@ -755,11 +755,11 @@ nk_dispatch_cross_pack_(maxsim, bf16, bf16, f32)
 nk_dispatch_cross_pack_(maxsim, f16, f16, f32)
 
 // MaxSim packed scoring
-nk_dispatch_maxsim_packed_(f32, f32) nk_dispatch_maxsim_packed_(bf16, bf16) nk_dispatch_maxsim_packed_(f16, f16)
+nk_dispatch_maxsim_packed_(f32, f64)
+nk_dispatch_maxsim_packed_(bf16, f32)
+nk_dispatch_maxsim_packed_(f16, f32)
 
-    NK_DYNAMIC int nk_uses_dynamic_dispatch(void) {
-    return 1;
-}
+NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
 NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {

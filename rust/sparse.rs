@@ -49,7 +49,7 @@ extern "C" {
         b_weights: *const f32,
         a_length: usize,
         b_length: usize,
-        product: *mut f32,
+        product: *mut f64,
     );
 }
 
@@ -185,6 +185,8 @@ impl SparseIntersect for u64 {
 pub trait SparseDot: Sized {
     /// Weight type for this sparse dot product.
     type Weight;
+    /// Output type for this sparse dot product.
+    type Output;
 
     /// Computes sparse dot product.
     ///
@@ -194,18 +196,19 @@ pub trait SparseDot: Sized {
         b_indices: &[Self],
         a_weights: &[Self::Weight],
         b_weights: &[Self::Weight],
-    ) -> f32;
+    ) -> Self::Output;
 }
 
 impl SparseDot for u16 {
     type Weight = bf16;
+    type Output = f32;
 
     fn sparse_dot(
         a_indices: &[Self],
         b_indices: &[Self],
         a_weights: &[bf16],
         b_weights: &[bf16],
-    ) -> f32 {
+    ) -> Self::Output {
         let mut product: f32 = 0.0;
         unsafe {
             nk_sparse_dot_u16bf16(
@@ -224,14 +227,15 @@ impl SparseDot for u16 {
 
 impl SparseDot for u32 {
     type Weight = f32;
+    type Output = f64;
 
     fn sparse_dot(
         a_indices: &[Self],
         b_indices: &[Self],
         a_weights: &[f32],
         b_weights: &[f32],
-    ) -> f32 {
-        let mut product: f32 = 0.0;
+    ) -> Self::Output {
+        let mut product: f64 = 0.0;
         unsafe {
             nk_sparse_dot_u32f32(
                 a_indices.as_ptr(),

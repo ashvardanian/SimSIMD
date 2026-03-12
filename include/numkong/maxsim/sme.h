@@ -652,7 +652,7 @@ NK_INTERNAL nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                            
 __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streaming_( //
     void const *query_packed, void const *document_packed,                           //
     nk_size_t query_count, nk_size_t document_count, nk_size_t depth,                //
-    nk_f32_t *result) {
+    nk_f64_t *result) {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -903,13 +903,13 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
         }
     }
 
-    *result = (nk_f32_t)total_angular_distance_f64;
+    *result = total_angular_distance_f64;
 }
 
 NK_PUBLIC void nk_maxsim_packed_f32_sme(                              //
     void const *query_packed, void const *document_packed,            //
     nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
-    nk_f32_t *result) {                                               //
+    nk_f64_t *result) {                                               //
 
     nk_maxsim_packed_f32_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
 }

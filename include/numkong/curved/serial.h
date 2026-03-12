@@ -122,10 +122,10 @@ extern "C" {
         *result = nk_##accumulator_type##_sqrt_serial(quadratic > 0 ? quadratic : 0);                               \
     }
 
-// f32 → f64 accumulator → f32 output: upcast provides sufficient precision headroom
-nk_define_bilinear_(f32, f64, f32, nk_assign_from_to_)          // nk_bilinear_f32_serial
-nk_define_bilinear_complex_(f32c, f64, f32, nk_assign_from_to_) // nk_bilinear_f32c_serial
-nk_define_mahalanobis_(f32, f64, f32, nk_assign_from_to_)       // nk_mahalanobis_f32_serial
+// f32 → f64 accumulator → f64 output
+nk_define_bilinear_(f32, f64, f64, nk_assign_from_to_)          // nk_bilinear_f32_serial
+nk_define_bilinear_complex_(f32c, f64, f64, nk_assign_from_to_) // nk_bilinear_f32c_serial
+nk_define_mahalanobis_(f32, f64, f64, nk_assign_from_to_)       // nk_mahalanobis_f32_serial
 
 // f16 → f32 accumulator → f32 output: f32 provides ample headroom for f16 (~3 vs ~7 decimal digits)
 nk_define_bilinear_(f16, f32, f32, nk_f16_to_f32_serial)          // nk_bilinear_f16_serial

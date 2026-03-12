@@ -103,7 +103,7 @@ NK_DYNAMIC void nk_maxsim_packed_bf16(void const *query_packed, void const *docu
                                       nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_DYNAMIC void nk_maxsim_packed_f32(void const *query_packed, void const *document_packed, nk_size_t query_count,
-                                     nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
+                                     nk_size_t document_count, nk_size_t depth, nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_DYNAMIC void nk_maxsim_packed_f16(void const *query_packed, void const *document_packed, nk_size_t query_count,
                                      nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
@@ -130,7 +130,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_serial(void const *query_packed, void const
                                             nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_serial(void const *query_packed, void const *document_packed, nk_size_t query_count,
-                                           nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
+                                           nk_size_t document_count, nk_size_t depth, nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_serial(void const *query_packed, void const *document_packed, nk_size_t query_count,
                                            nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
@@ -149,7 +149,7 @@ NK_PUBLIC void nk_maxsim_pack_f16_icelake(nk_f16_t const *vectors, nk_size_t vec
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_icelake(void const *query_packed, void const *document_packed,
                                             nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
-                                            nk_f32_t *result);
+                                            nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_icelake(void const *query_packed, void const *document_packed,
                                             nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
@@ -190,7 +190,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_sapphireamx(void const *query_packed, void 
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_sapphireamx(void const *query_packed, void const *document_packed,
                                                 nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
-                                                nk_f32_t *result);
+                                                nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_sapphireamx(void const *query_packed, void const *document_packed,
                                                 nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
@@ -220,7 +220,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_haswell(void const *query_packed, void cons
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_haswell(void const *query_packed, void const *document_packed,
                                             nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
-                                            nk_f32_t *result);
+                                            nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_haswell(void const *query_packed, void const *document_packed,
                                             nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
@@ -248,7 +248,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_alder(void const *query_packed, void const 
                                            nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_alder(void const *query_packed, void const *document_packed, nk_size_t query_count,
-                                          nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
+                                          nk_size_t document_count, nk_size_t depth, nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_alder(void const *query_packed, void const *document_packed, nk_size_t query_count,
                                           nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
@@ -277,7 +277,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_v128relaxed(void const *query_packed, void 
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_v128relaxed(void const *query_packed, void const *document_packed,
                                                 nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
-                                                nk_f32_t *result);
+                                                nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_v128relaxed(void const *query_packed, void const *document_packed,
                                                 nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
@@ -307,7 +307,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_neonsdot(void const *query_packed, void con
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_neonsdot(void const *query_packed, void const *document_packed,
                                              nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
-                                             nk_f32_t *result);
+                                             nk_f64_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f16_neonsdot(void const *query_packed, void const *document_packed,
                                              nk_size_t query_count, nk_size_t document_count, nk_size_t depth,
@@ -338,7 +338,7 @@ NK_PUBLIC void nk_maxsim_packed_f16_sme(void const *query_packed, void const *do
                                         nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
 /** @copydoc nk_maxsim_packed_bf16 */
 NK_PUBLIC void nk_maxsim_packed_f32_sme(void const *query_packed, void const *document_packed, nk_size_t query_count,
-                                        nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
+                                        nk_size_t document_count, nk_size_t depth, nk_f64_t *result);
 #endif // NK_TARGET_SME
 
 #if defined(__cplusplus)
@@ -506,7 +506,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16(void const *query_packed, void const *docum
 }
 
 NK_PUBLIC void nk_maxsim_packed_f32(void const *query_packed, void const *document_packed, nk_size_t query_count,
-                                    nk_size_t document_count, nk_size_t depth, nk_f32_t *result) {
+                                    nk_size_t document_count, nk_size_t depth, nk_f64_t *result) {
 #if NK_TARGET_SME
     nk_maxsim_packed_f32_sme(query_packed, document_packed, query_count, document_count, depth, result);
 #elif NK_TARGET_SAPPHIREAMX

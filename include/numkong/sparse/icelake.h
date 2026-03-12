@@ -364,7 +364,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_icelake( //
 NK_PUBLIC void nk_sparse_dot_u32f32_icelake(              //
     nk_u32_t const *a, nk_u32_t const *b,                 //
     nk_f32_t const *a_weights, nk_f32_t const *b_weights, //
-    nk_size_t a_length, nk_size_t b_length, nk_f32_t *product) {
+    nk_size_t a_length, nk_size_t b_length, nk_f64_t *product) {
 
 #if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
@@ -434,9 +434,9 @@ NK_PUBLIC void nk_sparse_dot_u32f32_icelake(              //
         b_weights += b_advance;
     }
 
-    nk_f32_t tail_product = 0;
+    nk_f64_t tail_product = 0;
     nk_sparse_dot_u32f32_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, &tail_product);
-    *product = _mm512_reduce_add_ps(product_f32x16) + tail_product;
+    *product = (nk_f64_t)_mm512_reduce_add_ps(product_f32x16) + tail_product;
 }
 
 #if defined(__clang__)

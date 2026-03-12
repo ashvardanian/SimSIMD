@@ -201,7 +201,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_v128relaxed( //
 
 NK_PUBLIC void nk_maxsim_packed_f32_v128relaxed( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
-    nk_size_t depth, nk_f32_t *result) {
+    nk_size_t depth, nk_f64_t *result) {
 
     nk_maxsim_packed_regions_t regions = nk_maxsim_extract_packed_regions_(query_packed, document_packed);
     nk_f64_t total_angular_distance = 0.0;
@@ -216,21 +216,22 @@ NK_PUBLIC void nk_maxsim_packed_f32_v128relaxed( //
 
         for (nk_size_t query_index = 0; query_index < chunk_size; query_index++) {
             nk_u32_t best_document_index = best_document_indices[query_index];
-            nk_f32_t dot_result;
+            nk_f64_t dot_result;
             nk_dot_f32(
                 (nk_f32_t const *)(regions.query_originals +
                                    (chunk_start + query_index) * regions.query_original_stride),
                 (nk_f32_t const *)(regions.document_originals + best_document_index * regions.document_original_stride),
                 depth, &dot_result);
-            nk_f32_t cosine = dot_result * regions.query_metadata[chunk_start + query_index].inverse_norm_f32 *
-                              regions.document_metadata[best_document_index].inverse_norm_f32;
-            nk_f32_t angular = 1.0f - cosine;
-            if (angular < 0.0f) angular = 0.0f;
-            total_angular_distance += (nk_f64_t)angular;
+            nk_f64_t cosine = dot_result *
+                              (nk_f64_t)regions.query_metadata[chunk_start + query_index].inverse_norm_f32 *
+                              (nk_f64_t)regions.document_metadata[best_document_index].inverse_norm_f32;
+            nk_f64_t angular = 1.0 - cosine;
+            if (angular < 0.0) angular = 0.0;
+            total_angular_distance += angular;
         }
     }
 
-    *result = (nk_f32_t)total_angular_distance;
+    *result = total_angular_distance;
 }
 
 NK_PUBLIC void nk_maxsim_packed_f16_v128relaxed( //

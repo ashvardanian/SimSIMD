@@ -164,7 +164,7 @@ NK_DYNAMIC void nk_sparse_dot_u16bf16( //
  */
 NK_DYNAMIC void nk_sparse_dot_u32f32( //
     nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights, nk_f32_t const *b_weights, nk_size_t a_length,
-    nk_size_t b_length, nk_f32_t *product);
+    nk_size_t b_length, nk_f64_t *product);
 
 /** @copydoc nk_sparse_intersect_u16 */
 NK_PUBLIC void nk_sparse_intersect_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
@@ -182,7 +182,7 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_serial(nk_u16_t const *a, nk_u16_t const *b
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                            nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                           nk_f32_t *product);
+                                           nk_f64_t *product);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_sparse_intersect_u16 */
@@ -209,7 +209,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_sve2(nk_u64_t const *a, nk_u64_t const *b
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                          nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                         nk_f32_t *product);
+                                         nk_f64_t *product);
 #endif // NK_TARGET_SVE2
 
 #if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
@@ -232,7 +232,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_icelake(nk_u64_t const *a, nk_u64_t const
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                             nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                            nk_f32_t *product);
+                                            nk_f64_t *product);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_TURIN
@@ -252,7 +252,7 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(nk_u16_t const *a, nk_u16_t const *b,
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_turin(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                           nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                          nk_f32_t *product);
+                                          nk_f64_t *product);
 #endif // NK_TARGET_TURIN
 
 #if defined(__cplusplus)
@@ -330,7 +330,7 @@ NK_PUBLIC void nk_sparse_dot_u16bf16(nk_u16_t const *a, nk_u16_t const *b, nk_bf
 
 NK_PUBLIC void nk_sparse_dot_u32f32(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                     nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                    nk_f32_t *product) {
+                                    nk_f64_t *product) {
 #if NK_TARGET_SVE2
     nk_sparse_dot_u32f32_sve2(a, b, a_weights, b_weights, a_length, b_length, product);
 #elif NK_TARGET_TURIN

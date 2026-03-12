@@ -21,7 +21,7 @@
 #include "numkong/types.h"
 #include "numkong/curved/serial.h"
 #include "numkong/cast/rvv.h"
-#include "numkong/spatial/rvv.h" // nk_f32_sqrt_rvv, nk_f64_sqrt_rvv
+#include "numkong/spatial/rvv.h" // `nk_f64_sqrt_rvv`
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                   nk_f32_t *result) {
+                                   nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
     nk_f64_t outer_sum = 0;
     for (nk_size_t i = 0; i < n; ++i) {
@@ -53,7 +53,7 @@ NK_PUBLIC void nk_bilinear_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
         outer_sum += (nk_f64_t)a[i] * inner_val;
     }
-    *result = (nk_f32_t)outer_sum;
+    *result = outer_sum;
 }
 
 NK_PUBLIC void nk_bilinear_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
@@ -153,7 +153,7 @@ NK_PUBLIC void nk_bilinear_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_b
 }
 
 NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                      nk_f32_t *result) {
+                                      nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
     nk_f64_t outer_sum = 0;
     for (nk_size_t i = 0; i < n; ++i) {
@@ -176,7 +176,7 @@ NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
         outer_sum += diff_i * inner_val;
     }
-    *result = nk_f32_sqrt_rvv((nk_f32_t)(outer_sum > 0 ? outer_sum : 0));
+    *result = nk_f64_sqrt_rvv(outer_sum > 0 ? outer_sum : 0);
 }
 
 NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,

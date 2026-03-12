@@ -113,28 +113,28 @@ struct f32_t {
     using sqeuclidean_result_t = f64_t;   // `nk_sqeuclidean_f32` output
     using euclidean_result_t = f64_t;     // `nk_euclidean_f32` output
     using angular_result_t = f64_t;       // `nk_angular_f32` output
-    using curved_result_t = f32_t;        // `nk_bilinear_f32` output
+    using curved_result_t = f64_t;        // `nk_bilinear_f32` output
     using geospatial_result_t = f32_t;    // `nk_haversine_f32` output
     using probability_result_t = f32_t;   // `nk_kld_f32` output
     using mesh_result_t = f32_t;          // `nk_rmsd_f32` output
     using reduce_moments_sum_t = f64_t;   // `nk_reduce_moments_f32` sum output
     using reduce_moments_sumsq_t = f64_t; // `nk_reduce_moments_f32` sumsq output
     using reduce_minmax_value_t = f32_t;  // `nk_reduce_minmax_f32` value output
-    using maxsim_result_t = f32_t;
+    using maxsim_result_t = f64_t;
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
-    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
+    using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using geospatial_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          raw_t *);
     using probability_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *, raw_t *, raw_t *, raw_t *,
                                    raw_t *);
     using sparse_dot_kernel_t = void (*)(nk_u32_t const *, nk_u32_t const *, raw_t const *, raw_t const *, nk_size_t,
-                                         nk_size_t, nk_f32_t *);
+                                         nk_size_t, nk_f64_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -154,7 +154,7 @@ struct f32_t {
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
     using angulars_symmetric_kernel_t = dots_symmetric_kernel_t;
     using euclideans_symmetric_kernel_t = dots_symmetric_kernel_t;
-    using maxsim_packed_kernel_t = void (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *);
+    using maxsim_packed_kernel_t = void (*)(void const *, void const *, nk_size_t, nk_size_t, nk_size_t, nk_f64_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
     static constexpr char const *dtype_name() noexcept { return "f32"; }
@@ -626,13 +626,13 @@ struct f32c_t {
     // Type aliases for mixed precision operations
     using dot_result_t = f64c_t;    // `nk_dot_f32c` output
     using vdot_result_t = f64c_t;   // `nk_vdot_f32c` output
-    using curved_result_t = f32c_t; // `nk_bilinear_f32c` output
+    using curved_result_t = f64c_t; // `nk_bilinear_f32c` output
     using scale_t = nk_f32c_t;
 
     // Kernel function pointer types
-    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
-    using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
-    using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
+    using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
+    using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);

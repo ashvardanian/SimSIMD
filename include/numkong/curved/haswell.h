@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                       nk_f32_t *result) {
+                                       nk_f64_t *result) {
     nk_size_t const tail_length = n % 4;
     nk_size_t const tail_start = n - tail_length;
     __m256d sum_f64x4 = _mm256_setzero_pd();
@@ -59,11 +59,11 @@ NK_PUBLIC void nk_bilinear_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_
         }
     }
 
-    *result = (nk_f32_t)sum;
+    *result = sum;
 }
 
 NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                          nk_f32_t *result) {
+                                          nk_f64_t *result) {
     nk_size_t const tail_length = n % 4;
     nk_size_t const tail_start = n - tail_length;
     __m256d sum_f64x4 = _mm256_setzero_pd();
@@ -94,7 +94,7 @@ NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, 
         }
     }
 
-    *result = (nk_f32_t)nk_f64_sqrt_haswell(sum > 0 ? sum : 0);
+    *result = nk_f64_sqrt_haswell(sum > 0 ? sum : 0);
 }
 
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
