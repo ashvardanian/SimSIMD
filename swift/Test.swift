@@ -96,7 +96,7 @@ class NumKongTests: XCTestCase {
         XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
     }
 
-    func testSqeuclideanInt8() throws {
+    func testSqEuclideanInt8() throws {
         let a: [Int8] = [1, 2, 3]
         let b: [Int8] = [4, 5, 6]
         let result = try XCTUnwrap(a.sqeuclidean(b))
@@ -104,7 +104,7 @@ class NumKongTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-        func testSqeuclideanFloat16() throws {
+        func testSqEuclideanFloat16() throws {
             let a: [Float16] = [1.0, 2.0, 3.0]
             let b: [Float16] = [4.0, 5.0, 6.0]
             let result = try XCTUnwrap(a.sqeuclidean(b))
@@ -112,14 +112,14 @@ class NumKongTests: XCTestCase {
         }
     #endif
 
-    func testSqeuclideanFloat32() throws {
+    func testSqEuclideanFloat32() throws {
         let a: [Float32] = [1.0, 2.0, 3.0]
         let b: [Float32] = [4.0, 5.0, 6.0]
         let result = try XCTUnwrap(a.sqeuclidean(b))
         XCTAssertEqual(result, 27.0, accuracy: 0.01)
     }
 
-    func testSqeuclideanFloat64() throws {
+    func testSqEuclideanFloat64() throws {
         let a: [Float64] = [1.0, 2.0, 3.0]
         let b: [Float64] = [4.0, 5.0, 6.0]
         let result = try XCTUnwrap(a.sqeuclidean(b))

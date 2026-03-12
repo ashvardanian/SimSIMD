@@ -14,9 +14,9 @@ public protocol NumKongAngular {
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
-public protocol NumKongSqeuclidean {
-    associatedtype L2sqOutput
-    static func sqeuclidean<A, B>(_ a: A, _ b: B) -> L2sqOutput?
+public protocol NumKongSqEuclidean {
+    associatedtype SqEuclideanOutput
+    static func sqeuclidean<A, B>(_ a: A, _ b: B) -> SqEuclideanOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
@@ -26,7 +26,7 @@ public protocol NumKongEuclidean {
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
-public typealias NumKongSpatial = NumKongDot & NumKongAngular & NumKongEuclidean & NumKongSqeuclidean
+public typealias NumKongSpatial = NumKongDot & NumKongAngular & NumKongEuclidean & NumKongSqEuclidean
 
 // MARK: - Built-in Scalars
 
@@ -72,8 +72,8 @@ extension Float64: NumKongEuclidean {
     }
 }
 
-extension Float64: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float64
+extension Float64: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float64
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float64?
@@ -128,8 +128,8 @@ extension Float32: NumKongEuclidean {
     }
 }
 
-extension Float32: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float64
+extension Float32: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float64
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float64?
@@ -189,8 +189,8 @@ extension Float32: NumKongSqeuclidean {
     }
 
     @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongSqeuclidean {
-        public typealias L2sqOutput = Float32
+    extension Float16: NumKongSqEuclidean {
+        public typealias SqEuclideanOutput = Float32
 
         @inlinable @inline(__always)
         public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -246,8 +246,8 @@ extension Int8: NumKongEuclidean {
     }
 }
 
-extension Int8: NumKongSqeuclidean {
-    public typealias L2sqOutput = UInt32
+extension Int8: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = UInt32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> UInt32?
@@ -302,8 +302,8 @@ extension UInt8: NumKongEuclidean {
     }
 }
 
-extension UInt8: NumKongSqeuclidean {
-    public typealias L2sqOutput = UInt32
+extension UInt8: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = UInt32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> UInt32?
@@ -360,8 +360,8 @@ extension BFloat16: NumKongEuclidean {
     }
 }
 
-extension BFloat16: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+extension BFloat16: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -416,8 +416,8 @@ extension E4M3: NumKongEuclidean {
     }
 }
 
-extension E4M3: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+extension E4M3: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -472,8 +472,8 @@ extension E5M2: NumKongEuclidean {
     }
 }
 
-extension E5M2: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+extension E5M2: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -528,8 +528,8 @@ extension E2M3: NumKongEuclidean {
     }
 }
 
-extension E2M3: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+extension E2M3: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -584,8 +584,8 @@ extension E3M2: NumKongEuclidean {
     }
 }
 
-extension E3M2: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+extension E3M2: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
@@ -624,9 +624,9 @@ extension RandomAccessCollection where Element: NumKongEuclidean {
     }
 }
 
-extension RandomAccessCollection where Element: NumKongSqeuclidean {
+extension RandomAccessCollection where Element: NumKongSqEuclidean {
     @inlinable @inline(__always)
-    public func sqeuclidean<B>(_ b: B) -> Element.L2sqOutput?
+    public func sqeuclidean<B>(_ b: B) -> Element.SqEuclideanOutput?
     where B: Sequence, B.Element == Element {
         Element.sqeuclidean(self, b)
     }
