@@ -2433,13 +2433,12 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
     }
 
 /* Optimize serial GEMM instantiations for size rather than speed.
- * These fallback kernels are only used when no SIMD backend is available,
- * so aggressive inlining/unrolling from -O3 wastes ~1.3 MB of binary space
- * with negligible performance benefit on the serial path. */
+ * These fallback kernels are only used when no SIMD backend is available, so aggressive inlining/unrolling from -O3
+ * wastes ~1.3 MB of binary space with negligible performance benefit on the serial path. Sadly, a scoped application
+ * of `__attribute__((optimize("Os"))` isn't supported on Clang, so this flag only applies to GCC builds.
+ */
 #if defined(NDEBUG)
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((optimize("Os"))), apply_to = function)
-#elif defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC push_options
 #pragma GCC optimize("Os")
 #endif
@@ -2651,9 +2650,7 @@ nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 
 #if defined(NDEBUG)
-#if defined(__clang__)
-#pragma clang attribute pop
-#elif defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC pop_options
 #endif
 #endif
