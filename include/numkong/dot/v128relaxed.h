@@ -930,19 +930,19 @@ NK_INTERNAL void nk_dot_i4x32_finalize_v128relaxed(                             
     nk_dot_i4x32_state_v128relaxed_t const *state_a, nk_dot_i4x32_state_v128relaxed_t const *state_b, //
     nk_dot_i4x32_state_v128relaxed_t const *state_c, nk_dot_i4x32_state_v128relaxed_t const *state_d, //
     nk_size_t total_dimensions,                                                                       //
-    nk_i32_t a_sum, /* Row sum of A (biased) */                                                       //
-    nk_b128_vec_t b_sums, /* 4 × i32 column sums of B (biased) */                                     //
+    nk_i32_t a_sum, /* Row sum of A (signed sum of i4 values) */                                      //
+    nk_b128_vec_t b_sums, /* 4 × i32 column sums of B */                                              //
     nk_b128_vec_t *result) {
-    // signed_dot = biased_dot - 8*(a_sum + b_sum) + 64*depth_padded
+    // Match x86 compensated i4 finalizers: result = biased_dot - 8*(a_sum + b_sum) - 64*depth_padded
     nk_i64_t depth_padded = (nk_i64_t)nk_size_round_up_to_multiple_(total_dimensions, 32);
     result->i32s[0] = nk_reduce_add_i32x4_v128relaxed_(state_a->biased_product_sum_i32x4) -
-                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[0]) + 64 * depth_padded;
+                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[0]) - 64 * depth_padded;
     result->i32s[1] = nk_reduce_add_i32x4_v128relaxed_(state_b->biased_product_sum_i32x4) -
-                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[1]) + 64 * depth_padded;
+                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[1]) - 64 * depth_padded;
     result->i32s[2] = nk_reduce_add_i32x4_v128relaxed_(state_c->biased_product_sum_i32x4) -
-                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[2]) + 64 * depth_padded;
+                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[2]) - 64 * depth_padded;
     result->i32s[3] = nk_reduce_add_i32x4_v128relaxed_(state_d->biased_product_sum_i32x4) -
-                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[3]) + 64 * depth_padded;
+                      8 * ((nk_i64_t)a_sum + (nk_i64_t)b_sums.i32s[3]) - 64 * depth_padded;
 }
 
 typedef struct nk_sum_i4x32_state_v128relaxed_t {
@@ -954,16 +954,14 @@ NK_INTERNAL void nk_sum_i4x32_init_v128relaxed(nk_sum_i4x32_state_v128relaxed_t 
 }
 
 NK_INTERNAL void nk_sum_i4x32_update_v128relaxed(nk_sum_i4x32_state_v128relaxed_t *state, nk_b128_vec_t v) {
-    // Extract signed nibbles: shift left 4, arithmetic shift right 4 for sign extension
     v128_t nibble_mask_u8x16 = wasm_u8x16_splat(0x0F);
     v128_t bias_mask_u8x16 = wasm_u8x16_splat(0x08);
-    // Use the biased representation (XOR with 8) to get unsigned [0,15], then sum as unsigned
     v128_t low_u8x16 = wasm_v128_xor(wasm_v128_and(v.v128, nibble_mask_u8x16), bias_mask_u8x16);
     v128_t high_u8x16 = wasm_v128_xor(wasm_v128_and(wasm_u16x8_shr(v.v128, 4), nibble_mask_u8x16), bias_mask_u8x16);
-    // Pairwise widening sum: u8 → u16 → u32
     v128_t sum_low_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(wasm_u16x8_extadd_pairwise_u8x16(low_u8x16));
     v128_t sum_high_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(wasm_u16x8_extadd_pairwise_u8x16(high_u8x16));
-    state->sum_i32x4 = wasm_i32x4_add(state->sum_i32x4, wasm_i32x4_add(sum_low_u32x4, sum_high_u32x4));
+    v128_t signed_sum_i32x4 = wasm_i32x4_sub(wasm_i32x4_add(sum_low_u32x4, sum_high_u32x4), wasm_i32x4_splat(64));
+    state->sum_i32x4 = wasm_i32x4_add(state->sum_i32x4, signed_sum_i32x4);
 }
 
 NK_INTERNAL nk_i32_t nk_sum_i4x32_finalize_v128relaxed(nk_sum_i4x32_state_v128relaxed_t const *state, nk_size_t count) {
