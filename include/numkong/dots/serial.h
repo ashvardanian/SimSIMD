@@ -1913,8 +1913,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
                                                                                                                        \
-                /* Skip blocks entirely below diagonal (i_block_end <= j_block) */                                     \
-                if (i_block_end <= j_block) continue;                                                                  \
+                /* Skip blocks entirely below diagonal. Blocks fully above the diagonal are still part of the upper    \
+                 * triangle and must be computed. */                                                                   \
+                if (i_block >= j_block_end) continue;                                                                  \
                                                                                                                        \
                 for (nk_size_t i_macro = i_block; i_macro < i_block_end; i_macro += macro_tile_size) {                 \
                     /* Upper triangle: j_macro starts at max(i_macro, j_block) */                                      \
@@ -2388,8 +2389,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
                                                                                                                        \
-                /* Skip blocks entirely below diagonal (i_block_end <= j_block) */                                     \
-                if (i_block_end <= j_block) continue;                                                                  \
+                /* Skip blocks entirely below diagonal. Blocks fully above the diagonal are still part of the upper    \
+                 * triangle and must be computed. */                                                                   \
+                if (i_block >= j_block_end) continue;                                                                  \
                                                                                                                        \
                 for (nk_size_t i_macro = i_block; i_macro < i_block_end; i_macro += macro_tile_size) {                 \
                     /* Upper triangle: j_macro starts at max(i_macro, j_block) */                                      \
