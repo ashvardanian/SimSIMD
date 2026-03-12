@@ -53,7 +53,7 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
         iterations++;
     }
 
-    state.counters["ops"] = bm::Counter(iterations * coordinates_count, bm::Counter::kIsRate);
+    state.counters["ops"] = bm::Counter(1.0 * iterations * coordinates_count, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 

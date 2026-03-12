@@ -57,7 +57,7 @@ void measure_maxsim_packed(                                                     
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * query_count * document_count * depth,
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * query_count * document_count * depth,
                                                bm::Counter::kIsRate);
 }
 

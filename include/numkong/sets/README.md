@@ -83,18 +83,18 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                             |                     256³ |                    1024³ |                    4096³ |
 | :--------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u1__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_hammings_packed_u1_serial`     |                116 gso/s |                125 gso/s |                279 gso/s |
-| `nk_hammings_symmetric_u1_serial`  |               41.3 gso/s |               73.9 gso/s |                300 gso/s |
-| `nk_jaccards_packed_u1_serial`     |        56.9 gso/s, 0 ulp |        99.1 gso/s, 0 ulp |         248 gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_serial`  |        33.2 gso/s, 0 ulp |        59.7 gso/s, 0 ulp |   277 gso/s, 6520000 ulp |
-| `nk_hammings_packed_u1_haswell`    |               66.8 gso/s |               90.1 gso/s |                166 gso/s |
-| `nk_hammings_symmetric_u1_haswell` |               44.3 gso/s |               77.7 gso/s |                299 gso/s |
-| `nk_jaccards_packed_u1_haswell`    |      58.2 gso/s, 0.3 ulp |      74.8 gso/s, 0.3 ulp |       104 gso/s, 0.3 ulp |
-| `nk_jaccards_symmetric_u1_haswell` |      41.5 gso/s, 0.3 ulp |      72.3 gso/s, 0.3 ulp |   315 gso/s, 6520000 ulp |
-| `nk_hammings_packed_u1_icelake`    |               92.7 gso/s |                242 gso/s |                611 gso/s |
-| `nk_hammings_symmetric_u1_icelake` |               62.5 gso/s |                182 gso/s |                903 gso/s |
-| `nk_jaccards_packed_u1_icelake`    |      81.1 gso/s, 0.3 ulp |       220 gso/s, 0.3 ulp |       600 gso/s, 0.3 ulp |
-| `nk_jaccards_symmetric_u1_icelake` |      53.9 gso/s, 0.3 ulp |       250 gso/s, 0.3 ulp |   694 gso/s, 6570000 ulp |
+| `nk_hammings_packed_u1_serial`     |                109 gso/s |                162 gso/s |                284 gso/s |
+| `nk_hammings_symmetric_u1_serial`  |               39.7 gso/s |                133 gso/s |                325 gso/s |
+| `nk_jaccards_packed_u1_serial`     |        54.8 gso/s, 0 ulp |         128 gso/s, 0 ulp |         259 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`  |        29.8 gso/s, 0 ulp |         110 gso/s, 0 ulp |         292 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_haswell`    |               62.3 gso/s |                129 gso/s |                167 gso/s |
+| `nk_hammings_symmetric_u1_haswell` |               40.1 gso/s |                136 gso/s |                350 gso/s |
+| `nk_jaccards_packed_u1_haswell`    |      53.5 gso/s, 0.3 ulp |       123 gso/s, 0.3 ulp |       170 gso/s, 0.3 ulp |
+| `nk_jaccards_symmetric_u1_haswell` |      36.7 gso/s, 0.3 ulp |       135 gso/s, 0.3 ulp |       339 gso/s, 0.3 ulp |
+| `nk_hammings_packed_u1_icelake`    |               73.9 gso/s |                340 gso/s |                634 gso/s |
+| `nk_hammings_symmetric_u1_icelake` |               52.6 gso/s |                298 gso/s |                942 gso/s |
+| `nk_jaccards_packed_u1_icelake`    |      65.6 gso/s, 0.3 ulp |       323 gso/s, 0.3 ulp |       638 gso/s, 0.3 ulp |
+| `nk_jaccards_symmetric_u1_icelake` |      47.4 gso/s, 0.3 ulp |       289 gso/s, 0.3 ulp |       894 gso/s, 0.3 ulp |
 
 #### WASM
 
@@ -103,14 +103,14 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                                 |                     256³ |                    1024³ |                    4096³ |
 | :------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u1__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_hammings_packed_u1_serial`         |                  0 gso/s |                  0 gso/s |                  0 gso/s |
-| `nk_hammings_packed_u1_v128relaxed`    |                  0 gso/s |                  0 gso/s |                  0 gso/s |
-| `nk_hammings_symmetric_u1_serial`      |                  0 gso/s |                  0 gso/s |                  0 gso/s |
-| `nk_hammings_symmetric_u1_v128relaxed` |                  0 gso/s |                  0 gso/s |                  0 gso/s |
-| `nk_jaccards_packed_u1_serial`         |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
-| `nk_jaccards_packed_u1_v128relaxed`    |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_serial`      |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_v128relaxed` |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |           ? gso/s, 0 ulp |
+| `nk_hammings_packed_u1_serial`         |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_packed_u1_v128relaxed`    |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_symmetric_u1_serial`      |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_hammings_symmetric_u1_v128relaxed` |                  ? gso/s |                  ? gso/s |                  ? gso/s |
+| `nk_jaccards_packed_u1_serial`         |       0.282 gso/s, ? ulp |       0.263 gso/s, ? ulp |      0.0607 gso/s, ? ulp |
+| `nk_jaccards_packed_u1_v128relaxed`    |      0.0964 gso/s, ? ulp |      0.0700 gso/s, ? ulp |       0.163 gso/s, ? ulp |
+| `nk_jaccards_symmetric_u1_serial`      |      0.0825 gso/s, ? ulp |       0.102 gso/s, ? ulp |       0.103 gso/s, ? ulp |
+| `nk_jaccards_symmetric_u1_v128relaxed` |       0.132 gso/s, ? ulp |      0.0726 gso/s, ? ulp |     0.00214 gso/s, ? ulp |
 
 ### Apple M4 Pro
 

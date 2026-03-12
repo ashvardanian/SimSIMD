@@ -100,27 +100,27 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel               |                      256 |                     1024 |                     4096 |
 | :------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f64_serial`  |     0.928 gb/s, 5.6K ulp |       1.18 gb/s, 25K ulp |      0.842 gb/s, 99K ulp |
-| `nk_jsd_f64_serial`  |      0.512 gb/s, 0.4 ulp |      0.578 gb/s, 0.4 ulp |      0.427 gb/s, 0.5 ulp |
-| `nk_kld_f64_haswell` |      9.00 gb/s, 5.6K ulp |       9.07 gb/s, 25K ulp |       8.85 gb/s, 99K ulp |
-| `nk_jsd_f64_haswell` |       4.70 gb/s, 1.7 ulp |       4.88 gb/s, 1.4 ulp |       4.79 gb/s, 1.4 ulp |
-| `nk_kld_f64_skylake` |      10.7 gb/s, 5.6K ulp |       11.7 gb/s, 25K ulp |       8.31 gb/s, 99K ulp |
-| `nk_jsd_f64_skylake` |       5.82 gb/s, 1.7 ulp |       6.01 gb/s, 1.4 ulp |       4.59 gb/s, 1.4 ulp |
+| `nk_kld_f64_serial`  |    0.693 gb/s, 5.65K ulp |    0.699 gb/s, 24.5K ulp |    0.753 gb/s, 98.9K ulp |
+| `nk_jsd_f64_serial`  |      0.324 gb/s, 0.5 ulp |      0.349 gb/s, 0.3 ulp |      0.391 gb/s, 0.6 ulp |
+| `nk_kld_f64_haswell` |     5.34 gb/s, 5.64K ulp |     5.59 gb/s, 24.6K ulp |     5.76 gb/s, 99.1K ulp |
+| `nk_jsd_f64_haswell` |       3.03 gb/s, 1.7 ulp |       3.05 gb/s, 1.4 ulp |       3.25 gb/s, 1.2 ulp |
+| `nk_kld_f64_skylake` |     7.01 gb/s, 5.64K ulp |     6.85 gb/s, 24.4K ulp |     6.86 gb/s, 98.9K ulp |
+| `nk_jsd_f64_skylake` |       3.66 gb/s, 1.6 ulp |       3.85 gb/s, 1.4 ulp |       4.30 gb/s, 1.2 ulp |
 | __f32__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f32_serial`  |       0.610 gb/s, 1K ulp |       0.714 gb/s, 5K ulp |      0.652 gb/s, 18K ulp |
-| `nk_jsd_f32_serial`  |      0.322 gb/s, 0.4 ulp |      0.383 gb/s, 0.4 ulp |      0.324 gb/s, 4.6 ulp |
-| `nk_kld_f32_skylake` |        14.8 gb/s, 1K ulp |        17.0 gb/s, 5K ulp |       17.7 gb/s, 18K ulp |
-| `nk_jsd_f32_skylake` |       9.04 gb/s, 6.5 ulp |       8.86 gb/s, 6.9 ulp |        7.01 gb/s, 11 ulp |
+| `nk_kld_f32_serial`  |    0.528 gb/s, 1.04K ulp |    0.516 gb/s, 4.54K ulp |    0.527 gb/s, 18.2K ulp |
+| `nk_jsd_f32_serial`  |      0.273 gb/s, 0.4 ulp |      0.272 gb/s, 0.4 ulp |      0.268 gb/s, 4.5 ulp |
+| `nk_kld_f32_skylake` |     11.8 gb/s, 1.04K ulp |     10.4 gb/s, 4.55K ulp |     8.73 gb/s, 18.3K ulp |
+| `nk_jsd_f32_skylake` |       6.25 gb/s, 6.6 ulp |       5.96 gb/s, 7.0 ulp |      6.05 gb/s, 11.1 ulp |
 | __bf16__             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_bf16_serial` |       0.155 gb/s, 1K ulp |       0.209 gb/s, 5K ulp |      0.191 gb/s, 18K ulp |
-| `nk_jsd_bf16_serial` |      0.097 gb/s, 1.5 ulp |      0.121 gb/s, 2.8 ulp |      0.112 gb/s, 9.1 ulp |
+| `nk_kld_bf16_serial` |    0.138 gb/s, 1.04K ulp |    0.142 gb/s, 4.53K ulp |    0.136 gb/s, 18.3K ulp |
+| `nk_jsd_bf16_serial` |     0.0857 gb/s, 1.5 ulp |     0.0842 gb/s, 3.4 ulp |    0.0841 gb/s, 10.7 ulp |
 | __f16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f16_serial`  |       0.181 gb/s, 1K ulp |       0.181 gb/s, 5K ulp |      0.169 gb/s, 18K ulp |
-| `nk_jsd_f16_serial`  |      0.185 gb/s, 1.4 ulp |      0.218 gb/s, 2.8 ulp |      0.204 gb/s, 8.1 ulp |
-| `nk_kld_f16_haswell` |        8.82 gb/s, 1K ulp |        8.68 gb/s, 5K ulp |       8.42 gb/s, 18K ulp |
-| `nk_jsd_f16_haswell` |       4.38 gb/s, 6.5 ulp |       4.53 gb/s, 6.9 ulp |        4.29 gb/s, 11 ulp |
-| `nk_kld_f16_skylake` |        9.87 gb/s, 1K ulp |        9.47 gb/s, 5K ulp |       7.25 gb/s, 18K ulp |
-| `nk_jsd_f16_skylake` |       4.60 gb/s, 6.5 ulp |       5.00 gb/s, 6.9 ulp |        3.87 gb/s, 11 ulp |
+| `nk_kld_f16_serial`  |    0.166 gb/s, 1.05K ulp |    0.163 gb/s, 4.53K ulp |    0.163 gb/s, 18.2K ulp |
+| `nk_jsd_f16_serial`  |      0.151 gb/s, 1.5 ulp |      0.148 gb/s, 2.3 ulp |      0.152 gb/s, 9.4 ulp |
+| `nk_kld_f16_haswell` |     6.99 gb/s, 1.05K ulp |     6.09 gb/s, 4.54K ulp |     6.97 gb/s, 18.2K ulp |
+| `nk_jsd_f16_haswell` |       2.81 gb/s, 6.4 ulp |       2.79 gb/s, 6.8 ulp |      2.72 gb/s, 11.5 ulp |
+| `nk_kld_f16_skylake` |     6.16 gb/s, 1.05K ulp |     5.65 gb/s, 4.54K ulp |     5.78 gb/s, 18.3K ulp |
+| `nk_jsd_f16_skylake` |       3.51 gb/s, 6.5 ulp |       3.22 gb/s, 6.9 ulp |      3.35 gb/s, 11.4 ulp |
 
 #### WASM
 
@@ -129,17 +129,17 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel               |                      256 |                     1024 |                     4096 |
 | :------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f64_serial`  |         ? gb/s, 5.7K ulp |          ? gb/s, 23K ulp |          ? gb/s, 99K ulp |
-| `nk_jsd_f64_serial`  |          ? gb/s, 0.5 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 0.7 ulp |
+| `nk_kld_f64_serial`  |    0.239 gb/s, 5.64K ulp |    0.223 gb/s, 24.6K ulp |     0.13 gb/s, 99.6K ulp |
+| `nk_jsd_f64_serial`  |      0.315 gb/s, 0.5 ulp |      0.402 gb/s, 0.3 ulp |       0.29 gb/s, 0.5 ulp |
 | __f32__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f32_serial`  |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
-| `nk_jsd_f32_serial`  |          ? gb/s, 0.5 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 4.3 ulp |
+| `nk_kld_f32_serial`  |    0.302 gb/s, 1.04K ulp |    0.342 gb/s, 4.52K ulp |    0.277 gb/s, 18.3K ulp |
+| `nk_jsd_f32_serial`  |      0.152 gb/s, 0.4 ulp |      0.164 gb/s, 0.4 ulp |      0.160 gb/s, 4.7 ulp |
 | __bf16__             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_bf16_serial` |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
-| `nk_jsd_bf16_serial` |          ? gb/s, 1.3 ulp |          ? gb/s, 3.2 ulp |          ? gb/s, 8.3 ulp |
+| `nk_kld_bf16_serial` |    0.139 gb/s, 1.05K ulp |    0.143 gb/s, 4.53K ulp |    0.150 gb/s, 18.3K ulp |
+| `nk_jsd_bf16_serial` |     0.0867 gb/s, 1.5 ulp |     0.0775 gb/s, 3.1 ulp |     0.0679 gb/s, 9.8 ulp |
 | __f16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f16_serial`  |           ? gb/s, 1K ulp |           ? gb/s, 5K ulp |          ? gb/s, 18K ulp |
-| `nk_jsd_f16_serial`  |          ? gb/s, 1.5 ulp |          ? gb/s, 2.4 ulp |          ? gb/s, 9.2 ulp |
+| `nk_kld_f16_serial`  |    0.118 gb/s, 1.04K ulp |    0.127 gb/s, 4.53K ulp |    0.111 gb/s, 18.3K ulp |
+| `nk_jsd_f16_serial`  |     0.0748 gb/s, 1.4 ulp |     0.0681 gb/s, 2.6 ulp |     0.0857 gb/s, 9.7 ulp |
 
 ### Apple M4 Pro
 
