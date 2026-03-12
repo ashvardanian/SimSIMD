@@ -255,6 +255,17 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(nk_u32_t const *a, nk_u32_t const *b, 
                                           nk_f64_t *product);
 #endif // NK_TARGET_TURIN
 
+/**
+ *  @brief  Returns the output dtype for sparse dot products.
+ */
+NK_INTERNAL nk_dtype_t nk_sparse_dot_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f32_k: return nk_f64_k;
+    case nk_bf16_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

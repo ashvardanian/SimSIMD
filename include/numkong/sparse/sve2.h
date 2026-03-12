@@ -314,9 +314,12 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
 
     // A single SVE lane is 128 bits wide, so one lane fits 4 values.
     nk_size_t const register_size = svcntw();
+    nk_size_t const vector_length_f64 = svcntd();
     nk_size_t const lanes_count = register_size / 4;
     nk_size_t a_idx = 0, b_idx = 0;
-    svfloat32_t product_f32x = svdup_f32(0.f);
+    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_f64x = svptrue_b64();
+    svfloat64_t product_f64x = svdup_f64(0.0);
 
     while (a_idx < a_length && b_idx < b_length) {
         // Load indices with progress predicates
@@ -357,22 +360,36 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
         svuint32_t hist_lower_u32x = svhistcnt_u32_z(a_progress_u32x, a_u32x, b_u32x);
         svuint32_t a_rev_u32x = svrev_u32(a_u32x);
         svuint32_t b_rev_u32x = svrev_u32(b_u32x);
-        svuint32_t hist_upper_u32x = svrev_u32(svhistcnt_u32_z(svptrue_b32(), a_rev_u32x, b_rev_u32x));
+        svuint32_t hist_upper_u32x = svrev_u32(svhistcnt_u32_z(predicate_all_f32x, a_rev_u32x, b_rev_u32x));
         svuint32_t hist_u32x = svorr_u32_x(a_progress_u32x, hist_lower_u32x, hist_upper_u32x);
         svbool_t a_equal_mask_u32x = svcmpne_n_u32(a_progress_u32x, hist_u32x, 0);
+        svbool_t a_overlap_mask_u32x = svand_b_z(predicate_all_f32x, a_progress_u32x, a_equal_mask_u32x);
+
+        if (!svptest_any(a_progress_u32x, a_overlap_mask_u32x)) {
+            a_idx += a_step;
+            b_idx += b_step;
+            continue;
+        }
 
         // Load weights and mask by intersection
-        svfloat32_t a_weights_f32x = svld1_f32(a_progress_u32x, a_weights + a_idx);
+        svfloat32_t a_weights_f32x = svsel_f32(a_overlap_mask_u32x, svld1_f32(a_progress_u32x, a_weights + a_idx),
+                                               svdup_f32(0.f));
         svfloat32_t b_weights_f32x = svld1_f32(b_progress_u32x, b_weights + b_idx);
+        svbool_t predicate_low_f64x = svwhilelt_b64_u64(a_idx, a_length);
+        svbool_t predicate_high_f64x = svwhilelt_b64_u64(a_idx + vector_length_f64, a_length);
+        svfloat64_t a_low_f64x = svcvt_f64_f32_x(predicate_low_f64x, a_weights_f32x);
+        svfloat64_t a_high_f64x = svcvtlt_f64_f32_x(predicate_high_f64x, a_weights_f32x);
 
         // For each position in a that matches something in b, we need the corresponding b weight.
         // Use lane-by-lane matching for dot product.
         for (nk_size_t i = 0; i < lanes_count; i++) {
             // Check which elements of a match the current rotation of b
             svbool_t equal_lane_u32x = svcmpeq_u32(a_progress_u32x, a_u32x, b_u32x);
-            // Multiply matching weights and accumulate
             svfloat32_t b_equal_weights_f32x = svsel_f32(equal_lane_u32x, b_weights_f32x, svdup_f32(0.f));
-            product_f32x = svmla_f32_x(a_progress_u32x, product_f32x, a_weights_f32x, b_equal_weights_f32x);
+            svfloat64_t b_low_f64x = svcvt_f64_f32_x(predicate_low_f64x, b_equal_weights_f32x);
+            svfloat64_t b_high_f64x = svcvtlt_f64_f32_x(predicate_high_f64x, b_equal_weights_f32x);
+            product_f64x = svmla_f64_x(predicate_low_f64x, product_f64x, a_low_f64x, b_low_f64x);
+            product_f64x = svmla_f64_x(predicate_high_f64x, product_f64x, a_high_f64x, b_high_f64x);
             // Rotate b vectors
             b_u32x = svext_u32(b_u32x, b_u32x, 4);
             b_weights_f32x = svext_f32(b_weights_f32x, b_weights_f32x, 4);
@@ -382,7 +399,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
         a_idx += a_step;
         b_idx += b_step;
     }
-    *product = (nk_f64_t)svaddv_f32(svptrue_b32(), product_f32x);
+    *product = svaddv_f64(predicate_all_f64x, product_f64x);
 }
 
 #if defined(__clang__)

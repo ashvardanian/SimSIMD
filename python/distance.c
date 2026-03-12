@@ -1408,9 +1408,10 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
         goto cleanup;
     }
 
-    nk_f32_t product = 0;
+    nk_scalar_buffer_t product = {0};
+    nk_dtype_t product_dtype = nk_sparse_dot_output_dtype(dispatch_dtype);
     kernel(a_idx.start, b_idx.start, a_val.start, b_val.start, a_idx.dimensions, b_idx.dimensions, &product);
-    return_obj = PyFloat_FromDouble((double)product);
+    return_obj = scalar_to_py_number(&product, product_dtype);
 
 cleanup:
     if (a_idx_buf.buf) PyBuffer_Release(&a_idx_buf);
