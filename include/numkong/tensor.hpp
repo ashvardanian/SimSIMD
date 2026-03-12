@@ -19,7 +19,7 @@
  *  Features:
  *  - Signed strides (ptrdiff_t) for reversed/transposed views
  *  - Signed indexing (negative = from end)
- *  - C++23 variadic `operator[]` for multi-dimensional access
+ *  - C++23 variadic `operator[]` for flat access, exact access, and trailing `slice`
  *  - Axis iteration (rows_views(), rows_spans(), axis_iterator)
  *  - Conversion to vector_view/vector_span for rank-1 tensors
  */
@@ -27,11 +27,49 @@
 #ifndef NK_TENSOR_HPP
 #define NK_TENSOR_HPP
 
+#include <array>   // `std::array`
+#include <cstdio>  // `std::fprintf`, `stderr`
+#include <cstdlib> // `std::abort`
 #include <cstring> // `std::memset`
+#include <span>    // `std::span`
+#include <type_traits>
 
 #include "vector.hpp" // `aligned_allocator`
 
 namespace ashvardanian::numkong {
+
+template <typename value_type_, std::size_t max_rank_>
+struct tensor_view;
+template <typename value_type_, std::size_t max_rank_>
+struct tensor_span;
+template <typename value_type_, typename allocator_type_, std::size_t max_rank_>
+struct tensor;
+
+struct tensor_slice_t {};
+inline constexpr tensor_slice_t slice {};
+
+template <typename... arg_types_>
+struct trailing_tensor_slice_args_ : std::false_type {};
+
+template <>
+struct trailing_tensor_slice_args_<tensor_slice_t> : std::true_type {};
+
+template <std::integral index_type_, typename... rest_types_>
+struct trailing_tensor_slice_args_<index_type_, rest_types_...> : trailing_tensor_slice_args_<rest_types_...> {};
+
+template <typename... arg_types_>
+inline constexpr bool trailing_tensor_slice_args_v =
+    trailing_tensor_slice_args_<std::remove_cvref_t<arg_types_>...>::value;
+
+#if defined(NDEBUG)
+#define nk_assert_(expr) ((void)0)
+#else
+extern "C" [[noreturn]] inline void nk_assert_failure(char const *expr, char const *file, int line) noexcept {
+    std::fprintf(stderr, "NumKong assertion failed: %s (%s:%d)\n", expr, file, line);
+    std::abort();
+}
+#define nk_assert_(expr) ((expr) ? (void)0 : nk_assert_failure(#expr, __FILE__, __LINE__))
+#endif
 
 #pragma region - Shape Storage
 
@@ -78,6 +116,83 @@ struct shape_storage_ {
     }
 };
 
+template <typename value_type_>
+constexpr std::size_t dims_to_values_(std::size_t dims) noexcept {
+    return divide_round_up(dims, static_cast<std::size_t>(dimensions_per_value<value_type_>()));
+}
+
+template <typename value_type_, std::size_t max_rank_>
+constexpr std::size_t storage_values_for_shape_(shape_storage_<max_rank_> const &shape) noexcept {
+    if (shape.rank == 0) return 1;
+    std::size_t values = 1;
+    for (std::size_t i = 0; i < shape.rank; ++i) {
+        bool const is_last = i + 1 == shape.rank;
+        values *= is_last ? dims_to_values_<value_type_>(shape.extents[i]) : shape.extents[i];
+    }
+    return values;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+constexpr shape_storage_<max_rank_> make_contiguous_shape_(std::size_t const *exts, std::size_t rank_val) noexcept {
+    shape_storage_<max_rank_> s;
+    s.rank = rank_val;
+    auto stride = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    for (std::size_t i = rank_val; i > 0; --i) {
+        s.extents[i - 1] = exts[i - 1];
+        s.strides[i - 1] = stride;
+        auto const extent_factor = i == rank_val ? dims_to_values_<value_type_>(exts[i - 1])
+                                                 : static_cast<std::size_t>(exts[i - 1]);
+        stride *= static_cast<std::ptrdiff_t>(extent_factor);
+    }
+    return s;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+constexpr bool is_tensor_contiguous_(shape_storage_<max_rank_> const &shape) noexcept {
+    if (shape.rank == 0) return true;
+    auto expected = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    for (std::size_t i = shape.rank; i > 0; --i) {
+        if (shape.strides[i - 1] != expected) return false;
+        auto const extent_factor = i == shape.rank ? dims_to_values_<value_type_>(shape.extents[i - 1])
+                                                   : static_cast<std::size_t>(shape.extents[i - 1]);
+        expected *= static_cast<std::ptrdiff_t>(extent_factor);
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+constexpr bool packed_tensor_layout_supported_(shape_storage_<max_rank_> const &shape) noexcept {
+    if constexpr (dimensions_per_value<value_type_>() == 1) return true;
+    else return is_tensor_contiguous_<value_type_>(shape);
+}
+
+template <typename value_type_, std::size_t max_rank_, std::size_t... indices_, typename... index_types_>
+constexpr std::array<std::size_t, sizeof...(indices_)> resolve_tensor_indices_(shape_storage_<max_rank_> const &shape,
+                                                                               std::index_sequence<indices_...>,
+                                                                               index_types_... idxs) noexcept {
+    return {resolve_index_(idxs, shape.extents[indices_])...};
+}
+
+template <typename value_type_, std::size_t max_rank_, std::size_t extent_>
+decltype(auto) tensor_lookup_resolved_(tensor_view<value_type_, max_rank_> input,
+                                       std::span<std::size_t const, extent_> coords) noexcept;
+
+template <typename value_type_, std::size_t max_rank_, std::size_t extent_>
+decltype(auto) tensor_lookup_resolved_(tensor_span<value_type_, max_rank_> input,
+                                       std::span<std::size_t const, extent_> coords) noexcept;
+
+template <typename value_type_, std::size_t max_rank_, typename index_type_>
+decltype(auto) tensor_flat_lookup_(tensor_view<value_type_, max_rank_> input, index_type_ idx) noexcept;
+
+template <typename value_type_, std::size_t max_rank_, typename index_type_>
+decltype(auto) tensor_flat_lookup_(tensor_span<value_type_, max_rank_> input, index_type_ idx) noexcept;
+
+template <typename tensor_type_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, tensor_slice_t) noexcept;
+
+template <typename tensor_type_, std::integral index_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, index_type_ idx, rest_types_... rest) noexcept;
+
 #pragma endregion - Shape Storage
 
 #pragma region - Tensor View
@@ -119,7 +234,7 @@ struct tensor_view {
     constexpr size_type numel() const noexcept { return shape_.numel(); }
 
     /** @brief True if empty. */
-    constexpr bool empty() const noexcept { return shape_.numel() == 0; }
+    constexpr bool empty() const noexcept { return data_ == nullptr || shape_.numel() == 0; }
 
     /** @brief Raw byte pointer. */
     constexpr char const *byte_data() const noexcept { return data_; }
@@ -130,9 +245,11 @@ struct tensor_view {
     /** @brief Access the shape storage. */
     constexpr shape_storage_<max_rank_> const &shape() const noexcept { return shape_; }
 
-    /** @brief Element access with signed index along the leading dimension.
-     *  Returns a sub-view with rank-1 if rank > 1, or a value reference if rank == 1. */
-    tensor_view<value_type_, max_rank_> slice_leading(difference_type idx) const noexcept {
+    /** @brief Slice along the leading dimension. */
+    template <std::integral index_type_>
+    tensor_view<value_type_, max_rank_> slice_leading(index_type_ idx) const noexcept {
+        nk_assert_(shape_.rank >= 1);
+        if (shape_.rank == 0) return {};
         auto i = resolve_index_(idx, shape_.extents[0]);
         auto offset = static_cast<difference_type>(i) * shape_.strides[0];
         shape_storage_<max_rank_> sub;
@@ -144,11 +261,50 @@ struct tensor_view {
         return {data_ + offset, sub};
     }
 
+    /** @brief Rank-0 scalar access. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
+        return tensor_flat_lookup_(*this, idx);
+    }
+
+    /** @brief Exact multi-dimensional scalar lookup. */
+    template <std::integral... index_types_>
+        requires(sizeof...(index_types_) >= 2)
+    decltype(auto) operator[](index_types_... idxs) const noexcept {
+        nk_assert_(shape_.rank == sizeof...(index_types_));
+        auto coords = resolve_tensor_indices_<value_type_>(shape_, std::index_sequence_for<index_types_...> {},
+                                                           idxs...);
+        return tensor_lookup_resolved_(*this, std::span<std::size_t const, sizeof...(index_types_)>(coords));
+    }
+
+    /** @brief Trailing `slice` returns the same view. */
+    constexpr tensor_view operator[](tensor_slice_t) const noexcept { return *this; }
+
+    /** @brief Prefix leading-axis slicing with a trailing `slice` marker. */
+    template <typename first_type_, typename second_type_, typename... rest_types_>
+        requires(trailing_tensor_slice_args_v<first_type_, second_type_, rest_types_...>)
+    tensor_view operator[](first_type_ first, second_type_ second, rest_types_... rest) const noexcept {
+        return tensor_slice_suffix_(*this, first, second, rest...);
+    }
+
+    /** @brief Rank-0 scalar access. */
+    decltype(auto) scalar() const noexcept {
+        nk_assert_(shape_.rank == 0);
+        nk_assert_(data_ != nullptr);
+        return *reinterpret_cast<value_type_ const *>(data_);
+    }
+
     /** @brief Convert to vector_view (requires rank == 1). */
-    vector_view<value_type> as_vector() const noexcept { return {data_, shape_.extents[0], shape_.strides[0]}; }
+    vector_view<value_type> as_vector() const noexcept {
+        nk_assert_(shape_.rank == 1);
+        if (shape_.rank != 1) return {};
+        return {data_, shape_.extents[0], shape_.strides[0]};
+    }
 
     /** @brief Reinterpret as a 2D matrix view. Requires rank >= 2. */
     tensor_view<value_type_, 2> as_matrix() const noexcept {
+        nk_assert_(shape_.rank >= 2);
+        if (shape_.rank < 2) return {};
         shape_storage_<2> matrix_shape;
         matrix_shape.rank = 2;
         matrix_shape.extents[0] = shape_.extents[0];
@@ -159,18 +315,13 @@ struct tensor_view {
     }
 
     /** @brief Check if the tensor is contiguous in memory. */
-    constexpr bool is_contiguous() const noexcept {
-        if (shape_.rank == 0) return true;
-        auto expected = static_cast<difference_type>(sizeof(value_type));
-        for (size_type i = shape_.rank; i > 0; --i) {
-            if (shape_.strides[i - 1] != expected) return false;
-            expected *= static_cast<difference_type>(shape_.extents[i - 1]);
-        }
-        return true;
-    }
+    constexpr bool is_contiguous() const noexcept { return is_tensor_contiguous_<value_type>(shape_); }
 
     /** @brief Transpose: reverse the order of all dimensions (swap extents and strides). */
     constexpr tensor_view transpose() const noexcept {
+        if constexpr (dimensions_per_value<value_type>() > 1) {
+            if (shape_.rank >= 2) return {};
+        }
         if (shape_.rank < 2) return *this;
         auto transposed = shape_;
         for (size_type i = 0; i < transposed.rank / 2; ++i) {
@@ -185,8 +336,9 @@ struct tensor_view {
     tensor_view reshape(std::initializer_list<size_type> new_extents) const noexcept {
         auto new_rank = new_extents.size();
         if (!is_contiguous() || new_rank > max_rank_ || new_rank == 0) return {};
-        auto new_shape = shape_storage_<max_rank_>::contiguous(new_extents.begin(), new_rank, sizeof(value_type));
-        if (new_shape.numel() != shape_.numel()) return {};
+        auto new_shape = make_contiguous_shape_<value_type, max_rank_>(new_extents.begin(), new_rank);
+        if (storage_values_for_shape_<value_type>(new_shape) != storage_values_for_shape_<value_type>(shape_))
+            return {};
         return {data_, new_shape};
     }
 
@@ -256,7 +408,7 @@ struct tensor_span {
     /** @brief Total number of elements. */
     constexpr size_type numel() const noexcept { return shape_.numel(); }
     /** @brief True if empty. */
-    constexpr bool empty() const noexcept { return shape_.numel() == 0; }
+    constexpr bool empty() const noexcept { return data_ == nullptr || shape_.numel() == 0; }
 
     /** @brief Raw byte pointer. */
     constexpr char *byte_data() noexcept { return data_; }
@@ -273,7 +425,10 @@ struct tensor_span {
     }
 
     /** @brief Slice along leading dimension. */
-    tensor_span slice_leading(difference_type idx) const noexcept {
+    template <std::integral index_type_>
+    tensor_span slice_leading(index_type_ idx) const noexcept {
+        nk_assert_(shape_.rank >= 1);
+        if (shape_.rank == 0) return {};
         auto i = resolve_index_(idx, shape_.extents[0]);
         auto offset = static_cast<difference_type>(i) * shape_.strides[0];
         shape_storage_<max_rank_> sub;
@@ -285,16 +440,84 @@ struct tensor_span {
         return {data_ + offset, sub};
     }
 
+    /** @brief Flat logical scalar access. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) noexcept {
+        return tensor_flat_lookup_(*this, idx);
+    }
+
+    /** @brief Const flat logical scalar access. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
+        return tensor_flat_lookup_(static_cast<tensor_view<value_type_, max_rank_>>(*this), idx);
+    }
+
+    /** @brief Exact multi-dimensional scalar lookup. */
+    template <std::integral... index_types_>
+        requires(sizeof...(index_types_) >= 2)
+    decltype(auto) operator[](index_types_... idxs) noexcept {
+        nk_assert_(shape_.rank == sizeof...(index_types_));
+        auto coords = resolve_tensor_indices_<value_type_>(shape_, std::index_sequence_for<index_types_...> {},
+                                                           idxs...);
+        return tensor_lookup_resolved_(*this, std::span<std::size_t const, sizeof...(index_types_)>(coords));
+    }
+
+    /** @brief Const full-coordinate lookup. */
+    template <std::integral... index_types_>
+        requires(sizeof...(index_types_) >= 2)
+    decltype(auto) operator[](index_types_... idxs) const noexcept {
+        return static_cast<tensor_view<value_type_, max_rank_>>(*this)[idxs...];
+    }
+
+    /** @brief Trailing `slice` returns the same span. */
+    constexpr tensor_span operator[](tensor_slice_t) noexcept { return *this; }
+    constexpr tensor_view<value_type_, max_rank_> operator[](tensor_slice_t) const noexcept {
+        return static_cast<tensor_view<value_type_, max_rank_>>(*this);
+    }
+
+    /** @brief Prefix leading-axis slicing with a trailing `slice` marker. */
+    template <typename first_type_, typename second_type_, typename... rest_types_>
+        requires(trailing_tensor_slice_args_v<first_type_, second_type_, rest_types_...>)
+    tensor_span operator[](first_type_ first, second_type_ second, rest_types_... rest) noexcept {
+        return tensor_slice_suffix_(*this, first, second, rest...);
+    }
+
+    /** @brief Const prefix leading-axis slicing with a trailing `slice` marker. */
+    template <typename first_type_, typename second_type_, typename... rest_types_>
+        requires(trailing_tensor_slice_args_v<first_type_, second_type_, rest_types_...>)
+    tensor_view<value_type_, max_rank_> operator[](first_type_ first, second_type_ second,
+                                                   rest_types_... rest) const noexcept {
+        return tensor_slice_suffix_(static_cast<tensor_view<value_type_, max_rank_>>(*this), first, second, rest...);
+    }
+
+    /** @brief Rank-0 mutable scalar access. */
+    decltype(auto) scalar_ref() noexcept {
+        nk_assert_(shape_.rank == 0);
+        nk_assert_(data_ != nullptr);
+        return *reinterpret_cast<value_type_ *>(data_);
+    }
+
+    /** @brief Rank-0 const scalar access. */
+    decltype(auto) scalar() const noexcept { return static_cast<tensor_view<value_type_, max_rank_>>(*this).scalar(); }
+
     /** @brief Convert to vector_span (requires rank == 1). */
-    vector_span<value_type> as_vector() noexcept { return {data_, shape_.extents[0], shape_.strides[0]}; }
+    vector_span<value_type> as_vector() noexcept {
+        nk_assert_(shape_.rank == 1);
+        if (shape_.rank != 1) return {};
+        return {data_, shape_.extents[0], shape_.strides[0]};
+    }
 
     /** @brief Convert to vector_view (requires rank == 1). */
     vector_view<value_type> as_vector() const noexcept {
+        nk_assert_(shape_.rank == 1);
+        if (shape_.rank != 1) return {};
         return {static_cast<char const *>(data_), shape_.extents[0], shape_.strides[0]};
     }
 
     /** @brief Reinterpret as a 2D matrix span. Requires rank >= 2. */
     tensor_span<value_type_, 2> as_matrix() noexcept {
+        nk_assert_(shape_.rank >= 2);
+        if (shape_.rank < 2) return {};
         shape_storage_<2> matrix_shape;
         matrix_shape.rank = 2;
         matrix_shape.extents[0] = shape_.extents[0];
@@ -306,6 +529,8 @@ struct tensor_span {
 
     /** @brief Reinterpret as a 2D const matrix view. Requires rank >= 2. */
     tensor_view<value_type_, 2> as_matrix() const noexcept {
+        nk_assert_(shape_.rank >= 2);
+        if (shape_.rank < 2) return {};
         shape_storage_<2> matrix_shape;
         matrix_shape.rank = 2;
         matrix_shape.extents[0] = shape_.extents[0];
@@ -316,18 +541,13 @@ struct tensor_span {
     }
 
     /** @brief Check if contiguous in memory. */
-    constexpr bool is_contiguous() const noexcept {
-        if (shape_.rank == 0) return true;
-        auto expected = static_cast<difference_type>(sizeof(value_type));
-        for (size_type i = shape_.rank; i > 0; --i) {
-            if (shape_.strides[i - 1] != expected) return false;
-            expected *= static_cast<difference_type>(shape_.extents[i - 1]);
-        }
-        return true;
-    }
+    constexpr bool is_contiguous() const noexcept { return is_tensor_contiguous_<value_type>(shape_); }
 
     /** @brief Transpose: reverse the order of all dimensions (swap extents and strides). */
     constexpr tensor_span transpose() noexcept {
+        if constexpr (dimensions_per_value<value_type>() > 1) {
+            if (shape_.rank >= 2) return {};
+        }
         if (shape_.rank < 2) return *this;
         auto transposed = shape_;
         for (size_type i = 0; i < transposed.rank / 2; ++i) {
@@ -342,8 +562,9 @@ struct tensor_span {
     tensor_span reshape(std::initializer_list<size_type> new_extents) noexcept {
         auto new_rank = new_extents.size();
         if (!is_contiguous() || new_rank > max_rank_ || new_rank == 0) return {};
-        auto new_shape = shape_storage_<max_rank_>::contiguous(new_extents.begin(), new_rank, sizeof(value_type));
-        if (new_shape.numel() != shape_.numel()) return {};
+        auto new_shape = make_contiguous_shape_<value_type, max_rank_>(new_extents.begin(), new_rank);
+        if (storage_values_for_shape_<value_type>(new_shape) != storage_values_for_shape_<value_type>(shape_))
+            return {};
         return {data_, new_shape};
     }
 
@@ -393,6 +614,111 @@ struct tensor_span {
 };
 
 #pragma endregion - Tensor Span
+
+template <typename value_type_, std::size_t max_rank_, std::size_t extent_>
+decltype(auto) tensor_lookup_resolved_(tensor_view<value_type_, max_rank_> input,
+                                       std::span<std::size_t const, extent_> coords) noexcept {
+    nk_assert_(input.byte_data() != nullptr);
+    nk_assert_(coords.size() == input.rank());
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        nk_assert_(packed_tensor_layout_supported_<value_type_>(input.shape()));
+        auto offset = std::ptrdiff_t {};
+        for (std::size_t i = 0; i + 1 < input.rank(); ++i)
+            offset += static_cast<std::ptrdiff_t>(coords[i]) * input.stride_bytes(i);
+        constexpr auto dims_per_value = dimensions_per_value<value_type_>();
+        auto last_index = coords[input.rank() - 1];
+        auto value_index = last_index / dims_per_value;
+        auto sub_index = last_index % dims_per_value;
+        using raw_type = typename raw_pod_type<value_type_>::type;
+        auto *base = const_cast<raw_type *>(reinterpret_cast<raw_type const *>(
+            input.byte_data() + offset +
+            static_cast<std::ptrdiff_t>(value_index) * input.stride_bytes(input.rank() - 1)));
+        return sub_byte_ref<value_type_>(base, sub_index).get();
+    }
+    else {
+        auto offset = input.shape().linearize(coords.data());
+        return *reinterpret_cast<value_type_ const *>(input.byte_data() + offset);
+    }
+}
+
+template <typename value_type_, std::size_t max_rank_, std::size_t extent_>
+decltype(auto) tensor_lookup_resolved_(tensor_span<value_type_, max_rank_> input,
+                                       std::span<std::size_t const, extent_> coords) noexcept {
+    nk_assert_(input.byte_data() != nullptr);
+    nk_assert_(coords.size() == input.rank());
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        nk_assert_(packed_tensor_layout_supported_<value_type_>(input.shape()));
+        auto offset = std::ptrdiff_t {};
+        for (std::size_t i = 0; i + 1 < input.rank(); ++i)
+            offset += static_cast<std::ptrdiff_t>(coords[i]) * input.stride_bytes(i);
+        constexpr auto dims_per_value = dimensions_per_value<value_type_>();
+        auto last_index = coords[input.rank() - 1];
+        auto value_index = last_index / dims_per_value;
+        auto sub_index = last_index % dims_per_value;
+        using raw_type = typename raw_pod_type<value_type_>::type;
+        auto *base = reinterpret_cast<raw_type *>(input.byte_data() + offset +
+                                                  static_cast<std::ptrdiff_t>(value_index) *
+                                                      input.stride_bytes(input.rank() - 1));
+        return sub_byte_ref<value_type_>(base, sub_index);
+    }
+    else {
+        auto offset = input.shape().linearize(coords.data());
+        return *reinterpret_cast<value_type_ *>(input.byte_data() + offset);
+    }
+}
+
+template <typename value_type_, std::size_t max_rank_, typename index_type_>
+decltype(auto) tensor_flat_lookup_(tensor_view<value_type_, max_rank_> input, index_type_ idx) noexcept {
+    nk_assert_(input.byte_data() != nullptr);
+    if constexpr (dimensions_per_value<value_type_>() > 1) nk_assert_(input.rank() > 0);
+    auto flat = resolve_index_(idx, input.numel());
+    if constexpr (dimensions_per_value<value_type_>() == 1) {
+        if (input.rank() == 0) return input.scalar();
+    }
+
+    std::array<std::size_t, max_rank_> coords {};
+    for (std::size_t dim = input.rank(); dim > 0; --dim) {
+        auto axis = dim - 1;
+        auto extent = input.extent(axis);
+        coords[axis] = flat % extent;
+        flat /= extent;
+    }
+    return tensor_lookup_resolved_(input, std::span<std::size_t const>(coords.data(), input.rank()));
+}
+
+template <typename value_type_, std::size_t max_rank_, typename index_type_>
+decltype(auto) tensor_flat_lookup_(tensor_span<value_type_, max_rank_> input, index_type_ idx) noexcept {
+    nk_assert_(input.byte_data() != nullptr);
+    if constexpr (dimensions_per_value<value_type_>() > 1) nk_assert_(input.rank() > 0);
+    auto flat = resolve_index_(idx, input.numel());
+    if constexpr (dimensions_per_value<value_type_>() == 1) {
+        if (input.rank() == 0) return input.scalar_ref();
+    }
+
+    std::array<std::size_t, max_rank_> coords {};
+    for (std::size_t dim = input.rank(); dim > 0; --dim) {
+        auto axis = dim - 1;
+        auto extent = input.extent(axis);
+        coords[axis] = flat % extent;
+        flat /= extent;
+    }
+    return tensor_lookup_resolved_(input, std::span<std::size_t const>(coords.data(), input.rank()));
+}
+
+template <typename tensor_type_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, tensor_slice_t) noexcept {
+    return input;
+}
+
+template <typename tensor_type_, std::integral index_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, index_type_ idx, rest_types_... rest) noexcept {
+    if constexpr (dimensions_per_value<typename tensor_type_::value_type>() > 1) {
+        if constexpr (sizeof...(rest_types_) == 1)
+            if (input.rank() <= 1) return {};
+    }
+    if (input.rank() == 0) return {};
+    return tensor_slice_suffix_(input.slice_leading(idx), rest...);
+}
 
 #pragma region - Axis Iterator
 
@@ -498,7 +824,7 @@ struct tensor {
     explicit tensor(allocator_type_ const &alloc) noexcept : alloc_(alloc) {}
 
     ~tensor() noexcept {
-        if (data_) alloc_traits::deallocate(alloc_, data_, shape_.numel());
+        if (data_) alloc_traits::deallocate(alloc_, data_, storage_values_for_shape_<value_type_>(shape_));
     }
 
     tensor(tensor &&other) noexcept
@@ -507,7 +833,7 @@ struct tensor {
 
     tensor &operator=(tensor &&other) noexcept {
         if (this != &other) {
-            if (data_) alloc_traits::deallocate(alloc_, data_, shape_.numel());
+            if (data_) alloc_traits::deallocate(alloc_, data_, storage_values_for_shape_<value_type_>(shape_));
             if constexpr (alloc_traits::propagate_on_container_move_assignment::value) alloc_ = std::move(other.alloc_);
             data_ = std::exchange(other.data_, nullptr);
             shape_ = std::exchange(other.shape_, {});
@@ -528,16 +854,16 @@ struct tensor {
                                           allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
         auto rank = extents.size();
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents.begin(), rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
         if constexpr (is_memset_zero_safe_v<value_type_>)
-            std::memset(static_cast<void *>(ptr), 0, n * sizeof(value_type_));
+            std::memset(static_cast<void *>(ptr), 0, storage_values * sizeof(value_type_));
         else
-            for (size_type i = 0; i < n; ++i) ptr[i] = value_type_ {};
+            for (size_type i = 0; i < storage_values; ++i) ptr[i] = value_type_ {};
         t.data_ = ptr;
         return t;
     }
@@ -564,13 +890,13 @@ struct tensor {
                                          allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
         auto rank = extents.size();
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents.begin(), rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
-        for (size_type i = 0; i < n; ++i) ptr[i] = val;
+        for (size_type i = 0; i < storage_values; ++i) ptr[i] = val;
         t.data_ = ptr;
         return t;
     }
@@ -585,11 +911,11 @@ struct tensor {
                                           allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
         auto rank = extents.size();
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents.begin(), rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents.begin(), rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
         t.data_ = ptr;
         return t;
@@ -599,16 +925,16 @@ struct tensor {
     [[nodiscard]] static tensor try_zeros(size_type const *extents, size_type rank,
                                           allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents, rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents, rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
         if constexpr (is_memset_zero_safe_v<value_type_>)
-            std::memset(static_cast<void *>(ptr), 0, n * sizeof(value_type_));
+            std::memset(static_cast<void *>(ptr), 0, storage_values * sizeof(value_type_));
         else
-            for (size_type i = 0; i < n; ++i) ptr[i] = value_type_ {};
+            for (size_type i = 0; i < storage_values; ++i) ptr[i] = value_type_ {};
         t.data_ = ptr;
         return t;
     }
@@ -617,11 +943,11 @@ struct tensor {
     [[nodiscard]] static tensor try_empty(size_type const *extents, size_type rank,
                                           allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents, rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents, rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
         t.data_ = ptr;
         return t;
@@ -631,13 +957,13 @@ struct tensor {
     [[nodiscard]] static tensor try_full(size_type const *extents, size_type rank, value_type_ val,
                                          allocator_type_ alloc = {}) noexcept {
         tensor t(alloc);
-        if (rank > max_rank_ || rank == 0) return t;
-        t.shape_ = shape_storage_<max_rank_>::contiguous(extents, rank, sizeof(value_type));
-        auto n = t.shape_.numel();
-        if (n == 0) return t;
-        pointer ptr = alloc_traits::allocate(t.alloc_, n);
+        if (rank > max_rank_) return t;
+        t.shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents, rank);
+        auto storage_values = storage_values_for_shape_<value_type_>(t.shape_);
+        if (storage_values == 0) return t;
+        pointer ptr = alloc_traits::allocate(t.alloc_, storage_values);
         if (!ptr) return t;
-        for (size_type i = 0; i < n; ++i) ptr[i] = val;
+        for (size_type i = 0; i < storage_values; ++i) ptr[i] = val;
         t.data_ = ptr;
         return t;
     }
@@ -734,10 +1060,66 @@ struct tensor {
     constexpr bool is_contiguous() const noexcept { return view().is_contiguous(); }
 
     /** @brief Slice along leading dimension (immutable view). */
-    view_type slice_leading(difference_type idx) const noexcept { return view().slice_leading(idx); }
+    template <std::integral index_type_>
+    view_type slice_leading(index_type_ idx) const noexcept {
+        return view().slice_leading(idx);
+    }
 
     /** @brief Slice along leading dimension (mutable span). */
-    span_type slice_leading(difference_type idx) noexcept { return span().slice_leading(idx); }
+    template <std::integral index_type_>
+    span_type slice_leading(index_type_ idx) noexcept {
+        return span().slice_leading(idx);
+    }
+
+    /** @brief Flat logical scalar access. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) noexcept {
+        return span()[idx];
+    }
+
+    /** @brief Const flat logical scalar access. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
+        return view()[idx];
+    }
+
+    /** @brief Exact multi-dimensional scalar lookup. */
+    template <std::integral... index_types_>
+        requires(sizeof...(index_types_) >= 2)
+    decltype(auto) operator[](index_types_... idxs) noexcept {
+        return span()[idxs...];
+    }
+
+    /** @brief Const multidimensional lookup. */
+    template <std::integral... index_types_>
+        requires(sizeof...(index_types_) >= 2)
+    decltype(auto) operator[](index_types_... idxs) const noexcept {
+        return view()[idxs...];
+    }
+
+    /** @brief Trailing `slice` returns the same tensor view/span category. */
+    span_type operator[](tensor_slice_t) noexcept { return span(); }
+    view_type operator[](tensor_slice_t) const noexcept { return view(); }
+
+    /** @brief Prefix leading-axis slicing with a trailing `slice` marker. */
+    template <typename first_type_, typename second_type_, typename... rest_types_>
+        requires(trailing_tensor_slice_args_v<first_type_, second_type_, rest_types_...>)
+    span_type operator[](first_type_ first, second_type_ second, rest_types_... rest) noexcept {
+        return tensor_slice_suffix_(span(), first, second, rest...);
+    }
+
+    /** @brief Const prefix leading-axis slicing with a trailing `slice` marker. */
+    template <typename first_type_, typename second_type_, typename... rest_types_>
+        requires(trailing_tensor_slice_args_v<first_type_, second_type_, rest_types_...>)
+    view_type operator[](first_type_ first, second_type_ second, rest_types_... rest) const noexcept {
+        return tensor_slice_suffix_(view(), first, second, rest...);
+    }
+
+    /** @brief Rank-0 mutable scalar access. */
+    decltype(auto) scalar_ref() noexcept { return span().scalar_ref(); }
+
+    /** @brief Rank-0 const scalar access. */
+    decltype(auto) scalar() const noexcept { return view().scalar(); }
 
     /** @brief Convert to vector_view (requires rank == 1). */
     vector_view<value_type> as_vector_view() const noexcept { return view().as_vector(); }
@@ -820,9 +1202,9 @@ struct minmax_result {
 #pragma region - Helpers
 
 /** @brief Compute output shape with one axis removed (or set to 1 if keep_dims). */
-template <std::size_t max_rank_>
-shape_storage_<max_rank_> reduced_shape_(shape_storage_<max_rank_> const &in, std::size_t axis, keep_dims_t keep_dims,
-                                         std::size_t elem_bytes) noexcept {
+template <typename value_type_, std::size_t max_rank_>
+shape_storage_<max_rank_> reduced_shape_(shape_storage_<max_rank_> const &in, std::size_t axis,
+                                         keep_dims_t keep_dims) noexcept {
     std::size_t out_extents[max_rank_];
     std::size_t out_rank = 0;
     for (std::size_t i = 0; i < in.rank; ++i) {
@@ -831,7 +1213,7 @@ shape_storage_<max_rank_> reduced_shape_(shape_storage_<max_rank_> const &in, st
         }
         else { out_extents[out_rank++] = in.extents[i]; }
     }
-    return shape_storage_<max_rank_>::contiguous(out_extents, out_rank, elem_bytes);
+    return make_contiguous_shape_<value_type_, max_rank_>(out_extents, out_rank);
 }
 
 /** @brief Validate that two views have matching shapes. */
@@ -852,11 +1234,314 @@ bool shapes_match_out_(tensor_view<in_type_, max_rank_> a, tensor_span<out_type_
     return true;
 }
 
+template <typename value_type_, std::size_t max_rank_>
+bool tensor_layout_supported_(tensor_view<value_type_, max_rank_> input) noexcept {
+    return packed_tensor_layout_supported_<value_type_>(input.shape());
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool tensor_layout_supported_(tensor_span<value_type_, max_rank_> input) noexcept {
+    return packed_tensor_layout_supported_<value_type_>(input.shape());
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool shape_matches_(shape_storage_<max_rank_> const &expected, tensor_span<value_type_, max_rank_> actual) noexcept {
+    if (expected.rank != actual.rank()) return false;
+    for (std::size_t i = 0; i < expected.rank; ++i)
+        if (expected.extents[i] != actual.extent(i)) return false;
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+struct normalized_rank1_lane_ {
+    value_type_ const *data = nullptr;
+    std::size_t count = 0;
+    std::size_t stride_bytes = sizeof(value_type_);
+    bool reversed = false;
+};
+
+template <typename value_type_, std::size_t max_rank_>
+bool can_reduce_rank1_with_kernel_(tensor_view<value_type_, max_rank_> input) noexcept {
+    if (input.rank() != 1 || input.byte_data() == nullptr || !tensor_layout_supported_(input)) return false;
+    if constexpr (dimensions_per_value<value_type_>() > 1) return input.is_contiguous();
+    return input.stride_bytes(0) != 0;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool can_apply_rank1_data_kernel_(tensor_view<value_type_, max_rank_> input) noexcept {
+    if (input.rank() != 1 || input.byte_data() == nullptr || !tensor_layout_supported_(input)) return false;
+    return input.is_contiguous();
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool can_apply_rank1_data_kernel_(tensor_span<value_type_, max_rank_> output) noexcept {
+    if (output.rank() != 1 || output.byte_data() == nullptr || !tensor_layout_supported_(output)) return false;
+    return output.is_contiguous();
+}
+
+template <typename value_type_, std::size_t max_rank_>
+normalized_rank1_lane_<value_type_, max_rank_> normalize_rank1_lane_(
+    tensor_view<value_type_, max_rank_> input) noexcept {
+    normalized_rank1_lane_<value_type_, max_rank_> lane;
+    if (input.rank() != 1 || input.byte_data() == nullptr) return lane;
+    lane.count = input.extent(0);
+    if (lane.count == 0) return lane;
+    auto stride = input.stride_bytes(0);
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        if (!input.is_contiguous()) return {};
+        lane.data = input.data();
+        lane.stride_bytes = sizeof(value_type_);
+        lane.reversed = false;
+        return lane;
+    }
+    if (stride >= 0) {
+        lane.data = input.data();
+        lane.stride_bytes = static_cast<std::size_t>(stride);
+        lane.reversed = false;
+    }
+    else {
+        lane.data = reinterpret_cast<value_type_ const *>(input.byte_data() + (lane.count - 1) * stride);
+        lane.stride_bytes = static_cast<std::size_t>(-stride);
+        lane.reversed = true;
+    }
+    return lane;
+}
+
+template <typename value_type_, std::size_t max_rank_, typename lane_fn_>
+bool for_each_axis_lane_(tensor_view<value_type_, max_rank_> input, std::size_t axis, lane_fn_ &&lane_fn) noexcept {
+    if (axis >= input.rank() || !tensor_layout_supported_(input) || input.byte_data() == nullptr) return false;
+
+    shape_storage_<max_rank_> lane_shape;
+    lane_shape.rank = 1;
+    lane_shape.extents[0] = input.extent(axis);
+    lane_shape.strides[0] = input.stride_bytes(axis);
+
+    std::size_t remaining_dims[max_rank_] = {};
+    std::size_t remaining_count = 0;
+    for (std::size_t dim = 0; dim < input.rank(); ++dim) {
+        if (dim != axis) remaining_dims[remaining_count++] = dim;
+    }
+
+    if (remaining_count == 0) return lane_fn(tensor_view<value_type_, max_rank_> {input.byte_data(), lane_shape}, 0);
+
+    std::size_t coords[max_rank_] = {};
+    std::size_t total_lanes = 1;
+    for (std::size_t i = 0; i < remaining_count; ++i) total_lanes *= input.extent(remaining_dims[i]);
+
+    for (std::size_t lane_index = 0; lane_index < total_lanes; ++lane_index) {
+        auto offset = std::ptrdiff_t {};
+        for (std::size_t i = 0; i < remaining_count; ++i)
+            offset += static_cast<std::ptrdiff_t>(coords[i]) * input.stride_bytes(remaining_dims[i]);
+        if (!lane_fn(tensor_view<value_type_, max_rank_> {input.byte_data() + offset, lane_shape}, lane_index))
+            return false;
+
+        for (std::size_t i = remaining_count; i > 0; --i) {
+            auto coord_index = i - 1;
+            auto dim = remaining_dims[coord_index];
+            if (++coords[coord_index] < input.extent(dim)) break;
+            coords[coord_index] = 0;
+        }
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_rank1_moments_(tensor_view<value_type_, max_rank_> input, typename value_type_::reduce_moments_sum_t &sum,
+                           typename value_type_::reduce_moments_sumsq_t &sumsq) noexcept {
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+    if (input.rank() != 1 || !tensor_layout_supported_(input) || input.byte_data() == nullptr) return false;
+    if (can_reduce_rank1_with_kernel_(input)) {
+        auto lane = normalize_rank1_lane_(input);
+        numkong::reduce_moments<value_type_>(lane.data, lane.count, lane.stride_bytes, &sum, &sumsq);
+        return true;
+    }
+    auto values = input.as_vector();
+    sum = sum_t {};
+    sumsq = sumsq_t {};
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        auto value = values[i];
+        sum = saturating_add(sum, value);
+        sumsq = saturating_fma(value, value, sumsq);
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_rank1_minmax_(tensor_view<value_type_, max_rank_> input,
+                          minmax_result<typename value_type_::reduce_minmax_value_t> &result) noexcept {
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+    if (input.rank() != 1 || !tensor_layout_supported_(input) || input.byte_data() == nullptr) return false;
+    if (can_reduce_rank1_with_kernel_(input)) {
+        auto lane = normalize_rank1_lane_(input);
+        numkong::reduce_minmax<value_type_>(lane.data, lane.count, lane.stride_bytes, &result.min_value,
+                                            &result.min_index, &result.max_value, &result.max_index);
+        if (lane.reversed) {
+            result.min_index = lane.count - 1 - result.min_index;
+            result.max_index = lane.count - 1 - result.max_index;
+        }
+        return true;
+    }
+    auto values = input.as_vector();
+    result.min_value = finite_max<minmax_t>();
+    result.max_value = finite_min<minmax_t>();
+    result.min_index = 0;
+    result.max_index = 0;
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        minmax_t value = minmax_t(values[i]);
+        if (value < result.min_value) result.min_value = value, result.min_index = i;
+        if (value > result.max_value) result.max_value = value, result.max_index = i;
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool accumulate_moments_tensor_(tensor_view<value_type_, max_rank_> input,
+                                tensor_span<typename value_type_::reduce_moments_sum_t, max_rank_> sums,
+                                tensor_span<typename value_type_::reduce_moments_sumsq_t, max_rank_> sumsqs) noexcept {
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+    if (!tensor_layout_supported_(input) || !shapes_match_out_(input, sums) || !shapes_match_out_(input, sumsqs))
+        return false;
+    if (input.rank() == 1) {
+        auto src = input.as_vector();
+        auto dst_sum = sums.as_vector();
+        auto dst_sumsq = sumsqs.as_vector();
+        for (std::size_t i = 0; i < src.size(); ++i) {
+            auto value = src[i];
+            dst_sum[i] = saturating_add(dst_sum[i], sum_t(value));
+            dst_sumsq[i] = saturating_fma(value, value, sumsq_t(dst_sumsq[i]));
+        }
+        return true;
+    }
+    for (std::size_t i = 0; i < input.extent(0); ++i) {
+        if (!accumulate_moments_tensor_(input.slice_leading(i), sums.slice_leading(i), sumsqs.slice_leading(i)))
+            return false;
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool update_minmax_tensor_(tensor_view<value_type_, max_rank_> input,
+                           tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> mins,
+                           tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> maxs) noexcept {
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+    if (!tensor_layout_supported_(input) || !shapes_match_out_(input, mins) || !shapes_match_out_(input, maxs))
+        return false;
+    if (input.rank() == 1) {
+        auto src = input.as_vector();
+        auto dst_min = mins.as_vector();
+        auto dst_max = maxs.as_vector();
+        for (std::size_t i = 0; i < src.size(); ++i) {
+            minmax_t value = minmax_t(src[i]);
+            if (value < dst_min[i]) dst_min[i] = value;
+            if (value > dst_max[i]) dst_max[i] = value;
+        }
+        return true;
+    }
+    for (std::size_t i = 0; i < input.extent(0); ++i) {
+        if (!update_minmax_tensor_(input.slice_leading(i), mins.slice_leading(i), maxs.slice_leading(i))) return false;
+    }
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_moments_axis_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                          typename value_type_::reduce_moments_sum_t *sums,
+                          typename value_type_::reduce_moments_sumsq_t *sumsqs) noexcept {
+    return for_each_axis_lane_(input, axis,
+                               [&](tensor_view<value_type_, max_rank_> lane, std::size_t output_index) noexcept {
+                                   typename value_type_::reduce_moments_sum_t sum {};
+                                   typename value_type_::reduce_moments_sumsq_t sumsq {};
+                                   if (!reduce_rank1_moments_(lane, sum, sumsq)) return false;
+                                   if (sums) sums[output_index] = sum;
+                                   if (sumsqs) sumsqs[output_index] = sumsq;
+                                   return true;
+                               });
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_moments_axis_packed_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                 tensor_span<typename value_type_::reduce_moments_sum_t, max_rank_> sums,
+                                 tensor_span<typename value_type_::reduce_moments_sumsq_t, max_rank_> sumsqs,
+                                 keep_dims_t keep_dims) noexcept {
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+    if (!tensor_layout_supported_(input) || axis >= input.rank()) return false;
+    if (axis == 0) {
+        auto sum_target = keep_dims ? sums.slice_leading(0) : sums;
+        auto sumsq_target = keep_dims ? sumsqs.slice_leading(0) : sumsqs;
+        if (input.rank() == 1) {
+            sum_t sum {};
+            sumsq_t sumsq {};
+            if (!reduce_rank1_moments_(input, sum, sumsq)) return false;
+            sum_target.scalar_ref() = sum;
+            sumsq_target.scalar_ref() = sumsq;
+            return true;
+        }
+        for (std::size_t i = 0; i < input.extent(0); ++i)
+            if (!accumulate_moments_tensor_(input.slice_leading(i), sum_target, sumsq_target)) return false;
+        return true;
+    }
+    if (input.rank() == 1) return false;
+    for (std::size_t i = 0; i < input.extent(0); ++i)
+        if (!reduce_moments_axis_packed_(input.slice_leading(i), axis - 1, sums.slice_leading(i),
+                                         sumsqs.slice_leading(i), keep_dims))
+            return false;
+    return true;
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_minmax_axis_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                         typename value_type_::reduce_minmax_value_t *mins, std::size_t *argmins,
+                         typename value_type_::reduce_minmax_value_t *maxs, std::size_t *argmaxs) noexcept {
+    return for_each_axis_lane_(input, axis,
+                               [&](tensor_view<value_type_, max_rank_> lane, std::size_t output_index) noexcept {
+                                   minmax_result<typename value_type_::reduce_minmax_value_t> result {};
+                                   if (!reduce_rank1_minmax_(lane, result)) return false;
+                                   if (mins) mins[output_index] = result.min_value;
+                                   if (argmins) argmins[output_index] = result.min_index;
+                                   if (maxs) maxs[output_index] = result.max_value;
+                                   if (argmaxs) argmaxs[output_index] = result.max_index;
+                                   return true;
+                               });
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool reduce_minmax_axis_packed_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> mins,
+                                tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> maxs,
+                                keep_dims_t keep_dims) noexcept {
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+    if (!tensor_layout_supported_(input) || axis >= input.rank()) return false;
+    if (axis == 0) {
+        auto min_target = keep_dims ? mins.slice_leading(0) : mins;
+        auto max_target = keep_dims ? maxs.slice_leading(0) : maxs;
+        if (input.rank() == 1) {
+            minmax_result<minmax_t> result {};
+            if (!reduce_rank1_minmax_(input, result)) return false;
+            min_target.scalar_ref() = result.min_value;
+            max_target.scalar_ref() = result.max_value;
+            return true;
+        }
+        for (std::size_t i = 0; i < input.extent(0); ++i)
+            if (!update_minmax_tensor_(input.slice_leading(i), min_target, max_target)) return false;
+        return true;
+    }
+    if (input.rank() == 1) return false;
+    for (std::size_t i = 0; i < input.extent(0); ++i)
+        if (!reduce_minmax_axis_packed_(input.slice_leading(i), axis - 1, mins.slice_leading(i), maxs.slice_leading(i),
+                                        keep_dims))
+            return false;
+    return true;
+}
+
 /** @brief Unary elementwise traversal: validates shapes, recurses on rank≥2, calls leaf on rank-1 slices. */
 template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
 bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output,
                        leaf_fn_ &&leaf) noexcept {
-    if (!shapes_match_out_(input, output)) return false;
+    if (!shapes_match_out_(input, output) || !tensor_layout_supported_(input) || !tensor_layout_supported_(output))
+        return false;
     if (input.empty()) return true;
     if (input.rank() >= 2) {
         for (std::size_t i = 0; i < input.extent(0); ++i) {
@@ -866,6 +1551,7 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<va
         }
         return true;
     }
+    if (!can_apply_rank1_data_kernel_(input) || !can_apply_rank1_data_kernel_(output)) return false;
     leaf(input, output);
     return true;
 }
@@ -874,7 +1560,9 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<va
 template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
 bool elementwise_into_(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
                        tensor_span<value_type_, max_rank_> output, leaf_fn_ &&leaf) noexcept {
-    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output)) return false;
+    if (!shapes_match_(lhs, rhs) || !shapes_match_out_(lhs, output) || !tensor_layout_supported_(lhs) ||
+        !tensor_layout_supported_(rhs) || !tensor_layout_supported_(output))
+        return false;
     if (lhs.empty()) return true;
     if (lhs.rank() >= 2) {
         for (std::size_t i = 0; i < lhs.extent(0); ++i) {
@@ -885,6 +1573,9 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> lhs, tensor_view<valu
         }
         return true;
     }
+    if (!can_apply_rank1_data_kernel_(lhs) || !can_apply_rank1_data_kernel_(rhs) ||
+        !can_apply_rank1_data_kernel_(output))
+        return false;
     leaf(lhs, rhs, output);
     return true;
 }
@@ -894,7 +1585,9 @@ template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
 bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_type_, max_rank_> b,
                        tensor_view<value_type_, max_rank_> c, tensor_span<value_type_, max_rank_> output,
                        leaf_fn_ &&leaf) noexcept {
-    if (!shapes_match_(a, b) || !shapes_match_(a, c) || !shapes_match_out_(a, output)) return false;
+    if (!shapes_match_(a, b) || !shapes_match_(a, c) || !shapes_match_out_(a, output) || !tensor_layout_supported_(a) ||
+        !tensor_layout_supported_(b) || !tensor_layout_supported_(c) || !tensor_layout_supported_(output))
+        return false;
     if (a.empty()) return true;
     if (a.rank() >= 2) {
         for (std::size_t i = 0; i < a.extent(0); ++i) {
@@ -905,6 +1598,9 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_
         }
         return true;
     }
+    if (!can_apply_rank1_data_kernel_(a) || !can_apply_rank1_data_kernel_(b) || !can_apply_rank1_data_kernel_(c) ||
+        !can_apply_rank1_data_kernel_(output))
+        return false;
     leaf(a, b, c, output);
     return true;
 }
@@ -920,15 +1616,14 @@ moments_result<typename value_type_::reduce_moments_sum_t, typename value_type_:
     using sum_t = typename value_type_::reduce_moments_sum_t;
     using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
     moments_result<sum_t, sumsq_t> result {};
-    if (input.empty() || input.numel() == 0) return result;
+    if (input.empty() || input.numel() == 0 || !tensor_layout_supported_(input)) return result;
     if (input.is_contiguous()) {
         numkong::reduce_moments<value_type_>(input.data(), input.numel(), sizeof(value_type_), &result.sum,
                                              &result.sumsq);
         return result;
     }
     if (input.rank() == 1) {
-        numkong::reduce_moments<value_type_>(
-            input.data(), input.extent(0), static_cast<std::size_t>(input.stride_bytes(0)), &result.sum, &result.sumsq);
+        reduce_rank1_moments_(input, result.sum, result.sumsq);
         return result;
     }
     for (std::size_t i = 0; i < input.extent(0); ++i) {
@@ -944,20 +1639,18 @@ template <typename value_type_, std::size_t max_rank_ = 8>
 minmax_result<typename value_type_::reduce_minmax_value_t> minmax(tensor_view<value_type_, max_rank_> input) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
     minmax_result<minmax_t> result {};
-    if (input.empty() || input.numel() == 0) return result;
+    if (input.empty() || input.numel() == 0 || !tensor_layout_supported_(input)) return result;
     if (input.is_contiguous()) {
         numkong::reduce_minmax<value_type_>(input.data(), input.numel(), sizeof(value_type_), &result.min_value,
                                             &result.min_index, &result.max_value, &result.max_index);
         return result;
     }
     if (input.rank() == 1) {
-        numkong::reduce_minmax<value_type_>(input.data(), input.extent(0),
-                                            static_cast<std::size_t>(input.stride_bytes(0)), &result.min_value,
-                                            &result.min_index, &result.max_value, &result.max_index);
+        reduce_rank1_minmax_(input, result);
         return result;
     }
-    result.min_value = minmax_t(value_type_::finite_max());
-    result.max_value = minmax_t(value_type_::finite_min());
+    result.min_value = finite_max<minmax_t>();
+    result.max_value = finite_min<minmax_t>();
     std::size_t base = 0;
     for (std::size_t i = 0; i < input.extent(0); ++i) {
         auto slice = input.slice_leading(static_cast<std::ptrdiff_t>(i));
@@ -1015,77 +1708,23 @@ tensor<typename value_type_::reduce_moments_sum_t, aligned_allocator<typename va
        max_rank_>
 try_sum(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
-    using out_tensor_t = tensor<sum_t, aligned_allocator<sum_t>, max_rank_>;
-    if (input.empty() || axis >= input.rank()) return out_tensor_t {};
+    using sum_tensor_t = tensor<sum_t, aligned_allocator<sum_t>, max_rank_>;
 
-    auto out_shape = reduced_shape_(input.shape(), axis, keep_dims, sizeof(sum_t));
-    auto result = out_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
-    if (result.empty()) return result;
+    if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return sum_tensor_t {};
 
-    std::size_t reduction_len = input.extent(axis);
-    auto out_span = result.span();
-
-    if (axis == input.rank() - 1 && input.rank() >= 2) {
-        auto output_data = out_span.data();
-        for (std::size_t i = 0; i < input.extent(0); ++i) {
-            auto slice = input.slice_leading(static_cast<std::ptrdiff_t>(i));
-            if (slice.rank() == 1) {
-                using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
-                sumsq_t discard {};
-                numkong::reduce_moments<value_type_>(slice.data(), slice.extent(0),
-                                                     static_cast<std::size_t>(slice.stride_bytes(0)), output_data,
-                                                     &discard);
-                ++output_data;
-            }
-            else {
-                auto slice_result = try_sum<value_type_, max_rank_>(slice, axis - 1, keep_dims);
-                if (!slice_result.empty()) {
-                    std::size_t count = slice_result.numel();
-                    auto src = slice_result.data();
-                    for (std::size_t j = 0; j < count; ++j) output_data[j] = src[j];
-                    output_data += count;
-                }
-            }
-        }
+    auto out_shape = reduced_shape_<sum_t>(input.shape(), axis, keep_dims);
+    auto sums = sum_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
+    if (sums.empty() || !shape_matches_(out_shape, sums.span())) return sum_tensor_t {};
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+        using sumsq_tensor_t = tensor<sumsq_t, aligned_allocator<sumsq_t>, max_rank_>;
+        auto scratch = sumsq_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
+        if (scratch.empty() || !shape_matches_(reduced_shape_<sumsq_t>(input.shape(), axis, keep_dims), scratch.span()))
+            return sum_tensor_t {};
+        if (!reduce_moments_axis_packed_(input, axis, sums.span(), scratch.span(), keep_dims)) return sum_tensor_t {};
     }
-    else if (axis == 0) {
-        std::size_t inner = input.numel() / reduction_len;
-        auto output_data = out_span.data();
-        for (std::size_t i = 0; i < reduction_len; ++i) {
-            auto slice = input.slice_leading(static_cast<std::ptrdiff_t>(i));
-            if (slice.is_contiguous() && slice.numel() == inner) {
-                auto src = slice.data();
-                for (std::size_t j = 0; j < inner; ++j) output_data[j] = saturating_add(output_data[j], sum_t(src[j]));
-            }
-            else {
-                for (std::size_t j = 0; j < inner; ++j) {
-                    if (slice.rank() == 1) {
-                        auto *ptr = reinterpret_cast<value_type_ const *>(
-                            slice.byte_data() + static_cast<std::ptrdiff_t>(j) * slice.stride_bytes(0));
-                        output_data[j] = saturating_add(output_data[j], sum_t(*ptr));
-                    }
-                }
-            }
-        }
-    }
-    else {
-        auto output_data = out_span.data();
-        if (input.is_contiguous() && input.rank() == 2) {
-            std::size_t rows = input.extent(0);
-            std::size_t cols = input.extent(1);
-            for (std::size_t r = 0; r < rows; ++r) {
-                auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-                using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
-                sumsq_t discard {};
-                sum_t s {};
-                numkong::reduce_moments<value_type_>(row.data(), cols, static_cast<std::size_t>(row.stride_bytes(0)),
-                                                     &s, &discard);
-                output_data[r] = s;
-            }
-        }
-    }
-
-    return result;
+    else if (!reduce_moments_axis_(input, axis, sums.data(), nullptr)) return sum_tensor_t {};
+    return sums;
 }
 
 /** @brief Moments along an axis (Σxᵢ and Σxᵢ² per slice). Returns pair of tensors; either may be empty on failure. */
@@ -1101,24 +1740,24 @@ try_moments(tensor_view<value_type_, max_rank_> input, std::size_t axis,
     using sum_tensor_t = tensor<sum_t, aligned_allocator<sum_t>, max_rank_>;
     using sumsq_tensor_t = tensor<sumsq_t, aligned_allocator<sumsq_t>, max_rank_>;
 
-    if (input.empty() || axis >= input.rank()) return {sum_tensor_t {}, sumsq_tensor_t {}};
+    if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input))
+        return {sum_tensor_t {}, sumsq_tensor_t {}};
 
-    auto out_shape_sum = reduced_shape_(input.shape(), axis, keep_dims, sizeof(sum_t));
-    auto out_shape_sq = reduced_shape_(input.shape(), axis, keep_dims, sizeof(sumsq_t));
+    auto out_shape_sum = reduced_shape_<sum_t>(input.shape(), axis, keep_dims);
+    auto out_shape_sq = reduced_shape_<sumsq_t>(input.shape(), axis, keep_dims);
 
     auto sums = sum_tensor_t::try_zeros(out_shape_sum.extents, out_shape_sum.rank);
     auto sumsqs = sumsq_tensor_t::try_zeros(out_shape_sq.extents, out_shape_sq.rank);
-    if (sums.empty() || sumsqs.empty()) return {sum_tensor_t {}, sumsq_tensor_t {}};
+    if (sums.empty() || sumsqs.empty() || !shape_matches_(out_shape_sum, sums.span()) ||
+        !shape_matches_(out_shape_sq, sumsqs.span()))
+        return {sum_tensor_t {}, sumsq_tensor_t {}};
 
-    if (input.rank() == 2 && axis == 1) {
-        auto s_out = sums.data();
-        auto sq_out = sumsqs.data();
-        for (std::size_t r = 0; r < input.extent(0); ++r) {
-            auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            numkong::reduce_moments<value_type_>(row.data(), row.extent(0),
-                                                 static_cast<std::size_t>(row.stride_bytes(0)), &s_out[r], &sq_out[r]);
-        }
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        if (!reduce_moments_axis_packed_(input, axis, sums.span(), sumsqs.span(), keep_dims))
+            return {sum_tensor_t {}, sumsq_tensor_t {}};
     }
+    else if (!reduce_moments_axis_(input, axis, sums.data(), sumsqs.data()))
+        return {sum_tensor_t {}, sumsq_tensor_t {}};
 
     return {std::move(sums), std::move(sumsqs)};
 }
@@ -1131,39 +1770,53 @@ try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
            keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
     using out_tensor_t = tensor<minmax_t, aligned_allocator<minmax_t>, max_rank_>;
-    if (input.empty() || axis >= input.rank()) return {out_tensor_t {}, 0, out_tensor_t {}, 0};
+    if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input))
+        return {out_tensor_t {}, 0, out_tensor_t {}, 0};
 
-    auto out_shape = reduced_shape_(input.shape(), axis, keep_dims, sizeof(minmax_t));
-    auto mins = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_max()));
-    auto maxs = out_tensor_t::try_full(out_shape.extents, out_shape.rank, minmax_t(value_type_::finite_min()));
-    if (mins.empty() || maxs.empty()) return {out_tensor_t {}, 0, out_tensor_t {}, 0};
+    auto out_shape = reduced_shape_<minmax_t>(input.shape(), axis, keep_dims);
+    auto mins = out_tensor_t::try_full(out_shape.extents, out_shape.rank, finite_max<minmax_t>());
+    auto maxs = out_tensor_t::try_full(out_shape.extents, out_shape.rank, finite_min<minmax_t>());
+    if (mins.empty() || maxs.empty() || !shape_matches_(out_shape, mins.span()) ||
+        !shape_matches_(out_shape, maxs.span()))
+        return {out_tensor_t {}, 0, out_tensor_t {}, 0};
 
-    if (input.rank() == 2 && axis == 1) {
-        auto min_data = mins.data();
-        auto max_data = maxs.data();
-        for (std::size_t r = 0; r < input.extent(0); ++r) {
-            auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            auto mm = minmax<value_type_, max_rank_>(row);
-            min_data[r] = mm.min_value;
-            max_data[r] = mm.max_value;
-        }
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        if (!reduce_minmax_axis_packed_(input, axis, mins.span(), maxs.span(), keep_dims))
+            return {out_tensor_t {}, 0, out_tensor_t {}, 0};
     }
-    else if (input.rank() == 2 && axis == 0) {
-        auto min_data = mins.data();
-        auto max_data = maxs.data();
-        for (std::size_t r = 0; r < input.extent(0); ++r) {
-            auto row = input.slice_leading(static_cast<std::ptrdiff_t>(r));
-            if (row.is_contiguous()) {
-                auto src = row.data();
-                for (std::size_t c = 0; c < input.extent(1); ++c) {
-                    minmax_t v = minmax_t(src[c]);
-                    if (v < min_data[c]) min_data[c] = v;
-                    if (v > max_data[c]) max_data[c] = v;
-                }
-            }
-        }
-    }
+    else if (!reduce_minmax_axis_(input, axis, mins.data(), nullptr, maxs.data(), nullptr))
+        return {out_tensor_t {}, 0, out_tensor_t {}, 0};
     return {std::move(mins), 0, std::move(maxs), 0};
+}
+
+/** @brief Argmin along an axis. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmin(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    using out_tensor_t = tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_>;
+    if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
+    if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
+
+    auto out_shape = reduced_shape_<std::size_t>(input.shape(), axis, keep_dims);
+    auto indices = out_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
+    if (indices.empty() || !shape_matches_(out_shape, indices.span())) return out_tensor_t {};
+    if (!reduce_minmax_axis_(input, axis, nullptr, indices.data(), nullptr, nullptr)) return out_tensor_t {};
+    return indices;
+}
+
+/** @brief Argmax along an axis. */
+template <typename value_type_, std::size_t max_rank_ = 8>
+tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmax(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    using out_tensor_t = tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_>;
+    if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
+    if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
+
+    auto out_shape = reduced_shape_<std::size_t>(input.shape(), axis, keep_dims);
+    auto indices = out_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
+    if (indices.empty() || !shape_matches_(out_shape, indices.span())) return out_tensor_t {};
+    if (!reduce_minmax_axis_(input, axis, nullptr, nullptr, nullptr, indices.data())) return out_tensor_t {};
+    return indices;
 }
 
 /** @brief Min along an axis. */
