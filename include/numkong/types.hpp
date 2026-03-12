@@ -109,10 +109,10 @@ struct f32_t {
     // Type aliases for mixed precision operations
     using scale_t = nk_f32_t;
     using sparse_dot_index_t = u32_t;
-    using dot_result_t = f32_t;           // `nk_dot_f32` output
-    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_f32` output
-    using euclidean_result_t = f32_t;     // `nk_euclidean_f32` output
-    using angular_result_t = f32_t;       // `nk_angular_f32` output
+    using dot_result_t = f64_t;           // `nk_dot_f32` output
+    using sqeuclidean_result_t = f64_t;   // `nk_sqeuclidean_f32` output
+    using euclidean_result_t = f64_t;     // `nk_euclidean_f32` output
+    using angular_result_t = f64_t;       // `nk_angular_f32` output
     using curved_result_t = f32_t;        // `nk_bilinear_f32` output
     using geospatial_result_t = f32_t;    // `nk_haversine_f32` output
     using probability_result_t = f32_t;   // `nk_kld_f32` output
@@ -123,8 +123,8 @@ struct f32_t {
     using maxsim_result_t = f32_t;
 
     // Kernel function pointer types
-    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
+    using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
@@ -146,9 +146,9 @@ struct f32_t {
                                             nk_size_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
+    using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f64_t *, nk_size_t, nk_size_t, nk_size_t,
                                           nk_size_t, nk_size_t);
-    using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
+    using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f64_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
     using angulars_packed_kernel_t = dots_packed_kernel_t;
     using euclideans_packed_kernel_t = dots_packed_kernel_t;
@@ -624,8 +624,8 @@ struct f32c_t {
     using raw_t = nk_f32c_t;
 
     // Type aliases for mixed precision operations
-    using dot_result_t = f32c_t;    // `nk_dot_f32c` output
-    using vdot_result_t = f32c_t;   // `nk_vdot_f32c` output
+    using dot_result_t = f64c_t;    // `nk_dot_f32c` output
+    using vdot_result_t = f64c_t;   // `nk_vdot_f32c` output
     using curved_result_t = f32c_t; // `nk_bilinear_f32c` output
     using scale_t = nk_f32c_t;
 

@@ -111,9 +111,9 @@ nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)      
 nk_define_sqeuclidean_(f64, f64, f64, nk_assign_from_to_)                        // nk_sqeuclidean_f64_serial
 nk_define_euclidean_(f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_euclidean_f64_serial
 
-nk_define_angular_(f32, f64, f32, nk_assign_from_to_, nk_f64_rsqrt_serial)       // nk_angular_f32_serial
-nk_define_sqeuclidean_(f32, f64, f32, nk_assign_from_to_)                        // nk_sqeuclidean_f32_serial
-nk_define_euclidean_(f32, f64, f32, f32, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_euclidean_f32_serial
+nk_define_angular_(f32, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)       // nk_angular_f32_serial
+nk_define_sqeuclidean_(f32, f64, f64, nk_assign_from_to_)                        // nk_sqeuclidean_f32_serial
+nk_define_euclidean_(f32, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_euclidean_f32_serial
 
 nk_define_angular_(f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_f16_serial
 nk_define_sqeuclidean_(f16, f32, f32, nk_f16_to_f32_serial)                        // nk_sqeuclidean_f16_serial

@@ -68,7 +68,7 @@ EM_JS(int, nk_detect_relaxed_, (), {
 #endif // defined(__EMSCRIPTEN__)
 
 /**
- *  @brief Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
+ *  @brief Fill memory with 0xFF - produces NaN for floats, -1 for signed integers, and MAX for unsigned.
  *  Avoids libc dependency on memset.
  */
 NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
@@ -376,11 +376,11 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
 
 // Dot products
 nk_dispatch_dense_(dot, f64c, f64c, f64c)
-nk_dispatch_dense_(dot, f32c, f32c, f32c)
+nk_dispatch_dense_(dot, f32c, f32c, f64c)
 nk_dispatch_dense_(dot, bf16c, bf16c, f32c)
 nk_dispatch_dense_(dot, f16c, f16c, f32c)
 nk_dispatch_dense_(dot, f64, f64, f64)
-nk_dispatch_dense_(dot, f32, f32, f32)
+nk_dispatch_dense_(dot, f32, f32, f64)
 nk_dispatch_dense_(dot, bf16, bf16, f32)
 nk_dispatch_dense_(dot, f16, f16, f32)
 nk_dispatch_dense_(dot, e5m2, e5m2, f32)
@@ -393,13 +393,13 @@ nk_dispatch_dense_(dot, u8, u8, u32)
 nk_dispatch_dense_(dot, u4, u4x2, u32)
 nk_dispatch_dense_(dot, u1, u1x8, u32)
 nk_dispatch_dense_(vdot, f64c, f64c, f64c)
-nk_dispatch_dense_(vdot, f32c, f32c, f32c)
+nk_dispatch_dense_(vdot, f32c, f32c, f64c)
 nk_dispatch_dense_(vdot, bf16c, bf16c, f32c)
 nk_dispatch_dense_(vdot, f16c, f16c, f32c)
 
 // Spatial distances
 nk_dispatch_dense_(angular, f64, f64, f64)
-nk_dispatch_dense_(angular, f32, f32, f32)
+nk_dispatch_dense_(angular, f32, f32, f64)
 nk_dispatch_dense_(angular, bf16, bf16, f32)
 nk_dispatch_dense_(angular, f16, f16, f32)
 nk_dispatch_dense_(angular, e5m2, e5m2, f32)
@@ -411,7 +411,7 @@ nk_dispatch_dense_(angular, i4, i4x2, f32)
 nk_dispatch_dense_(angular, u8, u8, f32)
 nk_dispatch_dense_(angular, u4, u4x2, f32)
 nk_dispatch_dense_(euclidean, f64, f64, f64)
-nk_dispatch_dense_(euclidean, f32, f32, f32)
+nk_dispatch_dense_(euclidean, f32, f32, f64)
 nk_dispatch_dense_(euclidean, bf16, bf16, f32)
 nk_dispatch_dense_(euclidean, f16, f16, f32)
 nk_dispatch_dense_(euclidean, e5m2, e5m2, f32)
@@ -423,7 +423,7 @@ nk_dispatch_dense_(euclidean, i4, i4x2, f32)
 nk_dispatch_dense_(euclidean, u8, u8, f32)
 nk_dispatch_dense_(euclidean, u4, u4x2, f32)
 nk_dispatch_dense_(sqeuclidean, f64, f64, f64)
-nk_dispatch_dense_(sqeuclidean, f32, f32, f32)
+nk_dispatch_dense_(sqeuclidean, f32, f32, f64)
 nk_dispatch_dense_(sqeuclidean, bf16, bf16, f32)
 nk_dispatch_dense_(sqeuclidean, f16, f16, f32)
 nk_dispatch_dense_(sqeuclidean, e5m2, e5m2, f32)
@@ -652,7 +652,7 @@ nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
 
 // Dots packed
 nk_dispatch_cross_packed_(dots, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(dots, f32, f32, f32, f64)
 nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
 nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
@@ -667,7 +667,7 @@ nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
 
 // Dots symmetric
 nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
-nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
+nk_dispatch_cross_symmetric_(dots, f32, f32, f64)
 nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
 nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
 nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
@@ -690,7 +690,7 @@ nk_dispatch_cross_symmetric_(jaccards, u1, u1x8, f32)
 
 // Angulars packed
 nk_dispatch_cross_packed_(angulars, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(angulars, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(angulars, f32, f32, f32, f64)
 nk_dispatch_cross_packed_(angulars, bf16, bf16, f32, f32)
 nk_dispatch_cross_packed_(angulars, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(angulars, e5m2, e5m2, f32, f32)
@@ -704,7 +704,7 @@ nk_dispatch_cross_packed_(angulars, u4, u4x2, u32, f32)
 
 // Angulars symmetric
 nk_dispatch_cross_symmetric_(angulars, f64, f64, f64)
-nk_dispatch_cross_symmetric_(angulars, f32, f32, f32)
+nk_dispatch_cross_symmetric_(angulars, f32, f32, f64)
 nk_dispatch_cross_symmetric_(angulars, bf16, bf16, f32)
 nk_dispatch_cross_symmetric_(angulars, f16, f16, f32)
 nk_dispatch_cross_symmetric_(angulars, e5m2, e5m2, f32)
@@ -718,7 +718,7 @@ nk_dispatch_cross_symmetric_(angulars, u4, u4x2, f32)
 
 // Euclideans packed
 nk_dispatch_cross_packed_(euclideans, f64, f64, f64, f64)
-nk_dispatch_cross_packed_(euclideans, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(euclideans, f32, f32, f32, f64)
 nk_dispatch_cross_packed_(euclideans, bf16, bf16, f32, f32)
 nk_dispatch_cross_packed_(euclideans, f16, f16, f32, f32)
 nk_dispatch_cross_packed_(euclideans, e5m2, e5m2, f32, f32)
@@ -732,7 +732,7 @@ nk_dispatch_cross_packed_(euclideans, u4, u4x2, u32, f32)
 
 // Euclideans symmetric
 nk_dispatch_cross_symmetric_(euclideans, f64, f64, f64)
-nk_dispatch_cross_symmetric_(euclideans, f32, f32, f32)
+nk_dispatch_cross_symmetric_(euclideans, f32, f32, f64)
 nk_dispatch_cross_symmetric_(euclideans, bf16, bf16, f32)
 nk_dispatch_cross_symmetric_(euclideans, f16, f16, f32)
 nk_dispatch_cross_symmetric_(euclideans, e5m2, e5m2, f32)

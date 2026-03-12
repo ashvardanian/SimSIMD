@@ -113,7 +113,7 @@ NK_PUBLIC void nk_dot_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars,
 }
 
 NK_PUBLIC void nk_dot_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                              nk_f32_t *result) {
+                              nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
     vfloat64m2_t sum_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     for (nk_size_t vector_length; count_scalars > 0;
@@ -126,7 +126,7 @@ NK_PUBLIC void nk_dot_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
     }
     // Single horizontal reduction at the end
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    *result = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, vlmax));
+    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, vlmax));
 }
 
 NK_PUBLIC void nk_dot_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -440,7 +440,7 @@ NK_PUBLIC void nk_dot_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_dot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                               nk_f32c_t *results) {
+                               nk_f64c_t *results) {
     nk_f32_t const *a_f32 = (nk_f32_t const *)a_pairs;
     nk_f32_t const *b_f32 = (nk_f32_t const *)b_pairs;
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
@@ -463,14 +463,12 @@ NK_PUBLIC void nk_dot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
         sum_imag_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_imag_f64m2, a_imag_f32m1, b_real_f32m1, vector_length);
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    results->real = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
-    results->imag = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
+    results->real = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
+    results->imag = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
 }
 
 NK_PUBLIC void nk_vdot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                                nk_f32c_t *results) {
+                                nk_f64c_t *results) {
     nk_f32_t const *a_f32 = (nk_f32_t const *)a_pairs;
     nk_f32_t const *b_f32 = (nk_f32_t const *)b_pairs;
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
@@ -493,10 +491,8 @@ NK_PUBLIC void nk_vdot_f32c_rvv(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         sum_imag_f64m2 = __riscv_vfwnmsac_vv_f64m2_tu(sum_imag_f64m2, a_imag_f32m1, b_real_f32m1, vector_length);
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    results->real = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
-    results->imag = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
+    results->real = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_real_f64m2, zero_f64m1, vlmax));
+    results->imag = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_imag_f64m2, zero_f64m1, vlmax));
 }
 
 NK_PUBLIC void nk_dot_f64c_rvv(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,

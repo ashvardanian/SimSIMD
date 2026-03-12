@@ -29,31 +29,31 @@ extern "C" {
 
 #pragma region Single Precision Floats
 
-NK_INTERNAL void nk_angulars_packed_f32_rvv_finalize_(nk_f32_t const *a, void const *b_packed, nk_f32_t *c,
+NK_INTERNAL void nk_angulars_packed_f32_rvv_finalize_(nk_f32_t const *a, void const *b_packed, nk_f64_t *c,
                                                       nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                       nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
+    nk_f64_t const *target_norms = (nk_f64_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
                                                           sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_f32_t const *a_row = a + row_index * a_stride_elements;
-        nk_f32_t *result_row = c + row_index * c_stride_elements;
-        nk_f32_t query_norm_sq_f32 = nk_dots_reduce_sumsq_f32_(a_row, depth);
+        nk_f64_t *result_row = c + row_index * c_stride_elements;
+        nk_f64_t query_norm_sq_f64 = nk_dots_reduce_sumsq_f32_(a_row, depth);
         nk_size_t count_columns = columns;
-        nk_f32_t *result_ptr = result_row;
-        nk_f32_t const *norms_ptr = target_norms;
+        nk_f64_t *result_ptr = result_row;
+        nk_f64_t const *norms_ptr = target_norms;
         while (count_columns > 0) {
-            size_t vector_length = __riscv_vsetvl_e32m1(count_columns);
-            vfloat32m1_t dots_f32m1 = __riscv_vle32_v_f32m1(result_ptr, vector_length);
-            vfloat32m1_t target_norms_sq_f32m1 = __riscv_vle32_v_f32m1(norms_ptr, vector_length);
-            vfloat32m1_t norms_product_f32m1 = __riscv_vfmul_vf_f32m1(target_norms_sq_f32m1, query_norm_sq_f32,
+            size_t vector_length = __riscv_vsetvl_e64m1(count_columns);
+            vfloat64m1_t dots_f64m1 = __riscv_vle64_v_f64m1(result_ptr, vector_length);
+            vfloat64m1_t target_norms_sq_f64m1 = __riscv_vle64_v_f64m1(norms_ptr, vector_length);
+            vfloat64m1_t norms_product_f64m1 = __riscv_vfmul_vf_f64m1(target_norms_sq_f64m1, query_norm_sq_f64,
                                                                       vector_length);
-            vfloat32m1_t rsqrt_f32m1 = nk_rsqrt_f32m1_rvv_(norms_product_f32m1, vector_length);
-            vfloat32m1_t normalized_dots_f32m1 = __riscv_vfmul_vv_f32m1(dots_f32m1, rsqrt_f32m1, vector_length);
-            vfloat32m1_t angular_f32m1 = __riscv_vfrsub_vf_f32m1(normalized_dots_f32m1, 1.0f, vector_length);
-            angular_f32m1 = __riscv_vfmax_vf_f32m1(angular_f32m1, 0.0f, vector_length);
-            __riscv_vse32_v_f32m1(result_ptr, angular_f32m1, vector_length);
+            vfloat64m1_t rsqrt_f64m1 = nk_rsqrt_f64m1_rvv_(norms_product_f64m1, vector_length);
+            vfloat64m1_t normalized_dots_f64m1 = __riscv_vfmul_vv_f64m1(dots_f64m1, rsqrt_f64m1, vector_length);
+            vfloat64m1_t angular_f64m1 = __riscv_vfrsub_vf_f64m1(normalized_dots_f64m1, 1.0, vector_length);
+            angular_f64m1 = __riscv_vfmax_vf_f64m1(angular_f64m1, 0.0, vector_length);
+            __riscv_vse64_v_f64m1(result_ptr, angular_f64m1, vector_length);
             result_ptr += vector_length;
             norms_ptr += vector_length;
             count_columns -= vector_length;
@@ -62,38 +62,38 @@ NK_INTERNAL void nk_angulars_packed_f32_rvv_finalize_(nk_f32_t const *a, void co
 }
 
 NK_PUBLIC void nk_angulars_packed_f32_rvv(                //
-    nk_f32_t const *a, void const *b_packed, nk_f32_t *c, //
+    nk_f32_t const *a, void const *b_packed, nk_f64_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,   //
     nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
     nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f32_t);
-    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
     nk_dots_packed_f32_rvv(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
     nk_angulars_packed_f32_rvv_finalize_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-NK_INTERNAL void nk_euclideans_packed_f32_rvv_finalize_(nk_f32_t const *a, void const *b_packed, nk_f32_t *c,
+NK_INTERNAL void nk_euclideans_packed_f32_rvv_finalize_(nk_f32_t const *a, void const *b_packed, nk_f64_t *c,
                                                         nk_size_t rows, nk_size_t columns, nk_size_t depth,
                                                         nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed;
-    nk_f32_t const *target_norms = (nk_f32_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
+    nk_f64_t const *target_norms = (nk_f64_t const *)((char const *)b_packed + sizeof(nk_cross_packed_buffer_header_t) +
                                                       header->column_count * header->depth_padded_values *
                                                           sizeof(nk_f32_t));
     for (nk_size_t row_index = 0; row_index < rows; row_index++) {
         nk_f32_t const *a_row = a + row_index * a_stride_elements;
-        nk_f32_t *result_row = c + row_index * c_stride_elements;
-        nk_f32_t query_norm_sq_f32 = nk_dots_reduce_sumsq_f32_(a_row, depth);
+        nk_f64_t *result_row = c + row_index * c_stride_elements;
+        nk_f64_t query_norm_sq_f64 = nk_dots_reduce_sumsq_f32_(a_row, depth);
         nk_size_t count_columns = columns;
-        nk_f32_t *result_ptr = result_row;
-        nk_f32_t const *norms_ptr = target_norms;
+        nk_f64_t *result_ptr = result_row;
+        nk_f64_t const *norms_ptr = target_norms;
         while (count_columns > 0) {
-            size_t vector_length = __riscv_vsetvl_e32m1(count_columns);
-            vfloat32m1_t dots_f32m1 = __riscv_vle32_v_f32m1(result_ptr, vector_length);
-            vfloat32m1_t target_norms_sq_f32m1 = __riscv_vle32_v_f32m1(norms_ptr, vector_length);
-            vfloat32m1_t sum_sq_f32m1 = __riscv_vfadd_vf_f32m1(target_norms_sq_f32m1, query_norm_sq_f32, vector_length);
-            vfloat32m1_t dist_sq_f32m1 = __riscv_vfsub_vv_f32m1(
-                sum_sq_f32m1, __riscv_vfmul_vf_f32m1(dots_f32m1, 2.0f, vector_length), vector_length);
-            dist_sq_f32m1 = __riscv_vfmax_vf_f32m1(dist_sq_f32m1, 0.0f, vector_length);
-            __riscv_vse32_v_f32m1(result_ptr, __riscv_vfsqrt_v_f32m1(dist_sq_f32m1, vector_length), vector_length);
+            size_t vector_length = __riscv_vsetvl_e64m1(count_columns);
+            vfloat64m1_t dots_f64m1 = __riscv_vle64_v_f64m1(result_ptr, vector_length);
+            vfloat64m1_t target_norms_sq_f64m1 = __riscv_vle64_v_f64m1(norms_ptr, vector_length);
+            vfloat64m1_t sum_sq_f64m1 = __riscv_vfadd_vf_f64m1(target_norms_sq_f64m1, query_norm_sq_f64, vector_length);
+            vfloat64m1_t dist_sq_f64m1 = __riscv_vfsub_vv_f64m1(
+                sum_sq_f64m1, __riscv_vfmul_vf_f64m1(dots_f64m1, 2.0, vector_length), vector_length);
+            dist_sq_f64m1 = __riscv_vfmax_vf_f64m1(dist_sq_f64m1, 0.0, vector_length);
+            __riscv_vse64_v_f64m1(result_ptr, __riscv_vfsqrt_v_f64m1(dist_sq_f64m1, vector_length), vector_length);
             result_ptr += vector_length;
             norms_ptr += vector_length;
             count_columns -= vector_length;
@@ -102,24 +102,24 @@ NK_INTERNAL void nk_euclideans_packed_f32_rvv_finalize_(nk_f32_t const *a, void 
 }
 
 NK_PUBLIC void nk_euclideans_packed_f32_rvv(              //
-    nk_f32_t const *a, void const *b_packed, nk_f32_t *c, //
+    nk_f32_t const *a, void const *b_packed, nk_f64_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,   //
     nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
     nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f32_t);
-    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
     nk_dots_packed_f32_rvv(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
     nk_euclideans_packed_f32_rvv_finalize_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
 NK_INTERNAL void nk_angulars_symmetric_f32_rvv_finalize_(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                         nk_size_t stride_elements, nk_f32_t *result,
+                                                         nk_size_t stride_elements, nk_f64_t *result,
                                                          nk_size_t result_stride_elements, nk_size_t row_start,
                                                          nk_size_t row_count) {
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
-        nk_f32_t *result_row = result + row_index * result_stride_elements;
+        nk_f64_t *result_row = result + row_index * result_stride_elements;
         result_row[row_index] = nk_dots_reduce_sumsq_f32_(vectors + row_index * stride_elements, depth);
     }
-    nk_f32_t norms_cache[256];
+    nk_f64_t norms_cache[256];
     for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
         nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
@@ -127,22 +127,22 @@ NK_INTERNAL void nk_angulars_symmetric_f32_rvv_finalize_(nk_f32_t const *vectors
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
             nk_size_t col_start = row_index + 1 > chunk_start ? row_index + 1 : chunk_start;
             if (col_start >= chunk_end) continue;
-            nk_f32_t *result_row = result + row_index * result_stride_elements;
-            nk_f32_t query_norm_sq_f32 = result_row[row_index];
+            nk_f64_t *result_row = result + row_index * result_stride_elements;
+            nk_f64_t query_norm_sq_f64 = result_row[row_index];
             nk_size_t count_remaining = chunk_end - col_start;
-            nk_f32_t *result_ptr = result_row + col_start;
-            nk_f32_t const *norms_ptr = norms_cache + (col_start - chunk_start);
+            nk_f64_t *result_ptr = result_row + col_start;
+            nk_f64_t const *norms_ptr = norms_cache + (col_start - chunk_start);
             while (count_remaining > 0) {
-                size_t vector_length = __riscv_vsetvl_e32m1(count_remaining);
-                vfloat32m1_t dots_f32m1 = __riscv_vle32_v_f32m1(result_ptr, vector_length);
-                vfloat32m1_t target_norms_sq_f32m1 = __riscv_vle32_v_f32m1(norms_ptr, vector_length);
-                vfloat32m1_t norms_product_f32m1 = __riscv_vfmul_vf_f32m1(target_norms_sq_f32m1, query_norm_sq_f32,
+                size_t vector_length = __riscv_vsetvl_e64m1(count_remaining);
+                vfloat64m1_t dots_f64m1 = __riscv_vle64_v_f64m1(result_ptr, vector_length);
+                vfloat64m1_t target_norms_sq_f64m1 = __riscv_vle64_v_f64m1(norms_ptr, vector_length);
+                vfloat64m1_t norms_product_f64m1 = __riscv_vfmul_vf_f64m1(target_norms_sq_f64m1, query_norm_sq_f64,
                                                                           vector_length);
-                vfloat32m1_t rsqrt_f32m1 = nk_rsqrt_f32m1_rvv_(norms_product_f32m1, vector_length);
-                vfloat32m1_t normalized_dots_f32m1 = __riscv_vfmul_vv_f32m1(dots_f32m1, rsqrt_f32m1, vector_length);
-                vfloat32m1_t angular_f32m1 = __riscv_vfrsub_vf_f32m1(normalized_dots_f32m1, 1.0f, vector_length);
-                angular_f32m1 = __riscv_vfmax_vf_f32m1(angular_f32m1, 0.0f, vector_length);
-                __riscv_vse32_v_f32m1(result_ptr, angular_f32m1, vector_length);
+                vfloat64m1_t rsqrt_f64m1 = nk_rsqrt_f64m1_rvv_(norms_product_f64m1, vector_length);
+                vfloat64m1_t normalized_dots_f64m1 = __riscv_vfmul_vv_f64m1(dots_f64m1, rsqrt_f64m1, vector_length);
+                vfloat64m1_t angular_f64m1 = __riscv_vfrsub_vf_f64m1(normalized_dots_f64m1, 1.0, vector_length);
+                angular_f64m1 = __riscv_vfmax_vf_f64m1(angular_f64m1, 0.0, vector_length);
+                __riscv_vse64_v_f64m1(result_ptr, angular_f64m1, vector_length);
                 result_ptr += vector_length;
                 norms_ptr += vector_length;
                 count_remaining -= vector_length;
@@ -155,23 +155,23 @@ NK_INTERNAL void nk_angulars_symmetric_f32_rvv_finalize_(nk_f32_t const *vectors
 
 NK_PUBLIC void nk_angulars_symmetric_f32_rvv(                                        //
     nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
     nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
     nk_dots_symmetric_f32_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
     nk_angulars_symmetric_f32_rvv_finalize_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
                                             row_start, row_count);
 }
 
 NK_INTERNAL void nk_euclideans_symmetric_f32_rvv_finalize_(nk_f32_t const *vectors, nk_size_t n_vectors,
-                                                           nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+                                                           nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
                                                            nk_size_t result_stride_elements, nk_size_t row_start,
                                                            nk_size_t row_count) {
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
-        nk_f32_t *result_row = result + row_index * result_stride_elements;
+        nk_f64_t *result_row = result + row_index * result_stride_elements;
         result_row[row_index] = nk_dots_reduce_sumsq_f32_(vectors + row_index * stride_elements, depth);
     }
-    nk_f32_t norms_cache[256];
+    nk_f64_t norms_cache[256];
     for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
         nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
@@ -179,21 +179,21 @@ NK_INTERNAL void nk_euclideans_symmetric_f32_rvv_finalize_(nk_f32_t const *vecto
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
             nk_size_t col_start = row_index + 1 > chunk_start ? row_index + 1 : chunk_start;
             if (col_start >= chunk_end) continue;
-            nk_f32_t *result_row = result + row_index * result_stride_elements;
-            nk_f32_t query_norm_sq_f32 = result_row[row_index];
+            nk_f64_t *result_row = result + row_index * result_stride_elements;
+            nk_f64_t query_norm_sq_f64 = result_row[row_index];
             nk_size_t count_remaining = chunk_end - col_start;
-            nk_f32_t *result_ptr = result_row + col_start;
-            nk_f32_t const *norms_ptr = norms_cache + (col_start - chunk_start);
+            nk_f64_t *result_ptr = result_row + col_start;
+            nk_f64_t const *norms_ptr = norms_cache + (col_start - chunk_start);
             while (count_remaining > 0) {
-                size_t vector_length = __riscv_vsetvl_e32m1(count_remaining);
-                vfloat32m1_t dots_f32m1 = __riscv_vle32_v_f32m1(result_ptr, vector_length);
-                vfloat32m1_t target_norms_sq_f32m1 = __riscv_vle32_v_f32m1(norms_ptr, vector_length);
-                vfloat32m1_t sum_sq_f32m1 = __riscv_vfadd_vf_f32m1(target_norms_sq_f32m1, query_norm_sq_f32,
+                size_t vector_length = __riscv_vsetvl_e64m1(count_remaining);
+                vfloat64m1_t dots_f64m1 = __riscv_vle64_v_f64m1(result_ptr, vector_length);
+                vfloat64m1_t target_norms_sq_f64m1 = __riscv_vle64_v_f64m1(norms_ptr, vector_length);
+                vfloat64m1_t sum_sq_f64m1 = __riscv_vfadd_vf_f64m1(target_norms_sq_f64m1, query_norm_sq_f64,
                                                                    vector_length);
-                vfloat32m1_t dist_sq_f32m1 = __riscv_vfsub_vv_f32m1(
-                    sum_sq_f32m1, __riscv_vfmul_vf_f32m1(dots_f32m1, 2.0f, vector_length), vector_length);
-                dist_sq_f32m1 = __riscv_vfmax_vf_f32m1(dist_sq_f32m1, 0.0f, vector_length);
-                __riscv_vse32_v_f32m1(result_ptr, __riscv_vfsqrt_v_f32m1(dist_sq_f32m1, vector_length), vector_length);
+                vfloat64m1_t dist_sq_f64m1 = __riscv_vfsub_vv_f64m1(
+                    sum_sq_f64m1, __riscv_vfmul_vf_f64m1(dots_f64m1, 2.0, vector_length), vector_length);
+                dist_sq_f64m1 = __riscv_vfmax_vf_f64m1(dist_sq_f64m1, 0.0, vector_length);
+                __riscv_vse64_v_f64m1(result_ptr, __riscv_vfsqrt_v_f64m1(dist_sq_f64m1, vector_length), vector_length);
                 result_ptr += vector_length;
                 norms_ptr += vector_length;
                 count_remaining -= vector_length;
@@ -206,9 +206,9 @@ NK_INTERNAL void nk_euclideans_symmetric_f32_rvv_finalize_(nk_f32_t const *vecto
 
 NK_PUBLIC void nk_euclideans_symmetric_f32_rvv(                                      //
     nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
     nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
     nk_dots_symmetric_f32_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
     nk_euclideans_symmetric_f32_rvv_finalize_(vectors, n_vectors, depth, stride_elements, result,
                                               result_stride_elements, row_start, row_count);

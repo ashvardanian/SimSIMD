@@ -121,7 +121,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
 
 #pragma region - Traditional Floats
 
-NK_PUBLIC void nk_sqeuclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
@@ -137,15 +137,15 @@ NK_PUBLIC void nk_sqeuclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_
         nk_f64_t diff_f64 = (nk_f64_t)a[i] - (nk_f64_t)b[i];
         sum_f64 += diff_f64 * diff_f64;
     }
-    *result = (nk_f32_t)sum_f64;
+    *result = sum_f64;
 }
 
-NK_PUBLIC void nk_euclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f32_neon(a, b, n, result);
-    *result = nk_f32_sqrt_neon(*result);
+    *result = nk_f64_sqrt_neon(*result);
 }
 
-NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
     float64x2_t ab_f64x2 = vdupq_n_f64(0);
     float64x2_t a2_f64x2 = vdupq_n_f64(0);
@@ -167,7 +167,7 @@ NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
         nk_f64_t ai = (nk_f64_t)a[i], bi = (nk_f64_t)b[i];
         ab_f64 += ai * bi, a2_f64 += ai * ai, b2_f64 += bi * bi;
     }
-    *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
+    *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

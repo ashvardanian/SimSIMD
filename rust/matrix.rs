@@ -33,7 +33,7 @@ extern "C" {
     fn nk_dots_packed_f32(
         a: *const f32,
         packed: *const u8,
-        c: *mut f32,
+        c: *mut f64,
         height: usize,
         width: usize,
         depth: usize,
@@ -232,7 +232,7 @@ extern "C" {
         n_vectors: usize,
         depth: usize,
         stride: usize,
-        result: *mut f32,
+        result: *mut f64,
         result_stride: usize,
         row_start: usize,
         row_count: usize,
@@ -422,7 +422,7 @@ extern "C" {
     fn nk_angulars_packed_f32(
         a: *const f32,
         packed: *const u8,
-        c: *mut f32,
+        c: *mut f64,
         height: usize,
         width: usize,
         depth: usize,
@@ -434,7 +434,7 @@ extern "C" {
         n_vectors: usize,
         depth: usize,
         stride: usize,
-        result: *mut f32,
+        result: *mut f64,
         result_stride: usize,
         row_start: usize,
         row_count: usize,
@@ -664,7 +664,7 @@ extern "C" {
     fn nk_euclideans_packed_f32(
         a: *const f32,
         packed: *const u8,
-        c: *mut f32,
+        c: *mut f64,
         height: usize,
         width: usize,
         depth: usize,
@@ -676,7 +676,7 @@ extern "C" {
         n_vectors: usize,
         depth: usize,
         stride: usize,
-        result: *mut f32,
+        result: *mut f64,
         result_stride: usize,
         row_start: usize,
         row_count: usize,
@@ -972,7 +972,7 @@ pub trait Dots: Sized + Clone {
 }
 
 impl Dots for f32 {
-    type Accumulator = f32;
+    type Accumulator = f64;
 
     fn dots_packed_size(width: usize, depth: usize) -> usize {
         unsafe { nk_dots_packed_size_f32(width, depth) }
@@ -1939,7 +1939,7 @@ impl Jaccards for u1x8 {
 ///
 /// Packing reuses `Dots::dots_pack` for optimal memory layout.
 pub trait Angulars: Dots {
-    /// Result type for angular distances (always f32 except f64 → f64).
+    /// Result type for angular distances.
     type SpatialResult: Clone + Default;
 
     /// Computes angular distances between A rows and packed B columns.
@@ -1983,7 +1983,7 @@ pub trait Angulars: Dots {
 ///
 /// Packing reuses `Dots::dots_pack` for optimal memory layout.
 pub trait Euclideans: Dots {
-    /// Result type for euclidean distances (always f32 except f64 → f64).
+    /// Result type for euclidean distances.
     type SpatialResult: Clone + Default;
 
     /// Computes euclidean distances between A rows and packed B columns.
@@ -2136,7 +2136,7 @@ fn cast_to_u8<T>(p: *const T) -> *const u8 { p as *const u8 }
 
 impl_spatial_traits!(
     f32,
-    f32,
+    f64,
     *const f32,
     identity_f32,
     nk_angulars_packed_f32,

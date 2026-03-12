@@ -121,7 +121,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x2_neon_(float64x2_t sum_f64x2, float6
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                               nk_f32_t *result) {
+                               nk_f64_t *result) {
     // Upcast f32 to f64 for accumulation (2 f32s per iteration, avoids slow vget_low/high)
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
     nk_size_t idx_scalars = 0;
@@ -135,11 +135,11 @@ NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scal
     nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
     for (; idx_scalars < count_scalars; ++idx_scalars)
         sum_f64 += (nk_f64_t)a_scalars[idx_scalars] * (nk_f64_t)b_scalars[idx_scalars];
-    *result = (nk_f32_t)sum_f64;
+    *result = sum_f64;
 }
 
 NK_PUBLIC void nk_dot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                                nk_f32c_t *result) {
+                                nk_f64c_t *result) {
     // Upcast f32 to f64 for accumulation (2 complex pairs per iteration, avoids slow vget_low/high)
     float64x2_t sum_real_f64x2 = vdupq_n_f64(0);
     float64x2_t sum_imag_f64x2 = vdupq_n_f64(0);
@@ -175,12 +175,12 @@ NK_PUBLIC void nk_dot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         sum_real_f64 += ar * br - ai * bi;
         sum_imag_f64 += ar * bi + ai * br;
     }
-    result->real = (nk_f32_t)sum_real_f64;
-    result->imag = (nk_f32_t)sum_imag_f64;
+    result->real = sum_real_f64;
+    result->imag = sum_imag_f64;
 }
 
 NK_PUBLIC void nk_vdot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                                 nk_f32c_t *result) {
+                                 nk_f64c_t *result) {
     // Upcast f32 to f64 for accumulation (2 complex pairs per iteration, avoids slow vget_low/high)
     float64x2_t sum_real_f64x2 = vdupq_n_f64(0);
     float64x2_t sum_imag_f64x2 = vdupq_n_f64(0);
@@ -210,8 +210,8 @@ NK_PUBLIC void nk_vdot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pa
         sum_real_f64 += ar * br + ai * bi;
         sum_imag_f64 += ar * bi - ai * br;
     }
-    result->real = (nk_f32_t)sum_real_f64;
-    result->imag = (nk_f32_t)sum_imag_f64;
+    result->real = sum_real_f64;
+    result->imag = sum_imag_f64;
 }
 
 /**
@@ -241,13 +241,12 @@ NK_INTERNAL void nk_dot_f32x2_update_neon(nk_dot_f32x2_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f32x2_finalize_neon(                                            //
     nk_dot_f32x2_state_neon_t const *state_a, nk_dot_f32x2_state_neon_t const *state_b, //
     nk_dot_f32x2_state_neon_t const *state_c, nk_dot_f32x2_state_neon_t const *state_d, //
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Reduce each f64x2 → f64, downcast to f32
-    result->f32s[0] = (nk_f32_t)vaddvq_f64(state_a->sum_f64x2);
-    result->f32s[1] = (nk_f32_t)vaddvq_f64(state_b->sum_f64x2);
-    result->f32s[2] = (nk_f32_t)vaddvq_f64(state_c->sum_f64x2);
-    result->f32s[3] = (nk_f32_t)vaddvq_f64(state_d->sum_f64x2);
+    result->f64s[0] = vaddvq_f64(state_a->sum_f64x2);
+    result->f64s[1] = vaddvq_f64(state_b->sum_f64x2);
+    result->f64s[2] = vaddvq_f64(state_c->sum_f64x2);
+    result->f64s[3] = vaddvq_f64(state_d->sum_f64x2);
 }
 
 NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,

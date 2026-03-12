@@ -59,7 +59,7 @@ NK_INTERNAL __m512d nk_rsqrt_f64x8_skylake_(__m512d x) {
 
 #pragma region - Traditional Floats
 
-NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m512d sum_f64x8 = _mm512_setzero_pd();
     __m256 a_f32x8, b_f32x8;
@@ -82,12 +82,12 @@ nk_sqeuclidean_f32_skylake_cycle:
     sum_f64x8 = _mm512_fmadd_pd(diff_f64x8, diff_f64x8, sum_f64x8);
     if (n) goto nk_sqeuclidean_f32_skylake_cycle;
 
-    *result = (nk_f32_t)_mm512_reduce_add_pd(sum_f64x8);
+    *result = _mm512_reduce_add_pd(sum_f64x8);
 }
 
-NK_PUBLIC void nk_euclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f32_skylake(a, b, n, result);
-    *result = nk_f32_sqrt_haswell(*result);
+    *result = nk_f64_sqrt_haswell(*result);
 }
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
@@ -117,7 +117,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2,
     return result > 0 ? result : 0;
 }
 
-NK_PUBLIC void nk_angular_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m512d dot_f64x8 = _mm512_setzero_pd();
     __m512d a_norm_sq_f64x8 = _mm512_setzero_pd();
@@ -146,7 +146,7 @@ nk_angular_f32_skylake_cycle:
     nk_f64_t dot_f64 = _mm512_reduce_add_pd(dot_f64x8);
     nk_f64_t a_norm_sq_f64 = _mm512_reduce_add_pd(a_norm_sq_f64x8);
     nk_f64_t b_norm_sq_f64 = _mm512_reduce_add_pd(b_norm_sq_f64x8);
-    *result = (nk_f32_t)nk_angular_normalize_f64_skylake_(dot_f64, a_norm_sq_f64, b_norm_sq_f64);
+    *result = nk_angular_normalize_f64_skylake_(dot_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

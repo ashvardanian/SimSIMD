@@ -86,7 +86,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f32_rvv(nk_size_t column_count, nk_size_
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
     if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
-           column_count * sizeof(nk_f32_t); // per-column norms
+           column_count * sizeof(nk_f64_t); // per-column norms
 }
 
 NK_PUBLIC void nk_dots_pack_f32_rvv(nk_f32_t const *b, nk_size_t column_count, nk_size_t depth,
@@ -112,7 +112,7 @@ NK_PUBLIC void nk_dots_pack_f32_rvv(nk_f32_t const *b, nk_size_t column_count, n
     }
 
     // Append per-column norms after packed data
-    nk_f32_t *norms = (nk_f32_t *)(packed + total);
+    nk_f64_t *norms = (nk_f64_t *)(packed + total);
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_f32_t const *src = (nk_f32_t const *)((char const *)b + column * b_stride_in_bytes);
         norms[column] = nk_dots_reduce_sumsq_f32_(src, depth);
@@ -130,7 +130,7 @@ NK_PUBLIC void nk_dots_pack_f32_rvv(nk_f32_t const *b, nk_size_t column_count, n
  *  Each row loads its own A vector; B vector is shared across rows per depth chunk.
  */
 NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void const *b_packed_buffer,
-                                                 nk_f32_t *c_matrix, nk_size_t row_count, nk_size_t column_count,
+                                                 nk_f64_t *c_matrix, nk_size_t row_count, nk_size_t column_count,
                                                  nk_size_t depth, nk_size_t a_stride_in_bytes,
                                                  nk_size_t c_stride_in_bytes) {
     nk_cross_packed_buffer_header_t const *header = (nk_cross_packed_buffer_header_t const *)b_packed_buffer;
@@ -140,7 +140,7 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
 
     // Zero output matrix
     for (nk_size_t i = 0; i < row_count; ++i) {
-        nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + i * c_stride_in_bytes);
+        nk_f64_t *c_row = (nk_f64_t *)((char *)c_matrix + i * c_stride_in_bytes);
         for (nk_size_t j = 0; j < column_count; ++j) c_row[j] = 0;
     }
 
@@ -151,10 +151,10 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
         nk_f32_t const *a_row_1 = (nk_f32_t const *)((char const *)a_matrix + (row + 1) * a_stride_in_bytes);
         nk_f32_t const *a_row_2 = (nk_f32_t const *)((char const *)a_matrix + (row + 2) * a_stride_in_bytes);
         nk_f32_t const *a_row_3 = (nk_f32_t const *)((char const *)a_matrix + (row + 3) * a_stride_in_bytes);
-        nk_f32_t *c_row_0 = (nk_f32_t *)((char *)c_matrix + (row + 0) * c_stride_in_bytes);
-        nk_f32_t *c_row_1 = (nk_f32_t *)((char *)c_matrix + (row + 1) * c_stride_in_bytes);
-        nk_f32_t *c_row_2 = (nk_f32_t *)((char *)c_matrix + (row + 2) * c_stride_in_bytes);
-        nk_f32_t *c_row_3 = (nk_f32_t *)((char *)c_matrix + (row + 3) * c_stride_in_bytes);
+        nk_f64_t *c_row_0 = (nk_f64_t *)((char *)c_matrix + (row + 0) * c_stride_in_bytes);
+        nk_f64_t *c_row_1 = (nk_f64_t *)((char *)c_matrix + (row + 1) * c_stride_in_bytes);
+        nk_f64_t *c_row_2 = (nk_f64_t *)((char *)c_matrix + (row + 2) * c_stride_in_bytes);
+        nk_f64_t *c_row_3 = (nk_f64_t *)((char *)c_matrix + (row + 3) * c_stride_in_bytes);
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
@@ -183,22 +183,22 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
                                                                   vector_length);
             }
 
-            // Horizontal reduce and narrow to f32
+            // Horizontal reduce directly to f64
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-            c_row_0[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            c_row_0[column] = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
-            c_row_1[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            c_row_1[column] = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
-            c_row_2[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            c_row_2[column] = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, vlmax));
-            c_row_3[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            c_row_3[column] = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, vlmax));
         }
     }
     // Remainder rows (mr < 4)
     for (; row < row_count; ++row) {
         nk_f32_t const *a_row = (nk_f32_t const *)((char const *)a_matrix + row * a_stride_in_bytes);
-        nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
+        nk_f64_t *c_row = (nk_f64_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
             nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
@@ -213,7 +213,7 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
                                                                 vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-            c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            c_row[column] = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
         }
     }
@@ -225,7 +225,7 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t m, nk_size_t n,
                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
     nk_dots_packed_f32_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
 }
@@ -237,10 +237,10 @@ NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, n
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
 NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                         nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                          nk_size_t row_start, nk_size_t row_count) {
     nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
     nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
@@ -259,7 +259,7 @@ NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_ve
                                                                 vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-            nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
+            nk_f64_t dot = __riscv_vfmv_f_s_f64m1_f64(
                 __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
             result[i * result_stride_elements + j] = dot;
         }

@@ -354,7 +354,7 @@ public func euclideans_symmetric<Element: NumKongSpatialsMatrixElement>(
 // MARK: - Kernel Bindings: Float32
 
 extension Float32: NumKongDotsMatrixElement {
-    public typealias DotsOutput = Float32
+    public typealias DotsOutput = Float64
 
     public static func _nk_dots_packed_size(_ n: Int, _ k: Int) -> Int { Int(nk_dots_packed_size_f32(UInt64(n), UInt64(k))) }
 
@@ -362,31 +362,31 @@ extension Float32: NumKongDotsMatrixElement {
         nk_dots_pack_f32(b, UInt64(n), UInt64(k), UInt64(bStride), packed)
     }
 
-    public static func _nk_dots_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ c: UnsafeMutablePointer<Float32>, _ m: Int, _ n: Int, _ k: Int, _ aStride: Int, _ cStride: Int) {
+    public static func _nk_dots_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ c: UnsafeMutablePointer<Float64>, _ m: Int, _ n: Int, _ k: Int, _ aStride: Int, _ cStride: Int) {
         nk_dots_packed_f32(a, bPacked, c, UInt64(m), UInt64(n), UInt64(k), UInt64(aStride), UInt64(cStride))
     }
 
-    public static func _nk_dots_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float32>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
+    public static func _nk_dots_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float64>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
         nk_dots_symmetric_f32(vectors, UInt64(nVectors), UInt64(depth), UInt64(stride), result, UInt64(resultStride), UInt64(rowStart), UInt64(rowCount))
     }
 }
 
 extension Float32: NumKongSpatialsMatrixElement {
-    public typealias SpatialOutput = Float32
+    public typealias SpatialOutput = Float64
 
-    public static func _nk_angulars_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ result: UnsafeMutablePointer<Float32>, _ rows: Int, _ cols: Int, _ depth: Int, _ aStride: Int, _ rStride: Int) {
+    public static func _nk_angulars_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ result: UnsafeMutablePointer<Float64>, _ rows: Int, _ cols: Int, _ depth: Int, _ aStride: Int, _ rStride: Int) {
         nk_angulars_packed_f32(a, bPacked, result, UInt64(rows), UInt64(cols), UInt64(depth), UInt64(aStride), UInt64(rStride))
     }
 
-    public static func _nk_euclideans_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ result: UnsafeMutablePointer<Float32>, _ rows: Int, _ cols: Int, _ depth: Int, _ aStride: Int, _ rStride: Int) {
+    public static func _nk_euclideans_packed(_ a: UnsafePointer<Float32>, _ bPacked: UnsafeRawPointer, _ result: UnsafeMutablePointer<Float64>, _ rows: Int, _ cols: Int, _ depth: Int, _ aStride: Int, _ rStride: Int) {
         nk_euclideans_packed_f32(a, bPacked, result, UInt64(rows), UInt64(cols), UInt64(depth), UInt64(aStride), UInt64(rStride))
     }
 
-    public static func _nk_angulars_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float32>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
+    public static func _nk_angulars_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float64>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
         nk_angulars_symmetric_f32(vectors, UInt64(nVectors), UInt64(depth), UInt64(stride), result, UInt64(resultStride), UInt64(rowStart), UInt64(rowCount))
     }
 
-    public static func _nk_euclideans_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float32>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
+    public static func _nk_euclideans_symmetric(_ vectors: UnsafePointer<Float32>, _ result: UnsafeMutablePointer<Float64>, _ nVectors: Int, _ depth: Int, _ stride: Int, _ resultStride: Int, _ rowStart: Int, _ rowCount: Int) {
         nk_euclideans_symmetric_f32(vectors, UInt64(nVectors), UInt64(depth), UInt64(stride), result, UInt64(resultStride), UInt64(rowStart), UInt64(rowCount))
     }
 }

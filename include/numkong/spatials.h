@@ -70,7 +70,7 @@ extern "C" {
  *  @param[in] a_stride_in_bytes Row stride in bytes for A.
  *  @param[in] r_stride_in_bytes Row stride in bytes for the result matrix.
  */
-NK_DYNAMIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_DYNAMIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                        nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                        nk_size_t r_stride_in_bytes);
 
@@ -86,7 +86,7 @@ NK_DYNAMIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, 
  *  @param[in] row_count Number of rows of results to compute (for parallelism).
  */
 NK_DYNAMIC void nk_angulars_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                           nk_size_t row_start, nk_size_t row_count);
 
 /**
@@ -100,7 +100,7 @@ NK_DYNAMIC void nk_angulars_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_v
  *  @param[in] a_stride_in_bytes Row stride in bytes for A.
  *  @param[in] r_stride_in_bytes Row stride in bytes for the result matrix.
  */
-NK_DYNAMIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_DYNAMIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                          nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                          nk_size_t r_stride_in_bytes);
 
@@ -116,7 +116,7 @@ NK_DYNAMIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed
  *  @param[in] row_count Number of rows of results to compute (for parallelism).
  */
 NK_DYNAMIC void nk_euclideans_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                             nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f32 */
@@ -307,20 +307,20 @@ NK_DYNAMIC void nk_euclideans_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n
                                            nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                              nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_serial(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_euclideans_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_serial(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                  nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                   nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -908,20 +908,20 @@ NK_PUBLIC void nk_euclideans_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_
  */
 #if NK_TARGET_SMEF64
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                              nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_euclideans_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                  nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                   nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -947,20 +947,20 @@ NK_PUBLIC void nk_euclideans_symmetric_f64_smef64(nk_f64_t const *vectors, nk_si
  */
 #if NK_TARGET_HASWELL
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_haswell(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_haswell(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                               nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                               nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_haswell(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                 nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_haswell(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_euclideans_packed_f32_haswell(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                 nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                 nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_haswell(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                   nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                   nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                    nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -1120,20 +1120,20 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_haswell(nk_u8_t const *vectors, nk_siz
  */
 #if NK_TARGET_SKYLAKE
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_skylake(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_skylake(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                               nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                               nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_skylake(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                 nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_skylake(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_euclideans_packed_f32_skylake(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                 nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                 nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_skylake(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                   nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                   nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                    nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -1503,20 +1503,20 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16_v128relaxed(nk_bf16_t const *vectors
                                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                         nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_v128relaxed(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_angulars_packed_f32_v128relaxed(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                   nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                   nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_v128relaxed(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                     nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                     nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                      nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_v128relaxed(nk_f32_t const *a, void const *b_packed, nk_f32_t *result,
+NK_PUBLIC void nk_euclideans_packed_f32_v128relaxed(nk_f32_t const *a, void const *b_packed, nk_f64_t *result,
                                                     nk_size_t rows, nk_size_t cols, nk_size_t depth,
                                                     nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_v128relaxed(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                       nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                       nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                        nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_angulars_packed_f64 */
 NK_PUBLIC void nk_angulars_packed_f64_v128relaxed(nk_f64_t const *a, void const *b_packed, nk_f64_t *result,
@@ -1541,20 +1541,20 @@ NK_PUBLIC void nk_euclideans_symmetric_f64_v128relaxed(nk_f64_t const *vectors, 
  */
 #if NK_TARGET_NEON
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_neon(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_neon(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                            nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                            nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_neon(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                               nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_neon(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_euclideans_packed_f32_neon(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                              nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_neon(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -1784,20 +1784,20 @@ NK_PUBLIC void nk_euclideans_symmetric_e3m2_neonfhm(nk_e3m2_t const *vectors, nk
 
 #if NK_TARGET_RVV
 /** @copydoc nk_angulars_packed_f32 */
-NK_PUBLIC void nk_angulars_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                           nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                           nk_size_t r_stride_in_bytes);
 /** @copydoc nk_angulars_symmetric_f32 */
 NK_PUBLIC void nk_angulars_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                             nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                             nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                              nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_euclideans_packed_f32 */
-NK_PUBLIC void nk_euclideans_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_euclideans_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                             nk_size_t r_stride_in_bytes);
 /** @copydoc nk_euclideans_symmetric_f32 */
 NK_PUBLIC void nk_euclideans_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                               nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                               nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_angulars_packed_f64 */
@@ -2061,7 +2061,7 @@ NK_PUBLIC void nk_euclideans_symmetric_f64(nk_f64_t const *vectors, nk_size_t n_
 #endif
 }
 
-NK_PUBLIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                       nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                       nk_size_t r_stride_in_bytes) {
 #if NK_TARGET_SMEF64
@@ -2081,7 +2081,7 @@ NK_PUBLIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, n
 #endif
 }
 NK_PUBLIC void nk_angulars_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                         nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                          nk_size_t row_start, nk_size_t row_count) {
 #if NK_TARGET_SMEF64
     nk_angulars_symmetric_f32_smef64(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
@@ -2100,7 +2100,7 @@ NK_PUBLIC void nk_angulars_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_ve
     nk_angulars_symmetric_f32_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
 }
-NK_PUBLIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+NK_PUBLIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f64_t *result, nk_size_t rows,
                                         nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
                                         nk_size_t r_stride_in_bytes) {
 #if NK_TARGET_SMEF64
@@ -2120,7 +2120,7 @@ NK_PUBLIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed,
 #endif
 }
 NK_PUBLIC void nk_euclideans_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                           nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                           nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                            nk_size_t row_start, nk_size_t row_count) {
 #if NK_TARGET_SMEF64
     nk_euclideans_symmetric_f32_smef64(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);

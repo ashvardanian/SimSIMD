@@ -144,7 +144,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_haswell_(__m256d sum_f64x4, __m256d
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f32_t *result) {
+                                  nk_f64_t *result) {
     __m256d sum_f64x4 = _mm256_setzero_pd();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 4 <= count_scalars; idx_scalars += 4) {
@@ -156,11 +156,11 @@ NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_s
     }
     nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
     for (; idx_scalars < count_scalars; ++idx_scalars) sum += (nk_f64_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
-    *result = (nk_f32_t)sum;
+    *result = sum;
 }
 
 NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                                   nk_f32c_t *result) {
+                                   nk_f64c_t *result) {
     // Using XOR to flip sign bits is cheaper than separate FMA/FMS. Throughput doubles from 2.5 GB/s to 5 GB/s.
     __m256d sum_real_f64x4 = _mm256_setzero_pd();
     __m256d sum_imag_f64x4 = _mm256_setzero_pd();
@@ -184,12 +184,12 @@ NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b_
         sum_real += (nk_f64_t)a_pair.real * b_pair.real - (nk_f64_t)a_pair.imag * b_pair.imag;
         sum_imag += (nk_f64_t)a_pair.real * b_pair.imag + (nk_f64_t)a_pair.imag * b_pair.real;
     }
-    result->real = (nk_f32_t)sum_real;
-    result->imag = (nk_f32_t)sum_imag;
+    result->real = sum_real;
+    result->imag = sum_imag;
 }
 
 NK_PUBLIC void nk_vdot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
-                                    nk_f32c_t *result) {
+                                    nk_f64c_t *result) {
     __m256d sum_real_f64x4 = _mm256_setzero_pd();
     __m256d sum_imag_f64x4 = _mm256_setzero_pd();
     __m256i sign_flip_i64x4 = _mm256_set_epi64x(0x8000000000000000, 0, 0x8000000000000000, 0);
@@ -212,8 +212,8 @@ NK_PUBLIC void nk_vdot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b
         sum_real += (nk_f64_t)a_pair.real * b_pair.real + (nk_f64_t)a_pair.imag * b_pair.imag;
         sum_imag += (nk_f64_t)a_pair.real * b_pair.imag - (nk_f64_t)a_pair.imag * b_pair.real;
     }
-    result->real = (nk_f32_t)sum_real;
-    result->imag = (nk_f32_t)sum_imag;
+    result->real = sum_real;
+    result->imag = sum_imag;
 }
 
 NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -456,10 +456,9 @@ NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state
 NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                               //
     nk_dot_f32x4_state_haswell_t const *state_a, nk_dot_f32x4_state_haswell_t const *state_b, //
     nk_dot_f32x4_state_haswell_t const *state_c, nk_dot_f32x4_state_haswell_t const *state_d, //
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
     // Horizontal reduction: 4 f64s → 1 f64 for each state
-    // Then downcast final f64 results to f32
     __m256d sum_a_f64x4 = state_a->sum_f64x4;
     __m256d sum_b_f64x4 = state_b->sum_f64x4;
     __m256d sum_c_f64x4 = state_c->sum_f64x4;
@@ -477,9 +476,7 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
 
     // Combine into __m256d and convert to f32
     __m256d sum_abcd_f64x4 = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
-    __m128 sum_f32x4 = _mm256_cvtpd_ps(sum_abcd_f64x4);
-
-    result->xmm = _mm_castps_si128(sum_f32x4);
+    result->ymm_pd = sum_abcd_f64x4;
 }
 
 #pragma endregion - Traditional Floats

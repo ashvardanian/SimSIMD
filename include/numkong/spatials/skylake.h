@@ -45,22 +45,22 @@ nk_define_cross_normalized_symmetric_(euclidean, f64, skylake, f64, f64, /*norm_
                                       nk_dots_reduce_sumsq_f64_, nk_load_b256_haswell_, nk_partial_load_b64x4_skylake_,
                                       nk_store_b256_haswell_, nk_partial_store_b64x4_skylake_, 1)
 
-nk_define_cross_normalized_packed_(angular, f32, skylake, f32, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_f32_skylake, nk_angular_through_f32_from_dot_haswell_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b128_haswell_, nk_partial_load_b32x4_skylake_,
-                                   nk_store_b128_haswell_, nk_partial_store_b32x4_skylake_, 1)
-nk_define_cross_normalized_packed_(euclidean, f32, skylake, f32, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_f32_skylake, nk_euclidean_through_f32_from_dot_haswell_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b128_haswell_, nk_partial_load_b32x4_skylake_,
-                                   nk_store_b128_haswell_, nk_partial_store_b32x4_skylake_, 1)
-nk_define_cross_normalized_symmetric_(angular, f32, skylake, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_f32_skylake, nk_angular_through_f32_from_dot_haswell_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b128_haswell_, nk_partial_load_b32x4_skylake_,
-                                      nk_store_b128_haswell_, nk_partial_store_b32x4_skylake_, 1)
-nk_define_cross_normalized_symmetric_(euclidean, f32, skylake, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_f32_skylake, nk_euclidean_through_f32_from_dot_haswell_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b128_haswell_, nk_partial_load_b32x4_skylake_,
-                                      nk_store_b128_haswell_, nk_partial_store_b32x4_skylake_, 1)
+nk_define_cross_normalized_packed_(angular, f32, skylake, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                   nk_dots_packed_f32_skylake, nk_angular_f64x4_from_dot_skylake_,
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_haswell_, nk_partial_load_b64x4_skylake_,
+                                   nk_store_b256_haswell_, nk_partial_store_b64x4_skylake_, 1)
+nk_define_cross_normalized_packed_(euclidean, f32, skylake, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                   nk_dots_packed_f32_skylake, nk_euclidean_f64x4_from_dot_skylake_,
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_haswell_, nk_partial_load_b64x4_skylake_,
+                                   nk_store_b256_haswell_, nk_partial_store_b64x4_skylake_, 1)
+nk_define_cross_normalized_symmetric_(angular, f32, skylake, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                      nk_dots_symmetric_f32_skylake, nk_angular_f64x4_from_dot_skylake_,
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_haswell_, nk_partial_load_b64x4_skylake_,
+                                      nk_store_b256_haswell_, nk_partial_store_b64x4_skylake_, 1)
+nk_define_cross_normalized_symmetric_(euclidean, f32, skylake, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                      nk_dots_symmetric_f32_skylake, nk_euclidean_f64x4_from_dot_skylake_,
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_haswell_, nk_partial_load_b64x4_skylake_,
+                                      nk_store_b256_haswell_, nk_partial_store_b64x4_skylake_, 1)
 
 nk_define_cross_normalized_packed_(angular, f16, skylake, f16, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                    nk_dots_packed_f16_skylake, nk_angular_through_f32_from_dot_haswell_,

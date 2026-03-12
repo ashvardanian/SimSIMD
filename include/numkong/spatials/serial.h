@@ -32,22 +32,22 @@ nk_define_cross_normalized_symmetric_(euclidean, f64, serial, f64, f64, /*norm_v
                                       nk_dots_reduce_sumsq_f64_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
                                       nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
 
-nk_define_cross_normalized_packed_(angular, f32, serial, f32, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_f32_serial, nk_angular_through_f32_from_dot_serial_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_packed_(euclidean, f32, serial, f32, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_f32_serial, nk_euclidean_through_f32_from_dot_serial_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(angular, f32, serial, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_f32_serial, nk_angular_through_f32_from_dot_serial_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(euclidean, f32, serial, f32, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_f32_serial, nk_euclidean_through_f32_from_dot_serial_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+nk_define_cross_normalized_packed_(angular, f32, serial, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                   nk_dots_packed_f32_serial, nk_angular_through_f64_from_dot_serial_,
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+nk_define_cross_normalized_packed_(euclidean, f32, serial, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                   nk_dots_packed_f32_serial, nk_euclidean_through_f64_from_dot_serial_,
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+nk_define_cross_normalized_symmetric_(angular, f32, serial, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                      nk_dots_symmetric_f32_serial, nk_angular_through_f64_from_dot_serial_,
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+nk_define_cross_normalized_symmetric_(euclidean, f32, serial, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
+                                      nk_dots_symmetric_f32_serial, nk_euclidean_through_f64_from_dot_serial_,
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
 
 nk_define_cross_normalized_packed_(angular, f16, serial, f16, f16, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                    nk_dots_packed_f16_serial, nk_angular_through_f32_from_dot_serial_,

@@ -545,7 +545,7 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
 #pragma endregion - Small Integers
 #pragma region - Traditional Floats
 
-NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m256d sum_f64x4 = _mm256_setzero_pd();
     nk_size_t i = 0;
@@ -564,10 +564,10 @@ NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, 
         sum_f64 += diff_f64 * diff_f64;
     }
 
-    *result = (nk_f32_t)sum_f64;
+    *result = sum_f64;
 }
 
-NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation, use f64 sqrt before downcasting
     __m256d sum_f64x4 = _mm256_setzero_pd();
     nk_size_t i = 0;
@@ -586,10 +586,10 @@ NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk
         sum_f64 += diff_f64 * diff_f64;
     }
 
-    *result = (nk_f32_t)nk_f64_sqrt_haswell(sum_f64);
+    *result = nk_f64_sqrt_haswell(sum_f64);
 }
 
-NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m256d dot_f64x4 = _mm256_setzero_pd();
     __m256d a_norm_sq_f64x4 = _mm256_setzero_pd();
@@ -614,7 +614,7 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
         a_norm_sq_f64 += a_f64 * a_f64;
         b_norm_sq_f64 += b_f64 * b_f64;
     }
-    *result = (nk_f32_t)nk_angular_normalize_f64_haswell_(dot_f64, a_norm_sq_f64, b_norm_sq_f64);
+    *result = nk_angular_normalize_f64_haswell_(dot_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

@@ -87,13 +87,13 @@ extension Float64: NumKongSqeuclidean {
 }
 
 extension Float32: NumKongDot {
-    public typealias DotOutput = Float32
+    public typealias DotOutput = Float64
 
     @inlinable @inline(__always)
-    public static func dot<A, B>(_ a: A, _ b: B) -> Float32?
+    public static func dot<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
         _nkWithDensePair(a, b) { ap, bp, n in
-            var result: Float32 = 0
+            var result: Float64 = 0
             nk_dot_f32(ap, bp, UInt64(n), &result)
             return result
         }
@@ -101,13 +101,13 @@ extension Float32: NumKongDot {
 }
 
 extension Float32: NumKongAngular {
-    public typealias AngularOutput = Float32
+    public typealias AngularOutput = Float64
 
     @inlinable @inline(__always)
-    public static func angular<A, B>(_ a: A, _ b: B) -> Float32?
+    public static func angular<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
         _nkWithDensePair(a, b) { ap, bp, n in
-            var result: Float32 = 0
+            var result: Float64 = 0
             nk_angular_f32(ap, bp, UInt64(n), &result)
             return result
         }
@@ -115,13 +115,13 @@ extension Float32: NumKongAngular {
 }
 
 extension Float32: NumKongEuclidean {
-    public typealias L2Output = Float32
+    public typealias L2Output = Float64
 
     @inlinable @inline(__always)
-    public static func euclidean<A, B>(_ a: A, _ b: B) -> Float32?
+    public static func euclidean<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
         _nkWithDensePair(a, b) { ap, bp, n in
-            var result: Float32 = 0
+            var result: Float64 = 0
             nk_euclidean_f32(ap, bp, UInt64(n), &result)
             return result
         }
@@ -129,13 +129,13 @@ extension Float32: NumKongEuclidean {
 }
 
 extension Float32: NumKongSqeuclidean {
-    public typealias L2sqOutput = Float32
+    public typealias L2sqOutput = Float64
 
     @inlinable @inline(__always)
-    public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
+    public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
         _nkWithDensePair(a, b) { ap, bp, n in
-            var result: Float32 = 0
+            var result: Float64 = 0
             nk_sqeuclidean_f32(ap, bp, UInt64(n), &result)
             return result
         }

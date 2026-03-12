@@ -150,7 +150,7 @@ function detectType(arr: any): TypeInfo {
   if (arr instanceof Float64Array) {
     return { dtype: DType.F64, bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
   } else if (arr instanceof Float32Array) {
-    return { dtype: DType.F32, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f32' };
+    return { dtype: DType.F32, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f64' };
   } else if (arr instanceof Int8Array) {
     return { dtype: DType.I8, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
   } else if (arr instanceof Uint8Array) {
@@ -181,7 +181,7 @@ function detectType(arr: any): TypeInfo {
 function typeInfoFromDtype(dtype: DType): TypeInfo {
   switch (dtype) {
     case DType.F64: return { dtype, bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
-    case DType.F32: return { dtype, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f32' };
+    case DType.F32: return { dtype, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f64' };
     case DType.F16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
     case DType.BF16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
     case DType.I8: return { dtype, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };

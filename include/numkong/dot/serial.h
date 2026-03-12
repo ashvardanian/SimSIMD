@@ -141,9 +141,9 @@ extern "C" {
 
 #pragma region - Traditional Floats
 
-nk_define_dot_(f32, f64, f32, nk_assign_from_to_)            // nk_dot_f32_serial
-nk_define_dot_complex_(f32c, f64, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
-nk_define_vdot_complex_(f32c, f64, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
+nk_define_dot_(f32, f64, f64, nk_assign_from_to_)            // nk_dot_f32_serial
+nk_define_dot_complex_(f32c, f64, f64c, nk_assign_from_to_)  // nk_dot_f32c_serial
+nk_define_vdot_complex_(f32c, f64, f64c, nk_assign_from_to_) // nk_vdot_f32c_serial
 
 #pragma endregion - Traditional Floats
 
@@ -225,13 +225,8 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
  */
 NK_PUBLIC void nk_dot_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_f64_t sum = 0, compensation = 0;
-    for (nk_size_t i = 0; i != n; ++i) {
-        nk_f64_t ai = a[i], bi = b[i];
-        nk_f64_t term = ai * bi, t = sum + term;
-        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - t) + term) : ((term - t) + sum);
-        sum = t;
-    }
-    *result = (nk_f64_t)(sum + compensation);
+    for (nk_size_t i = 0; i != n; ++i) nk_f64_dot2_(&sum, &compensation, a[i], b[i]);
+    *result = sum + compensation;
 }
 
 NK_PUBLIC void nk_dot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -240,14 +235,10 @@ NK_PUBLIC void nk_dot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_p
     for (nk_size_t i = 0; i != count_pairs; ++i) {
         nk_f64_t a_real = a_pairs[i].real, b_real = b_pairs[i].real;
         nk_f64_t a_imag = a_pairs[i].imag, b_imag = b_pairs[i].imag;
-        nk_f64_t term_real = a_real * b_real - a_imag * b_imag, t_real = sum_real + term_real;
-        nk_f64_t term_imag = a_real * b_imag + a_imag * b_real, t_imag = sum_imag + term_imag;
-        compensation_real += (nk_f64_abs_(sum_real) >= nk_f64_abs_(term_real)) ? ((sum_real - t_real) + term_real)
-                                                                               : ((term_real - t_real) + sum_real);
-        compensation_imag += (nk_f64_abs_(sum_imag) >= nk_f64_abs_(term_imag)) ? ((sum_imag - t_imag) + term_imag)
-                                                                               : ((term_imag - t_imag) + sum_imag);
-        sum_real = t_real;
-        sum_imag = t_imag;
+        nk_f64_dot2_(&sum_real, &compensation_real, a_real, b_real);
+        nk_f64_dot2_(&sum_real, &compensation_real, -a_imag, b_imag);
+        nk_f64_dot2_(&sum_imag, &compensation_imag, a_real, b_imag);
+        nk_f64_dot2_(&sum_imag, &compensation_imag, a_imag, b_real);
     }
     result->real = sum_real + compensation_real;
     result->imag = sum_imag + compensation_imag;
@@ -259,14 +250,10 @@ NK_PUBLIC void nk_vdot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
     for (nk_size_t i = 0; i != count_pairs; ++i) {
         nk_f64_t a_real = a_pairs[i].real, b_real = b_pairs[i].real;
         nk_f64_t a_imag = a_pairs[i].imag, b_imag = b_pairs[i].imag;
-        nk_f64_t term_real = a_real * b_real + a_imag * b_imag, t_real = sum_real + term_real;
-        nk_f64_t term_imag = a_real * b_imag - a_imag * b_real, t_imag = sum_imag + term_imag;
-        compensation_real += (nk_f64_abs_(sum_real) >= nk_f64_abs_(term_real)) ? ((sum_real - t_real) + term_real)
-                                                                               : ((term_real - t_real) + sum_real);
-        compensation_imag += (nk_f64_abs_(sum_imag) >= nk_f64_abs_(term_imag)) ? ((sum_imag - t_imag) + term_imag)
-                                                                               : ((term_imag - t_imag) + sum_imag);
-        sum_real = t_real;
-        sum_imag = t_imag;
+        nk_f64_dot2_(&sum_real, &compensation_real, a_real, b_real);
+        nk_f64_dot2_(&sum_real, &compensation_real, a_imag, b_imag);
+        nk_f64_dot2_(&sum_imag, &compensation_imag, a_real, b_imag);
+        nk_f64_dot2_(&sum_imag, &compensation_imag, -a_imag, b_real);
     }
     result->real = sum_real + compensation_real;
     result->imag = sum_imag + compensation_imag;
@@ -288,16 +275,8 @@ NK_INTERNAL void nk_dot_f64x2_update_serial(nk_dot_f64x2_state_serial_t *state, 
     nk_unused_(active_dimensions);
     nk_f64_t sum0 = state->sums[0], compensation0 = state->compensations[0];
     nk_f64_t sum1 = state->sums[1], compensation1 = state->compensations[1];
-
-    nk_f64_t term0 = a.f64s[0] * b.f64s[0], new_sum0 = sum0 + term0;
-    compensation0 += (nk_f64_abs_(sum0) >= nk_f64_abs_(term0)) ? ((sum0 - new_sum0) + term0)
-                                                               : ((term0 - new_sum0) + sum0);
-    sum0 = new_sum0;
-
-    nk_f64_t term1 = a.f64s[1] * b.f64s[1], new_sum1 = sum1 + term1;
-    compensation1 += (nk_f64_abs_(sum1) >= nk_f64_abs_(term1)) ? ((sum1 - new_sum1) + term1)
-                                                               : ((term1 - new_sum1) + sum1);
-    sum1 = new_sum1;
+    nk_f64_dot2_(&sum0, &compensation0, a.f64s[0], b.f64s[0]);
+    nk_f64_dot2_(&sum1, &compensation1, a.f64s[1], b.f64s[1]);
 
     state->sums[0] = sum0, state->sums[1] = sum1;
     state->compensations[0] = compensation0, state->compensations[1] = compensation1;
@@ -315,7 +294,7 @@ NK_INTERNAL void nk_dot_f64x2_finalize_serial(                                  
 }
 
 typedef struct nk_dot_f32x4_state_serial_t {
-    nk_f32_t sums[4];
+    nk_f64_t sums[4];
 } nk_dot_f32x4_state_serial_t;
 
 NK_INTERNAL void nk_dot_f32x4_init_serial(nk_dot_f32x4_state_serial_t *state) {
@@ -326,24 +305,24 @@ NK_INTERNAL void nk_dot_f32x4_update_serial(nk_dot_f32x4_state_serial_t *state, 
                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    nk_f32_t sum0 = state->sums[0];
-    nk_f32_t sum1 = state->sums[1];
-    nk_f32_t sum2 = state->sums[2];
-    nk_f32_t sum3 = state->sums[3];
-    sum0 += a.f32s[0] * b.f32s[0], sum1 += a.f32s[1] * b.f32s[1];
-    sum2 += a.f32s[2] * b.f32s[2], sum3 += a.f32s[3] * b.f32s[3];
+    nk_f64_t sum0 = state->sums[0];
+    nk_f64_t sum1 = state->sums[1];
+    nk_f64_t sum2 = state->sums[2];
+    nk_f64_t sum3 = state->sums[3];
+    sum0 += (nk_f64_t)a.f32s[0] * b.f32s[0], sum1 += (nk_f64_t)a.f32s[1] * b.f32s[1];
+    sum2 += (nk_f64_t)a.f32s[2] * b.f32s[2], sum3 += (nk_f64_t)a.f32s[3] * b.f32s[3];
     state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 NK_INTERNAL void nk_dot_f32x4_finalize_serial(                                              //
     nk_dot_f32x4_state_serial_t const *state_a, nk_dot_f32x4_state_serial_t const *state_b, //
     nk_dot_f32x4_state_serial_t const *state_c, nk_dot_f32x4_state_serial_t const *state_d, //
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    result->f64s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f64s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f64s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f64s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 #pragma endregion - Traditional Floats

@@ -28,8 +28,8 @@
 
 #include "numkong/types.h"
 #include "numkong/scalar/rvv.h" // `nk_f32_rsqrt_rvv`
-#include "numkong/cast/rvv.h"    // `nk_e4m3m1_to_f32m4_rvv_`
-#include "numkong/dot/rvv.h"     // `nk_dot_stable_sum_f64m1_rvv_`
+#include "numkong/cast/rvv.h"   // `nk_e4m3m1_to_f32m4_rvv_`
+#include "numkong/dot/rvv.h"    // `nk_dot_stable_sum_f64m1_rvv_`
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
@@ -191,7 +191,7 @@ NK_PUBLIC void nk_euclidean_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_sc
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                      nk_f32_t *result) {
+                                      nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
     vfloat64m2_t sum_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     for (nk_size_t vector_length; count_scalars > 0;
@@ -199,20 +199,20 @@ NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const 
         vector_length = __riscv_vsetvl_e32m1(count_scalars);
         vfloat32m1_t a_f32m1 = __riscv_vle32_v_f32m1(a_scalars, vector_length);
         vfloat32m1_t b_f32m1 = __riscv_vle32_v_f32m1(b_scalars, vector_length);
-        // Compute difference in f32
-        vfloat32m1_t diff_f32m1 = __riscv_vfsub_vv_f32m1(a_f32m1, b_f32m1, vector_length);
-        // Widening multiply-accumulate: diff² into f64 vector lanes
-        sum_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_f64m2, diff_f32m1, diff_f32m1, vector_length);
+        vfloat64m2_t a_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(a_f32m1, vector_length);
+        vfloat64m2_t b_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(b_f32m1, vector_length);
+        vfloat64m2_t diff_f64m2 = __riscv_vfsub_vv_f64m2(a_f64m2, b_f64m2, vector_length);
+        sum_f64m2 = __riscv_vfmacc_vv_f64m2_tu(sum_f64m2, diff_f64m2, diff_f64m2, vector_length);
     }
-    // Single horizontal reduction at the end, downcast f64 result to f32
+    // Single horizontal reduction at the end
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-    *result = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, vlmax));
+    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, vlmax));
 }
 
 NK_PUBLIC void nk_euclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+                                    nk_f64_t *result) {
     nk_sqeuclidean_f32_rvv(a_scalars, b_scalars, count_scalars, result);
-    *result = nk_f32_sqrt_rvv(*result);
+    *result = nk_f64_sqrt_rvv(*result);
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -324,7 +324,7 @@ NK_PUBLIC void nk_angular_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f32_t *result) {
+                                  nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
     vfloat64m2_t dot_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     vfloat64m2_t a_norm_sq_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
@@ -351,11 +351,11 @@ NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_s
         __riscv_vfredusum_vs_f64m2_f64m1(b_norm_sq_f64m2, zero_f64m1, vlmax));
 
     // Normalize: 1 − dot / √(‖a‖² × ‖b‖²)
-    if (a_norm_sq_f64 == 0.0 && b_norm_sq_f64 == 0.0) { *result = 0.0f; }
-    else if (dot_f64 == 0.0) { *result = 1.0f; }
+    if (a_norm_sq_f64 == 0.0 && b_norm_sq_f64 == 0.0) { *result = 0.0; }
+    else if (dot_f64 == 0.0) { *result = 1.0; }
     else {
         nk_f64_t unclipped = 1.0 - dot_f64 * nk_f64_rsqrt_rvv(a_norm_sq_f64) * nk_f64_rsqrt_rvv(b_norm_sq_f64);
-        *result = (nk_f32_t)(unclipped > 0 ? unclipped : 0);
+        *result = unclipped > 0 ? unclipped : 0.0;
     }
 }
 

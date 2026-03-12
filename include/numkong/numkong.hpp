@@ -11,7 +11,7 @@
  *
  *  @code{c}
  *  void nk_dot_f64(nk_f64_t const*, nk_f64_t const*, nk_size_t, nk_f64_t *);
- *  void nk_dot_f32(nk_f32_t const*, nk_f32_t const*, nk_size_t, nk_f32_t *);
+ *  void nk_dot_f32(nk_f32_t const*, nk_f32_t const*, nk_size_t, nk_f64_t *);
  *  void nk_dot_f16(nk_f16_t const*, nk_f16_t const*, nk_size_t, nk_f32_t *);
  *  void nk_dot_bf16(nk_bf16_t const*, nk_bf16_t const*, nk_size_t, nk_f32_t *);
  *  void nk_dot_e4m3(nk_e4m3_t const*, nk_e4m3_t const*, nk_size_t, nk_f32_t *);

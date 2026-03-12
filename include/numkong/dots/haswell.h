@@ -41,19 +41,19 @@ extern "C" {
 #endif
 
 /* F32 GEMM: depth_simd_dimensions=4 (4 f32s = 16 bytes for f32->f64 upcast accumulation) */
-nk_define_cross_pack_size_(dots, f32, haswell, f32, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/4,
+nk_define_cross_pack_size_(dots, f32, haswell, f32, f32, /*norm_value_type=*/f64, /*depth_simd_dimensions=*/4,
                            /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, f32, haswell, f32, f32, nk_assign_from_to_, /*norm_value_type=*/f32,
+nk_define_cross_pack_(dots, f32, haswell, f32, f32, nk_assign_from_to_, /*norm_value_type=*/f64,
                       nk_dots_reduce_sumsq_f32_,
                       /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
-nk_define_cross_symmetric_(dots, f32, haswell, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b128_vec_t,
+nk_define_cross_symmetric_(dots, f32, haswell, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b256_vec_t,
                            nk_dot_f32x4_init_haswell, nk_load_b128_haswell_, nk_partial_load_b32x4_serial_,
-                           nk_dot_f32x4_update_haswell, nk_dot_f32x4_finalize_haswell, nk_partial_store_b32x4_serial_,
+                           nk_dot_f32x4_update_haswell, nk_dot_f32x4_finalize_haswell, nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
-nk_define_cross_packed_(dots, f32, haswell, f32, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b128_vec_t,
+nk_define_cross_packed_(dots, f32, haswell, f32, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b256_vec_t,
                         nk_dot_f32x4_init_haswell, nk_load_b128_haswell_, nk_partial_load_b32x4_serial_,
                         nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_haswell,
-                        nk_dot_f32x4_finalize_haswell, nk_partial_store_b32x4_serial_,
+                        nk_dot_f32x4_finalize_haswell, nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* F64 GEMM: depth_simd_dimensions=4 (4 f64s = 32 bytes = AVX2 register width) */

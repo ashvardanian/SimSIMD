@@ -30,17 +30,17 @@ extern "C" {
     fn nk_dot_e5m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_dot_e2m3(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_dot_e3m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
-    fn nk_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn nk_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f32);
     fn nk_dot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut f32);
-    fn nk_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn nk_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f32);
     fn nk_vdot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut f32);
-    fn nk_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     // Spatial similarity/distance functions
@@ -52,7 +52,7 @@ extern "C" {
     fn nk_angular_e5m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_angular_e2m3(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_angular_e3m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
-    fn nk_angular_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_angular_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_angular_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn nk_sqeuclidean_i8(a: *const i8, b: *const i8, c: usize, d: *mut u32);
@@ -63,7 +63,7 @@ extern "C" {
     fn nk_sqeuclidean_e5m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_sqeuclidean_e2m3(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_sqeuclidean_e3m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
-    fn nk_sqeuclidean_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_sqeuclidean_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_sqeuclidean_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn nk_euclidean_i8(a: *const i8, b: *const i8, c: usize, d: *mut f32);
@@ -74,7 +74,7 @@ extern "C" {
     fn nk_euclidean_e5m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_euclidean_e2m3(a: *const u8, b: *const u8, c: usize, d: *mut f32);
     fn nk_euclidean_e3m2(a: *const u8, b: *const u8, c: usize, d: *mut f32);
-    fn nk_euclidean_f32(a: *const f32, b: *const f32, c: usize, d: *mut f32);
+    fn nk_euclidean_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn nk_euclidean_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     // 4-bit integer kernels
@@ -170,7 +170,7 @@ impl Dot for f64 {
 }
 
 impl Dot for f32 {
-    type Output = f32;
+    type Output = f64;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -404,12 +404,12 @@ impl Dot for bf16c {
 }
 
 impl Dot for f32c {
-    type Output = f32c;
+    type Output = f64c;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result = [0.0f32; 2];
+        let mut result = [0.0f64; 2];
         unsafe {
             nk_dot_f32c(
                 a.as_ptr() as *const f32,
@@ -418,7 +418,7 @@ impl Dot for f32c {
                 result.as_mut_ptr(),
             )
         };
-        Some(f32c {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })
@@ -482,7 +482,7 @@ impl Angular for f64 {
 }
 
 impl Angular for f32 {
-    type Output = f32;
+    type Output = f64;
     fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
@@ -718,8 +718,8 @@ impl Euclidean for f64 {
 }
 
 impl Euclidean for f32 {
-    type SqEuclideanOutput = f32;
-    type EuclideanOutput = f32;
+    type SqEuclideanOutput = f64;
+    type EuclideanOutput = f64;
 
     fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
@@ -1160,7 +1160,7 @@ impl VDot for f32c {
         if a.len() != b.len() {
             return None;
         }
-        let mut result = [0.0f32; 2];
+        let mut result = [0.0f64; 2];
         unsafe {
             nk_vdot_f32c(
                 a.as_ptr() as *const f32,
@@ -1169,7 +1169,7 @@ impl VDot for f32c {
                 result.as_mut_ptr(),
             )
         };
-        Some(f32c {
+        Some(f64c {
             re: result[0],
             im: result[1],
         })

@@ -55,19 +55,19 @@ nk_define_cross_packed_(dots, f64, skylake, f64, f64, f64, nk_b512_vec_t, nk_dot
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
 /* F32 GEMM: depth_simd_dimensions=8 (8 f32s = 32 bytes = half cache line) */
-nk_define_cross_pack_size_(dots, f32, skylake, f32, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
+nk_define_cross_pack_size_(dots, f32, skylake, f32, f32, /*norm_value_type=*/f64, /*depth_simd_dimensions=*/8,
                            /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, f32, skylake, f32, f32, nk_assign_from_to_, /*norm_value_type=*/f32,
+nk_define_cross_pack_(dots, f32, skylake, f32, f32, nk_assign_from_to_, /*norm_value_type=*/f64,
                       nk_dots_reduce_sumsq_f32_,
                       /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
-nk_define_cross_symmetric_(dots, f32, skylake, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b128_vec_t,
+nk_define_cross_symmetric_(dots, f32, skylake, f32, f64, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b256_vec_t,
                            nk_dot_f32x8_init_skylake, nk_load_b256_haswell_, nk_partial_load_b32x8_skylake_,
-                           nk_dot_f32x8_update_skylake, nk_dot_f32x8_finalize_skylake, nk_partial_store_b32x4_skylake_,
+                           nk_dot_f32x8_update_skylake, nk_dot_f32x8_finalize_skylake, nk_partial_store_b64x4_skylake_,
                            /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
-nk_define_cross_packed_(dots, f32, skylake, f32, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b128_vec_t,
+nk_define_cross_packed_(dots, f32, skylake, f32, f32, f64, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b256_vec_t,
                         nk_dot_f32x8_init_skylake, nk_load_b256_haswell_, nk_partial_load_b32x8_skylake_,
                         nk_load_b256_haswell_, nk_partial_load_b32x8_skylake_, nk_dot_f32x8_update_skylake,
-                        nk_dot_f32x8_finalize_skylake, nk_partial_store_b32x4_skylake_,
+                        nk_dot_f32x8_finalize_skylake, nk_partial_store_b64x4_skylake_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
 /* BF16 GEMM: depth_simd_dimensions=16 (16 bf16s = 32 bytes = half cache line), F32 accumulator */
