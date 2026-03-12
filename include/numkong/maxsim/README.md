@@ -117,20 +117,23 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                              |                     256³ |                    1024³ |                    4096³ |
 | :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f32_serial`       |     20.3 gso/s, 169K ulp |     19.3 gso/s, 102K ulp |    15.6 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_f32_haswell`      |      102 gso/s, 168K ulp |     81.4 gso/s, 101K ulp |    69.3 gso/s, 55.6K ulp |
-| `nk_maxsim_packed_f32_icelake`      |      142 gso/s, 166K ulp |      112 gso/s, 102K ulp |     183 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_f32_sapphireamx`  |      243 gso/s, 163K ulp |      776 gso/s, 101K ulp |       833 gso/s, 56K ulp |
+| `nk_maxsim_packed_f32_serial`       |    15.7 gso/s, 48.9K ulp |    15.2 gso/s, 48.9K ulp |    16.3 gso/s, 48.9K ulp |
+| `nk_maxsim_packed_f32_haswell`      |    77.2 gso/s, 49.3K ulp |    70.7 gso/s, 49.3K ulp |    74.5 gso/s, 49.3K ulp |
+| `nk_maxsim_packed_f32_alder`        |    99.7 gso/s, 48.9K ulp |    97.7 gso/s, 48.9K ulp |    94.5 gso/s, 48.9K ulp |
+| `nk_maxsim_packed_f32_icelake`      |     131 gso/s, 48.9K ulp |     124 gso/s, 48.9K ulp |     136 gso/s, 48.9K ulp |
+| `nk_maxsim_packed_f32_sapphireamx`  |     273 gso/s, 48.9K ulp |     293 gso/s, 48.9K ulp |     285 gso/s, 48.9K ulp |
 | __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_bf16_serial`      |     20.9 gso/s, 166K ulp |     18.6 gso/s, 103K ulp |    15.2 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_bf16_haswell`     |      101 gso/s, 167K ulp |     89.8 gso/s, 103K ulp |    70.8 gso/s, 55.6K ulp |
-| `nk_maxsim_packed_bf16_genoa`       |      139 gso/s, 168K ulp |      177 gso/s, 103K ulp |     201 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_bf16_sapphireamx` |       309 gso/s, 16K ulp |        463 gso/s, 3K ulp |       458 gso/s, 665 ulp |
+| `nk_maxsim_packed_bf16_serial`      |    15.9 gso/s, 49.0K ulp |    17.0 gso/s, 49.0K ulp |    15.3 gso/s, 49.0K ulp |
+| `nk_maxsim_packed_bf16_haswell`     |    79.2 gso/s, 49.3K ulp |    85.0 gso/s, 49.3K ulp |    81.0 gso/s, 49.3K ulp |
+| `nk_maxsim_packed_bf16_alder`       |     114 gso/s, 49.0K ulp |     110 gso/s, 49.0K ulp |     115 gso/s, 49.0K ulp |
+| `nk_maxsim_packed_bf16_genoa`       |     163 gso/s, 49.0K ulp |     165 gso/s, 49.0K ulp |     174 gso/s, 49.0K ulp |
+| `nk_maxsim_packed_bf16_sapphireamx` |       418 gso/s, 994 ulp |       418 gso/s, 994 ulp |       445 gso/s, 994 ulp |
 | __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f16_serial`       |     20.9 gso/s, 167K ulp |     18.8 gso/s, 103K ulp |    14.7 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_f16_haswell`      |     96.8 gso/s, 168K ulp |     64.4 gso/s, 102K ulp |    88.8 gso/s, 55.7K ulp |
-| `nk_maxsim_packed_f16_icelake`      |      145 gso/s, 170K ulp |      166 gso/s, 103K ulp |     212 gso/s, 55.9K ulp |
-| `nk_maxsim_packed_f16_sapphireamx`  |      333 gso/s, 162K ulp |      893 gso/s, 101K ulp |       858 gso/s, 56K ulp |
+| `nk_maxsim_packed_f16_serial`       |    15.5 gso/s, 49.4K ulp |    15.6 gso/s, 49.4K ulp |    16.9 gso/s, 49.4K ulp |
+| `nk_maxsim_packed_f16_haswell`      |    79.1 gso/s, 49.8K ulp |    78.1 gso/s, 49.8K ulp |    79.1 gso/s, 49.8K ulp |
+| `nk_maxsim_packed_f16_alder`        |     113 gso/s, 49.4K ulp |     112 gso/s, 49.4K ulp |     107 gso/s, 49.4K ulp |
+| `nk_maxsim_packed_f16_icelake`      |     154 gso/s, 49.4K ulp |     164 gso/s, 49.4K ulp |     163 gso/s, 49.4K ulp |
+| `nk_maxsim_packed_f16_sapphireamx`  |     339 gso/s, 49.5K ulp |     395 gso/s, 49.5K ulp |     381 gso/s, 49.5K ulp |
 
 #### WASM
 
@@ -139,14 +142,14 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                              |                     256³ |                    1024³ |                    4096³ |
 | :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f32_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_serial`       |       ? gso/s, 46.8K ulp |       ? gso/s, 46.8K ulp |       ? gso/s, 46.8K ulp |
+| `nk_maxsim_packed_f32_v128relaxed`  |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |
 | __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_bf16_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_serial`      |       ? gso/s, 47.0K ulp |       ? gso/s, 47.0K ulp |       ? gso/s, 47.0K ulp |
+| `nk_maxsim_packed_bf16_v128relaxed` |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |
 | __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f16_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_serial`       |       ? gso/s, 46.4K ulp |       ? gso/s, 46.4K ulp |       ? gso/s, 46.4K ulp |
+| `nk_maxsim_packed_f16_v128relaxed`  |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |
 
 ### Apple M4 Pro
 

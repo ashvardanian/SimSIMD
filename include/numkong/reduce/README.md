@@ -139,144 +139,144 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                           |                      256 |                     1024 |                     4096 |
 | :------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f64_serial`   |         2.57 gb/s, 0 ulp |         2.72 gb/s, 0 ulp |         1.70 gb/s, 0 ulp |
-| `nk_reduce_minmax_f64_serial`    |         6.71 gb/s, 0 ulp |         6.28 gb/s, 0 ulp |         4.73 gb/s, 0 ulp |
-| `nk_reduce_moments_f64_haswell`  |       16.5 gb/s, 0.2 ulp |       15.6 gb/s, 0.3 ulp |       9.07 gb/s, 0.2 ulp |
-| `nk_reduce_minmax_f64_haswell`   |         10.7 gb/s, 0 ulp |         10.4 gb/s, 0 ulp |         7.93 gb/s, 0 ulp |
-| `nk_reduce_moments_f64_skylake`  |       22.7 gb/s, 0.2 ulp |       21.3 gb/s, 0.6 ulp |       14.2 gb/s, 0.4 ulp |
-| `nk_reduce_minmax_f64_skylake`   |         32.4 gb/s, 0 ulp |         26.0 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |
+| `nk_reduce_moments_f64_serial`   |         1.47 gb/s, 0 ulp |         1.73 gb/s, 0 ulp |         1.95 gb/s, 0 ulp |
+| `nk_reduce_minmax_f64_serial`    |         6.59 gb/s, 0 ulp |         5.95 gb/s, 0 ulp |         5.82 gb/s, 0 ulp |
+| `nk_reduce_moments_f64_haswell`  |       10.8 gb/s, 0.1 ulp |         9.18 gb/s, 0 ulp |         6.05 gb/s, 0 ulp |
+| `nk_reduce_minmax_f64_haswell`   |         8.11 gb/s, 0 ulp |         9.45 gb/s, 0 ulp |         6.59 gb/s, 0 ulp |
+| `nk_reduce_moments_f64_skylake`  |       14.7 gb/s, 0.3 ulp |       13.9 gb/s, 0.1 ulp |         11.4 gb/s, 0 ulp |
+| `nk_reduce_minmax_f64_skylake`   |         9.02 gb/s, 0 ulp |         18.3 gb/s, 0 ulp |         9.93 gb/s, 0 ulp |
 | __f32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f32_serial`   |        0.630 gb/s, 0 ulp |        0.591 gb/s, 0 ulp |        0.469 gb/s, 0 ulp |
-| `nk_reduce_minmax_f32_serial`    |         3.29 gb/s, 0 ulp |         3.11 gb/s, 0 ulp |         2.46 gb/s, 0 ulp |
-| `nk_reduce_moments_f32_haswell`  |       30.2 gb/s, 0.8 ulp |       27.5 gb/s, 3.9 ulp |       20.0 gb/s, 4.7 ulp |
-| `nk_reduce_minmax_f32_haswell`   |         10.3 gb/s, 0 ulp |         10.7 gb/s, 0 ulp |         10.2 gb/s, 0 ulp |
-| `nk_reduce_moments_f32_skylake`  |       37.8 gb/s, 0.5 ulp |       30.8 gb/s, 3.0 ulp |       20.1 gb/s, 6.2 ulp |
-| `nk_reduce_minmax_f32_skylake`   |         31.5 gb/s, 0 ulp |         29.3 gb/s, 0 ulp |         18.1 gb/s, 0 ulp |
+| `nk_reduce_moments_f32_serial`   |        0.458 gb/s, 0 ulp |        0.437 gb/s, 0 ulp |        0.449 gb/s, 0 ulp |
+| `nk_reduce_minmax_f32_serial`    |         3.35 gb/s, 0 ulp |         3.04 gb/s, 0 ulp |         3.27 gb/s, 0 ulp |
+| `nk_reduce_moments_f32_haswell`  |       18.4 gb/s, 0.8 ulp |       17.8 gb/s, 4.2 ulp |       11.7 gb/s, 7.7 ulp |
+| `nk_reduce_minmax_f32_haswell`   |         8.18 gb/s, 0 ulp |         8.92 gb/s, 0 ulp |         8.24 gb/s, 0 ulp |
+| `nk_reduce_moments_f32_skylake`  |       20.7 gb/s, 0.4 ulp |       20.3 gb/s, 3.1 ulp |       17.1 gb/s, 8.8 ulp |
+| `nk_reduce_minmax_f32_skylake`   |         7.35 gb/s, 0 ulp |         15.9 gb/s, 0 ulp |         21.8 gb/s, 0 ulp |
 | __bf16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_bf16_serial`  |        0.390 gb/s, 0 ulp |        0.386 gb/s, 0 ulp |        0.227 gb/s, 0 ulp |
-| `nk_reduce_minmax_bf16_serial`   |        0.906 gb/s, 0 ulp |        0.961 gb/s, 0 ulp |        0.567 gb/s, 0 ulp |
-| `nk_reduce_moments_bf16_haswell` |         13.6 gb/s, 0 ulp |         14.6 gb/s, 0 ulp |       10.5 gb/s, 0.4 ulp |
-| `nk_reduce_minmax_bf16_haswell`  |         7.39 gb/s, 0 ulp |         10.2 gb/s, 0 ulp |         7.55 gb/s, 0 ulp |
-| `nk_reduce_moments_bf16_skylake` |         29.7 gb/s, 0 ulp |         26.8 gb/s, 0 ulp |       16.1 gb/s, 0.2 ulp |
-| `nk_reduce_minmax_bf16_skylake`  |         11.7 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |         15.5 gb/s, 0 ulp |
-| `nk_reduce_moments_bf16_genoa`   |         30.6 gb/s, 0 ulp |         27.8 gb/s, 0 ulp |       17.1 gb/s, 0.2 ulp |
+| `nk_reduce_moments_bf16_serial`  |        0.208 gb/s, 0 ulp |        0.245 gb/s, 0 ulp |        0.239 gb/s, 0 ulp |
+| `nk_reduce_minmax_bf16_serial`   |        0.935 gb/s, 0 ulp |        0.984 gb/s, 0 ulp |         1.00 gb/s, 0 ulp |
+| `nk_reduce_moments_bf16_haswell` |         11.4 gb/s, 0 ulp |         12.2 gb/s, 0 ulp |       10.8 gb/s, 1.6 ulp |
+| `nk_reduce_minmax_bf16_haswell`  |         4.98 gb/s, 0 ulp |         7.54 gb/s, 0 ulp |         9.30 gb/s, 0 ulp |
+| `nk_reduce_moments_bf16_skylake` |         18.2 gb/s, 0 ulp |         27.0 gb/s, 0 ulp |       17.9 gb/s, 0.7 ulp |
+| `nk_reduce_minmax_bf16_skylake`  |         6.53 gb/s, 0 ulp |         18.2 gb/s, 0 ulp |         13.7 gb/s, 0 ulp |
+| `nk_reduce_moments_bf16_genoa`   |         18.1 gb/s, 0 ulp |         20.5 gb/s, 0 ulp |       19.3 gb/s, 0.8 ulp |
 | __f16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f16_serial`   |        0.540 gb/s, 0 ulp |        0.501 gb/s, 0 ulp |        0.367 gb/s, 0 ulp |
-| `nk_reduce_minmax_f16_serial`    |        0.921 gb/s, 0 ulp |        0.956 gb/s, 0 ulp |        0.674 gb/s, 0 ulp |
-| `nk_reduce_moments_f16_haswell`  |         15.1 gb/s, 0 ulp |         16.4 gb/s, 0 ulp |       11.6 gb/s, 0.1 ulp |
-| `nk_reduce_minmax_f16_haswell`   |         9.20 gb/s, 0 ulp |         11.3 gb/s, 0 ulp |         8.52 gb/s, 0 ulp |
-| `nk_reduce_moments_f16_skylake`  |         30.7 gb/s, 0 ulp |         30.1 gb/s, 0 ulp |         17.8 gb/s, 0 ulp |
-| `nk_reduce_minmax_f16_skylake`   |         17.5 gb/s, 0 ulp |         21.8 gb/s, 0 ulp |         17.9 gb/s, 0 ulp |
+| `nk_reduce_moments_f16_serial`   |        0.391 gb/s, 0 ulp |        0.354 gb/s, 0 ulp |        0.407 gb/s, 0 ulp |
+| `nk_reduce_minmax_f16_serial`    |        0.901 gb/s, 0 ulp |        0.877 gb/s, 0 ulp |        0.974 gb/s, 0 ulp |
+| `nk_reduce_moments_f16_haswell`  |         13.5 gb/s, 0 ulp |         12.6 gb/s, 0 ulp |       11.0 gb/s, 0.3 ulp |
+| `nk_reduce_minmax_f16_haswell`   |         6.61 gb/s, 0 ulp |         9.19 gb/s, 0 ulp |         8.10 gb/s, 0 ulp |
+| `nk_reduce_moments_f16_skylake`  |         17.7 gb/s, 0 ulp |       29.1 gb/s, 0.1 ulp |         18.6 gb/s, 0 ulp |
+| `nk_reduce_minmax_f16_skylake`   |         10.2 gb/s, 0 ulp |         20.8 gb/s, 0 ulp |         22.0 gb/s, 0 ulp |
 | __e5m2__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e5m2_serial`  |        0.261 gb/s, 0 ulp |        0.274 gb/s, 0 ulp |        0.159 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_serial`   |        0.439 gb/s, 0 ulp |        0.428 gb/s, 0 ulp |        0.303 gb/s, 0 ulp |
-| `nk_reduce_moments_e5m2_haswell` |         3.75 gb/s, 0 ulp |         4.41 gb/s, 0 ulp |         4.37 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_haswell`  |         7.40 gb/s, 0 ulp |         9.87 gb/s, 0 ulp |         7.00 gb/s, 0 ulp |
-| `nk_reduce_moments_e5m2_skylake` |         5.56 gb/s, 0 ulp |         5.60 gb/s, 0 ulp |         3.87 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_skylake`  |         9.48 gb/s, 0 ulp |         16.8 gb/s, 0 ulp |         15.4 gb/s, 0 ulp |
-| `nk_reduce_moments_e5m2_genoa`   |         7.83 gb/s, 0 ulp |         8.58 gb/s, 0 ulp |         6.63 gb/s, 0 ulp |
+| `nk_reduce_moments_e5m2_serial`  |        0.157 gb/s, 0 ulp |        0.296 gb/s, 0 ulp |        0.229 gb/s, 0 ulp |
+| `nk_reduce_minmax_e5m2_serial`   |        0.418 gb/s, 0 ulp |        0.417 gb/s, 0 ulp |        0.451 gb/s, 0 ulp |
+| `nk_reduce_moments_e5m2_haswell` |         2.40 gb/s, 0 ulp |         2.69 gb/s, 0 ulp |         2.61 gb/s, 0 ulp |
+| `nk_reduce_minmax_e5m2_haswell`  |         4.48 gb/s, 0 ulp |         6.80 gb/s, 0 ulp |         7.21 gb/s, 0 ulp |
+| `nk_reduce_moments_e5m2_skylake` |         4.66 gb/s, 0 ulp |         2.83 gb/s, 0 ulp |         4.04 gb/s, 0 ulp |
+| `nk_reduce_minmax_e5m2_skylake`  |         3.90 gb/s, 0 ulp |         11.8 gb/s, 0 ulp |         19.1 gb/s, 0 ulp |
+| `nk_reduce_moments_e5m2_genoa`   |         4.76 gb/s, 0 ulp |         6.08 gb/s, 0 ulp |         5.88 gb/s, 0 ulp |
 | __e4m3__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e4m3_serial`  |        0.211 gb/s, 0 ulp |        0.212 gb/s, 0 ulp |        0.149 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_serial`   |        0.462 gb/s, 0 ulp |        0.447 gb/s, 0 ulp |        0.273 gb/s, 0 ulp |
-| `nk_reduce_moments_e4m3_haswell` |         2.86 gb/s, 0 ulp |         3.11 gb/s, 0 ulp |         2.92 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_haswell`  |         8.03 gb/s, 0 ulp |         11.6 gb/s, 0 ulp |         6.14 gb/s, 0 ulp |
-| `nk_reduce_moments_e4m3_skylake` |         4.50 gb/s, 0 ulp |         4.58 gb/s, 0 ulp |         3.37 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_skylake`  |         9.25 gb/s, 0 ulp |         16.6 gb/s, 0 ulp |         14.1 gb/s, 0 ulp |
-| `nk_reduce_moments_e4m3_genoa`   |         7.58 gb/s, 0 ulp |         8.47 gb/s, 0 ulp |         7.08 gb/s, 0 ulp |
+| `nk_reduce_moments_e4m3_serial`  |        0.121 gb/s, 0 ulp |        0.129 gb/s, 0 ulp |        0.158 gb/s, 0 ulp |
+| `nk_reduce_minmax_e4m3_serial`   |        0.460 gb/s, 0 ulp |        0.473 gb/s, 0 ulp |        0.464 gb/s, 0 ulp |
+| `nk_reduce_moments_e4m3_haswell` |         1.82 gb/s, 0 ulp |         1.90 gb/s, 0 ulp |         1.77 gb/s, 0 ulp |
+| `nk_reduce_minmax_e4m3_haswell`  |         4.42 gb/s, 0 ulp |         7.00 gb/s, 0 ulp |         8.10 gb/s, 0 ulp |
+| `nk_reduce_moments_e4m3_skylake` |         2.77 gb/s, 0 ulp |         3.53 gb/s, 0 ulp |         2.74 gb/s, 0 ulp |
+| `nk_reduce_minmax_e4m3_skylake`  |         3.79 gb/s, 0 ulp |         9.57 gb/s, 0 ulp |         17.0 gb/s, 0 ulp |
+| `nk_reduce_moments_e4m3_genoa`   |         4.67 gb/s, 0 ulp |         5.87 gb/s, 0 ulp |         5.67 gb/s, 0 ulp |
 | __e3m2__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e3m2_serial`  |        0.219 gb/s, 0 ulp |        0.259 gb/s, 0 ulp |        0.138 gb/s, 0 ulp |
-| `nk_reduce_minmax_e3m2_serial`   |        0.473 gb/s, 0 ulp |        0.452 gb/s, 0 ulp |        0.441 gb/s, 0 ulp |
-| `nk_reduce_moments_e3m2_haswell` |         3.98 gb/s, 0 ulp |         4.47 gb/s, 0 ulp |         4.28 gb/s, 0 ulp |
-| `nk_reduce_minmax_e3m2_haswell`  |         9.45 gb/s, 0 ulp |         15.1 gb/s, 0 ulp |         7.25 gb/s, 0 ulp |
-| `nk_reduce_moments_e3m2_skylake` |         5.47 gb/s, 0 ulp |         5.60 gb/s, 0 ulp |         4.16 gb/s, 0 ulp |
-| `nk_reduce_minmax_e3m2_skylake`  |         11.2 gb/s, 0 ulp |         20.8 gb/s, 0 ulp |         18.7 gb/s, 0 ulp |
-| `nk_reduce_moments_e3m2_icelake` |         14.2 gb/s, 0 ulp |         15.0 gb/s, 0 ulp |         9.90 gb/s, 0 ulp |
-| `nk_reduce_moments_e3m2_alder`   |         9.57 gb/s, 0 ulp |         11.3 gb/s, 0 ulp |         10.7 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_serial`  |        0.158 gb/s, 0 ulp |        0.279 gb/s, 0 ulp |        0.348 gb/s, 0 ulp |
+| `nk_reduce_minmax_e3m2_serial`   |        0.464 gb/s, 0 ulp |        0.416 gb/s, 0 ulp |        0.470 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_haswell` |         2.37 gb/s, 0 ulp |         2.55 gb/s, 0 ulp |         2.53 gb/s, 0 ulp |
+| `nk_reduce_minmax_e3m2_haswell`  |         5.36 gb/s, 0 ulp |         7.89 gb/s, 0 ulp |         9.56 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_skylake` |         2.77 gb/s, 0 ulp |         3.32 gb/s, 0 ulp |         3.58 gb/s, 0 ulp |
+| `nk_reduce_minmax_e3m2_skylake`  |         9.85 gb/s, 0 ulp |         20.1 gb/s, 0 ulp |         14.6 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_icelake` |         8.82 gb/s, 0 ulp |         9.02 gb/s, 0 ulp |         13.4 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_alder`   |         4.80 gb/s, 0 ulp |         7.11 gb/s, 0 ulp |         7.89 gb/s, 0 ulp |
 | __e2m3__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e2m3_serial`  |        0.201 gb/s, 0 ulp |        0.208 gb/s, 0 ulp |        0.132 gb/s, 0 ulp |
-| `nk_reduce_minmax_e2m3_serial`   |        0.467 gb/s, 0 ulp |        0.441 gb/s, 0 ulp |        0.376 gb/s, 0 ulp |
-| `nk_reduce_moments_e2m3_haswell` |         4.33 gb/s, 0 ulp |         4.28 gb/s, 0 ulp |         4.29 gb/s, 0 ulp |
-| `nk_reduce_minmax_e2m3_haswell`  |         9.55 gb/s, 0 ulp |         14.9 gb/s, 0 ulp |         9.11 gb/s, 0 ulp |
-| `nk_reduce_moments_e2m3_skylake` |         5.41 gb/s, 0 ulp |         5.64 gb/s, 0 ulp |         4.51 gb/s, 0 ulp |
-| `nk_reduce_minmax_e2m3_skylake`  |         10.7 gb/s, 0 ulp |         20.7 gb/s, 0 ulp |         17.4 gb/s, 0 ulp |
-| `nk_reduce_moments_e2m3_icelake` |         26.7 gb/s, 0 ulp |         29.4 gb/s, 0 ulp |         24.9 gb/s, 0 ulp |
+| `nk_reduce_moments_e2m3_serial`  |        0.157 gb/s, 0 ulp |        0.294 gb/s, 0 ulp |        0.301 gb/s, 0 ulp |
+| `nk_reduce_minmax_e2m3_serial`   |        0.465 gb/s, 0 ulp |        0.421 gb/s, 0 ulp |        0.453 gb/s, 0 ulp |
+| `nk_reduce_moments_e2m3_haswell` |         2.43 gb/s, 0 ulp |         2.45 gb/s, 0 ulp |         2.58 gb/s, 0 ulp |
+| `nk_reduce_minmax_e2m3_haswell`  |         5.31 gb/s, 0 ulp |         7.90 gb/s, 0 ulp |         9.36 gb/s, 0 ulp |
+| `nk_reduce_moments_e2m3_skylake` |         3.49 gb/s, 0 ulp |         3.02 gb/s, 0 ulp |         3.66 gb/s, 0 ulp |
+| `nk_reduce_minmax_e2m3_skylake`  |         6.14 gb/s, 0 ulp |         17.5 gb/s, 0 ulp |         20.3 gb/s, 0 ulp |
+| `nk_reduce_moments_e2m3_icelake` |         12.7 gb/s, 0 ulp |         22.7 gb/s, 0 ulp |         21.7 gb/s, 0 ulp |
 | __i8__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i8_serial`    |                2.73 gb/s |                2.66 gb/s |                2.54 gb/s |
-| `nk_reduce_minmax_i8_serial`     |               0.797 gb/s |               0.964 gb/s |               0.685 gb/s |
-| `nk_reduce_moments_i8_haswell`   |                20.3 gb/s |                23.9 gb/s |                18.2 gb/s |
-| `nk_reduce_minmax_i8_haswell`    |                8.87 gb/s |                15.5 gb/s |                15.7 gb/s |
-| `nk_reduce_moments_i8_skylake`   |                23.6 gb/s |                32.2 gb/s |                19.5 gb/s |
-| `nk_reduce_minmax_i8_skylake`    |                10.5 gb/s |                26.1 gb/s |                18.0 gb/s |
-| `nk_reduce_moments_i8_icelake`   |                27.1 gb/s |                39.2 gb/s |                19.2 gb/s |
+| `nk_reduce_moments_i8_serial`    |                2.21 gb/s |                2.40 gb/s |                2.29 gb/s |
+| `nk_reduce_minmax_i8_serial`     |               0.806 gb/s |               0.973 gb/s |                1.09 gb/s |
+| `nk_reduce_moments_i8_haswell`   |                9.35 gb/s |                11.9 gb/s |                12.7 gb/s |
+| `nk_reduce_minmax_i8_haswell`    |                7.11 gb/s |                11.7 gb/s |                13.2 gb/s |
+| `nk_reduce_moments_i8_skylake`   |                10.4 gb/s |                16.6 gb/s |                20.1 gb/s |
+| `nk_reduce_minmax_i8_skylake`    |                2.96 gb/s |                14.4 gb/s |                15.5 gb/s |
+| `nk_reduce_moments_i8_icelake`   |                14.0 gb/s |                28.3 gb/s |                28.4 gb/s |
 | __u8__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u8_serial`    |                2.78 gb/s |                2.63 gb/s |                2.34 gb/s |
-| `nk_reduce_minmax_u8_serial`     |               0.827 gb/s |               0.944 gb/s |               0.729 gb/s |
-| `nk_reduce_moments_u8_haswell`   |                21.4 gb/s |                24.6 gb/s |                22.7 gb/s |
-| `nk_reduce_minmax_u8_haswell`    |                10.5 gb/s |                14.8 gb/s |                16.1 gb/s |
-| `nk_reduce_moments_u8_skylake`   |                23.2 gb/s |                34.9 gb/s |                23.9 gb/s |
-| `nk_reduce_minmax_u8_skylake`    |                11.4 gb/s |                21.4 gb/s |                16.3 gb/s |
-| `nk_reduce_moments_u8_icelake`   |                29.6 gb/s |                42.4 gb/s |                23.9 gb/s |
-| `nk_reduce_moments_u8_alder`     |                19.5 gb/s |                24.5 gb/s |                23.0 gb/s |
+| `nk_reduce_moments_u8_serial`    |                2.40 gb/s |                2.49 gb/s |                2.15 gb/s |
+| `nk_reduce_minmax_u8_serial`     |               0.776 gb/s |               0.931 gb/s |                1.05 gb/s |
+| `nk_reduce_moments_u8_haswell`   |                10.3 gb/s |                12.9 gb/s |                13.6 gb/s |
+| `nk_reduce_minmax_u8_haswell`    |                7.08 gb/s |                11.2 gb/s |                12.0 gb/s |
+| `nk_reduce_moments_u8_skylake`   |                13.2 gb/s |                20.1 gb/s |                19.6 gb/s |
+| `nk_reduce_minmax_u8_skylake`    |                4.45 gb/s |                14.0 gb/s |                20.4 gb/s |
+| `nk_reduce_moments_u8_icelake`   |                14.6 gb/s |                21.7 gb/s |                30.4 gb/s |
+| `nk_reduce_moments_u8_alder`     |                11.5 gb/s |                13.3 gb/s |                13.7 gb/s |
 | __i4__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i4_serial`    |               0.796 gb/s |               0.705 gb/s |               0.421 gb/s |
-| `nk_reduce_minmax_i4_serial`     |               0.314 gb/s |               0.342 gb/s |               0.331 gb/s |
-| `nk_reduce_moments_i4_haswell`   |                8.67 gb/s |                16.9 gb/s |                18.1 gb/s |
-| `nk_reduce_moments_i4_skylake`   |                17.0 gb/s |                22.8 gb/s |                13.8 gb/s |
+| `nk_reduce_moments_i4_serial`    |               0.345 gb/s |               0.757 gb/s |               0.752 gb/s |
+| `nk_reduce_minmax_i4_serial`     |               0.313 gb/s |               0.285 gb/s |               0.357 gb/s |
+| `nk_reduce_moments_i4_haswell`   |                6.36 gb/s |                9.17 gb/s |                10.3 gb/s |
+| `nk_reduce_moments_i4_skylake`   |                7.67 gb/s |                8.85 gb/s |                15.4 gb/s |
 | __u4__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u4_serial`    |                1.04 gb/s |               0.784 gb/s |               0.622 gb/s |
-| `nk_reduce_minmax_u4_serial`     |               0.388 gb/s |               0.368 gb/s |               0.357 gb/s |
-| `nk_reduce_moments_u4_haswell`   |                9.04 gb/s |                19.2 gb/s |                21.1 gb/s |
-| `nk_reduce_moments_u4_skylake`   |                18.3 gb/s |                25.7 gb/s |                19.1 gb/s |
+| `nk_reduce_moments_u4_serial`    |               0.438 gb/s |               0.799 gb/s |                1.00 gb/s |
+| `nk_reduce_minmax_u4_serial`     |               0.352 gb/s |               0.292 gb/s |               0.397 gb/s |
+| `nk_reduce_moments_u4_haswell`   |                7.40 gb/s |                10.7 gb/s |                10.8 gb/s |
+| `nk_reduce_moments_u4_skylake`   |                9.45 gb/s |                15.0 gb/s |                18.3 gb/s |
 | __u1__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u1_serial`    |                2.12 gb/s |                1.92 gb/s |                1.38 gb/s |
-| `nk_reduce_minmax_u1_serial`     |                6.06 gb/s |                21.3 gb/s |                80.8 gb/s |
-| `nk_reduce_moments_u1_haswell`   |                5.03 gb/s |                14.1 gb/s |                20.5 gb/s |
-| `nk_reduce_moments_u1_skylake`   |                8.91 gb/s |                24.1 gb/s |                21.7 gb/s |
+| `nk_reduce_moments_u1_serial`    |                1.36 gb/s |                1.96 gb/s |                2.04 gb/s |
+| `nk_reduce_minmax_u1_serial`     |                5.44 gb/s |                14.7 gb/s |                84.1 gb/s |
+| `nk_reduce_moments_u1_haswell`   |                4.29 gb/s |                9.69 gb/s |                12.0 gb/s |
+| `nk_reduce_moments_u1_skylake`   |                2.90 gb/s |                12.3 gb/s |                20.6 gb/s |
 | __i16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i16_serial`   |                3.31 gb/s |                3.82 gb/s |                2.67 gb/s |
-| `nk_reduce_minmax_i16_serial`    |                1.58 gb/s |                1.85 gb/s |                1.17 gb/s |
-| `nk_reduce_moments_i16_haswell`  |                24.6 gb/s |                27.2 gb/s |                23.3 gb/s |
-| `nk_reduce_minmax_i16_haswell`   |                13.7 gb/s |                13.0 gb/s |                12.7 gb/s |
-| `nk_reduce_moments_i16_skylake`  |                37.2 gb/s |                34.5 gb/s |                22.9 gb/s |
-| `nk_reduce_minmax_i16_skylake`   |                22.4 gb/s |                27.0 gb/s |                15.9 gb/s |
-| `nk_reduce_moments_i16_icelake`  |                39.3 gb/s |                35.0 gb/s |                19.2 gb/s |
-| `nk_reduce_moments_i16_alder`    |                16.0 gb/s |                16.9 gb/s |                16.4 gb/s |
+| `nk_reduce_moments_i16_serial`   |                2.54 gb/s |                2.68 gb/s |                2.80 gb/s |
+| `nk_reduce_minmax_i16_serial`    |                1.60 gb/s |                1.75 gb/s |                2.07 gb/s |
+| `nk_reduce_moments_i16_haswell`  |                13.7 gb/s |                14.7 gb/s |                12.5 gb/s |
+| `nk_reduce_minmax_i16_haswell`   |                8.56 gb/s |                10.9 gb/s |                10.0 gb/s |
+| `nk_reduce_moments_i16_skylake`  |                16.8 gb/s |                21.0 gb/s |                20.5 gb/s |
+| `nk_reduce_minmax_i16_skylake`   |                6.74 gb/s |                15.9 gb/s |                19.1 gb/s |
+| `nk_reduce_moments_i16_icelake`  |                19.0 gb/s |                24.9 gb/s |                28.2 gb/s |
+| `nk_reduce_moments_i16_alder`    |                10.0 gb/s |                12.1 gb/s |                10.5 gb/s |
 | __u16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u16_serial`   |                4.23 gb/s |                3.89 gb/s |                2.60 gb/s |
-| `nk_reduce_minmax_u16_serial`    |                1.66 gb/s |                1.44 gb/s |                1.16 gb/s |
-| `nk_reduce_moments_u16_haswell`  |                10.3 gb/s |                12.0 gb/s |                11.1 gb/s |
-| `nk_reduce_minmax_u16_haswell`   |                13.4 gb/s |                13.3 gb/s |                10.3 gb/s |
-| `nk_reduce_moments_u16_skylake`  |                19.9 gb/s |                20.0 gb/s |                11.3 gb/s |
-| `nk_reduce_minmax_u16_skylake`   |                18.0 gb/s |                25.0 gb/s |                21.6 gb/s |
-| `nk_reduce_moments_u16_alder`    |                11.9 gb/s |                12.1 gb/s |                11.8 gb/s |
+| `nk_reduce_moments_u16_serial`   |                2.62 gb/s |                2.55 gb/s |                2.54 gb/s |
+| `nk_reduce_minmax_u16_serial`    |                1.28 gb/s |                1.41 gb/s |                1.62 gb/s |
+| `nk_reduce_moments_u16_haswell`  |                6.82 gb/s |                6.95 gb/s |                6.60 gb/s |
+| `nk_reduce_minmax_u16_haswell`   |                8.25 gb/s |                10.5 gb/s |                11.6 gb/s |
+| `nk_reduce_moments_u16_skylake`  |                10.2 gb/s |                13.9 gb/s |                12.6 gb/s |
+| `nk_reduce_minmax_u16_skylake`   |                16.0 gb/s |                22.6 gb/s |                16.9 gb/s |
+| `nk_reduce_moments_u16_alder`    |                7.17 gb/s |                8.10 gb/s |                7.57 gb/s |
 | __i32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i32_serial`   |                4.17 gb/s |                4.06 gb/s |                2.63 gb/s |
-| `nk_reduce_minmax_i32_serial`    |                3.04 gb/s |                3.71 gb/s |                2.48 gb/s |
-| `nk_reduce_moments_i32_haswell`  |                8.70 gb/s |                10.1 gb/s |                9.31 gb/s |
-| `nk_reduce_minmax_i32_haswell`   |                13.9 gb/s |                13.5 gb/s |                10.5 gb/s |
-| `nk_reduce_moments_i32_skylake`  |                15.6 gb/s |                15.9 gb/s |                9.77 gb/s |
-| `nk_reduce_minmax_i32_skylake`   |                32.2 gb/s |                28.3 gb/s |                17.3 gb/s |
+| `nk_reduce_moments_i32_serial`   |                2.39 gb/s |                2.25 gb/s |                2.32 gb/s |
+| `nk_reduce_minmax_i32_serial`    |                2.99 gb/s |                3.67 gb/s |                4.48 gb/s |
+| `nk_reduce_moments_i32_haswell`  |                5.43 gb/s |                5.37 gb/s |                4.41 gb/s |
+| `nk_reduce_minmax_i32_haswell`   |                11.1 gb/s |                10.2 gb/s |                10.4 gb/s |
+| `nk_reduce_moments_i32_skylake`  |                6.87 gb/s |                11.1 gb/s |                10.6 gb/s |
+| `nk_reduce_minmax_i32_skylake`   |                23.8 gb/s |                24.7 gb/s |                17.6 gb/s |
 | __u32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u32_serial`   |                4.67 gb/s |                5.26 gb/s |                3.83 gb/s |
-| `nk_reduce_minmax_u32_serial`    |                3.15 gb/s |                3.54 gb/s |                2.89 gb/s |
-| `nk_reduce_moments_u32_haswell`  |                8.67 gb/s |                7.43 gb/s |                7.17 gb/s |
-| `nk_reduce_minmax_u32_haswell`   |                13.0 gb/s |                13.6 gb/s |                9.97 gb/s |
-| `nk_reduce_moments_u32_skylake`  |                25.1 gb/s |                22.4 gb/s |                15.1 gb/s |
-| `nk_reduce_minmax_u32_skylake`   |                31.7 gb/s |                28.3 gb/s |                18.5 gb/s |
+| `nk_reduce_moments_u32_serial`   |                3.46 gb/s |                3.53 gb/s |                3.41 gb/s |
+| `nk_reduce_minmax_u32_serial`    |                2.81 gb/s |                3.34 gb/s |                4.05 gb/s |
+| `nk_reduce_moments_u32_haswell`  |                6.10 gb/s |                5.79 gb/s |                5.27 gb/s |
+| `nk_reduce_minmax_u32_haswell`   |                10.6 gb/s |                11.2 gb/s |                9.95 gb/s |
+| `nk_reduce_moments_u32_skylake`  |                15.9 gb/s |                9.96 gb/s |                15.3 gb/s |
+| `nk_reduce_minmax_u32_skylake`   |                23.6 gb/s |                25.3 gb/s |                21.7 gb/s |
 | __i64__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i64_serial`   |                4.68 gb/s |                4.35 gb/s |                2.85 gb/s |
-| `nk_reduce_minmax_i64_serial`    |                6.67 gb/s |                5.60 gb/s |                4.56 gb/s |
-| `nk_reduce_moments_i64_haswell`  |                13.0 gb/s |                12.5 gb/s |                11.6 gb/s |
-| `nk_reduce_minmax_i64_haswell`   |                11.7 gb/s |                11.1 gb/s |                8.49 gb/s |
-| `nk_reduce_moments_i64_skylake`  |                24.3 gb/s |                21.9 gb/s |                14.9 gb/s |
-| `nk_reduce_minmax_i64_skylake`   |                33.1 gb/s |                26.3 gb/s |                17.9 gb/s |
+| `nk_reduce_moments_i64_serial`   |                2.43 gb/s |                2.43 gb/s |                2.43 gb/s |
+| `nk_reduce_minmax_i64_serial`    |                4.90 gb/s |                5.54 gb/s |                6.10 gb/s |
+| `nk_reduce_moments_i64_haswell`  |                7.16 gb/s |                6.54 gb/s |                5.38 gb/s |
+| `nk_reduce_minmax_i64_haswell`   |                9.50 gb/s |                9.87 gb/s |                7.63 gb/s |
+| `nk_reduce_moments_i64_skylake`  |                13.0 gb/s |                8.29 gb/s |                10.5 gb/s |
+| `nk_reduce_minmax_i64_skylake`   |                11.6 gb/s |                23.1 gb/s |                22.0 gb/s |
 | __u64__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u64_serial`   |                2.75 gb/s |                2.56 gb/s |                1.85 gb/s |
-| `nk_reduce_minmax_u64_serial`    |                5.42 gb/s |                7.14 gb/s |                4.98 gb/s |
-| `nk_reduce_moments_u64_haswell`  |                14.1 gb/s |                13.2 gb/s |                12.2 gb/s |
-| `nk_reduce_minmax_u64_haswell`   |                11.5 gb/s |                11.2 gb/s |                8.33 gb/s |
-| `nk_reduce_moments_u64_skylake`  |                28.7 gb/s |                23.9 gb/s |                14.5 gb/s |
-| `nk_reduce_minmax_u64_skylake`   |                32.8 gb/s |                25.7 gb/s |                20.1 gb/s |
+| `nk_reduce_moments_u64_serial`   |                1.94 gb/s |                1.92 gb/s |                1.83 gb/s |
+| `nk_reduce_minmax_u64_serial`    |                5.99 gb/s |                7.20 gb/s |                7.33 gb/s |
+| `nk_reduce_moments_u64_haswell`  |                8.60 gb/s |                8.45 gb/s |                5.96 gb/s |
+| `nk_reduce_minmax_u64_haswell`   |                8.93 gb/s |                9.81 gb/s |                7.55 gb/s |
+| `nk_reduce_moments_u64_skylake`  |                15.6 gb/s |                19.3 gb/s |                8.87 gb/s |
+| `nk_reduce_minmax_u64_skylake`   |                9.90 gb/s |                23.1 gb/s |                21.6 gb/s |
 
 #### WASM
 
@@ -285,53 +285,53 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                               |                      256 |                     1024 |                     4096 |
 | :----------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f64_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_f64_v128relaxed`   |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_f64_v128relaxed`  |        0.173 gb/s, 0 ulp |        0.109 gb/s, 0 ulp |        0.589 gb/s, 0 ulp |
+| `nk_reduce_minmax_f64_v128relaxed`   |        0.261 gb/s, 0 ulp |        0.367 gb/s, 0 ulp |        0.298 gb/s, 0 ulp |
 | __f32__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f32_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_f32_v128relaxed`   |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_f32_v128relaxed`  |      0.227 gb/s, 0.1 ulp |      0.405 gb/s, 0.4 ulp |        0.430 gb/s, 0 ulp |
+| `nk_reduce_minmax_f32_v128relaxed`   |        0.361 gb/s, 0 ulp |        0.605 gb/s, 0 ulp |        0.441 gb/s, 0 ulp |
 | __bf16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_bf16_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_bf16_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_bf16_v128relaxed` |        0.267 gb/s, 0 ulp |      0.208 gb/s, 0.1 ulp |     0.0690 gb/s, 1.6 ulp |
+| `nk_reduce_minmax_bf16_v128relaxed`  |        0.574 gb/s, 0 ulp |        0.286 gb/s, 0 ulp |        0.124 gb/s, 0 ulp |
 | __f16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_f16_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_f16_v128relaxed`   |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_f16_v128relaxed`  |        0.132 gb/s, 0 ulp |        0.287 gb/s, 0 ulp |      0.369 gb/s, 0.2 ulp |
+| `nk_reduce_minmax_f16_v128relaxed`   |        0.160 gb/s, 0 ulp |        0.129 gb/s, 0 ulp |        0.233 gb/s, 0 ulp |
 | __e5m2__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e5m2_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_e5m2_v128relaxed` |        0.315 gb/s, 0 ulp |        0.449 gb/s, 0 ulp |       0.0945 gb/s, 0 ulp |
+| `nk_reduce_minmax_e5m2_v128relaxed`  |        0.583 gb/s, 0 ulp |        0.130 gb/s, 0 ulp |        0.508 gb/s, 0 ulp |
 | __e4m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e4m3_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_e4m3_v128relaxed` |        0.161 gb/s, 0 ulp |        0.263 gb/s, 0 ulp |        0.326 gb/s, 0 ulp |
+| `nk_reduce_minmax_e4m3_v128relaxed`  |        0.160 gb/s, 0 ulp |        0.136 gb/s, 0 ulp |        0.590 gb/s, 0 ulp |
 | __e3m2__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e3m2_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_e3m2_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_e3m2_v128relaxed` |        0.392 gb/s, 0 ulp |        0.589 gb/s, 0 ulp |        0.382 gb/s, 0 ulp |
+| `nk_reduce_minmax_e3m2_v128relaxed`  |        0.108 gb/s, 0 ulp |        0.483 gb/s, 0 ulp |        0.296 gb/s, 0 ulp |
 | __e2m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_e2m3_v128relaxed` |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
-| `nk_reduce_minmax_e2m3_v128relaxed`  |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |            0 gb/s, 0 ulp |
+| `nk_reduce_moments_e2m3_v128relaxed` |        0.420 gb/s, 0 ulp |        0.466 gb/s, 0 ulp |       0.0751 gb/s, 0 ulp |
+| `nk_reduce_minmax_e2m3_v128relaxed`  |        0.155 gb/s, 0 ulp |        0.446 gb/s, 0 ulp |       0.0770 gb/s, 0 ulp |
 | __i8__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i8_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_i8_v128relaxed`    |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_i8_v128relaxed`   |               0.574 gb/s |               0.338 gb/s |               0.351 gb/s |
+| `nk_reduce_minmax_i8_v128relaxed`    |               0.803 gb/s |               0.115 gb/s |               0.214 gb/s |
 | __u8__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u8_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_u8_v128relaxed`    |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_u8_v128relaxed`   |              0.0176 gb/s |               0.264 gb/s |              0.0515 gb/s |
+| `nk_reduce_minmax_u8_v128relaxed`    |               0.278 gb/s |               0.539 gb/s |               0.541 gb/s |
 | __i16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i16_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_i16_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_i16_v128relaxed`  |               0.514 gb/s |              0.0944 gb/s |              0.0809 gb/s |
+| `nk_reduce_minmax_i16_v128relaxed`   |               0.203 gb/s |               0.386 gb/s |              0.0772 gb/s |
 | __u16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u16_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_u16_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_u16_v128relaxed`  |               0.150 gb/s |              0.0771 gb/s |               0.159 gb/s |
+| `nk_reduce_minmax_u16_v128relaxed`   |               0.195 gb/s |              0.0883 gb/s |               0.580 gb/s |
 | __i32__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i32_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_i32_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_i32_v128relaxed`  |              0.0600 gb/s |               0.276 gb/s |               0.212 gb/s |
+| `nk_reduce_minmax_i32_v128relaxed`   |               0.387 gb/s |               0.137 gb/s |              0.0311 gb/s |
 | __u32__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u32_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_u32_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_u32_v128relaxed`  |               0.216 gb/s |               0.446 gb/s |               0.454 gb/s |
+| `nk_reduce_minmax_u32_v128relaxed`   |               0.275 gb/s |               0.287 gb/s |               0.370 gb/s |
 | __i64__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_i64_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_i64_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_i64_v128relaxed`  |              0.0931 gb/s |               0.541 gb/s |               0.546 gb/s |
+| `nk_reduce_minmax_i64_v128relaxed`   |               0.387 gb/s |               0.510 gb/s |               0.575 gb/s |
 | __u64__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_reduce_moments_u64_v128relaxed`  |                   0 gb/s |                   0 gb/s |                   0 gb/s |
-| `nk_reduce_minmax_u64_v128relaxed`   |                   0 gb/s |                   0 gb/s |                   0 gb/s |
+| `nk_reduce_moments_u64_v128relaxed`  |               0.366 gb/s |               0.314 gb/s |               0.302 gb/s |
+| `nk_reduce_minmax_u64_v128relaxed`   |              0.0441 gb/s |               0.179 gb/s |               0.270 gb/s |
 
 ### Apple M4 Pro
 
