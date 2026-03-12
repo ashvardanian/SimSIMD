@@ -103,14 +103,14 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                                 |                     256³ |                    1024³ |                    4096³ |
 | :------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u1__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_hammings_packed_u1_serial`         |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_hammings_packed_u1_v128relaxed`    |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_hammings_symmetric_u1_serial`      |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_hammings_symmetric_u1_v128relaxed` |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_jaccards_packed_u1_serial`         |       0.282 gso/s, ? ulp |       0.263 gso/s, ? ulp |      0.0607 gso/s, ? ulp |
-| `nk_jaccards_packed_u1_v128relaxed`    |      0.0964 gso/s, ? ulp |      0.0700 gso/s, ? ulp |       0.163 gso/s, ? ulp |
-| `nk_jaccards_symmetric_u1_serial`      |      0.0825 gso/s, ? ulp |       0.102 gso/s, ? ulp |       0.103 gso/s, ? ulp |
-| `nk_jaccards_symmetric_u1_v128relaxed` |       0.132 gso/s, ? ulp |      0.0726 gso/s, ? ulp |     0.00214 gso/s, ? ulp |
+| `nk_hammings_packed_u1_serial`         |               35.9 gso/s |               66.6 gso/s |               74.1 gso/s |
+| `nk_hammings_packed_u1_v128relaxed`    |               75.9 gso/s |                134 gso/s |                145 gso/s |
+| `nk_hammings_symmetric_u1_serial`      |               3.53 gso/s |               13.3 gso/s |               79.4 gso/s |
+| `nk_hammings_symmetric_u1_v128relaxed` |               3.62 gso/s |               13.7 gso/s |               80.9 gso/s |
+| `nk_jaccards_packed_u1_serial`         |        32.6 gso/s, 0 ulp |        59.9 gso/s, 0 ulp |        72.2 gso/s, 0 ulp |
+| `nk_jaccards_packed_u1_v128relaxed`    |        66.9 gso/s, 0 ulp |         129 gso/s, 0 ulp |         142 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`      |        3.49 gso/s, 0 ulp |        13.1 gso/s, 0 ulp |        77.9 gso/s, ? ulp |
+| `nk_jaccards_symmetric_u1_v128relaxed` |        3.63 gso/s, 0 ulp |        13.8 gso/s, 0 ulp |        81.0 gso/s, ? ulp |
 
 ### Apple M4 Pro
 
@@ -147,4 +147,3 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_jaccards_packed_u1_v128relaxed`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 | `nk_jaccards_symmetric_u1_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 | `nk_jaccards_symmetric_u1_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-

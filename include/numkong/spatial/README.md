@@ -220,17 +220,17 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_angular_u8_alder`          |       26.5 gb/s, 0.7 ulp |       17.1 gb/s, 0.6 ulp |       17.5 gb/s, 0.5 ulp |
 | __i4__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_i4_serial`     |                15.4 gb/s |                16.5 gb/s |                15.6 gb/s |
-| `nk_euclidean_i4_serial`       |         12.2 gb/s, ? ulp |         15.6 gb/s, ? ulp |         15.2 gb/s, ? ulp |
+| `nk_euclidean_i4_serial`       |       12.2 gb/s, 0.5 ulp |       15.6 gb/s, 0.5 ulp |       15.2 gb/s, 0.6 ulp |
 | `nk_angular_i4_serial`         |       5.60 gb/s, 0.4 ulp |       6.42 gb/s, 0.4 ulp |       6.69 gb/s, 0.4 ulp |
 | `nk_sqeuclidean_i4_icelake`    |                23.6 gb/s |                51.5 gb/s |                29.3 gb/s |
-| `nk_euclidean_i4_icelake`      |         20.6 gb/s, ? ulp |         45.2 gb/s, ? ulp |         28.9 gb/s, ? ulp |
+| `nk_euclidean_i4_icelake`      |         20.6 gb/s, 0 ulp |         45.2 gb/s, 0 ulp |         28.9 gb/s, 0 ulp |
 | `nk_angular_i4_icelake`        |       5.14 gb/s, 0.7 ulp |       18.0 gb/s, 0.6 ulp |       17.6 gb/s, 0.5 ulp |
 | __u4__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_u4_serial`     |                15.6 gb/s |                17.3 gb/s |                15.8 gb/s |
-| `nk_euclidean_u4_serial`       |         12.0 gb/s, ? ulp |         15.9 gb/s, ? ulp |         15.3 gb/s, ? ulp |
+| `nk_euclidean_u4_serial`       |       12.0 gb/s, 0.5 ulp |       15.9 gb/s, 0.5 ulp |       15.3 gb/s, 0.6 ulp |
 | `nk_angular_u4_serial`         |       5.20 gb/s, 0.4 ulp |       6.63 gb/s, 0.4 ulp |       7.01 gb/s, 0.4 ulp |
 | `nk_sqeuclidean_u4_icelake`    |                22.7 gb/s |                23.7 gb/s |                24.5 gb/s |
-| `nk_euclidean_u4_icelake`      |         20.9 gb/s, ? ulp |         18.8 gb/s, ? ulp |         24.1 gb/s, ? ulp |
+| `nk_euclidean_u4_icelake`      |         20.9 gb/s, 0 ulp |         18.8 gb/s, 0 ulp |         24.1 gb/s, 0 ulp |
 | `nk_angular_u4_icelake`        |       9.32 gb/s, 0.7 ulp |       27.4 gb/s, 0.6 ulp |       24.2 gb/s, 0.5 ulp |
 
 #### WASM
@@ -299,11 +299,11 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_angular_u8_v128relaxed`       |      2.47 gb/s, 526M ulp |      1.91 gb/s, 501M ulp |      0.09 gb/s, 443M ulp |
 | __i4__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_i4_serial`        |                1.91 gb/s |                1.94 gb/s |                0.30 gb/s |
-| `nk_euclidean_i4_serial`          |         1.76 gb/s, ? ulp |         1.90 gb/s, ? ulp |         0.02 gb/s, 0 ulp |
+| `nk_euclidean_i4_serial`          |       1.76 gb/s, 0.5 ulp |       1.90 gb/s, 0.5 ulp |       0.02 gb/s, 0.0 ulp |
 | `nk_angular_i4_serial`            |       1.28 gb/s, 0.5 ulp |       1.34 gb/s, 0.5 ulp |       0.10 gb/s, 0.5 ulp |
 | __u4__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_u4_serial`        |                2.91 gb/s |                3.00 gb/s |                0.09 gb/s |
-| `nk_euclidean_u4_serial`          |         2.78 gb/s, ? ulp |         3.01 gb/s, ? ulp |         0.10 gb/s, 0 ulp |
+| `nk_euclidean_u4_serial`          |       2.78 gb/s, 0.5 ulp |       3.01 gb/s, 0.5 ulp |       0.10 gb/s, 0.0 ulp |
 | `nk_angular_u4_serial`            |       1.84 gb/s, 0.5 ulp |       2.03 gb/s, 0.5 ulp |       0.21 gb/s, 0.5 ulp |
 
 ### Apple M4 Max
