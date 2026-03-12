@@ -46,7 +46,7 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
         iterations++;
     }
 
-    state.counters["points"] = bm::Counter(iterations * points_count, bm::Counter::kIsRate);
+    state.counters["points"] = bm::Counter(1.0 * iterations * points_count, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 

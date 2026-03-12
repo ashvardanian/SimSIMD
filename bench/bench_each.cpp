@@ -112,7 +112,7 @@ void measure_each(bm::State &state, kernel_type_ kernel, std::size_t dimensions)
     else if constexpr (kernel_kind_ == nk_kernel_each_sum_k) bytes_per_call *= 2;
     else if constexpr (kernel_kind_ == nk_kernel_each_scale_k) bytes_per_call *= 1;
 
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * bytes_per_call, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 

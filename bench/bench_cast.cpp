@@ -39,7 +39,7 @@ void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t count) {
     }
 
     std::size_t const bytes_per_call = count * (sizeof(input_t) + sizeof(output_t));
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * bytes_per_call, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 

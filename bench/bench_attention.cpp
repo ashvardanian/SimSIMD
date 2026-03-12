@@ -75,7 +75,7 @@ void measure_attention_sme(                                                     
     // Q×K^T: num_heads * query_len * kv_len * head_dim * 2 (mul + add)
     // P×V:   num_heads * query_len * head_dim * kv_len * 2 (mul + add)
     // Total: 2 * 2 * num_heads * query_len * kv_len * head_dim
-    state.counters["scalar-ops"] = bm::Counter(iterations * 4.0 * num_heads * query_len * kv_len * head_dim,
+    state.counters["scalar-ops"] = bm::Counter(4.0 * iterations * num_heads * query_len * kv_len * head_dim,
                                                bm::Counter::kIsRate);
 }
 

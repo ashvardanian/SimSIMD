@@ -61,7 +61,7 @@ void measure_trigonometry(bm::State &state, kernel_type_ kernel, std::size_t dim
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * input_a[0].size_bytes(), bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * input_a[0].size_bytes(), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 

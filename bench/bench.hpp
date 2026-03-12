@@ -188,7 +188,7 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * first_vectors[0].size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(2.0 * iterations * first_vectors[0].size_bytes(), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -250,7 +250,7 @@ void measure_dots_packed(                                                       
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -312,7 +312,7 @@ void measure_angulars_packed(                                                   
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -374,7 +374,7 @@ void measure_euclideans_packed(                                                 
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -430,7 +430,7 @@ void measure_dots_symmetric(                                                   /
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -481,7 +481,7 @@ void measure_angulars_symmetric(                                                
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -532,7 +532,7 @@ void measure_euclideans_symmetric(                                              
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -597,7 +597,7 @@ void measure_hammings_packed(                                                   
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 /**
@@ -644,7 +644,7 @@ void measure_hammings_symmetric(                                                
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k / 2.0, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>
@@ -716,7 +716,7 @@ void measure_jaccards_packed(                                                   
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 /**
@@ -759,7 +759,7 @@ void measure_jaccards_symmetric(                                                
         ++iterations;
     }
 
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k / 2.0, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_>

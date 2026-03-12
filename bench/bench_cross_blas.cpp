@@ -50,7 +50,7 @@ void measure_dots_unpacked(bm::State &state, std::size_t m, std::size_t n, std::
         kernel(s.a.data(), s.b.data(), s.c.data(), m, n, k);
         ++iterations;
     }
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * m * n * k, bm::Counter::kIsRate);
 }
 
 void measure_dots_f32_with_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
@@ -97,7 +97,7 @@ void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_
         kernel(s.a.data(), s.c.data(), n, k);
         ++iterations;
     }
-    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(1.0 * iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 void measure_dots_symmetric_f32_with_blas(bm::State &state, std::size_t n, std::size_t k) {

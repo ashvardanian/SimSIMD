@@ -38,7 +38,7 @@ void measure_reduce_moments(bm::State &state, kernel_type_ kernel, std::size_t d
         ++iterations;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * vectors[0].size_bytes(), bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * vectors[0].size_bytes(), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -77,7 +77,7 @@ void measure_reduce_minmax(bm::State &state, kernel_type_ kernel, std::size_t di
         ++iterations;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * vectors[0].size_bytes(), bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * vectors[0].size_bytes(), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
