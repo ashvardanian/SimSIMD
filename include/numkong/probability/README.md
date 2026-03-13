@@ -88,7 +88,7 @@ This keeps the accumulated error bounded by $O(1)$ ULP regardless of vector leng
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by the `NK_DENSE_DIMENSIONS` environment variable and set to 256, 1024, and 4096 elements.
 The throughput is measured in GB/s as the number of input bytes per second.
-Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the number of representable floating-point values between the computed result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
@@ -141,25 +141,25 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_kld_f16_serial`  |    0.118 gb/s, 1.04K ulp |    0.127 gb/s, 4.53K ulp |    0.111 gb/s, 18.3K ulp |
 | `nk_jsd_f16_serial`  |     0.0748 gb/s, 1.4 ulp |     0.0681 gb/s, 2.6 ulp |     0.0857 gb/s, 9.7 ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                |                      256 |                     1024 |                     4096 |
 | :-------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f64_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_f64_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_f64_serial`   |      2.21 gb/s, 5.6K ulp |       2.22 gb/s, 25K ulp |       2.18 gb/s, 99K ulp |
+| `nk_jsd_f64_serial`   |       1.40 gb/s, 0.4 ulp |       1.45 gb/s, 0.4 ulp |       1.45 gb/s, 0.5 ulp |
 | __f32__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f32_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_f32_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_kld_f32_neon`     |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_f32_neon`     |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_f32_serial`   |      6.29 gb/s, 1.0K ulp |      6.35 gb/s, 4.5K ulp |       6.22 gb/s, 18K ulp |
+| `nk_jsd_f32_serial`   |       1.21 gb/s, 0.4 ulp |       1.20 gb/s, 0.4 ulp |       1.20 gb/s, 4.6 ulp |
+| `nk_kld_f32_neon`     |      14.5 gb/s, 1.0K ulp |      14.4 gb/s, 4.5K ulp |       12.8 gb/s, 18K ulp |
+| `nk_jsd_f32_neon`     |        6.81 gb/s, 15 ulp |        7.04 gb/s, 14 ulp |       6.78 gb/s, 9.9 ulp |
 | __bf16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_bf16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_bf16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_bf16_serial`  |      3.16 gb/s, 1.0K ulp |      2.96 gb/s, 4.5K ulp |       3.16 gb/s, 18K ulp |
+| `nk_jsd_bf16_serial`  |      0.611 gb/s, 1.4 ulp |      0.595 gb/s, 2.9 ulp |      0.613 gb/s, 9.7 ulp |
 | __f16__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f16_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_f16_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_kld_f16_neonhalf` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_jsd_f16_neonhalf` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_kld_f16_serial`   |      3.15 gb/s, 1.0K ulp |      3.14 gb/s, 4.5K ulp |       2.81 gb/s, 18K ulp |
+| `nk_jsd_f16_serial`   |      0.610 gb/s, 1.4 ulp |      0.611 gb/s, 2.7 ulp |      0.602 gb/s, 8.7 ulp |
+| `nk_kld_f16_neonhalf` |      6.78 gb/s, 1.0K ulp |      6.72 gb/s, 4.5K ulp |       6.09 gb/s, 18K ulp |
+| `nk_jsd_f16_neonhalf` |        3.42 gb/s, 15 ulp |        3.40 gb/s, 14 ulp |       3.14 gb/s, 9.9 ulp |

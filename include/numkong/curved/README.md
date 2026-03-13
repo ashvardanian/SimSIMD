@@ -88,7 +88,7 @@ The input size is controlled by the `NK_CURVED_DIMENSIONS` environment variable.
 The metric tensor is a square matrix of side $N$, so each bilinear form $\mathbf{x}^\top M \mathbf{x}$ has $O(N^2)$ arithmetic complexity.
 Columns show matrix side length: 256², 1024², 4096².
 The throughput is measured in GSO/s as Giga scalar operations per second.
-Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the number of representable floating-point values between the computed result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
@@ -162,36 +162,36 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __f16__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_bilinear_f16_serial`   |       0.76 gso/s, 74 ulp |       0.76 gso/s, 74 ulp |       0.78 gso/s, 74 ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                          |                     256² |                    1024² |                    4096² |
 | :------------------------------ | -----------------------: | -----------------------: | -----------------------: |
 | __f64c__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_f64c_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_f64c_serial`       |     0.368 gso/s, 2.2 ulp |     0.371 gso/s, 2.2 ulp |     0.367 gso/s, 2.2 ulp |
 | __f32c__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_f32c_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_bilinear_f32c_neon`         |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_f32c_serial`       |        2.33 gso/s, 0 ulp |        2.27 gso/s, 0 ulp |        2.28 gso/s, 0 ulp |
+| `nk_bilinear_f32c_neon`         |        2.11 gso/s, 0 ulp |        1.89 gso/s, 0 ulp |        1.85 gso/s, 0 ulp |
 | __bf16c__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_bf16c_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_bilinear_bf16c_neonbfdot`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_bf16c_serial`      |     2.83 gso/s, 33.0 ulp |     2.54 gso/s, 34.5 ulp |     2.49 gso/s, 34.5 ulp |
+| `nk_bilinear_bf16c_neonbfdot`   |     5.05 gso/s, 17.0 ulp |     4.20 gso/s, 17.0 ulp |     4.04 gso/s, 17.0 ulp |
 | __f16c__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_f16c_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_bilinear_f16c_neonhalf`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_f16c_serial`       |     2.81 gso/s, 51.8 ulp |     2.54 gso/s, 51.8 ulp |     2.48 gso/s, 51.8 ulp |
+| `nk_bilinear_f16c_neonhalf`     |     5.00 gso/s, 17.3 ulp |     4.16 gso/s, 17.3 ulp |     4.00 gso/s, 16.4 ulp |
 | __f64__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_f64_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_mahalanobis_f64_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_f64_serial`        |     0.717 gso/s, 0.4 ulp |     0.711 gso/s, 0.4 ulp |     0.721 gso/s, 0.4 ulp |
+| `nk_mahalanobis_f64_serial`     |     0.664 gso/s, 0.5 ulp |     0.667 gso/s, 0.5 ulp |     0.672 gso/s, 0.5 ulp |
 | __f32__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_f32_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_mahalanobis_f32_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_bilinear_f32_neon`          |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_mahalanobis_f32_neon`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_f32_serial`        |        3.92 gso/s, 0 ulp |        3.05 gso/s, 0 ulp |        2.87 gso/s, 0 ulp |
+| `nk_mahalanobis_f32_serial`     |        3.42 gso/s, 0 ulp |        2.88 gso/s, 0 ulp |        2.74 gso/s, 0 ulp |
+| `nk_bilinear_f32_neon`          |        4.90 gso/s, 0 ulp |        3.82 gso/s, 0 ulp |        3.49 gso/s, 0 ulp |
+| `nk_mahalanobis_f32_neon`       |        4.68 gso/s, 0 ulp |        3.71 gso/s, 0 ulp |        3.48 gso/s, 0 ulp |
 | __bf16__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_bilinear_bf16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_mahalanobis_bf16_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_bilinear_bf16_neonbfdot`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_mahalanobis_bf16_neonbfdot` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_bilinear_bf16_serial`       |     4.17 gso/s, 20.7 ulp |     3.19 gso/s, 21.2 ulp |     2.94 gso/s, 20.7 ulp |
+| `nk_mahalanobis_bf16_serial`    |      3.86 gso/s, 2.1 ulp |      2.98 gso/s, 2.2 ulp |      2.79 gso/s, 2.1 ulp |
+| `nk_bilinear_bf16_neonbfdot`    |     28.0 gso/s, 28.0 ulp |     23.5 gso/s, 41.2 ulp |     20.4 gso/s, 41.1 ulp |
+| `nk_mahalanobis_bf16_neonbfdot` |      9.14 gso/s, 2.2 ulp |      7.93 gso/s, 2.2 ulp |      7.43 gso/s, 2.2 ulp |
 | __f16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_bilinear_f16_serial`        |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
 | `nk_mahalanobis_f16_serial`     |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |

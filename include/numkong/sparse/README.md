@@ -95,6 +95,7 @@ The throughput is measured in GB/s as the number of input bytes per second.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the number of representable floating-point values between the computed result and the exact answer.
 
 ### Intel Sapphire Rapids
 
@@ -134,22 +135,22 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __bf16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sparse_dot_u16bf16_serial`   |        0.927 gb/s, 0 ulp |        0.927 gb/s, 0 ulp |        0.927 gb/s, 0 ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                           |                       1% |                      50% |                      95% |
 | :------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u64__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sparse_intersect_u64_serial` |                   ? gb/s |                   ? gb/s |                   ? gb/s |
-| `nk_sparse_intersect_u64_neon`   |                   ? gb/s |                   ? gb/s |                   ? gb/s |
+| `nk_sparse_intersect_u64_serial` |                3.74 gb/s |                3.96 gb/s |                4.17 gb/s |
+| `nk_sparse_intersect_u64_neon`   |                4.91 gb/s |                4.61 gb/s |                4.46 gb/s |
 | __u32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sparse_intersect_u32_serial` |                   ? gb/s |                   ? gb/s |                   ? gb/s |
-| `nk_sparse_intersect_u32_neon`   |                   ? gb/s |                   ? gb/s |                   ? gb/s |
+| `nk_sparse_intersect_u32_serial` |                1.88 gb/s |                1.98 gb/s |                2.09 gb/s |
+| `nk_sparse_intersect_u32_neon`   |                2.81 gb/s |                2.60 gb/s |                2.46 gb/s |
 | __u16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sparse_intersect_u16_serial` |                   ? gb/s |                   ? gb/s |                   ? gb/s |
-| `nk_sparse_intersect_u16_neon`   |                   ? gb/s |                   ? gb/s |                   ? gb/s |
+| `nk_sparse_intersect_u16_serial` |               0.951 gb/s |               0.995 gb/s |                1.05 gb/s |
+| `nk_sparse_intersect_u16_neon`   |                1.86 gb/s |                1.85 gb/s |                1.85 gb/s |
 | __f32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sparse_dot_u32f32_serial`    |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_sparse_dot_u32f32_serial`    |       3.73 gb/s, 7.1 ulp |       3.74 gb/s, 7.1 ulp |       3.79 gb/s, 7.0 ulp |
 | __bf16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sparse_dot_u16bf16_serial`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_sparse_dot_u16bf16_serial`   |         1.73 gb/s, 0 ulp |         1.72 gb/s, 0 ulp |         1.72 gb/s, 0 ulp |

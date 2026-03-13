@@ -151,24 +151,24 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_maxsim_packed_f16_serial`       |       ? gso/s, 46.4K ulp |       ? gso/s, 46.4K ulp |       ? gso/s, 46.4K ulp |
 | `nk_maxsim_packed_f16_v128relaxed`  |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |       ? gso/s, 1.58M ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                           |                     256³ |                    1024³ |                    4096³ |
 | :------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f32__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f32_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f32_neonsdot`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f32_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_serial`    |      124 gso/s, 166K ulp |      136 gso/s, 104K ulp |     130 gso/s, 55.1K ulp |
+| `nk_maxsim_packed_f32_neonsdot`  |      170 gso/s, 167K ulp |      240 gso/s, 104K ulp |     167 gso/s, 55.1K ulp |
+| `nk_maxsim_packed_f32_sme`       |      291 gso/s, 200K ulp |   1,800 gso/s, 64.6K ulp |           ? gso/s, ? ulp |
 | __bf16__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_bf16_serial`   |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_bf16_neonsdot` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_bf16_sme`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_serial`   |      135 gso/s, 167K ulp |      139 gso/s, 105K ulp |     132 gso/s, 54.8K ulp |
+| `nk_maxsim_packed_bf16_neonsdot` |      192 gso/s, 167K ulp |      257 gso/s, 105K ulp |     161 gso/s, 54.8K ulp |
+| `nk_maxsim_packed_bf16_sme`      |     580 gso/s, 16.1K ulp |     1,620 gso/s, 735 ulp |           ? gso/s, ? ulp |
 | __f16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f16_serial`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f16_neonsdot`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f16_sme`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_serial`    |      136 gso/s, 169K ulp |      140 gso/s, 104K ulp |     134 gso/s, 55.1K ulp |
+| `nk_maxsim_packed_f16_neonsdot`  |      193 gso/s, 166K ulp |      255 gso/s, 104K ulp |     172 gso/s, 55.1K ulp |
+| `nk_maxsim_packed_f16_sme`       |     573 gso/s, 16.0K ulp |     1,620 gso/s, 725 ulp |           ? gso/s, ? ulp |
 
 #### WASM
 
@@ -177,11 +177,11 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                              |                     256³ |                    1024³ |                    4096³ |
 | :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f32_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f32_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f32_serial`       |    9.22 gso/s, 46.8K ulp |    10.1 gso/s, 46.8K ulp |    10.5 gso/s, 46.8K ulp |
+| `nk_maxsim_packed_f32_v128relaxed`  |    28.9 gso/s, 46.0K ulp |    31.2 gso/s, 46.0K ulp |    32.0 gso/s, 46.0K ulp |
 | __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_bf16_serial`      |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_bf16_v128relaxed` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_bf16_serial`      |    8.95 gso/s, 49.2K ulp |    10.1 gso/s, 49.2K ulp |    10.0 gso/s, 49.2K ulp |
+| `nk_maxsim_packed_bf16_v128relaxed` |    29.6 gso/s, 49.4K ulp |    31.9 gso/s, 49.4K ulp |    31.6 gso/s, 49.4K ulp |
 | __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f16_serial`       |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_maxsim_packed_f16_v128relaxed`  |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_maxsim_packed_f16_serial`       |    9.21 gso/s, 49.5K ulp |    10.3 gso/s, 49.5K ulp |    10.6 gso/s, 49.5K ulp |
+| `nk_maxsim_packed_f16_v128relaxed`  |    27.2 gso/s, 49.3K ulp |    33.7 gso/s, 49.3K ulp |    31.5 gso/s, 49.3K ulp |

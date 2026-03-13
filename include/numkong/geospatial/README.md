@@ -112,22 +112,22 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_haversine_f32_v128relaxed` |          ? mp/s, 6.5 ulp |          ? mp/s, 5.6 ulp |         ? mp/s, 53.3 ulp |
 | `nk_vincenty_f32_v128relaxed`  |        ? mp/s, 23.8K ulp |          ? mp/s, 323 ulp |         ? mp/s, 64.0 ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                    |                      ≤1° |                     ≤30° |                    ≤180° |
 | :------------------------ | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f64_serial` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f64_serial`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_haversine_f64_neon`   |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f64_neon`    |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f64_serial` |       3.47 mp/s, 1.12 km |       3.47 mp/s, 32.8 km |        3.48 mp/s, 150 km |
+| `nk_vincenty_f64_serial`  |      0.888 mp/s, 2.20 nm |      0.770 mp/s, 2.79 nm |       0.662 mp/s, 622 nm |
+| `nk_haversine_f64_neon`   |       72.8 mp/s, 1.12 km |       72.5 mp/s, 32.8 km |        72.8 mp/s, 150 km |
+| `nk_vincenty_f64_neon`    |       9.34 mp/s, 2.12 nm |       7.61 mp/s, 2.33 nm |        5.99 mp/s, 622 nm |
 | __f32__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f32_serial` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f32_serial`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_haversine_f32_neon`   |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f32_neon`    |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f32_serial` |       14.1 mp/s, 1.12 km |       13.8 mp/s, 32.8 km |        14.0 mp/s, 146 km |
+| `nk_vincenty_f32_serial`  |        4.54 mp/s, 12.0 m |        3.25 mp/s, 12.5 m |        2.42 mp/s, 22.0 m |
+| `nk_haversine_f32_neon`   |        247 mp/s, 1.12 km |        235 mp/s, 32.8 km |         252 mp/s, 146 km |
+| `nk_vincenty_f32_neon`    |        45.7 mp/s, 12.2 m |        37.9 mp/s, 12.8 m |        15.7 mp/s, 22.0 m |
 
 #### WASM
 
@@ -136,12 +136,12 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                         |                      ≤1° |                     ≤30° |                    ≤180° |
 | :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f64_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f64_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_haversine_f64_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f64_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f64_serial`      |       1.84 mp/s, 1.12 km |       1.83 mp/s, 32.8 km |        1.99 mp/s, 148 km |
+| `nk_vincenty_f64_serial`       |      0.481 mp/s, 1.86 nm |      0.419 mp/s, 2.33 nm |       0.422 mp/s, 594 nm |
+| `nk_haversine_f64_v128relaxed` |       35.7 mp/s, 1.12 km |       35.9 mp/s, 32.8 km |        35.9 mp/s, 148 km |
+| `nk_vincenty_f64_v128relaxed`  |       4.19 mp/s, 1.89 nm |       3.57 mp/s, 2.33 nm |        2.94 mp/s, 594 nm |
 | __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f32_serial`      |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f32_serial`       |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_haversine_f32_v128relaxed` |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
-| `nk_vincenty_f32_v128relaxed`  |              ? mp/s, ? m |              ? mp/s, ? m |              ? mp/s, ? m |
+| `nk_haversine_f32_serial`      |     6.74 mp/s, 20,000 km |       6.80 mp/s, 32.7 km |        7.34 mp/s, 136 km |
+| `nk_vincenty_f32_serial`       |     2.25 mp/s, 20,000 km |        1.65 mp/s, 12.0 m |        1.35 mp/s, 22.0 m |
+| `nk_haversine_f32_v128relaxed` |      161 mp/s, 20,000 km |        165 mp/s, 32.7 km |         165 mp/s, 153 km |
+| `nk_vincenty_f32_v128relaxed`  |        24.6 mp/s, 12.0 m |        20.5 mp/s, 16.2 m |        9.57 mp/s, 18.0 m |

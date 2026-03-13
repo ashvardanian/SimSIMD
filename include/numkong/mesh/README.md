@@ -175,34 +175,35 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_umeyama_f32_serial`      |       15.2 mp/s, 1.0 ulp |       37.4 mp/s, 1.8 ulp |          ? mp/s, 3.7 ulp |
 | `nk_umeyama_f32_v128relaxed` |       18.3 mp/s, 0.4 ulp |       38.9 mp/s, 0.8 ulp |          ? mp/s, 1.5 ulp |
 
-### Apple M4 Pro
+
+### Apple M4
 
 #### Native
 
 | Kernel                   |                      256 |                     1024 |                     4096 |
 | :----------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f64_serial`     |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f64_serial`   |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f64_serial`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_rmsd_f64_neon`       |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f64_neon`     |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f64_neon`    |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_f64_serial`     |        447 mp/s, 1.4 ulp |        410 mp/s, 2.6 ulp |        412 mp/s, 5.3 ulp |
+| `nk_kabsch_f64_serial`   |       95.2 mp/s, 1.4 ulp |        169 mp/s, 2.6 ulp |        214 mp/s, 5.4 ulp |
+| `nk_umeyama_f64_serial`  |       89.2 mp/s, 1.0 ulp |        157 mp/s, 1.9 ulp |        195 mp/s, 3.7 ulp |
+| `nk_rmsd_f64_neon`       |        823 mp/s, 0.4 ulp |        761 mp/s, 0.7 ulp |        702 mp/s, 1.3 ulp |
+| `nk_kabsch_f64_neon`     |        105 mp/s, 0.8 ulp |        213 mp/s, 1.3 ulp |        287 mp/s, 2.2 ulp |
+| `nk_umeyama_f64_neon`    |        106 mp/s, 0.4 ulp |        214 mp/s, 0.8 ulp |        297 mp/s, 1.6 ulp |
 | __f32__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f32_serial`     |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f32_serial`   |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f32_serial`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_rmsd_f32_neon`       |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f32_neon`     |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f32_neon`    |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_f32_serial`     |        554 mp/s, 1.4 ulp |        566 mp/s, 2.6 ulp |        532 mp/s, 5.2 ulp |
+| `nk_kabsch_f32_serial`   |        110 mp/s, 1.4 ulp |        214 mp/s, 2.7 ulp |        264 mp/s, 5.0 ulp |
+| `nk_umeyama_f32_serial`  |        104 mp/s, 0.9 ulp |        197 mp/s, 1.8 ulp |        240 mp/s, 3.5 ulp |
+| `nk_rmsd_f32_neon`       |      1,580 mp/s, 0.3 ulp |      1,560 mp/s, 0.4 ulp |      1,200 mp/s, 0.8 ulp |
+| `nk_kabsch_f32_neon`     |        139 mp/s, 0.7 ulp |        336 mp/s, 0.9 ulp |        485 mp/s, 1.4 ulp |
+| `nk_umeyama_f32_neon`    |        137 mp/s, 0.3 ulp |        325 mp/s, 0.4 ulp |        470 mp/s, 0.8 ulp |
 | __bf16__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_bf16_serial`    |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_bf16_serial`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_bf16_serial` |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_bf16_serial`    |      1,740 mp/s, 0.5 ulp |      1,880 mp/s, 6.0 ulp |     1,860 mp/s, 10.0 ulp |
+| `nk_kabsch_bf16_serial`  |        137 mp/s, 0.7 ulp |        335 mp/s, 0.9 ulp |        527 mp/s, 1.3 ulp |
+| `nk_umeyama_bf16_serial` |        135 mp/s, 0.2 ulp |        329 mp/s, 0.4 ulp |        510 mp/s, 0.8 ulp |
 | __f16__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f16_serial`     |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f16_serial`   |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f16_serial`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_f16_serial`     |      1,840 mp/s, 0.4 ulp |      1,900 mp/s, 1.7 ulp |      1,860 mp/s, 4.6 ulp |
+| `nk_kabsch_f16_serial`   |        140 mp/s, 0.9 ulp |        349 mp/s, 1.3 ulp |        547 mp/s, 2.4 ulp |
+| `nk_umeyama_f16_serial`  |        135 mp/s, 0.4 ulp |        316 mp/s, 0.8 ulp |        474 mp/s, 1.5 ulp |
 
 #### WASM
 
@@ -211,16 +212,16 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                       |                      256 |                     1024 |                     4096 |
 | :--------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f64_serial`         |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_rmsd_f64_v128relaxed`    |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f64_serial`       |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f64_v128relaxed`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f64_serial`      |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f64_v128relaxed` |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_f64_serial`         |        219 mp/s, 2.6 ulp |        202 mp/s, 2.6 ulp |        255 mp/s, 2.6 ulp |
+| `nk_rmsd_f64_v128relaxed`    |        434 mp/s, 0.8 ulp |        363 mp/s, 0.8 ulp |        586 mp/s, 0.8 ulp |
+| `nk_kabsch_f64_serial`       |       42.8 mp/s, 2.7 ulp |       76.0 mp/s, 2.7 ulp |        110 mp/s, 2.7 ulp |
+| `nk_kabsch_f64_v128relaxed`  |       55.2 mp/s, 2.2 ulp |        110 mp/s, 2.2 ulp |        202 mp/s, 2.2 ulp |
+| `nk_umeyama_f64_serial`      |       36.1 mp/s, 1.8 ulp |       58.9 mp/s, 1.8 ulp |       98.7 mp/s, 1.8 ulp |
+| `nk_umeyama_f64_v128relaxed` |       52.4 mp/s, 1.5 ulp |        103 mp/s, 1.5 ulp |        183 mp/s, 1.5 ulp |
 | __f32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f32_serial`         |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_rmsd_f32_v128relaxed`    |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f32_serial`       |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_kabsch_f32_v128relaxed`  |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f32_serial`      |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
-| `nk_umeyama_f32_v128relaxed` |            ? mp/s, ? ulp |            ? mp/s, ? ulp |            ? mp/s, ? ulp |
+| `nk_rmsd_f32_serial`         |        218 mp/s, 2.7 ulp |        223 mp/s, 2.7 ulp |        271 mp/s, 2.7 ulp |
+| `nk_rmsd_f32_v128relaxed`    |        626 mp/s, 0.5 ulp |        626 mp/s, 0.5 ulp |        687 mp/s, 0.5 ulp |
+| `nk_kabsch_f32_serial`       |       45.5 mp/s, 2.6 ulp |       77.0 mp/s, 2.6 ulp |        112 mp/s, 2.6 ulp |
+| `nk_kabsch_f32_v128relaxed`  |       68.6 mp/s, 1.3 ulp |        160 mp/s, 1.3 ulp |        273 mp/s, 1.3 ulp |
+| `nk_umeyama_f32_serial`      |       38.7 mp/s, 1.8 ulp |       60.0 mp/s, 1.8 ulp |       80.5 mp/s, 1.8 ulp |
+| `nk_umeyama_f32_v128relaxed` |       66.9 mp/s, 0.8 ulp |        157 mp/s, 0.8 ulp |        291 mp/s, 0.8 ulp |
