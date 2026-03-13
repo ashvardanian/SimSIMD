@@ -49,7 +49,7 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
     }
 
     // ULP measures implementation precision (vs haversine f118),
-    // abs/rel measures formula accuracy (vs vincenty f118)
+    // abs/rel measures formula accuracy in meters/ratio (vs vincenty f118)
     error_stats_t combined(comparison_family_t::geospatial_k);
     combined.min_ulp = ulp_stats.min_ulp;
     combined.max_ulp = ulp_stats.max_ulp;

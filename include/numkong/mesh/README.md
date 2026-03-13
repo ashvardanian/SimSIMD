@@ -114,7 +114,7 @@ The following performance tables are produced by manually re-running `nk_test` a
 The input size is controlled by the `NK_MESH_POINTS` environment variable and set to 256, 1024, and 4096 points.
 Each alignment computes centroids, covariance, and a 3×3 SVD over $N$ point pairs, so cost is $O(N)$ per alignment with a large constant.
 The throughput is measured in mp/s as millions of 3D points aligned per second.
-Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.

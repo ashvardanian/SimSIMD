@@ -128,7 +128,7 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by the `NK_DENSE_DIMENSIONS` environment variable and set to 256, 1024, and 4096 elements.
 The throughput is measured in gb/s as the number of bytes read per second amortized for a large batch of vector pairs.
-Accuracy is reported as ULP (units in last place), the number of representable floating-point values between the result and the exact answer.
+Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.

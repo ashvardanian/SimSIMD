@@ -95,7 +95,7 @@ The throughput is measured in GB/s as the number of input bytes per second.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
-Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the number of representable floating-point values between the computed result and the exact answer.
+Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the average number of representable floating-point values between the computed result and the exact answer.
 
 ### Intel Sapphire Rapids
 

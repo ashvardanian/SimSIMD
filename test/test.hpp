@@ -5,7 +5,7 @@
  *  @date December 28, 2025
  *
  *  This test suite compares NumKong operations against high-precision references,
- *  like our `f118_t` double-double type, and reports ULP error statistics.
+ *  like our `f118_t` double-double type, and reports ULP, absolute, and relative error statistics.
  *
  *  Environment Variables:
  *    NK_FILTER=<pattern>           - Filter tests by name RegEx (default: run all)
@@ -164,15 +164,15 @@ inline constexpr comparison_family_spec_t comparison_family_spec(comparison_fami
     case comparison_family_t::exact_k:
         return {comparison_failure_mode_t::exact_distance_k, {"max_dist", "mean_dist", "max_abs", "mismatch", "exact"}};
     case comparison_family_t::probability_k:
-        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "mean_abs", "max_rel", "mean_rel", "max_abi"}};
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "mean_abs", "max_rel", "mean_rel", "mean_ulp"}};
     case comparison_family_t::geospatial_k:
-        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abi", "mean_abi", "max_abs", "max_rel", "exact"}};
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "mean_abs", "max_rel", "mean_ulp", "max_ulp"}};
     case comparison_family_t::narrow_arithmetic_k:
     case comparison_family_t::mixed_precision_reduction_k:
     case comparison_family_t::external_baseline_k:
-        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "max_abi", "mean_abi", "exact"}};
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "mean_ulp", "max_ulp", "exact"}};
     }
-    return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "max_abi", "mean_abi", "exact"}};
+    return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "mean_ulp", "max_ulp", "exact"}};
 }
 
 struct test_config_t {
@@ -474,19 +474,18 @@ inline void print_stats_row(char const *kernel_name, error_stats_t const &stats)
                     stats.mismatches(), stats.exact_matches);
         break;
     case comparison_family_t::probability_k:
-        std::printf("%-40s %12.2e %10.2e %12.2e %12.2e %10llu\n", kernel_name, stats.max_abs_err, stats.mean_abs_err(),
-                    stats.max_rel_err, stats.mean_rel_err(), static_cast<unsigned long long>(stats.max_ulp));
+        std::printf("%-40s %12.2e %10.2e %12.2e %12.2e %10.2e\n", kernel_name, stats.max_abs_err, stats.mean_abs_err(),
+                    stats.max_rel_err, stats.mean_rel_err(), stats.mean_ulp());
         break;
     case comparison_family_t::geospatial_k:
-        std::printf("%-40s %12llu %10.1f %12.2e %12.2e %10zu\n", kernel_name,
-                    static_cast<unsigned long long>(stats.max_ulp), stats.mean_ulp(), stats.max_abs_err,
-                    stats.max_rel_err, stats.exact_matches);
+        std::printf("%-40s %12.2e %10.2e %12.2e %12.1f %10llu\n", kernel_name, stats.max_abs_err, stats.mean_abs_err(),
+                    stats.max_rel_err, stats.mean_ulp(), static_cast<unsigned long long>(stats.max_ulp));
         break;
     case comparison_family_t::narrow_arithmetic_k:
     case comparison_family_t::mixed_precision_reduction_k:
     case comparison_family_t::external_baseline_k:
-        std::printf("%-40s %12.2e %10.2e %12llu %12.2e %10zu\n", kernel_name, stats.max_abs_err, stats.max_rel_err,
-                    static_cast<unsigned long long>(stats.max_ulp), stats.mean_ulp(), stats.exact_matches);
+        std::printf("%-40s %12.2e %10.2e %12.2e %12llu %10zu\n", kernel_name, stats.max_abs_err, stats.max_rel_err,
+                    stats.mean_ulp(), static_cast<unsigned long long>(stats.max_ulp), stats.exact_matches);
         break;
     }
     std::fflush(stdout);

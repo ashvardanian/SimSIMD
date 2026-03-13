@@ -293,8 +293,8 @@ int main(int argc, char **argv) {
                 global_config.mesh_points, global_config.matrix_height, global_config.matrix_width,
                 global_config.matrix_depth);
 
-    // ABI distance thresholds
-    std::printf("  ABI: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
+    // ULP distance thresholds
+    std::printf("  ULP: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
                 (unsigned long long)global_config.ulp_threshold_f32,
                 (unsigned long long)global_config.ulp_threshold_f16,
                 (unsigned long long)global_config.ulp_threshold_bf16);
