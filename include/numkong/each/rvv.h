@@ -250,7 +250,7 @@ NK_PUBLIC void nk_each_scale_i8_rvv(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
         vint32m4_t a_i32m4 = __riscv_vwadd_vx_i32m4(a_i16m2, 0, vector_length);
         vfloat32m4_t a_f32m4 = __riscv_vfcvt_f_x_v_f32m4(a_i32m4, vector_length);
         a_f32m4 = __riscv_vfmadd_vf_f32m4(a_f32m4, alpha_val, beta_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(a_f32m4, vector_length);
+        vint32m4_t result_i32m4 = __riscv_vfcvt_x_f_v_i32m4(a_f32m4, vector_length);
         result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, -128, vector_length);
         result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 127, vector_length);
         vint16m2_t result_i16m2 = __riscv_vncvt_x_x_w_i16m2(result_i32m4, vector_length);
@@ -271,10 +271,9 @@ NK_PUBLIC void nk_each_scale_u8_rvv(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
         vuint32m4_t a_u32m4 = __riscv_vwaddu_vx_u32m4(a_u16m2, 0, vector_length);
         vfloat32m4_t a_f32m4 = __riscv_vfcvt_f_xu_v_f32m4(a_u32m4, vector_length);
         a_f32m4 = __riscv_vfmadd_vf_f32m4(a_f32m4, alpha_val, beta_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(a_f32m4, vector_length);
-        result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, 0, vector_length);
-        result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 255, vector_length);
-        vuint32m4_t result_u32m4 = __riscv_vreinterpret_v_i32m4_u32m4(result_i32m4);
+        vuint32m4_t result_u32m4 = __riscv_vfcvt_xu_f_v_u32m4(a_f32m4, vector_length);
+        result_u32m4 = __riscv_vmaxu_vx_u32m4(result_u32m4, 0, vector_length);
+        result_u32m4 = __riscv_vminu_vx_u32m4(result_u32m4, 255, vector_length);
         vuint16m2_t result_u16m2 = __riscv_vncvt_x_x_w_u16m2(result_u32m4, vector_length);
         vuint8m1_t result_u8m1 = __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
         __riscv_vse8_v_u8m1(result, result_u8m1, vector_length);
@@ -292,7 +291,7 @@ NK_PUBLIC void nk_each_scale_i16_rvv(nk_i16_t const *a, nk_size_t n, nk_f32_t co
         vint32m2_t a_i32m2 = __riscv_vwadd_vx_i32m2(a_i16m1, 0, vector_length);
         vfloat32m2_t a_f32m2 = __riscv_vfcvt_f_x_v_f32m2(a_i32m2, vector_length);
         a_f32m2 = __riscv_vfmadd_vf_f32m2(a_f32m2, alpha_val, beta_f32m2, vector_length);
-        vint32m2_t result_i32m2 = __riscv_vfcvt_rtz_x_f_v_i32m2(a_f32m2, vector_length);
+        vint32m2_t result_i32m2 = __riscv_vfcvt_x_f_v_i32m2(a_f32m2, vector_length);
         result_i32m2 = __riscv_vmax_vx_i32m2(result_i32m2, -32768, vector_length);
         result_i32m2 = __riscv_vmin_vx_i32m2(result_i32m2, 32767, vector_length);
         vint16m1_t result_i16m1 = __riscv_vncvt_x_x_w_i16m1(result_i32m2, vector_length);
@@ -311,10 +310,9 @@ NK_PUBLIC void nk_each_scale_u16_rvv(nk_u16_t const *a, nk_size_t n, nk_f32_t co
         vuint32m2_t a_u32m2 = __riscv_vwaddu_vx_u32m2(a_u16m1, 0, vector_length);
         vfloat32m2_t a_f32m2 = __riscv_vfcvt_f_xu_v_f32m2(a_u32m2, vector_length);
         a_f32m2 = __riscv_vfmadd_vf_f32m2(a_f32m2, alpha_val, beta_f32m2, vector_length);
-        vint32m2_t result_i32m2 = __riscv_vfcvt_rtz_x_f_v_i32m2(a_f32m2, vector_length);
-        result_i32m2 = __riscv_vmax_vx_i32m2(result_i32m2, 0, vector_length);
-        result_i32m2 = __riscv_vmin_vx_i32m2(result_i32m2, 65535, vector_length);
-        vuint32m2_t result_u32m2 = __riscv_vreinterpret_v_i32m2_u32m2(result_i32m2);
+        vuint32m2_t result_u32m2 = __riscv_vfcvt_xu_f_v_u32m2(a_f32m2, vector_length);
+        result_u32m2 = __riscv_vmaxu_vx_u32m2(result_u32m2, 0, vector_length);
+        result_u32m2 = __riscv_vminu_vx_u32m2(result_u32m2, 65535, vector_length);
         vuint16m1_t result_u16m1 = __riscv_vncvt_x_x_w_u16m1(result_u32m2, vector_length);
         __riscv_vse16_v_u16m1(result, result_u16m1, vector_length);
     }
@@ -332,7 +330,7 @@ NK_PUBLIC void nk_each_scale_i32_rvv(nk_i32_t const *a, nk_size_t n, nk_f64_t co
         a_f64m2 = __riscv_vfmadd_vf_f64m2(a_f64m2, alpha_val, beta_f64m2, vector_length);
         a_f64m2 = __riscv_vfmax_vf_f64m2(a_f64m2, -2147483648.0, vector_length);
         a_f64m2 = __riscv_vfmin_vf_f64m2(a_f64m2, 2147483647.0, vector_length);
-        vint32m1_t result_i32m1 = __riscv_vfncvt_rtz_x_f_w_i32m1(a_f64m2, vector_length);
+        vint32m1_t result_i32m1 = __riscv_vfncvt_x_f_w_i32m1(a_f64m2, vector_length);
         __riscv_vse32_v_i32m1(result, result_i32m1, vector_length);
     }
 }
@@ -349,7 +347,7 @@ NK_PUBLIC void nk_each_scale_u32_rvv(nk_u32_t const *a, nk_size_t n, nk_f64_t co
         a_f64m2 = __riscv_vfmadd_vf_f64m2(a_f64m2, alpha_val, beta_f64m2, vector_length);
         a_f64m2 = __riscv_vfmax_vf_f64m2(a_f64m2, 0.0, vector_length);
         a_f64m2 = __riscv_vfmin_vf_f64m2(a_f64m2, 4294967295.0, vector_length);
-        vuint32m1_t result_u32m1 = __riscv_vfncvt_rtz_xu_f_w_u32m1(a_f64m2, vector_length);
+        vuint32m1_t result_u32m1 = __riscv_vfncvt_xu_f_w_u32m1(a_f64m2, vector_length);
         __riscv_vse32_v_u32m1(result, result_u32m1, vector_length);
     }
 }
@@ -364,7 +362,7 @@ NK_PUBLIC void nk_each_scale_i64_rvv(nk_i64_t const *a, nk_size_t n, nk_f64_t co
         vint64m4_t a_i64m4 = __riscv_vle64_v_i64m4(a, vector_length);
         vfloat64m4_t a_f64m4 = __riscv_vfcvt_f_x_v_f64m4(a_i64m4, vector_length);
         a_f64m4 = __riscv_vfmadd_vf_f64m4(a_f64m4, alpha_val, beta_f64m4, vector_length);
-        vint64m4_t result_i64m4 = __riscv_vfcvt_rtz_x_f_v_i64m4(a_f64m4, vector_length);
+        vint64m4_t result_i64m4 = __riscv_vfcvt_x_f_v_i64m4(a_f64m4, vector_length);
         __riscv_vse64_v_i64m4(result, result_i64m4, vector_length);
     }
 }
@@ -380,7 +378,7 @@ NK_PUBLIC void nk_each_scale_u64_rvv(nk_u64_t const *a, nk_size_t n, nk_f64_t co
         vfloat64m4_t a_f64m4 = __riscv_vfcvt_f_xu_v_f64m4(a_u64m4, vector_length);
         a_f64m4 = __riscv_vfmadd_vf_f64m4(a_f64m4, alpha_val, beta_f64m4, vector_length);
         a_f64m4 = __riscv_vfmax_vf_f64m4(a_f64m4, 0.0, vector_length);
-        vuint64m4_t result_u64m4 = __riscv_vfcvt_rtz_xu_f_v_u64m4(a_f64m4, vector_length);
+        vuint64m4_t result_u64m4 = __riscv_vfcvt_xu_f_v_u64m4(a_f64m4, vector_length);
         __riscv_vse64_v_u64m4(result, result_u64m4, vector_length);
     }
 }
@@ -543,7 +541,7 @@ NK_PUBLIC void nk_each_blend_i8_rvv(nk_i8_t const *a, nk_i8_t const *b, nk_size_
         vfloat32m4_t b_f32m4 = __riscv_vfcvt_f_x_v_f32m4(b_i32m4, vector_length);
         vfloat32m4_t result_f32m4 = __riscv_vfmul_vf_f32m4(a_f32m4, alpha_val, vector_length);
         result_f32m4 = __riscv_vfmacc_vf_f32m4(result_f32m4, beta_val, b_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(result_f32m4, vector_length);
+        vint32m4_t result_i32m4 = __riscv_vfcvt_x_f_v_i32m4(result_f32m4, vector_length);
         result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, -128, vector_length);
         result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 127, vector_length);
         vint16m2_t result_i16m2 = __riscv_vncvt_x_x_w_i16m2(result_i32m4, vector_length);
@@ -578,10 +576,9 @@ NK_PUBLIC void nk_each_blend_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_size_
         vfloat32m4_t b_f32m4 = __riscv_vfcvt_f_xu_v_f32m4(b_u32m4, vector_length);
         vfloat32m4_t result_f32m4 = __riscv_vfmul_vf_f32m4(a_f32m4, alpha_val, vector_length);
         result_f32m4 = __riscv_vfmacc_vf_f32m4(result_f32m4, beta_val, b_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(result_f32m4, vector_length);
-        result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, 0, vector_length);
-        result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 255, vector_length);
-        vuint32m4_t result_u32m4 = __riscv_vreinterpret_v_i32m4_u32m4(result_i32m4);
+        vuint32m4_t result_u32m4 = __riscv_vfcvt_xu_f_v_u32m4(result_f32m4, vector_length);
+        result_u32m4 = __riscv_vmaxu_vx_u32m4(result_u32m4, 0, vector_length);
+        result_u32m4 = __riscv_vminu_vx_u32m4(result_u32m4, 255, vector_length);
         vuint16m2_t result_u16m2 = __riscv_vncvt_x_x_w_u16m2(result_u32m4, vector_length);
         vuint8m1_t result_u8m1 = __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
         __riscv_vse8_v_u8m1(result, result_u8m1, vector_length);
@@ -715,7 +712,7 @@ NK_PUBLIC void nk_each_fma_i8_rvv(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t co
         vfloat32m4_t product_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
         vfloat32m4_t scaled_product_f32m4 = __riscv_vfmul_vf_f32m4(product_f32m4, alpha_val, vector_length);
         vfloat32m4_t result_f32m4 = __riscv_vfmacc_vf_f32m4(scaled_product_f32m4, beta_val, c_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(result_f32m4, vector_length);
+        vint32m4_t result_i32m4 = __riscv_vfcvt_x_f_v_i32m4(result_f32m4, vector_length);
         result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, -128, vector_length);
         result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 127, vector_length);
         vint16m2_t result_i16m2 = __riscv_vncvt_x_x_w_i16m2(result_i32m4, vector_length);
@@ -745,10 +742,9 @@ NK_PUBLIC void nk_each_fma_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t co
         vfloat32m4_t product_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
         vfloat32m4_t scaled_product_f32m4 = __riscv_vfmul_vf_f32m4(product_f32m4, alpha_val, vector_length);
         vfloat32m4_t result_f32m4 = __riscv_vfmacc_vf_f32m4(scaled_product_f32m4, beta_val, c_f32m4, vector_length);
-        vint32m4_t result_i32m4 = __riscv_vfcvt_rtz_x_f_v_i32m4(result_f32m4, vector_length);
-        result_i32m4 = __riscv_vmax_vx_i32m4(result_i32m4, 0, vector_length);
-        result_i32m4 = __riscv_vmin_vx_i32m4(result_i32m4, 255, vector_length);
-        vuint32m4_t result_u32m4 = __riscv_vreinterpret_v_i32m4_u32m4(result_i32m4);
+        vuint32m4_t result_u32m4 = __riscv_vfcvt_xu_f_v_u32m4(result_f32m4, vector_length);
+        result_u32m4 = __riscv_vmaxu_vx_u32m4(result_u32m4, 0, vector_length);
+        result_u32m4 = __riscv_vminu_vx_u32m4(result_u32m4, 255, vector_length);
         vuint16m2_t result_u16m2 = __riscv_vncvt_x_x_w_u16m2(result_u32m4, vector_length);
         vuint8m1_t result_u8m1 = __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
         __riscv_vse8_v_u8m1(result, result_u8m1, vector_length);
@@ -773,7 +769,7 @@ NK_PUBLIC void nk_each_fma_i16_rvv(nk_i16_t const *a, nk_i16_t const *b, nk_i16_
         vfloat32m2_t product_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, b_f32m2, vector_length);
         vfloat32m2_t scaled_product_f32m2 = __riscv_vfmul_vf_f32m2(product_f32m2, alpha_val, vector_length);
         vfloat32m2_t result_f32m2 = __riscv_vfmacc_vf_f32m2(scaled_product_f32m2, beta_val, c_f32m2, vector_length);
-        vint32m2_t result_i32m2 = __riscv_vfcvt_rtz_x_f_v_i32m2(result_f32m2, vector_length);
+        vint32m2_t result_i32m2 = __riscv_vfcvt_x_f_v_i32m2(result_f32m2, vector_length);
         result_i32m2 = __riscv_vmax_vx_i32m2(result_i32m2, -32768, vector_length);
         result_i32m2 = __riscv_vmin_vx_i32m2(result_i32m2, 32767, vector_length);
         vint16m1_t result_i16m1 = __riscv_vncvt_x_x_w_i16m1(result_i32m2, vector_length);
@@ -799,10 +795,9 @@ NK_PUBLIC void nk_each_fma_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_u16_
         vfloat32m2_t product_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, b_f32m2, vector_length);
         vfloat32m2_t scaled_product_f32m2 = __riscv_vfmul_vf_f32m2(product_f32m2, alpha_val, vector_length);
         vfloat32m2_t result_f32m2 = __riscv_vfmacc_vf_f32m2(scaled_product_f32m2, beta_val, c_f32m2, vector_length);
-        vint32m2_t result_i32m2 = __riscv_vfcvt_rtz_x_f_v_i32m2(result_f32m2, vector_length);
-        result_i32m2 = __riscv_vmax_vx_i32m2(result_i32m2, 0, vector_length);
-        result_i32m2 = __riscv_vmin_vx_i32m2(result_i32m2, 65535, vector_length);
-        vuint32m2_t result_u32m2 = __riscv_vreinterpret_v_i32m2_u32m2(result_i32m2);
+        vuint32m2_t result_u32m2 = __riscv_vfcvt_xu_f_v_u32m2(result_f32m2, vector_length);
+        result_u32m2 = __riscv_vmaxu_vx_u32m2(result_u32m2, 0, vector_length);
+        result_u32m2 = __riscv_vminu_vx_u32m2(result_u32m2, 65535, vector_length);
         vuint16m1_t result_u16m1 = __riscv_vncvt_x_x_w_u16m1(result_u32m2, vector_length);
         __riscv_vse16_v_u16m1(result, result_u16m1, vector_length);
     }
@@ -825,7 +820,7 @@ NK_PUBLIC void nk_each_fma_i32_rvv(nk_i32_t const *a, nk_i32_t const *b, nk_i32_
         vfloat64m2_t result_f64m2 = __riscv_vfmacc_vf_f64m2(scaled_product_f64m2, beta_val, c_f64m2, vector_length);
         result_f64m2 = __riscv_vfmax_vf_f64m2(result_f64m2, -2147483648.0, vector_length);
         result_f64m2 = __riscv_vfmin_vf_f64m2(result_f64m2, 2147483647.0, vector_length);
-        vint32m1_t result_i32m1 = __riscv_vfncvt_rtz_x_f_w_i32m1(result_f64m2, vector_length);
+        vint32m1_t result_i32m1 = __riscv_vfncvt_x_f_w_i32m1(result_f64m2, vector_length);
         __riscv_vse32_v_i32m1(result, result_i32m1, vector_length);
     }
 }
@@ -847,7 +842,7 @@ NK_PUBLIC void nk_each_fma_u32_rvv(nk_u32_t const *a, nk_u32_t const *b, nk_u32_
         vfloat64m2_t result_f64m2 = __riscv_vfmacc_vf_f64m2(scaled_product_f64m2, beta_val, c_f64m2, vector_length);
         result_f64m2 = __riscv_vfmax_vf_f64m2(result_f64m2, 0.0, vector_length);
         result_f64m2 = __riscv_vfmin_vf_f64m2(result_f64m2, 4294967295.0, vector_length);
-        vuint32m1_t result_u32m1 = __riscv_vfncvt_rtz_xu_f_w_u32m1(result_f64m2, vector_length);
+        vuint32m1_t result_u32m1 = __riscv_vfncvt_xu_f_w_u32m1(result_f64m2, vector_length);
         __riscv_vse32_v_u32m1(result, result_u32m1, vector_length);
     }
 }
@@ -867,7 +862,7 @@ NK_PUBLIC void nk_each_fma_i64_rvv(nk_i64_t const *a, nk_i64_t const *b, nk_i64_
         vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(a_f64m4, b_f64m4, vector_length);
         vfloat64m4_t scaled_product_f64m4 = __riscv_vfmul_vf_f64m4(product_f64m4, alpha_val, vector_length);
         vfloat64m4_t result_f64m4 = __riscv_vfmacc_vf_f64m4(scaled_product_f64m4, beta_val, c_f64m4, vector_length);
-        vint64m4_t result_i64m4 = __riscv_vfcvt_rtz_x_f_v_i64m4(result_f64m4, vector_length);
+        vint64m4_t result_i64m4 = __riscv_vfcvt_x_f_v_i64m4(result_f64m4, vector_length);
         __riscv_vse64_v_i64m4(result, result_i64m4, vector_length);
     }
 }
@@ -888,7 +883,7 @@ NK_PUBLIC void nk_each_fma_u64_rvv(nk_u64_t const *a, nk_u64_t const *b, nk_u64_
         vfloat64m4_t scaled_product_f64m4 = __riscv_vfmul_vf_f64m4(product_f64m4, alpha_val, vector_length);
         vfloat64m4_t result_f64m4 = __riscv_vfmacc_vf_f64m4(scaled_product_f64m4, beta_val, c_f64m4, vector_length);
         result_f64m4 = __riscv_vfmax_vf_f64m4(result_f64m4, 0.0, vector_length);
-        vuint64m4_t result_u64m4 = __riscv_vfcvt_rtz_xu_f_v_u64m4(result_f64m4, vector_length);
+        vuint64m4_t result_u64m4 = __riscv_vfcvt_xu_f_v_u64m4(result_f64m4, vector_length);
         __riscv_vse64_v_u64m4(result, result_u64m4, vector_length);
     }
 }

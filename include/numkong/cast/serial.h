@@ -1028,63 +1028,92 @@ NK_INTERNAL void nk_f64_to_bf16_serial(nk_f64_t const *x, nk_bf16_t *y) {
     nk_f32_to_bf16_serial(&f32, y);
 }
 
-/*  Convert floating pointer numbers to integers, clamping them to the range of signed
- *  and unsigned low-resolution integers, and rounding them to the nearest integer.
- *
- *  In C++ the analogous solution with STL could be: `*y = std::clamp(std::round(*x), -128, 127)`.
- *  In C, using the standard library: `*x = fminf(fmaxf(roundf(*x), -128), 127)`.
+/*  Convert floating-point numbers to integers with the project-wide narrowing policy:
+ *  finite values are clamped and rounded to nearest, ties to even, infinities saturate,
+ *  and NaNs map to zero.
  */
+NK_INTERNAL nk_i64_t nk_rint_even_f64_to_i64_serial_(nk_f64_t x) {
+    nk_i64_t integer = (nk_i64_t)x;
+    nk_f64_t fraction = x - (nk_f64_t)integer;
+    if (fraction > 0.5 || (fraction == 0.5 && (integer & 1))) ++integer;
+    else if (fraction < -0.5 || (fraction == -0.5 && (integer & 1))) --integer;
+    return integer;
+}
+
+NK_INTERNAL nk_u64_t nk_rint_even_f64_to_u64_serial_(nk_f64_t x) {
+    nk_u64_t integer = (nk_u64_t)x;
+    nk_f64_t fraction = x - (nk_f64_t)integer;
+    if (fraction > 0.5 || (fraction == 0.5 && (integer & 1))) ++integer;
+    return integer;
+}
+
 NK_INTERNAL void nk_f32_to_i8_serial(nk_f32_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127.0f ? 127 : (*x < -128.0f ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_i8_t)nk_rint_even_f64_to_i64_serial_(*x > 127.0f ? 127.0 : (*x < -128.0f ? -128.0 : (nk_f64_t)*x));
 }
 
 NK_INTERNAL void nk_f32_to_u8_serial(nk_f32_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255.0f ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_u8_t)nk_rint_even_f64_to_u64_serial_(*x > 255.0f ? 255.0 : (*x < 0 ? 0.0 : (nk_f64_t)*x));
 }
 
 NK_INTERNAL void nk_f32_to_i16_serial(nk_f32_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767.0f ? 32767 : (*x < -32768.0f ? -32768 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else
+        *y = (nk_i16_t)nk_rint_even_f64_to_i64_serial_(*x > 32767.0f ? 32767.0
+                                                                     : (*x < -32768.0f ? -32768.0 : (nk_f64_t)*x));
 }
 
 NK_INTERNAL void nk_f32_to_u16_serial(nk_f32_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535.0f ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_u16_t)nk_rint_even_f64_to_u64_serial_(*x > 65535.0f ? 65535.0 : (*x < 0 ? 0.0 : (nk_f64_t)*x));
 }
 
 NK_INTERNAL void nk_f64_to_i8_serial(nk_f64_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127.0 ? 127 : (*x < -128.0 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_i8_t)nk_rint_even_f64_to_i64_serial_(*x > 127.0 ? 127.0 : (*x < -128.0 ? -128.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_u8_serial(nk_f64_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255.0 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_u8_t)nk_rint_even_f64_to_u64_serial_(*x > 255.0 ? 255.0 : (*x < 0 ? 0.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_i16_serial(nk_f64_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767.0 ? 32767 : (*x < -32768.0 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_i16_t)nk_rint_even_f64_to_i64_serial_(*x > 32767.0 ? 32767.0 : (*x < -32768.0 ? -32768.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_u16_serial(nk_f64_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535.0 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_u16_t)nk_rint_even_f64_to_u64_serial_(*x > 65535.0 ? 65535.0 : (*x < 0 ? 0.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_i32_serial(nk_f64_t const *x, nk_i32_t *y) {
-    *y = (nk_i32_t)(*x > 2147483647.0 ? 2147483647
-                                      : (*x < -2147483648.0 ? (-2147483647 - 1) : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else
+        *y = (nk_i32_t)nk_rint_even_f64_to_i64_serial_(*x > 2147483647.0 ? 2147483647.0
+                                                                         : (*x < -2147483648.0 ? -2147483648.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_u32_serial(nk_f64_t const *x, nk_u32_t *y) {
-    *y = (nk_u32_t)(*x > 4294967295.0 ? 4294967295u : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else *y = (nk_u32_t)nk_rint_even_f64_to_u64_serial_(*x > 4294967295.0 ? 4294967295.0 : (*x < 0 ? 0.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_i64_serial(nk_f64_t const *x, nk_i64_t *y) {
-    *y = (nk_i64_t)(*x > 9223372036854775807.0
-                        ? 9223372036854775807ll
-                        : (*x < -9223372036854775808.0 ? (-9223372036854775807ll - 1ll)
-                                                       : (long long)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else
+        *y = nk_rint_even_f64_to_i64_serial_(*x > 9223372036854775807.0
+                                                 ? 9223372036854775807.0
+                                                 : (*x < -9223372036854775808.0 ? -9223372036854775808.0 : *x));
 }
 
 NK_INTERNAL void nk_f64_to_u64_serial(nk_f64_t const *x, nk_u64_t *y) {
-    *y = (nk_u64_t)(*x > 18446744073709551615.0 ? 18446744073709551615ull
-                                                : (*x < 0 ? 0 : (unsigned long long)(*x + (*x < 0 ? -0.5 : 0.5))));
+    if (*x != *x) *y = 0; // For IEEE floating-point, NaN is the one value that is not equal to itself
+    else
+        *y = nk_rint_even_f64_to_u64_serial_(*x > 18446744073709551615.0 ? 18446744073709551615.0
+                                                                         : (*x < 0 ? 0.0 : *x));
 }
 
 NK_INTERNAL void nk_i64_to_i8_serial(nk_i64_t const *x, nk_i8_t *y) {

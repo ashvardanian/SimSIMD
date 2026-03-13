@@ -24,8 +24,8 @@
  *      vmovl_s8                    SXTL (V.8H, V.8B)               2cy         2/cy        4/cy
  *      vcvtq_f16_u16               UCVTF (V.8H, V.8H)              3cy         2/cy        4/cy
  *      vcvtq_f16_s16               SCVTF (V.8H, V.8H)              3cy         2/cy        4/cy
- *      vcvtaq_u16_f16              FCVTAU (V.8H, V.8H)             3cy         2/cy        4/cy
- *      vcvtaq_s16_f16              FCVTAS (V.8H, V.8H)             3cy         2/cy        4/cy
+ *      vcvtnq_u16_f16              FCVTNU (V.8H, V.8H)             3cy         2/cy        4/cy
+ *      vcvtnq_s16_f16              FCVTNS (V.8H, V.8H)             3cy         2/cy        4/cy
  *      vqmovn_u16                  UQXTN (V.8B, V.8H)              3cy         2/cy        4/cy
  *      vqmovn_s16                  SQXTN (V.8B, V.8H)              3cy         2/cy        4/cy
  *      vqaddq_u8                   UQADD (V.16B, V.16B, V.16B)     2cy         2/cy        4/cy
@@ -191,7 +191,7 @@ NK_PUBLIC void nk_each_scale_u8_neonhalf(nk_u8_t const *a, nk_size_t n, nk_f32_t
         uint8x8_t a_u8x8 = vld1_u8(a + i);
         float16x8_t a_f16x8 = vcvtq_f16_u16(vmovl_u8(a_u8x8));
         float16x8_t result_f16x8 = vfmaq_f16(beta_f16x8, a_f16x8, alpha_f16x8);
-        uint8x8_t result_u8x8 = vqmovn_u16(vcvtaq_u16_f16(result_f16x8));
+        uint8x8_t result_u8x8 = vqmovn_u16(vcvtnq_u16_f16(result_f16x8));
         vst1_u8(result + i, result_u8x8);
     }
 
@@ -238,7 +238,7 @@ NK_PUBLIC void nk_each_blend_u8_neonhalf(            //
         float16x8_t b_f16x8 = vcvtq_f16_u16(vmovl_u8(b_u8x8));
         float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
         float16x8_t result_f16x8 = vfmaq_n_f16(a_scaled_f16x8, b_f16x8, beta_f16);
-        uint8x8_t result_u8x8 = vqmovn_u16(vcvtaq_u16_f16(result_f16x8));
+        uint8x8_t result_u8x8 = vqmovn_u16(vcvtnq_u16_f16(result_f16x8));
         vst1_u8(result + i, result_u8x8);
     }
 
@@ -267,7 +267,7 @@ NK_PUBLIC void nk_each_fma_u8_neonhalf(                   //
         float16x8_t ab_f16x8 = vmulq_f16(a_f16x8, b_f16x8);
         float16x8_t ab_scaled_f16x8 = vmulq_n_f16(ab_f16x8, alpha_f16);
         float16x8_t result_f16x8 = vfmaq_n_f16(ab_scaled_f16x8, c_f16x8, beta_f16);
-        uint8x8_t result_u8x8 = vqmovn_u16(vcvtaq_u16_f16(result_f16x8));
+        uint8x8_t result_u8x8 = vqmovn_u16(vcvtnq_u16_f16(result_f16x8));
         vst1_u8(result + i, result_u8x8);
     }
 
@@ -308,7 +308,7 @@ NK_PUBLIC void nk_each_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t
         int8x8_t a_i8x8 = vld1_s8(a + i);
         float16x8_t a_f16x8 = vcvtq_f16_s16(vmovl_s8(a_i8x8));
         float16x8_t result_f16x8 = vfmaq_f16(beta_f16x8, a_f16x8, alpha_f16x8);
-        int8x8_t result_i8x8 = vqmovn_s16(vcvtaq_s16_f16(result_f16x8));
+        int8x8_t result_i8x8 = vqmovn_s16(vcvtnq_s16_f16(result_f16x8));
         vst1_s8(result + i, result_i8x8);
     }
 
@@ -355,7 +355,7 @@ NK_PUBLIC void nk_each_blend_i8_neonhalf(            //
         float16x8_t b_f16x8 = vcvtq_f16_s16(vmovl_s8(b_i8x8));
         float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
         float16x8_t result_f16x8 = vfmaq_n_f16(a_scaled_f16x8, b_f16x8, beta_f16);
-        int8x8_t result_i8x8 = vqmovn_s16(vcvtaq_s16_f16(result_f16x8));
+        int8x8_t result_i8x8 = vqmovn_s16(vcvtnq_s16_f16(result_f16x8));
         vst1_s8(result + i, result_i8x8);
     }
 
@@ -384,7 +384,7 @@ NK_PUBLIC void nk_each_fma_i8_neonhalf(                   //
         float16x8_t ab_f16x8 = vmulq_f16(a_f16x8, b_f16x8);
         float16x8_t ab_scaled_f16x8 = vmulq_n_f16(ab_f16x8, alpha_f16);
         float16x8_t result_f16x8 = vfmaq_n_f16(ab_scaled_f16x8, c_f16x8, beta_f16);
-        int8x8_t result_i8x8 = vqmovn_s16(vcvtaq_s16_f16(result_f16x8));
+        int8x8_t result_i8x8 = vqmovn_s16(vcvtnq_s16_f16(result_f16x8));
         vst1_s8(result + i, result_i8x8);
     }
 

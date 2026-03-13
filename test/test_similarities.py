@@ -55,6 +55,13 @@ stats = create_stats()
 atexit.register(print_stats_report, stats)
 
 
+def round_and_clip_even(values, out_dtype):
+    dtype_info = np.iinfo(out_dtype)
+    finite_values = np.nan_to_num(values, nan=0.0, posinf=float(dtype_info.max), neginf=float(dtype_info.min))
+    clipped_values = np.clip(finite_values, dtype_info.min, dtype_info.max)
+    return np.rint(clipped_values).astype(out_dtype)
+
+
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", dense_dimensions)
@@ -204,7 +211,7 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
         expected = baseline
         result = nk.cdist(a_matrix, b_matrix, metric)
     else:
-        expected = np.round(baseline).astype(out_dtype) if is_integer_output else baseline.astype(out_dtype)
+        expected = round_and_clip_even(baseline, out_dtype) if is_integer_output else baseline.astype(out_dtype)
         result = nk.cdist(a_matrix, b_matrix, metric, out_dtype=out_dtype)
 
     atol = 1 if is_integer_output else NK_ATOL

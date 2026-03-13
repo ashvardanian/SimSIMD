@@ -589,8 +589,8 @@ NK_PUBLIC void nk_each_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
     __m512i result_i32x16;
-    __m512i min_i32x16 = _mm512_set1_epi32(-32768);
-    __m512i max_i32x16 = _mm512_set1_epi32(32767);
+    __m512 min_f32x16 = _mm512_set1_ps(-32768.0f);
+    __m512 max_f32x16 = _mm512_set1_ps(32767.0f);
 
 nk_each_scale_i16_skylake_cycle:
     if (n < 16) {
@@ -604,9 +604,9 @@ nk_each_scale_i16_skylake_cycle:
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(a_i16x16));
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+    result_f32x16 = _mm512_max_ps(result_f32x16, min_f32x16);
+    result_f32x16 = _mm512_min_ps(result_f32x16, max_f32x16);
     result_i32x16 = _mm512_cvtps_epi32(result_f32x16);
-    result_i32x16 = _mm512_max_epi32(result_i32x16, min_i32x16);
-    result_i32x16 = _mm512_min_epi32(result_i32x16, max_i32x16);
     result_i16x16 = _mm512_cvtepi32_epi16(result_i32x16);
     _mm256_mask_storeu_epi16(result, mask, result_i16x16);
     result += 16;
@@ -624,8 +624,8 @@ NK_PUBLIC void nk_each_fma_i16_skylake(                                   //
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
     __m512i result_i32x16;
-    __m512i min_i32x16 = _mm512_set1_epi32(-32768);
-    __m512i max_i32x16 = _mm512_set1_epi32(32767);
+    __m512 min_f32x16 = _mm512_set1_ps(-32768.0f);
+    __m512 max_f32x16 = _mm512_set1_ps(32767.0f);
 
 nk_each_fma_i16_skylake_cycle:
     if (n < 16) {
@@ -647,9 +647,9 @@ nk_each_fma_i16_skylake_cycle:
     ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
     ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+    result_f32x16 = _mm512_max_ps(result_f32x16, min_f32x16);
+    result_f32x16 = _mm512_min_ps(result_f32x16, max_f32x16);
     result_i32x16 = _mm512_cvtps_epi32(result_f32x16);
-    result_i32x16 = _mm512_max_epi32(result_i32x16, min_i32x16);
-    result_i32x16 = _mm512_min_epi32(result_i32x16, max_i32x16);
     result_i16x16 = _mm512_cvtepi32_epi16(result_i32x16);
     _mm256_mask_storeu_epi16(result, mask, result_i16x16);
     result += 16;
@@ -666,8 +666,8 @@ NK_PUBLIC void nk_each_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
     __m512i result_u32x16;
-    __m512i min_u32x16 = _mm512_set1_epi32(0);
-    __m512i max_u32x16 = _mm512_set1_epi32(65535);
+    __m512 min_f32x16 = _mm512_setzero_ps();
+    __m512 max_f32x16 = _mm512_set1_ps(65535.0f);
 
 nk_each_scale_u16_skylake_cycle:
     if (n < 16) {
@@ -681,9 +681,9 @@ nk_each_scale_u16_skylake_cycle:
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(a_u16x16));
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+    result_f32x16 = _mm512_max_ps(result_f32x16, min_f32x16);
+    result_f32x16 = _mm512_min_ps(result_f32x16, max_f32x16);
     result_u32x16 = _mm512_cvtps_epu32(result_f32x16);
-    result_u32x16 = _mm512_max_epu32(result_u32x16, min_u32x16);
-    result_u32x16 = _mm512_min_epu32(result_u32x16, max_u32x16);
     result_u16x16 = _mm512_cvtepi32_epi16(result_u32x16);
     _mm256_mask_storeu_epi16(result, mask, result_u16x16);
     result += 16;
@@ -701,8 +701,8 @@ NK_PUBLIC void nk_each_fma_u16_skylake(                                   //
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
     __m512i result_u32x16;
-    __m512i min_u32x16 = _mm512_set1_epi32(0);
-    __m512i max_u32x16 = _mm512_set1_epi32(65535);
+    __m512 min_f32x16 = _mm512_setzero_ps();
+    __m512 max_f32x16 = _mm512_set1_ps(65535.0f);
 
 nk_each_fma_u16_skylake_cycle:
     if (n < 16) {
@@ -724,9 +724,9 @@ nk_each_fma_u16_skylake_cycle:
     ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
     ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+    result_f32x16 = _mm512_max_ps(result_f32x16, min_f32x16);
+    result_f32x16 = _mm512_min_ps(result_f32x16, max_f32x16);
     result_u32x16 = _mm512_cvtps_epu32(result_f32x16);
-    result_u32x16 = _mm512_max_epu32(result_u32x16, min_u32x16);
-    result_u32x16 = _mm512_min_epu32(result_u32x16, max_u32x16);
     result_u16x16 = _mm512_cvtepi32_epi16(result_u32x16);
     _mm256_mask_storeu_epi16(result, mask, result_u16x16);
     result += 16;
@@ -759,7 +759,7 @@ nk_each_scale_i32_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(a_f64x8, alpha_f64x8, beta_f64x8);
     result_f64x8 = _mm512_max_pd(result_f64x8, min_f64x8);
     result_f64x8 = _mm512_min_pd(result_f64x8, max_f64x8);
-    result_i32x8 = _mm512_cvttpd_epi32(result_f64x8);
+    result_i32x8 = _mm512_cvtpd_epi32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_i32x8);
     result += 8;
     if (n) goto nk_each_scale_i32_skylake_cycle;
@@ -800,7 +800,7 @@ nk_each_fma_i32_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(c_f64x8, beta_f64x8, ab_scaled_f64x8);
     result_f64x8 = _mm512_max_pd(result_f64x8, min_f64x8);
     result_f64x8 = _mm512_min_pd(result_f64x8, max_f64x8);
-    result_i32x8 = _mm512_cvttpd_epi32(result_f64x8);
+    result_i32x8 = _mm512_cvtpd_epi32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_i32x8);
     result += 8;
     if (n) goto nk_each_fma_i32_skylake_cycle;
@@ -832,7 +832,7 @@ nk_each_scale_u32_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(a_f64x8, alpha_f64x8, beta_f64x8);
     result_f64x8 = _mm512_max_pd(result_f64x8, min_f64x8);
     result_f64x8 = _mm512_min_pd(result_f64x8, max_f64x8);
-    result_u32x8 = _mm512_cvttpd_epu32(result_f64x8);
+    result_u32x8 = _mm512_cvtpd_epu32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_u32x8);
     result += 8;
     if (n) goto nk_each_scale_u32_skylake_cycle;
@@ -873,7 +873,7 @@ nk_each_fma_u32_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(c_f64x8, beta_f64x8, ab_scaled_f64x8);
     result_f64x8 = _mm512_max_pd(result_f64x8, min_f64x8);
     result_f64x8 = _mm512_min_pd(result_f64x8, max_f64x8);
-    result_u32x8 = _mm512_cvttpd_epu32(result_f64x8);
+    result_u32x8 = _mm512_cvtpd_epu32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_u32x8);
     result += 8;
     if (n) goto nk_each_fma_u32_skylake_cycle;

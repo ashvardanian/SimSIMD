@@ -640,19 +640,19 @@ NK_INTERNAL float32x4_t nk_u8x4_to_f32x4_neon_(nk_b32_vec_t in_vec) {
 
 /** @brief Convert f32x4 → 4x i16 with saturation (NEON). Convert to i32, narrow. */
 NK_INTERNAL int16x4_t nk_f32x4_to_i16x4_neon_(float32x4_t f32x4) {
-    int32x4_t i32x4 = vcvtq_s32_f32(f32x4);
+    int32x4_t i32x4 = vcvtnq_s32_f32(f32x4);
     return vqmovn_s32(i32x4);
 }
 
 /** @brief Convert f32x4 → 4x u16 with saturation (NEON). Convert to u32, narrow. */
 NK_INTERNAL uint16x4_t nk_f32x4_to_u16x4_neon_(float32x4_t f32x4) {
-    uint32x4_t u32x4 = vcvtq_u32_f32(f32x4);
+    uint32x4_t u32x4 = vcvtnq_u32_f32(f32x4);
     return vqmovn_u32(u32x4);
 }
 
 /** @brief Convert f32x4 → 4x i8 with saturation (NEON). Convert to i32, narrow twice. */
 NK_INTERNAL void nk_f32x4_to_i8x4_neon_(float32x4_t f32x4, nk_i8_t *dst) {
-    int32x4_t i32x4 = vcvtq_s32_f32(f32x4);
+    int32x4_t i32x4 = vcvtnq_s32_f32(f32x4);
     int16x4_t i16x4 = vqmovn_s32(i32x4);
     int8x8_t i8x8 = vqmovn_s16(vcombine_s16(i16x4, i16x4));
     // Reinterpret as s32x2, store lane 0 (4 bytes in one instruction)
@@ -661,7 +661,7 @@ NK_INTERNAL void nk_f32x4_to_i8x4_neon_(float32x4_t f32x4, nk_i8_t *dst) {
 
 /** @brief Convert f32x4 → 4x u8 with saturation (NEON). Convert to u32, narrow twice. */
 NK_INTERNAL void nk_f32x4_to_u8x4_neon_(float32x4_t f32x4, nk_u8_t *dst) {
-    uint32x4_t u32x4 = vcvtq_u32_f32(f32x4);
+    uint32x4_t u32x4 = vcvtnq_u32_f32(f32x4);
     uint16x4_t u16x4 = vqmovn_u32(u32x4);
     uint8x8_t u8x8 = vqmovn_u16(vcombine_u16(u16x4, u16x4));
     // Reinterpret as u32x2, store lane 0 (4 bytes in one instruction)
@@ -1134,8 +1134,8 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
             nk_b32_vec_t out_vec = nk_f32x4_to_e3m2x4_neon_(hub_f32x4);
             nk_copy_bytes_(to_ptr, &out_vec, sizeof(nk_b32_vec_t));
         } break;
-        case nk_i32_k: vst1q_s32((nk_i32_t *)to_ptr, vcvtq_s32_f32(hub_f32x4)); break;
-        case nk_u32_k: vst1q_u32((nk_u32_t *)to_ptr, vcvtq_u32_f32(hub_f32x4)); break;
+        case nk_i32_k: vst1q_s32((nk_i32_t *)to_ptr, vcvtnq_s32_f32(hub_f32x4)); break;
+        case nk_u32_k: vst1q_u32((nk_u32_t *)to_ptr, vcvtnq_u32_f32(hub_f32x4)); break;
         case nk_i16_k: vst1_s16((nk_i16_t *)to_ptr, nk_f32x4_to_i16x4_neon_(hub_f32x4)); break;
         case nk_u16_k: vst1_u16((nk_u16_t *)to_ptr, nk_f32x4_to_u16x4_neon_(hub_f32x4)); break;
         case nk_i8_k: nk_f32x4_to_i8x4_neon_(hub_f32x4, (nk_i8_t *)to_ptr); break;

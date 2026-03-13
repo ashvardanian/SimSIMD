@@ -20,7 +20,7 @@
  *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
  *      vqaddq_s16        SQADD (V.8H, V.8H, V.8H)      2cy         2/cy    4/cy
  *      vcvtq_f32_s32     SCVTF (V.4S, V.4S)            3cy         2/cy    2/cy
- *      vcvtaq_s32_f32    FCVTAS (V.4S, V.4S)           3cy         2/cy    2/cy
+ *      vcvtnq_s32_f32    FCVTNS (V.4S, V.4S)           3cy         2/cy    2/cy
  *      vqmovn_s32        SQXTN (V.4H, V.4S)            3cy         2/cy    2/cy
  *
  *  Elementwise operations are throughput-bound rather than latency-bound. FP arithmetic
@@ -161,6 +161,8 @@ NK_PUBLIC void nk_each_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t c
     float32_t beta_f32 = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_f32);
     float32x4_t beta_f32x4 = vdupq_n_f32(beta_f32);
+    float32x4_t min_f32x4 = vdupq_n_f32(-32768.0f);
+    float32x4_t max_f32x4 = vdupq_n_f32(32767.0f);
 
     // The main loop:
     nk_size_t i = 0;
@@ -168,7 +170,8 @@ NK_PUBLIC void nk_each_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t c
         int16x4_t a_i16x4 = vld1_s16(a + i);
         float32x4_t a_f32x4 = vcvtq_f32_s32(vmovl_s16(a_i16x4));
         float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
-        int16x4_t result_i16x4 = vqmovn_s32(vcvtaq_s32_f32(result_f32x4));
+        result_f32x4 = vmaxq_f32(vminq_f32(result_f32x4, max_f32x4), min_f32x4);
+        int16x4_t result_i16x4 = vqmovn_s32(vcvtnq_s32_f32(result_f32x4));
         vst1_s16(result + i, result_i16x4);
     }
 
@@ -184,6 +187,8 @@ NK_PUBLIC void nk_each_fma_i16_neon(                         //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result) {
     float32_t alpha_f32 = *alpha;
     float32_t beta_f32 = *beta;
+    float32x4_t min_f32x4 = vdupq_n_f32(-32768.0f);
+    float32x4_t max_f32x4 = vdupq_n_f32(32767.0f);
 
     // The main loop:
     nk_size_t i = 0;
@@ -197,7 +202,8 @@ NK_PUBLIC void nk_each_fma_i16_neon(                         //
         float32x4_t ab_f32x4 = vmulq_f32(a_f32x4, b_f32x4);
         float32x4_t ab_scaled_f32x4 = vmulq_n_f32(ab_f32x4, alpha_f32);
         float32x4_t result_f32x4 = vfmaq_n_f32(ab_scaled_f32x4, c_f32x4, beta_f32);
-        int16x4_t result_i16x4 = vqmovn_s32(vcvtaq_s32_f32(result_f32x4));
+        result_f32x4 = vmaxq_f32(vminq_f32(result_f32x4, max_f32x4), min_f32x4);
+        int16x4_t result_i16x4 = vqmovn_s32(vcvtnq_s32_f32(result_f32x4));
         vst1_s16(result + i, result_i16x4);
     }
 
@@ -228,6 +234,8 @@ NK_PUBLIC void nk_each_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t c
     float32_t beta_f32 = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_f32);
     float32x4_t beta_f32x4 = vdupq_n_f32(beta_f32);
+    float32x4_t min_f32x4 = vdupq_n_f32(0.0f);
+    float32x4_t max_f32x4 = vdupq_n_f32(65535.0f);
 
     // The main loop:
     nk_size_t i = 0;
@@ -235,7 +243,8 @@ NK_PUBLIC void nk_each_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t c
         uint16x4_t a_u16x4 = vld1_u16(a + i);
         float32x4_t a_f32x4 = vcvtq_f32_u32(vmovl_u16(a_u16x4));
         float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
-        uint16x4_t result_u16x4 = vqmovn_u32(vcvtaq_u32_f32(result_f32x4));
+        result_f32x4 = vmaxq_f32(vminq_f32(result_f32x4, max_f32x4), min_f32x4);
+        uint16x4_t result_u16x4 = vqmovn_u32(vcvtnq_u32_f32(result_f32x4));
         vst1_u16(result + i, result_u16x4);
     }
 
@@ -251,6 +260,8 @@ NK_PUBLIC void nk_each_fma_u16_neon(                         //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result) {
     float32_t alpha_f32 = *alpha;
     float32_t beta_f32 = *beta;
+    float32x4_t min_f32x4 = vdupq_n_f32(0.0f);
+    float32x4_t max_f32x4 = vdupq_n_f32(65535.0f);
 
     // The main loop:
     nk_size_t i = 0;
@@ -264,7 +275,8 @@ NK_PUBLIC void nk_each_fma_u16_neon(                         //
         float32x4_t ab_f32x4 = vmulq_f32(a_f32x4, b_f32x4);
         float32x4_t ab_scaled_f32x4 = vmulq_n_f32(ab_f32x4, alpha_f32);
         float32x4_t result_f32x4 = vfmaq_n_f32(ab_scaled_f32x4, c_f32x4, beta_f32);
-        uint16x4_t result_u16x4 = vqmovn_u32(vcvtaq_u32_f32(result_f32x4));
+        result_f32x4 = vmaxq_f32(vminq_f32(result_f32x4, max_f32x4), min_f32x4);
+        uint16x4_t result_u16x4 = vqmovn_u32(vcvtnq_u32_f32(result_f32x4));
         vst1_u16(result + i, result_u16x4);
     }
 
@@ -295,6 +307,8 @@ NK_PUBLIC void nk_each_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t c
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
     float64x2_t beta_f64x2 = vdupq_n_f64(beta_val);
+    float64x2_t min_f64x2 = vdupq_n_f64(-2147483648.0);
+    float64x2_t max_f64x2 = vdupq_n_f64(2147483647.0);
 
     // The main loop:
     nk_size_t i = 0;
@@ -302,7 +316,8 @@ NK_PUBLIC void nk_each_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t c
         int32x2_t a_i32x2 = vld1_s32(a + i);
         float64x2_t a_f64x2 = vcvtq_f64_s64(vmovl_s32(a_i32x2));
         float64x2_t result_f64x2 = vfmaq_f64(beta_f64x2, a_f64x2, alpha_f64x2);
-        int32x2_t result_i32x2 = vqmovn_s64(vcvtaq_s64_f64(result_f64x2));
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        int32x2_t result_i32x2 = vqmovn_s64(vcvtnq_s64_f64(result_f64x2));
         vst1_s32(result + i, result_i32x2);
     }
 
@@ -318,6 +333,8 @@ NK_PUBLIC void nk_each_fma_i32_neon(                         //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
+    float64x2_t min_f64x2 = vdupq_n_f64(-2147483648.0);
+    float64x2_t max_f64x2 = vdupq_n_f64(2147483647.0);
 
     // The main loop:
     nk_size_t i = 0;
@@ -331,7 +348,8 @@ NK_PUBLIC void nk_each_fma_i32_neon(                         //
         float64x2_t ab_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
         float64x2_t ab_scaled_f64x2 = vmulq_n_f64(ab_f64x2, alpha_val);
         float64x2_t result_f64x2 = vfmaq_n_f64(ab_scaled_f64x2, c_f64x2, beta_val);
-        int32x2_t result_i32x2 = vqmovn_s64(vcvtaq_s64_f64(result_f64x2));
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        int32x2_t result_i32x2 = vqmovn_s64(vcvtnq_s64_f64(result_f64x2));
         vst1_s32(result + i, result_i32x2);
     }
 
@@ -362,6 +380,8 @@ NK_PUBLIC void nk_each_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t c
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
     float64x2_t beta_f64x2 = vdupq_n_f64(beta_val);
+    float64x2_t min_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t max_f64x2 = vdupq_n_f64(4294967295.0);
 
     // The main loop:
     nk_size_t i = 0;
@@ -369,7 +389,8 @@ NK_PUBLIC void nk_each_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t c
         uint32x2_t a_u32x2 = vld1_u32(a + i);
         float64x2_t a_f64x2 = vcvtq_f64_u64(vmovl_u32(a_u32x2));
         float64x2_t result_f64x2 = vfmaq_f64(beta_f64x2, a_f64x2, alpha_f64x2);
-        uint32x2_t result_u32x2 = vqmovn_u64(vcvtaq_u64_f64(result_f64x2));
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        uint32x2_t result_u32x2 = vqmovn_u64(vcvtnq_u64_f64(result_f64x2));
         vst1_u32(result + i, result_u32x2);
     }
 
@@ -385,6 +406,8 @@ NK_PUBLIC void nk_each_fma_u32_neon(                         //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
+    float64x2_t min_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t max_f64x2 = vdupq_n_f64(4294967295.0);
 
     // The main loop:
     nk_size_t i = 0;
@@ -398,7 +421,8 @@ NK_PUBLIC void nk_each_fma_u32_neon(                         //
         float64x2_t ab_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
         float64x2_t ab_scaled_f64x2 = vmulq_n_f64(ab_f64x2, alpha_val);
         float64x2_t result_f64x2 = vfmaq_n_f64(ab_scaled_f64x2, c_f64x2, beta_val);
-        uint32x2_t result_u32x2 = vqmovn_u64(vcvtaq_u64_f64(result_f64x2));
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        uint32x2_t result_u32x2 = vqmovn_u64(vcvtnq_u64_f64(result_f64x2));
         vst1_u32(result + i, result_u32x2);
     }
 
@@ -429,6 +453,8 @@ NK_PUBLIC void nk_each_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t c
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
     float64x2_t beta_f64x2 = vdupq_n_f64(beta_val);
+    float64x2_t min_f64x2 = vdupq_n_f64((nk_f64_t)NK_I64_MIN);
+    float64x2_t max_f64x2 = vdupq_n_f64((nk_f64_t)NK_I64_MAX);
 
     // The main loop:
     nk_size_t i = 0;
@@ -436,7 +462,8 @@ NK_PUBLIC void nk_each_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t c
         int64x2_t a_i64x2 = vld1q_s64(a + i);
         float64x2_t a_f64x2 = vcvtq_f64_s64(a_i64x2);
         float64x2_t result_f64x2 = vfmaq_f64(beta_f64x2, a_f64x2, alpha_f64x2);
-        int64x2_t result_i64x2 = vcvtaq_s64_f64(result_f64x2);
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        int64x2_t result_i64x2 = vcvtnq_s64_f64(result_f64x2);
         vst1q_s64(result + i, result_i64x2);
     }
 
@@ -452,6 +479,8 @@ NK_PUBLIC void nk_each_fma_i64_neon(                         //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
+    float64x2_t min_f64x2 = vdupq_n_f64((nk_f64_t)NK_I64_MIN);
+    float64x2_t max_f64x2 = vdupq_n_f64((nk_f64_t)NK_I64_MAX);
 
     // The main loop:
     nk_size_t i = 0;
@@ -465,7 +494,8 @@ NK_PUBLIC void nk_each_fma_i64_neon(                         //
         float64x2_t ab_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
         float64x2_t ab_scaled_f64x2 = vmulq_n_f64(ab_f64x2, alpha_val);
         float64x2_t result_f64x2 = vfmaq_n_f64(ab_scaled_f64x2, c_f64x2, beta_val);
-        int64x2_t result_i64x2 = vcvtaq_s64_f64(result_f64x2);
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        int64x2_t result_i64x2 = vcvtnq_s64_f64(result_f64x2);
         vst1q_s64(result + i, result_i64x2);
     }
 
@@ -496,6 +526,8 @@ NK_PUBLIC void nk_each_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t c
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
     float64x2_t beta_f64x2 = vdupq_n_f64(beta_val);
+    float64x2_t min_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t max_f64x2 = vdupq_n_f64((nk_f64_t)NK_U64_MAX);
 
     // The main loop:
     nk_size_t i = 0;
@@ -503,7 +535,8 @@ NK_PUBLIC void nk_each_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t c
         uint64x2_t a_u64x2 = vld1q_u64(a + i);
         float64x2_t a_f64x2 = vcvtq_f64_u64(a_u64x2);
         float64x2_t result_f64x2 = vfmaq_f64(beta_f64x2, a_f64x2, alpha_f64x2);
-        uint64x2_t result_u64x2 = vcvtaq_u64_f64(result_f64x2);
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        uint64x2_t result_u64x2 = vcvtnq_u64_f64(result_f64x2);
         vst1q_u64(result + i, result_u64x2);
     }
 
@@ -519,6 +552,8 @@ NK_PUBLIC void nk_each_fma_u64_neon(                         //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
+    float64x2_t min_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t max_f64x2 = vdupq_n_f64((nk_f64_t)NK_U64_MAX);
 
     // The main loop:
     nk_size_t i = 0;
@@ -532,7 +567,8 @@ NK_PUBLIC void nk_each_fma_u64_neon(                         //
         float64x2_t ab_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
         float64x2_t ab_scaled_f64x2 = vmulq_n_f64(ab_f64x2, alpha_val);
         float64x2_t result_f64x2 = vfmaq_n_f64(ab_scaled_f64x2, c_f64x2, beta_val);
-        uint64x2_t result_u64x2 = vcvtaq_u64_f64(result_f64x2);
+        result_f64x2 = vmaxq_f64(vminq_f64(result_f64x2, max_f64x2), min_f64x2);
+        uint64x2_t result_u64x2 = vcvtnq_u64_f64(result_f64x2);
         vst1q_u64(result + i, result_u64x2);
     }
 

@@ -45,7 +45,7 @@
  *  Integer sum is elementwise a[i]+b[i] clamped to the type's range. Serial widens to
  *  i64 then clamps on store. NEON uses hardware saturating adds (SQADD/UQADD).
  *  f16/bf16/FP8 sum: promoted to f32, added, truncated back — double rounding possible.
- *  Scale/blend/fma: float alpha/beta arithmetic, result rounded to nearest then clamped.
+ *  Scale/blend/fma: float alpha/beta arithmetic, result rounded to nearest, ties to even, then clamped.
  *  f32/f64 operations are native precision with no widening.
  *
  *  @section x86_instructions Relevant x86 Instructions
@@ -74,7 +74,7 @@
  *      vqaddq_s16              SQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
  *      vqaddq_u16              UQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
  *      vcvtq_f32_s32           SCVTF (vec)     3c @ V0123      3c @ V01        3c @ V01
- *      vcvtaq_s32_f32          FCVTAS (vec)    3c @ V0123      3c @ V01        3c @ V01
+ *      vcvtnq_s32_f32          FCVTNS (vec)    3c @ V0123      3c @ V01        3c @ V01
  *
  *  @section references References
  *

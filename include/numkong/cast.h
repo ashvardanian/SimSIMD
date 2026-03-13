@@ -19,7 +19,10 @@
  *  IO between memory and registers, that are extensively reused in reductions, elementwise ops, and
  *  dot-products.
  *
- *  Assuming the overal breadth and sparsity of our type system, its clear, that not all type conversions
+ *  Float-format narrowing uses round-to-nearest, ties-to-even. Float-to-integer narrowing follows
+ *  the same tie rule, saturates infinities, and maps NaNs to zero.
+ *
+ *  Assuming the overall breadth and sparsity of our type system, its clear, that not all type conversions
  *  have equivalent relevance. With ~16 numeric types we'd be looking at 21x21=441 conversions for:
  *
  *              e4m3    e5m2    bf16    f16     f32     f64

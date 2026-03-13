@@ -57,13 +57,10 @@ atexit.register(print_stats_report, stats)
 def normalize_elementwise(r, dtype_new):
     """Clips higher-resolution results to the smaller target dtype without overflow."""
     if np.issubdtype(dtype_new, np.integer):
-        r = np.round(r)
-        dtype_old_info = np.iinfo(r.dtype) if np.issubdtype(r.dtype, np.integer) else np.finfo(r.dtype)
         dtype_new_info = np.iinfo(dtype_new)
-        new_min = dtype_new_info.min if dtype_new_info.min > dtype_old_info.min else None
-        new_max = dtype_new_info.max if dtype_new_info.max < dtype_old_info.max else None
-        if new_min is not None or new_max is not None:
-            r = np.clip(r, new_min, new_max, out=r)
+        r = np.nan_to_num(r, nan=0.0, posinf=dtype_new_info.max, neginf=dtype_new_info.min)
+        r = np.clip(r, dtype_new_info.min, dtype_new_info.max, out=r)
+        r = np.rint(r)
     return r.astype(dtype_new)
 
 

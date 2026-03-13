@@ -84,8 +84,6 @@
  *  https://github.com/pytorch/pytorch/issues/54138
  *  https://github.com/pybind/pybind11/issues/1908
  */
-#include <math.h>
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <structmember.h>
@@ -173,14 +171,14 @@ void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, double value, nk_dtype_t 
         buf->f32c.real = (nk_f32_t)value;
         buf->f32c.imag = 0;
         break;
-    case nk_i64_k: buf->i64 = (nk_i64_t)value; break;
-    case nk_u64_k: buf->u64 = (nk_u64_t)value; break;
-    case nk_i32_k: buf->i32 = (nk_i32_t)value; break;
-    case nk_u32_k: buf->u32 = (nk_u32_t)value; break;
-    case nk_i16_k: buf->i16 = (nk_i16_t)value; break;
-    case nk_u16_k: buf->u16 = (nk_u16_t)value; break;
-    case nk_i8_k: buf->i8 = (nk_i8_t)value; break;
-    case nk_u8_k: buf->u8 = (nk_u8_t)value; break;
+    case nk_i64_k: nk_f64_to_i64_serial(&value, &buf->i64); break;
+    case nk_u64_k: nk_f64_to_u64_serial(&value, &buf->u64); break;
+    case nk_i32_k: nk_f64_to_i32_serial(&value, &buf->i32); break;
+    case nk_u32_k: nk_f64_to_u32_serial(&value, &buf->u32); break;
+    case nk_i16_k: nk_f64_to_i16_serial(&value, &buf->i16); break;
+    case nk_u16_k: nk_f64_to_u16_serial(&value, &buf->u16); break;
+    case nk_i8_k: nk_f64_to_i8_serial(&value, &buf->i8); break;
+    case nk_u8_k: nk_f64_to_u8_serial(&value, &buf->u8); break;
     case nk_e4m3_k: {
         nk_f32_t f32_tmp = (nk_f32_t)value;
         nk_f32_to_e4m3(&f32_tmp, &buf->u8);
@@ -425,14 +423,14 @@ int cast_distance(nk_f64_t distance, nk_dtype_t target_dtype, void *target_ptr, 
         f32_val = (nk_f32_t)distance;
         nk_f32_to_e3m2(&f32_val, (nk_e3m2_t *)target_ptr + offset);
         return 1;
-    case nk_i8_k: ((nk_i8_t *)target_ptr)[offset] = (nk_i8_t)lround(distance); return 1;
-    case nk_u8_k: ((nk_u8_t *)target_ptr)[offset] = (nk_u8_t)lround(distance); return 1;
-    case nk_i16_k: ((nk_i16_t *)target_ptr)[offset] = (nk_i16_t)lround(distance); return 1;
-    case nk_u16_k: ((nk_u16_t *)target_ptr)[offset] = (nk_u16_t)lround(distance); return 1;
-    case nk_i32_k: ((nk_i32_t *)target_ptr)[offset] = (nk_i32_t)lround(distance); return 1;
-    case nk_u32_k: ((nk_u32_t *)target_ptr)[offset] = (nk_u32_t)lround(distance); return 1;
-    case nk_i64_k: ((nk_i64_t *)target_ptr)[offset] = (nk_i64_t)llround(distance); return 1;
-    case nk_u64_k: ((nk_u64_t *)target_ptr)[offset] = (nk_u64_t)llround(distance); return 1;
+    case nk_i8_k: nk_f64_to_i8_serial(&distance, (nk_i8_t *)target_ptr + offset); return 1;
+    case nk_u8_k: nk_f64_to_u8_serial(&distance, (nk_u8_t *)target_ptr + offset); return 1;
+    case nk_i16_k: nk_f64_to_i16_serial(&distance, (nk_i16_t *)target_ptr + offset); return 1;
+    case nk_u16_k: nk_f64_to_u16_serial(&distance, (nk_u16_t *)target_ptr + offset); return 1;
+    case nk_i32_k: nk_f64_to_i32_serial(&distance, (nk_i32_t *)target_ptr + offset); return 1;
+    case nk_u32_k: nk_f64_to_u32_serial(&distance, (nk_u32_t *)target_ptr + offset); return 1;
+    case nk_i64_k: nk_f64_to_i64_serial(&distance, (nk_i64_t *)target_ptr + offset); return 1;
+    case nk_u64_k: nk_f64_to_u64_serial(&distance, (nk_u64_t *)target_ptr + offset); return 1;
     default: return 0;
     }
 }
