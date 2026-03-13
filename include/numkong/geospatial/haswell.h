@@ -101,14 +101,14 @@ NK_PUBLIC void nk_haversine_f64_haswell(            //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
-        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
-        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
-        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
+        nk_partial_load_b64x4_haswell_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_haswell_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_haswell_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_haswell_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_haversine_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                         b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_serial_(&result_vec, results, n);
+        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
     }
 }
 
@@ -371,14 +371,14 @@ NK_PUBLIC void nk_vincenty_f64_haswell(             //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
-        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
-        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
-        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
+        nk_partial_load_b64x4_haswell_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_haswell_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_haswell_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_haswell_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_vincenty_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                        b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_serial_(&result_vec, results, n);
+        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
     }
 }
 

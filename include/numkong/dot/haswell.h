@@ -226,8 +226,8 @@ NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a_scalars, nk_f64_t const *b_s
 nk_dot_f64_haswell_cycle:
     if (count_scalars < 4) {
         nk_b256_vec_t a_tail, b_tail;
-        nk_partial_load_b64x4_serial_(a_scalars, &a_tail, count_scalars);
-        nk_partial_load_b64x4_serial_(b_scalars, &b_tail, count_scalars);
+        nk_partial_load_b64x4_haswell_(a_scalars, &a_tail, count_scalars);
+        nk_partial_load_b64x4_haswell_(b_scalars, &b_tail, count_scalars);
         a_f64x4 = a_tail.ymm_pd;
         b_f64x4 = b_tail.ymm_pd;
         count_scalars = 0;
@@ -269,8 +269,8 @@ NK_PUBLIC void nk_dot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
 nk_dot_f64c_haswell_cycle:
     if (count_pairs < 2) {
         nk_b256_vec_t a_tail, b_tail;
-        nk_partial_load_b64x4_serial_(a_pairs, &a_tail, count_pairs * 2);
-        nk_partial_load_b64x4_serial_(b_pairs, &b_tail, count_pairs * 2);
+        nk_partial_load_b64x4_haswell_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x4_haswell_(b_pairs, &b_tail, count_pairs * 2);
         a_f64x4 = a_tail.ymm_pd;
         b_f64x4 = b_tail.ymm_pd;
         count_pairs = 0;
@@ -332,8 +332,8 @@ NK_PUBLIC void nk_vdot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b
 nk_vdot_f64c_haswell_cycle:
     if (count_pairs < 2) {
         nk_b256_vec_t a_tail, b_tail;
-        nk_partial_load_b64x4_serial_(a_pairs, &a_tail, count_pairs * 2);
-        nk_partial_load_b64x4_serial_(b_pairs, &b_tail, count_pairs * 2);
+        nk_partial_load_b64x4_haswell_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x4_haswell_(b_pairs, &b_tail, count_pairs * 2);
         a_f64x4 = a_tail.ymm_pd;
         b_f64x4 = b_tail.ymm_pd;
         count_pairs = 0;

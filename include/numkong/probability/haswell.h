@@ -15,7 +15,7 @@
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`, `nk_reduce_add_f64x4_haswell_`
 #include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`, `nk_f64_sqrt_haswell`
-#include "numkong/cast/serial.h"     // `nk_partial_load_f16x8_to_f32x8_haswell_`, `nk_partial_load_b64x4_serial_`
+#include "numkong/cast/haswell.h"    // `nk_partial_load_f16x8_to_f32x8_haswell_`, `nk_partial_load_b64x4_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -179,8 +179,8 @@ NK_PUBLIC void nk_kld_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 nk_kld_f64_haswell_cycle:
     if (n < 4) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_b64x4_serial_(a, &a_vec, n);
-        nk_partial_load_b64x4_serial_(b, &b_vec, n);
+        nk_partial_load_b64x4_haswell_(a, &a_vec, n);
+        nk_partial_load_b64x4_haswell_(b, &b_vec, n);
         a_f64x4 = a_vec.ymm_pd;
         b_f64x4 = b_vec.ymm_pd;
         n = 0;
@@ -214,8 +214,8 @@ NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 nk_jsd_f64_haswell_cycle:
     if (n < 4) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_b64x4_serial_(a, &a_vec, n);
-        nk_partial_load_b64x4_serial_(b, &b_vec, n);
+        nk_partial_load_b64x4_haswell_(a, &a_vec, n);
+        nk_partial_load_b64x4_haswell_(b, &b_vec, n);
         a_f64x4 = a_vec.ymm_pd;
         b_f64x4 = b_vec.ymm_pd;
         n = 0;

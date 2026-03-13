@@ -67,6 +67,38 @@ NK_INTERNAL void nk_store_b128_haswell_(nk_b128_vec_t const *src, void *dst) {
     _mm_storeu_si128((__m128i *)dst, src->xmm);
 }
 
+/** @brief Type-agnostic 128-bit partial load with AVX maskload. */
+NK_INTERNAL void nk_partial_load_b32x4_haswell_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    __m128i idx_i32x4 = _mm_setr_epi32(0, 1, 2, 3);
+    __m128i limit_i32x4 = _mm_set1_epi32((int)n);
+    __m128i mask_i32x4 = _mm_cmpgt_epi32(limit_i32x4, idx_i32x4);
+    dst->xmm = _mm_castps_si128(_mm_maskload_ps((float const *)src, mask_i32x4));
+}
+
+/** @brief Type-agnostic 128-bit partial store with AVX maskstore. */
+NK_INTERNAL void nk_partial_store_b32x4_haswell_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    __m128i idx_i32x4 = _mm_setr_epi32(0, 1, 2, 3);
+    __m128i limit_i32x4 = _mm_set1_epi32((int)n);
+    __m128i mask_i32x4 = _mm_cmpgt_epi32(limit_i32x4, idx_i32x4);
+    _mm_maskstore_ps((float *)dst, mask_i32x4, _mm_castsi128_ps(src->xmm));
+}
+
+/** @brief Type-agnostic 256-bit partial load with AVX2 maskload. */
+NK_INTERNAL void nk_partial_load_b64x4_haswell_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    __m256i idx_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i limit_i64x4 = _mm256_set1_epi64x((long long)n);
+    __m256i mask_i64x4 = _mm256_cmpgt_epi64(limit_i64x4, idx_i64x4);
+    dst->ymm = _mm256_castpd_si256(_mm256_maskload_pd((double const *)src, mask_i64x4));
+}
+
+/** @brief Type-agnostic 256-bit partial store with AVX2 maskstore. */
+NK_INTERNAL void nk_partial_store_b64x4_haswell_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    __m256i idx_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i limit_i64x4 = _mm256_set1_epi64x((long long)n);
+    __m256i mask_i64x4 = _mm256_cmpgt_epi64(limit_i64x4, idx_i64x4);
+    _mm256_maskstore_pd((double *)dst, mask_i64x4, _mm256_castsi256_pd(src->ymm));
+}
+
 #pragma endregion - Type Punned Loads and Stores
 
 #pragma region - Vectorized Conversions
