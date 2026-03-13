@@ -44,6 +44,7 @@ template <typename weight_type_>
 error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel) {
     using weight_t = weight_type_;
     using index_t = typename weight_t::sparse_dot_index_t;
+    using reference_t = reference_for<weight_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -61,8 +62,8 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
         kernel(a_idx.raw_values_data(), b_idx.raw_values_data(), a_weights.raw_values_data(),
                b_weights.raw_values_data(), dim, dim, &result.raw_);
 
-        f118_t ref;
-        nk::sparse_dot<index_t, weight_t, f118_t, nk::no_simd_k>(
+        reference_t ref;
+        nk::sparse_dot<index_t, weight_t, reference_t, nk::no_simd_k>(
             a_idx.values_data(), b_idx.values_data(), a_weights.values_data(), b_weights.values_data(), dim, dim, &ref);
         stats.accumulate(result, ref);
     }

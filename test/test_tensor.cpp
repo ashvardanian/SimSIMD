@@ -4,6 +4,7 @@
  *  @author Ash Vardanian
  *  @date February 6, 2026
  */
+#include <array>
 #include <cassert>
 #include <complex>
 
@@ -27,6 +28,111 @@ void test_signed_indexing() {
     assert(v[50] == 3.14f && "float operator[] failed");
     v[-1] = 42.0f;
     assert(v[99] == 42.0f && "float signed indexing failed");
+}
+
+void test_integral_indexing_api() {
+    auto v = make_vector<float>(5);
+    for (std::size_t i = 0; i < v.size(); ++i) v[i] = static_cast<float>(i + 1);
+
+    auto view = nk::vector_view<float>(v.values_data(), unsigned(v.size()));
+    auto span = nk::vector_span<float>(v.values_data(), unsigned(v.size()));
+    auto strided = nk::vector_view<float>(reinterpret_cast<char const *>(v.values_data()), 3u, sizeof(float));
+
+    assert(v[std::size_t {2}] == 3.0f && "vector unsigned indexing failed");
+    assert(view[2u] == 3.0f && "view unsigned indexing failed");
+    assert(view[std::ptrdiff_t {-1}] == 5.0f && "view signed indexing failed");
+    assert(span[unsigned {3}] == 4.0f && "span unsigned indexing failed");
+    assert(strided[2u] == 3.0f && "raw view unsigned stride ctor failed");
+
+    auto sub = view[nk::range(1u, 4u)];
+    assert(sub.size() == 3 && "unsigned range size mismatch");
+    assert(sub[0u] == 2.0f && "unsigned range first element mismatch");
+
+    auto tail = view[nk::range(-3, -1)];
+    assert(tail.size() == 2 && "signed range size mismatch");
+    assert(tail[0u] == 3.0f && "signed range first element mismatch");
+    assert(tail[1u] == 4.0f && "signed range last element mismatch");
+}
+
+void test_tensor_operator_indexing() {
+    auto t = nk::tensor<float>::try_zeros({2, 3});
+    assert(!t.empty() && "tensor allocation failed");
+
+    for (int i = 0; i < 6; ++i) t[i] = static_cast<float>(i + 1);
+
+    assert(t[0] == 1.0f && "flat tensor lookup failed");
+    assert(t[-1] == 6.0f && "negative flat tensor lookup failed");
+    assert((t[0, 0] == 1.0f) && "exact tensor lookup failed");
+    assert((t[1, -1] == 6.0f) && "negative exact tensor lookup failed");
+
+    auto whole = t[nk::slice];
+    assert(whole.rank() == 2 && "slice identity rank mismatch");
+    assert(whole.extent(0) == 2 && whole.extent(1) == 3 && "slice identity extents mismatch");
+
+    auto row1 = t[1, nk::slice];
+    assert(row1.rank() == 1 && "row slice rank mismatch");
+    assert(row1.extent(0) == 3 && "row slice extent mismatch");
+    assert(row1[0] == 4.0f && row1[-1] == 6.0f && "row slice values mismatch");
+    row1[1] = 42.0f;
+    assert((t[1, 1] == 42.0f) && "row slice write-through failed");
+
+    auto cell = t[1, 1, nk::slice];
+    assert(cell.rank() == 0 && "scalar slice rank mismatch");
+    assert(cell.scalar() == 42.0f && "scalar slice value mismatch");
+    cell.scalar_ref() = 24.0f;
+    assert((t[1, 1] == 24.0f) && "scalar slice write-through failed");
+
+    auto const &ct = t;
+    auto const last_row = ct[-1, nk::slice];
+    assert(last_row.rank() == 1 && "const row slice rank mismatch");
+    assert(last_row[0] == 4.0f && "const row slice mismatch");
+
+    auto cube = nk::tensor<float>::try_zeros({2, 3, 4});
+    assert(!cube.empty() && "cube allocation failed");
+    for (int i = 0; i < 24; ++i) cube[i] = static_cast<float>(i);
+
+    auto plane = cube[1, nk::slice];
+    assert(plane.rank() == 2 && plane.extent(0) == 3 && plane.extent(1) == 4 && "plane slice mismatch");
+    auto line = cube[1, 2, nk::slice];
+    assert(line.rank() == 1 && line.extent(0) == 4 && "line slice mismatch");
+    assert((line[3] == cube[1, 2, 3]) && "line slice element mismatch");
+    auto point = cube[1, 2, 3, nk::slice];
+    assert((point.rank() == 0 && point.scalar() == cube[1, 2, 3]) && "point slice mismatch");
+}
+
+void test_packed_tensor_operator_indexing() {
+    auto t4 = nk::tensor<nk::u4x2_t>::try_zeros({2, 4});
+    assert(!t4.empty() && "packed u4 tensor allocation failed");
+
+    for (int i = 0; i < 8; ++i) t4[i] = i + 1;
+
+    assert(int(t4[0]) == 1 && "packed flat lookup failed");
+    assert(int(t4[-1]) == 8 && "packed negative flat lookup failed");
+    assert((int(t4[0, 3]) == 4) && "packed exact lookup failed");
+    assert((int(t4[1, -1]) == 8) && "packed negative exact lookup failed");
+
+    auto second_row = t4[1, nk::slice];
+    assert(second_row.rank() == 1 && second_row.extent(0) == 4 && "packed row slice rank mismatch");
+    assert(int(second_row[0]) == 5 && int(second_row[-1]) == 8 && "packed row slice values mismatch");
+    second_row[1] = 14;
+    assert((int(t4[1, 1]) == 14) && "packed row slice write-through failed");
+
+    auto t1 = nk::tensor<nk::u1x8_t>::try_zeros({2, 8});
+    assert(!t1.empty() && "packed u1 tensor allocation failed");
+    t1[0] = true;
+    t1[7] = true;
+    t1[11] = true;
+    t1[-1] = true;
+
+    assert(bool(t1[0]) && "packed bit flat lookup failed");
+    assert((bool(t1[0, 7])) && "packed bit exact lookup failed");
+    assert((bool(t1[1, 3])) && "packed bit second-row lookup failed");
+    assert(bool(t1[-1]) && "packed bit negative flat lookup failed");
+
+    auto bits = t1[1, nk::slice];
+    assert(bits.rank() == 1 && bits.extent(0) == 8 && "packed bit slice rank mismatch");
+    bits[4] = true;
+    assert((bool(t1[1, 4])) && "packed bit slice write-through failed");
 }
 
 void test_move_semantics() {
@@ -121,6 +227,199 @@ void test_custom_allocator() {
     assert(v[128] == nk::f32_t(99.0f) && "custom allocator value mismatch");
 }
 
+template <typename value_type_, std::size_t cols_>
+void test_sub_byte_tensor_axis_reduction_case(std::array<int, cols_> const &first_row,
+                                              std::array<int, cols_> const &second_row,
+                                              std::array<int, cols_> const &expected_sums,
+                                              std::array<int, cols_> const &expected_mins,
+                                              std::array<int, cols_> const &expected_maxs) {
+    using tensor_t = nk::tensor<value_type_>;
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+
+    auto t = tensor_t::try_zeros({2, cols_});
+    assert(!t.empty() && "tensor allocation failed");
+
+    auto span = t.span();
+    auto row0 = span.slice_leading(0).as_vector();
+    auto row1 = span.slice_leading(1).as_vector();
+    for (std::size_t i = 0; i < cols_; ++i) {
+        row0[i] = first_row[i];
+        row1[i] = second_row[i];
+    }
+
+    auto sums = nk::try_sum<value_type_>(t.view(), 0);
+    assert(!sums.empty() && "axis-0 sum failed");
+    auto sum_view = sums.as_vector_view();
+    for (std::size_t i = 0; i < cols_; ++i) assert(sum_view[i] == sum_t(expected_sums[i]) && "axis-0 sum mismatch");
+
+    auto minmax = nk::try_minmax<value_type_>(t.view(), 0);
+    assert(!minmax.min_value.empty() && !minmax.max_value.empty() && "axis-0 minmax failed");
+    auto min_view = minmax.min_value.as_vector_view();
+    auto max_view = minmax.max_value.as_vector_view();
+    for (std::size_t i = 0; i < cols_; ++i) {
+        assert(min_view[i] == minmax_t(expected_mins[i]) && "axis-0 min mismatch");
+        assert(max_view[i] == minmax_t(expected_maxs[i]) && "axis-0 max mismatch");
+    }
+}
+
+template <typename tensor_type_, typename expected_type_, std::size_t dims_>
+void assert_flat_tensor_equals(tensor_type_ const &tensor, std::array<expected_type_, dims_> const &expected) {
+    auto flat = tensor.view().flatten();
+    assert(!flat.empty() && "tensor flatten failed");
+    auto vec = flat.as_vector();
+    assert(vec.size() == dims_ && "flattened tensor size mismatch");
+    using actual_t = typename tensor_type_::value_type;
+    for (std::size_t i = 0; i < dims_; ++i)
+        assert(vec[i] == actual_t(expected[i]) && "flattened tensor value mismatch");
+}
+
+template <typename tensor_type_, typename expected_type_>
+void assert_scalar_tensor_equals(tensor_type_ const &tensor, expected_type_ expected) {
+    auto flat = tensor.view().flatten();
+    assert(!flat.empty() && "tensor flatten failed");
+    auto vec = flat.as_vector();
+    assert(vec.size() == 1 && "scalar tensor should flatten to one value");
+    using actual_t = typename tensor_type_::value_type;
+    assert(vec[0u] == actual_t(expected) && "scalar tensor value mismatch");
+}
+
+template <typename value_type_, std::size_t cols_>
+void test_sub_byte_tensor_rank3_axis_case(
+    std::array<int, cols_> const &a00, std::array<int, cols_> const &a01, std::array<int, cols_> const &a10,
+    std::array<int, cols_> const &a11, std::array<int, cols_ * 2> const &expected_sum_axis0,
+    std::array<int, cols_ * 2> const &expected_sum_axis1, std::array<int, 4> const &expected_sum_axis2,
+    std::array<int, cols_ * 2> const &expected_min_axis0, std::array<int, cols_ * 2> const &expected_max_axis0,
+    std::array<int, cols_ * 2> const &expected_min_axis1, std::array<int, cols_ * 2> const &expected_max_axis1,
+    std::array<int, 4> const &expected_min_axis2, std::array<int, 4> const &expected_max_axis2) {
+    using tensor_t = nk::tensor<value_type_>;
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+
+    auto t = tensor_t::try_zeros({2, 2, cols_});
+    assert(!t.empty() && "rank-3 tensor allocation failed");
+
+    auto span = t.span();
+    auto row00 = span.slice_leading(0).slice_leading(0).as_vector();
+    auto row01 = span.slice_leading(0).slice_leading(1).as_vector();
+    auto row10 = span.slice_leading(1).slice_leading(0).as_vector();
+    auto row11 = span.slice_leading(1).slice_leading(1).as_vector();
+    for (std::size_t i = 0; i < cols_; ++i) {
+        row00[i] = a00[i];
+        row01[i] = a01[i];
+        row10[i] = a10[i];
+        row11[i] = a11[i];
+    }
+
+    auto sums0 = nk::try_sum<value_type_>(t.view(), 0);
+    auto sums1 = nk::try_sum<value_type_>(t.view(), 1);
+    auto sums2 = nk::try_sum<value_type_>(t.view(), 2);
+    assert_flat_tensor_equals(sums0, expected_sum_axis0);
+    assert_flat_tensor_equals(sums1, expected_sum_axis1);
+    assert_flat_tensor_equals(sums2, expected_sum_axis2);
+
+    auto moments0 = nk::try_moments<value_type_>(t.view(), 0);
+    auto moments1 = nk::try_moments<value_type_>(t.view(), 1);
+    auto moments2 = nk::try_moments<value_type_>(t.view(), 2);
+    assert_flat_tensor_equals(moments0.sum, expected_sum_axis0);
+    assert_flat_tensor_equals(moments1.sum, expected_sum_axis1);
+    assert_flat_tensor_equals(moments2.sum, expected_sum_axis2);
+
+    auto minmax0 = nk::try_minmax<value_type_>(t.view(), 0);
+    auto minmax1 = nk::try_minmax<value_type_>(t.view(), 1);
+    auto minmax2 = nk::try_minmax<value_type_>(t.view(), 2);
+    assert_flat_tensor_equals(minmax0.min_value, expected_min_axis0);
+    assert_flat_tensor_equals(minmax0.max_value, expected_max_axis0);
+    assert_flat_tensor_equals(minmax1.min_value, expected_min_axis1);
+    assert_flat_tensor_equals(minmax1.max_value, expected_max_axis1);
+    assert_flat_tensor_equals(minmax2.min_value, expected_min_axis2);
+    assert_flat_tensor_equals(minmax2.max_value, expected_max_axis2);
+}
+
+void test_sub_byte_tensor_axis_reductions() {
+    test_sub_byte_tensor_axis_reduction_case<nk::i4x2_t, 4>({1, -2, 7, -8}, {-3, 4, -5, 6}, {-2, 2, 2, -2},
+                                                            {-3, -2, -5, -8}, {1, 4, 7, 6});
+    test_sub_byte_tensor_axis_reduction_case<nk::u4x2_t, 4>({1, 15, 3, 8}, {14, 2, 9, 7}, {15, 17, 12, 15},
+                                                            {1, 2, 3, 7}, {14, 15, 9, 8});
+    test_sub_byte_tensor_axis_reduction_case<nk::u1x8_t, 8>({1, 0, 1, 1, 0, 0, 1, 0}, {0, 1, 1, 0, 1, 0, 0, 1},
+                                                            {1, 1, 2, 1, 1, 0, 1, 1}, {0, 0, 1, 0, 0, 0, 0, 0},
+                                                            {1, 1, 1, 1, 1, 0, 1, 1});
+}
+
+void test_sub_byte_tensor_rank3_axis_reductions() {
+    test_sub_byte_tensor_rank3_axis_case<nk::i4x2_t, 4>(
+        {1, -2, 3, -4}, {5, -6, 7, -8}, {-1, 2, -3, 4}, {-5, 6, -7, 7}, {0, 0, 0, 0, 0, 0, 0, -1},
+        {6, -8, 10, -12, -6, 8, -10, 11}, {-2, -2, 2, 1}, {-1, -2, -3, -4, -5, -6, -7, -8}, {1, 2, 3, 4, 5, 6, 7, 7},
+        {1, -6, 3, -8, -5, 2, -7, 4}, {5, -2, 7, -4, -1, 6, -3, 7}, {-4, -8, -3, -7}, {3, 7, 4, 7});
+
+    test_sub_byte_tensor_rank3_axis_case<nk::u4x2_t, 4>(
+        {1, 2, 3, 4}, {5, 6, 7, 8}, {14, 13, 12, 11}, {10, 9, 8, 7}, {15, 15, 15, 15, 15, 15, 15, 15},
+        {6, 8, 10, 12, 24, 22, 20, 18}, {10, 26, 50, 34}, {1, 2, 3, 4, 5, 6, 7, 7}, {14, 13, 12, 11, 10, 9, 8, 8},
+        {1, 2, 3, 4, 10, 9, 8, 7}, {5, 6, 7, 8, 14, 13, 12, 11}, {1, 5, 11, 7}, {4, 8, 14, 10});
+
+    test_sub_byte_tensor_rank3_axis_case<nk::u1x8_t, 8>(
+        {1, 0, 1, 0, 1, 0, 1, 0}, {0, 1, 0, 1, 0, 1, 0, 1}, {1, 1, 0, 0, 1, 1, 0, 0}, {0, 0, 1, 1, 0, 0, 1, 1},
+        {2, 1, 1, 0, 2, 1, 1, 0, 0, 1, 1, 2, 0, 1, 1, 2}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+        {4, 4, 4, 4}, {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
+        {1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, {0, 0, 0, 0}, {1, 1, 1, 1});
+}
+
+void test_rank1_negative_stride_reductions() {
+    using value_t = nk::f32_t;
+    using sum_t = typename value_t::reduce_moments_sum_t;
+    using minmax_t = typename value_t::reduce_minmax_value_t;
+
+    value_t data[] = {1.0f, 2.0f, 3.0f, 4.0f};
+    nk::shape_storage_<8> shape {};
+    shape.rank = 1;
+    shape.extents[0] = 4;
+    shape.strides[0] = -static_cast<std::ptrdiff_t>(sizeof(value_t));
+    nk::tensor_view<value_t> reversed(reinterpret_cast<char const *>(data + 3), shape);
+
+    auto m = nk::moments(reversed);
+    auto mm = nk::minmax(reversed);
+    assert(m.sum == sum_t(10.0) && "negative-stride sum mismatch");
+    assert(m.sumsq == typename value_t::reduce_moments_sumsq_t(30.0) && "negative-stride sumsq mismatch");
+    assert(mm.min_value == minmax_t(1.0f) && "negative-stride min mismatch");
+    assert(mm.max_value == minmax_t(4.0f) && "negative-stride max mismatch");
+}
+
+void test_rank1_axis_reductions() {
+    auto v = nk::tensor<nk::i8_t>::try_zeros({4});
+    assert(!v.empty() && "rank-1 tensor allocation failed");
+    auto values = v.as_vector_span();
+    values[0u] = 4;
+    values[1u] = -2;
+    values[2u] = 7;
+    values[3u] = -5;
+
+    auto sums = nk::try_sum<nk::i8_t>(v.view(), 0);
+    auto moments = nk::try_moments<nk::i8_t>(v.view(), 0);
+    auto mins = nk::try_min<nk::i8_t>(v.view(), 0);
+    auto maxs = nk::try_max<nk::i8_t>(v.view(), 0);
+    auto argmins = nk::try_argmin<nk::i8_t>(v.view(), 0);
+    auto argmaxs = nk::try_argmax<nk::i8_t>(v.view(), 0);
+
+    assert(!sums.empty() && !moments.sum.empty() && "rank-1 axis moments failed");
+    assert(!mins.empty() && !maxs.empty() && !argmins.empty() && !argmaxs.empty() && "rank-1 axis minmax failed");
+    assert(sums.rank() == 0 && moments.sum.rank() == 0 && "collapsed rank-1 reductions should produce rank-0 tensors");
+    assert_scalar_tensor_equals(sums, 4);
+    assert_scalar_tensor_equals(moments.sum, 4);
+    assert_scalar_tensor_equals(mins, -5);
+    assert_scalar_tensor_equals(maxs, 7);
+    assert_scalar_tensor_equals(argmins, 3);
+    assert_scalar_tensor_equals(argmaxs, 2);
+}
+
+void test_packed_tensor_fail_closed_views() {
+    auto packed = nk::tensor<nk::i4x2_t>::try_zeros({2, 4});
+    assert(!packed.empty() && "packed tensor allocation failed");
+    assert(packed.view().transpose().empty() && "packed transpose should fail closed");
+    assert((!packed[1, nk::slice].empty()) && "packed row slice should remain supported");
+    assert((packed[1, 2, nk::slice].empty()) && "packed scalar trailing slice should fail closed");
+}
+
 void test_vector_types() {
     std::printf("Testing vector type instantiations...\n");
 
@@ -139,6 +438,9 @@ void test_vector_types() {
     // Feature tests (non-template, using specific types)
     test_signed_indexing();
     std::printf("  signed indexing:              OK\n");
+
+    test_integral_indexing_api();
+    std::printf("  integral indexing api:        OK\n");
 
     test_move_semantics();
     std::printf("  move semantics:               OK\n");
@@ -198,6 +500,8 @@ void test_tensor_ops_for_type() {
     { [[maybe_unused]] auto r = nk::try_min<value_type_>(av, 1, nk::keep_dims_k); }
     { [[maybe_unused]] auto r = nk::try_max<value_type_>(av, 0); }
     { [[maybe_unused]] auto r = nk::try_max<value_type_>(av, 1, nk::keep_dims_k); }
+    { [[maybe_unused]] auto r = nk::try_argmin<value_type_>(av, 0); }
+    { [[maybe_unused]] auto r = nk::try_argmax<value_type_>(av, 1, nk::keep_dims_k); }
 
     // Elementwise binary
     { [[maybe_unused]] auto r = nk::try_add<value_type_>(av, bv); }
@@ -295,6 +599,27 @@ void test_tensor_ops() {
     test_tensor_ops_for_type<nk::i8_t>();
     test_tensor_ops_for_type<nk::u8_t>();
     std::printf("  ops (6 types):                OK\n");
+
+    test_sub_byte_tensor_axis_reductions();
+    std::printf("  tensor axis sub-byte:         OK\n");
+
+    test_sub_byte_tensor_rank3_axis_reductions();
+    std::printf("  tensor axis rank-3 packed:    OK\n");
+
+    test_rank1_negative_stride_reductions();
+    std::printf("  tensor negative stride:       OK\n");
+
+    test_rank1_axis_reductions();
+    std::printf("  tensor rank-1 axis:           OK\n");
+
+    test_tensor_operator_indexing();
+    std::printf("  tensor operator[]:            OK\n");
+
+    test_packed_tensor_operator_indexing();
+    std::printf("  tensor packed operator[]:     OK\n");
+
+    test_packed_tensor_fail_closed_views();
+    std::printf("  tensor fail-closed views:     OK\n");
 
     // Trig (float-capable types)
     test_tensor_trig_for_type<nk::f32_t>();

@@ -34,6 +34,7 @@
 #ifndef NK_VECTOR_HPP
 #define NK_VECTOR_HPP
 
+#include <concepts>    // `std::integral`
 #include <cstdlib>     // `std::aligned_alloc`, `std::free`
 #include <cstring>     // `std::memset`
 #include <iterator>    // `std::random_access_iterator_tag`
@@ -110,13 +111,30 @@ inline constexpr all_t all {};
  *  `step` must be non-zero. Negative start/stop indices wrap from the end. */
 struct range {
     std::ptrdiff_t start, stop, step;
-    constexpr range(std::ptrdiff_t start, std::ptrdiff_t stop, std::ptrdiff_t step = 1) noexcept
-        : start(start), stop(stop), step(step) {}
+    template <std::integral start_type_, std::integral stop_type_, std::integral step_type_ = int>
+    constexpr range(start_type_ start, stop_type_ stop, step_type_ step = 1) noexcept
+        : start(static_cast<std::ptrdiff_t>(start)), stop(static_cast<std::ptrdiff_t>(stop)),
+          step(static_cast<std::ptrdiff_t>(step)) {}
 };
 
-/** @brief Resolve a signed index to an unsigned offset. Negative wraps from end. */
-constexpr std::size_t resolve_index_(std::ptrdiff_t idx, std::size_t extent) noexcept {
-    return static_cast<std::size_t>(idx >= 0 ? idx : static_cast<std::ptrdiff_t>(extent) + idx);
+/** @brief Resolve an integral index to an unsigned offset. Negative wraps from end. */
+template <std::integral index_type_>
+constexpr std::size_t resolve_index_(index_type_ idx, std::size_t extent) noexcept {
+    if constexpr (std::signed_integral<index_type_>)
+        return static_cast<std::size_t>(idx >= 0 ? idx : static_cast<std::ptrdiff_t>(extent) + idx);
+    else return static_cast<std::size_t>(idx);
+}
+
+/** @brief Normalize any integral stride input to the signed internal representation. */
+template <std::integral stride_type_>
+constexpr std::ptrdiff_t resolve_stride_(stride_type_ stride) noexcept {
+    return static_cast<std::ptrdiff_t>(stride);
+}
+
+/** @brief Normalize any unsigned extent input to the internal representation. */
+template <std::unsigned_integral extent_type_>
+constexpr std::size_t resolve_extent_(extent_type_ extent) noexcept {
+    return static_cast<std::size_t>(extent);
 }
 
 /** @brief Resolve range start/stop against an extent (handles negatives). */
@@ -176,9 +194,9 @@ class dim_iterator {
     constexpr dim_iterator() noexcept : container_(nullptr), index_(0) {}
     constexpr dim_iterator(container_type &c, size_type i) noexcept : container_(&c), index_(i) {}
 
-    constexpr decltype(auto) operator*() const noexcept { return (*container_)[static_cast<difference_type>(index_)]; }
+    constexpr decltype(auto) operator*() const noexcept { return (*container_)[index_]; }
 
-    constexpr auto operator->() const noexcept { return &(*container_)[static_cast<difference_type>(index_)]; }
+    constexpr auto operator->() const noexcept { return &(*container_)[index_]; }
 
     constexpr decltype(auto) operator[](difference_type n) const noexcept {
         return (*container_)[static_cast<difference_type>(index_) + n];
@@ -256,12 +274,14 @@ struct vector_view {
   public:
     constexpr vector_view() noexcept = default;
 
-    constexpr vector_view(char const *data, size_type dims, difference_type stride_bytes) noexcept
-        : data_(data), dimensions_(dims), stride_bytes_(stride_bytes) {}
+    template <std::unsigned_integral dims_type_, std::integral stride_type_>
+    constexpr vector_view(char const *data, dims_type_ dims, stride_type_ stride_bytes) noexcept
+        : data_(data), dimensions_(resolve_extent_(dims)), stride_bytes_(resolve_stride_(stride_bytes)) {}
 
     /** @brief Construct from contiguous typed pointer. */
-    constexpr vector_view(value_type const *data, size_type dims) noexcept
-        : data_(reinterpret_cast<char const *>(data)), dimensions_(dims),
+    template <std::unsigned_integral dims_type_>
+    constexpr vector_view(value_type const *data, dims_type_ dims) noexcept
+        : data_(reinterpret_cast<char const *>(data)), dimensions_(resolve_extent_(dims)),
           stride_bytes_(static_cast<difference_type>(sizeof(value_type))) {}
 
     /** @brief Number of logical dimensions. */
@@ -284,8 +304,9 @@ struct vector_view {
     /** @brief Typed pointer (only valid if contiguous). */
     constexpr value_type const *data() const noexcept { return reinterpret_cast<value_type const *>(data_); }
 
-    /** @brief Signed indexing: negative indices wrap from end. */
-    decltype(auto) operator[](difference_type idx) const noexcept {
+    /** @brief Integral indexing: signed negatives wrap from end. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1) {
             constexpr auto dims_per_value = dimensions_per_value<value_type>();
@@ -342,12 +363,14 @@ struct vector_span {
   public:
     constexpr vector_span() noexcept = default;
 
-    constexpr vector_span(char *data, size_type dims, difference_type stride_bytes) noexcept
-        : data_(data), dimensions_(dims), stride_bytes_(stride_bytes) {}
+    template <std::unsigned_integral dims_type_, std::integral stride_type_>
+    constexpr vector_span(char *data, dims_type_ dims, stride_type_ stride_bytes) noexcept
+        : data_(data), dimensions_(resolve_extent_(dims)), stride_bytes_(resolve_stride_(stride_bytes)) {}
 
     /** @brief Construct from contiguous typed pointer. */
-    constexpr vector_span(value_type *data, size_type dims) noexcept
-        : data_(reinterpret_cast<char *>(data)), dimensions_(dims),
+    template <std::unsigned_integral dims_type_>
+    constexpr vector_span(value_type *data, dims_type_ dims) noexcept
+        : data_(reinterpret_cast<char *>(data)), dimensions_(resolve_extent_(dims)),
           stride_bytes_(static_cast<difference_type>(sizeof(value_type))) {}
 
     /** @brief Number of logical dimensions. */
@@ -377,8 +400,9 @@ struct vector_span {
         return {static_cast<char const *>(data_), dimensions_, stride_bytes_};
     }
 
-    /** @brief Mutable signed indexing. */
-    decltype(auto) operator[](difference_type idx) noexcept {
+    /** @brief Mutable integral indexing. Signed negatives wrap from end. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1) {
             constexpr auto dims_per_value = dimensions_per_value<value_type>();
@@ -392,8 +416,9 @@ struct vector_span {
         else { return *reinterpret_cast<value_type *>(data_ + static_cast<difference_type>(i) * stride_bytes_); }
     }
 
-    /** @brief Const signed indexing. */
-    decltype(auto) operator[](difference_type idx) const noexcept {
+    /** @brief Const integral indexing. Signed negatives wrap from end. */
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
         return static_cast<vector_view<value_type>>(*this)[idx];
     }
 
@@ -592,14 +617,16 @@ struct vector {
      *  @retval For sub-byte types, returns proxy reference.
      *  @retval For normal types, returns direct reference.
      */
-    decltype(auto) operator[](difference_type idx) noexcept {
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1)
             return sub_byte_ref<value_type>(reinterpret_cast<raw_value_type *>(data_), i);
         else return data_[i];
     }
 
-    decltype(auto) operator[](difference_type idx) const noexcept {
+    template <std::integral index_type_>
+    decltype(auto) operator[](index_type_ idx) const noexcept {
         auto i = resolve_index_(idx, dimensions_);
         if constexpr (dimensions_per_value<value_type>() > 1)
             return sub_byte_ref<value_type>(

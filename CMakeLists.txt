@@ -358,8 +358,8 @@ if (NK_BUILD_BENCH)
 
     FetchContent_Declare(
         benchmark
-        GIT_REPOSITORY https://github.com/ashvardanian/benchmark.git
-        GIT_TAG acaa13e7ebc08fad0a0017dbed0ea2e38497c677
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG main
     )
     FetchContent_MakeAvailable(benchmark)
 

@@ -1913,8 +1913,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
                                                                                                                        \
-                /* Skip blocks entirely below diagonal (i_block_end <= j_block) */                                     \
-                if (i_block_end <= j_block) continue;                                                                  \
+                /* Skip blocks entirely below diagonal. Blocks fully above the diagonal are still part of the upper    \
+                 * triangle and must be computed. */                                                                   \
+                if (i_block >= j_block_end) continue;                                                                  \
                                                                                                                        \
                 for (nk_size_t i_macro = i_block; i_macro < i_block_end; i_macro += macro_tile_size) {                 \
                     /* Upper triangle: j_macro starts at max(i_macro, j_block) */                                      \
@@ -2388,8 +2389,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
                                                                                                                        \
-                /* Skip blocks entirely below diagonal (i_block_end <= j_block) */                                     \
-                if (i_block_end <= j_block) continue;                                                                  \
+                /* Skip blocks entirely below diagonal. Blocks fully above the diagonal are still part of the upper    \
+                 * triangle and must be computed. */                                                                   \
+                if (i_block >= j_block_end) continue;                                                                  \
                                                                                                                        \
                 for (nk_size_t i_macro = i_block; i_macro < i_block_end; i_macro += macro_tile_size) {                 \
                     /* Upper triangle: j_macro starts at max(i_macro, j_block) */                                      \
@@ -2433,13 +2435,12 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
     }
 
 /* Optimize serial GEMM instantiations for size rather than speed.
- * These fallback kernels are only used when no SIMD backend is available,
- * so aggressive inlining/unrolling from -O3 wastes ~1.3 MB of binary space
- * with negligible performance benefit on the serial path. */
+ * These fallback kernels are only used when no SIMD backend is available, so aggressive inlining/unrolling from -O3
+ * wastes ~1.3 MB of binary space with negligible performance benefit on the serial path. Sadly, a scoped application
+ * of `__attribute__((optimize("Os"))` isn't supported on Clang, so this flag only applies to GCC builds.
+ */
 #if defined(NDEBUG)
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((optimize("Os"))), apply_to = function)
-#elif defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC push_options
 #pragma GCC optimize("Os")
 #endif
@@ -2651,9 +2652,7 @@ nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 
 #if defined(NDEBUG)
-#if defined(__clang__)
-#pragma clang attribute pop
-#elif defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC pop_options
 #endif
 #endif

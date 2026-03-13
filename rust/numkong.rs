@@ -247,32 +247,55 @@ mod tests {
 #[cfg(all(test, feature = "wasm-runtime"))]
 mod wasm_runtime_tests {
     use std::fs;
-    use wasmtime::*;
+    use std::path::Path;
+    use wasmtime::{
+        Config, Engine, Extern, ExternType, Linker, Memory, MemoryType, Module, SharedMemory, Store,
+    };
     use wasmtime_wasi::WasiCtx;
+
+    fn resolve_wasi_module() -> Option<String> {
+        if let Ok(path) = std::env::var("NK_WASI_MODULE") {
+            if Path::new(&path).exists() {
+                return Some(path);
+            }
+        }
+        if Path::new("build-wasi/nk_test.wasm").exists() {
+            Some("build-wasi/nk_test.wasm".to_string())
+        } else if Path::new("build-wasi/test.wasm").exists() {
+            Some("build-wasi/test.wasm".to_string())
+        } else {
+            None
+        }
+    }
 
     /// Test that WASI WASM module can be loaded and executed with Wasmtime
     /// This validates the dual-path capability detection (EM_ASM vs WASI imports)
     #[test]
     fn wasi_with_wasmtime() -> wasmtime::Result<()> {
         // Check if WASI build exists
-        let wasm_path = "build-wasi/test.wasm";
-        if !std::path::Path::new(wasm_path).exists() {
-            eprintln!("WASI build not found at {}. Run:", wasm_path);
+        let Some(wasm_path) = resolve_wasi_module() else {
+            eprintln!("WASI build not found. Run:");
             eprintln!("  export WASI_SDK_PATH=~/wasi-sdk");
-            eprintln!("  cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_WASM_WASI=ON");
-            eprintln!("  cmake --build build-wasi");
+            eprintln!("  cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON");
+            eprintln!("  cmake --build build-wasi --target nk_test");
             return Ok(()); // Skip test if build doesn't exist
-        }
+        };
 
         println!("Loading WASI module from {}", wasm_path);
 
+        let mut config = Config::new();
+        config.wasm_simd(true);
+        config.wasm_relaxed_simd(true);
+        config.wasm_threads(true);
+        config.shared_memory(true);
+
         // Create Wasmtime engine and linker
-        let engine = Engine::default();
+        let engine = Engine::new(&config)?;
         let mut linker = Linker::new(&engine);
 
         // Create WASI context (Wasmtime 41+ API)
         // Don't inherit_args() — cargo's test filter args would confuse the WASM test binary.
-        let wasi = WasiCtx::builder().inherit_stdio().build_p1();
+        let wasi = WasiCtx::builder().inherit_stdio().inherit_env().build_p1();
         let mut store = Store::new(&engine, wasi);
 
         // Add WASI support (Wasmtime 41+ requires p1 module)
@@ -292,9 +315,42 @@ mod wasm_runtime_tests {
             1
         })?;
 
+        linker.func_wrap("wasi", "thread-spawn", |_start_arg: i32| -> i32 { -1 })?;
+
         // Load WASM module
-        let wasm_bytes = fs::read(wasm_path)?;
+        let wasm_bytes = fs::read(&wasm_path)?;
         let module = Module::new(&engine, wasm_bytes)?;
+
+        for import in module.imports() {
+            if import.module() != "env" || import.name() != "memory" {
+                continue;
+            }
+
+            let ExternType::Memory(memory_ty) = import.ty() else {
+                continue;
+            };
+
+            let minimum = u32::try_from(memory_ty.minimum()).map_err(|_| {
+                wasmtime::Error::msg(format!(
+                    "memory minimum {} does not fit in u32",
+                    memory_ty.minimum()
+                ))
+            })?;
+            let maximum = memory_ty
+                .maximum()
+                .ok_or_else(|| wasmtime::Error::msg("shared memory import is missing a maximum"))?;
+            let maximum = u32::try_from(maximum).map_err(|_| {
+                wasmtime::Error::msg(format!("memory maximum {maximum} does not fit in u32"))
+            })?;
+
+            if memory_ty.is_shared() {
+                let memory = SharedMemory::new(&engine, MemoryType::shared(minimum, maximum))?;
+                linker.define(&store, "env", "memory", Extern::from(memory))?;
+            } else {
+                let memory = Memory::new(&mut store, MemoryType::new(minimum, Some(maximum)))?;
+                linker.define(&store, "env", "memory", Extern::from(memory))?;
+            }
+        }
 
         // Instantiate module
         println!("Instantiating WASM module...");

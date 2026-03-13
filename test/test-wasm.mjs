@@ -12,6 +12,17 @@ import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { WASI } from "node:wasi";
 
+function resolveWasiTestModule() {
+    return ['./build-wasi/nk_test.wasm', './build-wasi/test.wasm'].find(path => {
+        try {
+            readFileSync(path);
+            return true;
+        } catch {
+            return false;
+        }
+    });
+}
+
 // Runtime loader - adapts to different WASM execution environments
 async function loadNumKong(runtime) {
     switch (runtime) {
@@ -45,7 +56,11 @@ async function loadNumKong(runtime) {
                 env: {},
             });
 
-            const wasmBytes = readFileSync('./build-wasi/test.wasm');
+            const wasiModule = resolveWasiTestModule();
+            if (!wasiModule) {
+                throw new Error('Missing build-wasi/nk_test.wasm (or legacy build-wasi/test.wasm)');
+            }
+            const wasmBytes = readFileSync(wasiModule);
 
             // Capability detection test bytecode (SIMD128 detection)
             const simd128Test = new Uint8Array([

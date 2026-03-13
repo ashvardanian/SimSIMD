@@ -112,7 +112,7 @@ void measure_each(bm::State &state, kernel_type_ kernel, std::size_t dimensions)
     else if constexpr (kernel_kind_ == nk_kernel_each_sum_k) bytes_per_call *= 2;
     else if constexpr (kernel_kind_ == nk_kernel_each_scale_k) bytes_per_call *= 1;
 
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * bytes_per_call, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -157,24 +157,79 @@ void bench_each() {
 #endif
 
 #if NK_TARGET_NEON
-    run_each<f32_k, fma_k, f32_k>("each_fma_f32_neon", nk_each_fma_f32_neon);
+    // f64
+    run_each<f64_k, sum_k, f64_k>("each_sum_f64_neon", nk_each_sum_f64_neon);
+    run_each<f64_k, scale_k, f64_k>("each_scale_f64_neon", nk_each_scale_f64_neon);
+    run_each<f64_k, blend_k, f64_k>("each_blend_f64_neon", nk_each_blend_f64_neon);
+    run_each<f64_k, fma_k, f64_k>("each_fma_f64_neon", nk_each_fma_f64_neon);
+    // f32
+    run_each<f32_k, sum_k, f32_k>("each_sum_f32_neon", nk_each_sum_f32_neon);
+    run_each<f32_k, scale_k, f32_k>("each_scale_f32_neon", nk_each_scale_f32_neon);
     run_each<f32_k, blend_k, f32_k>("each_blend_f32_neon", nk_each_blend_f32_neon);
-    run_each<f32_k, fma_k, f32_k>("each_fma_f32_serial", nk_each_fma_f32_serial);
-    run_each<f32_k, blend_k, f32_k>("each_blend_f32_serial", nk_each_blend_f32_serial);
+    run_each<f32_k, fma_k, f32_k>("each_fma_f32_neon", nk_each_fma_f32_neon);
+    // e4m3
+    run_each<e4m3_k, sum_k, f32_k>("each_sum_e4m3_neon", nk_each_sum_e4m3_neon);
+    run_each<e4m3_k, scale_k, f32_k>("each_scale_e4m3_neon", nk_each_scale_e4m3_neon);
+    run_each<e4m3_k, blend_k, f32_k>("each_blend_e4m3_neon", nk_each_blend_e4m3_neon);
+    run_each<e4m3_k, fma_k, f32_k>("each_fma_e4m3_neon", nk_each_fma_e4m3_neon);
+    // e5m2
+    run_each<e5m2_k, sum_k, f32_k>("each_sum_e5m2_neon", nk_each_sum_e5m2_neon);
+    run_each<e5m2_k, scale_k, f32_k>("each_scale_e5m2_neon", nk_each_scale_e5m2_neon);
+    run_each<e5m2_k, blend_k, f32_k>("each_blend_e5m2_neon", nk_each_blend_e5m2_neon);
+    run_each<e5m2_k, fma_k, f32_k>("each_fma_e5m2_neon", nk_each_fma_e5m2_neon);
+    // i16, u16
+    run_each<i16_k, sum_k, f32_k>("each_sum_i16_neon", nk_each_sum_i16_neon);
+    run_each<i16_k, scale_k, f32_k>("each_scale_i16_neon", nk_each_scale_i16_neon);
+    run_each<i16_k, fma_k, f32_k>("each_fma_i16_neon", nk_each_fma_i16_neon);
+    run_each<u16_k, sum_k, f32_k>("each_sum_u16_neon", nk_each_sum_u16_neon);
+    run_each<u16_k, scale_k, f32_k>("each_scale_u16_neon", nk_each_scale_u16_neon);
+    run_each<u16_k, fma_k, f32_k>("each_fma_u16_neon", nk_each_fma_u16_neon);
+    // i32, u32
+    run_each<i32_k, sum_k, f64_k>("each_sum_i32_neon", nk_each_sum_i32_neon);
+    run_each<i32_k, scale_k, f64_k>("each_scale_i32_neon", nk_each_scale_i32_neon);
+    run_each<i32_k, fma_k, f64_k>("each_fma_i32_neon", nk_each_fma_i32_neon);
+    run_each<u32_k, sum_k, f64_k>("each_sum_u32_neon", nk_each_sum_u32_neon);
+    run_each<u32_k, scale_k, f64_k>("each_scale_u32_neon", nk_each_scale_u32_neon);
+    run_each<u32_k, fma_k, f64_k>("each_fma_u32_neon", nk_each_fma_u32_neon);
+    // i64, u64
+    run_each<i64_k, sum_k, f64_k>("each_sum_i64_neon", nk_each_sum_i64_neon);
+    run_each<i64_k, scale_k, f64_k>("each_scale_i64_neon", nk_each_scale_i64_neon);
+    run_each<i64_k, fma_k, f64_k>("each_fma_i64_neon", nk_each_fma_i64_neon);
+    run_each<u64_k, sum_k, f64_k>("each_sum_u64_neon", nk_each_sum_u64_neon);
+    run_each<u64_k, scale_k, f64_k>("each_scale_u64_neon", nk_each_scale_u64_neon);
+    run_each<u64_k, fma_k, f64_k>("each_fma_u64_neon", nk_each_fma_u64_neon);
+    // complex
+    run_each<f32c_k, scale_k, f32c_k>("each_scale_f32c_neon", nk_each_scale_f32c_neon);
+    run_each<f32c_k, blend_k, f32c_k>("each_blend_f32c_neon", nk_each_blend_f32c_neon);
+    run_each<f32c_k, fma_k, f32c_k>("each_fma_f32c_neon", nk_each_fma_f32c_neon);
+    run_each<f64c_k, scale_k, f64c_k>("each_scale_f64c_neon", nk_each_scale_f64c_neon);
+    run_each<f64c_k, blend_k, f64c_k>("each_blend_f64c_neon", nk_each_blend_f64c_neon);
+    run_each<f64c_k, fma_k, f64c_k>("each_fma_f64c_neon", nk_each_fma_f64c_neon);
 #endif
 
 #if NK_TARGET_NEONHALF
-    run_each<f16_k, fma_k, f32_k>("each_fma_f16_neonhalf", nk_each_fma_f16_neonhalf);
+    // f16
+    run_each<f16_k, sum_k, f32_k>("each_sum_f16_neonhalf", nk_each_sum_f16_neonhalf);
+    run_each<f16_k, scale_k, f32_k>("each_scale_f16_neonhalf", nk_each_scale_f16_neonhalf);
     run_each<f16_k, blend_k, f32_k>("each_blend_f16_neonhalf", nk_each_blend_f16_neonhalf);
-    run_each<u8_k, fma_k, f32_k>("each_fma_u8_neonhalf", nk_each_fma_u8_neonhalf);
+    run_each<f16_k, fma_k, f32_k>("each_fma_f16_neonhalf", nk_each_fma_f16_neonhalf);
+    // u8
+    run_each<u8_k, sum_k, f32_k>("each_sum_u8_neonhalf", nk_each_sum_u8_neonhalf);
+    run_each<u8_k, scale_k, f32_k>("each_scale_u8_neonhalf", nk_each_scale_u8_neonhalf);
     run_each<u8_k, blend_k, f32_k>("each_blend_u8_neonhalf", nk_each_blend_u8_neonhalf);
-    run_each<i8_k, fma_k, f32_k>("each_fma_i8_neonhalf", nk_each_fma_i8_neonhalf);
+    run_each<u8_k, fma_k, f32_k>("each_fma_u8_neonhalf", nk_each_fma_u8_neonhalf);
+    // i8
+    run_each<i8_k, sum_k, f32_k>("each_sum_i8_neonhalf", nk_each_sum_i8_neonhalf);
+    run_each<i8_k, scale_k, f32_k>("each_scale_i8_neonhalf", nk_each_scale_i8_neonhalf);
     run_each<i8_k, blend_k, f32_k>("each_blend_i8_neonhalf", nk_each_blend_i8_neonhalf);
+    run_each<i8_k, fma_k, f32_k>("each_fma_i8_neonhalf", nk_each_fma_i8_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT
-    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_neonbfdot", nk_each_fma_bf16_neonbfdot);
+    run_each<bf16_k, sum_k, f32_k>("each_sum_bf16_neonbfdot", nk_each_sum_bf16_neonbfdot);
+    run_each<bf16_k, scale_k, f32_k>("each_scale_bf16_neonbfdot", nk_each_scale_bf16_neonbfdot);
     run_each<bf16_k, blend_k, f32_k>("each_blend_bf16_neonbfdot", nk_each_blend_bf16_neonbfdot);
+    run_each<bf16_k, fma_k, f32_k>("each_fma_bf16_neonbfdot", nk_each_fma_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_HASWELL

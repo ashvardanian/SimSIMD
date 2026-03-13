@@ -28,6 +28,7 @@ error_stats_t test_dots_packed(typename scalar_type_::dots_packed_size_kernel_t 
                                typename scalar_type_::dots_packed_kernel_t dots_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::dot_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -40,7 +41,7 @@ error_stats_t test_dots_packed(typename scalar_type_::dots_packed_size_kernel_t 
 
     auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(m * n);
-    auto c_ref = make_vector<f118_t>(m * n);
+    auto c_ref = make_vector<reference_t>(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
     auto b_packed = make_vector<char>(packed_size);
@@ -55,11 +56,11 @@ error_stats_t test_dots_packed(typename scalar_type_::dots_packed_size_kernel_t 
         pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
         dots_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
 
-        // Compute f118_t reference using nk:: template
+        // Compute reference using nk:: template
         nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
-        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
-                                                         c_ref.raw_values_data(), m, n, k, a_stride,
-                                                         n * sizeof(f118_t));
+        nk::dots_packed<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                              c_ref.values_data(), m, n, k, a_stride,
+                                                              n * sizeof(reference_t));
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
@@ -74,6 +75,7 @@ template <typename scalar_type_>
 error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::dot_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -85,7 +87,7 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
 
     auto a = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(n * n);
-    auto c_ref = make_vector<f118_t>(n * n);
+    auto c_ref = make_vector<reference_t>(n * n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -93,9 +95,9 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
         // Run kernel being tested
         kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
 
-        // Compute f118_t reference using nk:: template
-        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
-                                                            n * sizeof(f118_t));
+        // Compute reference using nk:: template
+        nk::dots_symmetric<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
+                                                                 n * sizeof(reference_t));
 
         // Only check upper triangle and diagonal
         for (std::size_t i = 0; i < n; i++)
@@ -286,6 +288,7 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
                                    typename scalar_type_::angulars_packed_kernel_t angulars_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::angular_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -298,15 +301,15 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
 
     auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(m * n);
-    auto c_ref = make_vector<f118_t>(m * n);
+    auto c_ref = make_vector<reference_t>(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
     auto b_packed = make_vector<char>(packed_size);
 
     nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
     auto b_packed_ref = make_vector<char>(ref_packed_size);
-    auto a_sumsqs = make_vector<f118_t>(m);
-    auto b_sumsqs = make_vector<f118_t>(n);
+    auto a_sumsqs = make_vector<reference_t>(m);
+    auto b_sumsqs = make_vector<reference_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -316,27 +319,27 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
         pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
         angulars_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
 
-        // Reference: compute dot products in f118_t precision
+        // Reference: compute dot products in reference precision
         nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
-        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
-                                                         c_ref.raw_values_data(), m, n, k, a_stride,
-                                                         n * sizeof(f118_t));
+        nk::dots_packed<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                              c_ref.values_data(), m, n, k, a_stride,
+                                                              n * sizeof(reference_t));
 
         // Compute sumsqs using reduce_moments
-        f118_t sum_unused;
+        reference_t sum_unused;
         for (std::size_t i = 0; i < m; ++i)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, a_sumsqs.values_data() + i);
         for (std::size_t j = 0; j < n; ++j)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 b.values_data() + j * k_values, k, sizeof(scalar_t), &sum_unused, b_sumsqs.values_data() + j);
 
         // Convert dots to angular distances: 1 - dot / sqrt(sumsq_a * sumsq_b)
         for (std::size_t i = 0; i < m; ++i)
             for (std::size_t j = 0; j < n; ++j) {
-                f118_t ab_sumsq = a_sumsqs[i] * b_sumsqs[j];
-                f118_t &c_cell = c_ref[i * n + j];
-                c_cell = ab_sumsq > f118_t(0) ? (f118_t(1) - c_cell * ab_sumsq.rsqrt()) : f118_t(0);
+                reference_t ab_sumsq = a_sumsqs[i] * b_sumsqs[j];
+                reference_t &c_cell = c_ref[i * n + j];
+                c_cell = ab_sumsq > reference_t(0) ? (reference_t(1) - c_cell * ab_sumsq.rsqrt()) : reference_t(0);
             }
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
@@ -354,6 +357,7 @@ error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_ker
                                      typename scalar_type_::euclideans_packed_kernel_t euclideans_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::euclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -366,15 +370,15 @@ error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_ker
 
     auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(m * n);
-    auto c_ref = make_vector<f118_t>(m * n);
+    auto c_ref = make_vector<reference_t>(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
     auto b_packed = make_vector<char>(packed_size);
 
     nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
     auto b_packed_ref = make_vector<char>(ref_packed_size);
-    auto a_sumsqs = make_vector<f118_t>(m);
-    auto b_sumsqs = make_vector<f118_t>(n);
+    auto a_sumsqs = make_vector<reference_t>(m);
+    auto b_sumsqs = make_vector<reference_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -385,27 +389,27 @@ error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_ker
         euclideans_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride,
                       c_stride);
 
-        // Reference: compute dot products in f118_t precision
+        // Reference: compute dot products in reference precision
         nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
-        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
-                                                         c_ref.raw_values_data(), m, n, k, a_stride,
-                                                         n * sizeof(f118_t));
+        nk::dots_packed<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                              c_ref.values_data(), m, n, k, a_stride,
+                                                              n * sizeof(reference_t));
 
         // Compute sumsqs using reduce_moments
-        f118_t sum_unused;
+        reference_t sum_unused;
         for (std::size_t i = 0; i < m; ++i)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, a_sumsqs.values_data() + i);
         for (std::size_t j = 0; j < n; ++j)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 b.values_data() + j * k_values, k, sizeof(scalar_t), &sum_unused, b_sumsqs.values_data() + j);
 
         // Convert dots to euclidean distances: sqrt(max(0, sumsq_a + sumsq_b - 2*dot))
         for (std::size_t i = 0; i < m; ++i)
             for (std::size_t j = 0; j < n; ++j) {
-                f118_t &c_cell = c_ref[i * n + j];
-                f118_t diff = a_sumsqs[i] + b_sumsqs[j] - f118_t(2) * c_cell;
-                c_cell = diff > f118_t(0) ? diff.sqrt() : f118_t(0);
+                reference_t &c_cell = c_ref[i * n + j];
+                reference_t diff = a_sumsqs[i] + b_sumsqs[j] - reference_t(2) * c_cell;
+                c_cell = diff > reference_t(0) ? diff.sqrt() : reference_t(0);
             }
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
@@ -420,6 +424,7 @@ template <typename scalar_type_>
 error_stats_t test_angulars_symmetric(typename scalar_type_::angulars_symmetric_kernel_t kernel_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::angular_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -431,8 +436,8 @@ error_stats_t test_angulars_symmetric(typename scalar_type_::angulars_symmetric_
 
     auto a = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(n * n);
-    auto c_ref = make_vector<f118_t>(n * n);
-    auto sumsqs = make_vector<f118_t>(n);
+    auto c_ref = make_vector<reference_t>(n * n);
+    auto sumsqs = make_vector<reference_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -440,23 +445,23 @@ error_stats_t test_angulars_symmetric(typename scalar_type_::angulars_symmetric_
         // Run kernel being tested
         kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
 
-        // Reference: compute dots symmetric in f118_t
-        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
-                                                            n * sizeof(f118_t));
+        // Reference: compute dots symmetric in reference precision
+        nk::dots_symmetric<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
+                                                                 n * sizeof(reference_t));
 
         // Compute sumsqs using reduce_moments
-        f118_t sum_unused;
+        reference_t sum_unused;
         for (std::size_t i = 0; i < n; ++i)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, sumsqs.values_data() + i);
 
         // Convert dots to angular distances: diagonal=0, upper triangle uses formula
         for (std::size_t i = 0; i < n; ++i) {
-            c_ref[i * n + i] = f118_t(0);
+            c_ref[i * n + i] = reference_t(0);
             for (std::size_t j = i + 1; j < n; ++j) {
-                f118_t ab_sumsq = sumsqs[i] * sumsqs[j];
-                f118_t &c_cell = c_ref[i * n + j];
-                c_cell = ab_sumsq > f118_t(0) ? (f118_t(1) - c_cell * ab_sumsq.rsqrt()) : f118_t(0);
+                reference_t ab_sumsq = sumsqs[i] * sumsqs[j];
+                reference_t &c_cell = c_ref[i * n + j];
+                c_cell = ab_sumsq > reference_t(0) ? (reference_t(1) - c_cell * ab_sumsq.rsqrt()) : reference_t(0);
             }
         }
 
@@ -474,6 +479,7 @@ template <typename scalar_type_>
 error_stats_t test_euclideans_symmetric(typename scalar_type_::euclideans_symmetric_kernel_t kernel_fn) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::euclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -485,8 +491,8 @@ error_stats_t test_euclideans_symmetric(typename scalar_type_::euclideans_symmet
 
     auto a = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(n * n);
-    auto c_ref = make_vector<f118_t>(n * n);
-    auto sumsqs = make_vector<f118_t>(n);
+    auto c_ref = make_vector<reference_t>(n * n);
+    auto sumsqs = make_vector<reference_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -494,23 +500,23 @@ error_stats_t test_euclideans_symmetric(typename scalar_type_::euclideans_symmet
         // Run kernel being tested
         kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
 
-        // Reference: compute dots symmetric in f118_t
-        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
-                                                            n * sizeof(f118_t));
+        // Reference: compute dots symmetric in reference precision
+        nk::dots_symmetric<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
+                                                                 n * sizeof(reference_t));
 
         // Compute sumsqs using reduce_moments
-        f118_t sum_unused;
+        reference_t sum_unused;
         for (std::size_t i = 0; i < n; ++i)
-            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+            nk::reduce_moments<scalar_t, reference_t, reference_t, nk::no_simd_k>(
                 a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, sumsqs.values_data() + i);
 
         // Convert dots to euclidean distances: diagonal=0, upper triangle uses formula
         for (std::size_t i = 0; i < n; ++i) {
-            c_ref[i * n + i] = f118_t(0);
+            c_ref[i * n + i] = reference_t(0);
             for (std::size_t j = i + 1; j < n; ++j) {
-                f118_t &c_cell = c_ref[i * n + j];
-                f118_t diff = sumsqs[i] + sumsqs[j] - f118_t(2) * c_cell;
-                c_cell = diff > f118_t(0) ? diff.sqrt() : f118_t(0);
+                reference_t &c_cell = c_ref[i * n + j];
+                reference_t diff = sumsqs[i] + sumsqs[j] - reference_t(2) * c_cell;
+                c_cell = diff > reference_t(0) ? diff.sqrt() : reference_t(0);
             }
         }
 

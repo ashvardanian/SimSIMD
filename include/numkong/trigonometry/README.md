@@ -85,32 +85,32 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                     |                      256 |                     1024 |                     4096 |
 | :------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f64_serial`   |       1.18 gb/s, 0.2 ulp |       1.06 gb/s, 0.2 ulp |       1.10 gb/s, 0.2 ulp |
-| `nk_each_cos_f64_serial`   |       1.24 gb/s, 0.3 ulp |       1.12 gb/s, 0.3 ulp |       1.14 gb/s, 0.3 ulp |
-| `nk_each_atan_f64_serial`  |      0.332 gb/s, 0.3 ulp |      0.307 gb/s, 0.3 ulp |      0.309 gb/s, 0.3 ulp |
-| `nk_each_sin_f64_haswell`  |       7.20 gb/s, 0.2 ulp |       6.83 gb/s, 0.2 ulp |       6.55 gb/s, 0.2 ulp |
-| `nk_each_cos_f64_haswell`  |       7.44 gb/s, 0.3 ulp |       6.63 gb/s, 0.3 ulp |       6.54 gb/s, 0.3 ulp |
-| `nk_each_atan_f64_haswell` |       6.07 gb/s, 0.3 ulp |       5.22 gb/s, 0.3 ulp |       5.26 gb/s, 0.3 ulp |
-| `nk_each_sin_f64_skylake`  |       12.2 gb/s, 0.2 ulp |       11.5 gb/s, 0.2 ulp |       8.78 gb/s, 0.2 ulp |
-| `nk_each_cos_f64_skylake`  |       11.7 gb/s, 0.3 ulp |       10.7 gb/s, 0.3 ulp |       10.2 gb/s, 0.3 ulp |
-| `nk_each_atan_f64_skylake` |       9.16 gb/s, 0.3 ulp |       7.60 gb/s, 0.3 ulp |       7.28 gb/s, 0.3 ulp |
+| `nk_each_sin_f64_serial`   |        0.994 gb/s, 0 ulp |        0.783 gb/s, 0 ulp |        0.827 gb/s, 0 ulp |
+| `nk_each_cos_f64_serial`   |        0.906 gb/s, 0 ulp |        0.784 gb/s, 0 ulp |        0.824 gb/s, 0 ulp |
+| `nk_each_atan_f64_serial`  |        0.307 gb/s, 0 ulp |        0.291 gb/s, 0 ulp |        0.291 gb/s, 0 ulp |
+| `nk_each_sin_f64_haswell`  |         4.59 gb/s, 0 ulp |         4.19 gb/s, 0 ulp |         4.04 gb/s, 0 ulp |
+| `nk_each_cos_f64_haswell`  |         4.25 gb/s, 0 ulp |         4.14 gb/s, 0 ulp |         3.92 gb/s, 0 ulp |
+| `nk_each_atan_f64_haswell` |         3.83 gb/s, 0 ulp |         3.21 gb/s, 0 ulp |         3.49 gb/s, 0 ulp |
+| `nk_each_sin_f64_skylake`  |         7.65 gb/s, 0 ulp |         6.55 gb/s, 0 ulp |         4.70 gb/s, 0 ulp |
+| `nk_each_cos_f64_skylake`  |         7.88 gb/s, 0 ulp |         5.76 gb/s, 0 ulp |         5.01 gb/s, 0 ulp |
+| `nk_each_atan_f64_skylake` |         5.08 gb/s, 0 ulp |         4.72 gb/s, 0 ulp |         4.58 gb/s, 0 ulp |
 | __f32__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f32_serial`   |       10.9 gb/s, 4.9 ulp |       9.65 gb/s, 4.9 ulp |       9.93 gb/s, 4.9 ulp |
-| `nk_each_cos_f32_serial`   |        10.1 gb/s, 16 ulp |        9.02 gb/s, 16 ulp |      9.60 gb/s, 16.4 ulp |
-| `nk_each_atan_f32_serial`  |      0.687 gb/s, 0.4 ulp |      0.661 gb/s, 0.4 ulp |      0.680 gb/s, 0.4 ulp |
-| `nk_each_sin_f32_haswell`  |       13.9 gb/s, 4.9 ulp |       12.2 gb/s, 4.9 ulp |       12.0 gb/s, 4.9 ulp |
-| `nk_each_cos_f32_haswell`  |        13.1 gb/s, 16 ulp |        11.6 gb/s, 16 ulp |      11.1 gb/s, 16.4 ulp |
-| `nk_each_atan_f32_haswell` |       8.74 gb/s, 0.4 ulp |       10.3 gb/s, 0.4 ulp |       10.3 gb/s, 0.4 ulp |
-| `nk_each_sin_f32_skylake`  |       17.0 gb/s, 4.9 ulp |       12.9 gb/s, 4.9 ulp |       13.0 gb/s, 4.9 ulp |
-| `nk_each_cos_f32_skylake`  |        16.9 gb/s, 16 ulp |        13.0 gb/s, 16 ulp |      12.0 gb/s, 16.3 ulp |
-| `nk_each_atan_f32_skylake` |       14.1 gb/s, 0.4 ulp |       11.9 gb/s, 0.4 ulp |       10.2 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_serial`   |         6.29 gb/s, 5 ulp |         6.07 gb/s, 5 ulp |         5.41 gb/s, 5 ulp |
+| `nk_each_cos_f32_serial`   |        7.03 gb/s, 15 ulp |        6.24 gb/s, 15 ulp |        5.16 gb/s, 15 ulp |
+| `nk_each_atan_f32_serial`  |      0.642 gb/s, 0.4 ulp |      0.541 gb/s, 0.4 ulp |      0.567 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_haswell`  |         10.0 gb/s, 5 ulp |         7.36 gb/s, 5 ulp |         5.63 gb/s, 5 ulp |
+| `nk_each_cos_f32_haswell`  |        7.82 gb/s, 15 ulp |        7.11 gb/s, 15 ulp |        5.09 gb/s, 15 ulp |
+| `nk_each_atan_f32_haswell` |       7.63 gb/s, 0.4 ulp |       5.94 gb/s, 0.4 ulp |       5.38 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_skylake`  |         11.9 gb/s, 5 ulp |         9.14 gb/s, 5 ulp |         5.43 gb/s, 5 ulp |
+| `nk_each_cos_f32_skylake`  |        10.4 gb/s, 15 ulp |        8.26 gb/s, 15 ulp |        5.40 gb/s, 15 ulp |
+| `nk_each_atan_f32_skylake` |       9.07 gb/s, 0.4 ulp |       7.80 gb/s, 0.4 ulp |       5.75 gb/s, 0.4 ulp |
 | __f16__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f16_serial`   |      0.113 gb/s, 1.3 ulp |      0.106 gb/s, 1.3 ulp |      0.110 gb/s, 1.3 ulp |
-| `nk_each_cos_f16_serial`   |       0.109 gb/s, 12 ulp |       0.104 gb/s, 12 ulp |     0.105 gb/s, 12.3 ulp |
-| `nk_each_atan_f16_serial`  |      0.021 gb/s, 6.4 ulp |      0.019 gb/s, 6.4 ulp |      0.020 gb/s, 6.4 ulp |
-| `nk_each_sin_f16_skylake`  |        10.7 gb/s, 8K ulp |        9.92 gb/s, 8K ulp |        9.59 gb/s, 8K ulp |
-| `nk_each_cos_f16_skylake`  |        10.0 gb/s, 8K ulp |        9.43 gb/s, 8K ulp |        9.04 gb/s, 8K ulp |
-| `nk_each_atan_f16_skylake` |       8.20 gb/s, 16K ulp |       8.20 gb/s, 16K ulp |       7.73 gb/s, 16K ulp |
+| `nk_each_sin_f16_serial`   |      0.112 gb/s, 0.9 ulp |      0.102 gb/s, 1.1 ulp |      0.110 gb/s, 0.9 ulp |
+| `nk_each_cos_f16_serial`   |       0.105 gb/s, 12 ulp |      0.0962 gb/s, 12 ulp |      0.0976 gb/s, 12 ulp |
+| `nk_each_atan_f16_serial`  |     0.0208 gb/s, 6.4 ulp |     0.0201 gb/s, 6.7 ulp |     0.0204 gb/s, 6.6 ulp |
+| `nk_each_sin_f16_skylake`  |     6.05 gb/s, 8.41K ulp |     5.81 gb/s, 8.43K ulp |     5.24 gb/s, 8.41K ulp |
+| `nk_each_cos_f16_skylake`  |     6.05 gb/s, 8.34K ulp |     5.20 gb/s, 8.34K ulp |     5.09 gb/s, 8.35K ulp |
+| `nk_each_atan_f16_skylake` |     4.86 gb/s, 16.5K ulp |     5.25 gb/s, 16.6K ulp |     4.76 gb/s, 16.5K ulp |
 
 #### WASM
 
@@ -119,44 +119,48 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                         |                      256 |                     1024 |                     4096 |
 | :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f64_serial`       |          ? gb/s, 0.2 ulp |          ? gb/s, 0.2 ulp |          ? gb/s, 0.2 ulp |
-| `nk_each_cos_f64_serial`       |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |
-| `nk_each_atan_f64_serial`      |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |
-| `nk_each_sin_f64_v128relaxed`  |          ? gb/s, 0.2 ulp |          ? gb/s, 0.2 ulp |          ? gb/s, 0.2 ulp |
-| `nk_each_cos_f64_v128relaxed`  |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |
-| `nk_each_atan_f64_v128relaxed` |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |          ? gb/s, 0.3 ulp |
+| `nk_each_sin_f64_serial`       |       0.34 gb/s, 0.2 ulp |       0.38 gb/s, 0.2 ulp |       0.08 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_serial`       |       0.36 gb/s, 0.3 ulp |       0.39 gb/s, 0.3 ulp |       0.08 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_serial`      |       0.11 gb/s, 0.3 ulp |       0.12 gb/s, 0.3 ulp |       0.11 gb/s, 0.3 ulp |
+| `nk_each_sin_f64_v128relaxed`  |       0.59 gb/s, 0.2 ulp |       0.26 gb/s, 0.2 ulp |       0.05 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_v128relaxed`  |       0.29 gb/s, 0.3 ulp |       0.50 gb/s, 0.3 ulp |       0.03 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_v128relaxed` |       0.11 gb/s, 0.3 ulp |       0.48 gb/s, 0.3 ulp |       0.21 gb/s, 0.3 ulp |
 | __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f32_serial`       |          ? gb/s, 4.8 ulp |          ? gb/s, 4.8 ulp |          ? gb/s, 4.8 ulp |
-| `nk_each_cos_f32_serial`       |           ? gb/s, 16 ulp |           ? gb/s, 16 ulp |           ? gb/s, 16 ulp |
-| `nk_each_atan_f32_serial`      |          ? gb/s, 0.4 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 0.4 ulp |
-| `nk_each_sin_f32_v128relaxed`  |           ? gb/s, 20 ulp |           ? gb/s, 19 ulp |           ? gb/s, 19 ulp |
-| `nk_each_cos_f32_v128relaxed`  |           ? gb/s, 20 ulp |           ? gb/s, 20 ulp |           ? gb/s, 20 ulp |
-| `nk_each_atan_f32_v128relaxed` |          ? gb/s, 0.4 ulp |          ? gb/s, 0.4 ulp |          ? gb/s, 0.4 ulp |
+| `nk_each_sin_f32_serial`       |       0.17 gb/s, 4.9 ulp |       0.51 gb/s, 4.9 ulp |       0.07 gb/s, 4.9 ulp |
+| `nk_each_cos_f32_serial`       |      0.05 gb/s, 14.4 ulp |      0.41 gb/s, 14.4 ulp |      0.10 gb/s, 14.4 ulp |
+| `nk_each_atan_f32_serial`      |       0.08 gb/s, 0.4 ulp |       0.08 gb/s, 0.4 ulp |       0.09 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_v128relaxed`  |      0.13 gb/s, 20.7 ulp |      0.01 gb/s, 20.7 ulp |      0.10 gb/s, 20.7 ulp |
+| `nk_each_cos_f32_v128relaxed`  |      0.15 gb/s, 21.9 ulp |      0.32 gb/s, 21.9 ulp |      0.05 gb/s, 21.9 ulp |
+| `nk_each_atan_f32_v128relaxed` |       0.45 gb/s, 0.4 ulp |       0.39 gb/s, 0.4 ulp |       0.15 gb/s, 0.4 ulp |
+| __f16__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_each_sin_f16_serial`       |       0.07 gb/s, 1.1 ulp |       0.07 gb/s, 1.1 ulp |       0.07 gb/s, 1.1 ulp |
+| `nk_each_cos_f16_serial`       |      0.07 gb/s, 11.8 ulp |      0.07 gb/s, 11.8 ulp |      0.07 gb/s, 11.8 ulp |
+| `nk_each_atan_f16_serial`      |       0.03 gb/s, 6.5 ulp |       0.03 gb/s, 6.5 ulp |       0.03 gb/s, 6.5 ulp |
 
-### Apple M4 Pro
+### Apple M4
 
 #### Native
 
 | Kernel                    |                      256 |                     1024 |                     4096 |
 | :------------------------ | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f64_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f64_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f64_serial` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_sin_f64_neon`    |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f64_neon`    |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f64_neon`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_each_sin_f64_serial`  |      0.627 gb/s, 0.2 ulp |      0.634 gb/s, 0.2 ulp |      0.639 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_serial`  |      0.621 gb/s, 0.3 ulp |      0.632 gb/s, 0.3 ulp |      0.619 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_serial` |      0.153 gb/s, 0.3 ulp |      0.154 gb/s, 0.3 ulp |      0.153 gb/s, 0.3 ulp |
+| `nk_each_sin_f64_neon`    |       5.94 gb/s, 0.2 ulp |       5.75 gb/s, 0.2 ulp |       5.82 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_neon`    |       5.15 gb/s, 0.3 ulp |       5.36 gb/s, 0.3 ulp |       5.37 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_neon`   |       3.53 gb/s, 0.3 ulp |       3.50 gb/s, 0.3 ulp |       3.50 gb/s, 0.3 ulp |
 | __f32__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f32_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f32_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f32_serial` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_sin_f32_neon`    |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f32_neon`    |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f32_neon`   |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_each_sin_f32_serial`  |       7.94 gb/s, 4.9 ulp |       7.94 gb/s, 4.9 ulp |       7.23 gb/s, 4.9 ulp |
+| `nk_each_cos_f32_serial`  |        7.26 gb/s, 14 ulp |        6.41 gb/s, 14 ulp |        6.52 gb/s, 14 ulp |
+| `nk_each_atan_f32_serial` |      0.128 gb/s, 0.4 ulp |      0.129 gb/s, 0.4 ulp |      0.126 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_neon`    |       9.75 gb/s, 4.9 ulp |       9.44 gb/s, 4.9 ulp |       8.13 gb/s, 4.9 ulp |
+| `nk_each_cos_f32_neon`    |        8.68 gb/s, 18 ulp |        7.77 gb/s, 18 ulp |        7.84 gb/s, 18 ulp |
+| `nk_each_atan_f32_neon`   |       5.57 gb/s, 0.4 ulp |       5.00 gb/s, 0.4 ulp |       5.10 gb/s, 0.4 ulp |
 | __f16__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f16_serial`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f16_serial` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_each_sin_f16_serial`  |       3.66 gb/s, 1.3 ulp |       3.71 gb/s, 1.3 ulp |       3.38 gb/s, 1.3 ulp |
+| `nk_each_cos_f16_serial`  |        3.28 gb/s, 12 ulp |        3.29 gb/s, 12 ulp |        3.15 gb/s, 12 ulp |
+| `nk_each_atan_f16_serial` |     0.0639 gb/s, 6.5 ulp |     0.0626 gb/s, 6.5 ulp |     0.0627 gb/s, 6.5 ulp |
 
 #### WASM
 
@@ -165,16 +169,16 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                         |                      256 |                     1024 |                     4096 |
 | :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f64_serial`       |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_sin_f64_v128relaxed`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f64_serial`       |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f64_v128relaxed`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f64_serial`      |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f64_v128relaxed` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_each_sin_f64_serial`       |      0.619 gb/s, 0.2 ulp |      0.517 gb/s, 0.2 ulp |      0.705 gb/s, 0.2 ulp |
+| `nk_each_sin_f64_v128relaxed`  |       9.10 gb/s, 0.2 ulp |       3.58 gb/s, 0.2 ulp |       8.93 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_serial`       |      0.595 gb/s, 0.3 ulp |      0.501 gb/s, 0.3 ulp |      0.681 gb/s, 0.3 ulp |
+| `nk_each_cos_f64_v128relaxed`  |       9.35 gb/s, 0.3 ulp |       3.99 gb/s, 0.3 ulp |       9.16 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_serial`      |      0.188 gb/s, 0.3 ulp |      0.157 gb/s, 0.3 ulp |      0.214 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_v128relaxed` |       6.22 gb/s, 0.3 ulp |       2.44 gb/s, 0.3 ulp |       6.06 gb/s, 0.3 ulp |
 | __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f32_serial`       |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_sin_f32_v128relaxed`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f32_serial`       |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_cos_f32_v128relaxed`  |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f32_serial`      |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
-| `nk_each_atan_f32_v128relaxed` |            ? gb/s, ? ulp |            ? gb/s, ? ulp |            ? gb/s, ? ulp |
+| `nk_each_sin_f32_serial`       |       8.08 gb/s, 4.9 ulp |       4.26 gb/s, 4.9 ulp |       9.32 gb/s, 4.9 ulp |
+| `nk_each_sin_f32_v128relaxed`  |        19.1 gb/s, 20 ulp |        7.19 gb/s, 20 ulp |        17.1 gb/s, 20 ulp |
+| `nk_each_cos_f32_serial`       |        7.45 gb/s, 14 ulp |        3.88 gb/s, 14 ulp |        8.52 gb/s, 14 ulp |
+| `nk_each_cos_f32_v128relaxed`  |        17.8 gb/s, 21 ulp |        7.06 gb/s, 21 ulp |        16.2 gb/s, 21 ulp |
+| `nk_each_atan_f32_serial`      |      0.151 gb/s, 0.4 ulp |     0.0950 gb/s, 0.4 ulp |      0.175 gb/s, 0.4 ulp |
+| `nk_each_atan_f32_v128relaxed` |       11.3 gb/s, 0.4 ulp |       4.22 gb/s, 0.4 ulp |       10.9 gb/s, 0.4 ulp |

@@ -14,6 +14,7 @@
 #include "numkong/reduce.h"
 
 #include "numkong/types.hpp"
+#include "numkong/vector.hpp"
 
 namespace ashvardanian::numkong {
 
@@ -80,9 +81,9 @@ void reduce_moments(in_type_ const *data, std::size_t count, std::size_t stride_
     else {
         sum_type_ running_sum {};
         sumsq_type_ running_sumsq {};
-        auto const *ptr = reinterpret_cast<std::byte const *>(data);
-        for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
-            in_type_ val = *reinterpret_cast<in_type_ const *>(ptr);
+        vector_view<in_type_> values(reinterpret_cast<char const *>(data), count, stride_bytes);
+        for (std::size_t i = 0; i < count; ++i) {
+            auto val = values[i];
             running_sum = saturating_add(running_sum, val);
             running_sumsq = saturating_fma(val, val, running_sumsq);
         }
@@ -159,13 +160,13 @@ void reduce_minmax(in_type_ const *data, std::size_t count, std::size_t stride_b
         nk_reduce_minmax_u1(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
     // Scalar fallback
     else {
-        minmax_type_ best_min = minmax_type_(in_type_::finite_max());
-        minmax_type_ best_max = minmax_type_(in_type_::finite_min());
+        minmax_type_ best_min = finite_max<minmax_type_>();
+        minmax_type_ best_max = finite_min<minmax_type_>();
         std::size_t best_min_index = 0;
         std::size_t best_max_index = 0;
-        auto const *ptr = reinterpret_cast<std::byte const *>(data);
-        for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
-            minmax_type_ v = minmax_type_(*reinterpret_cast<in_type_ const *>(ptr));
+        vector_view<in_type_> values(reinterpret_cast<char const *>(data), count, stride_bytes);
+        for (std::size_t i = 0; i < count; ++i) {
+            minmax_type_ v = minmax_type_(values[i]);
             if (v < best_min) best_min = v, best_min_index = i;
             if (v > best_max) best_max = v, best_max_index = i;
         }

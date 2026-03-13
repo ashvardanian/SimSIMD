@@ -49,8 +49,8 @@ void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_siz
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * (first_vectors[0].size_bytes() + second_vectors[0].size_bytes()),
-                                          bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(
+        1.0 * iterations * (first_vectors[0].size_bytes() + second_vectors[0].size_bytes()), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -150,8 +150,9 @@ void measure_sparse_dot(bm::State &state, kernel_type_ kernel, std::size_t first
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * (first_indices[0].size_bytes() + second_indices[0].size_bytes() +
-                                                        first_weights[0].size_bytes() + second_weights[0].size_bytes()),
+    state.counters["bytes"] = bm::Counter(1.0 * iterations *
+                                              (first_indices[0].size_bytes() + second_indices[0].size_bytes() +
+                                               first_weights[0].size_bytes() + second_weights[0].size_bytes()),
                                           bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }

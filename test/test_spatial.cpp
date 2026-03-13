@@ -17,6 +17,7 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::sqeuclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -30,9 +31,9 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::sqeuclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(),
-                                                         global_config.dense_dimensions, &reference);
+        reference_t reference;
+        nk::sqeuclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                              global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -48,6 +49,7 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::angular_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -61,9 +63,9 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::angular<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                     &reference);
+        reference_t reference;
+        nk::angular<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                          global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -79,6 +81,7 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::euclidean_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -92,9 +95,9 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118_t reference;
-        nk::euclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                       &reference);
+        reference_t reference;
+        nk::euclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
+                                                            global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -216,6 +219,8 @@ void test_spatial() {
 #if NK_TARGET_ICELAKE
     run_if_matches("sqeuclidean_i4_icelake", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_icelake);
     run_if_matches("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
+    run_if_matches("euclidean_i4_icelake", test_euclidean<i4x2_t>, nk_euclidean_i4_icelake);
+    run_if_matches("euclidean_u4_icelake", test_euclidean<u4x2_t>, nk_euclidean_u4_icelake);
     run_if_matches("angular_i4_icelake", test_angular<i4x2_t>, nk_angular_i4_icelake);
     run_if_matches("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
     run_if_matches("angular_i8_icelake", test_angular<i8_t>, nk_angular_i8_icelake);
@@ -352,6 +357,8 @@ void test_spatial() {
     run_if_matches("angular_e3m2_serial", test_angular<e3m2_t>, nk_angular_e3m2_serial);
     run_if_matches("sqeuclidean_i4_serial", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_serial);
     run_if_matches("sqeuclidean_u4_serial", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_serial);
+    run_if_matches("euclidean_i4_serial", test_euclidean<i4x2_t>, nk_euclidean_i4_serial);
+    run_if_matches("euclidean_u4_serial", test_euclidean<u4x2_t>, nk_euclidean_u4_serial);
     run_if_matches("angular_i4_serial", test_angular<i4x2_t>, nk_angular_i4_serial);
     run_if_matches("angular_u4_serial", test_angular<u4x2_t>, nk_angular_u4_serial);
     run_if_matches("angular_e4m3_serial", test_angular<e4m3_t>, nk_angular_e4m3_serial);

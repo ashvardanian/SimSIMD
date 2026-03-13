@@ -17,7 +17,7 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::dot_result_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -48,6 +48,7 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::vdot_result_t;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -61,9 +62,9 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
-        f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                   &reference);
+        reference_t reference;
+        nk::vdot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &reference);
 
         stats.accumulate(result, reference);
     }

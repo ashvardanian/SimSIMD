@@ -39,7 +39,7 @@ void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t count) {
     }
 
     std::size_t const bytes_per_call = count * (sizeof(input_t) + sizeof(output_t));
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(1.0 * iterations * bytes_per_call, bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -67,6 +67,12 @@ void bench_cast() {
     run_cast<nk_e3m2_k, nk_f32_k>("cast_e3m2_to_f32_haswell", nk_cast_haswell);
     run_cast<nk_i8_k, nk_f32_k>("cast_i8_to_f32_haswell", nk_cast_haswell);
     run_cast<nk_f32_k, nk_i8_k>("cast_f32_to_i8_haswell", nk_cast_haswell);
+    run_cast<nk_i16_k, nk_f32_k>("cast_i16_to_f32_haswell", nk_cast_haswell);
+    run_cast<nk_f32_k, nk_i16_k>("cast_f32_to_i16_haswell", nk_cast_haswell);
+    run_cast<nk_u16_k, nk_f32_k>("cast_u16_to_f32_haswell", nk_cast_haswell);
+    run_cast<nk_f32_k, nk_u16_k>("cast_f32_to_u16_haswell", nk_cast_haswell);
+    run_cast<nk_u8_k, nk_f32_k>("cast_u8_to_f32_haswell", nk_cast_haswell);
+    run_cast<nk_f32_k, nk_u8_k>("cast_f32_to_u8_haswell", nk_cast_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
@@ -90,6 +96,18 @@ void bench_cast() {
     run_cast<nk_f64_k, nk_i32_k>("cast_f64_to_i32_skylake", nk_cast_skylake);
     run_cast<nk_i8_k, nk_i32_k>("cast_i8_to_i32_skylake", nk_cast_skylake);
     run_cast<nk_i32_k, nk_i8_k>("cast_i32_to_i8_skylake", nk_cast_skylake);
+    run_cast<nk_i16_k, nk_f32_k>("cast_i16_to_f32_skylake", nk_cast_skylake);
+    run_cast<nk_f32_k, nk_i16_k>("cast_f32_to_i16_skylake", nk_cast_skylake);
+    run_cast<nk_u16_k, nk_f32_k>("cast_u16_to_f32_skylake", nk_cast_skylake);
+    run_cast<nk_f32_k, nk_u16_k>("cast_f32_to_u16_skylake", nk_cast_skylake);
+    run_cast<nk_u8_k, nk_f32_k>("cast_u8_to_f32_skylake", nk_cast_skylake);
+    run_cast<nk_f32_k, nk_u8_k>("cast_f32_to_u8_skylake", nk_cast_skylake);
+    run_cast<nk_i64_k, nk_f64_k>("cast_i64_to_f64_skylake", nk_cast_skylake);
+    run_cast<nk_f64_k, nk_i64_k>("cast_f64_to_i64_skylake", nk_cast_skylake);
+    run_cast<nk_u64_k, nk_f64_k>("cast_u64_to_f64_skylake", nk_cast_skylake);
+    run_cast<nk_f64_k, nk_u64_k>("cast_f64_to_u64_skylake", nk_cast_skylake);
+    run_cast<nk_u32_k, nk_f64_k>("cast_u32_to_f64_skylake", nk_cast_skylake);
+    run_cast<nk_f64_k, nk_u32_k>("cast_f64_to_u32_skylake", nk_cast_skylake);
 #endif
 
 #if NK_TARGET_ICELAKE

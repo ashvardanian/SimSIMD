@@ -116,6 +116,23 @@ using nk::u8_t;
 using steady_clock = std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
 
+/**
+ *  @brief Maps scalar types to appropriate reference types for ULP testing.
+ *
+ *  Two template parameters: input type and result type (defaulting to input).
+ *  - f32/f64 input → f118_t (need full double-double precision)
+ *  - Complex f32c/f64c input → f118c_t
+ *  - Smaller complex (f16c, bf16c) → f64c_t (52-bit mantissa >> 7-10 bit mantissa)
+ *  - Everything else (integers, bf16, f16, etc.) → f64_t
+ */
+template <typename input_type_, typename result_type_ = input_type_>
+using reference_for = std::conditional_t<
+    std::is_same_v<input_type_, f32_t> || std::is_same_v<input_type_, f64_t>, f118_t,
+    std::conditional_t<
+        nk::is_complex<input_type_>(),
+        std::conditional_t<std::is_same_v<input_type_, f32c_t> || std::is_same_v<input_type_, f64c_t>, f118c_t, f64c_t>,
+        f64_t>>;
+
 template class nk::vector<int>;
 template class nk::vector<nk::i32_t>;
 template class nk::vector<nk::u1x8_t>;
@@ -299,8 +316,11 @@ struct error_stats_t {
     template <typename actual_type_, typename expected_type_>
     void accumulate_scalar(actual_type_ actual, expected_type_ expected) noexcept {
         actual_type_ expected_as_actual;
-        if constexpr (std::is_same_v<expected_type_, f118_t>) expected_as_actual = expected.template to<actual_type_>();
-        else expected_as_actual = static_cast<actual_type_>(expected);
+        if constexpr (std::is_same_v<expected_type_, f118_t> || std::is_same_v<expected_type_, f118c_t>)
+            expected_as_actual = expected.template to<actual_type_>();
+        else if constexpr (std::is_integral_v<expected_type_> && std::is_integral_v<actual_type_>)
+            expected_as_actual = static_cast<actual_type_>(expected);
+        else expected_as_actual = actual_type_(static_cast<double>(expected));
 
         // Compute ULP distance (handles both integers and floats)
         std::uint64_t ulps = ulp_distance(actual, expected_as_actual);

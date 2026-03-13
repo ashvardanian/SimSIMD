@@ -112,9 +112,9 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
         iterations++;
     }
 
-    state.counters["bytes"] = bm::Counter(iterations * first_vectors[0].size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(2.0 * iterations * first_vectors[0].size_bytes(), bm::Counter::kIsRate);
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
-    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * (dimensions * dimensions + dimensions),
+    state.counters["scalar-ops"] = bm::Counter(2.0 * iterations * (dimensions * dimensions + dimensions),
                                                bm::Counter::kIsRate);
 }
 

@@ -41,7 +41,7 @@ error_stats_t test_bilinear(typename scalar_type_::curved_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::curved_result_t;
-    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
+    using reference_t = reference_for<scalar_t, result_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -76,6 +76,7 @@ error_stats_t test_mahalanobis(typename scalar_type_::curved_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::curved_result_t;
+    using reference_t = reference_for<scalar_t>;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -94,9 +95,9 @@ error_stats_t test_mahalanobis(typename scalar_type_::curved_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), m.raw_values_data(), global_config.dense_dimensions,
                &result.raw_);
 
-        f118_t reference;
-        nk::mahalanobis<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), m.values_data(),
-                                                         global_config.dense_dimensions, &reference);
+        reference_t reference;
+        nk::mahalanobis<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), m.values_data(),
+                                                              global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
