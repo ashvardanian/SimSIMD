@@ -115,6 +115,7 @@ void measure_sparse_dot(bm::State &state, kernel_type_ kernel, std::size_t first
 
     using index_t = typename nk::type_for<index_dtype_>::type;
     using weight_t = typename nk::type_for<weight_dtype_>::type;
+    using product_t = typename weight_t::dot_result_t;
     using index_vector_t = nk::vector<index_t>;
     using weight_vector_t = nk::vector<weight_t>;
 
@@ -139,13 +140,13 @@ void measure_sparse_dot(bm::State &state, kernel_type_ kernel, std::size_t first
         nk::fill_uniform(generator, second_weights[index].values_data(), second_size);
     }
 
-    nk_f32_t product;
+    product_t product;
     std::size_t iterations = 0;
     for (auto _ : state) {
         std::size_t const idx = iterations & (vectors_count - 1);
         kernel(first_indices[idx].raw_values_data(), second_indices[idx].raw_values_data(),
                first_weights[idx].raw_values_data(), second_weights[idx].raw_values_data(), first_size, second_size,
-               &product);
+               &product.raw_);
         bm::DoNotOptimize(product);
         iterations++;
     }

@@ -14,12 +14,12 @@
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
-void bilinear_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t *result) {
+void bilinear_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f64_t *result) {
     static thread_local std::vector<nk_f32_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
     cblas_sgemv(CblasRowMajor, CblasNoTrans, ni, ni, 1.0f, c, ni, b, 1, 0.0f, intermediate.data(), 1);
-    *result = cblas_sdot(ni, a, 1, intermediate.data(), 1);
+    *result = cblas_dsdot(ni, a, 1, intermediate.data(), 1);
 }
 
 void bilinear_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t *result) {
@@ -31,8 +31,9 @@ void bilinear_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const
 }
 
 void bilinear_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                             nk_f32c_t *results) {
+                             nk_f64c_t *results) {
     static thread_local std::vector<nk_f32c_t> intermediate;
+    nk_f32c_t reduced_result_f32;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
 #if NK_COMPARE_TO_ACCELERATE
@@ -42,13 +43,16 @@ void bilinear_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t c
                 reinterpret_cast<std::complex<float> *>(intermediate.data()), 1);
     cblas_cdotu_sub(ni, reinterpret_cast<std::complex<float> const *>(a), 1,
                     reinterpret_cast<std::complex<float> const *>(intermediate.data()), 1,
-                    reinterpret_cast<std::complex<float> *>(results));
+                    reinterpret_cast<std::complex<float> *>(&reduced_result_f32));
 #else
     nk_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
     cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
     cblas_cdotu_sub(ni, reinterpret_cast<nk_f32_t const *>(a), 1,
-                    reinterpret_cast<nk_f32_t const *>(intermediate.data()), 1, reinterpret_cast<nk_f32_t *>(results));
+                    reinterpret_cast<nk_f32_t const *>(intermediate.data()), 1,
+                    reinterpret_cast<nk_f32_t *>(&reduced_result_f32));
 #endif
+    results->real = (nk_f64_t)reduced_result_f32.real;
+    results->imag = (nk_f64_t)reduced_result_f32.imag;
 }
 
 void bilinear_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,

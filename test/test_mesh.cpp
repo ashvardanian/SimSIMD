@@ -33,8 +33,8 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
         reference_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::rmsd<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
-                                                       b_centroid_ref, rot_ref, &scale_ref, &reference);
+        nk::rmsd<scalar_t, reference_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
+                                                                    b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -66,8 +66,8 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
         reference_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::kabsch<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
-                                                         b_centroid_ref, rot_ref, &scale_ref, &reference);
+        nk::kabsch<scalar_t, reference_t, reference_t, nk::no_simd_k>(
+            a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -99,8 +99,8 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
         reference_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::umeyama<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
-                                                          b_centroid_ref, rot_ref, &scale_ref, &reference);
+        nk::umeyama<scalar_t, reference_t, reference_t, nk::no_simd_k>(
+            a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }

@@ -13,23 +13,26 @@
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
-void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
+void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
+    *result = cblas_dsdot(static_cast<int>(n), a, 1, b, 1);
 }
 
 void dot_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void dot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    nk_f32c_t reduced_result_f32;
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<std::complex<float> const *>(a), 1,
                     reinterpret_cast<std::complex<float> const *>(b), 1,
-                    reinterpret_cast<std::complex<float> *>(result));
+                    reinterpret_cast<std::complex<float> *>(&reduced_result_f32));
 #else
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<nk_f32_t const *>(a), 1,
-                    reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(result));
+                    reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(&reduced_result_f32));
 #endif
+    result->real = (nk_f64_t)reduced_result_f32.real;
+    result->imag = (nk_f64_t)reduced_result_f32.imag;
 }
 
 void dot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
@@ -43,15 +46,18 @@ void dot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_
 #endif
 }
 
-void vdot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void vdot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    nk_f32c_t reduced_result_f32;
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<std::complex<float> const *>(a), 1,
                     reinterpret_cast<std::complex<float> const *>(b), 1,
-                    reinterpret_cast<std::complex<float> *>(result));
+                    reinterpret_cast<std::complex<float> *>(&reduced_result_f32));
 #else
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<nk_f32_t const *>(a), 1,
-                    reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(result));
+                    reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(&reduced_result_f32));
 #endif
+    result->real = (nk_f64_t)reduced_result_f32.real;
+    result->imag = (nk_f64_t)reduced_result_f32.imag;
 }
 
 void vdot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
@@ -89,19 +95,19 @@ void bench_dot() {
     constexpr nk_dtype_t bf16c_k = nk_bf16c_k;
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
-    run_dense<f32_k, f32_k>("dot_f32_with_blas", dot_f32_with_blas);
+    run_dense<f32_k, f64_k>("dot_f32_with_blas", dot_f32_with_blas);
     run_dense<f64_k, f64_k>("dot_f64_with_blas", dot_f64_with_blas);
-    run_dense<f32c_k, f32c_k>("dot_f32c_with_blas", dot_f32c_with_blas);
+    run_dense<f32c_k, f64c_k>("dot_f32c_with_blas", dot_f32c_with_blas);
     run_dense<f64c_k, f64c_k>("dot_f64c_with_blas", dot_f64c_with_blas);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_with_blas", vdot_f32c_with_blas);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_with_blas", vdot_f32c_with_blas);
     run_dense<f64c_k, f64c_k>("vdot_f64c_with_blas", vdot_f64c_with_blas);
 #endif
 
 #if NK_TARGET_NEON
-    run_dense<f32_k, f32_k>("dot_f32_neon", nk_dot_f32_neon);
+    run_dense<f32_k, f64_k>("dot_f32_neon", nk_dot_f32_neon);
     run_dense<f64_k, f64_k>("dot_f64_neon", nk_dot_f64_neon);
-    run_dense<f32c_k, f32c_k>("dot_f32c_neon", nk_dot_f32c_neon);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_neon", nk_vdot_f32c_neon);
+    run_dense<f32c_k, f64c_k>("dot_f32c_neon", nk_dot_f32c_neon);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_neon", nk_vdot_f32c_neon);
     run_dense<f64c_k, f64c_k>("dot_f64c_neon", nk_dot_f64c_neon);
     run_dense<f64c_k, f64c_k>("vdot_f64c_neon", nk_vdot_f64c_neon);
     run_dense<bf16_k, f32_k>("dot_bf16_neon", nk_dot_bf16_neon);
@@ -146,10 +152,10 @@ void bench_dot() {
 #endif
 
 #if NK_TARGET_SVE
-    run_dense<f32_k, f32_k>("dot_f32_sve", nk_dot_f32_sve);
+    run_dense<f32_k, f64_k>("dot_f32_sve", nk_dot_f32_sve);
     run_dense<f64_k, f64_k>("dot_f64_sve", nk_dot_f64_sve);
-    run_dense<f32c_k, f32c_k>("dot_f32c_sve", nk_dot_f32c_sve);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_sve", nk_vdot_f32c_sve);
+    run_dense<f32c_k, f64c_k>("dot_f32c_sve", nk_dot_f32c_sve);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_sve", nk_vdot_f32c_sve);
     run_dense<f64c_k, f64c_k>("dot_f64c_sve", nk_dot_f64c_sve);
     run_dense<f64c_k, f64c_k>("vdot_f64c_sve", nk_vdot_f64c_sve);
 #endif
@@ -161,7 +167,7 @@ void bench_dot() {
 #endif
 
 #if NK_TARGET_HASWELL
-    run_dense<f32_k, f32_k>("dot_f32_haswell", nk_dot_f32_haswell);
+    run_dense<f32_k, f64_k>("dot_f32_haswell", nk_dot_f32_haswell);
     run_dense<f64_k, f64_k>("dot_f64_haswell", nk_dot_f64_haswell);
     run_dense<f16_k, f32_k>("dot_f16_haswell", nk_dot_f16_haswell);
     run_dense<bf16_k, f32_k>("dot_bf16_haswell", nk_dot_bf16_haswell);
@@ -173,8 +179,8 @@ void bench_dot() {
     run_dense<u8_k, u32_k>("dot_u8_haswell", nk_dot_u8_haswell);
     run_dense<f16c_k, f32c_k>("dot_f16c_haswell", nk_dot_f16c_haswell);
     run_dense<f16c_k, f32c_k>("vdot_f16c_haswell", nk_vdot_f16c_haswell);
-    run_dense<f32c_k, f32c_k>("dot_f32c_haswell", nk_dot_f32c_haswell);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_haswell", nk_vdot_f32c_haswell);
+    run_dense<f32c_k, f64c_k>("dot_f32c_haswell", nk_dot_f32c_haswell);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_haswell", nk_vdot_f32c_haswell);
     run_dense<bf16c_k, f32c_k>("dot_bf16c_haswell", nk_dot_bf16c_haswell);
     run_dense<bf16c_k, f32c_k>("vdot_bf16c_haswell", nk_vdot_bf16c_haswell);
     run_dense<i4_k, i32_k>("dot_i4_haswell", nk_dot_i4_haswell);
@@ -183,7 +189,7 @@ void bench_dot() {
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_dense<f32_k, f32_k>("dot_f32_skylake", nk_dot_f32_skylake);
+    run_dense<f32_k, f64_k>("dot_f32_skylake", nk_dot_f32_skylake);
     run_dense<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
     run_dense<bf16_k, f32_k>("dot_bf16_skylake", nk_dot_bf16_skylake);
     run_dense<f16_k, f32_k>("dot_f16_skylake", nk_dot_f16_skylake);
@@ -193,8 +199,8 @@ void bench_dot() {
     run_dense<e3m2_k, f32_k>("dot_e3m2_skylake", nk_dot_e3m2_skylake);
     run_dense<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
     run_dense<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
-    run_dense<f32c_k, f32c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
+    run_dense<f32c_k, f64c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
     run_dense<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
     run_dense<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
 #endif
@@ -234,13 +240,13 @@ void bench_dot() {
 #if NK_TARGET_RVV
     run_dense<i8_k, i32_k>("dot_i8_rvv", nk_dot_i8_rvv);
     run_dense<u8_k, u32_k>("dot_u8_rvv", nk_dot_u8_rvv);
-    run_dense<f32_k, f32_k>("dot_f32_rvv", nk_dot_f32_rvv);
+    run_dense<f32_k, f64_k>("dot_f32_rvv", nk_dot_f32_rvv);
     run_dense<f64_k, f64_k>("dot_f64_rvv", nk_dot_f64_rvv);
     run_dense<u1_k, u32_k>("dot_u1_rvv", nk_dot_u1_rvv);
 #endif
 
 #if NK_TARGET_V128RELAXED
-    run_dense<f32_k, f32_k>("dot_f32_v128relaxed", nk_dot_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("dot_f32_v128relaxed", nk_dot_f32_v128relaxed);
     run_dense<f64_k, f64_k>("dot_f64_v128relaxed", nk_dot_f64_v128relaxed);
     run_dense<f16_k, f32_k>("dot_f16_v128relaxed", nk_dot_f16_v128relaxed);
     run_dense<bf16_k, f32_k>("dot_bf16_v128relaxed", nk_dot_bf16_v128relaxed);
@@ -253,8 +259,8 @@ void bench_dot() {
     run_dense<e5m2_k, f32_k>("dot_e5m2_v128relaxed", nk_dot_e5m2_v128relaxed);
     run_dense<u4_k, u32_k>("dot_u4_v128relaxed", nk_dot_u4_v128relaxed);
     run_dense<i4_k, i32_k>("dot_i4_v128relaxed", nk_dot_i4_v128relaxed);
-    run_dense<f32c_k, f32c_k>("dot_f32c_v128relaxed", nk_dot_f32c_v128relaxed);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_v128relaxed", nk_vdot_f32c_v128relaxed);
+    run_dense<f32c_k, f64c_k>("dot_f32c_v128relaxed", nk_dot_f32c_v128relaxed);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_v128relaxed", nk_vdot_f32c_v128relaxed);
     run_dense<f64c_k, f64c_k>("dot_f64c_v128relaxed", nk_dot_f64c_v128relaxed);
     run_dense<f64c_k, f64c_k>("vdot_f64c_v128relaxed", nk_vdot_f64c_v128relaxed);
 #endif
@@ -266,7 +272,7 @@ void bench_dot() {
     run_dense<e2m3_k, f32_k>("dot_e2m3_serial", nk_dot_e2m3_serial);
     run_dense<e3m2_k, f32_k>("dot_e3m2_serial", nk_dot_e3m2_serial);
     run_dense<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
-    run_dense<f32_k, f32_k>("dot_f32_serial", nk_dot_f32_serial);
+    run_dense<f32_k, f64_k>("dot_f32_serial", nk_dot_f32_serial);
     run_dense<f64_k, f64_k>("dot_f64_serial", nk_dot_f64_serial);
     run_dense<i8_k, i32_k>("dot_i8_serial", nk_dot_i8_serial);
     run_dense<u8_k, u32_k>("dot_u8_serial", nk_dot_u8_serial);
@@ -274,11 +280,11 @@ void bench_dot() {
     run_dense<u4_k, u32_k>("dot_u4_serial", nk_dot_u4_serial);
     run_dense<u1_k, u32_k>("dot_u1_serial", nk_dot_u1_serial);
     run_dense<f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial);
-    run_dense<f32c_k, f32c_k>("dot_f32c_serial", nk_dot_f32c_serial);
+    run_dense<f32c_k, f64c_k>("dot_f32c_serial", nk_dot_f32c_serial);
     run_dense<f16c_k, f32c_k>("dot_f16c_serial", nk_dot_f16c_serial);
     run_dense<bf16c_k, f32c_k>("dot_bf16c_serial", nk_dot_bf16c_serial);
     run_dense<f64c_k, f64c_k>("vdot_f64c_serial", nk_vdot_f64c_serial);
-    run_dense<f32c_k, f32c_k>("vdot_f32c_serial", nk_vdot_f32c_serial);
+    run_dense<f32c_k, f64c_k>("vdot_f32c_serial", nk_vdot_f32c_serial);
     run_dense<f16c_k, f32c_k>("vdot_f16c_serial", nk_vdot_f16c_serial);
     run_dense<bf16c_k, f32c_k>("vdot_bf16c_serial", nk_vdot_bf16c_serial);
 }

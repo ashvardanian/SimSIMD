@@ -90,7 +90,7 @@ error_stats_t test_dots_unpacked_conjugated(kernel_type_ dots_fn) {
 }
 
 void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
-    *result = (nk_f64_t)cblas_sdot(static_cast<int>(n), a, 1, b, 1);
+    *result = cblas_dsdot(static_cast<int>(n), a, 1, b, 1);
 }
 
 void dot_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

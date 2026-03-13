@@ -25,9 +25,9 @@ void bench_spatial() {
     constexpr nk_dtype_t e3m2_k = nk_e3m2_k;
 
 #if NK_TARGET_NEON
-    run_dense<f32_k, f32_k>("angular_f32_neon", nk_angular_f32_neon);
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_neon", nk_sqeuclidean_f32_neon);
-    run_dense<f32_k, f32_k>("euclidean_f32_neon", nk_euclidean_f32_neon);
+    run_dense<f32_k, f64_k>("angular_f32_neon", nk_angular_f32_neon);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_neon", nk_sqeuclidean_f32_neon);
+    run_dense<f32_k, f64_k>("euclidean_f32_neon", nk_euclidean_f32_neon);
     run_dense<f64_k, f64_k>("angular_f64_neon", nk_angular_f64_neon);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_neon", nk_sqeuclidean_f64_neon);
     run_dense<f64_k, f64_k>("euclidean_f64_neon", nk_euclidean_f64_neon);
@@ -67,9 +67,9 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SVE
-    run_dense<f32_k, f32_k>("angular_f32_sve", nk_angular_f32_sve);
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_sve", nk_sqeuclidean_f32_sve);
-    run_dense<f32_k, f32_k>("euclidean_f32_sve", nk_euclidean_f32_sve);
+    run_dense<f32_k, f64_k>("angular_f32_sve", nk_angular_f32_sve);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_sve", nk_sqeuclidean_f32_sve);
+    run_dense<f32_k, f64_k>("euclidean_f32_sve", nk_euclidean_f32_sve);
     run_dense<f64_k, f64_k>("angular_f64_sve", nk_angular_f64_sve);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_sve", nk_sqeuclidean_f64_sve);
     run_dense<f64_k, f64_k>("euclidean_f64_sve", nk_euclidean_f64_sve);
@@ -103,9 +103,9 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_dense<f32_k, f32_k>("angular_f32_skylake", nk_angular_f32_skylake);
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_skylake", nk_sqeuclidean_f32_skylake);
-    run_dense<f32_k, f32_k>("euclidean_f32_skylake", nk_euclidean_f32_skylake);
+    run_dense<f32_k, f64_k>("angular_f32_skylake", nk_angular_f32_skylake);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_skylake", nk_sqeuclidean_f32_skylake);
+    run_dense<f32_k, f64_k>("euclidean_f32_skylake", nk_euclidean_f32_skylake);
     run_dense<f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_skylake", nk_sqeuclidean_f64_skylake);
     run_dense<f64_k, f64_k>("euclidean_f64_skylake", nk_euclidean_f64_skylake);
@@ -186,22 +186,22 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_RVV
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_rvv", nk_sqeuclidean_f32_rvv);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_rvv", nk_sqeuclidean_f32_rvv);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_rvv", nk_sqeuclidean_f64_rvv);
-    run_dense<f32_k, f32_k>("angular_f32_rvv", nk_angular_f32_rvv);
+    run_dense<f32_k, f64_k>("angular_f32_rvv", nk_angular_f32_rvv);
     run_dense<f64_k, f64_k>("angular_f64_rvv", nk_angular_f64_rvv);
 #endif
 
 #if NK_TARGET_V128RELAXED
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_v128relaxed", nk_sqeuclidean_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_v128relaxed", nk_sqeuclidean_f32_v128relaxed);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_v128relaxed", nk_sqeuclidean_f64_v128relaxed);
     run_dense<f16_k, f32_k>("sqeuclidean_f16_v128relaxed", nk_sqeuclidean_f16_v128relaxed);
     run_dense<bf16_k, f32_k>("sqeuclidean_bf16_v128relaxed", nk_sqeuclidean_bf16_v128relaxed);
-    run_dense<f32_k, f32_k>("euclidean_f32_v128relaxed", nk_euclidean_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("euclidean_f32_v128relaxed", nk_euclidean_f32_v128relaxed);
     run_dense<f64_k, f64_k>("euclidean_f64_v128relaxed", nk_euclidean_f64_v128relaxed);
     run_dense<f16_k, f32_k>("euclidean_f16_v128relaxed", nk_euclidean_f16_v128relaxed);
     run_dense<bf16_k, f32_k>("euclidean_bf16_v128relaxed", nk_euclidean_bf16_v128relaxed);
-    run_dense<f32_k, f32_k>("angular_f32_v128relaxed", nk_angular_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("angular_f32_v128relaxed", nk_angular_f32_v128relaxed);
     run_dense<f64_k, f64_k>("angular_f64_v128relaxed", nk_angular_f64_v128relaxed);
     run_dense<f16_k, f32_k>("angular_f16_v128relaxed", nk_angular_f16_v128relaxed);
     run_dense<bf16_k, f32_k>("angular_bf16_v128relaxed", nk_angular_bf16_v128relaxed);
@@ -232,9 +232,9 @@ void bench_spatial() {
     run_dense<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
     run_dense<f16_k, f32_k>("sqeuclidean_f16_serial", nk_sqeuclidean_f16_serial);
     run_dense<f16_k, f32_k>("euclidean_f16_serial", nk_euclidean_f16_serial);
-    run_dense<f32_k, f32_k>("angular_f32_serial", nk_angular_f32_serial);
-    run_dense<f32_k, f32_k>("sqeuclidean_f32_serial", nk_sqeuclidean_f32_serial);
-    run_dense<f32_k, f32_k>("euclidean_f32_serial", nk_euclidean_f32_serial);
+    run_dense<f32_k, f64_k>("angular_f32_serial", nk_angular_f32_serial);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_serial", nk_sqeuclidean_f32_serial);
+    run_dense<f32_k, f64_k>("euclidean_f32_serial", nk_euclidean_f32_serial);
     run_dense<f64_k, f64_k>("angular_f64_serial", nk_angular_f64_serial);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_serial", nk_sqeuclidean_f64_serial);
     run_dense<f64_k, f64_k>("euclidean_f64_serial", nk_euclidean_f64_serial);
