@@ -186,8 +186,6 @@ void test_reduce() {
 #if NK_TARGET_NEONHALF
     run_if_matches("reduce_moments_f16_neonhalf", test_reduce_moments<f16_t>, nk_reduce_moments_f16_neonhalf,
                    nk_reduce_moments_f16_serial);
-    run_if_matches("reduce_minmax_f16_neonhalf", test_reduce_minmax<f16_t>, nk_reduce_minmax_f16_neonhalf,
-                   nk_reduce_minmax_f16_serial);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT

@@ -142,7 +142,6 @@ void bench_reduce() {
 
 #if NK_TARGET_NEONHALF
     run_reduce_moments<f16_k>("reduce_moments_f16_neonhalf", nk_reduce_moments_f16_neonhalf);
-    run_reduce_minmax<f16_k>("reduce_minmax_f16_neonhalf", nk_reduce_minmax_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT

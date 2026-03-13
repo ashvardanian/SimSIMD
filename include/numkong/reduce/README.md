@@ -390,7 +390,6 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_reduce_moments_f16_serial`     |         1.10 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |
 | `nk_reduce_minmax_f16_serial`      |         1.17 gb/s, 0 ulp |         1.26 gb/s, 0 ulp |         1.33 gb/s, 0 ulp |
 | `nk_reduce_moments_f16_neonhalf`   |       15.5 gb/s, 0.1 ulp |       11.1 gb/s, 0.1 ulp |       8.74 gb/s, 0.8 ulp |
-| `nk_reduce_minmax_f16_neonhalf`    |     15.6 gb/s, 8.08M ulp |     13.7 gb/s, 8.35M ulp |     13.3 gb/s, 8.88M ulp |
 | __e5m2__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_e5m2_serial`    |        0.531 gb/s, 0 ulp |        0.534 gb/s, 0 ulp |        0.536 gb/s, 0 ulp |
 | `nk_reduce_minmax_e5m2_serial`     |        0.803 gb/s, 0 ulp |        0.887 gb/s, 0 ulp |        0.880 gb/s, 0 ulp |
