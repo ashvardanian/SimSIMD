@@ -26,7 +26,7 @@ extern "C" {
 #pragma GCC target("+sme+sme-f64f64")
 #endif
 
-NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -37,7 +37,7 @@ NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_siz
     return svaddv_f64(svptrue_b64(), accumulator_f64x);
 }
 
-NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {

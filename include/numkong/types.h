@@ -517,6 +517,16 @@
 #endif
 
 /**
+ *  ARM Streaming-compatible attribute (requires SME-capable compiler: GCC 14+, Clang 16+)
+ *  Used on SVE helpers that must also be callable from SME streaming mode.
+ */
+#if NK_TARGET_ARM_ && defined(__ARM_FEATURE_SME)
+#define NK_STREAMING_COMPATIBLE_ __arm_streaming_compatible
+#else
+#define NK_STREAMING_COMPATIBLE_
+#endif
+
+/**
  *  @brief  Portable casts between SIMD vector types.
  *          MSVC typedefs `__m512bh`, `__m512h`, `__m256bh` as aliases for `__m512i`/`__m256i`,
  *          but rejects C-style casts between them. GCC/Clang define them as distinct types.

@@ -26,7 +26,7 @@ extern "C" {
 #pragma GCC target("+sme")
 #endif
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -38,8 +38,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_siz
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data,
-                                                     nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -51,8 +50,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data,
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data,
-                                                     nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     svuint16_t subnorm_lut_u16x = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
     nk_size_t const vector_length = svcntw();
@@ -66,8 +64,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data,
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data,
-                                                     nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -80,8 +77,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data,
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data,
-                                                     nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -96,8 +92,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data,
     return (nk_f32_t)svaddv_s64(svptrue_b64(), accumulator_i64x) / 256.0f;
 }
 
-NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data,
-                                                     nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -110,7 +105,7 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data,
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -124,7 +119,7 @@ NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_
     return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
 }
 
-NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svuint64_t accumulator_u64x = svdup_u64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -138,7 +133,7 @@ NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_
     return (nk_u32_t)svaddv_u64(svptrue_b64(), accumulator_u64x);
 }
 
-NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;
@@ -166,7 +161,7 @@ NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_siz
     return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
 }
 
-NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svuint64_t accumulator_u64x = svdup_u64(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;

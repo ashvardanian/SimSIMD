@@ -63,7 +63,7 @@ extern "C" {
  *  @param x         Input vector (must be positive for meaningful results)
  *  @return          Approximate 1/sqrt(x) with ~23-bit mantissa accuracy
  */
-NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) __arm_streaming_compatible {
+NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t r = svrsqrte_f32(x);
     r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
     r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
@@ -83,7 +83,7 @@ NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) __
  *  @param x         Input vector (must be positive for meaningful results)
  *  @return          Approximate 1/sqrt(x) with ~52-bit mantissa accuracy
  */
-NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate, svfloat64_t x) __arm_streaming_compatible {
+NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate, svfloat64_t x) NK_STREAMING_COMPATIBLE_ {
     svfloat64_t r = svrsqrte_f64(x);
     r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
     r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
