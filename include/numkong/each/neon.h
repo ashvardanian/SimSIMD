@@ -67,7 +67,6 @@ NK_PUBLIC void nk_each_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t c
                                       nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
-    float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_val);
     float32x4_t beta_f32x4 = vdupq_n_f32(beta_val);
 
     // The main loop:

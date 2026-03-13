@@ -127,7 +127,6 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_haswell_(nk_f32_t const *a, nk_f32_t
     __m256d centroid_a_z_f64x4 = _mm256_set1_pd(centroid_a_z), centroid_b_x_f64x4 = _mm256_set1_pd(centroid_b_x);
     __m256d centroid_b_y_f64x4 = _mm256_set1_pd(centroid_b_y), centroid_b_z_f64x4 = _mm256_set1_pd(centroid_b_z);
     __m256d sum_squared_f64x4 = _mm256_setzero_pd();
-    __m256d sum_squared_compensation_f64x4 = _mm256_setzero_pd();
     __m256 a_x_f32x8, a_y_f32x8, a_z_f32x8, b_x_f32x8, b_y_f32x8, b_z_f32x8;
     nk_size_t index = 0;
 
@@ -249,6 +248,7 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_haswell_(nk_f64_t const *a, nk_f64_t
     __m256d centroid_b_z_f64x4 = _mm256_set1_pd(centroid_b_z);
 
     __m256d sum_squared_f64x4 = _mm256_setzero_pd();
+    __m256d sum_squared_compensation_f64x4 = _mm256_setzero_pd();
     __m256d a_x_f64x4, a_y_f64x4, a_z_f64x4, b_x_f64x4, b_y_f64x4, b_z_f64x4;
     nk_size_t j = 0;
 

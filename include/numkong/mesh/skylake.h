@@ -160,7 +160,6 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t
     __m512d centroid_a_z_f64x8 = _mm512_set1_pd(centroid_a_z), centroid_b_x_f64x8 = _mm512_set1_pd(centroid_b_x);
     __m512d centroid_b_y_f64x8 = _mm512_set1_pd(centroid_b_y), centroid_b_z_f64x8 = _mm512_set1_pd(centroid_b_z);
     __m512d sum_squared_f64x8 = _mm512_setzero_pd();
-    __m512d sum_squared_compensation_f64x8 = _mm512_setzero_pd();
     __m512 a_x_f32x16, a_y_f32x16, a_z_f32x16, b_x_f32x16, b_y_f32x16, b_z_f32x16;
     nk_size_t index = 0;
 
@@ -281,6 +280,7 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_skylake_(nk_f64_t const *a, nk_f64_t
     __m512d centroid_b_z_f64x8 = _mm512_set1_pd(centroid_b_z);
 
     __m512d sum_squared_f64x8 = _mm512_setzero_pd();
+    __m512d sum_squared_compensation_f64x8 = _mm512_setzero_pd();
     __m512d a_x_f64x8, a_y_f64x8, a_z_f64x8, b_x_f64x8, b_y_f64x8, b_z_f64x8;
     nk_size_t j = 0;
 

@@ -193,7 +193,6 @@ NK_INTERNAL float32x4_t nk_atan2_f32x4_neon_(float32x4_t const ys_inputs, float3
     float32x4_t const coeff_3 = vdupq_n_f32(+0.0425049886107444763183594f);
     float32x4_t const coeff_2 = vdupq_n_f32(-0.0159569028764963150024414f);
     float32x4_t const coeff_1 = vdupq_n_f32(+0.00282363896258175373077393f);
-    float32x4_t const pi = vdupq_n_f32(3.14159265358979323846f);
     float32x4_t const half_pi = vdupq_n_f32(1.5707963267948966f);
     float32x4_t const zeros = vdupq_n_f32(0);
 
@@ -457,7 +456,6 @@ NK_INTERNAL float64x2_t nk_atan2_f64x2_neon_(float64x2_t const ys_inputs, float6
     float64x2_t const coeff_3 = vdupq_n_f64(-0.14285714266771329383765);
     float64x2_t const coeff_2 = vdupq_n_f64(+0.199999999996591265594148);
     float64x2_t const coeff_1 = vdupq_n_f64(-0.333333333333311110369124);
-    float64x2_t const pi = vdupq_n_f64(3.14159265358979323846);
     float64x2_t const half_pi = vdupq_n_f64(1.5707963267948966);
     float64x2_t const zeros = vdupq_n_f64(0);
 
