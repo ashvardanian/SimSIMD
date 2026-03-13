@@ -28,37 +28,37 @@ extern "C" {
 
 nk_define_cross_normalized_packed_(angular, f32, neon, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                    nk_dots_packed_f32_neon, nk_angular_through_f64_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_packed_(euclidean, f32, neon, f32, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                    nk_dots_packed_f32_neon, nk_euclidean_through_f64_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f32_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(angular, f32, neon, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                       nk_dots_symmetric_f32_neon, nk_angular_through_f64_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(euclidean, f32, neon, f32, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                       nk_dots_symmetric_f32_neon, nk_euclidean_through_f64_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f32_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 
 nk_define_cross_normalized_packed_(angular, f64, neon, f64, f64, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                    nk_dots_packed_f64_neon, nk_angular_through_f64_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f64_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f64_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_packed_(euclidean, f64, neon, f64, f64, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                    nk_dots_packed_f64_neon, nk_euclidean_through_f64_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f64_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                   nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f64_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                   nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(angular, f64, neon, f64, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                       nk_dots_symmetric_f64_neon, nk_angular_through_f64_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f64_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f64_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(euclidean, f64, neon, f64, f64, /*norm_value_type=*/f64, f64, nk_b256_vec_t,
                                       nk_dots_symmetric_f64_neon, nk_euclidean_through_f64_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f64_, nk_load_b256_serial_, nk_partial_load_b64x4_serial_,
-                                      nk_store_b256_serial_, nk_partial_store_b64x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f64_, nk_load_b256_neon_, nk_partial_load_b64x4_serial_,
+                                      nk_store_b256_neon_, nk_partial_store_b64x4_serial_, 1)
 
 #if defined(__clang__)
 #pragma clang attribute pop

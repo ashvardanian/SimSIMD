@@ -107,8 +107,8 @@ nk_sqeuclidean_f64_v128relaxed_cycle:
         count_scalars = 0;
     }
     else {
-        nk_load_b128_serial_(a_scalars, &a_vec);
-        nk_load_b128_serial_(b_scalars, &b_vec);
+        nk_load_b128_v128relaxed_(a_scalars, &a_vec);
+        nk_load_b128_v128relaxed_(b_scalars, &b_vec);
         a_scalars += 2, b_scalars += 2, count_scalars -= 2;
     }
     v128_t diff_f64x2 = wasm_f64x2_sub(a_vec.v128, b_vec.v128);
@@ -185,8 +185,8 @@ nk_angular_f64_v128relaxed_cycle:
         count_scalars = 0;
     }
     else {
-        nk_load_b128_serial_(a_scalars, &a_vec);
-        nk_load_b128_serial_(b_scalars, &b_vec);
+        nk_load_b128_v128relaxed_(a_scalars, &a_vec);
+        nk_load_b128_v128relaxed_(b_scalars, &b_vec);
         a_scalars += 2, b_scalars += 2, count_scalars -= 2;
     }
 

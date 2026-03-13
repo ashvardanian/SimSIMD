@@ -28,20 +28,20 @@ extern "C" {
 
 nk_define_cross_normalized_packed_(angular, f16, neonhalf, f16, f16, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                    nk_dots_packed_f16_neonhalf, nk_angular_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f16_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f16_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
+                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
 nk_define_cross_normalized_packed_(euclidean, f16, neonhalf, f16, f16, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                    nk_dots_packed_f16_neonhalf, nk_euclidean_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_f16_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+                                   nk_dots_reduce_sumsq_f16_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
+                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(angular, f16, neonhalf, f16, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                       nk_dots_symmetric_f16_neonhalf, nk_angular_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f16_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f16_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
+                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
 nk_define_cross_normalized_symmetric_(euclidean, f16, neonhalf, f16, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                       nk_dots_symmetric_f16_neonhalf, nk_euclidean_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_f16_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_serial_, nk_partial_store_b32x4_serial_, 1)
+                                      nk_dots_reduce_sumsq_f16_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
+                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
 
 #if defined(__clang__)
 #pragma clang attribute pop

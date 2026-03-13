@@ -512,6 +512,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
  *  @param partial_load_b_vec_fn Partial B load for remainder
  *  @param inner_product_fn Inner product accumulate
  *  @param reduce_accumulators_fn Reduce 4 accumulators
+ *  @param store_fn Full-width store for results
+ *  @param store_fn Full-width store for results
  *  @param partial_store_fn Partial store for results
  *  @param depth_simd_dimensions SIMD vector width in logical dimensions (e.g., 8 for f32 on AVX2, 128 for u1 on serial)
  *  @param dimensions_per_value Packing ratio: dimensions per storage value (1 for f32, 2 for i4x2, 8 for u1x8)
@@ -525,8 +527,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
 #define nk_define_cross_packed_(api_name, input_type_name, isa_suffix, input_value_type, packed_value_type,            \
                                 result_value_type, vec_type, state_type, result_vec_type, init_accumulator_fn,         \
                                 load_a_vec_fn, partial_load_a_vec_fn, load_b_vec_fn, partial_load_b_vec_fn,            \
-                                inner_product_fn, reduce_accumulators_fn, partial_store_fn, depth_simd_dimensions,     \
-                                dimensions_per_value)                                                                  \
+                                inner_product_fn, reduce_accumulators_fn, store_fn, partial_store_fn,                  \
+                                depth_simd_dimensions, dimensions_per_value)                                           \
     NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                                 \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
@@ -676,28 +678,28 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         reduce_accumulators_fn(&accumulator_tiles[0][0], &accumulator_tiles[0][1],                     \
                                                &accumulator_tiles[0][2], &accumulator_tiles[0][3], depth,              \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr_0 + tile_column_start_index, 4);                    \
+                        store_fn(&result_vector, c_row_ptr_0 + tile_column_start_index);                               \
                         nk_##result_value_type##_t *c_row_ptr_1 =                                                      \
                             (nk_##result_value_type##_t *)((char *)c_matrix +                                          \
                                                            (tile_row_start_index + 1) * c_stride_in_bytes);            \
                         reduce_accumulators_fn(&accumulator_tiles[1][0], &accumulator_tiles[1][1],                     \
                                                &accumulator_tiles[1][2], &accumulator_tiles[1][3], depth,              \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr_1 + tile_column_start_index, 4);                    \
+                        store_fn(&result_vector, c_row_ptr_1 + tile_column_start_index);                               \
                         nk_##result_value_type##_t *c_row_ptr_2 =                                                      \
                             (nk_##result_value_type##_t *)((char *)c_matrix +                                          \
                                                            (tile_row_start_index + 2) * c_stride_in_bytes);            \
                         reduce_accumulators_fn(&accumulator_tiles[2][0], &accumulator_tiles[2][1],                     \
                                                &accumulator_tiles[2][2], &accumulator_tiles[2][3], depth,              \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr_2 + tile_column_start_index, 4);                    \
+                        store_fn(&result_vector, c_row_ptr_2 + tile_column_start_index);                               \
                         nk_##result_value_type##_t *c_row_ptr_3 =                                                      \
                             (nk_##result_value_type##_t *)((char *)c_matrix +                                          \
                                                            (tile_row_start_index + 3) * c_stride_in_bytes);            \
                         reduce_accumulators_fn(&accumulator_tiles[3][0], &accumulator_tiles[3][1],                     \
                                                &accumulator_tiles[3][2], &accumulator_tiles[3][3], depth,              \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr_3 + tile_column_start_index, 4);                    \
+                        store_fn(&result_vector, c_row_ptr_3 + tile_column_start_index);                               \
                     }                                                                                                  \
                 }                                                                                                      \
             }                                                                                                          \
@@ -831,11 +833,11 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         /* First 4 columns */                                                                          \
                         reduce_accumulators_fn(&accumulator_0, &accumulator_1, &accumulator_2, &accumulator_3, depth,  \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index, 4);                      \
+                        store_fn(&result_vector, c_row_ptr + tile_column_start_index);                                 \
                         /* Second 4 columns */                                                                         \
                         reduce_accumulators_fn(&accumulator_4, &accumulator_5, &accumulator_6, &accumulator_7, depth,  \
                                                &result_vector);                                                        \
-                        partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index + 4, 4);                  \
+                        store_fn(&result_vector, c_row_ptr + tile_column_start_index + 4);                             \
                     }                                                                                                  \
                 }                                                                                                      \
             }                                                                                                          \
@@ -1093,8 +1095,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
 #define nk_define_cross_compensated_packed_(                                                                           \
     api_name, input_type_name, isa_suffix, input_value_type, packed_value_type, result_value_type, sum_value_type,     \
     norm_value_type, vec_type, state_type, result_vec_type, init_accumulator_fn, load_a_vec_fn, partial_load_a_vec_fn, \
-    load_b_vec_fn, partial_load_b_vec_fn, inner_product_fn, compensated_finalize_fn, partial_store_fn, load_sum_fn,    \
-    partial_load_sum_fn, compute_a_sum_fn, depth_simd_dimensions, dimensions_per_value)                                \
+    load_b_vec_fn, partial_load_b_vec_fn, inner_product_fn, compensated_finalize_fn, store_fn, partial_store_fn,       \
+    load_sum_fn, partial_load_sum_fn, compute_a_sum_fn, depth_simd_dimensions, dimensions_per_value)                   \
     NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                                 \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
@@ -1198,7 +1200,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                                                     b_sum_vec, &result_vector);                                        \
                             nk_##result_value_type##_t *c_row =                                                        \
                                 (nk_##result_value_type##_t *)((char *)c_matrix + (tr + r) * c_stride_in_bytes);       \
-                            partial_store_fn(&result_vector, c_row + tc, 4);                                           \
+                            store_fn(&result_vector, c_row + tc);                                                      \
                         }                                                                                              \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -1276,9 +1278,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         nk_##result_value_type##_t *c_row = (nk_##result_value_type##_t *)((char *)c_matrix +          \
                                                                                            ri * c_stride_in_bytes);    \
                         compensated_finalize_fn(&s0, &s1, &s2, &s3, depth, a_sum_val, b_sum_lo, &rv);                  \
-                        partial_store_fn(&rv, c_row + tc, 4);                                                          \
+                        store_fn(&rv, c_row + tc);                                                                     \
                         compensated_finalize_fn(&s4, &s5, &s6, &s7, depth, a_sum_val, b_sum_hi, &rv);                  \
-                        partial_store_fn(&rv, c_row + tc + 4, 4);                                                      \
+                        store_fn(&rv, c_row + tc + 4);                                                                 \
                     }                                                                                                  \
                 }                                                                                                      \
             }                                                                                                          \
@@ -1475,8 +1477,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
 #define nk_define_cross_compensated_symmetric_(                                                                        \
     api_name, input_type_name, isa_suffix, input_value_type, result_value_type, sum_value_type, norm_value_type,       \
     vec_type, state_type, result_vec_type, init_accumulator_fn, load_vec_fn, partial_load_vec_fn, inner_product_fn,    \
-    compensated_finalize_fn, partial_store_fn, load_sum_fn, partial_load_sum_fn, sum_state_type, init_sum_fn,          \
-    update_sum_fn, finalize_sum_fn, depth_simd_dimensions, dimensions_per_value)                                       \
+    compensated_finalize_fn, store_fn, partial_store_fn, load_sum_fn, partial_load_sum_fn, sum_state_type,             \
+    init_sum_fn, update_sum_fn, finalize_sum_fn, depth_simd_dimensions, dimensions_per_value)                          \
     NK_INTERNAL void nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                           \
         nk_##input_value_type##_t const **vector_base_ptrs, nk_size_t i_macro, nk_size_t macro_size,                   \
         nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                            \
@@ -2042,8 +2044,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
  */
 #define nk_define_cross_symmetric_(api_name, input_type_name, isa_suffix, input_value_type, result_value_type,         \
                                    vec_type, state_type, result_vec_type, init_accumulator_fn, load_vec_fn,            \
-                                   partial_load_vec_fn, inner_product_fn, reduce_accumulators_fn, partial_store_fn,    \
-                                   depth_simd_dimensions, dimensions_per_value)                                        \
+                                   partial_load_vec_fn, inner_product_fn, reduce_accumulators_fn, store_fn,            \
+                                   partial_store_fn, depth_simd_dimensions, dimensions_per_value)                      \
     NK_INTERNAL void nk_##api_name##_symmetric_diagonal_##input_type_name##_##isa_suffix##_(                           \
         nk_##input_value_type##_t const **vector_base_ptrs, nk_size_t i_macro, nk_size_t macro_size,                   \
         nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                            \
@@ -2454,12 +2456,13 @@ nk_define_cross_pack_(dots, f64, serial, f64, f64, nk_assign_from_to_, /*norm_va
                       /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f64, serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
                            nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
-                           nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, nk_partial_store_b64x4_serial_,
+                           nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, nk_store_b256_serial_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f64, serial, f64, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
                         nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
                         nk_load_b128_serial_, nk_partial_load_b64x2_serial_, nk_dot_f64x2_update_serial,
-                        nk_dot_f64x2_finalize_serial, nk_partial_store_b64x4_serial_,
+                        nk_dot_f64x2_finalize_serial, nk_store_b256_serial_, nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 
 /* F32 GEMM: depth_simd_dimensions=4 (4 f32s = 16 bytes) */
@@ -2470,12 +2473,13 @@ nk_define_cross_pack_(dots, f32, serial, f32, f32, nk_assign_from_to_, /*norm_va
                       /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f32, serial, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b256_vec_t,
                            nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                           nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, nk_partial_store_b64x4_serial_,
+                           nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, nk_store_b256_serial_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f32, serial, f32, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b256_vec_t,
                         nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                         nk_load_b128_serial_, nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_serial,
-                        nk_dot_f32x4_finalize_serial, nk_partial_store_b64x4_serial_,
+                        nk_dot_f32x4_finalize_serial, nk_store_b256_serial_, nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* F16 GEMM: depth_simd_dimensions=8 (8 f16s = 16 bytes), F32 accumulator */
@@ -2486,12 +2490,13 @@ nk_define_cross_pack_(dots, f16, serial, f16, f16, nk_assign_from_to_, /*norm_va
                       /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f16, serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                            nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
-                           nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f16, serial, f16, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                         nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                         nk_load_b128_serial_, nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_serial,
-                        nk_dot_f16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_f16x8_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes), F32 accumulator */
@@ -2502,12 +2507,13 @@ nk_define_cross_pack_(dots, bf16, serial, bf16, bf16, nk_assign_from_to_, /*norm
                       /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, bf16, serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
                            nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
-                           nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, bf16, serial, bf16, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
                         nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                         nk_load_b128_serial_, nk_partial_load_b16x8_serial_, nk_dot_bf16x8_update_serial,
-                        nk_dot_bf16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_bf16x8_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
 /* I8 GEMM: depth_simd_dimensions=16 (16 i8s = 16 bytes), I32 accumulator */
@@ -2517,12 +2523,13 @@ nk_define_cross_pack_(dots, i8, serial, i8, i8, nk_assign_from_to_, /*norm_value
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, i8, serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, i8, serial, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
                         nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_serial,
-                        nk_dot_i8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_i8x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* U8 GEMM: depth_simd_dimensions=16 (16 u8s = 16 bytes), U32 accumulator */
@@ -2532,12 +2539,13 @@ nk_define_cross_pack_(dots, u8, serial, u8, u8, nk_assign_from_to_, /*norm_value
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, u8, serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, u8, serial, u8, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
                         nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_serial,
-                        nk_dot_u8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_u8x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E4M3 GEMM: depth_simd_dimensions=16 (16 e4m3s = 16 bytes), F32 accumulator */
@@ -2548,12 +2556,13 @@ nk_define_cross_pack_(dots, e4m3, serial, e4m3, e4m3, nk_assign_from_to_, /*norm
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e4m3, serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e4m3, serial, e4m3, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t,
                         nk_b128_vec_t, nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e4m3x16_update_serial,
-                        nk_dot_e4m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_e4m3x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E5M2 GEMM: depth_simd_dimensions=16 (16 e5m2s = 16 bytes), F32 accumulator */
@@ -2564,12 +2573,13 @@ nk_define_cross_pack_(dots, e5m2, serial, e5m2, e5m2, nk_assign_from_to_, /*norm
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e5m2, serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e5m2, serial, e5m2, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t,
                         nk_b128_vec_t, nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e5m2x16_update_serial,
-                        nk_dot_e5m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_e5m2x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E2M3 GEMM: depth_simd_dimensions=16 (16 e2m3s = 16 bytes), F32 accumulator */
@@ -2580,12 +2590,13 @@ nk_define_cross_pack_(dots, e2m3, serial, e2m3, e2m3, nk_assign_from_to_, /*norm
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e2m3, serial, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_e2m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e2m3x16_update_serial, nk_dot_e2m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_e2m3x16_update_serial, nk_dot_e2m3x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e2m3, serial, e2m3, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_serial_t,
                         nk_b128_vec_t, nk_dot_e2m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e2m3x16_update_serial,
-                        nk_dot_e2m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_e2m3x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E3M2 GEMM: depth_simd_dimensions=16 (16 e3m2s = 16 bytes), F32 accumulator */
@@ -2596,12 +2607,13 @@ nk_define_cross_pack_(dots, e3m2, serial, e3m2, e3m2, nk_assign_from_to_, /*norm
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e3m2, serial, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_e3m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e3m2x16_update_serial, nk_dot_e3m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_e3m2x16_update_serial, nk_dot_e3m2x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e3m2, serial, e3m2, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_serial_t,
                         nk_b128_vec_t, nk_dot_e3m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e3m2x16_update_serial,
-                        nk_dot_e3m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_e3m2x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* U4 GEMM: u4x2 for both A and B */
@@ -2612,12 +2624,13 @@ nk_define_cross_pack_(dots, u4, serial, u4x2, u4x2, nk_assign_from_to_, /*norm_v
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_cross_symmetric_(dots, u4, serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
-                           nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_cross_packed_(dots, u4, serial, u4x2, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
                         nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
                         nk_load_b64_serial_, nk_partial_load_b4x16_serial_, nk_dot_u4x16_update_serial,
-                        nk_dot_u4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_u4x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 
 /* I4 GEMM: i4x2 for both A and B */
@@ -2628,12 +2641,13 @@ nk_define_cross_pack_(dots, i4, serial, i4x2, i4x2, nk_assign_from_to_, /*norm_v
                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_cross_symmetric_(dots, i4, serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
                            nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
-                           nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_cross_packed_(dots, i4, serial, i4x2, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
                         nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
                         nk_load_b64_serial_, nk_partial_load_b4x16_serial_, nk_dot_i4x16_update_serial,
-                        nk_dot_i4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_i4x16_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 
 /* U1 GEMM: u1x8 for both A and B */
@@ -2643,12 +2657,13 @@ nk_define_cross_pack_(dots, u1, serial, u1x8, u1x8, nk_assign_from_to_, /*norm_v
                       /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 nk_define_cross_symmetric_(dots, u1, serial, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_serial_t, nk_b128_vec_t,
                            nk_dot_u1x128_init_serial, nk_load_b128_serial_, nk_partial_load_b1x128_serial_,
-                           nk_dot_u1x128_update_serial, nk_dot_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
+                           nk_dot_u1x128_update_serial, nk_dot_u1x128_finalize_serial, nk_store_b128_serial_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_serial_t, nk_b128_vec_t,
                         nk_dot_u1x128_init_serial, nk_load_b128_serial_, nk_partial_load_b1x128_serial_,
                         nk_load_b128_serial_, nk_partial_load_b1x128_serial_, nk_dot_u1x128_update_serial,
-                        nk_dot_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
+                        nk_dot_u1x128_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 
 #if defined(NDEBUG)

@@ -34,12 +34,13 @@ nk_define_cross_pack_(dots, i8, v128relaxed, i8, i8, nk_assign_from_to_, /*norm_
 nk_define_cross_symmetric_(dots, i8, v128relaxed, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_i8x16_init_v128relaxed, nk_load_b128_v128relaxed_,
                            nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_v128relaxed,
-                           nk_dot_i8x16_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
+                           nk_dot_i8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, i8, v128relaxed, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_i8x16_init_v128relaxed, nk_load_b128_v128relaxed_,
                         nk_partial_load_b8x16_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_,
-                        nk_dot_i8x16_update_v128relaxed, nk_dot_i8x16_finalize_v128relaxed,
+                        nk_dot_i8x16_update_v128relaxed, nk_dot_i8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
@@ -55,19 +56,19 @@ nk_define_cross_compensated_symmetric_(dots, u8, v128relaxed, u8, u32,
                                        nk_dot_u8x16_state_v128relaxed_t, nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed,
                                        nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_,
                                        nk_dot_u8x16_update_v128relaxed, nk_dot_u8x16_finalize_v128relaxed,
-                                       nk_partial_store_b32x4_serial_, nk_load_b128_v128relaxed_,
-                                       nk_partial_load_b32x4_serial_, nk_sum_u8x16_state_v128relaxed_t,
-                                       nk_sum_u8x16_init_v128relaxed, nk_sum_u8x16_update_v128relaxed,
-                                       nk_sum_u8x16_finalize_v128relaxed,
+                                       nk_store_b128_v128relaxed_, nk_partial_store_b32x4_serial_,
+                                       nk_load_b128_v128relaxed_, nk_partial_load_b32x4_serial_,
+                                       nk_sum_u8x16_state_v128relaxed_t, nk_sum_u8x16_init_v128relaxed,
+                                       nk_sum_u8x16_update_v128relaxed, nk_sum_u8x16_finalize_v128relaxed,
                                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_compensated_packed_(dots, u8, v128relaxed, u8, u8, u32,
                                     /*sum_value_type=*/u32, /*norm_value_type=*/u32, nk_b128_vec_t,
                                     nk_dot_u8x16_state_v128relaxed_t, nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed,
                                     nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_, nk_load_b128_v128relaxed_,
                                     nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_v128relaxed,
-                                    nk_dot_u8x16_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
-                                    nk_load_b128_v128relaxed_, nk_partial_load_b32x4_serial_,
-                                    nk_dots_reduce_sum_u8_stub_,
+                                    nk_dot_u8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                                    nk_partial_store_b32x4_serial_, nk_load_b128_v128relaxed_,
+                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_u8_stub_,
                                     /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E2M3 GEMM: depth_simd_dimensions=16 — standard (magnitudes fit u7, no correction) */
@@ -78,13 +79,14 @@ nk_define_cross_pack_(dots, e2m3, v128relaxed, e2m3, e2m3, nk_assign_from_to_, /
 nk_define_cross_symmetric_(dots, e2m3, v128relaxed, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_e2m3x16_init_v128relaxed, nk_load_b128_v128relaxed_,
                            nk_partial_load_b8x16_serial_, nk_dot_e2m3x16_update_v128relaxed,
-                           nk_dot_e2m3x16_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
+                           nk_dot_e2m3x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e2m3, v128relaxed, e2m3, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_e2m3x16_init_v128relaxed, nk_load_b128_v128relaxed_,
                         nk_partial_load_b8x16_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_,
                         nk_dot_e2m3x16_update_v128relaxed, nk_dot_e2m3x16_finalize_v128relaxed,
-                        nk_partial_store_b32x4_serial_,
+                        nk_store_b128_v128relaxed_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* BF16 GEMM: depth_simd_dimensions=4 — upcast to f32x4 via nk_bf16x4_to_f32x4_v128relaxed_ */
@@ -95,14 +97,16 @@ nk_define_cross_pack_(dots, bf16, v128relaxed, bf16, f32, nk_bf16_to_f32_serial,
 nk_define_cross_symmetric_(dots, bf16, v128relaxed, bf16, f32, nk_b128_vec_t, nk_dot_through_f32x4_state_v128relaxed_t_,
                            nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed_, nk_load_bf16x4_to_f32x4_v128relaxed_,
                            nk_partial_load_bf16x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
-                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, bf16, v128relaxed, bf16, f32, f32, nk_b128_vec_t,
                         nk_dot_through_f32x4_state_v128relaxed_t_, nk_b128_vec_t,
                         nk_dot_through_f32x4_init_v128relaxed_, nk_load_bf16x4_to_f32x4_v128relaxed_,
                         nk_partial_load_bf16x4_to_f32x4_v128relaxed_, nk_load_b128_v128relaxed_,
                         nk_partial_load_b32x4_serial_, nk_dot_through_f32x4_update_v128relaxed_,
-                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                        nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 nk_define_cross_pack_size_(dots, f32, v128relaxed, f32, f32, /*norm_value_type=*/f64, /*depth_simd_dimensions=*/2,
@@ -112,12 +116,13 @@ nk_define_cross_pack_(dots, f32, v128relaxed, f32, f32, nk_assign_from_to_, /*no
 nk_define_cross_symmetric_(dots, f32, v128relaxed, f32, f64, nk_b64_vec_t, nk_dot_f32x2_state_v128relaxed_t,
                            nk_b256_vec_t, nk_dot_f32x2_init_v128relaxed, nk_load_b64_serial_,
                            nk_partial_load_b32x2_serial_, nk_dot_f32x2_update_v128relaxed,
-                           nk_dot_f32x2_finalize_v128relaxed, nk_partial_store_b64x4_serial_,
+                           nk_dot_f32x2_finalize_v128relaxed, nk_store_b256_v128relaxed_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f32, v128relaxed, f32, f32, f64, nk_b64_vec_t, nk_dot_f32x2_state_v128relaxed_t,
                         nk_b256_vec_t, nk_dot_f32x2_init_v128relaxed, nk_load_b64_serial_,
                         nk_partial_load_b32x2_serial_, nk_load_b64_serial_, nk_partial_load_b32x2_serial_,
-                        nk_dot_f32x2_update_v128relaxed, nk_dot_f32x2_finalize_v128relaxed,
+                        nk_dot_f32x2_update_v128relaxed, nk_dot_f32x2_finalize_v128relaxed, nk_store_b256_v128relaxed_,
                         nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 
@@ -128,12 +133,13 @@ nk_define_cross_pack_(dots, f64, v128relaxed, f64, f64, nk_assign_from_to_, /*no
 nk_define_cross_symmetric_(dots, f64, v128relaxed, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_v128relaxed_t,
                            nk_b256_vec_t, nk_dot_f64x2_init_v128relaxed, nk_load_b128_v128relaxed_,
                            nk_partial_load_b64x2_serial_, nk_dot_f64x2_update_v128relaxed,
-                           nk_dot_f64x2_finalize_v128relaxed, nk_partial_store_b64x4_serial_,
+                           nk_dot_f64x2_finalize_v128relaxed, nk_store_b256_v128relaxed_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f64, v128relaxed, f64, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_v128relaxed_t,
                         nk_b256_vec_t, nk_dot_f64x2_init_v128relaxed, nk_load_b128_v128relaxed_,
                         nk_partial_load_b64x2_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b64x2_serial_,
-                        nk_dot_f64x2_update_v128relaxed, nk_dot_f64x2_finalize_v128relaxed,
+                        nk_dot_f64x2_update_v128relaxed, nk_dot_f64x2_finalize_v128relaxed, nk_store_b256_v128relaxed_,
                         nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 
@@ -145,13 +151,15 @@ nk_define_cross_pack_(dots, e4m3, v128relaxed, e4m3, f32, nk_e4m3_to_f32_serial,
 nk_define_cross_symmetric_(dots, e4m3, v128relaxed, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x4_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed, nk_load_e4m3x4_to_f32x4_v128relaxed_,
                            nk_partial_load_e4m3x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
-                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e4m3, v128relaxed, e4m3, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x4_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed_, nk_load_e4m3x4_to_f32x4_v128relaxed_,
                         nk_partial_load_e4m3x4_to_f32x4_v128relaxed_, nk_load_e4m3x4_to_f32x4_v128relaxed_,
                         nk_partial_load_e4m3x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
-                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                        nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* E5M2 GEMM: depth_simd_dimensions=4 — upcast to f32x4 via nk_e5m2x4_to_f32x4_v128relaxed_ */
@@ -162,13 +170,15 @@ nk_define_cross_pack_(dots, e5m2, v128relaxed, e5m2, f32, nk_e5m2_to_f32_serial,
 nk_define_cross_symmetric_(dots, e5m2, v128relaxed, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x4_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed_, nk_load_e5m2x4_to_f32x4_v128relaxed_,
                            nk_partial_load_e5m2x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
-                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                           nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e5m2, v128relaxed, e5m2, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x4_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed_, nk_load_e5m2x4_to_f32x4_v128relaxed_,
                         nk_partial_load_e5m2x4_to_f32x4_v128relaxed_, nk_load_e5m2x4_to_f32x4_v128relaxed_,
                         nk_partial_load_e5m2x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
-                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_partial_store_b32x4_serial_,
+                        nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
+                        nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* U4 GEMM: depth_simd_dimensions=32 — nibble extraction + relaxed_dot */
@@ -179,12 +189,13 @@ nk_define_cross_pack_(dots, u4, v128relaxed, u4x2, u4x2, nk_assign_from_to_, /*n
 nk_define_cross_symmetric_(dots, u4, v128relaxed, u4x2, u32, nk_b128_vec_t, nk_dot_u4x32_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_u4x32_init_v128relaxed, nk_load_b128_v128relaxed_,
                            nk_partial_load_b4x32_serial_, nk_dot_u4x32_update_v128relaxed,
-                           nk_dot_u4x32_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
+                           nk_dot_u4x32_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 nk_define_cross_packed_(dots, u4, v128relaxed, u4x2, u4x2, u32, nk_b128_vec_t, nk_dot_u4x32_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_u4x32_init_v128relaxed, nk_load_b128_v128relaxed_,
                         nk_partial_load_b4x32_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b4x32_serial_,
-                        nk_dot_u4x32_update_v128relaxed, nk_dot_u4x32_finalize_v128relaxed,
+                        nk_dot_u4x32_update_v128relaxed, nk_dot_u4x32_finalize_v128relaxed, nk_store_b128_v128relaxed_,
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 
@@ -200,18 +211,19 @@ nk_define_cross_compensated_symmetric_(dots, i4, v128relaxed, i4x2, i32,
                                        nk_dot_i4x32_state_v128relaxed_t, nk_b128_vec_t, nk_dot_i4x32_init_v128relaxed,
                                        nk_load_b128_v128relaxed_, nk_partial_load_b4x32_serial_,
                                        nk_dot_i4x32_update_v128relaxed, nk_dot_i4x32_finalize_v128relaxed,
-                                       nk_partial_store_b32x4_serial_, nk_load_b128_v128relaxed_,
-                                       nk_partial_load_b32x4_serial_, nk_sum_i4x32_state_v128relaxed_t,
-                                       nk_sum_i4x32_init_v128relaxed, nk_sum_i4x32_update_v128relaxed,
-                                       nk_sum_i4x32_finalize_v128relaxed,
+                                       nk_store_b128_v128relaxed_, nk_partial_store_b32x4_serial_,
+                                       nk_load_b128_v128relaxed_, nk_partial_load_b32x4_serial_,
+                                       nk_sum_i4x32_state_v128relaxed_t, nk_sum_i4x32_init_v128relaxed,
+                                       nk_sum_i4x32_update_v128relaxed, nk_sum_i4x32_finalize_v128relaxed,
                                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 nk_define_cross_compensated_packed_(dots, i4, v128relaxed, i4x2, i4x2, i32,
                                     /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_b128_vec_t,
                                     nk_dot_i4x32_state_v128relaxed_t, nk_b128_vec_t, nk_dot_i4x32_init_v128relaxed,
                                     nk_load_b128_v128relaxed_, nk_partial_load_b4x32_serial_, nk_load_b128_v128relaxed_,
                                     nk_partial_load_b4x32_serial_, nk_dot_i4x32_update_v128relaxed,
-                                    nk_dot_i4x32_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
-                                    nk_load_b128_v128relaxed_, nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i4_,
+                                    nk_dot_i4x32_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                                    nk_partial_store_b32x4_serial_, nk_load_b128_v128relaxed_,
+                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i4_,
                                     /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 
 /* U1 GEMM: depth_simd_dimensions=128 (128 bits = 16 bytes = v128 register width) */
@@ -223,13 +235,14 @@ nk_define_cross_pack_(dots, u1, v128relaxed, u1x8, u1x8, nk_assign_from_to_,
 nk_define_cross_symmetric_(dots, u1, v128relaxed, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_v128relaxed_t,
                            nk_b128_vec_t, nk_dot_u1x128_init_v128relaxed, nk_load_b128_v128relaxed_,
                            nk_partial_load_b1x128_serial_, nk_dot_u1x128_update_v128relaxed,
-                           nk_dot_u1x128_finalize_v128relaxed, nk_partial_store_b32x4_serial_,
+                           nk_dot_u1x128_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 nk_define_cross_packed_(dots, u1, v128relaxed, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot_u1x128_state_v128relaxed_t,
                         nk_b128_vec_t, nk_dot_u1x128_init_v128relaxed, nk_load_b128_v128relaxed_,
                         nk_partial_load_b1x128_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b1x128_serial_,
                         nk_dot_u1x128_update_v128relaxed, nk_dot_u1x128_finalize_v128relaxed,
-                        nk_partial_store_b32x4_serial_,
+                        nk_store_b128_v128relaxed_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 
 #if defined(__clang__)

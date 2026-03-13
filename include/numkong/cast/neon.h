@@ -85,6 +85,21 @@ NK_INTERNAL void nk_load_b128_neon_(void const *src, nk_b128_vec_t *dst) {
     dst->u8x16 = vld1q_u8((nk_u8_t const *)src);
 }
 
+/** @brief Type-agnostic 256-bit full load (NEON). */
+NK_INTERNAL void nk_load_b256_neon_(void const *src, nk_b256_vec_t *dst) {
+    dst->u8x16s[0] = vld1q_u8((nk_u8_t const *)src);
+    dst->u8x16s[1] = vld1q_u8((nk_u8_t const *)src + 16);
+}
+
+/** @brief Type-agnostic 128-bit full store (NEON). */
+NK_INTERNAL void nk_store_b128_neon_(nk_b128_vec_t const *src, void *dst) { vst1q_u8((nk_u8_t *)dst, src->u8x16); }
+
+/** @brief Type-agnostic 256-bit full store (NEON). */
+NK_INTERNAL void nk_store_b256_neon_(nk_b256_vec_t const *src, void *dst) {
+    vst1q_u8((nk_u8_t *)dst, src->u8x16s[0]);
+    vst1q_u8((nk_u8_t *)dst + 16, src->u8x16s[1]);
+}
+
 /** @brief Type-agnostic 64-bit full load (NEON). */
 NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8x8 = vld1_u8((nk_u8_t const *)src); }
 

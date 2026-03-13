@@ -28,8 +28,18 @@ extern "C" {
 
 /** @brief Native WASM SIMD 128-bit load. */
 NK_INTERNAL void nk_load_b128_v128relaxed_(void const *src, nk_b128_vec_t *dst) { dst->v128 = wasm_v128_load(src); }
+/** @brief Native WASM SIMD 256-bit load using two v128 loads. */
+NK_INTERNAL void nk_load_b256_v128relaxed_(void const *src, nk_b256_vec_t *dst) {
+    dst->v128s[0] = wasm_v128_load(src);
+    dst->v128s[1] = wasm_v128_load((char const *)src + 16);
+}
 /** @brief Native WASM SIMD 128-bit store. */
 NK_INTERNAL void nk_store_b128_v128relaxed_(nk_b128_vec_t const *src, void *dst) { wasm_v128_store(dst, src->v128); }
+/** @brief Native WASM SIMD 256-bit store using two v128 stores. */
+NK_INTERNAL void nk_store_b256_v128relaxed_(nk_b256_vec_t const *src, void *dst) {
+    wasm_v128_store(dst, src->v128s[0]);
+    wasm_v128_store((char *)dst + 16, src->v128s[1]);
+}
 
 NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec) {
     // Load 4x u16 (64 bits) into lower half of v128, zero upper half

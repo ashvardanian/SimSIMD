@@ -1069,6 +1069,9 @@ typedef union nk_b256_vec_t {
     __m256 ymm_ps;
     __m128i xmms[2];
 #endif
+#if NK_TARGET_V128RELAXED
+    v128_t v128s[2];
+#endif
 #if NK_TARGET_NEON
     uint8x16_t u8x16s[2];
     uint16x8_t u16x8s[2];

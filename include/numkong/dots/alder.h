@@ -41,8 +41,9 @@ nk_define_cross_compensated_symmetric_(dots, i8, alder, i8, i32,
                                        /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_b256_vec_t,
                                        nk_dot_i8x32_state_alder_t, nk_b128_vec_t, nk_dot_i8x32_init_alder,
                                        nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_i8x32_update_alder,
-                                       nk_dot_i8x32_finalize_alder, nk_partial_store_b32x4_serial_,
-                                       nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_sum_i8x32_state_alder_t,
+                                       nk_dot_i8x32_finalize_alder, nk_store_b128_haswell_,
+                                       nk_partial_store_b32x4_serial_, nk_load_b128_haswell_,
+                                       nk_partial_load_b32x4_serial_, nk_sum_i8x32_state_alder_t,
                                        nk_sum_i8x32_init_alder, nk_sum_i8x32_update_alder, nk_sum_i8x32_finalize_alder,
                                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_cross_compensated_packed_(dots, i8, alder, i8, i8, i32,
@@ -50,8 +51,8 @@ nk_define_cross_compensated_packed_(dots, i8, alder, i8, i8, i32,
                                     nk_dot_i8x32_state_alder_t, nk_b128_vec_t, nk_dot_i8x32_init_alder,
                                     nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_load_b256_haswell_,
                                     nk_partial_load_b8x32_serial_, nk_dot_i8x32_update_alder,
-                                    nk_dot_i8x32_finalize_alder, nk_partial_store_b32x4_serial_, nk_load_b128_haswell_,
-                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i8_stub_,
+                                    nk_dot_i8x32_finalize_alder, nk_store_b128_haswell_, nk_partial_store_b32x4_serial_,
+                                    nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_i8_stub_,
                                     /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
 /* U8 GEMM: depth_simd_dimensions=32 — compensated (operand swap, B sums precomputed) */
@@ -65,8 +66,9 @@ nk_define_cross_compensated_symmetric_(dots, u8, alder, u8, u32,
                                        /*sum_value_type=*/u32, /*norm_value_type=*/u32, nk_b256_vec_t,
                                        nk_dot_u8x32_state_alder_t, nk_b128_vec_t, nk_dot_u8x32_init_alder,
                                        nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_u8x32_update_alder,
-                                       nk_dot_u8x32_finalize_alder, nk_partial_store_b32x4_serial_,
-                                       nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_sum_u8x32_state_alder_t,
+                                       nk_dot_u8x32_finalize_alder, nk_store_b128_haswell_,
+                                       nk_partial_store_b32x4_serial_, nk_load_b128_haswell_,
+                                       nk_partial_load_b32x4_serial_, nk_sum_u8x32_state_alder_t,
                                        nk_sum_u8x32_init_alder, nk_sum_u8x32_update_alder, nk_sum_u8x32_finalize_alder,
                                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_cross_compensated_packed_(dots, u8, alder, u8, u8, u32,
@@ -74,8 +76,8 @@ nk_define_cross_compensated_packed_(dots, u8, alder, u8, u8, u32,
                                     nk_dot_u8x32_state_alder_t, nk_b128_vec_t, nk_dot_u8x32_init_alder,
                                     nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_load_b256_haswell_,
                                     nk_partial_load_b8x32_serial_, nk_dot_u8x32_update_alder,
-                                    nk_dot_u8x32_finalize_alder, nk_partial_store_b32x4_serial_, nk_load_b128_haswell_,
-                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_u8_stub_,
+                                    nk_dot_u8x32_finalize_alder, nk_store_b128_haswell_, nk_partial_store_b32x4_serial_,
+                                    nk_load_b128_haswell_, nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_u8_stub_,
                                     /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
 /* E2M3 GEMM via DPBUSD integer path: depth_simd_dimensions=32 (32 e2m3s = 32 bytes = AVX2 register width) */
@@ -86,12 +88,13 @@ nk_define_cross_pack_(dots, e2m3, alder, e2m3, e2m3, nk_assign_from_to_, /*norm_
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e2m3, alder, e2m3, f32, nk_b256_vec_t, nk_dot_e2m3x32_state_alder_t, nk_b128_vec_t,
                            nk_dot_e2m3x32_init_alder, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
-                           nk_dot_e2m3x32_update_alder, nk_dot_e2m3x32_finalize_alder, nk_partial_store_b32x4_serial_,
+                           nk_dot_e2m3x32_update_alder, nk_dot_e2m3x32_finalize_alder, nk_store_b128_haswell_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e2m3, alder, e2m3, e2m3, f32, nk_b256_vec_t, nk_dot_e2m3x32_state_alder_t, nk_b128_vec_t,
                         nk_dot_e2m3x32_init_alder, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                         nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_e2m3x32_update_alder,
-                        nk_dot_e2m3x32_finalize_alder, nk_partial_store_b32x4_serial_,
+                        nk_dot_e2m3x32_finalize_alder, nk_store_b128_haswell_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
 #if defined(__clang__)

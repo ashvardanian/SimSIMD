@@ -36,12 +36,13 @@ nk_define_cross_pack_(dots, f16, neonfhm, f16, f16, nk_assign_from_to_, /*norm_v
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f16, neonfhm, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neonfhm_t, nk_b128_vec_t,
                            nk_dot_f16x8_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
-                           nk_dot_f16x8_update_neonfhm, nk_dot_f16x8_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                           nk_dot_f16x8_update_neonfhm, nk_dot_f16x8_finalize_neonfhm, nk_store_b128_neon_,
+                           nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f16, neonfhm, f16, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neonfhm_t, nk_b128_vec_t,
                         nk_dot_f16x8_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
                         nk_load_b128_neon_, nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_neonfhm,
-                        nk_dot_f16x8_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                        nk_dot_f16x8_finalize_neonfhm, nk_store_b128_neon_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
 /* E2M3FN GEMM using FMLAL with TBL: depth_simd_dimensions=16 (16 e2m3s = 16 bytes) */
@@ -52,13 +53,13 @@ nk_define_cross_pack_(dots, e2m3, neonfhm, e2m3, e2m3, nk_assign_from_to_, /*nor
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e2m3, neonfhm, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_neonfhm_t, nk_b128_vec_t,
                            nk_dot_e2m3x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e2m3x16_update_neonfhm, nk_dot_e2m3x16_finalize_neonfhm,
+                           nk_dot_e2m3x16_update_neonfhm, nk_dot_e2m3x16_finalize_neonfhm, nk_store_b128_neon_,
                            nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e2m3, neonfhm, e2m3, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_neonfhm_t,
                         nk_b128_vec_t, nk_dot_e2m3x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_e2m3x16_update_neonfhm,
-                        nk_dot_e2m3x16_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                        nk_dot_e2m3x16_finalize_neonfhm, nk_store_b128_neon_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E3M2FN GEMM using FMLAL with TBL: depth_simd_dimensions=16 (16 e3m2s = 16 bytes) */
@@ -69,13 +70,13 @@ nk_define_cross_pack_(dots, e3m2, neonfhm, e3m2, e3m2, nk_assign_from_to_, /*nor
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e3m2, neonfhm, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_neonfhm_t, nk_b128_vec_t,
                            nk_dot_e3m2x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e3m2x16_update_neonfhm, nk_dot_e3m2x16_finalize_neonfhm,
+                           nk_dot_e3m2x16_update_neonfhm, nk_dot_e3m2x16_finalize_neonfhm, nk_store_b128_neon_,
                            nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e3m2, neonfhm, e3m2, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_neonfhm_t,
                         nk_b128_vec_t, nk_dot_e3m2x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_e3m2x16_update_neonfhm,
-                        nk_dot_e3m2x16_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                        nk_dot_e3m2x16_finalize_neonfhm, nk_store_b128_neon_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E4M3 GEMM via FMLAL: depth_simd_dimensions=16 (16 e4m3s = 16 bytes) */
@@ -86,13 +87,13 @@ nk_define_cross_pack_(dots, e4m3, neonfhm, e4m3, e4m3, nk_assign_from_to_, /*nor
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e4m3, neonfhm, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_neonfhm_t, nk_b128_vec_t,
                            nk_dot_e4m3x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e4m3x16_update_neonfhm, nk_dot_e4m3x16_finalize_neonfhm,
+                           nk_dot_e4m3x16_update_neonfhm, nk_dot_e4m3x16_finalize_neonfhm, nk_store_b128_neon_,
                            nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e4m3, neonfhm, e4m3, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_neonfhm_t,
                         nk_b128_vec_t, nk_dot_e4m3x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_e4m3x16_update_neonfhm,
-                        nk_dot_e4m3x16_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                        nk_dot_e4m3x16_finalize_neonfhm, nk_store_b128_neon_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E5M2 GEMM via FMLAL: depth_simd_dimensions=16 (16 e5m2s = 16 bytes) */
@@ -103,13 +104,13 @@ nk_define_cross_pack_(dots, e5m2, neonfhm, e5m2, e5m2, nk_assign_from_to_, /*nor
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e5m2, neonfhm, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_neonfhm_t, nk_b128_vec_t,
                            nk_dot_e5m2x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
-                           nk_dot_e5m2x16_update_neonfhm, nk_dot_e5m2x16_finalize_neonfhm,
+                           nk_dot_e5m2x16_update_neonfhm, nk_dot_e5m2x16_finalize_neonfhm, nk_store_b128_neon_,
                            nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, e5m2, neonfhm, e5m2, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_neonfhm_t,
                         nk_b128_vec_t, nk_dot_e5m2x16_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                         nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_e5m2x16_update_neonfhm,
-                        nk_dot_e5m2x16_finalize_neonfhm, nk_partial_store_b32x4_serial_,
+                        nk_dot_e5m2x16_finalize_neonfhm, nk_store_b128_neon_, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 #if defined(__clang__)
