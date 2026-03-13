@@ -13,6 +13,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use core::ops::{Index, IndexMut};
 use core::ptr::NonNull;
 
 use crate::cast::{cast, CastDtype};
@@ -604,6 +605,210 @@ impl SliceRange {
 
 // endregion: SliceRange
 
+#[doc(hidden)]
+pub trait TensorCoordinates {
+    const ARITY: usize;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError>;
+}
+
+impl<I0: VecIndex, I1: VecIndex> TensorCoordinates for (I0, I1) {
+    const ARITY: usize = 2;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        Ok(resolved)
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex> TensorCoordinates for (I0, I1, I2) {
+    const ARITY: usize = 3;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        Ok(resolved)
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex> TensorCoordinates
+    for (I0, I1, I2, I3)
+{
+    const ARITY: usize = 4;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        resolved[3] = resolve_index_for_size_(self.3, shape[3])?;
+        Ok(resolved)
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex, I4: VecIndex> TensorCoordinates
+    for (I0, I1, I2, I3, I4)
+{
+    const ARITY: usize = 5;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        resolved[3] = resolve_index_for_size_(self.3, shape[3])?;
+        resolved[4] = resolve_index_for_size_(self.4, shape[4])?;
+        Ok(resolved)
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex, I4: VecIndex, I5: VecIndex>
+    TensorCoordinates for (I0, I1, I2, I3, I4, I5)
+{
+    const ARITY: usize = 6;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        resolved[3] = resolve_index_for_size_(self.3, shape[3])?;
+        resolved[4] = resolve_index_for_size_(self.4, shape[4])?;
+        resolved[5] = resolve_index_for_size_(self.5, shape[5])?;
+        Ok(resolved)
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+    > TensorCoordinates for (I0, I1, I2, I3, I4, I5, I6)
+{
+    const ARITY: usize = 7;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        resolved[3] = resolve_index_for_size_(self.3, shape[3])?;
+        resolved[4] = resolve_index_for_size_(self.4, shape[4])?;
+        resolved[5] = resolve_index_for_size_(self.5, shape[5])?;
+        resolved[6] = resolve_index_for_size_(self.6, shape[6])?;
+        Ok(resolved)
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+    > TensorCoordinates for (I0, I1, I2, I3, I4, I5, I6, I7)
+{
+    const ARITY: usize = 8;
+
+    fn resolve<const MAX_RANK: usize>(
+        self,
+        shape: &[usize; MAX_RANK],
+        ndim: usize,
+    ) -> Result<[usize; MAX_RANK], TensorError> {
+        if ndim != Self::ARITY {
+            return Err(TensorError::DimensionMismatch {
+                expected: Self::ARITY,
+                got: ndim,
+            });
+        }
+        let mut resolved = [0usize; MAX_RANK];
+        resolved[0] = resolve_index_for_size_(self.0, shape[0])?;
+        resolved[1] = resolve_index_for_size_(self.1, shape[1])?;
+        resolved[2] = resolve_index_for_size_(self.2, shape[2])?;
+        resolved[3] = resolve_index_for_size_(self.3, shape[3])?;
+        resolved[4] = resolve_index_for_size_(self.4, shape[4])?;
+        resolved[5] = resolve_index_for_size_(self.5, shape[5])?;
+        resolved[6] = resolve_index_for_size_(self.6, shape[6])?;
+        resolved[7] = resolve_index_for_size_(self.7, shape[7])?;
+        Ok(resolved)
+    }
+}
+
 // region: TensorView
 
 /// A read-only view into a Tensor (doesn't own data).
@@ -684,6 +889,68 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         } else {
             None
         }
+    }
+
+    /// Try to get an element by flat logical row-major index.
+    pub fn try_flat<I: VecIndex>(&self, index: I) -> Result<&T, TensorError> {
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        let logical_index = resolve_index_for_size_(index, self.len)?;
+        let offset = offset_from_flat_(&self.shape, &self.strides, self.ndim, logical_index);
+        Ok(unsafe { &*((self.data as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to get an element by exact coordinates.
+    pub fn try_coords<C: TensorCoordinates>(&self, coords: C) -> Result<&T, TensorError> {
+        let resolved = coords.resolve(&self.shape, self.ndim)?;
+        let offset = offset_from_coords_(&self.strides, &resolved, self.ndim);
+        Ok(unsafe { &*((self.data as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to access the scalar value of a rank-0 tensor view.
+    pub fn try_scalar(&self) -> Result<&T, TensorError> {
+        if self.ndim != 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 0,
+                got: self.ndim,
+            });
+        }
+        Ok(unsafe { &*self.data })
+    }
+
+    /// Slice the leading axis by one index, reducing rank by one.
+    pub fn slice_leading<I: VecIndex>(
+        &self,
+        index: I,
+    ) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_leading_layout_(&self.shape, &self.strides, self.ndim, index)?;
+        Ok(TensorView {
+            data: unsafe { (self.data as *const u8).offset(offset) as *const T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the view along multiple dimensions.
+    pub fn slice(&self, ranges: &[SliceRange]) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_layout_(&self.shape, &self.strides, self.ndim, ranges)?;
+        Ok(TensorView {
+            data: unsafe { (self.data as *const u8).offset(offset) as *const T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -841,6 +1108,136 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
             _marker: PhantomData,
         }
     }
+
+    /// Try to get an element by flat logical row-major index.
+    pub fn try_flat<I: VecIndex>(&self, index: I) -> Result<&T, TensorError> {
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        let logical_index = resolve_index_for_size_(index, self.len)?;
+        let offset = offset_from_flat_(&self.shape, &self.strides, self.ndim, logical_index);
+        Ok(unsafe { &*((self.data as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to get a mutable element by flat logical row-major index.
+    pub fn try_flat_mut<I: VecIndex>(&mut self, index: I) -> Result<&mut T, TensorError> {
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        let logical_index = resolve_index_for_size_(index, self.len)?;
+        let offset = offset_from_flat_(&self.shape, &self.strides, self.ndim, logical_index);
+        Ok(unsafe { &mut *((self.data as *mut u8).offset(offset) as *mut T) })
+    }
+
+    /// Try to get an element by exact coordinates.
+    pub fn try_coords<C: TensorCoordinates>(&self, coords: C) -> Result<&T, TensorError> {
+        let resolved = coords.resolve(&self.shape, self.ndim)?;
+        let offset = offset_from_coords_(&self.strides, &resolved, self.ndim);
+        Ok(unsafe { &*((self.data as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to get a mutable element by exact coordinates.
+    pub fn try_coords_mut<C: TensorCoordinates>(
+        &mut self,
+        coords: C,
+    ) -> Result<&mut T, TensorError> {
+        let resolved = coords.resolve(&self.shape, self.ndim)?;
+        let offset = offset_from_coords_(&self.strides, &resolved, self.ndim);
+        Ok(unsafe { &mut *((self.data as *mut u8).offset(offset) as *mut T) })
+    }
+
+    /// Try to access the scalar value of a rank-0 tensor span.
+    pub fn try_scalar(&self) -> Result<&T, TensorError> {
+        if self.ndim != 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 0,
+                got: self.ndim,
+            });
+        }
+        Ok(unsafe { &*self.data })
+    }
+
+    /// Try to access the mutable scalar value of a rank-0 tensor span.
+    pub fn try_scalar_mut(&mut self) -> Result<&mut T, TensorError> {
+        if self.ndim != 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 0,
+                got: self.ndim,
+            });
+        }
+        Ok(unsafe { &mut *self.data })
+    }
+
+    /// Slice the leading axis by one index, reducing rank by one.
+    pub fn slice_leading<I: VecIndex>(
+        &self,
+        index: I,
+    ) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_leading_layout_(&self.shape, &self.strides, self.ndim, index)?;
+        Ok(TensorView {
+            data: unsafe { (self.data as *const u8).offset(offset) as *const T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the leading axis mutably by one index, reducing rank by one.
+    pub fn slice_leading_mut<I: VecIndex>(
+        &mut self,
+        index: I,
+    ) -> Result<TensorSpan<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_leading_layout_(&self.shape, &self.strides, self.ndim, index)?;
+        Ok(TensorSpan {
+            data: unsafe { (self.data as *mut u8).offset(offset) as *mut T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the span along multiple dimensions.
+    pub fn slice(&self, ranges: &[SliceRange]) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_layout_(&self.shape, &self.strides, self.ndim, ranges)?;
+        Ok(TensorView {
+            data: unsafe { (self.data as *const u8).offset(offset) as *const T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the span mutably along multiple dimensions.
+    pub fn slice_mut(
+        &mut self,
+        ranges: &[SliceRange],
+    ) -> Result<TensorSpan<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_layout_(&self.shape, &self.strides, self.ndim, ranges)?;
+        Ok(TensorSpan {
+            data: unsafe { (self.data as *mut u8).offset(offset) as *mut T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
 }
 
 // endregion: TensorSpan
@@ -991,7 +1388,7 @@ impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 }
 
-impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     /// Transpose (reverse all dimensions, no data copy).
     pub fn transpose(&self) -> Result<TensorView<'a, T, MAX_RANK>, TensorError> {
         if self.ndim < 2 {
@@ -1046,7 +1443,7 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         shape_arr[..new_shape.len()].copy_from_slice(new_shape);
 
         let mut strides_arr = [0isize; MAX_RANK];
-        Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
+        compute_strides_into_::<T, MAX_RANK>(new_shape, &mut strides_arr);
 
         Ok(TensorView {
             data: self.data,
@@ -1091,7 +1488,7 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 }
 
-impl<'a, T: Clone, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
     /// Transpose (reverse all dimensions, no data copy).
     pub fn transpose(&self) -> Result<TensorSpan<'a, T, MAX_RANK>, TensorError> {
         if self.ndim < 2 {
@@ -1146,7 +1543,7 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
         shape_arr[..new_shape.len()].copy_from_slice(new_shape);
 
         let mut strides_arr = [0isize; MAX_RANK];
-        Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
+        compute_strides_into_::<T, MAX_RANK>(new_shape, &mut strides_arr);
 
         Ok(TensorSpan {
             data: self.data,
@@ -1225,7 +1622,7 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
     }
 }
 
-impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Iterate along the given axis, yielding sub-tensor views with rank-1.
     pub fn axis_views<I: VecIndex>(
         &self,
@@ -1264,7 +1661,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 
 // region: Tensor View and Slice Methods
 
-impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Create a view of the entire array.
     pub fn view(&self) -> TensorView<'_, T, MAX_RANK> {
         TensorView {
@@ -1289,6 +1686,105 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         }
     }
 
+    /// Try to get an element by flat logical row-major index.
+    pub fn try_flat<I: VecIndex>(&self, index: I) -> Result<&T, TensorError> {
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        let logical_index = resolve_index_for_size_(index, self.len)?;
+        let offset = offset_from_flat_(&self.shape, &self.strides, self.ndim, logical_index);
+        Ok(unsafe { &*((self.data.as_ptr() as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to get a mutable element by flat logical row-major index.
+    pub fn try_flat_mut<I: VecIndex>(&mut self, index: I) -> Result<&mut T, TensorError> {
+        if self.ndim == 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 1,
+                got: 0,
+            });
+        }
+        let logical_index = resolve_index_for_size_(index, self.len)?;
+        let offset = offset_from_flat_(&self.shape, &self.strides, self.ndim, logical_index);
+        Ok(unsafe { &mut *((self.data.as_ptr() as *mut u8).offset(offset) as *mut T) })
+    }
+
+    /// Try to get an element by exact coordinates.
+    pub fn try_coords<C: TensorCoordinates>(&self, coords: C) -> Result<&T, TensorError> {
+        let resolved = coords.resolve(&self.shape, self.ndim)?;
+        let offset = offset_from_coords_(&self.strides, &resolved, self.ndim);
+        Ok(unsafe { &*((self.data.as_ptr() as *const u8).offset(offset) as *const T) })
+    }
+
+    /// Try to get a mutable element by exact coordinates.
+    pub fn try_coords_mut<C: TensorCoordinates>(
+        &mut self,
+        coords: C,
+    ) -> Result<&mut T, TensorError> {
+        let resolved = coords.resolve(&self.shape, self.ndim)?;
+        let offset = offset_from_coords_(&self.strides, &resolved, self.ndim);
+        Ok(unsafe { &mut *((self.data.as_ptr() as *mut u8).offset(offset) as *mut T) })
+    }
+
+    /// Try to access the scalar value of a rank-0 tensor.
+    pub fn try_scalar(&self) -> Result<&T, TensorError> {
+        if self.ndim != 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 0,
+                got: self.ndim,
+            });
+        }
+        Ok(unsafe { &*self.data.as_ptr() })
+    }
+
+    /// Try to access the mutable scalar value of a rank-0 tensor.
+    pub fn try_scalar_mut(&mut self) -> Result<&mut T, TensorError> {
+        if self.ndim != 0 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 0,
+                got: self.ndim,
+            });
+        }
+        Ok(unsafe { &mut *self.data.as_ptr() })
+    }
+
+    /// Slice the leading axis by one index, reducing rank by one.
+    pub fn slice_leading<I: VecIndex>(
+        &self,
+        index: I,
+    ) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_leading_layout_(&self.shape, &self.strides, self.ndim, index)?;
+        Ok(TensorView {
+            data: unsafe { (self.data.as_ptr() as *const u8).offset(offset) as *const T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the leading axis mutably by one index, reducing rank by one.
+    pub fn slice_leading_mut<I: VecIndex>(
+        &mut self,
+        index: I,
+    ) -> Result<TensorSpan<'_, T, MAX_RANK>, TensorError> {
+        let (shape, strides, ndim, offset, len) =
+            slice_leading_layout_(&self.shape, &self.strides, self.ndim, index)?;
+        Ok(TensorSpan {
+            data: unsafe { (self.data.as_ptr() as *mut u8).offset(offset) as *mut T },
+            len,
+            shape,
+            strides,
+            ndim,
+            _marker: PhantomData,
+        })
+    }
+
     /// Slice the array along multiple dimensions.
     ///
     /// # Arguments
@@ -1307,89 +1803,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// let row = arr.slice(&[SliceRange::index(1), SliceRange::full()]).unwrap();
     /// ```
     pub fn slice(&self, ranges: &[SliceRange]) -> Result<TensorView<'_, T, MAX_RANK>, TensorError> {
-        if ranges.len() != self.ndim {
-            return Err(TensorError::DimensionMismatch {
-                expected: self.ndim,
-                got: ranges.len(),
-            });
-        }
-
-        let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0isize; MAX_RANK];
-        let mut new_ndim = 0usize;
-        let mut offset = 0isize;
-
-        for (dim, range) in ranges.iter().enumerate() {
-            let dim_size = self.shape[dim];
-            let dim_stride = self.strides[dim];
-
-            match *range {
-                SliceRange::Full => {
-                    new_shape[new_ndim] = dim_size;
-                    new_strides[new_ndim] = dim_stride;
-                    new_ndim += 1;
-                }
-                SliceRange::Index(i) => {
-                    if i >= dim_size {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: i,
-                            size: dim_size,
-                        });
-                    }
-                    // Single index reduces dimension (doesn't add to new shape)
-                    offset += i as isize * dim_stride;
-                }
-                SliceRange::Range { start, end } => {
-                    if start > end || end > dim_size {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: end,
-                            size: dim_size,
-                        });
-                    }
-                    new_shape[new_ndim] = end - start;
-                    new_strides[new_ndim] = dim_stride;
-                    new_ndim += 1;
-                    offset += start as isize * dim_stride;
-                }
-                SliceRange::RangeStep { start, end, step } => {
-                    if start >= dim_size || (end > dim_size && step > 0) {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: if start >= dim_size { start } else { end },
-                            size: dim_size,
-                        });
-                    }
-                    if step == 0 {
-                        return Err(TensorError::InvalidShape {
-                            shape: ShapeDescriptor::from_slice(self.shape()),
-                            reason: "step cannot be zero",
-                        });
-                    }
-                    let count = if step > 0 {
-                        (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
-                    } else {
-                        let abs_step = (-step) as usize;
-                        (start.saturating_sub(end) + abs_step - 1) / abs_step
-                    };
-                    new_shape[new_ndim] = count;
-                    // Stride can be negative for reversed views
-                    new_strides[new_ndim] = dim_stride * step;
-                    new_ndim += 1;
-                    offset += start as isize * dim_stride;
-                }
-            }
-        }
-
-        let new_len: usize = new_shape[..new_ndim].iter().product();
-        let new_ptr = unsafe { (self.data.as_ptr() as *const u8).offset(offset) as *const T };
-
-        Ok(TensorView {
-            data: new_ptr,
-            len: new_len,
-            shape: new_shape,
-            strides: new_strides,
-            ndim: new_ndim,
-            _marker: PhantomData,
-        })
+        self.view().slice(ranges)
     }
 
     /// Slice the array mutably along multiple dimensions.
@@ -1401,85 +1815,14 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         &mut self,
         ranges: &[SliceRange],
     ) -> Result<TensorSpan<'_, T, MAX_RANK>, TensorError> {
-        if ranges.len() != self.ndim {
-            return Err(TensorError::DimensionMismatch {
-                expected: self.ndim,
-                got: ranges.len(),
-            });
-        }
-
-        let mut new_shape = [0usize; MAX_RANK];
-        let mut new_strides = [0isize; MAX_RANK];
-        let mut new_ndim = 0usize;
-        let mut offset = 0isize;
-
-        for (dim, range) in ranges.iter().enumerate() {
-            let dim_size = self.shape[dim];
-            let dim_stride = self.strides[dim];
-
-            match *range {
-                SliceRange::Full => {
-                    new_shape[new_ndim] = dim_size;
-                    new_strides[new_ndim] = dim_stride;
-                    new_ndim += 1;
-                }
-                SliceRange::Index(i) => {
-                    if i >= dim_size {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: i,
-                            size: dim_size,
-                        });
-                    }
-                    offset += i as isize * dim_stride;
-                }
-                SliceRange::Range { start, end } => {
-                    if start > end || end > dim_size {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: end,
-                            size: dim_size,
-                        });
-                    }
-                    new_shape[new_ndim] = end - start;
-                    new_strides[new_ndim] = dim_stride;
-                    new_ndim += 1;
-                    offset += start as isize * dim_stride;
-                }
-                SliceRange::RangeStep { start, end, step } => {
-                    if start >= dim_size || (end > dim_size && step > 0) {
-                        return Err(TensorError::IndexOutOfBounds {
-                            index: if start >= dim_size { start } else { end },
-                            size: dim_size,
-                        });
-                    }
-                    if step == 0 {
-                        return Err(TensorError::InvalidShape {
-                            shape: ShapeDescriptor::from_slice(self.shape()),
-                            reason: "step cannot be zero",
-                        });
-                    }
-                    let count = if step > 0 {
-                        (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
-                    } else {
-                        let abs_step = (-step) as usize;
-                        (start.saturating_sub(end) + abs_step - 1) / abs_step
-                    };
-                    new_shape[new_ndim] = count;
-                    new_strides[new_ndim] = dim_stride * step;
-                    new_ndim += 1;
-                    offset += start as isize * dim_stride;
-                }
-            }
-        }
-
-        let new_len: usize = new_shape[..new_ndim].iter().product();
-        let new_ptr = unsafe { (self.data.as_ptr() as *mut u8).offset(offset) as *mut T };
-
+        let (shape, strides, ndim, offset, len) =
+            slice_layout_(&self.shape, &self.strides, self.ndim, ranges)?;
         Ok(TensorSpan {
-            data: new_ptr,
-            len: new_len,
-            shape: new_shape,
-            strides: new_strides,
-            ndim: new_ndim,
+            data: unsafe { (self.data.as_ptr() as *mut u8).offset(offset) as *mut T },
+            len,
+            shape,
+            strides,
+            ndim,
             _marker: PhantomData,
         })
     }
@@ -1514,7 +1857,7 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         shape_arr[..new_shape.len()].copy_from_slice(new_shape);
 
         let mut strides_arr = [0isize; MAX_RANK];
-        Tensor::<T, Global, MAX_RANK>::compute_strides_into(new_shape, &mut strides_arr);
+        compute_strides_into_::<T, MAX_RANK>(new_shape, &mut strides_arr);
 
         Ok(TensorView {
             data: self.data.as_ptr(),
@@ -1536,6 +1879,604 @@ impl<T: Clone, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 }
 
 // endregion: Tensor View and Slice Methods
+
+impl<'a, I: VecIndex, T, const MAX_RANK: usize> Index<I> for TensorView<'a, T, MAX_RANK> {
+    type Output = T;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.try_flat(index).expect("view index out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, T, const MAX_RANK: usize> Index<(I0, I1)>
+    for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, T, const MAX_RANK: usize> Index<(I0, I1, I2)>
+    for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex, T, const MAX_RANK: usize>
+    Index<(I0, I1, I2, I3)> for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4)> for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5)> for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6)> for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6, I7)> for TensorView<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6, I7)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("view coordinates out of bounds")
+    }
+}
+
+impl<'a, I: VecIndex, T, const MAX_RANK: usize> Index<I> for TensorSpan<'a, T, MAX_RANK> {
+    type Output = T;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.try_flat(index).expect("span index out of bounds")
+    }
+}
+
+impl<'a, I: VecIndex, T, const MAX_RANK: usize> IndexMut<I> for TensorSpan<'a, T, MAX_RANK> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.try_flat_mut(index).expect("span index out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, T, const MAX_RANK: usize> Index<(I0, I1)>
+    for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, T, const MAX_RANK: usize> IndexMut<(I0, I1)>
+    for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, T, const MAX_RANK: usize> Index<(I0, I1, I2)>
+    for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, T, const MAX_RANK: usize> IndexMut<(I0, I1, I2)>
+    for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex, T, const MAX_RANK: usize>
+    Index<(I0, I1, I2, I3)> for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<'a, I0: VecIndex, I1: VecIndex, I2: VecIndex, I3: VecIndex, T, const MAX_RANK: usize>
+    IndexMut<(I0, I1, I2, I3)> for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4)> for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4)> for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5)> for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5)> for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6)> for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5, I6)> for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5, I6)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6, I7)> for TensorSpan<'a, T, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6, I7)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<
+        'a,
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+        T,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5, I6, I7)> for TensorSpan<'a, T, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5, I6, I7)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("span coordinates out of bounds")
+    }
+}
+
+impl<I: VecIndex, T, A: Allocator, const MAX_RANK: usize> Index<I> for Tensor<T, A, MAX_RANK> {
+    type Output = T;
+
+    fn index(&self, index: I) -> &Self::Output {
+        self.try_flat(index).expect("tensor index out of bounds")
+    }
+}
+
+impl<I: VecIndex, T, A: Allocator, const MAX_RANK: usize> IndexMut<I> for Tensor<T, A, MAX_RANK> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.try_flat_mut(index)
+            .expect("tensor index out of bounds")
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, T, A: Allocator, const MAX_RANK: usize> Index<(I0, I1)>
+    for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, T, A: Allocator, const MAX_RANK: usize> IndexMut<(I0, I1)>
+    for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex, T, A: Allocator, const MAX_RANK: usize>
+    Index<(I0, I1, I2)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<I0: VecIndex, I1: VecIndex, I2: VecIndex, T, A: Allocator, const MAX_RANK: usize>
+    IndexMut<(I0, I1, I2)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5, I6)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5, I6)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > Index<(I0, I1, I2, I3, I4, I5, I6, I7)> for Tensor<T, A, MAX_RANK>
+{
+    type Output = T;
+
+    fn index(&self, index: (I0, I1, I2, I3, I4, I5, I6, I7)) -> &Self::Output {
+        self.try_coords(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
+
+impl<
+        I0: VecIndex,
+        I1: VecIndex,
+        I2: VecIndex,
+        I3: VecIndex,
+        I4: VecIndex,
+        I5: VecIndex,
+        I6: VecIndex,
+        I7: VecIndex,
+        T,
+        A: Allocator,
+        const MAX_RANK: usize,
+    > IndexMut<(I0, I1, I2, I3, I4, I5, I6, I7)> for Tensor<T, A, MAX_RANK>
+{
+    fn index_mut(&mut self, index: (I0, I1, I2, I3, I4, I5, I6, I7)) -> &mut Self::Output {
+        self.try_coords_mut(index)
+            .expect("tensor coordinates out of bounds")
+    }
+}
 
 // region: Type Aliases
 
@@ -1575,6 +2516,171 @@ fn normalize_axis<I: VecIndex>(axis: I, ndim: usize) -> Result<usize, TensorErro
         index: 0,
         size: ndim,
     })
+}
+
+#[inline]
+fn compute_strides_into_<T, const MAX_RANK: usize>(
+    shape: &[usize],
+    strides: &mut [isize; MAX_RANK],
+) {
+    let elem_size = core::mem::size_of::<T>();
+    if shape.is_empty() {
+        return;
+    }
+
+    let mut stride = elem_size as isize;
+    for dim in (0..shape.len()).rev() {
+        strides[dim] = stride;
+        stride *= shape[dim] as isize;
+    }
+}
+
+#[inline]
+fn resolve_index_for_size_<I: VecIndex>(index: I, size: usize) -> Result<usize, TensorError> {
+    index
+        .resolve(size)
+        .ok_or(TensorError::IndexOutOfBounds { index: 0, size })
+}
+
+#[inline]
+fn offset_from_coords_<const MAX_RANK: usize>(
+    strides: &[isize; MAX_RANK],
+    coords: &[usize; MAX_RANK],
+    ndim: usize,
+) -> isize {
+    let mut offset = 0isize;
+    for dim in 0..ndim {
+        offset += coords[dim] as isize * strides[dim];
+    }
+    offset
+}
+
+#[inline]
+fn offset_from_flat_<const MAX_RANK: usize>(
+    shape: &[usize; MAX_RANK],
+    strides: &[isize; MAX_RANK],
+    ndim: usize,
+    mut flat_index: usize,
+) -> isize {
+    let mut offset = 0isize;
+    for dim in (0..ndim).rev() {
+        let dim_size = shape[dim];
+        let coord = flat_index % dim_size;
+        flat_index /= dim_size;
+        offset += coord as isize * strides[dim];
+    }
+    offset
+}
+
+fn slice_layout_<const MAX_RANK: usize>(
+    shape: &[usize; MAX_RANK],
+    strides: &[isize; MAX_RANK],
+    ndim: usize,
+    ranges: &[SliceRange],
+) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    if ranges.len() != ndim {
+        return Err(TensorError::DimensionMismatch {
+            expected: ndim,
+            got: ranges.len(),
+        });
+    }
+
+    let mut new_shape = [0usize; MAX_RANK];
+    let mut new_strides = [0isize; MAX_RANK];
+    let mut new_ndim = 0usize;
+    let mut offset = 0isize;
+
+    for (dim, range) in ranges.iter().enumerate() {
+        let dim_size = shape[dim];
+        let dim_stride = strides[dim];
+
+        match *range {
+            SliceRange::Full => {
+                new_shape[new_ndim] = dim_size;
+                new_strides[new_ndim] = dim_stride;
+                new_ndim += 1;
+            }
+            SliceRange::Index(index) => {
+                if index >= dim_size {
+                    return Err(TensorError::IndexOutOfBounds {
+                        index,
+                        size: dim_size,
+                    });
+                }
+                offset += index as isize * dim_stride;
+            }
+            SliceRange::Range { start, end } => {
+                if start > end || end > dim_size {
+                    return Err(TensorError::IndexOutOfBounds {
+                        index: end,
+                        size: dim_size,
+                    });
+                }
+                new_shape[new_ndim] = end - start;
+                new_strides[new_ndim] = dim_stride;
+                new_ndim += 1;
+                offset += start as isize * dim_stride;
+            }
+            SliceRange::RangeStep { start, end, step } => {
+                if start >= dim_size || (end > dim_size && step > 0) {
+                    return Err(TensorError::IndexOutOfBounds {
+                        index: if start >= dim_size { start } else { end },
+                        size: dim_size,
+                    });
+                }
+                if step == 0 {
+                    return Err(TensorError::InvalidShape {
+                        shape: ShapeDescriptor::from_slice(&shape[..ndim]),
+                        reason: "step cannot be zero",
+                    });
+                }
+                let count = if step > 0 {
+                    (end.saturating_sub(start) + step as usize - 1) / step as usize
+                } else {
+                    let abs_step = (-step) as usize;
+                    (start.saturating_sub(end) + abs_step - 1) / abs_step
+                };
+                new_shape[new_ndim] = count;
+                new_strides[new_ndim] = dim_stride * step;
+                new_ndim += 1;
+                offset += start as isize * dim_stride;
+            }
+        }
+    }
+
+    let new_len = if new_ndim == 0 {
+        1
+    } else {
+        new_shape[..new_ndim].iter().product()
+    };
+    Ok((new_shape, new_strides, new_ndim, offset, new_len))
+}
+
+fn slice_leading_layout_<I: VecIndex, const MAX_RANK: usize>(
+    shape: &[usize; MAX_RANK],
+    strides: &[isize; MAX_RANK],
+    ndim: usize,
+    index: I,
+) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    if ndim == 0 {
+        return Err(TensorError::IndexOutOfBounds { index: 0, size: 0 });
+    }
+
+    let leading = resolve_index_for_size_(index, shape[0])?;
+    let mut new_shape = [0usize; MAX_RANK];
+    let mut new_strides = [0isize; MAX_RANK];
+    for dim in 1..ndim {
+        new_shape[dim - 1] = shape[dim];
+        new_strides[dim - 1] = strides[dim];
+    }
+    let new_ndim = ndim - 1;
+    let offset = leading as isize * strides[0];
+    let new_len = if new_ndim == 0 {
+        1
+    } else {
+        new_shape[..new_ndim].iter().product()
+    };
+    Ok((new_shape, new_strides, new_ndim, offset, new_len))
 }
 
 fn reduced_shape(shape: &[usize], axis: usize, keep_dims: bool) -> Vec<usize> {
@@ -3446,6 +4552,59 @@ mod tests {
         // Matrix alias
         let mat: Matrix<f32> = Matrix::try_full(&[3, 4], 1.0f32).unwrap();
         assert_eq!(mat.shape(), &[3, 4]);
+    }
+
+    #[test]
+    fn tensor_scalar_lookup_and_views() {
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let mut tensor = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+
+        assert_eq!(tensor[0_usize], 0.0);
+        assert_eq!(tensor[-1_i32], 11.0);
+        assert_eq!(tensor[(1_usize, 2_usize)], 6.0);
+        assert_eq!(tensor[(2_i32, -1_i32)], 11.0);
+        assert_eq!(*tensor.try_flat(5_usize).unwrap(), 5.0);
+        assert_eq!(*tensor.try_coords((1_usize, 3_usize)).unwrap(), 7.0);
+
+        tensor[(1_usize, 2_usize)] = 60.0;
+        assert_eq!(tensor[(1_usize, 2_usize)], 60.0);
+        *tensor.try_coords_mut((2_usize, 0_usize)).unwrap() = 80.0;
+        assert_eq!(tensor[(2_usize, 0_usize)], 80.0);
+
+        let view = tensor.view();
+        assert_eq!(view[1_usize], 1.0);
+        assert_eq!(view[(1_usize, 2_usize)], 60.0);
+
+        let mut span = tensor.span();
+        assert_eq!(span[(2_usize, 0_usize)], 80.0);
+        span[(0_usize, 1_usize)] = 10.0;
+        assert_eq!(span[(0_usize, 1_usize)], 10.0);
+    }
+
+    #[test]
+    fn tensor_noncontiguous_lookup_and_rank_zero() {
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let tensor = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let even_columns = tensor
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+
+        assert_eq!(even_columns.shape(), &[3, 2]);
+        assert_eq!(even_columns[0_usize], 0.0);
+        assert_eq!(even_columns[1_usize], 2.0);
+        assert_eq!(even_columns[2_usize], 4.0);
+        assert_eq!(even_columns[(1_usize, 1_usize)], 6.0);
+        assert_eq!(*even_columns.try_coords((2_usize, 1_usize)).unwrap(), 10.0);
+
+        let row = tensor.slice_leading(1_usize).unwrap();
+        assert_eq!(row.shape(), &[4]);
+        assert_eq!(row[-1_i32], 7.0);
+
+        let scalar = tensor
+            .slice(&[SliceRange::index(2), SliceRange::index(3)])
+            .unwrap();
+        assert_eq!(scalar.ndim(), 0);
+        assert_eq!(*scalar.try_scalar().unwrap(), 11.0);
     }
 
     #[test]

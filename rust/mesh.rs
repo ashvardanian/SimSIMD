@@ -602,6 +602,7 @@ mod tests {
     fn check_kabsch_identical<T>(cloud: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
+        T::Transform: NumberLike,
         T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
@@ -626,6 +627,7 @@ mod tests {
     fn check_umeyama_scaled<T>(cloud: &[[f32; 3]], scaled: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
+        T::Transform: NumberLike,
         T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
@@ -643,6 +645,7 @@ mod tests {
     fn check_rmsd_identical<T>(cloud: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
+        T::Transform: NumberLike,
         T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
