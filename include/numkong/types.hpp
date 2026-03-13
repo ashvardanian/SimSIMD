@@ -71,10 +71,18 @@
 
 namespace ashvardanian::numkong {
 
-struct f32_t;
+struct f118c_t;
+struct f64c_t;
+struct f32c_t;
+struct bf16c_t;
+struct f16c_t;
+
+struct f118_t;
 struct f64_t;
-struct f16_t;
+struct f32_t;
 struct bf16_t;
+struct f16_t;
+struct e5m2_t;
 struct e4m3_t;
 struct e3m2_t;
 struct e2m3_t;
@@ -84,11 +92,105 @@ struct i32_t;
 struct i16_t;
 struct i8_t;
 struct i4x2_t;
+
+struct u64_t;
+struct u32_t;
+struct u16_t;
+struct u8_t;
 struct u4x2_t;
 struct u1x8_t;
-struct f32c_t;
-struct f64c_t;
-struct f118_t;
+
+/** @brief Detect NumKong wrapper types with required static members. */
+template <typename scalar_type_>
+constexpr bool is_numeric_class() noexcept {
+    return requires {
+        { scalar_type_::dtype() } -> std::same_as<nk_dtype_t>;
+    };
+}
+
+/** @brief Check if a type is an integer type. */
+template <typename scalar_type_>
+constexpr bool is_integer() noexcept {
+    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_integer();
+    else return std::is_integral_v<scalar_type_>;
+}
+
+template <typename scalar_type_>
+struct is_std_complex_sfinae_ : std::false_type {};
+
+template <typename scalar_type_>
+struct is_std_complex_sfinae_<std::complex<scalar_type_>> : std::true_type {};
+
+template <typename scalar_type_>
+constexpr bool is_std_complex_() noexcept {
+    return is_std_complex_sfinae_<scalar_type_>::value;
+}
+
+/** @brief Check if a type is an complex type - STL or NumKong. */
+template <typename scalar_type_>
+constexpr bool is_complex() noexcept {
+    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_complex();
+    else return is_std_complex_<scalar_type_>();
+}
+
+/** @brief Check if a type is an complex type - STL or NumKong. */
+template <typename scalar_type_>
+constexpr bool is_signed() noexcept {
+    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_signed();
+    else if constexpr (is_complex<scalar_type_>()) return is_signed<scalar_type_::value_type>();
+    else return std::is_signed<scalar_type_>::value;
+}
+
+template <std::integral raw_integral_type_>
+constexpr raw_integral_type_ nk_f64_to_integer_(double value) noexcept {
+    using limits_t = std::numeric_limits<raw_integral_type_>;
+    if (value != value) return 0;
+    if constexpr (std::is_unsigned_v<raw_integral_type_>) {
+        if (value <= 0.0) return 0;
+        double max_value = static_cast<double>(limits_t::max());
+        if (value >= max_value) return limits_t::max();
+        std::uint64_t integer_part = static_cast<std::uint64_t>(value);
+        double fractional_part = value - static_cast<double>(integer_part);
+        if (fractional_part > 0.5 || (fractional_part == 0.5 && (integer_part & 1))) ++integer_part;
+        return static_cast<raw_integral_type_>(integer_part);
+    }
+    else {
+        double min_value = static_cast<double>(limits_t::min());
+        double max_value = static_cast<double>(limits_t::max());
+        if (value <= min_value) return limits_t::min();
+        if (value >= max_value) return limits_t::max();
+        std::int64_t integer_part = static_cast<std::int64_t>(value);
+        double fractional_part = value - static_cast<double>(integer_part);
+        if (fractional_part > 0.5 || (fractional_part == 0.5 && (integer_part & 1))) ++integer_part;
+        else if (fractional_part < -0.5 || (fractional_part == -0.5 && (integer_part & 1))) --integer_part;
+        return static_cast<raw_integral_type_>(integer_part);
+    }
+}
+
+template <typename target_type_>
+    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+constexpr target_type_ nk_f64_to_integer_(double value) noexcept {
+    using raw_t = typename target_type_::raw_t;
+    return target_type_::from_raw(nk_f64_to_integer_<raw_t>(value));
+}
+
+template <typename target_type_>
+constexpr target_type_ nk_f64_to_(double value) noexcept {
+    if constexpr (is_integer<target_type_>()) return nk_f64_to_integer_<target_type_>(value);
+    else return target_type_(value);
+}
+
+// `f118_t` integer narrowing is declared here and defined after `f118_t`,
+// because it needs direct access to the `high_` and `low_` parts.
+template <std::integral raw_integral_type_>
+constexpr raw_integral_type_ nk_f118_to_integer_(double high, double low) noexcept;
+
+template <typename target_type_>
+    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+constexpr target_type_ nk_f118_to_integer_(double high, double low) noexcept;
+
+template <typename target_type_>
+constexpr target_type_ nk_f118_to_(double high, double low) noexcept;
 
 /**
  *  @brief Single-precision (32-bit) IEEE 754 floating-point wrapper.
@@ -347,7 +449,7 @@ struct f32_t {
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
     constexpr target_type_ to() const noexcept {
-        return target_type_(raw_);
+        return nk_f64_to_<target_type_>(raw_);
     }
 
   private:
@@ -614,7 +716,7 @@ struct f64_t {
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
     constexpr target_type_ to() const noexcept {
-        return target_type_(raw_);
+        return nk_f64_to_<target_type_>(raw_);
     }
 };
 
@@ -2755,16 +2857,7 @@ struct f118_t {
     /** @brief Convert to any numeric type. */
     template <typename target_type_>
     constexpr target_type_ to() const noexcept {
-        constexpr bool is_raw_integral = std::is_integral_v<target_type_>;
-        constexpr bool is_wrapper_integral = std::is_class_v<target_type_> && target_type_::is_integer();
-        // Raw integral: sum both components for precision
-        if constexpr (is_raw_integral) { return static_cast<target_type_>(high_) + static_cast<target_type_>(low_); }
-        // Wrapper integral: cast through raw_t to avoid ambiguous constructors
-        else if constexpr (is_wrapper_integral) {
-            using raw_t = typename target_type_::raw_t;
-            return target_type_(static_cast<raw_t>(high_) + static_cast<raw_t>(low_));
-        }
-        else { return target_type_(static_cast<double>(*this)); }
+        return nk_f118_to_<target_type_>(high_, low_);
     }
 
     /** @brief Square root with ~103 bits precision (max rel err: 6.8e-32 vs __float128, ~103 bits vs Boost). */
@@ -3397,6 +3490,84 @@ struct f118_t {
         return quick_two_sum_(p.high_, p.low_);
     }
 };
+
+template <std::integral raw_integral_type_>
+constexpr raw_integral_type_ nk_f118_to_integer_(double high, double low) noexcept {
+    using limits_t = std::numeric_limits<raw_integral_type_>;
+    f118_t value(high, low);
+    if (value.is_nan()) return 0;
+
+    if constexpr (std::is_unsigned_v<raw_integral_type_>) {
+        if (value <= f118_t(0.0)) return 0;
+        f118_t max_value(limits_t::max());
+        if (value >= max_value) return limits_t::max();
+    }
+    else {
+        f118_t min_value(limits_t::min());
+        f118_t max_value(limits_t::max());
+        if (value <= min_value) return limits_t::min();
+        if (value >= max_value) return limits_t::max();
+    }
+
+    f118_t truncated = value.trunc();
+    raw_integral_type_ integer_part {};
+    if constexpr (std::is_unsigned_v<raw_integral_type_>) {
+        if constexpr (sizeof(raw_integral_type_) == sizeof(std::uint64_t)) {
+            constexpr double two_to_64 = 18446744073709551616.0;
+            if (truncated.high_ == two_to_64) {
+                std::int64_t negative_offset = static_cast<std::int64_t>(truncated.low_ + 1.0);
+                integer_part = limits_t::max() - static_cast<raw_integral_type_>(-negative_offset);
+            }
+            else {
+                integer_part = static_cast<raw_integral_type_>(static_cast<std::uint64_t>(truncated.high_) +
+                                                               static_cast<std::uint64_t>(truncated.low_));
+            }
+        }
+        else {
+            integer_part = static_cast<raw_integral_type_>(
+                static_cast<std::uint64_t>(truncated.high_ + truncated.low_));
+        }
+    }
+    else {
+        if constexpr (sizeof(raw_integral_type_) == sizeof(std::int64_t)) {
+            constexpr double two_to_63 = 9223372036854775808.0;
+            if (truncated.high_ == two_to_63) {
+                std::int64_t negative_offset = static_cast<std::int64_t>(truncated.low_ + 1.0);
+                integer_part = static_cast<raw_integral_type_>(limits_t::max() + negative_offset);
+            }
+            else {
+                integer_part = static_cast<raw_integral_type_>(static_cast<std::int64_t>(truncated.high_) +
+                                                               static_cast<std::int64_t>(truncated.low_));
+            }
+        }
+        else {
+            integer_part = static_cast<raw_integral_type_>(static_cast<std::int64_t>(truncated.high_ + truncated.low_));
+        }
+    }
+
+    double fractional_part = static_cast<double>(value - truncated);
+    if constexpr (std::is_unsigned_v<raw_integral_type_>) {
+        if (fractional_part > 0.5 || (fractional_part == 0.5 && (integer_part & 1))) ++integer_part;
+    }
+    else {
+        if (fractional_part > 0.5 || (fractional_part == 0.5 && (integer_part & 1))) ++integer_part;
+        else if (fractional_part < -0.5 || (fractional_part == -0.5 && (integer_part & 1))) --integer_part;
+    }
+    return integer_part;
+}
+
+template <typename target_type_>
+    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+constexpr target_type_ nk_f118_to_integer_(double high, double low) noexcept {
+    using raw_t = typename target_type_::raw_t;
+    return target_type_::from_raw(nk_f118_to_integer_<raw_t>(high, low));
+}
+
+template <typename target_type_>
+constexpr target_type_ nk_f118_to_(double high, double low) noexcept {
+    if constexpr (is_integer<target_type_>()) return nk_f118_to_integer_<target_type_>(high, low);
+    else return target_type_(static_cast<double>(f118_t(high, low)));
+}
 
 /**
  *  @brief Extended-precision complex number using f118_t components.
@@ -5104,47 +5275,6 @@ template <> struct type_for<nk_u4_k> { using type = u4x2_t; };
 #pragma endregion - Enum Conversion
 
 #pragma region - Numeric Limits
-
-/** @brief Detect NumKong wrapper types with required static members. */
-template <typename scalar_type_>
-constexpr bool is_numeric_class() noexcept {
-    return requires {
-        { scalar_type_::dtype() } -> std::same_as<nk_dtype_t>;
-    };
-}
-
-/** @brief Check if a type is an integer type. */
-template <typename scalar_type_>
-constexpr bool is_integer() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_integer();
-    else return std::is_integral_v<scalar_type_>;
-}
-
-template <typename scalar_type_>
-struct is_std_complex_sfinae_ : std::false_type {};
-
-template <typename scalar_type_>
-struct is_std_complex_sfinae_<std::complex<scalar_type_>> : std::true_type {};
-
-template <typename scalar_type_>
-constexpr bool is_std_complex_() noexcept {
-    return is_std_complex_sfinae_<scalar_type_>::value;
-}
-
-/** @brief Check if a type is an complex type - STL or NumKong. */
-template <typename scalar_type_>
-constexpr bool is_complex() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_complex();
-    else return is_std_complex_<scalar_type_>();
-}
-
-/** @brief Check if a type is an complex type - STL or NumKong. */
-template <typename scalar_type_>
-constexpr bool is_signed() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_signed();
-    else if constexpr (is_complex<scalar_type_>()) return is_signed<scalar_type_::value_type>();
-    else return std::is_signed<scalar_type_>::value;
-}
 
 /** @brief Get the maximum representable value for a type. */
 template <typename scalar_type_>
