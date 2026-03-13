@@ -90,32 +90,36 @@ error_stats_t test_dots_unpacked_conjugated(kernel_type_ dots_fn) {
     return stats;
 }
 
-void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
+void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
+    *result = (nk_f64_t)cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
 void dot_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void dot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    nk_f32c_t reduced_result_f32;
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
-                    reinterpret_cast<__LAPACK_float_complex *>(result));
+                    reinterpret_cast<__LAPACK_float_complex *>(&reduced_result_f32));
 #else
-    cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+    cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, &reduced_result_f32);
 #endif
+    result->real = (nk_f64_t)reduced_result_f32.real, result->imag = (nk_f64_t)reduced_result_f32.imag;
 }
 
-void vdot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void vdot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    nk_f32c_t reduced_result_f32;
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
-                    reinterpret_cast<__LAPACK_float_complex *>(result)); // conjugated
+                    reinterpret_cast<__LAPACK_float_complex *>(&reduced_result_f32)); // conjugated
 #else
-    cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+    cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, &reduced_result_f32); // conjugated
 #endif
+    result->real = (nk_f64_t)reduced_result_f32.real, result->imag = (nk_f64_t)reduced_result_f32.imag;
 }
 
 void dot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
@@ -138,13 +142,18 @@ void vdot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk
 #endif
 }
 
-void dots_f32_with_blas(f32_t const *a, f32_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+void dots_f32_with_blas(f32_t const *a, f32_t const *b, f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                         nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_size_t leading_dimension_a = a_stride / sizeof(nk_f32_t);
+    nk_size_t leading_dimension_c = c_stride / sizeof(nk_f64_t);
+    // Reuse the first half of the f64 output buffer as a packed f32 staging matrix, then widen in place backwards.
+    nk_f32_t *reduced_result_f32 = reinterpret_cast<nk_f32_t *>(c);
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                1.0f, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), 0.0f, &c->raw_,
-                static_cast<int>(n));
+                1.0f, &a->raw_, static_cast<int>(leading_dimension_a), &b->raw_, static_cast<int>(k), 0.0f,
+                reduced_result_f32, static_cast<int>(leading_dimension_c));
+    for (std::size_t row = m; row-- > 0;)
+        for (std::size_t column = n; column-- > 0;)
+            c[row * leading_dimension_c + column] = f64_t(reduced_result_f32[row * leading_dimension_c + column]);
 }
 
 void dots_f64_with_blas(f64_t const *a, f64_t const *b, f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
@@ -193,12 +202,21 @@ void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t 
 #endif
 }
 
-void dots_symmetric_f32_with_blas(nk_f32_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f32_t *c,
+void dots_symmetric_f32_with_blas(nk_f32_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f64_t *c,
                                   nk_size_t c_stride, nk_size_t row_start, nk_size_t row_count) {
     (void)row_start;
     (void)row_count;
+    nk_size_t leading_dimension_c = c_stride / sizeof(nk_f64_t);
+    // Reuse the first half of the f64 output buffer as a packed f32 staging matrix, zero it for ssyrk, then widen in
+    // place backwards.
+    nk_f32_t *reduced_result_f32 = reinterpret_cast<nk_f32_t *>(c);
+    std::fill_n(reduced_result_f32, n * leading_dimension_c, 0.0f);
     cblas_ssyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0f, a,
-                static_cast<int>(a_stride / sizeof(nk_f32_t)), 0.0f, c, static_cast<int>(c_stride / sizeof(nk_f32_t)));
+                static_cast<int>(a_stride / sizeof(nk_f32_t)), 0.0f, reduced_result_f32,
+                static_cast<int>(leading_dimension_c));
+    for (std::size_t row = n; row-- > 0;)
+        for (std::size_t column = leading_dimension_c; column-- > 0;)
+            c[row * leading_dimension_c + column] = (nk_f64_t)reduced_result_f32[row * leading_dimension_c + column];
 }
 
 void dots_symmetric_f64_with_blas(nk_f64_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f64_t *c,
@@ -313,7 +331,7 @@ void test_cross_blas() {
     run_if_matches("vdot_with_blas_f64c", test_vdot_blas<f64c_t>, vdot_f64c_with_blas);
 
     // BLAS/MKL/Accelerate GEMM precision comparison
-    run_if_matches("dots_with_blas_f32", test_dots_unpacked<f32_t, f32_t, f118_t, decltype(&dots_f32_with_blas)>,
+    run_if_matches("dots_with_blas_f32", test_dots_unpacked<f32_t, f64_t, f118_t, decltype(&dots_f32_with_blas)>,
                    dots_f32_with_blas);
     run_if_matches("dots_with_blas_f64", test_dots_unpacked<f64_t, f64_t, f118_t, decltype(&dots_f64_with_blas)>,
                    dots_f64_with_blas);

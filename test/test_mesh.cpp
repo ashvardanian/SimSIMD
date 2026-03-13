@@ -14,7 +14,8 @@
 template <typename scalar_type_>
 error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using output_t = typename scalar_t::dot_result_t;
+    using transform_t = typename scalar_t::mesh_transform_t;
+    using metric_t = typename scalar_t::mesh_metric_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -26,13 +27,14 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        transform_t a_centroid[3], b_centroid[3], rot[9], scale;
+        metric_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::rmsd<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref,
-                                                  rot_ref, &scale_ref, &reference);
+        nk::rmsd<scalar_t, f118_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
+                                                          b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -45,7 +47,8 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using output_t = typename scalar_t::dot_result_t;
+    using transform_t = typename scalar_t::mesh_transform_t;
+    using metric_t = typename scalar_t::mesh_metric_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -57,13 +60,14 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        transform_t a_centroid[3], b_centroid[3], rot[9], scale;
+        metric_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::kabsch<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref,
-                                                    rot_ref, &scale_ref, &reference);
+        nk::kabsch<scalar_t, f118_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
+                                                            b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -76,7 +80,8 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using output_t = typename scalar_t::dot_result_t;
+    using transform_t = typename scalar_t::mesh_transform_t;
+    using metric_t = typename scalar_t::mesh_metric_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -88,13 +93,14 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        transform_t a_centroid[3], b_centroid[3], rot[9], scale;
+        metric_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::umeyama<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
-                                                     b_centroid_ref, rot_ref, &scale_ref, &reference);
+        nk::umeyama<scalar_t, f118_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
+                                                             b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
