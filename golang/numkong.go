@@ -308,5 +308,22 @@ func VincentyF32(aLat, aLon, bLat, bLon, result []float32) bool {
 
 // endregion
 
+// Capabilities returns a bitmask of SIMD capabilities available on the current CPU.
+func Capabilities() uint64 {
+	return uint64(C.nk_capabilities())
+}
+
+// ConfigureThread configures the current thread for optimal SIMD performance.
+// Flushes denormals to zero and enables AMX on supported CPUs.
+// Must be called once per goroutine before using AMX operations.
+func ConfigureThread() bool {
+	return C.nk_configure_thread(C.nk_capability_t(C.nk_capabilities())) != 0
+}
+
+// ConfigureThreadWith configures the current thread with a specific capability bitmask.
+func ConfigureThreadWith(caps uint64) bool {
+	return C.nk_configure_thread(C.nk_capability_t(caps)) != 0
+}
+
 // Ensure unsafe is used (for CGO pointer conversions)
 var _ = unsafe.Pointer(nil)
