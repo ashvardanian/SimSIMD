@@ -3185,45 +3185,33 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_
 /**
  *  Inline `e3m2` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
  *
- *  E3M2 encoding (6 bits in low byte):
- *    bit 5 = sign, bits 4:2 = exponent (bias=3), bits 1:0 = mantissa
- *
- *  Conversion to f16 (1+5+10 bits, bias=15):
- *    Normal (exp!=0): f16 = sign16 | ((exp3 + 12) << 10) | (mant2 << 8)
- *    Subnormal (exp==0, mant!=0): convert mantissa to f16 float, multiply by 2^(-4)
- *    Zero (exp==0, mant==0): signed zero
+ *  The packed-B path already uses the serial `e3m2 → f32 → f16` LUT semantics. Mirror those bit
+ *  patterns here with a byte TBL over the 5-bit magnitude, then widen the selected high bytes into
+ *  16-bit lanes and apply the sign bit. All representable `e3m2` values map to `f16` bit patterns
+ *  with a zero low byte, so a single-byte lookup is sufficient.
  *
  *  @param predicate_f16x Predicate for 16-bit elements
- *  @param bytes_u8x     Pre-loaded bytes (svuint8_t from svld1_u8)
- *  @return              F16 values as svfloat16_t (from lower half of bytes via unpack)
+ *  @param bytes_u8x      Pre-loaded bytes (svuint8_t from svld1_u8)
+ *  @return               F16 values as svfloat16_t (from lower half of bytes via unpack)
  */
 NK_INTERNAL svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x,
                                                svuint8_t bytes_u8x) __arm_streaming_compatible {
-    svuint16_t vals_u16x = svunpklo_u16(bytes_u8x);
+    static NK_ALIGN64 nk_u8_t const magnitude_hi_lut[64] = {
+        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+    };
 
-    // Extract sign (bit 5 → bit 15), exponent (bits 4:2), mantissa (bits 1:0)
-    svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, vals_u16x, 0x20),
-                                         10); // bit5 → bit15
-    svuint16_t exp3_u16x = svand_n_u16_x(predicate_f16x, svlsr_n_u16_x(predicate_f16x, vals_u16x, 2), 0x07);
-    svuint16_t mant_u16x = svand_n_u16_x(predicate_f16x, vals_u16x, 0x03);
+    svuint8_t magnitude_hi_lut_u8x = svld1_u8(svptrue_b8(), magnitude_hi_lut);
+    svuint8_t magnitude_u8x = svand_n_u8_x(svptrue_b8(), bytes_u8x, 0x1F);
+    svuint8_t magnitude_hi_u8x = svtbl_u8(magnitude_hi_lut_u8x, magnitude_u8x);
 
-    // Normal path: f16 = sign | ((exp3 + 12) << 10) | (mant << 8)
-    svuint16_t normal_u16x = svorr_u16_x(
-        predicate_f16x, svlsl_n_u16_x(predicate_f16x, svadd_n_u16_x(predicate_f16x, exp3_u16x, 12), 10),
-        svlsl_n_u16_x(predicate_f16x, mant_u16x, 8));
-    normal_u16x = svorr_u16_x(predicate_f16x, normal_u16x, sign_u16x);
-
-    // Subnormal path: value = mant * 2^(-4), where 2^(-4) in f16 = 0x2800
-    svfloat16_t mant_f16x = svcvt_f16_u16_x(predicate_f16x, mant_u16x);
-    svfloat16_t scale_f16x = svreinterpret_f16_u16(svdup_n_u16(0x2800)); // 2^(-4)
-    svfloat16_t subnorm_abs_f16x = svmul_f16_x(predicate_f16x, mant_f16x, scale_f16x);
-    svuint16_t subnorm_u16x = svorr_u16_x(predicate_f16x, svreinterpret_u16_f16(subnorm_abs_f16x), sign_u16x);
-
-    // Select: subnormal when exp3 == 0, normal otherwise
-    svbool_t is_subnorm_u16x = svcmpeq_n_u16(predicate_f16x, exp3_u16x, 0);
-    svuint16_t result_u16x = svsel_u16(is_subnorm_u16x, subnorm_u16x, normal_u16x);
-
-    return svreinterpret_f16_u16(result_u16x);
+    svuint16_t values_u16x = svunpklo_u16(bytes_u8x);
+    svuint16_t magnitude_hi_u16x = svunpklo_u16(magnitude_hi_u8x);
+    svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, values_u16x, 0x20), 10);
+    svuint16_t magnitude_bits_u16x = svlsl_n_u16_x(predicate_f16x, magnitude_hi_u16x, 8);
+    return svreinterpret_f16_u16(svorr_u16_x(predicate_f16x, magnitude_bits_u16x, sign_u16x));
 }
 
 /**
