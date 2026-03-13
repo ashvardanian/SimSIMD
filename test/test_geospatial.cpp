@@ -101,55 +101,55 @@ error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
 }
 
 void test_geospatial() {
-    stats_section_t run_if_matches("Geospatial Functions");
+    error_stats_section_t check("Geospatial Functions");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("haversine_f64", test_haversine<f64_t>, nk_haversine_f64);
-    run_if_matches("haversine_f32", test_haversine<f32_t>, nk_haversine_f32);
-    run_if_matches("vincenty_f64", test_vincenty<f64_t>, nk_vincenty_f64);
-    run_if_matches("vincenty_f32", test_vincenty<f32_t>, nk_vincenty_f32);
+    check("haversine_f64", test_haversine<f64_t>, nk_haversine_f64);
+    check("haversine_f32", test_haversine<f32_t>, nk_haversine_f32);
+    check("vincenty_f64", test_vincenty<f64_t>, nk_vincenty_f64);
+    check("vincenty_f32", test_vincenty<f32_t>, nk_vincenty_f32);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("haversine_f64_neon", test_haversine<f64_t>, nk_haversine_f64_neon);
-    run_if_matches("haversine_f32_neon", test_haversine<f32_t>, nk_haversine_f32_neon);
-    run_if_matches("vincenty_f64_neon", test_vincenty<f64_t>, nk_vincenty_f64_neon);
-    run_if_matches("vincenty_f32_neon", test_vincenty<f32_t>, nk_vincenty_f32_neon);
+    check("haversine_f64_neon", test_haversine<f64_t>, nk_haversine_f64_neon);
+    check("haversine_f32_neon", test_haversine<f32_t>, nk_haversine_f32_neon);
+    check("vincenty_f64_neon", test_vincenty<f64_t>, nk_vincenty_f64_neon);
+    check("vincenty_f32_neon", test_vincenty<f32_t>, nk_vincenty_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("haversine_f64_haswell", test_haversine<f64_t>, nk_haversine_f64_haswell);
-    run_if_matches("haversine_f32_haswell", test_haversine<f32_t>, nk_haversine_f32_haswell);
-    run_if_matches("vincenty_f64_haswell", test_vincenty<f64_t>, nk_vincenty_f64_haswell);
-    run_if_matches("vincenty_f32_haswell", test_vincenty<f32_t>, nk_vincenty_f32_haswell);
+    check("haversine_f64_haswell", test_haversine<f64_t>, nk_haversine_f64_haswell);
+    check("haversine_f32_haswell", test_haversine<f32_t>, nk_haversine_f32_haswell);
+    check("vincenty_f64_haswell", test_vincenty<f64_t>, nk_vincenty_f64_haswell);
+    check("vincenty_f32_haswell", test_vincenty<f32_t>, nk_vincenty_f32_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("haversine_f64_skylake", test_haversine<f64_t>, nk_haversine_f64_skylake);
-    run_if_matches("haversine_f32_skylake", test_haversine<f32_t>, nk_haversine_f32_skylake);
-    run_if_matches("vincenty_f64_skylake", test_vincenty<f64_t>, nk_vincenty_f64_skylake);
-    run_if_matches("vincenty_f32_skylake", test_vincenty<f32_t>, nk_vincenty_f32_skylake);
+    check("haversine_f64_skylake", test_haversine<f64_t>, nk_haversine_f64_skylake);
+    check("haversine_f32_skylake", test_haversine<f32_t>, nk_haversine_f32_skylake);
+    check("vincenty_f64_skylake", test_vincenty<f64_t>, nk_vincenty_f64_skylake);
+    check("vincenty_f32_skylake", test_vincenty<f32_t>, nk_vincenty_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_RVV
-    run_if_matches("haversine_f64_rvv", test_haversine<f64_t>, nk_haversine_f64_rvv);
-    run_if_matches("haversine_f32_rvv", test_haversine<f32_t>, nk_haversine_f32_rvv);
-    run_if_matches("vincenty_f64_rvv", test_vincenty<f64_t>, nk_vincenty_f64_rvv);
-    run_if_matches("vincenty_f32_rvv", test_vincenty<f32_t>, nk_vincenty_f32_rvv);
+    check("haversine_f64_rvv", test_haversine<f64_t>, nk_haversine_f64_rvv);
+    check("haversine_f32_rvv", test_haversine<f32_t>, nk_haversine_f32_rvv);
+    check("vincenty_f64_rvv", test_vincenty<f64_t>, nk_vincenty_f64_rvv);
+    check("vincenty_f32_rvv", test_vincenty<f32_t>, nk_vincenty_f32_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("haversine_f64_v128relaxed", test_haversine<f64_t>, nk_haversine_f64_v128relaxed);
-    run_if_matches("haversine_f32_v128relaxed", test_haversine<f32_t>, nk_haversine_f32_v128relaxed);
-    run_if_matches("vincenty_f64_v128relaxed", test_vincenty<f64_t>, nk_vincenty_f64_v128relaxed);
-    run_if_matches("vincenty_f32_v128relaxed", test_vincenty<f32_t>, nk_vincenty_f32_v128relaxed);
+    check("haversine_f64_v128relaxed", test_haversine<f64_t>, nk_haversine_f64_v128relaxed);
+    check("haversine_f32_v128relaxed", test_haversine<f32_t>, nk_haversine_f32_v128relaxed);
+    check("vincenty_f64_v128relaxed", test_vincenty<f64_t>, nk_vincenty_f64_v128relaxed);
+    check("vincenty_f32_v128relaxed", test_vincenty<f32_t>, nk_vincenty_f32_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
-    run_if_matches("haversine_f64_serial", test_haversine<f64_t>, nk_haversine_f64_serial);
-    run_if_matches("haversine_f32_serial", test_haversine<f32_t>, nk_haversine_f32_serial);
-    run_if_matches("vincenty_f64_serial", test_vincenty<f64_t>, nk_vincenty_f64_serial);
-    run_if_matches("vincenty_f32_serial", test_vincenty<f32_t>, nk_vincenty_f32_serial);
+    check("haversine_f64_serial", test_haversine<f64_t>, nk_haversine_f64_serial);
+    check("haversine_f32_serial", test_haversine<f32_t>, nk_haversine_f32_serial);
+    check("vincenty_f64_serial", test_vincenty<f64_t>, nk_vincenty_f64_serial);
+    check("vincenty_f32_serial", test_vincenty<f32_t>, nk_vincenty_f32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

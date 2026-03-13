@@ -71,69 +71,69 @@ error_stats_t test_jaccard(typename scalar_type_::jaccard_kernel_t kernel) {
 }
 
 void test_set() {
-    stats_section_t run_if_matches("Binary Distances");
+    error_stats_section_t check("Binary Distances");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("hamming_u1", test_hamming<u1x8_t>, nk_hamming_u1);
-    run_if_matches("jaccard_u1", test_jaccard<u1x8_t>, nk_jaccard_u1);
+    check("hamming_u1", test_hamming<u1x8_t>, nk_hamming_u1);
+    check("jaccard_u1", test_jaccard<u1x8_t>, nk_jaccard_u1);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("hamming_u1_neon", test_hamming<u1x8_t>, nk_hamming_u1_neon);
-    run_if_matches("jaccard_u1_neon", test_jaccard<u1x8_t>, nk_jaccard_u1_neon);
-    run_if_matches("hamming_u8_neon", test_hamming<u8_t>, nk_hamming_u8_neon);
-    run_if_matches("jaccard_u16_neon", test_jaccard<u16_t>, nk_jaccard_u16_neon);
-    run_if_matches("jaccard_u32_neon", test_jaccard<u32_t>, nk_jaccard_u32_neon);
+    check("hamming_u1_neon", test_hamming<u1x8_t>, nk_hamming_u1_neon);
+    check("jaccard_u1_neon", test_jaccard<u1x8_t>, nk_jaccard_u1_neon);
+    check("hamming_u8_neon", test_hamming<u8_t>, nk_hamming_u8_neon);
+    check("jaccard_u16_neon", test_jaccard<u16_t>, nk_jaccard_u16_neon);
+    check("jaccard_u32_neon", test_jaccard<u32_t>, nk_jaccard_u32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("hamming_u1_haswell", test_hamming<u1x8_t>, nk_hamming_u1_haswell);
-    run_if_matches("jaccard_u1_haswell", test_jaccard<u1x8_t>, nk_jaccard_u1_haswell);
-    run_if_matches("hamming_u8_haswell", test_hamming<u8_t>, nk_hamming_u8_haswell);
-    run_if_matches("jaccard_u16_haswell", test_jaccard<u16_t>, nk_jaccard_u16_haswell);
-    run_if_matches("jaccard_u32_haswell", test_jaccard<u32_t>, nk_jaccard_u32_haswell);
+    check("hamming_u1_haswell", test_hamming<u1x8_t>, nk_hamming_u1_haswell);
+    check("jaccard_u1_haswell", test_jaccard<u1x8_t>, nk_jaccard_u1_haswell);
+    check("hamming_u8_haswell", test_hamming<u8_t>, nk_hamming_u8_haswell);
+    check("jaccard_u16_haswell", test_jaccard<u16_t>, nk_jaccard_u16_haswell);
+    check("jaccard_u32_haswell", test_jaccard<u32_t>, nk_jaccard_u32_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICELAKE
-    run_if_matches("hamming_u1_icelake", test_hamming<u1x8_t>, nk_hamming_u1_icelake);
-    run_if_matches("jaccard_u1_icelake", test_jaccard<u1x8_t>, nk_jaccard_u1_icelake);
-    run_if_matches("hamming_u8_icelake", test_hamming<u8_t>, nk_hamming_u8_icelake);
-    run_if_matches("jaccard_u16_icelake", test_jaccard<u16_t>, nk_jaccard_u16_icelake);
-    run_if_matches("jaccard_u32_icelake", test_jaccard<u32_t>, nk_jaccard_u32_icelake);
+    check("hamming_u1_icelake", test_hamming<u1x8_t>, nk_hamming_u1_icelake);
+    check("jaccard_u1_icelake", test_jaccard<u1x8_t>, nk_jaccard_u1_icelake);
+    check("hamming_u8_icelake", test_hamming<u8_t>, nk_hamming_u8_icelake);
+    check("jaccard_u16_icelake", test_jaccard<u16_t>, nk_jaccard_u16_icelake);
+    check("jaccard_u32_icelake", test_jaccard<u32_t>, nk_jaccard_u32_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SVE
-    run_if_matches("hamming_u1_sve", test_hamming<u1x8_t>, nk_hamming_u1_sve);
-    run_if_matches("jaccard_u1_sve", test_jaccard<u1x8_t>, nk_jaccard_u1_sve);
-    run_if_matches("hamming_u8_sve", test_hamming<u8_t>, nk_hamming_u8_sve);
-    run_if_matches("jaccard_u16_sve", test_jaccard<u16_t>, nk_jaccard_u16_sve);
-    run_if_matches("jaccard_u32_sve", test_jaccard<u32_t>, nk_jaccard_u32_sve);
+    check("hamming_u1_sve", test_hamming<u1x8_t>, nk_hamming_u1_sve);
+    check("jaccard_u1_sve", test_jaccard<u1x8_t>, nk_jaccard_u1_sve);
+    check("hamming_u8_sve", test_hamming<u8_t>, nk_hamming_u8_sve);
+    check("jaccard_u16_sve", test_jaccard<u16_t>, nk_jaccard_u16_sve);
+    check("jaccard_u32_sve", test_jaccard<u32_t>, nk_jaccard_u32_sve);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_RVV
-    run_if_matches("hamming_u1_rvv", test_hamming<u1x8_t>, nk_hamming_u1_rvv);
-    run_if_matches("jaccard_u1_rvv", test_jaccard<u1x8_t>, nk_jaccard_u1_rvv);
-    run_if_matches("hamming_u8_rvv", test_hamming<u8_t>, nk_hamming_u8_rvv);
-    run_if_matches("jaccard_u16_rvv", test_jaccard<u16_t>, nk_jaccard_u16_rvv);
-    run_if_matches("jaccard_u32_rvv", test_jaccard<u32_t>, nk_jaccard_u32_rvv);
+    check("hamming_u1_rvv", test_hamming<u1x8_t>, nk_hamming_u1_rvv);
+    check("jaccard_u1_rvv", test_jaccard<u1x8_t>, nk_jaccard_u1_rvv);
+    check("hamming_u8_rvv", test_hamming<u8_t>, nk_hamming_u8_rvv);
+    check("jaccard_u16_rvv", test_jaccard<u16_t>, nk_jaccard_u16_rvv);
+    check("jaccard_u32_rvv", test_jaccard<u32_t>, nk_jaccard_u32_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("hamming_u1_v128relaxed", test_hamming<u1x8_t>, nk_hamming_u1_v128relaxed);
-    run_if_matches("jaccard_u1_v128relaxed", test_jaccard<u1x8_t>, nk_jaccard_u1_v128relaxed);
-    run_if_matches("hamming_u8_v128relaxed", test_hamming<u8_t>, nk_hamming_u8_v128relaxed);
-    run_if_matches("jaccard_u16_v128relaxed", test_jaccard<u16_t>, nk_jaccard_u16_v128relaxed);
-    run_if_matches("jaccard_u32_v128relaxed", test_jaccard<u32_t>, nk_jaccard_u32_v128relaxed);
+    check("hamming_u1_v128relaxed", test_hamming<u1x8_t>, nk_hamming_u1_v128relaxed);
+    check("jaccard_u1_v128relaxed", test_jaccard<u1x8_t>, nk_jaccard_u1_v128relaxed);
+    check("hamming_u8_v128relaxed", test_hamming<u8_t>, nk_hamming_u8_v128relaxed);
+    check("jaccard_u16_v128relaxed", test_jaccard<u16_t>, nk_jaccard_u16_v128relaxed);
+    check("jaccard_u32_v128relaxed", test_jaccard<u32_t>, nk_jaccard_u32_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
-    run_if_matches("hamming_u1_serial", test_hamming<u1x8_t>, nk_hamming_u1_serial);
-    run_if_matches("jaccard_u1_serial", test_jaccard<u1x8_t>, nk_jaccard_u1_serial);
-    run_if_matches("hamming_u8_serial", test_hamming<u8_t>, nk_hamming_u8_serial);
-    run_if_matches("jaccard_u16_serial", test_jaccard<u16_t>, nk_jaccard_u16_serial);
-    run_if_matches("jaccard_u32_serial", test_jaccard<u32_t>, nk_jaccard_u32_serial);
+    check("hamming_u1_serial", test_hamming<u1x8_t>, nk_hamming_u1_serial);
+    check("jaccard_u1_serial", test_jaccard<u1x8_t>, nk_jaccard_u1_serial);
+    check("hamming_u8_serial", test_hamming<u8_t>, nk_hamming_u8_serial);
+    check("jaccard_u16_serial", test_jaccard<u16_t>, nk_jaccard_u16_serial);
+    check("jaccard_u32_serial", test_jaccard<u32_t>, nk_jaccard_u32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

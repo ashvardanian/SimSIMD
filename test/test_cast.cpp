@@ -38,171 +38,171 @@ error_stats_t test_cast(cast_t kernel) {
 }
 
 void test_casts() {
-    stats_section_t run_if_matches("Type Casts");
+    error_stats_section_t check("Type Casts");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("cast_f32_to_f16", test_cast<f32_t, f16_t>, nk_cast);
-    run_if_matches("cast_f16_to_f32", test_cast<f16_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_bf16", test_cast<f32_t, bf16_t>, nk_cast);
-    run_if_matches("cast_bf16_to_f32", test_cast<bf16_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_e4m3", test_cast<f32_t, e4m3_t>, nk_cast);
-    run_if_matches("cast_e4m3_to_f32", test_cast<e4m3_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_e5m2", test_cast<f32_t, e5m2_t>, nk_cast);
-    run_if_matches("cast_e5m2_to_f32", test_cast<e5m2_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_e2m3", test_cast<f32_t, e2m3_t>, nk_cast);
-    run_if_matches("cast_e2m3_to_f32", test_cast<e2m3_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_e3m2", test_cast<f32_t, e3m2_t>, nk_cast);
-    run_if_matches("cast_e3m2_to_f32", test_cast<e3m2_t, f32_t>, nk_cast);
-    run_if_matches("cast_f64_to_f32", test_cast<f64_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_f64", test_cast<f32_t, f64_t>, nk_cast);
+    check("cast_f32_to_f16", test_cast<f32_t, f16_t>, nk_cast);
+    check("cast_f16_to_f32", test_cast<f16_t, f32_t>, nk_cast);
+    check("cast_f32_to_bf16", test_cast<f32_t, bf16_t>, nk_cast);
+    check("cast_bf16_to_f32", test_cast<bf16_t, f32_t>, nk_cast);
+    check("cast_f32_to_e4m3", test_cast<f32_t, e4m3_t>, nk_cast);
+    check("cast_e4m3_to_f32", test_cast<e4m3_t, f32_t>, nk_cast);
+    check("cast_f32_to_e5m2", test_cast<f32_t, e5m2_t>, nk_cast);
+    check("cast_e5m2_to_f32", test_cast<e5m2_t, f32_t>, nk_cast);
+    check("cast_f32_to_e2m3", test_cast<f32_t, e2m3_t>, nk_cast);
+    check("cast_e2m3_to_f32", test_cast<e2m3_t, f32_t>, nk_cast);
+    check("cast_f32_to_e3m2", test_cast<f32_t, e3m2_t>, nk_cast);
+    check("cast_e3m2_to_f32", test_cast<e3m2_t, f32_t>, nk_cast);
+    check("cast_f64_to_f32", test_cast<f64_t, f32_t>, nk_cast);
+    check("cast_f32_to_f64", test_cast<f32_t, f64_t>, nk_cast);
     // Integer ↔ integer
-    run_if_matches("cast_i8_to_i32", test_cast<i8_t, i32_t>, nk_cast);
-    run_if_matches("cast_i32_to_i8", test_cast<i32_t, i8_t>, nk_cast);
-    run_if_matches("cast_u8_to_u32", test_cast<u8_t, u32_t>, nk_cast);
-    run_if_matches("cast_u32_to_u8", test_cast<u32_t, u8_t>, nk_cast);
-    run_if_matches("cast_i16_to_i64", test_cast<i16_t, i64_t>, nk_cast);
-    run_if_matches("cast_i64_to_i16", test_cast<i64_t, i16_t>, nk_cast);
-    run_if_matches("cast_i32_to_u32", test_cast<i32_t, u32_t>, nk_cast);
+    check("cast_i8_to_i32", test_cast<i8_t, i32_t>, nk_cast);
+    check("cast_i32_to_i8", test_cast<i32_t, i8_t>, nk_cast);
+    check("cast_u8_to_u32", test_cast<u8_t, u32_t>, nk_cast);
+    check("cast_u32_to_u8", test_cast<u32_t, u8_t>, nk_cast);
+    check("cast_i16_to_i64", test_cast<i16_t, i64_t>, nk_cast);
+    check("cast_i64_to_i16", test_cast<i64_t, i16_t>, nk_cast);
+    check("cast_i32_to_u32", test_cast<i32_t, u32_t>, nk_cast);
     // Integer ↔ float
-    run_if_matches("cast_i32_to_f64", test_cast<i32_t, f64_t>, nk_cast);
-    run_if_matches("cast_f64_to_i32", test_cast<f64_t, i32_t>, nk_cast);
-    run_if_matches("cast_i16_to_f32", test_cast<i16_t, f32_t>, nk_cast);
-    run_if_matches("cast_u8_to_f32", test_cast<u8_t, f32_t>, nk_cast);
-    run_if_matches("cast_f32_to_i8", test_cast<f32_t, i8_t>, nk_cast);
-    run_if_matches("cast_i8_to_f64", test_cast<i8_t, f64_t>, nk_cast);
-    run_if_matches("cast_f64_to_u8", test_cast<f64_t, u8_t>, nk_cast);
+    check("cast_i32_to_f64", test_cast<i32_t, f64_t>, nk_cast);
+    check("cast_f64_to_i32", test_cast<f64_t, i32_t>, nk_cast);
+    check("cast_i16_to_f32", test_cast<i16_t, f32_t>, nk_cast);
+    check("cast_u8_to_f32", test_cast<u8_t, f32_t>, nk_cast);
+    check("cast_f32_to_i8", test_cast<f32_t, i8_t>, nk_cast);
+    check("cast_i8_to_f64", test_cast<i8_t, f64_t>, nk_cast);
+    check("cast_f64_to_u8", test_cast<f64_t, u8_t>, nk_cast);
     // Verify serial fallbacks for rare paths
-    run_if_matches("cast_f64_to_f16", test_cast<f64_t, f16_t>, nk_cast);
-    run_if_matches("cast_f16_to_f64", test_cast<f16_t, f64_t>, nk_cast);
-    run_if_matches("cast_f64_to_bf16", test_cast<f64_t, bf16_t>, nk_cast);
-    run_if_matches("cast_bf16_to_f64", test_cast<bf16_t, f64_t>, nk_cast);
+    check("cast_f64_to_f16", test_cast<f64_t, f16_t>, nk_cast);
+    check("cast_f16_to_f64", test_cast<f16_t, f64_t>, nk_cast);
+    check("cast_f64_to_bf16", test_cast<f64_t, bf16_t>, nk_cast);
+    check("cast_bf16_to_f64", test_cast<bf16_t, f64_t>, nk_cast);
 #endif
 
 #if NK_TARGET_HASWELL
-    run_if_matches("cast_f32_to_f16_haswell", test_cast<f32_t, f16_t>, nk_cast_haswell);
-    run_if_matches("cast_f16_to_f32_haswell", test_cast<f16_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_bf16_haswell", test_cast<f32_t, bf16_t>, nk_cast_haswell);
-    run_if_matches("cast_bf16_to_f32_haswell", test_cast<bf16_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_e4m3_haswell", test_cast<f32_t, e4m3_t>, nk_cast_haswell);
-    run_if_matches("cast_e4m3_to_f32_haswell", test_cast<e4m3_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_e5m2_haswell", test_cast<f32_t, e5m2_t>, nk_cast_haswell);
-    run_if_matches("cast_e5m2_to_f32_haswell", test_cast<e5m2_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_e2m3_haswell", test_cast<f32_t, e2m3_t>, nk_cast_haswell);
-    run_if_matches("cast_e2m3_to_f32_haswell", test_cast<e2m3_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_e3m2_haswell", test_cast<f32_t, e3m2_t>, nk_cast_haswell);
-    run_if_matches("cast_e3m2_to_f32_haswell", test_cast<e3m2_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_i8_to_f32_haswell", test_cast<i8_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_i8_haswell", test_cast<f32_t, i8_t>, nk_cast_haswell);
-    run_if_matches("cast_i16_to_f32_haswell", test_cast<i16_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_i16_haswell", test_cast<f32_t, i16_t>, nk_cast_haswell);
-    run_if_matches("cast_u16_to_f32_haswell", test_cast<u16_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_u16_haswell", test_cast<f32_t, u16_t>, nk_cast_haswell);
-    run_if_matches("cast_u8_to_f32_haswell", test_cast<u8_t, f32_t>, nk_cast_haswell);
-    run_if_matches("cast_f32_to_u8_haswell", test_cast<f32_t, u8_t>, nk_cast_haswell);
+    check("cast_f32_to_f16_haswell", test_cast<f32_t, f16_t>, nk_cast_haswell);
+    check("cast_f16_to_f32_haswell", test_cast<f16_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_bf16_haswell", test_cast<f32_t, bf16_t>, nk_cast_haswell);
+    check("cast_bf16_to_f32_haswell", test_cast<bf16_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_e4m3_haswell", test_cast<f32_t, e4m3_t>, nk_cast_haswell);
+    check("cast_e4m3_to_f32_haswell", test_cast<e4m3_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_e5m2_haswell", test_cast<f32_t, e5m2_t>, nk_cast_haswell);
+    check("cast_e5m2_to_f32_haswell", test_cast<e5m2_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_e2m3_haswell", test_cast<f32_t, e2m3_t>, nk_cast_haswell);
+    check("cast_e2m3_to_f32_haswell", test_cast<e2m3_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_e3m2_haswell", test_cast<f32_t, e3m2_t>, nk_cast_haswell);
+    check("cast_e3m2_to_f32_haswell", test_cast<e3m2_t, f32_t>, nk_cast_haswell);
+    check("cast_i8_to_f32_haswell", test_cast<i8_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_i8_haswell", test_cast<f32_t, i8_t>, nk_cast_haswell);
+    check("cast_i16_to_f32_haswell", test_cast<i16_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_i16_haswell", test_cast<f32_t, i16_t>, nk_cast_haswell);
+    check("cast_u16_to_f32_haswell", test_cast<u16_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_u16_haswell", test_cast<f32_t, u16_t>, nk_cast_haswell);
+    check("cast_u8_to_f32_haswell", test_cast<u8_t, f32_t>, nk_cast_haswell);
+    check("cast_f32_to_u8_haswell", test_cast<f32_t, u8_t>, nk_cast_haswell);
     // Verify serial fallbacks for rare paths
-    run_if_matches("cast_i32_to_f64_haswell", test_cast<i32_t, f64_t>, nk_cast_haswell);
-    run_if_matches("cast_f64_to_f32_haswell", test_cast<f64_t, f32_t>, nk_cast_haswell);
+    check("cast_i32_to_f64_haswell", test_cast<i32_t, f64_t>, nk_cast_haswell);
+    check("cast_f64_to_f32_haswell", test_cast<f64_t, f32_t>, nk_cast_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("cast_f32_to_f16_skylake", test_cast<f32_t, f16_t>, nk_cast_skylake);
-    run_if_matches("cast_f16_to_f32_skylake", test_cast<f16_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_bf16_skylake", test_cast<f32_t, bf16_t>, nk_cast_skylake);
-    run_if_matches("cast_bf16_to_f32_skylake", test_cast<bf16_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_e4m3_skylake", test_cast<f32_t, e4m3_t>, nk_cast_skylake);
-    run_if_matches("cast_e4m3_to_f32_skylake", test_cast<e4m3_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_e5m2_skylake", test_cast<f32_t, e5m2_t>, nk_cast_skylake);
-    run_if_matches("cast_e5m2_to_f32_skylake", test_cast<e5m2_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_e2m3_skylake", test_cast<f32_t, e2m3_t>, nk_cast_skylake);
-    run_if_matches("cast_e2m3_to_f32_skylake", test_cast<e2m3_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_e3m2_skylake", test_cast<f32_t, e3m2_t>, nk_cast_skylake);
-    run_if_matches("cast_e3m2_to_f32_skylake", test_cast<e3m2_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f16_to_bf16_skylake", test_cast<f16_t, bf16_t>, nk_cast_skylake);
-    run_if_matches("cast_bf16_to_f16_skylake", test_cast<bf16_t, f16_t>, nk_cast_skylake);
-    run_if_matches("cast_e4m3_to_f16_skylake", test_cast<e4m3_t, f16_t>, nk_cast_skylake);
-    run_if_matches("cast_f16_to_e4m3_skylake", test_cast<f16_t, e4m3_t>, nk_cast_skylake);
-    run_if_matches("cast_e5m2_to_f16_skylake", test_cast<e5m2_t, f16_t>, nk_cast_skylake);
-    run_if_matches("cast_f16_to_e5m2_skylake", test_cast<f16_t, e5m2_t>, nk_cast_skylake);
-    run_if_matches("cast_e4m3_to_bf16_skylake", test_cast<e4m3_t, bf16_t>, nk_cast_skylake);
-    run_if_matches("cast_bf16_to_e4m3_skylake", test_cast<bf16_t, e4m3_t>, nk_cast_skylake);
-    run_if_matches("cast_e5m2_to_bf16_skylake", test_cast<e5m2_t, bf16_t>, nk_cast_skylake);
-    run_if_matches("cast_bf16_to_e5m2_skylake", test_cast<bf16_t, e5m2_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_f32_skylake", test_cast<f64_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_f64_skylake", test_cast<f32_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_i32_to_f64_skylake", test_cast<i32_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_i32_skylake", test_cast<f64_t, i32_t>, nk_cast_skylake);
-    run_if_matches("cast_i8_to_i32_skylake", test_cast<i8_t, i32_t>, nk_cast_skylake);
-    run_if_matches("cast_i32_to_i8_skylake", test_cast<i32_t, i8_t>, nk_cast_skylake);
-    run_if_matches("cast_i16_to_f32_skylake", test_cast<i16_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_i16_skylake", test_cast<f32_t, i16_t>, nk_cast_skylake);
-    run_if_matches("cast_u16_to_f32_skylake", test_cast<u16_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_u16_skylake", test_cast<f32_t, u16_t>, nk_cast_skylake);
-    run_if_matches("cast_u8_to_f32_skylake", test_cast<u8_t, f32_t>, nk_cast_skylake);
-    run_if_matches("cast_f32_to_u8_skylake", test_cast<f32_t, u8_t>, nk_cast_skylake);
-    run_if_matches("cast_i64_to_f64_skylake", test_cast<i64_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_i64_skylake", test_cast<f64_t, i64_t>, nk_cast_skylake);
-    run_if_matches("cast_u64_to_f64_skylake", test_cast<u64_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_u64_skylake", test_cast<f64_t, u64_t>, nk_cast_skylake);
-    run_if_matches("cast_u32_to_f64_skylake", test_cast<u32_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_u32_skylake", test_cast<f64_t, u32_t>, nk_cast_skylake);
+    check("cast_f32_to_f16_skylake", test_cast<f32_t, f16_t>, nk_cast_skylake);
+    check("cast_f16_to_f32_skylake", test_cast<f16_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_bf16_skylake", test_cast<f32_t, bf16_t>, nk_cast_skylake);
+    check("cast_bf16_to_f32_skylake", test_cast<bf16_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_e4m3_skylake", test_cast<f32_t, e4m3_t>, nk_cast_skylake);
+    check("cast_e4m3_to_f32_skylake", test_cast<e4m3_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_e5m2_skylake", test_cast<f32_t, e5m2_t>, nk_cast_skylake);
+    check("cast_e5m2_to_f32_skylake", test_cast<e5m2_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_e2m3_skylake", test_cast<f32_t, e2m3_t>, nk_cast_skylake);
+    check("cast_e2m3_to_f32_skylake", test_cast<e2m3_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_e3m2_skylake", test_cast<f32_t, e3m2_t>, nk_cast_skylake);
+    check("cast_e3m2_to_f32_skylake", test_cast<e3m2_t, f32_t>, nk_cast_skylake);
+    check("cast_f16_to_bf16_skylake", test_cast<f16_t, bf16_t>, nk_cast_skylake);
+    check("cast_bf16_to_f16_skylake", test_cast<bf16_t, f16_t>, nk_cast_skylake);
+    check("cast_e4m3_to_f16_skylake", test_cast<e4m3_t, f16_t>, nk_cast_skylake);
+    check("cast_f16_to_e4m3_skylake", test_cast<f16_t, e4m3_t>, nk_cast_skylake);
+    check("cast_e5m2_to_f16_skylake", test_cast<e5m2_t, f16_t>, nk_cast_skylake);
+    check("cast_f16_to_e5m2_skylake", test_cast<f16_t, e5m2_t>, nk_cast_skylake);
+    check("cast_e4m3_to_bf16_skylake", test_cast<e4m3_t, bf16_t>, nk_cast_skylake);
+    check("cast_bf16_to_e4m3_skylake", test_cast<bf16_t, e4m3_t>, nk_cast_skylake);
+    check("cast_e5m2_to_bf16_skylake", test_cast<e5m2_t, bf16_t>, nk_cast_skylake);
+    check("cast_bf16_to_e5m2_skylake", test_cast<bf16_t, e5m2_t>, nk_cast_skylake);
+    check("cast_f64_to_f32_skylake", test_cast<f64_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_f64_skylake", test_cast<f32_t, f64_t>, nk_cast_skylake);
+    check("cast_i32_to_f64_skylake", test_cast<i32_t, f64_t>, nk_cast_skylake);
+    check("cast_f64_to_i32_skylake", test_cast<f64_t, i32_t>, nk_cast_skylake);
+    check("cast_i8_to_i32_skylake", test_cast<i8_t, i32_t>, nk_cast_skylake);
+    check("cast_i32_to_i8_skylake", test_cast<i32_t, i8_t>, nk_cast_skylake);
+    check("cast_i16_to_f32_skylake", test_cast<i16_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_i16_skylake", test_cast<f32_t, i16_t>, nk_cast_skylake);
+    check("cast_u16_to_f32_skylake", test_cast<u16_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_u16_skylake", test_cast<f32_t, u16_t>, nk_cast_skylake);
+    check("cast_u8_to_f32_skylake", test_cast<u8_t, f32_t>, nk_cast_skylake);
+    check("cast_f32_to_u8_skylake", test_cast<f32_t, u8_t>, nk_cast_skylake);
+    check("cast_i64_to_f64_skylake", test_cast<i64_t, f64_t>, nk_cast_skylake);
+    check("cast_f64_to_i64_skylake", test_cast<f64_t, i64_t>, nk_cast_skylake);
+    check("cast_u64_to_f64_skylake", test_cast<u64_t, f64_t>, nk_cast_skylake);
+    check("cast_f64_to_u64_skylake", test_cast<f64_t, u64_t>, nk_cast_skylake);
+    check("cast_u32_to_f64_skylake", test_cast<u32_t, f64_t>, nk_cast_skylake);
+    check("cast_f64_to_u32_skylake", test_cast<f64_t, u32_t>, nk_cast_skylake);
     // Verify serial fallbacks for rare paths
-    run_if_matches("cast_i8_to_f64_skylake", test_cast<i8_t, f64_t>, nk_cast_skylake);
-    run_if_matches("cast_f64_to_bf16_skylake", test_cast<f64_t, bf16_t>, nk_cast_skylake);
+    check("cast_i8_to_f64_skylake", test_cast<i8_t, f64_t>, nk_cast_skylake);
+    check("cast_f64_to_bf16_skylake", test_cast<f64_t, bf16_t>, nk_cast_skylake);
 #endif
 
 #if NK_TARGET_ICELAKE
 
-    run_if_matches("cast_e4m3_to_bf16_icelake", test_cast<e4m3_t, bf16_t>, nk_cast_icelake);
-    run_if_matches("cast_bf16_to_e4m3_icelake", test_cast<bf16_t, e4m3_t>, nk_cast_icelake);
-    run_if_matches("cast_e5m2_to_bf16_icelake", test_cast<e5m2_t, bf16_t>, nk_cast_icelake);
-    run_if_matches("cast_bf16_to_e5m2_icelake", test_cast<bf16_t, e5m2_t>, nk_cast_icelake);
-    run_if_matches("cast_e4m3_to_f16_icelake", test_cast<e4m3_t, f16_t>, nk_cast_icelake);
-    run_if_matches("cast_e5m2_to_f16_icelake", test_cast<e5m2_t, f16_t>, nk_cast_icelake);
-    run_if_matches("cast_e4m3_to_f32_icelake", test_cast<e4m3_t, f32_t>, nk_cast_icelake);
-    run_if_matches("cast_f32_to_e4m3_icelake", test_cast<f32_t, e4m3_t>, nk_cast_icelake);
-    run_if_matches("cast_f16_to_f32_icelake", test_cast<f16_t, f32_t>, nk_cast_icelake);
-    run_if_matches("cast_f32_to_f16_icelake", test_cast<f32_t, f16_t>, nk_cast_icelake);
+    check("cast_e4m3_to_bf16_icelake", test_cast<e4m3_t, bf16_t>, nk_cast_icelake);
+    check("cast_bf16_to_e4m3_icelake", test_cast<bf16_t, e4m3_t>, nk_cast_icelake);
+    check("cast_e5m2_to_bf16_icelake", test_cast<e5m2_t, bf16_t>, nk_cast_icelake);
+    check("cast_bf16_to_e5m2_icelake", test_cast<bf16_t, e5m2_t>, nk_cast_icelake);
+    check("cast_e4m3_to_f16_icelake", test_cast<e4m3_t, f16_t>, nk_cast_icelake);
+    check("cast_e5m2_to_f16_icelake", test_cast<e5m2_t, f16_t>, nk_cast_icelake);
+    check("cast_e4m3_to_f32_icelake", test_cast<e4m3_t, f32_t>, nk_cast_icelake);
+    check("cast_f32_to_e4m3_icelake", test_cast<f32_t, e4m3_t>, nk_cast_icelake);
+    check("cast_f16_to_f32_icelake", test_cast<f16_t, f32_t>, nk_cast_icelake);
+    check("cast_f32_to_f16_icelake", test_cast<f32_t, f16_t>, nk_cast_icelake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("cast_e4m3_to_f16_sapphire", test_cast<e4m3_t, f16_t>, nk_cast_sapphire);
-    run_if_matches("cast_f16_to_e4m3_sapphire", test_cast<f16_t, e4m3_t>, nk_cast_sapphire);
-    run_if_matches("cast_e5m2_to_f16_sapphire", test_cast<e5m2_t, f16_t>, nk_cast_sapphire);
-    run_if_matches("cast_f16_to_e5m2_sapphire", test_cast<f16_t, e5m2_t>, nk_cast_sapphire);
-    run_if_matches("cast_f16_to_f32_sapphire", test_cast<f16_t, f32_t>, nk_cast_sapphire);
-    run_if_matches("cast_f32_to_f16_sapphire", test_cast<f32_t, f16_t>, nk_cast_sapphire);
+    check("cast_e4m3_to_f16_sapphire", test_cast<e4m3_t, f16_t>, nk_cast_sapphire);
+    check("cast_f16_to_e4m3_sapphire", test_cast<f16_t, e4m3_t>, nk_cast_sapphire);
+    check("cast_e5m2_to_f16_sapphire", test_cast<e5m2_t, f16_t>, nk_cast_sapphire);
+    check("cast_f16_to_e5m2_sapphire", test_cast<f16_t, e5m2_t>, nk_cast_sapphire);
+    check("cast_f16_to_f32_sapphire", test_cast<f16_t, f32_t>, nk_cast_sapphire);
+    check("cast_f32_to_f16_sapphire", test_cast<f32_t, f16_t>, nk_cast_sapphire);
 #endif
 
 #if NK_TARGET_NEON
-    run_if_matches("cast_e4m3_to_f32_neon", test_cast<e4m3_t, f32_t>, nk_cast_neon);
-    run_if_matches("cast_f32_to_e4m3_neon", test_cast<f32_t, e4m3_t>, nk_cast_neon);
-    run_if_matches("cast_e5m2_to_f32_neon", test_cast<e5m2_t, f32_t>, nk_cast_neon);
-    run_if_matches("cast_f32_to_e5m2_neon", test_cast<f32_t, e5m2_t>, nk_cast_neon);
+    check("cast_e4m3_to_f32_neon", test_cast<e4m3_t, f32_t>, nk_cast_neon);
+    check("cast_f32_to_e4m3_neon", test_cast<f32_t, e4m3_t>, nk_cast_neon);
+    check("cast_e5m2_to_f32_neon", test_cast<e5m2_t, f32_t>, nk_cast_neon);
+    check("cast_f32_to_e5m2_neon", test_cast<f32_t, e5m2_t>, nk_cast_neon);
 #endif
 
 #if NK_TARGET_RVV
-    run_if_matches("cast_bf16_to_f32_rvv", test_cast<bf16_t, f32_t>, nk_cast_rvv);
-    run_if_matches("cast_f32_to_bf16_rvv", test_cast<f32_t, bf16_t>, nk_cast_rvv);
-    run_if_matches("cast_e4m3_to_f32_rvv", test_cast<e4m3_t, f32_t>, nk_cast_rvv);
-    run_if_matches("cast_e5m2_to_f32_rvv", test_cast<e5m2_t, f32_t>, nk_cast_rvv);
+    check("cast_bf16_to_f32_rvv", test_cast<bf16_t, f32_t>, nk_cast_rvv);
+    check("cast_f32_to_bf16_rvv", test_cast<f32_t, bf16_t>, nk_cast_rvv);
+    check("cast_e4m3_to_f32_rvv", test_cast<e4m3_t, f32_t>, nk_cast_rvv);
+    check("cast_e5m2_to_f32_rvv", test_cast<e5m2_t, f32_t>, nk_cast_rvv);
 #endif
 
     // Serial always runs - baseline test
-    run_if_matches("cast_bf16_to_f32_serial", test_cast<bf16_t, f32_t>, nk_cast_serial);
-    run_if_matches("cast_f32_to_bf16_serial", test_cast<f32_t, bf16_t>, nk_cast_serial);
-    run_if_matches("cast_e4m3_to_f32_serial", test_cast<e4m3_t, f32_t>, nk_cast_serial);
-    run_if_matches("cast_f32_to_e4m3_serial", test_cast<f32_t, e4m3_t>, nk_cast_serial);
-    run_if_matches("cast_e5m2_to_f32_serial", test_cast<e5m2_t, f32_t>, nk_cast_serial);
-    run_if_matches("cast_f32_to_e5m2_serial", test_cast<f32_t, e5m2_t>, nk_cast_serial);
-    run_if_matches("cast_f16_to_f32_serial", test_cast<f16_t, f32_t>, nk_cast_serial);
-    run_if_matches("cast_f32_to_f16_serial", test_cast<f32_t, f16_t>, nk_cast_serial);
-    run_if_matches("cast_f32_to_f64_serial", test_cast<f32_t, f64_t>, nk_cast_serial);
-    run_if_matches("cast_f64_to_f32_serial", test_cast<f64_t, f32_t>, nk_cast_serial);
-    run_if_matches("cast_f64_to_i32_serial", test_cast<f64_t, i32_t>, nk_cast_serial);
-    run_if_matches("cast_i16_to_i64_serial", test_cast<i16_t, i64_t>, nk_cast_serial);
-    run_if_matches("cast_i32_to_f64_serial", test_cast<i32_t, f64_t>, nk_cast_serial);
-    run_if_matches("cast_i32_to_i8_serial", test_cast<i32_t, i8_t>, nk_cast_serial);
-    run_if_matches("cast_i8_to_f64_serial", test_cast<i8_t, f64_t>, nk_cast_serial);
-    run_if_matches("cast_i8_to_i32_serial", test_cast<i8_t, i32_t>, nk_cast_serial);
-    run_if_matches("cast_u8_to_f32_serial", test_cast<u8_t, f32_t>, nk_cast_serial);
+    check("cast_bf16_to_f32_serial", test_cast<bf16_t, f32_t>, nk_cast_serial);
+    check("cast_f32_to_bf16_serial", test_cast<f32_t, bf16_t>, nk_cast_serial);
+    check("cast_e4m3_to_f32_serial", test_cast<e4m3_t, f32_t>, nk_cast_serial);
+    check("cast_f32_to_e4m3_serial", test_cast<f32_t, e4m3_t>, nk_cast_serial);
+    check("cast_e5m2_to_f32_serial", test_cast<e5m2_t, f32_t>, nk_cast_serial);
+    check("cast_f32_to_e5m2_serial", test_cast<f32_t, e5m2_t>, nk_cast_serial);
+    check("cast_f16_to_f32_serial", test_cast<f16_t, f32_t>, nk_cast_serial);
+    check("cast_f32_to_f16_serial", test_cast<f32_t, f16_t>, nk_cast_serial);
+    check("cast_f32_to_f64_serial", test_cast<f32_t, f64_t>, nk_cast_serial);
+    check("cast_f64_to_f32_serial", test_cast<f64_t, f32_t>, nk_cast_serial);
+    check("cast_f64_to_i32_serial", test_cast<f64_t, i32_t>, nk_cast_serial);
+    check("cast_i16_to_i64_serial", test_cast<i16_t, i64_t>, nk_cast_serial);
+    check("cast_i32_to_f64_serial", test_cast<i32_t, f64_t>, nk_cast_serial);
+    check("cast_i32_to_i8_serial", test_cast<i32_t, i8_t>, nk_cast_serial);
+    check("cast_i8_to_f64_serial", test_cast<i8_t, f64_t>, nk_cast_serial);
+    check("cast_i8_to_i32_serial", test_cast<i8_t, i32_t>, nk_cast_serial);
+    check("cast_u8_to_f32_serial", test_cast<u8_t, f32_t>, nk_cast_serial);
 }

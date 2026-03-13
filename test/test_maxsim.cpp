@@ -60,79 +60,79 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
 }
 
 void test_maxsim() {
-    stats_section_t run_if_matches("MaxSim");
+    error_stats_section_t check("MaxSim");
 
     // Serial maxsim tests
-    run_if_matches("maxsim_bf16_serial", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_serial,
-                   nk_maxsim_pack_bf16_serial, nk_maxsim_packed_bf16_serial);
-    run_if_matches("maxsim_f32_serial", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_serial,
-                   nk_maxsim_pack_f32_serial, nk_maxsim_packed_f32_serial);
-    run_if_matches("maxsim_f16_serial", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_serial,
-                   nk_maxsim_pack_f16_serial, nk_maxsim_packed_f16_serial);
+    check("maxsim_bf16_serial", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_serial,
+          nk_maxsim_pack_bf16_serial, nk_maxsim_packed_bf16_serial);
+    check("maxsim_f32_serial", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_serial, nk_maxsim_pack_f32_serial,
+          nk_maxsim_packed_f32_serial);
+    check("maxsim_f16_serial", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_serial, nk_maxsim_pack_f16_serial,
+          nk_maxsim_packed_f16_serial);
 
 #if NK_TARGET_HASWELL
-    run_if_matches("maxsim_bf16_haswell", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_haswell,
-                   nk_maxsim_pack_bf16_haswell, nk_maxsim_packed_bf16_haswell);
-    run_if_matches("maxsim_f32_haswell", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_haswell,
-                   nk_maxsim_pack_f32_haswell, nk_maxsim_packed_f32_haswell);
-    run_if_matches("maxsim_f16_haswell", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_haswell,
-                   nk_maxsim_pack_f16_haswell, nk_maxsim_packed_f16_haswell);
+    check("maxsim_bf16_haswell", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_haswell,
+          nk_maxsim_pack_bf16_haswell, nk_maxsim_packed_bf16_haswell);
+    check("maxsim_f32_haswell", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_haswell,
+          nk_maxsim_pack_f32_haswell, nk_maxsim_packed_f32_haswell);
+    check("maxsim_f16_haswell", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_haswell,
+          nk_maxsim_pack_f16_haswell, nk_maxsim_packed_f16_haswell);
 #endif
 
 #if NK_TARGET_ALDER
-    run_if_matches("maxsim_bf16_alder", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_alder,
-                   nk_maxsim_pack_bf16_alder, nk_maxsim_packed_bf16_alder);
-    run_if_matches("maxsim_f32_alder", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_alder,
-                   nk_maxsim_pack_f32_alder, nk_maxsim_packed_f32_alder);
-    run_if_matches("maxsim_f16_alder", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_alder,
-                   nk_maxsim_pack_f16_alder, nk_maxsim_packed_f16_alder);
+    check("maxsim_bf16_alder", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_alder, nk_maxsim_pack_bf16_alder,
+          nk_maxsim_packed_bf16_alder);
+    check("maxsim_f32_alder", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_alder, nk_maxsim_pack_f32_alder,
+          nk_maxsim_packed_f32_alder);
+    check("maxsim_f16_alder", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_alder, nk_maxsim_pack_f16_alder,
+          nk_maxsim_packed_f16_alder);
 #endif
 
 #if NK_TARGET_ICELAKE
-    run_if_matches("maxsim_f32_icelake", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_icelake,
-                   nk_maxsim_pack_f32_icelake, nk_maxsim_packed_f32_icelake);
-    run_if_matches("maxsim_f16_icelake", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_icelake,
-                   nk_maxsim_pack_f16_icelake, nk_maxsim_packed_f16_icelake);
+    check("maxsim_f32_icelake", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_icelake,
+          nk_maxsim_pack_f32_icelake, nk_maxsim_packed_f32_icelake);
+    check("maxsim_f16_icelake", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_icelake,
+          nk_maxsim_pack_f16_icelake, nk_maxsim_packed_f16_icelake);
 #endif
 
 #if NK_TARGET_GENOA
-    run_if_matches("maxsim_bf16_genoa", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_genoa,
-                   nk_maxsim_pack_bf16_genoa, nk_maxsim_packed_bf16_genoa);
+    check("maxsim_bf16_genoa", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_genoa, nk_maxsim_pack_bf16_genoa,
+          nk_maxsim_packed_bf16_genoa);
 #endif
 
 #if NK_TARGET_SAPPHIREAMX
-    run_if_matches("maxsim_bf16_sapphireamx", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sapphireamx,
-                   nk_maxsim_pack_bf16_sapphireamx, nk_maxsim_packed_bf16_sapphireamx);
-    run_if_matches("maxsim_f32_sapphireamx", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sapphireamx,
-                   nk_maxsim_pack_f32_sapphireamx, nk_maxsim_packed_f32_sapphireamx);
-    run_if_matches("maxsim_f16_sapphireamx", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sapphireamx,
-                   nk_maxsim_pack_f16_sapphireamx, nk_maxsim_packed_f16_sapphireamx);
+    check("maxsim_bf16_sapphireamx", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sapphireamx,
+          nk_maxsim_pack_bf16_sapphireamx, nk_maxsim_packed_bf16_sapphireamx);
+    check("maxsim_f32_sapphireamx", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sapphireamx,
+          nk_maxsim_pack_f32_sapphireamx, nk_maxsim_packed_f32_sapphireamx);
+    check("maxsim_f16_sapphireamx", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sapphireamx,
+          nk_maxsim_pack_f16_sapphireamx, nk_maxsim_packed_f16_sapphireamx);
 #endif
 
 #if NK_TARGET_NEONSDOT
-    run_if_matches("maxsim_bf16_neonsdot", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_neonsdot,
-                   nk_maxsim_pack_bf16_neonsdot, nk_maxsim_packed_bf16_neonsdot);
-    run_if_matches("maxsim_f32_neonsdot", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_neonsdot,
-                   nk_maxsim_pack_f32_neonsdot, nk_maxsim_packed_f32_neonsdot);
-    run_if_matches("maxsim_f16_neonsdot", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_neonsdot,
-                   nk_maxsim_pack_f16_neonsdot, nk_maxsim_packed_f16_neonsdot);
+    check("maxsim_bf16_neonsdot", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_neonsdot,
+          nk_maxsim_pack_bf16_neonsdot, nk_maxsim_packed_bf16_neonsdot);
+    check("maxsim_f32_neonsdot", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_neonsdot,
+          nk_maxsim_pack_f32_neonsdot, nk_maxsim_packed_f32_neonsdot);
+    check("maxsim_f16_neonsdot", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_neonsdot,
+          nk_maxsim_pack_f16_neonsdot, nk_maxsim_packed_f16_neonsdot);
 #endif
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("maxsim_bf16_v128relaxed", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_v128relaxed,
-                   nk_maxsim_pack_bf16_v128relaxed, nk_maxsim_packed_bf16_v128relaxed);
-    run_if_matches("maxsim_f32_v128relaxed", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_v128relaxed,
-                   nk_maxsim_pack_f32_v128relaxed, nk_maxsim_packed_f32_v128relaxed);
-    run_if_matches("maxsim_f16_v128relaxed", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_v128relaxed,
-                   nk_maxsim_pack_f16_v128relaxed, nk_maxsim_packed_f16_v128relaxed);
+    check("maxsim_bf16_v128relaxed", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_v128relaxed,
+          nk_maxsim_pack_bf16_v128relaxed, nk_maxsim_packed_bf16_v128relaxed);
+    check("maxsim_f32_v128relaxed", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_v128relaxed,
+          nk_maxsim_pack_f32_v128relaxed, nk_maxsim_packed_f32_v128relaxed);
+    check("maxsim_f16_v128relaxed", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_v128relaxed,
+          nk_maxsim_pack_f16_v128relaxed, nk_maxsim_packed_f16_v128relaxed);
 #endif
 
 #if NK_TARGET_SME
-    run_if_matches("maxsim_bf16_sme", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sme,
-                   nk_maxsim_pack_bf16_sme, nk_maxsim_packed_bf16_sme);
-    run_if_matches("maxsim_f32_sme", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sme, nk_maxsim_pack_f32_sme,
-                   nk_maxsim_packed_f32_sme);
-    run_if_matches("maxsim_f16_sme", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sme, nk_maxsim_pack_f16_sme,
-                   nk_maxsim_packed_f16_sme);
+    check("maxsim_bf16_sme", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_sme, nk_maxsim_pack_bf16_sme,
+          nk_maxsim_packed_bf16_sme);
+    check("maxsim_f32_sme", test_maxsim_packed<f32_t>, nk_maxsim_packed_size_f32_sme, nk_maxsim_pack_f32_sme,
+          nk_maxsim_packed_f32_sme);
+    check("maxsim_f16_sme", test_maxsim_packed<f16_t>, nk_maxsim_packed_size_f16_sme, nk_maxsim_pack_f16_sme,
+          nk_maxsim_packed_f16_sme);
 #endif
 }

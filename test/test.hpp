@@ -240,13 +240,13 @@ struct error_stats_t;
 bool should_fail(char const *kernel_name, error_stats_t const &stats) noexcept;
 void print_stats_row(char const *kernel_name, error_stats_t const &stats) noexcept;
 
-struct stats_section_t {
+struct error_stats_section_t {
     char const *title = nullptr;
     bool emitted_any = false;
     std::optional<comparison_family_t> last_family;
 
-    explicit stats_section_t(char const *title = nullptr) noexcept : title(title) {}
-    ~stats_section_t() = default;
+    explicit error_stats_section_t(char const *title = nullptr) noexcept : title(title) {}
+    ~error_stats_section_t() = default;
 
     template <typename test_function_type_, typename... args_types_>
     void operator()(char const *kernel_name, test_function_type_ test_fn, args_types_ &&...args) {

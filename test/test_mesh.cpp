@@ -108,93 +108,93 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
 }
 
 void test_mesh() {
-    stats_section_t run_if_matches("Mesh Operations");
+    error_stats_section_t check("Mesh Operations");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("rmsd_f64", test_rmsd<f64_t>, nk_rmsd_f64);
-    run_if_matches("rmsd_f32", test_rmsd<f32_t>, nk_rmsd_f32);
-    run_if_matches("kabsch_f64", test_kabsch<f64_t>, nk_kabsch_f64);
-    run_if_matches("kabsch_f32", test_kabsch<f32_t>, nk_kabsch_f32);
-    run_if_matches("umeyama_f64", test_umeyama<f64_t>, nk_umeyama_f64);
-    run_if_matches("umeyama_f32", test_umeyama<f32_t>, nk_umeyama_f32);
+    check("rmsd_f64", test_rmsd<f64_t>, nk_rmsd_f64);
+    check("rmsd_f32", test_rmsd<f32_t>, nk_rmsd_f32);
+    check("kabsch_f64", test_kabsch<f64_t>, nk_kabsch_f64);
+    check("kabsch_f32", test_kabsch<f32_t>, nk_kabsch_f32);
+    check("umeyama_f64", test_umeyama<f64_t>, nk_umeyama_f64);
+    check("umeyama_f32", test_umeyama<f32_t>, nk_umeyama_f32);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("rmsd_f64_neon", test_rmsd<f64_t>, nk_rmsd_f64_neon);
-    run_if_matches("rmsd_f32_neon", test_rmsd<f32_t>, nk_rmsd_f32_neon);
-    run_if_matches("kabsch_f64_neon", test_kabsch<f64_t>, nk_kabsch_f64_neon);
-    run_if_matches("kabsch_f32_neon", test_kabsch<f32_t>, nk_kabsch_f32_neon);
-    run_if_matches("umeyama_f64_neon", test_umeyama<f64_t>, nk_umeyama_f64_neon);
-    run_if_matches("umeyama_f32_neon", test_umeyama<f32_t>, nk_umeyama_f32_neon);
+    check("rmsd_f64_neon", test_rmsd<f64_t>, nk_rmsd_f64_neon);
+    check("rmsd_f32_neon", test_rmsd<f32_t>, nk_rmsd_f32_neon);
+    check("kabsch_f64_neon", test_kabsch<f64_t>, nk_kabsch_f64_neon);
+    check("kabsch_f32_neon", test_kabsch<f32_t>, nk_kabsch_f32_neon);
+    check("umeyama_f64_neon", test_umeyama<f64_t>, nk_umeyama_f64_neon);
+    check("umeyama_f32_neon", test_umeyama<f32_t>, nk_umeyama_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    run_if_matches("rmsd_f16_neonhalf", test_rmsd<f16_t>, nk_rmsd_f16_neonhalf);
-    run_if_matches("kabsch_f16_neonhalf", test_kabsch<f16_t>, nk_kabsch_f16_neonhalf);
-    run_if_matches("umeyama_f16_neonhalf", test_umeyama<f16_t>, nk_umeyama_f16_neonhalf);
+    check("rmsd_f16_neonhalf", test_rmsd<f16_t>, nk_rmsd_f16_neonhalf);
+    check("kabsch_f16_neonhalf", test_kabsch<f16_t>, nk_kabsch_f16_neonhalf);
+    check("umeyama_f16_neonhalf", test_umeyama<f16_t>, nk_umeyama_f16_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-    run_if_matches("rmsd_bf16_neonbfdot", test_rmsd<bf16_t>, nk_rmsd_bf16_neonbfdot);
-    run_if_matches("kabsch_bf16_neonbfdot", test_kabsch<bf16_t>, nk_kabsch_bf16_neonbfdot);
-    run_if_matches("umeyama_bf16_neonbfdot", test_umeyama<bf16_t>, nk_umeyama_bf16_neonbfdot);
+    check("rmsd_bf16_neonbfdot", test_rmsd<bf16_t>, nk_rmsd_bf16_neonbfdot);
+    check("kabsch_bf16_neonbfdot", test_kabsch<bf16_t>, nk_kabsch_bf16_neonbfdot);
+    check("umeyama_bf16_neonbfdot", test_umeyama<bf16_t>, nk_umeyama_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
-    run_if_matches("rmsd_f64_haswell", test_rmsd<f64_t>, nk_rmsd_f64_haswell);
-    run_if_matches("rmsd_f32_haswell", test_rmsd<f32_t>, nk_rmsd_f32_haswell);
-    run_if_matches("kabsch_f64_haswell", test_kabsch<f64_t>, nk_kabsch_f64_haswell);
-    run_if_matches("kabsch_f32_haswell", test_kabsch<f32_t>, nk_kabsch_f32_haswell);
-    run_if_matches("umeyama_f64_haswell", test_umeyama<f64_t>, nk_umeyama_f64_haswell);
-    run_if_matches("umeyama_f32_haswell", test_umeyama<f32_t>, nk_umeyama_f32_haswell);
-    run_if_matches("rmsd_f16_haswell", test_rmsd<f16_t>, nk_rmsd_f16_haswell);
-    run_if_matches("kabsch_f16_haswell", test_kabsch<f16_t>, nk_kabsch_f16_haswell);
-    run_if_matches("umeyama_f16_haswell", test_umeyama<f16_t>, nk_umeyama_f16_haswell);
-    run_if_matches("rmsd_bf16_haswell", test_rmsd<bf16_t>, nk_rmsd_bf16_haswell);
-    run_if_matches("kabsch_bf16_haswell", test_kabsch<bf16_t>, nk_kabsch_bf16_haswell);
-    run_if_matches("umeyama_bf16_haswell", test_umeyama<bf16_t>, nk_umeyama_bf16_haswell);
+    check("rmsd_f64_haswell", test_rmsd<f64_t>, nk_rmsd_f64_haswell);
+    check("rmsd_f32_haswell", test_rmsd<f32_t>, nk_rmsd_f32_haswell);
+    check("kabsch_f64_haswell", test_kabsch<f64_t>, nk_kabsch_f64_haswell);
+    check("kabsch_f32_haswell", test_kabsch<f32_t>, nk_kabsch_f32_haswell);
+    check("umeyama_f64_haswell", test_umeyama<f64_t>, nk_umeyama_f64_haswell);
+    check("umeyama_f32_haswell", test_umeyama<f32_t>, nk_umeyama_f32_haswell);
+    check("rmsd_f16_haswell", test_rmsd<f16_t>, nk_rmsd_f16_haswell);
+    check("kabsch_f16_haswell", test_kabsch<f16_t>, nk_kabsch_f16_haswell);
+    check("umeyama_f16_haswell", test_umeyama<f16_t>, nk_umeyama_f16_haswell);
+    check("rmsd_bf16_haswell", test_rmsd<bf16_t>, nk_rmsd_bf16_haswell);
+    check("kabsch_bf16_haswell", test_kabsch<bf16_t>, nk_kabsch_bf16_haswell);
+    check("umeyama_bf16_haswell", test_umeyama<bf16_t>, nk_umeyama_bf16_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("rmsd_f64_skylake", test_rmsd<f64_t>, nk_rmsd_f64_skylake);
-    run_if_matches("rmsd_f32_skylake", test_rmsd<f32_t>, nk_rmsd_f32_skylake);
-    run_if_matches("kabsch_f64_skylake", test_kabsch<f64_t>, nk_kabsch_f64_skylake);
-    run_if_matches("kabsch_f32_skylake", test_kabsch<f32_t>, nk_kabsch_f32_skylake);
-    run_if_matches("umeyama_f64_skylake", test_umeyama<f64_t>, nk_umeyama_f64_skylake);
-    run_if_matches("umeyama_f32_skylake", test_umeyama<f32_t>, nk_umeyama_f32_skylake);
+    check("rmsd_f64_skylake", test_rmsd<f64_t>, nk_rmsd_f64_skylake);
+    check("rmsd_f32_skylake", test_rmsd<f32_t>, nk_rmsd_f32_skylake);
+    check("kabsch_f64_skylake", test_kabsch<f64_t>, nk_kabsch_f64_skylake);
+    check("kabsch_f32_skylake", test_kabsch<f32_t>, nk_kabsch_f32_skylake);
+    check("umeyama_f64_skylake", test_umeyama<f64_t>, nk_umeyama_f64_skylake);
+    check("umeyama_f32_skylake", test_umeyama<f32_t>, nk_umeyama_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_RVV
-    run_if_matches("rmsd_f64_rvv", test_rmsd<f64_t>, nk_rmsd_f64_rvv);
-    run_if_matches("rmsd_f32_rvv", test_rmsd<f32_t>, nk_rmsd_f32_rvv);
-    run_if_matches("rmsd_f16_rvv", test_rmsd<f16_t>, nk_rmsd_f16_rvv);
-    run_if_matches("rmsd_bf16_rvv", test_rmsd<bf16_t>, nk_rmsd_bf16_rvv);
-    run_if_matches("kabsch_f64_rvv", test_kabsch<f64_t>, nk_kabsch_f64_rvv);
-    run_if_matches("kabsch_f32_rvv", test_kabsch<f32_t>, nk_kabsch_f32_rvv);
-    run_if_matches("kabsch_f16_rvv", test_kabsch<f16_t>, nk_kabsch_f16_rvv);
-    run_if_matches("kabsch_bf16_rvv", test_kabsch<bf16_t>, nk_kabsch_bf16_rvv);
-    run_if_matches("umeyama_f64_rvv", test_umeyama<f64_t>, nk_umeyama_f64_rvv);
-    run_if_matches("umeyama_f32_rvv", test_umeyama<f32_t>, nk_umeyama_f32_rvv);
-    run_if_matches("umeyama_f16_rvv", test_umeyama<f16_t>, nk_umeyama_f16_rvv);
-    run_if_matches("umeyama_bf16_rvv", test_umeyama<bf16_t>, nk_umeyama_bf16_rvv);
+    check("rmsd_f64_rvv", test_rmsd<f64_t>, nk_rmsd_f64_rvv);
+    check("rmsd_f32_rvv", test_rmsd<f32_t>, nk_rmsd_f32_rvv);
+    check("rmsd_f16_rvv", test_rmsd<f16_t>, nk_rmsd_f16_rvv);
+    check("rmsd_bf16_rvv", test_rmsd<bf16_t>, nk_rmsd_bf16_rvv);
+    check("kabsch_f64_rvv", test_kabsch<f64_t>, nk_kabsch_f64_rvv);
+    check("kabsch_f32_rvv", test_kabsch<f32_t>, nk_kabsch_f32_rvv);
+    check("kabsch_f16_rvv", test_kabsch<f16_t>, nk_kabsch_f16_rvv);
+    check("kabsch_bf16_rvv", test_kabsch<bf16_t>, nk_kabsch_bf16_rvv);
+    check("umeyama_f64_rvv", test_umeyama<f64_t>, nk_umeyama_f64_rvv);
+    check("umeyama_f32_rvv", test_umeyama<f32_t>, nk_umeyama_f32_rvv);
+    check("umeyama_f16_rvv", test_umeyama<f16_t>, nk_umeyama_f16_rvv);
+    check("umeyama_bf16_rvv", test_umeyama<bf16_t>, nk_umeyama_bf16_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("rmsd_f32_v128relaxed", test_rmsd<f32_t>, nk_rmsd_f32_v128relaxed);
-    run_if_matches("rmsd_f64_v128relaxed", test_rmsd<f64_t>, nk_rmsd_f64_v128relaxed);
-    run_if_matches("kabsch_f32_v128relaxed", test_kabsch<f32_t>, nk_kabsch_f32_v128relaxed);
-    run_if_matches("kabsch_f64_v128relaxed", test_kabsch<f64_t>, nk_kabsch_f64_v128relaxed);
-    run_if_matches("umeyama_f32_v128relaxed", test_umeyama<f32_t>, nk_umeyama_f32_v128relaxed);
-    run_if_matches("umeyama_f64_v128relaxed", test_umeyama<f64_t>, nk_umeyama_f64_v128relaxed);
+    check("rmsd_f32_v128relaxed", test_rmsd<f32_t>, nk_rmsd_f32_v128relaxed);
+    check("rmsd_f64_v128relaxed", test_rmsd<f64_t>, nk_rmsd_f64_v128relaxed);
+    check("kabsch_f32_v128relaxed", test_kabsch<f32_t>, nk_kabsch_f32_v128relaxed);
+    check("kabsch_f64_v128relaxed", test_kabsch<f64_t>, nk_kabsch_f64_v128relaxed);
+    check("umeyama_f32_v128relaxed", test_umeyama<f32_t>, nk_umeyama_f32_v128relaxed);
+    check("umeyama_f64_v128relaxed", test_umeyama<f64_t>, nk_umeyama_f64_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
-    run_if_matches("rmsd_f64_serial", test_rmsd<f64_t>, nk_rmsd_f64_serial);
-    run_if_matches("rmsd_f32_serial", test_rmsd<f32_t>, nk_rmsd_f32_serial);
-    run_if_matches("kabsch_f64_serial", test_kabsch<f64_t>, nk_kabsch_f64_serial);
-    run_if_matches("kabsch_f32_serial", test_kabsch<f32_t>, nk_kabsch_f32_serial);
-    run_if_matches("umeyama_f64_serial", test_umeyama<f64_t>, nk_umeyama_f64_serial);
-    run_if_matches("umeyama_f32_serial", test_umeyama<f32_t>, nk_umeyama_f32_serial);
+    check("rmsd_f64_serial", test_rmsd<f64_t>, nk_rmsd_f64_serial);
+    check("rmsd_f32_serial", test_rmsd<f32_t>, nk_rmsd_f32_serial);
+    check("kabsch_f64_serial", test_kabsch<f64_t>, nk_kabsch_f64_serial);
+    check("kabsch_f32_serial", test_kabsch<f32_t>, nk_kabsch_f32_serial);
+    check("umeyama_f64_serial", test_umeyama<f64_t>, nk_umeyama_f64_serial);
+    check("umeyama_f32_serial", test_umeyama<f32_t>, nk_umeyama_f32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

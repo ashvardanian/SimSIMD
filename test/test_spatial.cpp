@@ -105,273 +105,273 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
 }
 
 void test_spatial() {
-    stats_section_t run_if_matches("Spatial Distances");
+    error_stats_section_t check("Spatial Distances");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("sqeuclidean_f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32);
-    run_if_matches("sqeuclidean_f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64);
-    run_if_matches("sqeuclidean_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16);
-    run_if_matches("sqeuclidean_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16);
-    run_if_matches("sqeuclidean_e2m3", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3);
-    run_if_matches("sqeuclidean_e3m2", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2);
-    run_if_matches("euclidean_f32", test_euclidean<f32_t>, nk_euclidean_f32);
-    run_if_matches("euclidean_f64", test_euclidean<f64_t>, nk_euclidean_f64);
-    run_if_matches("euclidean_f16", test_euclidean<f16_t>, nk_euclidean_f16);
-    run_if_matches("euclidean_bf16", test_euclidean<bf16_t>, nk_euclidean_bf16);
-    run_if_matches("euclidean_e2m3", test_euclidean<e2m3_t>, nk_euclidean_e2m3);
-    run_if_matches("euclidean_e3m2", test_euclidean<e3m2_t>, nk_euclidean_e3m2);
-    run_if_matches("angular_f32", test_angular<f32_t>, nk_angular_f32);
-    run_if_matches("angular_f64", test_angular<f64_t>, nk_angular_f64);
-    run_if_matches("angular_f16", test_angular<f16_t>, nk_angular_f16);
-    run_if_matches("angular_bf16", test_angular<bf16_t>, nk_angular_bf16);
-    run_if_matches("angular_e2m3", test_angular<e2m3_t>, nk_angular_e2m3);
-    run_if_matches("angular_e3m2", test_angular<e3m2_t>, nk_angular_e3m2);
-    run_if_matches("sqeuclidean_i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4);
-    run_if_matches("sqeuclidean_u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4);
-    run_if_matches("angular_i4", test_angular<i4x2_t>, nk_angular_i4);
-    run_if_matches("angular_u4", test_angular<u4x2_t>, nk_angular_u4);
+    check("sqeuclidean_f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32);
+    check("sqeuclidean_f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64);
+    check("sqeuclidean_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16);
+    check("sqeuclidean_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16);
+    check("sqeuclidean_e2m3", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3);
+    check("sqeuclidean_e3m2", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2);
+    check("euclidean_f32", test_euclidean<f32_t>, nk_euclidean_f32);
+    check("euclidean_f64", test_euclidean<f64_t>, nk_euclidean_f64);
+    check("euclidean_f16", test_euclidean<f16_t>, nk_euclidean_f16);
+    check("euclidean_bf16", test_euclidean<bf16_t>, nk_euclidean_bf16);
+    check("euclidean_e2m3", test_euclidean<e2m3_t>, nk_euclidean_e2m3);
+    check("euclidean_e3m2", test_euclidean<e3m2_t>, nk_euclidean_e3m2);
+    check("angular_f32", test_angular<f32_t>, nk_angular_f32);
+    check("angular_f64", test_angular<f64_t>, nk_angular_f64);
+    check("angular_f16", test_angular<f16_t>, nk_angular_f16);
+    check("angular_bf16", test_angular<bf16_t>, nk_angular_bf16);
+    check("angular_e2m3", test_angular<e2m3_t>, nk_angular_e2m3);
+    check("angular_e3m2", test_angular<e3m2_t>, nk_angular_e3m2);
+    check("sqeuclidean_i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4);
+    check("sqeuclidean_u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4);
+    check("angular_i4", test_angular<i4x2_t>, nk_angular_i4);
+    check("angular_u4", test_angular<u4x2_t>, nk_angular_u4);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("sqeuclidean_f32_neon", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
-    run_if_matches("sqeuclidean_f64_neon", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_neon);
-    run_if_matches("sqeuclidean_e2m3_neon", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_neon);
-    run_if_matches("sqeuclidean_e3m2_neon", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neon);
-    run_if_matches("euclidean_f32_neon", test_euclidean<f32_t>, nk_euclidean_f32_neon);
-    run_if_matches("euclidean_f64_neon", test_euclidean<f64_t>, nk_euclidean_f64_neon);
-    run_if_matches("euclidean_e2m3_neon", test_euclidean<e2m3_t>, nk_euclidean_e2m3_neon);
-    run_if_matches("euclidean_e3m2_neon", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neon);
-    run_if_matches("angular_f32_neon", test_angular<f32_t>, nk_angular_f32_neon);
-    run_if_matches("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
-    run_if_matches("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
-    run_if_matches("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
-    run_if_matches("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
-    run_if_matches("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
-    run_if_matches("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
-    run_if_matches("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
-    run_if_matches("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
-    run_if_matches("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
+    check("sqeuclidean_f32_neon", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
+    check("sqeuclidean_f64_neon", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_neon);
+    check("sqeuclidean_e2m3_neon", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_neon);
+    check("sqeuclidean_e3m2_neon", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neon);
+    check("euclidean_f32_neon", test_euclidean<f32_t>, nk_euclidean_f32_neon);
+    check("euclidean_f64_neon", test_euclidean<f64_t>, nk_euclidean_f64_neon);
+    check("euclidean_e2m3_neon", test_euclidean<e2m3_t>, nk_euclidean_e2m3_neon);
+    check("euclidean_e3m2_neon", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neon);
+    check("angular_f32_neon", test_angular<f32_t>, nk_angular_f32_neon);
+    check("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
+    check("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
+    check("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
+    check("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
+    check("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
+    check("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
+    check("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
+    check("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
+    check("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    run_if_matches("sqeuclidean_f16_neonhalf", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_neonhalf);
-    run_if_matches("euclidean_f16_neonhalf", test_euclidean<f16_t>, nk_euclidean_f16_neonhalf);
-    run_if_matches("angular_f16_neonhalf", test_angular<f16_t>, nk_angular_f16_neonhalf);
+    check("sqeuclidean_f16_neonhalf", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_neonhalf);
+    check("euclidean_f16_neonhalf", test_euclidean<f16_t>, nk_euclidean_f16_neonhalf);
+    check("angular_f16_neonhalf", test_angular<f16_t>, nk_angular_f16_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-    run_if_matches("sqeuclidean_bf16_neonbfdot", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neonbfdot);
-    run_if_matches("euclidean_bf16_neonbfdot", test_euclidean<bf16_t>, nk_euclidean_bf16_neonbfdot);
-    run_if_matches("angular_bf16_neonbfdot", test_angular<bf16_t>, nk_angular_bf16_neonbfdot);
+    check("sqeuclidean_bf16_neonbfdot", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neonbfdot);
+    check("euclidean_bf16_neonbfdot", test_euclidean<bf16_t>, nk_euclidean_bf16_neonbfdot);
+    check("angular_bf16_neonbfdot", test_angular<bf16_t>, nk_angular_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
-    run_if_matches("sqeuclidean_f32_haswell", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_haswell);
-    run_if_matches("sqeuclidean_f64_haswell", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_haswell);
-    run_if_matches("sqeuclidean_f16_haswell", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_haswell);
-    run_if_matches("sqeuclidean_bf16_haswell", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_haswell);
-    run_if_matches("sqeuclidean_e2m3_haswell", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_haswell);
-    run_if_matches("sqeuclidean_e3m2_haswell", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_haswell);
-    run_if_matches("euclidean_f32_haswell", test_euclidean<f32_t>, nk_euclidean_f32_haswell);
-    run_if_matches("euclidean_f64_haswell", test_euclidean<f64_t>, nk_euclidean_f64_haswell);
-    run_if_matches("euclidean_f16_haswell", test_euclidean<f16_t>, nk_euclidean_f16_haswell);
-    run_if_matches("euclidean_bf16_haswell", test_euclidean<bf16_t>, nk_euclidean_bf16_haswell);
-    run_if_matches("euclidean_e2m3_haswell", test_euclidean<e2m3_t>, nk_euclidean_e2m3_haswell);
-    run_if_matches("euclidean_e3m2_haswell", test_euclidean<e3m2_t>, nk_euclidean_e3m2_haswell);
-    run_if_matches("angular_f32_haswell", test_angular<f32_t>, nk_angular_f32_haswell);
-    run_if_matches("angular_f64_haswell", test_angular<f64_t>, nk_angular_f64_haswell);
-    run_if_matches("angular_f16_haswell", test_angular<f16_t>, nk_angular_f16_haswell);
-    run_if_matches("angular_bf16_haswell", test_angular<bf16_t>, nk_angular_bf16_haswell);
-    run_if_matches("angular_e2m3_haswell", test_angular<e2m3_t>, nk_angular_e2m3_haswell);
-    run_if_matches("angular_e3m2_haswell", test_angular<e3m2_t>, nk_angular_e3m2_haswell);
-    run_if_matches("angular_i8_haswell", test_angular<i8_t>, nk_angular_i8_haswell);
-    run_if_matches("sqeuclidean_i8_haswell", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_haswell);
-    run_if_matches("euclidean_i8_haswell", test_euclidean<i8_t>, nk_euclidean_i8_haswell);
-    run_if_matches("angular_u8_haswell", test_angular<u8_t>, nk_angular_u8_haswell);
-    run_if_matches("sqeuclidean_u8_haswell", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_haswell);
-    run_if_matches("euclidean_u8_haswell", test_euclidean<u8_t>, nk_euclidean_u8_haswell);
+    check("sqeuclidean_f32_haswell", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_haswell);
+    check("sqeuclidean_f64_haswell", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_haswell);
+    check("sqeuclidean_f16_haswell", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_haswell);
+    check("sqeuclidean_bf16_haswell", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_haswell);
+    check("sqeuclidean_e2m3_haswell", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_haswell);
+    check("sqeuclidean_e3m2_haswell", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_haswell);
+    check("euclidean_f32_haswell", test_euclidean<f32_t>, nk_euclidean_f32_haswell);
+    check("euclidean_f64_haswell", test_euclidean<f64_t>, nk_euclidean_f64_haswell);
+    check("euclidean_f16_haswell", test_euclidean<f16_t>, nk_euclidean_f16_haswell);
+    check("euclidean_bf16_haswell", test_euclidean<bf16_t>, nk_euclidean_bf16_haswell);
+    check("euclidean_e2m3_haswell", test_euclidean<e2m3_t>, nk_euclidean_e2m3_haswell);
+    check("euclidean_e3m2_haswell", test_euclidean<e3m2_t>, nk_euclidean_e3m2_haswell);
+    check("angular_f32_haswell", test_angular<f32_t>, nk_angular_f32_haswell);
+    check("angular_f64_haswell", test_angular<f64_t>, nk_angular_f64_haswell);
+    check("angular_f16_haswell", test_angular<f16_t>, nk_angular_f16_haswell);
+    check("angular_bf16_haswell", test_angular<bf16_t>, nk_angular_bf16_haswell);
+    check("angular_e2m3_haswell", test_angular<e2m3_t>, nk_angular_e2m3_haswell);
+    check("angular_e3m2_haswell", test_angular<e3m2_t>, nk_angular_e3m2_haswell);
+    check("angular_i8_haswell", test_angular<i8_t>, nk_angular_i8_haswell);
+    check("sqeuclidean_i8_haswell", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_haswell);
+    check("euclidean_i8_haswell", test_euclidean<i8_t>, nk_euclidean_i8_haswell);
+    check("angular_u8_haswell", test_angular<u8_t>, nk_angular_u8_haswell);
+    check("sqeuclidean_u8_haswell", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_haswell);
+    check("euclidean_u8_haswell", test_euclidean<u8_t>, nk_euclidean_u8_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("sqeuclidean_f32_skylake", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_skylake);
-    run_if_matches("sqeuclidean_f64_skylake", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_skylake);
-    run_if_matches("sqeuclidean_e2m3_skylake", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_skylake);
-    run_if_matches("sqeuclidean_e3m2_skylake", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_skylake);
-    run_if_matches("euclidean_f32_skylake", test_euclidean<f32_t>, nk_euclidean_f32_skylake);
-    run_if_matches("euclidean_f64_skylake", test_euclidean<f64_t>, nk_euclidean_f64_skylake);
-    run_if_matches("euclidean_e2m3_skylake", test_euclidean<e2m3_t>, nk_euclidean_e2m3_skylake);
-    run_if_matches("euclidean_e3m2_skylake", test_euclidean<e3m2_t>, nk_euclidean_e3m2_skylake);
-    run_if_matches("angular_f32_skylake", test_angular<f32_t>, nk_angular_f32_skylake);
-    run_if_matches("angular_f64_skylake", test_angular<f64_t>, nk_angular_f64_skylake);
-    run_if_matches("angular_e2m3_skylake", test_angular<e2m3_t>, nk_angular_e2m3_skylake);
-    run_if_matches("angular_e3m2_skylake", test_angular<e3m2_t>, nk_angular_e3m2_skylake);
-    run_if_matches("angular_e4m3_skylake", test_angular<e4m3_t>, nk_angular_e4m3_skylake);
-    run_if_matches("sqeuclidean_e4m3_skylake", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_skylake);
-    run_if_matches("euclidean_e4m3_skylake", test_euclidean<e4m3_t>, nk_euclidean_e4m3_skylake);
-    run_if_matches("angular_e5m2_skylake", test_angular<e5m2_t>, nk_angular_e5m2_skylake);
-    run_if_matches("sqeuclidean_e5m2_skylake", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_skylake);
-    run_if_matches("euclidean_e5m2_skylake", test_euclidean<e5m2_t>, nk_euclidean_e5m2_skylake);
+    check("sqeuclidean_f32_skylake", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_skylake);
+    check("sqeuclidean_f64_skylake", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_skylake);
+    check("sqeuclidean_e2m3_skylake", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_skylake);
+    check("sqeuclidean_e3m2_skylake", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_skylake);
+    check("euclidean_f32_skylake", test_euclidean<f32_t>, nk_euclidean_f32_skylake);
+    check("euclidean_f64_skylake", test_euclidean<f64_t>, nk_euclidean_f64_skylake);
+    check("euclidean_e2m3_skylake", test_euclidean<e2m3_t>, nk_euclidean_e2m3_skylake);
+    check("euclidean_e3m2_skylake", test_euclidean<e3m2_t>, nk_euclidean_e3m2_skylake);
+    check("angular_f32_skylake", test_angular<f32_t>, nk_angular_f32_skylake);
+    check("angular_f64_skylake", test_angular<f64_t>, nk_angular_f64_skylake);
+    check("angular_e2m3_skylake", test_angular<e2m3_t>, nk_angular_e2m3_skylake);
+    check("angular_e3m2_skylake", test_angular<e3m2_t>, nk_angular_e3m2_skylake);
+    check("angular_e4m3_skylake", test_angular<e4m3_t>, nk_angular_e4m3_skylake);
+    check("sqeuclidean_e4m3_skylake", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_skylake);
+    check("euclidean_e4m3_skylake", test_euclidean<e4m3_t>, nk_euclidean_e4m3_skylake);
+    check("angular_e5m2_skylake", test_angular<e5m2_t>, nk_angular_e5m2_skylake);
+    check("sqeuclidean_e5m2_skylake", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_skylake);
+    check("euclidean_e5m2_skylake", test_euclidean<e5m2_t>, nk_euclidean_e5m2_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
-    run_if_matches("sqeuclidean_i4_icelake", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_icelake);
-    run_if_matches("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
-    run_if_matches("euclidean_i4_icelake", test_euclidean<i4x2_t>, nk_euclidean_i4_icelake);
-    run_if_matches("euclidean_u4_icelake", test_euclidean<u4x2_t>, nk_euclidean_u4_icelake);
-    run_if_matches("angular_i4_icelake", test_angular<i4x2_t>, nk_angular_i4_icelake);
-    run_if_matches("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
-    run_if_matches("angular_i8_icelake", test_angular<i8_t>, nk_angular_i8_icelake);
-    run_if_matches("sqeuclidean_i8_icelake", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_icelake);
-    run_if_matches("euclidean_i8_icelake", test_euclidean<i8_t>, nk_euclidean_i8_icelake);
-    run_if_matches("angular_u8_icelake", test_angular<u8_t>, nk_angular_u8_icelake);
-    run_if_matches("sqeuclidean_u8_icelake", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_icelake);
-    run_if_matches("euclidean_u8_icelake", test_euclidean<u8_t>, nk_euclidean_u8_icelake);
+    check("sqeuclidean_i4_icelake", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_icelake);
+    check("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
+    check("euclidean_i4_icelake", test_euclidean<i4x2_t>, nk_euclidean_i4_icelake);
+    check("euclidean_u4_icelake", test_euclidean<u4x2_t>, nk_euclidean_u4_icelake);
+    check("angular_i4_icelake", test_angular<i4x2_t>, nk_angular_i4_icelake);
+    check("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
+    check("angular_i8_icelake", test_angular<i8_t>, nk_angular_i8_icelake);
+    check("sqeuclidean_i8_icelake", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_icelake);
+    check("euclidean_i8_icelake", test_euclidean<i8_t>, nk_euclidean_i8_icelake);
+    check("angular_u8_icelake", test_angular<u8_t>, nk_angular_u8_icelake);
+    check("sqeuclidean_u8_icelake", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_icelake);
+    check("euclidean_u8_icelake", test_euclidean<u8_t>, nk_euclidean_u8_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
-    run_if_matches("angular_bf16_genoa", test_angular<bf16_t>, nk_angular_bf16_genoa);
-    run_if_matches("sqeuclidean_bf16_genoa", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_genoa);
-    run_if_matches("euclidean_bf16_genoa", test_euclidean<bf16_t>, nk_euclidean_bf16_genoa);
-    run_if_matches("angular_e2m3_genoa", test_angular<e2m3_t>, nk_angular_e2m3_genoa);
-    run_if_matches("sqeuclidean_e2m3_genoa", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_genoa);
-    run_if_matches("euclidean_e2m3_genoa", test_euclidean<e2m3_t>, nk_euclidean_e2m3_genoa);
-    run_if_matches("angular_e3m2_genoa", test_angular<e3m2_t>, nk_angular_e3m2_genoa);
-    run_if_matches("sqeuclidean_e3m2_genoa", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_genoa);
-    run_if_matches("euclidean_e3m2_genoa", test_euclidean<e3m2_t>, nk_euclidean_e3m2_genoa);
-    run_if_matches("angular_e4m3_genoa", test_angular<e4m3_t>, nk_angular_e4m3_genoa);
-    run_if_matches("sqeuclidean_e4m3_genoa", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_genoa);
-    run_if_matches("euclidean_e4m3_genoa", test_euclidean<e4m3_t>, nk_euclidean_e4m3_genoa);
-    run_if_matches("angular_e5m2_genoa", test_angular<e5m2_t>, nk_angular_e5m2_genoa);
-    run_if_matches("sqeuclidean_e5m2_genoa", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_genoa);
-    run_if_matches("euclidean_e5m2_genoa", test_euclidean<e5m2_t>, nk_euclidean_e5m2_genoa);
+    check("angular_bf16_genoa", test_angular<bf16_t>, nk_angular_bf16_genoa);
+    check("sqeuclidean_bf16_genoa", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_genoa);
+    check("euclidean_bf16_genoa", test_euclidean<bf16_t>, nk_euclidean_bf16_genoa);
+    check("angular_e2m3_genoa", test_angular<e2m3_t>, nk_angular_e2m3_genoa);
+    check("sqeuclidean_e2m3_genoa", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_genoa);
+    check("euclidean_e2m3_genoa", test_euclidean<e2m3_t>, nk_euclidean_e2m3_genoa);
+    check("angular_e3m2_genoa", test_angular<e3m2_t>, nk_angular_e3m2_genoa);
+    check("sqeuclidean_e3m2_genoa", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_genoa);
+    check("euclidean_e3m2_genoa", test_euclidean<e3m2_t>, nk_euclidean_e3m2_genoa);
+    check("angular_e4m3_genoa", test_angular<e4m3_t>, nk_angular_e4m3_genoa);
+    check("sqeuclidean_e4m3_genoa", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_genoa);
+    check("euclidean_e4m3_genoa", test_euclidean<e4m3_t>, nk_euclidean_e4m3_genoa);
+    check("angular_e5m2_genoa", test_angular<e5m2_t>, nk_angular_e5m2_genoa);
+    check("sqeuclidean_e5m2_genoa", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_genoa);
+    check("euclidean_e5m2_genoa", test_euclidean<e5m2_t>, nk_euclidean_e5m2_genoa);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_ALDER
-    run_if_matches("sqeuclidean_i8_alder", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_alder);
-    run_if_matches("sqeuclidean_u8_alder", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_alder);
-    run_if_matches("sqeuclidean_e2m3_alder", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_alder);
-    run_if_matches("euclidean_i8_alder", test_euclidean<i8_t>, nk_euclidean_i8_alder);
-    run_if_matches("euclidean_u8_alder", test_euclidean<u8_t>, nk_euclidean_u8_alder);
-    run_if_matches("euclidean_e2m3_alder", test_euclidean<e2m3_t>, nk_euclidean_e2m3_alder);
-    run_if_matches("angular_i8_alder", test_angular<i8_t>, nk_angular_i8_alder);
-    run_if_matches("angular_u8_alder", test_angular<u8_t>, nk_angular_u8_alder);
-    run_if_matches("angular_e2m3_alder", test_angular<e2m3_t>, nk_angular_e2m3_alder);
+    check("sqeuclidean_i8_alder", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_alder);
+    check("sqeuclidean_u8_alder", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_alder);
+    check("sqeuclidean_e2m3_alder", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_alder);
+    check("euclidean_i8_alder", test_euclidean<i8_t>, nk_euclidean_i8_alder);
+    check("euclidean_u8_alder", test_euclidean<u8_t>, nk_euclidean_u8_alder);
+    check("euclidean_e2m3_alder", test_euclidean<e2m3_t>, nk_euclidean_e2m3_alder);
+    check("angular_i8_alder", test_angular<i8_t>, nk_angular_i8_alder);
+    check("angular_u8_alder", test_angular<u8_t>, nk_angular_u8_alder);
+    check("angular_e2m3_alder", test_angular<e2m3_t>, nk_angular_e2m3_alder);
 #endif // NK_TARGET_ALDER
 
 #if NK_TARGET_SIERRA
-    run_if_matches("sqeuclidean_i8_sierra", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_sierra);
-    run_if_matches("sqeuclidean_u8_sierra", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_sierra);
-    run_if_matches("sqeuclidean_e2m3_sierra", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sierra);
-    run_if_matches("euclidean_i8_sierra", test_euclidean<i8_t>, nk_euclidean_i8_sierra);
-    run_if_matches("euclidean_u8_sierra", test_euclidean<u8_t>, nk_euclidean_u8_sierra);
-    run_if_matches("euclidean_e2m3_sierra", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sierra);
-    run_if_matches("angular_i8_sierra", test_angular<i8_t>, nk_angular_i8_sierra);
-    run_if_matches("angular_u8_sierra", test_angular<u8_t>, nk_angular_u8_sierra);
-    run_if_matches("angular_e2m3_sierra", test_angular<e2m3_t>, nk_angular_e2m3_sierra);
+    check("sqeuclidean_i8_sierra", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_sierra);
+    check("sqeuclidean_u8_sierra", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_sierra);
+    check("sqeuclidean_e2m3_sierra", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sierra);
+    check("euclidean_i8_sierra", test_euclidean<i8_t>, nk_euclidean_i8_sierra);
+    check("euclidean_u8_sierra", test_euclidean<u8_t>, nk_euclidean_u8_sierra);
+    check("euclidean_e2m3_sierra", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sierra);
+    check("angular_i8_sierra", test_angular<i8_t>, nk_angular_i8_sierra);
+    check("angular_u8_sierra", test_angular<u8_t>, nk_angular_u8_sierra);
+    check("angular_e2m3_sierra", test_angular<e2m3_t>, nk_angular_e2m3_sierra);
 #endif // NK_TARGET_SIERRA
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("angular_e2m3_sapphire", test_angular<e2m3_t>, nk_angular_e2m3_sapphire);
-    run_if_matches("sqeuclidean_e2m3_sapphire", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sapphire);
-    run_if_matches("euclidean_e2m3_sapphire", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sapphire);
-    run_if_matches("angular_e3m2_sapphire", test_angular<e3m2_t>, nk_angular_e3m2_sapphire);
-    run_if_matches("sqeuclidean_e3m2_sapphire", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_sapphire);
-    run_if_matches("euclidean_e3m2_sapphire", test_euclidean<e3m2_t>, nk_euclidean_e3m2_sapphire);
-    run_if_matches("sqeuclidean_e4m3_sapphire", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_sapphire);
-    run_if_matches("euclidean_e4m3_sapphire", test_euclidean<e4m3_t>, nk_euclidean_e4m3_sapphire);
+    check("angular_e2m3_sapphire", test_angular<e2m3_t>, nk_angular_e2m3_sapphire);
+    check("sqeuclidean_e2m3_sapphire", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sapphire);
+    check("euclidean_e2m3_sapphire", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sapphire);
+    check("angular_e3m2_sapphire", test_angular<e3m2_t>, nk_angular_e3m2_sapphire);
+    check("sqeuclidean_e3m2_sapphire", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_sapphire);
+    check("euclidean_e3m2_sapphire", test_euclidean<e3m2_t>, nk_euclidean_e3m2_sapphire);
+    check("sqeuclidean_e4m3_sapphire", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_sapphire);
+    check("euclidean_e4m3_sapphire", test_euclidean<e4m3_t>, nk_euclidean_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
-    run_if_matches("sqeuclidean_f32_rvv", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_rvv);
-    run_if_matches("sqeuclidean_f64_rvv", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_rvv);
-    run_if_matches("sqeuclidean_f16_rvv", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvv);
-    run_if_matches("sqeuclidean_bf16_rvv", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvv);
-    run_if_matches("sqeuclidean_i4_rvv", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_rvv);
-    run_if_matches("sqeuclidean_u4_rvv", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_rvv);
-    run_if_matches("euclidean_f32_rvv", test_euclidean<f32_t>, nk_euclidean_f32_rvv);
-    run_if_matches("euclidean_f64_rvv", test_euclidean<f64_t>, nk_euclidean_f64_rvv);
-    run_if_matches("euclidean_f16_rvv", test_euclidean<f16_t>, nk_euclidean_f16_rvv);
-    run_if_matches("euclidean_bf16_rvv", test_euclidean<bf16_t>, nk_euclidean_bf16_rvv);
-    run_if_matches("angular_f32_rvv", test_angular<f32_t>, nk_angular_f32_rvv);
-    run_if_matches("angular_f64_rvv", test_angular<f64_t>, nk_angular_f64_rvv);
-    run_if_matches("angular_f16_rvv", test_angular<f16_t>, nk_angular_f16_rvv);
-    run_if_matches("angular_bf16_rvv", test_angular<bf16_t>, nk_angular_bf16_rvv);
-    run_if_matches("angular_i4_rvv", test_angular<i4x2_t>, nk_angular_i4_rvv);
-    run_if_matches("angular_u4_rvv", test_angular<u4x2_t>, nk_angular_u4_rvv);
+    check("sqeuclidean_f32_rvv", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_rvv);
+    check("sqeuclidean_f64_rvv", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_rvv);
+    check("sqeuclidean_f16_rvv", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvv);
+    check("sqeuclidean_bf16_rvv", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvv);
+    check("sqeuclidean_i4_rvv", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_rvv);
+    check("sqeuclidean_u4_rvv", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_rvv);
+    check("euclidean_f32_rvv", test_euclidean<f32_t>, nk_euclidean_f32_rvv);
+    check("euclidean_f64_rvv", test_euclidean<f64_t>, nk_euclidean_f64_rvv);
+    check("euclidean_f16_rvv", test_euclidean<f16_t>, nk_euclidean_f16_rvv);
+    check("euclidean_bf16_rvv", test_euclidean<bf16_t>, nk_euclidean_bf16_rvv);
+    check("angular_f32_rvv", test_angular<f32_t>, nk_angular_f32_rvv);
+    check("angular_f64_rvv", test_angular<f64_t>, nk_angular_f64_rvv);
+    check("angular_f16_rvv", test_angular<f16_t>, nk_angular_f16_rvv);
+    check("angular_bf16_rvv", test_angular<bf16_t>, nk_angular_bf16_rvv);
+    check("angular_i4_rvv", test_angular<i4x2_t>, nk_angular_i4_rvv);
+    check("angular_u4_rvv", test_angular<u4x2_t>, nk_angular_u4_rvv);
 #endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("sqeuclidean_f32_v128relaxed", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_v128relaxed);
-    run_if_matches("sqeuclidean_f64_v128relaxed", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_v128relaxed);
-    run_if_matches("sqeuclidean_f16_v128relaxed", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_v128relaxed);
-    run_if_matches("sqeuclidean_bf16_v128relaxed", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_v128relaxed);
-    run_if_matches("euclidean_f32_v128relaxed", test_euclidean<f32_t>, nk_euclidean_f32_v128relaxed);
-    run_if_matches("euclidean_f64_v128relaxed", test_euclidean<f64_t>, nk_euclidean_f64_v128relaxed);
-    run_if_matches("euclidean_f16_v128relaxed", test_euclidean<f16_t>, nk_euclidean_f16_v128relaxed);
-    run_if_matches("euclidean_bf16_v128relaxed", test_euclidean<bf16_t>, nk_euclidean_bf16_v128relaxed);
-    run_if_matches("angular_f32_v128relaxed", test_angular<f32_t>, nk_angular_f32_v128relaxed);
-    run_if_matches("angular_f64_v128relaxed", test_angular<f64_t>, nk_angular_f64_v128relaxed);
-    run_if_matches("angular_f16_v128relaxed", test_angular<f16_t>, nk_angular_f16_v128relaxed);
-    run_if_matches("angular_bf16_v128relaxed", test_angular<bf16_t>, nk_angular_bf16_v128relaxed);
-    run_if_matches("sqeuclidean_u8_v128relaxed", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_v128relaxed);
-    run_if_matches("euclidean_u8_v128relaxed", test_euclidean<u8_t>, nk_euclidean_u8_v128relaxed);
-    run_if_matches("angular_u8_v128relaxed", test_angular<u8_t>, nk_angular_u8_v128relaxed);
-    run_if_matches("sqeuclidean_i8_v128relaxed", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_v128relaxed);
-    run_if_matches("euclidean_i8_v128relaxed", test_euclidean<i8_t>, nk_euclidean_i8_v128relaxed);
-    run_if_matches("angular_i8_v128relaxed", test_angular<i8_t>, nk_angular_i8_v128relaxed);
+    check("sqeuclidean_f32_v128relaxed", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_v128relaxed);
+    check("sqeuclidean_f64_v128relaxed", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_v128relaxed);
+    check("sqeuclidean_f16_v128relaxed", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_v128relaxed);
+    check("sqeuclidean_bf16_v128relaxed", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_v128relaxed);
+    check("euclidean_f32_v128relaxed", test_euclidean<f32_t>, nk_euclidean_f32_v128relaxed);
+    check("euclidean_f64_v128relaxed", test_euclidean<f64_t>, nk_euclidean_f64_v128relaxed);
+    check("euclidean_f16_v128relaxed", test_euclidean<f16_t>, nk_euclidean_f16_v128relaxed);
+    check("euclidean_bf16_v128relaxed", test_euclidean<bf16_t>, nk_euclidean_bf16_v128relaxed);
+    check("angular_f32_v128relaxed", test_angular<f32_t>, nk_angular_f32_v128relaxed);
+    check("angular_f64_v128relaxed", test_angular<f64_t>, nk_angular_f64_v128relaxed);
+    check("angular_f16_v128relaxed", test_angular<f16_t>, nk_angular_f16_v128relaxed);
+    check("angular_bf16_v128relaxed", test_angular<bf16_t>, nk_angular_bf16_v128relaxed);
+    check("sqeuclidean_u8_v128relaxed", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_v128relaxed);
+    check("euclidean_u8_v128relaxed", test_euclidean<u8_t>, nk_euclidean_u8_v128relaxed);
+    check("angular_u8_v128relaxed", test_angular<u8_t>, nk_angular_u8_v128relaxed);
+    check("sqeuclidean_i8_v128relaxed", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_v128relaxed);
+    check("euclidean_i8_v128relaxed", test_euclidean<i8_t>, nk_euclidean_i8_v128relaxed);
+    check("angular_i8_v128relaxed", test_angular<i8_t>, nk_angular_i8_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF
-    run_if_matches("sqeuclidean_f16_rvvhalf", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvvhalf);
-    run_if_matches("euclidean_f16_rvvhalf", test_euclidean<f16_t>, nk_euclidean_f16_rvvhalf);
-    run_if_matches("angular_f16_rvvhalf", test_angular<f16_t>, nk_angular_f16_rvvhalf);
+    check("sqeuclidean_f16_rvvhalf", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvvhalf);
+    check("euclidean_f16_rvvhalf", test_euclidean<f16_t>, nk_euclidean_f16_rvvhalf);
+    check("angular_f16_rvvhalf", test_angular<f16_t>, nk_angular_f16_rvvhalf);
 #endif // NK_TARGET_RVVHALF
 
 #if NK_TARGET_RVVBF16
-    run_if_matches("sqeuclidean_bf16_rvvbf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvvbf16);
-    run_if_matches("euclidean_bf16_rvvbf16", test_euclidean<bf16_t>, nk_euclidean_bf16_rvvbf16);
-    run_if_matches("angular_bf16_rvvbf16", test_angular<bf16_t>, nk_angular_bf16_rvvbf16);
+    check("sqeuclidean_bf16_rvvbf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvvbf16);
+    check("euclidean_bf16_rvvbf16", test_euclidean<bf16_t>, nk_euclidean_bf16_rvvbf16);
+    check("angular_bf16_rvvbf16", test_angular<bf16_t>, nk_angular_bf16_rvvbf16);
 #endif // NK_TARGET_RVVBF16
 
     // Serial always runs - baseline test
-    run_if_matches("sqeuclidean_f32_serial", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_serial);
-    run_if_matches("sqeuclidean_f64_serial", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_serial);
-    run_if_matches("sqeuclidean_f16_serial", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_serial);
-    run_if_matches("sqeuclidean_bf16_serial", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_serial);
-    run_if_matches("sqeuclidean_e2m3_serial", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_serial);
-    run_if_matches("sqeuclidean_e3m2_serial", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_serial);
-    run_if_matches("euclidean_f32_serial", test_euclidean<f32_t>, nk_euclidean_f32_serial);
-    run_if_matches("euclidean_f64_serial", test_euclidean<f64_t>, nk_euclidean_f64_serial);
-    run_if_matches("euclidean_f16_serial", test_euclidean<f16_t>, nk_euclidean_f16_serial);
-    run_if_matches("euclidean_bf16_serial", test_euclidean<bf16_t>, nk_euclidean_bf16_serial);
-    run_if_matches("euclidean_e2m3_serial", test_euclidean<e2m3_t>, nk_euclidean_e2m3_serial);
-    run_if_matches("euclidean_e3m2_serial", test_euclidean<e3m2_t>, nk_euclidean_e3m2_serial);
-    run_if_matches("angular_f32_serial", test_angular<f32_t>, nk_angular_f32_serial);
-    run_if_matches("angular_f64_serial", test_angular<f64_t>, nk_angular_f64_serial);
-    run_if_matches("angular_f16_serial", test_angular<f16_t>, nk_angular_f16_serial);
-    run_if_matches("angular_bf16_serial", test_angular<bf16_t>, nk_angular_bf16_serial);
-    run_if_matches("angular_e2m3_serial", test_angular<e2m3_t>, nk_angular_e2m3_serial);
-    run_if_matches("angular_e3m2_serial", test_angular<e3m2_t>, nk_angular_e3m2_serial);
-    run_if_matches("sqeuclidean_i4_serial", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_serial);
-    run_if_matches("sqeuclidean_u4_serial", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_serial);
-    run_if_matches("euclidean_i4_serial", test_euclidean<i4x2_t>, nk_euclidean_i4_serial);
-    run_if_matches("euclidean_u4_serial", test_euclidean<u4x2_t>, nk_euclidean_u4_serial);
-    run_if_matches("angular_i4_serial", test_angular<i4x2_t>, nk_angular_i4_serial);
-    run_if_matches("angular_u4_serial", test_angular<u4x2_t>, nk_angular_u4_serial);
-    run_if_matches("angular_e4m3_serial", test_angular<e4m3_t>, nk_angular_e4m3_serial);
-    run_if_matches("sqeuclidean_e4m3_serial", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_serial);
-    run_if_matches("euclidean_e4m3_serial", test_euclidean<e4m3_t>, nk_euclidean_e4m3_serial);
-    run_if_matches("angular_e5m2_serial", test_angular<e5m2_t>, nk_angular_e5m2_serial);
-    run_if_matches("sqeuclidean_e5m2_serial", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_serial);
-    run_if_matches("euclidean_e5m2_serial", test_euclidean<e5m2_t>, nk_euclidean_e5m2_serial);
-    run_if_matches("angular_i8_serial", test_angular<i8_t>, nk_angular_i8_serial);
-    run_if_matches("sqeuclidean_i8_serial", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_serial);
-    run_if_matches("euclidean_i8_serial", test_euclidean<i8_t>, nk_euclidean_i8_serial);
-    run_if_matches("angular_u8_serial", test_angular<u8_t>, nk_angular_u8_serial);
-    run_if_matches("sqeuclidean_u8_serial", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_serial);
-    run_if_matches("euclidean_u8_serial", test_euclidean<u8_t>, nk_euclidean_u8_serial);
+    check("sqeuclidean_f32_serial", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_serial);
+    check("sqeuclidean_f64_serial", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_serial);
+    check("sqeuclidean_f16_serial", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_serial);
+    check("sqeuclidean_bf16_serial", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_serial);
+    check("sqeuclidean_e2m3_serial", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_serial);
+    check("sqeuclidean_e3m2_serial", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_serial);
+    check("euclidean_f32_serial", test_euclidean<f32_t>, nk_euclidean_f32_serial);
+    check("euclidean_f64_serial", test_euclidean<f64_t>, nk_euclidean_f64_serial);
+    check("euclidean_f16_serial", test_euclidean<f16_t>, nk_euclidean_f16_serial);
+    check("euclidean_bf16_serial", test_euclidean<bf16_t>, nk_euclidean_bf16_serial);
+    check("euclidean_e2m3_serial", test_euclidean<e2m3_t>, nk_euclidean_e2m3_serial);
+    check("euclidean_e3m2_serial", test_euclidean<e3m2_t>, nk_euclidean_e3m2_serial);
+    check("angular_f32_serial", test_angular<f32_t>, nk_angular_f32_serial);
+    check("angular_f64_serial", test_angular<f64_t>, nk_angular_f64_serial);
+    check("angular_f16_serial", test_angular<f16_t>, nk_angular_f16_serial);
+    check("angular_bf16_serial", test_angular<bf16_t>, nk_angular_bf16_serial);
+    check("angular_e2m3_serial", test_angular<e2m3_t>, nk_angular_e2m3_serial);
+    check("angular_e3m2_serial", test_angular<e3m2_t>, nk_angular_e3m2_serial);
+    check("sqeuclidean_i4_serial", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_serial);
+    check("sqeuclidean_u4_serial", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_serial);
+    check("euclidean_i4_serial", test_euclidean<i4x2_t>, nk_euclidean_i4_serial);
+    check("euclidean_u4_serial", test_euclidean<u4x2_t>, nk_euclidean_u4_serial);
+    check("angular_i4_serial", test_angular<i4x2_t>, nk_angular_i4_serial);
+    check("angular_u4_serial", test_angular<u4x2_t>, nk_angular_u4_serial);
+    check("angular_e4m3_serial", test_angular<e4m3_t>, nk_angular_e4m3_serial);
+    check("sqeuclidean_e4m3_serial", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_serial);
+    check("euclidean_e4m3_serial", test_euclidean<e4m3_t>, nk_euclidean_e4m3_serial);
+    check("angular_e5m2_serial", test_angular<e5m2_t>, nk_angular_e5m2_serial);
+    check("sqeuclidean_e5m2_serial", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_serial);
+    check("euclidean_e5m2_serial", test_euclidean<e5m2_t>, nk_euclidean_e5m2_serial);
+    check("angular_i8_serial", test_angular<i8_t>, nk_angular_i8_serial);
+    check("sqeuclidean_i8_serial", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_serial);
+    check("euclidean_i8_serial", test_euclidean<i8_t>, nk_euclidean_i8_serial);
+    check("angular_u8_serial", test_angular<u8_t>, nk_angular_u8_serial);
+    check("sqeuclidean_u8_serial", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_serial);
+    check("euclidean_u8_serial", test_euclidean<u8_t>, nk_euclidean_u8_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
