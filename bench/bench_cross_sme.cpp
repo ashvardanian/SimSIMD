@@ -126,11 +126,11 @@ void bench_cross_sme() {
                           nk_dots_packed_u1_smebi32);
     run_dots_symmetric<u1_k>("dots_symmetric_u1_smebi32", nk_dots_symmetric_u1_smebi32);
 
-    run_hammings_packed<u1_k>("hammings_packed_u1_smebi32", nk_sets_packed_size_u1_smebi32, nk_sets_pack_u1_smebi32,
+    run_hammings_packed<u1_k>("hammings_packed_u1_smebi32", nk_dots_packed_size_u1_smebi32, nk_dots_pack_u1_smebi32,
                               nk_hammings_packed_u1_smebi32);
     run_hammings_symmetric<u1_k>("hammings_symmetric_u1_smebi32", nk_hammings_symmetric_u1_smebi32);
 
-    run_jaccards_packed<u1_k>("jaccards_packed_u1_smebi32", nk_sets_packed_size_u1_smebi32, nk_sets_pack_u1_smebi32,
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_smebi32", nk_dots_packed_size_u1_smebi32, nk_dots_pack_u1_smebi32,
                               nk_jaccards_packed_u1_smebi32);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_smebi32", nk_jaccards_symmetric_u1_smebi32);
 #endif
