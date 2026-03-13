@@ -31,7 +31,8 @@ template <typename scalar_type_>
 error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
     using scalar_t = scalar_type_;
 
-    error_stats_t stats;
+    error_stats_t stats(nk::is_integer<scalar_t>() ? comparison_family_t::exact_k
+                                                   : comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -60,7 +61,8 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(nk::is_integer<scalar_t>() ? comparison_family_t::exact_k
+                                                   : comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto input = make_vector<scalar_t>(global_config.dense_dimensions);
     auto result = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -89,7 +91,8 @@ error_stats_t test_blend(typename scalar_type_::blend_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(nk::is_integer<scalar_t>() ? comparison_family_t::exact_k
+                                                   : comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -121,7 +124,8 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(nk::is_integer<scalar_t>() ? comparison_family_t::exact_k
+                                                   : comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -147,8 +151,7 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
 }
 
 void test_each() {
-    std::puts("");
-    std::printf("Elementwise Operations:\n");
+    stats_section_t run_if_matches("Elementwise Operations");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself

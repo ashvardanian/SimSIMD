@@ -16,7 +16,7 @@ error_stats_t test_hamming(typename scalar_type_::hamming_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::hamming_result_t;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
 
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -47,7 +47,7 @@ error_stats_t test_jaccard(typename scalar_type_::jaccard_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using result_t = typename scalar_t::jaccard_result_t;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
 
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -71,8 +71,7 @@ error_stats_t test_jaccard(typename scalar_type_::jaccard_kernel_t kernel) {
 }
 
 void test_set() {
-    std::puts("");
-    std::printf("Binary Distances:\n");
+    stats_section_t run_if_matches("Binary Distances");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself

@@ -8,6 +8,7 @@
 #include "test_cross.hpp"
 
 void test_cross_sme() {
+    [[maybe_unused]] stats_section_t run_if_matches;
 #if NK_TARGET_SME
     run_if_matches("dots_packed_f16_sme", test_dots_packed<f16_t>, nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
                    nk_dots_packed_f16_sme);

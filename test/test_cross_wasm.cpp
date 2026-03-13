@@ -8,6 +8,7 @@
 #include "test_cross.hpp"
 
 void test_cross_wasm() {
+    [[maybe_unused]] stats_section_t run_if_matches;
 #if NK_TARGET_V128RELAXED
     run_if_matches("dots_packed_f64_v128relaxed", test_dots_packed<f64_t>, nk_dots_packed_size_f64_v128relaxed,
                    nk_dots_pack_f64_v128relaxed, nk_dots_packed_f64_v128relaxed);

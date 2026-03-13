@@ -8,6 +8,7 @@
 #include "test_cross.hpp"
 
 void test_cross_serial() {
+    [[maybe_unused]] stats_section_t run_if_matches;
     // Dynamic-dispatch tests (auto-selected best ISA)
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("dots_packed_f64", test_dots_packed<f64_t>, nk_dots_packed_size_f64, nk_dots_pack_f64,

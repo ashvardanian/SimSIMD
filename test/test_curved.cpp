@@ -43,7 +43,7 @@ error_stats_t test_bilinear(typename scalar_type_::curved_kernel_t kernel) {
     using result_t = typename scalar_t::curved_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -78,7 +78,7 @@ error_stats_t test_mahalanobis(typename scalar_type_::curved_kernel_t kernel) {
     using result_t = typename scalar_t::curved_result_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -105,8 +105,7 @@ error_stats_t test_mahalanobis(typename scalar_type_::curved_kernel_t kernel) {
 }
 
 void test_curved() {
-    std::puts("");
-    std::printf("Curved/Bilinear Forms:\n");
+    stats_section_t run_if_matches("Curved/Bilinear Forms");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("bilinear_f32", test_bilinear<f32_t>, nk_bilinear_f32);

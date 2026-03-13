@@ -16,7 +16,7 @@ error_stats_t test_reduce_moments(typename input_type_::reduce_moments_kernel_t 
                                   typename input_type_::reduce_moments_kernel_t reference) {
     using sum_type_ = typename input_type_::reduce_moments_sum_t;
     using sumsq_type_ = typename input_type_::reduce_moments_sumsq_t;
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     std::uniform_int_distribution<std::size_t> stride_bytes_distribution(1, max_stride_k);
     auto buffer = make_vector<input_type_>(global_config.dense_dimensions * (max_stride_k + sizeof(input_type_)));
@@ -39,7 +39,7 @@ template <typename input_type_>
 error_stats_t test_reduce_minmax(typename input_type_::reduce_minmax_kernel_t kernel,
                                  typename input_type_::reduce_minmax_kernel_t reference) {
     using output_type_ = typename input_type_::reduce_minmax_value_t;
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
     std::uniform_int_distribution<std::size_t> stride_bytes_distribution(1, max_stride_k);
     auto buffer = make_vector<input_type_>(global_config.dense_dimensions * (max_stride_k + sizeof(input_type_)));
@@ -61,8 +61,7 @@ error_stats_t test_reduce_minmax(typename input_type_::reduce_minmax_kernel_t ke
 }
 
 void test_reduce() {
-    std::puts("");
-    std::printf("Reductions:\n");
+    stats_section_t run_if_matches("Reductions");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("reduce_moments_f32", test_reduce_moments<f32_t>, nk_reduce_moments_f32,

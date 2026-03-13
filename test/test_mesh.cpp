@@ -18,7 +18,7 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     using metric_t = typename scalar_t::mesh_metric_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     std::size_t n = global_config.mesh_points;
@@ -51,7 +51,7 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     using metric_t = typename scalar_t::mesh_metric_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     std::size_t n = global_config.mesh_points;
@@ -84,7 +84,7 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     using metric_t = typename scalar_t::mesh_metric_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     std::size_t n = global_config.mesh_points;
@@ -108,8 +108,7 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
 }
 
 void test_mesh() {
-    std::puts("");
-    std::printf("Mesh Operations:\n");
+    stats_section_t run_if_matches("Mesh Operations");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("rmsd_f64", test_rmsd<f64_t>, nk_rmsd_f64);

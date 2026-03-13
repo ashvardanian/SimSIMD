@@ -19,7 +19,7 @@ error_stats_t test_kld(typename scalar_type_::probability_kernel_t kernel) {
     using result_t = typename scalar_t::probability_result_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::probability_k);
     std::mt19937 generator(global_config.seed);
     auto p = make_vector<scalar_t>(global_config.dense_dimensions),
          q = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -52,7 +52,7 @@ error_stats_t test_jsd(typename scalar_type_::probability_kernel_t kernel) {
     using result_t = typename scalar_t::probability_result_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::probability_k);
     std::mt19937 generator(global_config.seed);
     auto p = make_vector<scalar_t>(global_config.dense_dimensions),
          q = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -75,8 +75,7 @@ error_stats_t test_jsd(typename scalar_type_::probability_kernel_t kernel) {
 }
 
 void test_probability() {
-    std::puts("");
-    std::printf("Probability Divergences:\n");
+    stats_section_t run_if_matches("Probability Divergences");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("kld_f32", test_kld<f32_t>, nk_kld_f32);

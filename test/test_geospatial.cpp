@@ -17,7 +17,7 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
     using raw_t = typename scalar_t::raw_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t ulp_stats, abs_stats;
+    error_stats_t ulp_stats(comparison_family_t::geospatial_k), abs_stats(comparison_family_t::geospatial_k);
     std::mt19937 generator(global_config.seed);
     auto a_lats = make_vector<scalar_t>(global_config.dense_dimensions),
          a_lons = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -50,7 +50,7 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
 
     // ULP measures implementation precision (vs haversine f118),
     // abs/rel measures formula accuracy (vs vincenty f118)
-    error_stats_t combined;
+    error_stats_t combined(comparison_family_t::geospatial_k);
     combined.min_ulp = ulp_stats.min_ulp;
     combined.max_ulp = ulp_stats.max_ulp;
     combined.sum_ulp = ulp_stats.sum_ulp;
@@ -74,7 +74,7 @@ error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::geospatial_k);
     std::mt19937 generator(global_config.seed);
     auto a_lats = make_vector<scalar_t>(global_config.dense_dimensions),
          a_lons = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -101,8 +101,7 @@ error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
 }
 
 void test_geospatial() {
-    std::puts("");
-    std::printf("Geospatial Functions:\n");
+    stats_section_t run_if_matches("Geospatial Functions");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("haversine_f64", test_haversine<f64_t>, nk_haversine_f64);

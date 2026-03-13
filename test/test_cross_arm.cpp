@@ -10,6 +10,7 @@
 #include "test_cross.hpp"
 
 void test_cross_arm() {
+    [[maybe_unused]] stats_section_t run_if_matches;
 #if NK_TARGET_NEON
     run_if_matches("dots_packed_f64_neon", test_dots_packed<f64_t>, nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
                    nk_dots_packed_f64_neon);

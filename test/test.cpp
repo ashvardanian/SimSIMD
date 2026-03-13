@@ -91,16 +91,12 @@ bool test_config_t::should_run(char const *test_name) const {
 #endif
 }
 
-/**
- *  @brief Print the header for the error statistics table.
- */
-void print_stats_header() noexcept {
-    std::puts("");
-    std::printf("NumKong Precision Analysis\n");
-    std::printf("%-40s %12s %10s %12s %12s %10s\n", "Kernel", "max_ulp", "mean_ulp", "max_abs", "max_rel", "exact");
+void print_stats_header(comparison_family_t family) noexcept {
+    comparison_family_spec_t const spec = comparison_family_spec(family);
+    std::printf("%-40s %12s %10s %12s %12s %10s\n", "Kernel", spec.column_labels[0], spec.column_labels[1],
+                spec.column_labels[2], spec.column_labels[3], spec.column_labels[4]);
     std::printf("\n");
 }
-
 
 int main(int argc, char **argv) {
 
@@ -297,8 +293,8 @@ int main(int argc, char **argv) {
                 global_config.mesh_points, global_config.matrix_height, global_config.matrix_width,
                 global_config.matrix_depth);
 
-    // ULP thresholds
-    std::printf("  ULP: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
+    // ABI distance thresholds
+    std::printf("  ABI: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
                 (unsigned long long)global_config.ulp_threshold_f32,
                 (unsigned long long)global_config.ulp_threshold_f16,
                 (unsigned long long)global_config.ulp_threshold_bf16);
@@ -312,8 +308,6 @@ int main(int argc, char **argv) {
     test_vector_types();
     test_tensor_ops();
 
-    // Print a table header
-    print_stats_header();
     test_casts();
 
     // Core operation tests
@@ -331,6 +325,8 @@ int main(int argc, char **argv) {
     test_maxsim();
 
     // Cross/batch tests (ISA-family files for parallel compilation)
+    std::puts("");
+    std::printf("Cross:\n");
     test_cross_serial();
     test_cross_x86();
     test_cross_amx();
@@ -342,7 +338,7 @@ int main(int argc, char **argv) {
 
     if (global_config.failure_count > 0) {
         std::puts("");
-        std::printf("%zu kernel(s) exceeded ULP thresholds.\n", global_config.failure_count);
+        std::printf("%zu kernel(s) failed accuracy checks.\n", global_config.failure_count);
         return 1;
     }
     std::puts("");

@@ -14,7 +14,7 @@
 template <typename index_type_>
 error_stats_t test_intersect(typename index_type_::sparse_intersect_kernel_t kernel) {
     using index_t = index_type_;
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
     std::size_t dim = global_config.sparse_dimensions;
     auto a = make_vector<index_t>(dim), b = make_vector<index_t>(dim);
@@ -46,7 +46,7 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
     using index_t = typename weight_t::sparse_dot_index_t;
     using reference_t = reference_for<weight_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     std::size_t dim = global_config.sparse_dimensions;
     auto a_idx = make_vector<index_t>(dim), b_idx = make_vector<index_t>(dim);
@@ -71,8 +71,7 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
 }
 
 void test_sparse() {
-    std::puts("");
-    std::printf("Sparse Operations:\n");
+    stats_section_t run_if_matches("Sparse Operations");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("sparse_intersect_u16", test_intersect<u16_t>, nk_sparse_intersect_u16);

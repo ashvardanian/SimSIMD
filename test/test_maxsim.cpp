@@ -21,7 +21,7 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
     using result_t = typename scalar_t::maxsim_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
     std::size_t query_count = global_config.matrix_height;
@@ -60,6 +60,7 @@ error_stats_t test_maxsim_packed(typename scalar_type_::dots_packed_size_kernel_
 }
 
 void test_maxsim() {
+    stats_section_t run_if_matches("MaxSim");
 
     // Serial maxsim tests
     run_if_matches("maxsim_bf16_serial", test_maxsim_packed<bf16_t>, nk_maxsim_packed_size_bf16_serial,

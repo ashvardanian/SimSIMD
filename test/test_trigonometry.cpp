@@ -17,7 +17,7 @@ error_stats_t test_sin(typename scalar_type_::trigonometry_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto inputs = make_vector<scalar_t>(global_config.dense_dimensions);
     auto outputs = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -45,7 +45,7 @@ error_stats_t test_cos(typename scalar_type_::trigonometry_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto inputs = make_vector<scalar_t>(global_config.dense_dimensions);
     auto outputs = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -73,7 +73,7 @@ error_stats_t test_atan(typename scalar_type_::trigonometry_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
     using reference_t = reference_for<scalar_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     auto inputs = make_vector<scalar_t>(global_config.dense_dimensions);
     auto outputs = make_vector<scalar_t>(global_config.dense_dimensions),
@@ -92,8 +92,7 @@ error_stats_t test_atan(typename scalar_type_::trigonometry_kernel_t kernel) {
 }
 
 void test_trigonometry() {
-    std::puts("");
-    std::printf("Trigonometry:\n");
+    stats_section_t run_if_matches("Trigonometry");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("each_sin_f32", test_sin<f32_t>, nk_each_sin_f32);

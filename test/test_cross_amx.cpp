@@ -8,6 +8,7 @@
 #include "test_cross.hpp"
 
 void test_cross_amx() {
+    [[maybe_unused]] stats_section_t run_if_matches;
 #if NK_TARGET_SAPPHIREAMX
     run_if_matches("dots_packed_bf16_sapphireamx", test_dots_packed<bf16_t>, nk_dots_packed_size_bf16_sapphireamx,
                    nk_dots_pack_bf16_sapphireamx, nk_dots_packed_bf16_sapphireamx);

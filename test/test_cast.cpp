@@ -16,7 +16,7 @@ using cast_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t)
  */
 template <typename from_type_, typename to_type_>
 error_stats_t test_cast(cast_t kernel) {
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
 
     auto src = make_vector<from_type_>(global_config.dense_dimensions);
@@ -38,8 +38,7 @@ error_stats_t test_cast(cast_t kernel) {
 }
 
 void test_casts() {
-    std::puts("");
-    std::printf("Type Casts:\n");
+    stats_section_t run_if_matches("Type Casts");
 
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("cast_f32_to_f16", test_cast<f32_t, f16_t>, nk_cast);

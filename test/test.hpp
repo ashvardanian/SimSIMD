@@ -20,7 +20,7 @@
  *    NK_MATRIX_DEPTH=N             - GEMM K dimension (default: 1536)
  *
  *    NK_IN_QEMU                    - Set when running under QEMU (relaxes accuracy thresholds)
- *    NK_TEST_ASSERT=1              - Assert on ULP threshold violations (default: 0)
+ *    NK_TEST_ASSERT=1              - Assert on failed accuracy checks (default: 0)
  *    NK_TEST_VERBOSE=1             - Show per-dimension ULP breakdown (default: 0)
  *    NK_ULP_THRESHOLD_F32=N        - Max allowed ULP for f32 (default: 4)
  *    NK_ULP_THRESHOLD_F16=N        - Max allowed ULP for f16 (default: 32)
@@ -40,10 +40,13 @@
 #include <cstring> // `std::memcpy`, `std::strstr`
 
 #include <algorithm> // `std::min`, `std::max`
+#include <array>     // `std::array`
+#include <cassert>   // `assert`
 #include <chrono>    // `std::chrono::steady_clock`, `std::chrono::duration_cast`
 #include <complex>   // `std::complex`
 #include <limits>    // `std::numeric_limits`
 #include <new>       // `std::bad_alloc`
+#include <optional>  // `std::optional`
 
 #if NK_TEST_USE_OPENMP
 #include <omp.h>
@@ -141,9 +144,39 @@ template class nk::vector<nk::f64c_t>;
 template class nk::vector<std::complex<float>>;
 
 enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
+enum class comparison_family_t {
+    exact_k,
+    narrow_arithmetic_k,
+    mixed_precision_reduction_k,
+    probability_k,
+    geospatial_k,
+    external_baseline_k,
+};
+enum class comparison_failure_mode_t { exact_distance_k, ulp_threshold_k };
+
+struct comparison_family_spec_t {
+    comparison_failure_mode_t failure_mode;
+    std::array<char const *, 5> column_labels;
+};
+
+inline constexpr comparison_family_spec_t comparison_family_spec(comparison_family_t family) noexcept {
+    switch (family) {
+    case comparison_family_t::exact_k:
+        return {comparison_failure_mode_t::exact_distance_k, {"max_dist", "mean_dist", "max_abs", "mismatch", "exact"}};
+    case comparison_family_t::probability_k:
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "mean_abs", "max_rel", "mean_rel", "max_abi"}};
+    case comparison_family_t::geospatial_k:
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abi", "mean_abi", "max_abs", "max_rel", "exact"}};
+    case comparison_family_t::narrow_arithmetic_k:
+    case comparison_family_t::mixed_precision_reduction_k:
+    case comparison_family_t::external_baseline_k:
+        return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "max_abi", "mean_abi", "exact"}};
+    }
+    return {comparison_failure_mode_t::ulp_threshold_k, {"max_abs", "max_rel", "max_abi", "mean_abi", "exact"}};
+}
 
 struct test_config_t {
-    /** Assert on ULP threshold violations. Override: `NK_TEST_ASSERT=1`. */
+    /** Assert on failed accuracy checks. Override: `NK_TEST_ASSERT=1`. */
     bool assert_on_failure = false;
     /** Show per-dimension ULP breakdown. Override: `NK_TEST_VERBOSE=1`. */
     bool verbose = false;
@@ -180,7 +213,7 @@ struct test_config_t {
     std::size_t matrix_depth = 1536;
     /** Max angular separation in degrees for geospatial tests. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
     float geospatial_max_angle = 180.0f;
-    /** Count of kernels that exceeded ULP thresholds. */
+    /** Count of kernels that failed the configured accuracy checks. */
     std::size_t failure_count = 0;
 
     bool should_run(char const *test_name) const;
@@ -202,21 +235,38 @@ struct test_config_t {
 };
 
 extern test_config_t global_config;
+void print_stats_header(comparison_family_t family) noexcept;
+struct error_stats_t;
+bool should_fail(char const *kernel_name, error_stats_t const &stats) noexcept;
+void print_stats_row(char const *kernel_name, error_stats_t const &stats) noexcept;
 
-/**
- *  @brief Run a test only if its kernel name matches the filter.
- *  @param kernel_name The full kernel name (e.g., "dot_f32_haswell", "sqeuclidean_f64_skylake")
- *  @param test_fn The test function that returns error_stats_t
- *  @param args Variadic arguments to forward to the test function
- */
-template <typename test_function_type_, typename... args_types_>
-void run_if_matches(char const *kernel_name, test_function_type_ test_fn, args_types_ &&...args) {
-    if (!global_config.should_run(kernel_name)) return;
-    auto stats = test_fn(std::forward<args_types_>(args)...);
-    stats.report(kernel_name);
-    if (global_config.assert_on_failure && stats.max_ulp > global_config.ulp_threshold_for(kernel_name))
-        ++global_config.failure_count;
-}
+struct stats_section_t {
+    char const *title = nullptr;
+    bool emitted_any = false;
+    std::optional<comparison_family_t> last_family;
+
+    explicit stats_section_t(char const *title = nullptr) noexcept : title(title) {}
+    ~stats_section_t() = default;
+
+    template <typename test_function_type_, typename... args_types_>
+    void operator()(char const *kernel_name, test_function_type_ test_fn, args_types_ &&...args) {
+        if (!global_config.should_run(kernel_name)) return;
+        auto stats = test_fn(std::forward<args_types_>(args)...);
+        if (!emitted_any) {
+            if (title) {
+                std::puts("");
+                std::printf("%s:\n", title);
+            }
+            emitted_any = true;
+        }
+        if (last_family != stats.family) {
+            print_stats_header(stats.family);
+            last_family = stats.family;
+        }
+        print_stats_row(kernel_name, stats);
+        if (global_config.assert_on_failure && should_fail(kernel_name, stats)) ++global_config.failure_count;
+    }
+};
 
 inline time_point test_start_time() { return steady_clock::now(); }
 
@@ -287,10 +337,23 @@ std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     }
 }
 
+template <typename scalar_type_>
+std::uint64_t integer_distance(scalar_type_ a, scalar_type_ b) noexcept {
+    auto ordered = [](scalar_type_ value) noexcept -> std::uint64_t {
+        if constexpr (nk::is_signed<scalar_type_>())
+            return static_cast<std::uint64_t>(static_cast<std::int64_t>(value)) ^ (1ull << 63);
+        else return static_cast<std::uint64_t>(value);
+    };
+    std::uint64_t a_ordered = ordered(a), b_ordered = ordered(b);
+    return a_ordered >= b_ordered ? a_ordered - b_ordered : b_ordered - a_ordered;
+}
+
 /**
  *  @brief Accumulator for error statistics across multiple test trials.
  */
 struct error_stats_t {
+    comparison_family_t family = comparison_family_t::narrow_arithmetic_k;
+
     nk_f64_t min_abs_err = std::numeric_limits<nk_f64_t>::max();
     nk_f64_t max_abs_err = 0;
     nk_f64_t sum_abs_err = 0;
@@ -305,6 +368,10 @@ struct error_stats_t {
 
     std::size_t count = 0;
     std::size_t exact_matches = 0;
+    bool saw_floating_distance = false;
+
+    explicit error_stats_t(comparison_family_t family = comparison_family_t::narrow_arithmetic_k) noexcept
+        : family(family) {}
 
     template <typename actual_type_, typename expected_type_>
     void accumulate(actual_type_ actual, expected_type_ expected) noexcept {
@@ -318,19 +385,21 @@ struct error_stats_t {
         actual_type_ expected_as_actual;
         if constexpr (std::is_same_v<expected_type_, f118_t> || std::is_same_v<expected_type_, f118c_t>)
             expected_as_actual = expected.template to<actual_type_>();
-        else if constexpr (std::is_integral_v<expected_type_> && std::is_integral_v<actual_type_>)
-            expected_as_actual = static_cast<actual_type_>(expected);
+        else if constexpr (nk::is_integer<expected_type_>() && nk::is_integer<actual_type_>())
+            expected_as_actual = actual_type_(expected);
         else expected_as_actual = actual_type_(static_cast<double>(expected));
 
-        // Compute ULP distance (handles both integers and floats)
-        std::uint64_t ulps = ulp_distance(actual, expected_as_actual);
+        bool const use_integer_distance = family == comparison_family_t::exact_k && nk::is_integer<actual_type_>();
+        std::uint64_t ulps = use_integer_distance ? integer_distance(actual, expected_as_actual)
+                                                  : ulp_distance(actual, expected_as_actual);
 
         // Skip NaN/Inf pairs — sentinel value means the comparison is meaningless
         if (ulps == std::numeric_limits<std::uint64_t>::max()) return;
 
-        // Only compute floating-point error metrics for non-integer types
-        if constexpr (!nk::is_integer<actual_type_>()) {
-            nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected);
+        if constexpr (!nk::is_integer<actual_type_>()) saw_floating_distance = true;
+
+        if constexpr (!nk::is_integer<actual_type_>() || std::is_integral_v<actual_type_>) {
+            nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected_as_actual);
             nk_f64_t act_f64 = static_cast<nk_f64_t>(actual);
 
             nk_f64_t abs_err = std::fabs(exp_f64 - act_f64);
@@ -359,10 +428,17 @@ struct error_stats_t {
         // On 32-bit WASM we need this ugly casting sequence to avoid adding more `f118_t` constructors
         return count > 0 ? static_cast<double>(sum_ulp / f118_t(static_cast<double>(count))) : 0;
     }
+    std::size_t mismatches() const noexcept { return count - exact_matches; }
 
-    void reset() noexcept { *this = error_stats_t {}; }
+    void reset() noexcept {
+        comparison_family_t const current_family = family;
+        *this = error_stats_t {current_family};
+    }
 
     void merge(error_stats_t const &other) noexcept {
+        if (other.count == 0) return;
+        if (count == 0) family = other.family;
+        else assert(family == other.family && "Can't merge stats from different comparison families");
         min_abs_err = std::min(min_abs_err, other.min_abs_err);
         max_abs_err = std::max(max_abs_err, other.max_abs_err);
         sum_abs_err += other.sum_abs_err;
@@ -374,25 +450,47 @@ struct error_stats_t {
         sum_ulp += other.sum_ulp;
         count += other.count;
         exact_matches += other.exact_matches;
-    }
-
-    void report(char const *kernel_name) const noexcept {
-        std::printf("%-40s %12llu %10.1f %12.2e %12.2e %10zu\n", kernel_name, static_cast<unsigned long long>(max_ulp),
-                    mean_ulp(), max_abs_err, max_rel_err, exact_matches);
-        std::fflush(stdout);
-    }
-
-    void report_dimension(char const *kernel_name, std::size_t dim) const noexcept {
-        std::printf("  %-38s dim=%-6zu %10llu %8.1f %10.2e %10.2e %8zu\n", kernel_name, dim,
-                    static_cast<unsigned long long>(max_ulp), mean_ulp(), max_abs_err, max_rel_err, exact_matches);
-        std::fflush(stdout);
+        saw_floating_distance = saw_floating_distance || other.saw_floating_distance;
     }
 };
 
-/**
- *  @brief Print the header for the error statistics table.
- */
-void print_stats_header() noexcept;
+inline bool should_fail(char const *kernel_name, error_stats_t const &stats) noexcept {
+    comparison_family_spec_t const spec = comparison_family_spec(stats.family);
+    switch (spec.failure_mode) {
+    case comparison_failure_mode_t::exact_distance_k:
+        if (!stats.saw_floating_distance) return stats.max_ulp > 0;
+        return stats.max_ulp > global_config.ulp_threshold_for(kernel_name);
+    case comparison_failure_mode_t::ulp_threshold_k:
+        return stats.max_ulp > global_config.ulp_threshold_for(kernel_name);
+    }
+    return false;
+}
+
+inline void print_stats_row(char const *kernel_name, error_stats_t const &stats) noexcept {
+    switch (stats.family) {
+    case comparison_family_t::exact_k:
+        std::printf("%-40s %12llu %10.1f %12.2e %12zu %10zu\n", kernel_name,
+                    static_cast<unsigned long long>(stats.max_ulp), stats.mean_ulp(), stats.max_abs_err,
+                    stats.mismatches(), stats.exact_matches);
+        break;
+    case comparison_family_t::probability_k:
+        std::printf("%-40s %12.2e %10.2e %12.2e %12.2e %10llu\n", kernel_name, stats.max_abs_err, stats.mean_abs_err(),
+                    stats.max_rel_err, stats.mean_rel_err(), static_cast<unsigned long long>(stats.max_ulp));
+        break;
+    case comparison_family_t::geospatial_k:
+        std::printf("%-40s %12llu %10.1f %12.2e %12.2e %10zu\n", kernel_name,
+                    static_cast<unsigned long long>(stats.max_ulp), stats.mean_ulp(), stats.max_abs_err,
+                    stats.max_rel_err, stats.exact_matches);
+        break;
+    case comparison_family_t::narrow_arithmetic_k:
+    case comparison_family_t::mixed_precision_reduction_k:
+    case comparison_family_t::external_baseline_k:
+        std::printf("%-40s %12.2e %10.2e %12llu %12.2e %10zu\n", kernel_name, stats.max_abs_err, stats.max_rel_err,
+                    static_cast<unsigned long long>(stats.max_ulp), stats.mean_ulp(), stats.exact_matches);
+        break;
+    }
+    std::fflush(stdout);
+}
 
 /**
  *  @brief Factory function to allocate vectors, potentially raising bad-allocs.

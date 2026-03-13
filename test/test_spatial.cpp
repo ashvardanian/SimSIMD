@@ -19,7 +19,7 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
     using result_t = typename scalar_t::sqeuclidean_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -51,7 +51,7 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
     using result_t = typename scalar_t::angular_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -83,7 +83,7 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
     using result_t = typename scalar_t::euclidean_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -105,8 +105,7 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
 }
 
 void test_spatial() {
-    std::puts("");
-    std::printf("Spatial Distances:\n");
+    stats_section_t run_if_matches("Spatial Distances");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself

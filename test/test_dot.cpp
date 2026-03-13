@@ -19,7 +19,7 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
     using result_t = typename scalar_t::dot_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -50,7 +50,7 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
     using result_t = typename scalar_t::vdot_result_t;
     using reference_t = reference_for<scalar_t, result_t>;
 
-    error_stats_t stats;
+    error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
     auto a = make_vector<scalar_t>(global_config.dense_dimensions),
          b = make_vector<scalar_t>(global_config.dense_dimensions);
@@ -72,8 +72,7 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
 }
 
 void test_dot() {
-    std::puts("");
-    std::printf("Dot Products:\n");
+    stats_section_t run_if_matches("Dot Products");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
