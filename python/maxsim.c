@@ -305,6 +305,34 @@ char const doc_maxsim_packed[] =                                             //
     "Signature:\n"                                                           //
     "    >>> def maxsim_packed(queries, documents, /) -> float: ...";
 
+static PyObject *maxsim_result_to_py_number(                  //
+    nk_maxsim_packed_punned_t kernel, nk_dtype_t input_dtype, //
+    void const *queries, void const *documents,               //
+    nk_size_t query_count, nk_size_t document_count, nk_size_t depth) {
+
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(nk_kernel_maxsim_packed_k, input_dtype);
+    if (out_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for maxsim_packed('%s')",
+                     dtype_to_python_string(input_dtype));
+        return NULL;
+    }
+
+    nk_scalar_buffer_t result = {0};
+    PyThreadState *save = PyEval_SaveThread();
+    switch (out_dtype) {
+    case nk_f64_k: kernel(queries, documents, query_count, document_count, depth, &result.f64); break;
+    case nk_f32_k: kernel(queries, documents, query_count, document_count, depth, &result.f32); break;
+    default:
+        PyEval_RestoreThread(save);
+        PyErr_Format(PyExc_ValueError, "Unsupported maxsim_packed output dtype '%s'",
+                     dtype_to_python_string(out_dtype));
+        return NULL;
+    }
+    PyEval_RestoreThread(save);
+
+    return scalar_to_py_number(&result, out_dtype);
+}
+
 PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;
 
@@ -346,15 +374,8 @@ PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t na
         return NULL;
     }
 
-    nk_f32_t result = 0;
-    {
-        PyThreadState *save = PyEval_SaveThread();
-        kernel(queries->start, documents->start, queries->vector_count, documents->vector_count, queries->depth,
-               &result);
-        PyEval_RestoreThread(save);
-    }
-
-    return PyFloat_FromDouble((double)result);
+    return maxsim_result_to_py_number(kernel, queries->dtype, queries->start, documents->start, queries->vector_count,
+                                      documents->vector_count, queries->depth);
 }
 
 char const doc_maxsim[] =                                                               //
@@ -538,14 +559,8 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
             PyEval_RestoreThread(save);
         }
 
-        nk_f32_t result = 0;
-        {
-            PyThreadState *save = PyEval_SaveThread();
-            kernel(q_packed->start, d_packed->start, query_count, document_count, query_depth, &result);
-            PyEval_RestoreThread(save);
-        }
-
-        return_obj = PyFloat_FromDouble((double)result);
+        return_obj = maxsim_result_to_py_number(kernel, target_dtype, q_packed->start, d_packed->start, query_count,
+                                                document_count, query_depth);
     }
 
 cleanup:

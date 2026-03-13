@@ -355,15 +355,15 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     nk_f32_t sum_b_y = vaddvq_f32(sum_b_y_f32x4);
     nk_f32_t sum_b_z = vaddvq_f32(sum_b_z_f32x4);
 
-    nk_f32_t h00 = vaddvq_f32(cov_xx_f32x4);
-    nk_f32_t h01 = vaddvq_f32(cov_xy_f32x4);
-    nk_f32_t h02 = vaddvq_f32(cov_xz_f32x4);
-    nk_f32_t h10 = vaddvq_f32(cov_yx_f32x4);
-    nk_f32_t h11 = vaddvq_f32(cov_yy_f32x4);
-    nk_f32_t h12 = vaddvq_f32(cov_yz_f32x4);
-    nk_f32_t h20 = vaddvq_f32(cov_zx_f32x4);
-    nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
-    nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
+    nk_f32_t covariance_x_x = vaddvq_f32(cov_xx_f32x4);
+    nk_f32_t covariance_x_y = vaddvq_f32(cov_xy_f32x4);
+    nk_f32_t covariance_x_z = vaddvq_f32(cov_xz_f32x4);
+    nk_f32_t covariance_y_x = vaddvq_f32(cov_yx_f32x4);
+    nk_f32_t covariance_y_y = vaddvq_f32(cov_yy_f32x4);
+    nk_f32_t covariance_y_z = vaddvq_f32(cov_yz_f32x4);
+    nk_f32_t covariance_z_x = vaddvq_f32(cov_zx_f32x4);
+    nk_f32_t covariance_z_y = vaddvq_f32(cov_zy_f32x4);
+    nk_f32_t covariance_z_z = vaddvq_f32(cov_zz_f32x4);
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
@@ -388,15 +388,15 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     // Compute centered covariance: H = (A - centroid_A)ᵀ * (B - centroid_B)
     // H = sum(a * bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f32_t h[9];
-    h[0] = h00 - n * centroid_a_x * centroid_b_x;
-    h[1] = h01 - n * centroid_a_x * centroid_b_y;
-    h[2] = h02 - n * centroid_a_x * centroid_b_z;
-    h[3] = h10 - n * centroid_a_y * centroid_b_x;
-    h[4] = h11 - n * centroid_a_y * centroid_b_y;
-    h[5] = h12 - n * centroid_a_y * centroid_b_z;
-    h[6] = h20 - n * centroid_a_z * centroid_b_x;
-    h[7] = h21 - n * centroid_a_z * centroid_b_y;
-    h[8] = h22 - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
 
     // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
@@ -519,15 +519,15 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
     nk_f32_t sum_b_x = vaddvq_f32(sum_b_x_f32x4);
     nk_f32_t sum_b_y = vaddvq_f32(sum_b_y_f32x4);
     nk_f32_t sum_b_z = vaddvq_f32(sum_b_z_f32x4);
-    nk_f32_t h00 = vaddvq_f32(cov_xx_f32x4);
-    nk_f32_t h01 = vaddvq_f32(cov_xy_f32x4);
-    nk_f32_t h02 = vaddvq_f32(cov_xz_f32x4);
-    nk_f32_t h10 = vaddvq_f32(cov_yx_f32x4);
-    nk_f32_t h11 = vaddvq_f32(cov_yy_f32x4);
-    nk_f32_t h12 = vaddvq_f32(cov_yz_f32x4);
-    nk_f32_t h20 = vaddvq_f32(cov_zx_f32x4);
-    nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
-    nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
+    nk_f32_t covariance_x_x = vaddvq_f32(cov_xx_f32x4);
+    nk_f32_t covariance_x_y = vaddvq_f32(cov_xy_f32x4);
+    nk_f32_t covariance_x_z = vaddvq_f32(cov_xz_f32x4);
+    nk_f32_t covariance_y_x = vaddvq_f32(cov_yx_f32x4);
+    nk_f32_t covariance_y_y = vaddvq_f32(cov_yy_f32x4);
+    nk_f32_t covariance_y_z = vaddvq_f32(cov_yz_f32x4);
+    nk_f32_t covariance_z_x = vaddvq_f32(cov_zx_f32x4);
+    nk_f32_t covariance_z_y = vaddvq_f32(cov_zy_f32x4);
+    nk_f32_t covariance_z_z = vaddvq_f32(cov_zz_f32x4);
     nk_f32_t variance_a_sum = vaddvq_f32(variance_a_f32x4);
 
     // Compute centroids
@@ -543,15 +543,15 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
     nk_f32_t h[9];
-    h[0] = h00 - n * centroid_a_x * centroid_b_x;
-    h[1] = h01 - n * centroid_a_x * centroid_b_y;
-    h[2] = h02 - n * centroid_a_x * centroid_b_z;
-    h[3] = h10 - n * centroid_a_y * centroid_b_x;
-    h[4] = h11 - n * centroid_a_y * centroid_b_y;
-    h[5] = h12 - n * centroid_a_y * centroid_b_z;
-    h[6] = h20 - n * centroid_a_z * centroid_b_x;
-    h[7] = h21 - n * centroid_a_z * centroid_b_y;
-    h[8] = h22 - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
 
     // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];

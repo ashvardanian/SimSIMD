@@ -754,7 +754,7 @@ NK_INTERNAL nk_dtype_t nk_euclidean_output_dtype(nk_dtype_t dtype) {
 NK_INTERNAL nk_dtype_t nk_sqeuclidean_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
+    case nk_f32_k: return nk_f64_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     case nk_e4m3_k: return nk_f32_k;
@@ -773,7 +773,7 @@ NK_INTERNAL nk_dtype_t nk_sqeuclidean_output_dtype(nk_dtype_t dtype) {
 NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
+    case nk_f32_k: return nk_f64_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     case nk_e4m3_k: return nk_f32_k;

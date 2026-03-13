@@ -1409,7 +1409,7 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
     }
 
     nk_scalar_buffer_t product = {0};
-    nk_dtype_t product_dtype = nk_sparse_dot_output_dtype(dispatch_dtype);
+    nk_dtype_t product_dtype = nk_kernel_output_dtype(nk_kernel_sparse_dot_k, dispatch_dtype);
     kernel(a_idx.start, b_idx.start, a_val.start, b_val.start, a_idx.dimensions, b_idx.dimensions, &product);
     return_obj = scalar_to_py_number(&product, product_dtype);
 

@@ -86,12 +86,15 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
                                                         nk_f32_t centroid_b_x, nk_f32_t centroid_b_y,
                                                         nk_f32_t centroid_b_z) {
     // Broadcast scaled rotation matrix elements
-    float32x4_t sr0_f32x4 = vdupq_n_f32(scale * r[0]), sr1_f32x4 = vdupq_n_f32(scale * r[1]),
-                sr2_f32x4 = vdupq_n_f32(scale * r[2]);
-    float32x4_t sr3_f32x4 = vdupq_n_f32(scale * r[3]), sr4_f32x4 = vdupq_n_f32(scale * r[4]),
-                sr5_f32x4 = vdupq_n_f32(scale * r[5]);
-    float32x4_t sr6_f32x4 = vdupq_n_f32(scale * r[6]), sr7_f32x4 = vdupq_n_f32(scale * r[7]),
-                sr8_f32x4 = vdupq_n_f32(scale * r[8]);
+    float32x4_t scaled_rotation_x_x_f32x4 = vdupq_n_f32(scale * r[0]);
+    float32x4_t scaled_rotation_x_y_f32x4 = vdupq_n_f32(scale * r[1]);
+    float32x4_t scaled_rotation_x_z_f32x4 = vdupq_n_f32(scale * r[2]);
+    float32x4_t scaled_rotation_y_x_f32x4 = vdupq_n_f32(scale * r[3]);
+    float32x4_t scaled_rotation_y_y_f32x4 = vdupq_n_f32(scale * r[4]);
+    float32x4_t scaled_rotation_y_z_f32x4 = vdupq_n_f32(scale * r[5]);
+    float32x4_t scaled_rotation_z_x_f32x4 = vdupq_n_f32(scale * r[6]);
+    float32x4_t scaled_rotation_z_y_f32x4 = vdupq_n_f32(scale * r[7]);
+    float32x4_t scaled_rotation_z_z_f32x4 = vdupq_n_f32(scale * r[8]);
 
     // Broadcast centroids
     float32x4_t centroid_a_x_f32x4 = vdupq_n_f32(centroid_a_x);
@@ -135,20 +138,26 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
         float32x4_t pb2_z_f32x4 = vsubq_f32(b2_z_f32x4, centroid_b_z_f32x4);
 
         // Rotate and scale first batch: ra1 = scale * R * pa1
-        float32x4_t ra1_x_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr0_f32x4, pa1_x_f32x4), sr1_f32x4, pa1_y_f32x4),
-                                            sr2_f32x4, pa1_z_f32x4);
-        float32x4_t ra1_y_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr3_f32x4, pa1_x_f32x4), sr4_f32x4, pa1_y_f32x4),
-                                            sr5_f32x4, pa1_z_f32x4);
-        float32x4_t ra1_z_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr6_f32x4, pa1_x_f32x4), sr7_f32x4, pa1_y_f32x4),
-                                            sr8_f32x4, pa1_z_f32x4);
+        float32x4_t ra1_x_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_x_x_f32x4, pa1_x_f32x4), scaled_rotation_x_y_f32x4, pa1_y_f32x4),
+            scaled_rotation_x_z_f32x4, pa1_z_f32x4);
+        float32x4_t ra1_y_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_y_x_f32x4, pa1_x_f32x4), scaled_rotation_y_y_f32x4, pa1_y_f32x4),
+            scaled_rotation_y_z_f32x4, pa1_z_f32x4);
+        float32x4_t ra1_z_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_z_x_f32x4, pa1_x_f32x4), scaled_rotation_z_y_f32x4, pa1_y_f32x4),
+            scaled_rotation_z_z_f32x4, pa1_z_f32x4);
 
         // Rotate and scale second batch: ra2 = scale * R * pa2
-        float32x4_t ra2_x_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr0_f32x4, pa2_x_f32x4), sr1_f32x4, pa2_y_f32x4),
-                                            sr2_f32x4, pa2_z_f32x4);
-        float32x4_t ra2_y_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr3_f32x4, pa2_x_f32x4), sr4_f32x4, pa2_y_f32x4),
-                                            sr5_f32x4, pa2_z_f32x4);
-        float32x4_t ra2_z_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr6_f32x4, pa2_x_f32x4), sr7_f32x4, pa2_y_f32x4),
-                                            sr8_f32x4, pa2_z_f32x4);
+        float32x4_t ra2_x_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_x_x_f32x4, pa2_x_f32x4), scaled_rotation_x_y_f32x4, pa2_y_f32x4),
+            scaled_rotation_x_z_f32x4, pa2_z_f32x4);
+        float32x4_t ra2_y_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_y_x_f32x4, pa2_x_f32x4), scaled_rotation_y_y_f32x4, pa2_y_f32x4),
+            scaled_rotation_y_z_f32x4, pa2_z_f32x4);
+        float32x4_t ra2_z_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_z_x_f32x4, pa2_x_f32x4), scaled_rotation_z_y_f32x4, pa2_y_f32x4),
+            scaled_rotation_z_z_f32x4, pa2_z_f32x4);
 
         // Deltas
         float32x4_t delta1_x_f32x4 = vsubq_f32(ra1_x_f32x4, pb1_x_f32x4);
@@ -180,12 +189,15 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
         float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
         float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
 
-        float32x4_t ra_x_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr0_f32x4, pa_x_f32x4), sr1_f32x4, pa_y_f32x4),
-                                           sr2_f32x4, pa_z_f32x4);
-        float32x4_t ra_y_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr3_f32x4, pa_x_f32x4), sr4_f32x4, pa_y_f32x4),
-                                           sr5_f32x4, pa_z_f32x4);
-        float32x4_t ra_z_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr6_f32x4, pa_x_f32x4), sr7_f32x4, pa_y_f32x4),
-                                           sr8_f32x4, pa_z_f32x4);
+        float32x4_t ra_x_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_x_x_f32x4, pa_x_f32x4), scaled_rotation_x_y_f32x4, pa_y_f32x4),
+            scaled_rotation_x_z_f32x4, pa_z_f32x4);
+        float32x4_t ra_y_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_y_x_f32x4, pa_x_f32x4), scaled_rotation_y_y_f32x4, pa_y_f32x4),
+            scaled_rotation_y_z_f32x4, pa_z_f32x4);
+        float32x4_t ra_z_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_z_x_f32x4, pa_x_f32x4), scaled_rotation_z_y_f32x4, pa_y_f32x4),
+            scaled_rotation_z_z_f32x4, pa_z_f32x4);
 
         float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
@@ -222,12 +234,15 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
         float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
         float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
 
-        float32x4_t ra_x_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr0_f32x4, pa_x_f32x4), sr1_f32x4, pa_y_f32x4),
-                                           sr2_f32x4, pa_z_f32x4);
-        float32x4_t ra_y_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr3_f32x4, pa_x_f32x4), sr4_f32x4, pa_y_f32x4),
-                                           sr5_f32x4, pa_z_f32x4);
-        float32x4_t ra_z_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr6_f32x4, pa_x_f32x4), sr7_f32x4, pa_y_f32x4),
-                                           sr8_f32x4, pa_z_f32x4);
+        float32x4_t ra_x_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_x_x_f32x4, pa_x_f32x4), scaled_rotation_x_y_f32x4, pa_y_f32x4),
+            scaled_rotation_x_z_f32x4, pa_z_f32x4);
+        float32x4_t ra_y_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_y_x_f32x4, pa_x_f32x4), scaled_rotation_y_y_f32x4, pa_y_f32x4),
+            scaled_rotation_y_z_f32x4, pa_z_f32x4);
+        float32x4_t ra_z_f32x4 = vfmaq_f32(
+            vfmaq_f32(vmulq_f32(scaled_rotation_z_x_f32x4, pa_x_f32x4), scaled_rotation_z_y_f32x4, pa_y_f32x4),
+            scaled_rotation_z_z_f32x4, pa_z_f32x4);
 
         float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
@@ -478,15 +493,15 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     nk_f32_t sum_b_y = vaddvq_f32(sum_b_y_f32x4);
     nk_f32_t sum_b_z = vaddvq_f32(sum_b_z_f32x4);
 
-    nk_f32_t h00 = vaddvq_f32(cov_xx_f32x4);
-    nk_f32_t h01 = vaddvq_f32(cov_xy_f32x4);
-    nk_f32_t h02 = vaddvq_f32(cov_xz_f32x4);
-    nk_f32_t h10 = vaddvq_f32(cov_yx_f32x4);
-    nk_f32_t h11 = vaddvq_f32(cov_yy_f32x4);
-    nk_f32_t h12 = vaddvq_f32(cov_yz_f32x4);
-    nk_f32_t h20 = vaddvq_f32(cov_zx_f32x4);
-    nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
-    nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
+    nk_f32_t covariance_x_x = vaddvq_f32(cov_xx_f32x4);
+    nk_f32_t covariance_x_y = vaddvq_f32(cov_xy_f32x4);
+    nk_f32_t covariance_x_z = vaddvq_f32(cov_xz_f32x4);
+    nk_f32_t covariance_y_x = vaddvq_f32(cov_yx_f32x4);
+    nk_f32_t covariance_y_y = vaddvq_f32(cov_yy_f32x4);
+    nk_f32_t covariance_y_z = vaddvq_f32(cov_yz_f32x4);
+    nk_f32_t covariance_z_x = vaddvq_f32(cov_zx_f32x4);
+    nk_f32_t covariance_z_y = vaddvq_f32(cov_zy_f32x4);
+    nk_f32_t covariance_z_z = vaddvq_f32(cov_zz_f32x4);
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
@@ -509,18 +524,19 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     }
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
-    h00 -= n * centroid_a_x * centroid_b_x;
-    h01 -= n * centroid_a_x * centroid_b_y;
-    h02 -= n * centroid_a_x * centroid_b_z;
-    h10 -= n * centroid_a_y * centroid_b_x;
-    h11 -= n * centroid_a_y * centroid_b_y;
-    h12 -= n * centroid_a_y * centroid_b_z;
-    h20 -= n * centroid_a_z * centroid_b_x;
-    h21 -= n * centroid_a_z * centroid_b_y;
-    h22 -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= n * centroid_a_z * centroid_b_z;
 
     // Compute SVD and optimal rotation
-    nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
+    nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
+                                    covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
@@ -713,15 +729,15 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     nk_f32_t sum_b_y = vaddvq_f32(sum_b_y_f32x4);
     nk_f32_t sum_b_z = vaddvq_f32(sum_b_z_f32x4);
 
-    nk_f32_t h00 = vaddvq_f32(cov_xx_f32x4);
-    nk_f32_t h01 = vaddvq_f32(cov_xy_f32x4);
-    nk_f32_t h02 = vaddvq_f32(cov_xz_f32x4);
-    nk_f32_t h10 = vaddvq_f32(cov_yx_f32x4);
-    nk_f32_t h11 = vaddvq_f32(cov_yy_f32x4);
-    nk_f32_t h12 = vaddvq_f32(cov_yz_f32x4);
-    nk_f32_t h20 = vaddvq_f32(cov_zx_f32x4);
-    nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
-    nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
+    nk_f32_t covariance_x_x = vaddvq_f32(cov_xx_f32x4);
+    nk_f32_t covariance_x_y = vaddvq_f32(cov_xy_f32x4);
+    nk_f32_t covariance_x_z = vaddvq_f32(cov_xz_f32x4);
+    nk_f32_t covariance_y_x = vaddvq_f32(cov_yx_f32x4);
+    nk_f32_t covariance_y_y = vaddvq_f32(cov_yy_f32x4);
+    nk_f32_t covariance_y_z = vaddvq_f32(cov_yz_f32x4);
+    nk_f32_t covariance_z_x = vaddvq_f32(cov_zx_f32x4);
+    nk_f32_t covariance_z_y = vaddvq_f32(cov_zy_f32x4);
+    nk_f32_t covariance_z_z = vaddvq_f32(cov_zz_f32x4);
     nk_f32_t variance_a_sum = vaddvq_f32(variance_a_f32x4);
 
     // Compute centroids
@@ -749,18 +765,19 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
-    h00 -= n * centroid_a_x * centroid_b_x;
-    h01 -= n * centroid_a_x * centroid_b_y;
-    h02 -= n * centroid_a_x * centroid_b_z;
-    h10 -= n * centroid_a_y * centroid_b_x;
-    h11 -= n * centroid_a_y * centroid_b_y;
-    h12 -= n * centroid_a_y * centroid_b_z;
-    h20 -= n * centroid_a_z * centroid_b_x;
-    h21 -= n * centroid_a_z * centroid_b_y;
-    h22 -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= n * centroid_a_z * centroid_b_z;
 
     // Compute SVD
-    nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
+    nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
+                                    covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 

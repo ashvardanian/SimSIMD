@@ -219,7 +219,7 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     }
 
     // Determine output dtype
-    nk_dtype_t out_dtype = nk_dot_output_dtype(packed->dtype);
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(nk_kernel_dots_packed_k, packed->dtype);
     if (out_dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
         return NULL;
@@ -434,7 +434,7 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->metric_kind, packed->dtype);
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->packed_kind, packed->dtype);
     if (out_dtype == nk_dtype_unknown_k) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for %s_packed", spec->name);
@@ -565,7 +565,7 @@ static PyObject *api_symmetric_common( //
         goto cleanup;
     }
 
-    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->metric_kind, dtype);
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(spec->symmetric_kind, dtype);
     if (out_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for %s_symmetric", spec->name);
         goto cleanup;

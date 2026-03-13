@@ -112,7 +112,6 @@ NK_DYNAMIC void nk_maxsim_packed_f32(void const *query_packed, void const *docum
 NK_DYNAMIC void nk_maxsim_packed_f16(void const *query_packed, void const *document_packed, nk_size_t query_count,
                                      nk_size_t document_count, nk_size_t depth, nk_f32_t *result);
 
-// Serial (always available)
 /** @copydoc nk_maxsim_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_serial(nk_size_t vector_count, nk_size_t depth);
 /** @copydoc nk_maxsim_packed_size_bf16 */
@@ -344,6 +343,18 @@ NK_PUBLIC void nk_maxsim_packed_f16_sme(void const *query_packed, void const *do
 NK_PUBLIC void nk_maxsim_packed_f32_sme(void const *query_packed, void const *document_packed, nk_size_t query_count,
                                         nk_size_t document_count, nk_size_t depth, nk_f64_t *result);
 #endif // NK_TARGET_SME
+
+/**
+ *  @brief Returns the output dtype for MaxSim late-interaction.
+ */
+NK_INTERNAL nk_dtype_t nk_maxsim_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f32_k: return nk_f64_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
 
 #if defined(__cplusplus)
 } // extern "C"

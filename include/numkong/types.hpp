@@ -132,9 +132,8 @@ struct f32_t {
     using geospatial_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          raw_t *);
     using probability_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
-    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, mesh_transform_t::raw_t *,
-                                   mesh_transform_t::raw_t *, mesh_transform_t::raw_t *, mesh_transform_t::raw_t *,
-                                   mesh_metric_t::raw_t *);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f64_t *);
     using sparse_dot_kernel_t = void (*)(nk_u32_t const *, nk_u32_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          nk_size_t, nk_f64_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -396,9 +395,8 @@ struct f64_t {
     using geospatial_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          raw_t *);
     using probability_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
-    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, mesh_transform_t::raw_t *,
-                                   mesh_transform_t::raw_t *, mesh_transform_t::raw_t *, mesh_transform_t::raw_t *,
-                                   mesh_metric_t::raw_t *);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *, nk_f64_t *, nk_f64_t *,
+                                   nk_f64_t *, nk_f64_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -1134,9 +1132,8 @@ struct f16_t {
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using probability_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, mesh_transform_t::raw_t *,
-                                   mesh_transform_t::raw_t *, mesh_transform_t::raw_t *, mesh_transform_t::raw_t *,
-                                   mesh_metric_t::raw_t *);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using blend_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -1380,9 +1377,8 @@ struct bf16_t {
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using probability_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, mesh_transform_t::raw_t *,
-                                   mesh_transform_t::raw_t *, mesh_transform_t::raw_t *, mesh_transform_t::raw_t *,
-                                   mesh_metric_t::raw_t *);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
     using sparse_dot_kernel_t = void (*)(nk_u16_t const *, nk_u16_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          nk_size_t, nk_f32_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);

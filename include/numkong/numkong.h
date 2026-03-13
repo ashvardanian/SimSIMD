@@ -40,14 +40,24 @@ extern "C" {
 NK_PUBLIC nk_dtype_t nk_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t input) {
     switch (kind) {
     case nk_kernel_dot_k:
-    case nk_kernel_vdot_k: return nk_dot_output_dtype(input);
-    case nk_kernel_angular_k: return nk_angular_output_dtype(input);
+    case nk_kernel_vdot_k:
+    case nk_kernel_dots_packed_k:
+    case nk_kernel_dots_symmetric_k: return nk_dot_output_dtype(input);
+    case nk_kernel_angular_k:
+    case nk_kernel_angulars_packed_k:
+    case nk_kernel_angulars_symmetric_k: return nk_angular_output_dtype(input);
+    case nk_kernel_euclidean_k:
+    case nk_kernel_euclideans_packed_k:
+    case nk_kernel_euclideans_symmetric_k: return nk_euclidean_output_dtype(input);
     case nk_kernel_sqeuclidean_k: return nk_sqeuclidean_output_dtype(input);
-    case nk_kernel_euclidean_k: return nk_euclidean_output_dtype(input);
     case nk_kernel_bilinear_k: return nk_bilinear_output_dtype(input);
     case nk_kernel_mahalanobis_k: return nk_mahalanobis_output_dtype(input);
-    case nk_kernel_hamming_k: return nk_hamming_output_dtype(input);
-    case nk_kernel_jaccard_k: return nk_jaccard_output_dtype(input);
+    case nk_kernel_hamming_k:
+    case nk_kernel_hammings_packed_k:
+    case nk_kernel_hammings_symmetric_k: return nk_hamming_output_dtype(input);
+    case nk_kernel_jaccard_k:
+    case nk_kernel_jaccards_packed_k:
+    case nk_kernel_jaccards_symmetric_k: return nk_jaccard_output_dtype(input);
     case nk_kernel_haversine_k: return nk_haversine_output_dtype(input);
     case nk_kernel_vincenty_k: return nk_vincenty_output_dtype(input);
     case nk_kernel_kld_k:
@@ -55,6 +65,8 @@ NK_PUBLIC nk_dtype_t nk_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t in
     case nk_kernel_rmsd_k: return nk_rmsd_output_dtype(input);
     case nk_kernel_kabsch_k: return nk_kabsch_output_dtype(input);
     case nk_kernel_umeyama_k: return nk_umeyama_output_dtype(input);
+    case nk_kernel_sparse_dot_k: return nk_sparse_dot_output_dtype(input);
+    case nk_kernel_maxsim_packed_k: return nk_maxsim_output_dtype(input);
     default: return nk_dtype_unknown_k;
     }
 }

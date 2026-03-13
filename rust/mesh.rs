@@ -17,7 +17,7 @@ extern "C" {
         b_centroid: *mut f32,
         rotation: *mut f32,
         scale: *mut f32,
-        result: *mut f32,
+        result: *mut f64,
     );
     fn nk_rmsd_f64(
         a: *const f64,
@@ -57,7 +57,7 @@ extern "C" {
         b_centroid: *mut f32,
         rotation: *mut f32,
         scale: *mut f32,
-        result: *mut f32,
+        result: *mut f64,
     );
     fn nk_kabsch_f64(
         a: *const f64,
@@ -97,7 +97,7 @@ extern "C" {
         b_centroid: *mut f32,
         rotation: *mut f32,
         scale: *mut f32,
-        result: *mut f32,
+        result: *mut f64,
     );
     fn nk_umeyama_f64(
         a: *const f64,
@@ -137,20 +137,20 @@ extern "C" {
 /// that best aligns point cloud A onto point cloud B, along with the
 /// root-mean-square deviation of the aligned points.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MeshAlignmentResult<T> {
+pub struct MeshAlignmentResult<TTransform, TMetric> {
     /// 3×3 rotation matrix in row-major order.
-    pub rotation_matrix: [T; 9],
+    pub rotation_matrix: [TTransform; 9],
     /// Uniform scale factor (1.0 for Kabsch, free for Umeyama).
-    pub scale: T,
+    pub scale: TTransform,
     /// Root-mean-square deviation after alignment.
-    pub rmsd: T,
+    pub rmsd: TMetric,
     /// Centroid of point cloud A before alignment.
-    pub a_centroid: [T; 3],
+    pub a_centroid: [TTransform; 3],
     /// Centroid of point cloud B (target).
-    pub b_centroid: [T; 3],
+    pub b_centroid: [TTransform; 3],
 }
 
-impl MeshAlignmentResult<f64> {
+impl<TMetric> MeshAlignmentResult<f64, TMetric> {
     #[inline]
     pub fn transform_point(&self, point: [f64; 3]) -> [f64; 3] {
         let centered = [
@@ -175,7 +175,7 @@ impl MeshAlignmentResult<f64> {
     }
 }
 
-impl MeshAlignmentResult<f32> {
+impl<TMetric> MeshAlignmentResult<f32, TMetric> {
     #[inline]
     pub fn transform_point(&self, point: [f32; 3]) -> [f32; 3] {
         let centered = [
@@ -202,18 +202,31 @@ impl MeshAlignmentResult<f32> {
 
 /// Mesh alignment operations for 3D point clouds.
 pub trait MeshAlignment: Sized {
-    /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
-    type Output: Default + Copy;
+    type Transform: Default + Copy;
+    type Metric: Default + Copy;
 
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
+    fn rmsd(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>>;
+    fn kabsch(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>>;
+    fn umeyama(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>>;
 }
 
 impl MeshAlignment for f64 {
-    type Output = f64;
+    type Transform = f64;
+    type Metric = f64;
 
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn rmsd(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -239,7 +252,10 @@ impl MeshAlignment for f64 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn kabsch(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -265,7 +281,10 @@ impl MeshAlignment for f64 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn umeyama(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -293,9 +312,13 @@ impl MeshAlignment for f64 {
 }
 
 impl MeshAlignment for f32 {
-    type Output = f32;
+    type Transform = f32;
+    type Metric = f64;
 
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn rmsd(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -321,7 +344,10 @@ impl MeshAlignment for f32 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn kabsch(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -347,7 +373,10 @@ impl MeshAlignment for f32 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn umeyama(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -375,9 +404,13 @@ impl MeshAlignment for f32 {
 }
 
 impl MeshAlignment for f16 {
-    type Output = f32;
+    type Transform = f32;
+    type Metric = f32;
 
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn rmsd(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -403,7 +436,10 @@ impl MeshAlignment for f16 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn kabsch(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -429,7 +465,10 @@ impl MeshAlignment for f16 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn umeyama(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -457,9 +496,13 @@ impl MeshAlignment for f16 {
 }
 
 impl MeshAlignment for bf16 {
-    type Output = f32;
+    type Transform = f32;
+    type Metric = f32;
 
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn rmsd(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -485,7 +528,10 @@ impl MeshAlignment for bf16 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn kabsch(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -511,7 +557,10 @@ impl MeshAlignment for bf16 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+    fn umeyama(
+        a: &[[Self; 3]],
+        b: &[[Self; 3]],
+    ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -553,7 +602,7 @@ mod tests {
     fn check_kabsch_identical<T>(cloud: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
-        T::Output: FloatLike,
+        T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
         let result = T::kabsch(&cloud_t, &cloud_t).unwrap();
@@ -577,7 +626,7 @@ mod tests {
     fn check_umeyama_scaled<T>(cloud: &[[f32; 3]], scaled: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
-        T::Output: FloatLike,
+        T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
         let scaled_t = convert_cloud::<T>(scaled);
@@ -594,7 +643,7 @@ mod tests {
     fn check_rmsd_identical<T>(cloud: &[[f32; 3]])
     where
         T: FloatLike + TestableType + MeshAlignment,
-        T::Output: FloatLike,
+        T::Metric: FloatLike,
     {
         let cloud_t = convert_cloud::<T>(cloud);
         let result = T::rmsd(&cloud_t, &cloud_t).unwrap();

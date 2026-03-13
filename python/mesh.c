@@ -257,7 +257,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     Py_ssize_t const batch_stride_b = is_batched ? b_buffer.strides[0] : 0;
     nk_size_t num_points = (nk_size_t)n_points;
 
-    nk_dtype_t mesh_out_dtype = nk_kernel_output_dtype(metric_kind, dtype);
+    nk_dtype_t metric_dtype = nk_kernel_output_dtype(metric_kind, dtype);
 
     if (!is_batched) {
         // Single pair case - return 0D scalars for scale/rmsd, (3,3) for rotation, (3,) for centroids
@@ -265,19 +265,15 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
         Py_ssize_t cent_shape[1] = {3};
 
         rot_tensor = Tensor_new(dtype, 2, rot_shape);
-        scale_tensor = Tensor_new(mesh_out_dtype, 0, NULL);
-        rmsd_tensor = Tensor_new(mesh_out_dtype, 0, NULL);
+        scale_tensor = Tensor_new(dtype, 0, NULL);
+        rmsd_tensor = Tensor_new(metric_dtype, 0, NULL);
         a_cent_tensor = Tensor_new(dtype, 1, cent_shape);
         b_cent_tensor = Tensor_new(dtype, 1, cent_shape);
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
-        nk_scalar_buffer_t scale_buf = {0}, rmsd_buf = {0};
         kernel(a_buffer.buf, b_buffer.buf, num_points, a_cent_tensor->data, b_cent_tensor->data, rot_tensor->data,
-               &scale_buf, &rmsd_buf);
-
-        memcpy(scale_tensor->data, &scale_buf, bytes_per_dtype(mesh_out_dtype));
-        memcpy(rmsd_tensor->data, &rmsd_buf, bytes_per_dtype(mesh_out_dtype));
+               scale_tensor->data, rmsd_tensor->data);
     }
     else {
         // Batched case: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)
@@ -286,8 +282,8 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
         Py_ssize_t cent_shape[2] = {batch_size, 3};
 
         rot_tensor = Tensor_new(dtype, 3, rot_shape);
-        scale_tensor = Tensor_new(mesh_out_dtype, 1, scalar_shape);
-        rmsd_tensor = Tensor_new(mesh_out_dtype, 1, scalar_shape);
+        scale_tensor = Tensor_new(dtype, 1, scalar_shape);
+        rmsd_tensor = Tensor_new(metric_dtype, 1, scalar_shape);
         a_cent_tensor = Tensor_new(dtype, 2, cent_shape);
         b_cent_tensor = Tensor_new(dtype, 2, cent_shape);
 
@@ -295,17 +291,15 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
 
         char *a_ptr = (char *)a_buffer.buf;
         char *b_ptr = (char *)b_buffer.buf;
-        size_t const scalar_bytes = bytes_per_dtype(mesh_out_dtype);
+        size_t const transform_bytes = bytes_per_dtype(dtype);
+        size_t const metric_bytes = bytes_per_dtype(metric_dtype);
 
         for (Py_ssize_t batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
-            nk_scalar_buffer_t scale_buf = {0}, rmsd_buf = {0};
-            size_t const elem_bytes = bytes_per_dtype(dtype);
             kernel(a_ptr + batch_idx * batch_stride_a, b_ptr + batch_idx * batch_stride_b, num_points,
-                   a_cent_tensor->data + batch_idx * 3 * elem_bytes, b_cent_tensor->data + batch_idx * 3 * elem_bytes,
-                   rot_tensor->data + batch_idx * 9 * elem_bytes, &scale_buf, &rmsd_buf);
-
-            memcpy(scale_tensor->data + batch_idx * scalar_bytes, &scale_buf, scalar_bytes);
-            memcpy(rmsd_tensor->data + batch_idx * scalar_bytes, &rmsd_buf, scalar_bytes);
+                   a_cent_tensor->data + batch_idx * 3 * transform_bytes,
+                   b_cent_tensor->data + batch_idx * 3 * transform_bytes,
+                   rot_tensor->data + batch_idx * 9 * transform_bytes, scale_tensor->data + batch_idx * transform_bytes,
+                   rmsd_tensor->data + batch_idx * metric_bytes);
         }
     }
 
