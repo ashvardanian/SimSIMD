@@ -270,7 +270,7 @@ class NumKongTests: XCTestCase {
             7, 8, 9,
             1, 0, 1,
         ] // 2x3
-        var c = Array(repeating: Float32(0), count: 4) // 2x2
+        var c = Array(repeating: Float64(0), count: 4) // 2x2, Float32 dots accumulate into Float64
 
         try a.withUnsafeBufferPointer { aPtr in
             try b.withUnsafeBufferPointer { bPtr in
@@ -299,7 +299,7 @@ class NumKongTests: XCTestCase {
             1, 0, 0,
             0, 1, 0,
         ] // 2x3
-        var out = Array(repeating: Float32(0), count: 4) // 2x2
+        var out = Array(repeating: Float64(0), count: 4) // 2x2, Float32 spatial kernels output Float64
 
         try a.withUnsafeBufferPointer { aPtr in
             try b.withUnsafeBufferPointer { bPtr in

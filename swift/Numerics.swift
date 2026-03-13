@@ -20,20 +20,17 @@ where A.Element == T, B.Element == T {
 }
 
 @usableFromInline
-func _nkWithDensePairMapped<A: Sequence, B: Sequence, E, T, R>(
+func _nkWithDensePairRebound<A: Sequence, B: Sequence, E, T, R>(
     _ a: A,
     _ b: B,
-    map: (E) -> T,
+    to: T.Type,
     _ body: (UnsafePointer<T>, UnsafePointer<T>, Int) -> R
 ) -> R?
 where A.Element == E, B.Element == E {
-    let lhs = Array(a).map(map)
-    let rhs = Array(b).map(map)
-    guard !lhs.isEmpty && lhs.count == rhs.count else { return nil }
-    return lhs.withUnsafeBufferPointer { lhsPtr in
-        rhs.withUnsafeBufferPointer { rhsPtr in
-            body(lhsPtr.baseAddress!, rhsPtr.baseAddress!, lhs.count)
-        }
+    _nkWithDensePair(a, b) { lhsPtr, rhsPtr, count in
+        let lhsRebound = UnsafeRawPointer(lhsPtr).assumingMemoryBound(to: T.self)
+        let rhsRebound = UnsafeRawPointer(rhsPtr).assumingMemoryBound(to: T.self)
+        return body(lhsRebound, rhsRebound, count)
     }
 }
 
@@ -119,6 +116,7 @@ func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
 
 // MARK: - Low-Precision Storage Types
 
+@frozen
 public struct BFloat16: Equatable, Hashable, Sendable {
     public var bitPattern: UInt16
 
@@ -136,6 +134,7 @@ public struct BFloat16: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkBf16BitsToF32(bitPattern) }
 }
 
+@frozen
 public struct E4M3: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
 
@@ -153,6 +152,7 @@ public struct E4M3: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE4M3BitsToF32(bitPattern) }
 }
 
+@frozen
 public struct E5M2: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
 
@@ -170,6 +170,7 @@ public struct E5M2: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE5M2BitsToF32(bitPattern) }
 }
 
+@frozen
 public struct E2M3: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
 
@@ -187,6 +188,7 @@ public struct E2M3: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE2M3BitsToF32(bitPattern) }
 }
 
+@frozen
 public struct E3M2: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
 
