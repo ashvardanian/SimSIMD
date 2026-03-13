@@ -149,7 +149,7 @@ nk_define_cross_pack_size_(dots, e4m3, v128relaxed, e4m3, f32, /*norm_value_type
 nk_define_cross_pack_(dots, e4m3, v128relaxed, e4m3, f32, nk_e4m3_to_f32_serial, /*norm_value_type=*/f32,
                       nk_dots_reduce_sumsq_e4m3_, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, e4m3, v128relaxed, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x4_state_v128relaxed_t,
-                           nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed, nk_load_e4m3x4_to_f32x4_v128relaxed_,
+                           nk_b128_vec_t, nk_dot_through_f32x4_init_v128relaxed_, nk_load_e4m3x4_to_f32x4_v128relaxed_,
                            nk_partial_load_e4m3x4_to_f32x4_v128relaxed_, nk_dot_through_f32x4_update_v128relaxed_,
                            nk_dot_through_f32x4_finalize_v128relaxed_, nk_store_b128_v128relaxed_,
                            nk_partial_store_b32x4_serial_,
