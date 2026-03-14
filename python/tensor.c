@@ -1078,7 +1078,7 @@ static int impl_reduce_moments(TensorView const *view, nk_scalar_buffer_t *sum_o
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_reduce_moments_k, view->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&kernel, &cap);
-    if (!kernel) return -1;
+    if (!kernel || !cap) return -1;
 
     nk_dtype_t sum_dtype = nk_reduce_moments_sum_dtype(view->dtype);
     nk_dtype_t sumsq_dtype = nk_reduce_moments_sumsq_dtype(view->dtype);
@@ -1184,7 +1184,7 @@ static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_ou
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_reduce_minmax_k, view->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&kernel, &cap);
-    if (!kernel) return -1;
+    if (!kernel || !cap) return -1;
 
     nk_dtype_t value_dtype = nk_reduce_minmax_value_dtype(view->dtype);
 

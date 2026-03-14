@@ -650,7 +650,7 @@ static int cdist_batch_symmetric(                             //
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(symmetric_kind, dtype, static_capabilities, nk_cap_any_k, //
                           (nk_kernel_punned_t *)&kernel, &cap);
-    if (!kernel) return -1;
+    if (!kernel || !cap) return -1;
     kernel(vectors, n_vectors, dimensions, stride, out, out_row_stride, 0, n_vectors);
     return 0;
 }
@@ -673,17 +673,17 @@ static int cdist_batch_packed(                                               //
 
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
-    if (!size_fn) return -2;
+    if (!size_fn || !cap) return -2;
 
     cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_pack_k, dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&pack_fn, &cap);
-    if (!pack_fn) return -2;
+    if (!pack_fn || !cap) return -2;
 
     cap = nk_cap_serial_k;
     nk_find_kernel_punned(packed_kind, dtype, static_capabilities, nk_cap_any_k, //
                           (nk_kernel_punned_t *)&kernel, &cap);
-    if (!kernel) return -2;
+    if (!kernel || !cap) return -2;
 
     nk_size_t packed_size = size_fn(b_count, dimensions);
     void *b_packed = malloc(packed_size);
@@ -714,7 +714,7 @@ static PyObject *implement_cdist(                        //
 
     // Check dimensions
     if (a_parsed.dimensions != b_parsed.dimensions) {
-        PyErr_Format(PyExc_ValueError, "Vector dimensions don't match (%z != %z)", a_parsed.dimensions,
+        PyErr_Format(PyExc_ValueError, "Vector dimensions don't match (%zu != %zu)", a_parsed.dimensions,
                      b_parsed.dimensions);
         goto cleanup;
     }
@@ -724,7 +724,7 @@ static PyObject *implement_cdist(                        //
     }
     if (out_obj &&
         (out_parsed.rank != 2 || out_buffer.shape[0] != a_parsed.count || out_buffer.shape[1] != b_parsed.count)) {
-        PyErr_Format(PyExc_ValueError, "Output tensor must have shape (%z, %z)", a_parsed.count, b_parsed.count);
+        PyErr_Format(PyExc_ValueError, "Output tensor must have shape (%zu, %zu)", a_parsed.count, b_parsed.count);
         goto cleanup;
     }
 

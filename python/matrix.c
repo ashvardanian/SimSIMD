@@ -29,7 +29,7 @@ static size_t packed_matrix_nbytes(PackedMatrix *mm) {
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, mm->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
-    if (!size_fn) return 0;
+    if (!size_fn || !cap) return 0;
     return size_fn(mm->width, mm->depth);
 }
 
@@ -122,7 +122,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
-    if (!size_fn) {
+    if (!size_fn || !cap) {
         PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_str);
         return NULL;
     }
@@ -230,7 +230,7 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_packed_k, packed->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&matmul_fn, &cap);
-    if (!matmul_fn) {
+    if (!matmul_fn || !cap) {
         PyErr_SetString(PyExc_LookupError, "No matmul kernel for this dtype");
         return NULL;
     }
@@ -445,7 +445,7 @@ static PyObject *api_packed_common( //
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(spec->packed_kind, packed->dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&kernel, &cap);
-    if (!kernel) {
+    if (!kernel || !cap) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_LookupError, "No %s_packed kernel for this dtype", spec->name);
         return NULL;
@@ -559,7 +559,7 @@ static PyObject *api_symmetric_common( //
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(spec->symmetric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
                           &cap);
-    if (!kernel) {
+    if (!kernel || !cap) {
         PyErr_Format(PyExc_LookupError, "No %s_symmetric kernel for dtype '%s'", spec->name,
                      dtype_to_python_string(dtype));
         goto cleanup;
@@ -720,7 +720,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, target_dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&size_fn, &cap);
-    if (!size_fn) {
+    if (!size_fn || !cap) {
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_LookupError, "No packing kernel for dtype '%s'", dtype_to_python_string(target_dtype));
         return NULL;
@@ -742,7 +742,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_dots_pack_k, target_dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&pack_fn, &cap);
-    if (!pack_fn) {
+    if (!pack_fn || !cap) {
         Py_DECREF(packed);
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_LookupError, "No pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
