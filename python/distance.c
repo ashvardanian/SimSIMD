@@ -97,10 +97,10 @@ static PyObject *implement_dense_metric( //
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
     nk_buffer_backing_t a_backing, b_backing, out_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing, dtype) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing, dtype))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing, nk_dtype_unknown_k)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.cols != b_parsed.cols) {
@@ -318,9 +318,9 @@ static PyObject *implement_curved_metric( //
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `c_obj`.
     nk_buffer_backing_t a_backing, b_backing, c_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing, dtype) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing, dtype) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_backing, dtype))
         goto cleanup;
 
     // Check dimensions
@@ -455,12 +455,12 @@ static PyObject *implement_geospatial_metric( //
 
     // Convert input objects to buffers
     nk_buffer_backing_t a_lats_backing, a_lons_backing, b_lats_backing, b_lons_backing, out_backing;
-    if (!parse_tensor(a_lats_obj, &a_lats_buffer, &a_lats_parsed, &a_lats_backing) ||
-        !parse_tensor(a_lons_obj, &a_lons_buffer, &a_lons_parsed, &a_lons_backing) ||
-        !parse_tensor(b_lats_obj, &b_lats_buffer, &b_lats_parsed, &b_lats_backing) ||
-        !parse_tensor(b_lons_obj, &b_lons_buffer, &b_lons_parsed, &b_lons_backing))
+    if (!parse_tensor(a_lats_obj, &a_lats_buffer, &a_lats_parsed, &a_lats_backing, dtype) ||
+        !parse_tensor(a_lons_obj, &a_lons_buffer, &a_lons_parsed, &a_lons_backing, dtype) ||
+        !parse_tensor(b_lats_obj, &b_lats_buffer, &b_lats_parsed, &b_lats_backing, dtype) ||
+        !parse_tensor(b_lons_obj, &b_lons_buffer, &b_lons_parsed, &b_lons_backing, dtype))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing, nk_dtype_unknown_k)) goto cleanup;
 
     // Check dimensions: all inputs must be 1D vectors of equal length
     if (a_lats_parsed.rank != 1 || a_lons_parsed.rank != 1 || b_lats_parsed.rank != 1 || b_lons_parsed.rank != 1) {
@@ -547,8 +547,8 @@ static PyObject *implement_sparse_metric( //
     nk_buffer_backing_t a_backing, b_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing, nk_dtype_unknown_k) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing, nk_dtype_unknown_k))
         goto cleanup;
 
     // Check dimensions
@@ -716,10 +716,10 @@ static PyObject *implement_cdist(                        //
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
     // Error will be set by `parse_tensor` if the input is invalid
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing, dtype) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing, dtype))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing, nk_dtype_unknown_k)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.cols != b_parsed.cols) {
@@ -1366,10 +1366,10 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 
     PyObject *return_obj = NULL;
 
-    if (!parse_tensor(args[0], &a_idx_buf, &a_idx, &a_idx_backing) ||
-        !parse_tensor(args[1], &a_val_buf, &a_val, &a_val_backing) ||
-        !parse_tensor(args[2], &b_idx_buf, &b_idx, &b_idx_backing) ||
-        !parse_tensor(args[3], &b_val_buf, &b_val, &b_val_backing)) {
+    if (!parse_tensor(args[0], &a_idx_buf, &a_idx, &a_idx_backing, nk_dtype_unknown_k) ||
+        !parse_tensor(args[1], &a_val_buf, &a_val, &a_val_backing, nk_dtype_unknown_k) ||
+        !parse_tensor(args[2], &b_idx_buf, &b_idx, &b_idx_backing, nk_dtype_unknown_k) ||
+        !parse_tensor(args[3], &b_val_buf, &b_val, &b_val_backing, nk_dtype_unknown_k)) {
         // Already uses goto-safe cleanup since buffers are zero-initialized and
         // PyBuffer_Release checks .buf before releasing.
         goto cleanup;

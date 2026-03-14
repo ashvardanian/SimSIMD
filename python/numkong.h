@@ -258,7 +258,8 @@ int nk_get_buffer(PyObject *obj, Py_buffer *buffer, int flags, nk_buffer_backing
  *  @param[out] backing Backing storage for shape/strides.
  *  @return 1 on success, 0 on failure (Python exception set).
  */
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing);
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing,
+                 nk_dtype_t dtype_hint);
 
 /**
  *  @brief Check if a Python object is a numeric scalar.
