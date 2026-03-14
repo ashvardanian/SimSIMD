@@ -26,7 +26,7 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
     std::vector<vector_t> latitudes_first(batches_count), longitudes_first(batches_count);
     std::vector<vector_t> latitudes_second(batches_count), longitudes_second(batches_count);
     auto generator = make_random_engine();
-    double const max_separation_rad = double(bench_config.geospatial_max_angle) * 3.14159265358979323846 / 180.0;
+    double const max_separation_rad = double(bench_config.max_coord_angle) * 3.14159265358979323846 / 180.0;
     for (std::size_t index = 0; index != batches_count; ++index) {
         latitudes_first[index] = make_vector<scalar_t>(coordinates_count);
         longitudes_first[index] = make_vector<scalar_t>(coordinates_count);
@@ -60,7 +60,7 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
 template <nk_dtype_t dtype_, typename kernel_type_ = void>
 void run_geospatial(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d," +
-                             std::to_string(static_cast<int>(bench_config.geospatial_max_angle)) + "°>";
+                             std::to_string(static_cast<int>(bench_config.max_coord_angle)) + "°>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_geospatial<dtype_, kernel_type_ *>, kernel,
                           bench_config.dense_dimensions);
 }

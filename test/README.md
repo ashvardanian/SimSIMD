@@ -43,28 +43,28 @@ Foreign flag mapping for muscle-memory compatibility:
 
 ### Environment Variables
 
-| Variable                  | Default       | Description                                          |
-| ------------------------- | ------------- | ---------------------------------------------------- |
-| `NK_FILTER`               | `.*`          | Regex to filter tests by name                        |
-| `NK_SEED`                 | `42`          | RNG seed for reproducible inputs                     |
-| `NK_BUDGET_SECS`          | `1`           | Time budget per kernel in seconds                    |
-| `NK_DENSE_DIMENSIONS`     | `1536`        | Vector dimension for dot/spatial tests               |
-| `NK_CURVED_DIMENSIONS`    | `64`          | Vector dimension for curved tests                    |
-| `NK_SPARSE_DIMENSIONS`    | `256`         | Vector dimension for sparse tests                    |
-| `NK_MESH_POINTS`          | `1000`        | Point count for mesh tests                           |
-| `NK_MATRIX_HEIGHT`        | `1024`        | GEMM M dimension                                     |
-| `NK_MATRIX_WIDTH`         | `128`         | GEMM N dimension                                     |
-| `NK_MATRIX_DEPTH`         | `1536`        | GEMM K dimension                                     |
-| `NK_GEOSPATIAL_MAX_ANGLE` | `180`         | Maximum angle in degrees for geospatial tests        |
-| `NK_IN_QEMU`              | unset         | Relax accuracy thresholds for QEMU emulation         |
-| `NK_TEST_ASSERT`          | `0`           | Assert (abort) on failed accuracy checks             |
-| `NK_TEST_VERBOSE`         | `0`           | Show per-dimension ULP breakdown                     |
-| `NK_ULP_THRESHOLD_F32`    | `4`           | Max allowed ULP distance for f32                     |
-| `NK_ULP_THRESHOLD_F16`    | `32`          | Max allowed ULP distance for f16                     |
-| `NK_ULP_THRESHOLD_BF16`   | `256`         | Max allowed ULP distance for bf16                    |
-| `NK_RANDOM_DISTRIBUTION`  | `lognormal_k` | Distribution: `uniform_k`, `lognormal_k`, `cauchy_k` |
-| `NO_COLOR`                | unset         | Disable colored output                               |
-| `FORCE_COLOR`             | unset         | Force colored output even without TTY                |
+| Variable                 | Default       | Description                                          |
+| ------------------------ | ------------- | ---------------------------------------------------- |
+| `NK_FILTER`              | `.*`          | Regex to filter tests by name                        |
+| `NK_SEED`                | `42`          | RNG seed for reproducible inputs                     |
+| `NK_BUDGET_SECS`         | `1`           | Time budget per kernel in seconds                    |
+| `NK_DENSE_DIMENSIONS`    | `1536`        | Vector dimension for dot/spatial tests               |
+| `NK_CURVED_DIMENSIONS`   | `64`          | Vector dimension for curved tests                    |
+| `NK_SPARSE_DIMENSIONS`   | `256`         | Vector dimension for sparse tests                    |
+| `NK_MESH_POINTS`         | `1000`        | Point count for mesh tests                           |
+| `NK_MATRIX_HEIGHT`       | `1024`        | GEMM M dimension                                     |
+| `NK_MATRIX_WIDTH`        | `128`         | GEMM N dimension                                     |
+| `NK_MATRIX_DEPTH`        | `1536`        | GEMM K dimension                                     |
+| `NK_MAX_COORD_ANGLE`     | `180`         | Maximum angle in degrees for geospatial tests        |
+| `NK_IN_QEMU`             | unset         | Relax accuracy thresholds for QEMU emulation         |
+| `NK_TEST_ASSERT`         | `0`           | Assert (abort) on failed accuracy checks             |
+| `NK_TEST_VERBOSE`        | `0`           | Show per-dimension ULP breakdown                     |
+| `NK_ULP_THRESHOLD_F32`   | `4`           | Max allowed ULP distance for f32                     |
+| `NK_ULP_THRESHOLD_F16`   | `32`          | Max allowed ULP distance for f16                     |
+| `NK_ULP_THRESHOLD_BF16`  | `256`         | Max allowed ULP distance for bf16                    |
+| `NK_RANDOM_DISTRIBUTION` | `lognormal_k` | Distribution: `uniform_k`, `lognormal_k`, `cauchy_k` |
+| `NO_COLOR`               | unset         | Disable colored output                               |
+| `FORCE_COLOR`            | unset         | Force colored output even without TTY                |
 
 ### Precision Families
 
@@ -223,9 +223,20 @@ cargo test -p numkong --features wasm-runtime -- wasm_runtime
 
 ```sh
 pip install -e .
-pip install pytest pytest-repeat tabulate numpy scipy
+pip install pytest pytest-repeat tabulate numpy scipy ml_dtypes
 pytest test/ -s -x -Wd
 ```
+
+Optional dependencies for extended test coverage:
+
+| Package     | What it unlocks                                   |
+| ----------- | ------------------------------------------------- |
+| `numpy`     | Array interop, cdist, custom dtype registration   |
+| `scipy`     | Cross-validation against `scipy.spatial.distance` |
+| `ml_dtypes` | `__array_interface__` fallback for bfloat16 / fp8 |
+| `tabulate`  | Formatted precision report tables                 |
+
+Tests that require a missing optional dependency are skipped automatically.
 
 ```sh
 pytest test/ -s -x -Wd -k dot         # filter by name
@@ -234,16 +245,19 @@ pytest test/ -s -x -Wd -k "dot or spatial"
 
 ### Environment Variables
 
-| Variable               | Default          | Description                        |
-| ---------------------- | ---------------- | ---------------------------------- |
-| `NK_DENSE_DIMENSIONS`  | `1,2,3,...,1536` | Comma-separated vector dimensions  |
-| `NK_CURVED_DIMENSIONS` | `11,97`          | Dimensions for curved-space tests  |
-| `NK_MATRIX_HEIGHT`     | `1024`           | GEMM M dimension                   |
-| `NK_MATRIX_WIDTH`      | `128`            | GEMM N dimension                   |
-| `NK_MATRIX_DEPTH`      | `1536`           | GEMM K dimension                   |
-| `NK_SEED`              | OS entropy       | Deterministic seed for `np.random` |
-| `NK_REPETITIONS`       | `10`             | Randomized test repeat count       |
-| `NK_IN_QEMU`           | unset            | Relax accuracy thresholds          |
+| Variable               | Default          | Description                             |
+| ---------------------- | ---------------- | --------------------------------------- |
+| `NK_DENSE_DIMENSIONS`  | `1,2,3,...,1536` | Comma-separated vector dimensions       |
+| `NK_CURVED_DIMENSIONS` | `11,97`          | Dimensions for curved-space tests       |
+| `NK_MATRIX_HEIGHT`     | `1024`           | GEMM M dimension                        |
+| `NK_MATRIX_WIDTH`      | `128`            | GEMM N dimension                        |
+| `NK_MATRIX_DEPTH`      | `1536`           | GEMM K dimension                        |
+| `NK_SEED`              | OS entropy       | Deterministic seed for `np.random`      |
+| `NK_REPETITIONS`       | `10`             | Randomized test repeat count            |
+| `NK_IN_QEMU`           | unset            | Relax accuracy thresholds               |
+| `NK_SPARSE_DIMENSIONS` | `256`            | Universe size for sparse tests          |
+| `NK_MESH_POINTS`       | `100`            | Point count for mesh alignment tests    |
+| `NK_MAX_COORD_ANGLE`   | `180`            | Maximum angle in degrees for geospatial |
 
 The `pytest-repeat` plugin re-runs each test `NK_REPETITIONS` times with auto-seeding — each iteration gets a unique seed derived from the base `NK_SEED`, ensuring broader input coverage without sacrificing reproducibility.
 
@@ -272,9 +286,11 @@ npx playwright test --config test/playwright.config.ts    # Browser via Playwrig
 
 ### Environment Variables
 
-| Variable     | Default  | Description                                        |
-| ------------ | -------- | -------------------------------------------------- |
-| `NK_RUNTIME` | `native` | Runtime: `emscripten`, `emscripten64`, `wasi-node` |
+| Variable              | Default         | Description                                        |
+| --------------------- | --------------- | -------------------------------------------------- |
+| `NK_RUNTIME`          | `native`        | Runtime: `emscripten`, `emscripten64`, `wasi-node` |
+| `NK_SEED`             | `42`            | Random seed for reproducible test data             |
+| `NK_DENSE_DIMENSIONS` | `3,16,128,1536` | Comma-separated vector dimensions                  |
 
 ## Swift
 

@@ -217,8 +217,8 @@ struct test_config_t {
     std::size_t matrix_width = 128;
     /** GEMM K dimension. Override: `NK_MATRIX_DEPTH`. */
     std::size_t matrix_depth = 1536;
-    /** Max angular separation in degrees for geospatial tests. Override: `NK_GEOSPATIAL_MAX_ANGLE`. */
-    float geospatial_max_angle = 180.0f;
+    /** Max angular separation in degrees for geospatial tests. Override: `NK_MAX_COORD_ANGLE`. */
+    float max_coord_angle = 180.0f;
     /** Count of kernels that failed the configured accuracy checks. */
     std::size_t failure_count = 0;
 

@@ -56,7 +56,7 @@ build_release/nk_bench --filter=dot                       # shorthand for --benc
 | `NK_SPARSE_FIRST_LENGTH`  | `1024`  | First set size for sparse benchmarks                   |
 | `NK_SPARSE_SECOND_LENGTH` | `8192`  | Second set size for sparse benchmarks                  |
 | `NK_SPARSE_INTERSECTION`  | `0.5`   | Intersection share [0.0, 1.0] for sparse benchmarks    |
-| `NK_GEOSPATIAL_MAX_ANGLE` | `180`   | Maximum angle in degrees for geospatial benchmarks     |
+| `NK_MAX_COORD_ANGLE`      | `180`   | Maximum angle in degrees for geospatial benchmarks     |
 
 Disable multi-threading in BLAS libraries to avoid interference:
 

@@ -66,7 +66,7 @@ The kernels compute the full distance by default, but the streaming API can opti
 ## Performance
 
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
-The input size is controlled by the `NK_GEOSPATIAL_MAX_ANGLE` environment variable and set to ≤1°, ≤30°, and ≤180° maximum angular separation between pairs of coordinates.
+The input size is controlled by the `NK_MAX_COORD_ANGLE` environment variable and set to ≤1°, ≤30°, and ≤180° maximum angular separation between pairs of coordinates.
 The larger the angular separation between pairs, the longer the algorithm may take to converge and the higher the error.
 The throughput is measured in MP/s as the number of Millions of pairwise point distances computed per second - amortized for a large batch size, with `NK_DENSE_DIMENSIONS=1536` by default.
 Current `nk_test` output reports geospatial accuracy in two forms: mean/max absolute error in meters against Vincenty's formula computed at double-double (f118) precision, and mean/max ULP against the matching high-precision implementation of the same formula. The historical tables below use the meter-based summary where it has been remeasured; older x86 rows still retain their original ULP figures until rerun.

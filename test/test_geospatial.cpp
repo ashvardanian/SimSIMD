@@ -27,7 +27,7 @@ error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) 
          haversine_ref = make_vector<scalar_t>(global_config.dense_dimensions),
          vincenty_ref = make_vector<scalar_t>(global_config.dense_dimensions);
 
-    double const max_separation_rad = double(global_config.geospatial_max_angle) * 3.14159265358979323846 / 180.0;
+    double const max_separation_rad = double(global_config.max_coord_angle) * 3.14159265358979323846 / 180.0;
     for (auto start = test_start_time(); within_time_budget(start);) {
         nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), global_config.dense_dimensions);
         nk::fill_nearby_coordinates(generator, a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
@@ -83,7 +83,7 @@ error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
     auto results = make_vector<scalar_t>(global_config.dense_dimensions),
          reference = make_vector<scalar_t>(global_config.dense_dimensions);
 
-    double const max_separation_rad = double(global_config.geospatial_max_angle) * 3.14159265358979323846 / 180.0;
+    double const max_separation_rad = double(global_config.max_coord_angle) * 3.14159265358979323846 / 180.0;
     for (auto start = test_start_time(); within_time_budget(start);) {
         nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), global_config.dense_dimensions);
         nk::fill_nearby_coordinates(generator, a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
