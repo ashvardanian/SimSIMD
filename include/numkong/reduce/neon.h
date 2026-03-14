@@ -1420,72 +1420,70 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     uint16x8_t min_u16x8 = vdupq_n_u16(NK_U16_MAX), max_u16x8 = vdupq_n_u16(0);
     uint16x8_t min_iter_u16x8 = vdupq_n_u16(0), max_iter_u16x8 = vdupq_n_u16(0);
     uint16x8_t iter_u16x8 = vdupq_n_u16(0), one_u16x8 = vdupq_n_u16(1);
-    nk_size_t idx = 0;
-    if (stride_elements == 2) {
-        for (; idx + 8 <= count; idx += 8) {
-            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((nk_u16_t const *)data_ptr + idx * 2);
-            uint16x8_t data_u16x8 = loaded_u16x8x2.val[0];
-            uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
-            uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
-            min_u16x8 = vbslq_u16(less_u16x8, data_u16x8, min_u16x8);
-            max_u16x8 = vbslq_u16(greater_u16x8, data_u16x8, max_u16x8);
-            min_iter_u16x8 = vbslq_u16(less_u16x8, iter_u16x8, min_iter_u16x8);
-            max_iter_u16x8 = vbslq_u16(greater_u16x8, iter_u16x8, max_iter_u16x8);
-            iter_u16x8 = vaddq_u16(iter_u16x8, one_u16x8);
-        }
-    }
-    else if (stride_elements == 3) {
-        for (; idx + 8 <= count; idx += 8) {
-            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((nk_u16_t const *)data_ptr + idx * 3);
-            uint16x8_t data_u16x8 = loaded_u16x8x3.val[0];
-            uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
-            uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
-            min_u16x8 = vbslq_u16(less_u16x8, data_u16x8, min_u16x8);
-            max_u16x8 = vbslq_u16(greater_u16x8, data_u16x8, max_u16x8);
-            min_iter_u16x8 = vbslq_u16(less_u16x8, iter_u16x8, min_iter_u16x8);
-            max_iter_u16x8 = vbslq_u16(greater_u16x8, iter_u16x8, max_iter_u16x8);
-            iter_u16x8 = vaddq_u16(iter_u16x8, one_u16x8);
-        }
-    }
-    else {
-        for (; idx + 8 <= count; idx += 8) {
-            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((nk_u16_t const *)data_ptr + idx * 4);
-            uint16x8_t data_u16x8 = loaded_u16x8x4.val[0];
-            uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
-            uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
-            min_u16x8 = vbslq_u16(less_u16x8, data_u16x8, min_u16x8);
-            max_u16x8 = vbslq_u16(greater_u16x8, data_u16x8, max_u16x8);
-            min_iter_u16x8 = vbslq_u16(less_u16x8, iter_u16x8, min_iter_u16x8);
-            max_iter_u16x8 = vbslq_u16(greater_u16x8, iter_u16x8, max_iter_u16x8);
-            iter_u16x8 = vaddq_u16(iter_u16x8, one_u16x8);
-        }
-    }
-    nk_u16_t min_value = vminvq_u16(min_u16x8), max_value = vmaxvq_u16(max_u16x8);
-    uint16x8_t min_value_match_u16x8 = vceqq_u16(min_u16x8, vdupq_n_u16(min_value));
-    uint16x8_t masked_min_iter_u16x8 = vbslq_u16(min_value_match_u16x8, min_iter_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t earliest_min_cycle = vminvq_u16(masked_min_iter_u16x8);
-    uint16x8_t max_value_match_u16x8 = vceqq_u16(max_u16x8, vdupq_n_u16(max_value));
-    uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
     uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
                                                  vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
-    uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
-    uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
-    uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t min_lane_offset = vminvq_u16(min_masked_lanes_u16x8);
-    nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 8 + (nk_size_t)min_lane_offset;
-    uint16x8_t max_cycle_match_u16x8 = vceqq_u16(max_iter_u16x8, vdupq_n_u16(earliest_max_cycle));
-    uint16x8_t max_both_match_u16x8 = vandq_u16(max_value_match_u16x8, max_cycle_match_u16x8);
-    uint16x8_t max_masked_lanes_u16x8 = vbslq_u16(max_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
-    nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
-    nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
-    for (; idx < count; ++idx) {
-        nk_u16_t val = *(data_ptr + idx * stride_elements);
-        if (val < min_value) min_value = val, min_idx = idx;
-        if (val > max_value) max_value = val, max_idx = idx;
+    nk_size_t idx = 0;
+    uint16x8_t data_for_min_u16x8, data_for_max_u16x8;
+
+nk_reduce_minmax_u16_neon_cycle:
+    if (stride_elements == 2 && idx + 8 <= count) {
+        uint16x8x2_t loaded = vld2q_u16((nk_u16_t const *)data_ptr + idx * 2);
+        data_for_min_u16x8 = loaded.val[0];
+        data_for_max_u16x8 = loaded.val[0];
+        idx += 8;
     }
-    *min_value_ptr = min_value, *min_index_ptr = min_idx;
-    *max_value_ptr = max_value, *max_index_ptr = max_idx;
+    else if (stride_elements == 3 && idx + 8 <= count) {
+        uint16x8x3_t loaded = vld3q_u16((nk_u16_t const *)data_ptr + idx * 3);
+        data_for_min_u16x8 = loaded.val[0];
+        data_for_max_u16x8 = loaded.val[0];
+        idx += 8;
+    }
+    else if (stride_elements == 4 && idx + 8 <= count) {
+        uint16x8x4_t loaded = vld4q_u16((nk_u16_t const *)data_ptr + idx * 4);
+        data_for_min_u16x8 = loaded.val[0];
+        data_for_max_u16x8 = loaded.val[0];
+        idx += 8;
+    }
+    else if (idx < count) {
+        nk_b128_vec_t tail_vec;
+        nk_strided_load_b16x8_serial_(data_ptr + idx * stride_elements, stride_elements, &tail_vec, count - idx);
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)(count - idx)));
+        data_for_min_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, min_u16x8);
+        data_for_max_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, max_u16x8);
+        idx = count;
+    }
+    else {
+        nk_u16_t min_value = vminvq_u16(min_u16x8), max_value = vmaxvq_u16(max_u16x8);
+        uint16x8_t min_value_match_u16x8 = vceqq_u16(min_u16x8, vdupq_n_u16(min_value));
+        uint16x8_t masked_min_iter_u16x8 = vbslq_u16(min_value_match_u16x8, min_iter_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t earliest_min_cycle = vminvq_u16(masked_min_iter_u16x8);
+        uint16x8_t max_value_match_u16x8 = vceqq_u16(max_u16x8, vdupq_n_u16(max_value));
+        uint16x8_t masked_max_iter_u16x8 = vbslq_u16(max_value_match_u16x8, max_iter_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t earliest_max_cycle = vminvq_u16(masked_max_iter_u16x8);
+        uint16x8_t min_cycle_match_u16x8 = vceqq_u16(min_iter_u16x8, vdupq_n_u16(earliest_min_cycle));
+        uint16x8_t min_both_match_u16x8 = vandq_u16(min_value_match_u16x8, min_cycle_match_u16x8);
+        uint16x8_t min_masked_lanes_u16x8 = vbslq_u16(min_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t min_lane_offset = vminvq_u16(min_masked_lanes_u16x8);
+        nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 8 + (nk_size_t)min_lane_offset;
+        uint16x8_t max_cycle_match_u16x8 = vceqq_u16(max_iter_u16x8, vdupq_n_u16(earliest_max_cycle));
+        uint16x8_t max_both_match_u16x8 = vandq_u16(max_value_match_u16x8, max_cycle_match_u16x8);
+        uint16x8_t max_masked_lanes_u16x8 = vbslq_u16(max_both_match_u16x8, lane_indices_u16x8, vdupq_n_u16(0xFFFF));
+        nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
+        nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
+        *min_value_ptr = min_value, *min_index_ptr = min_idx;
+        *max_value_ptr = max_value, *max_index_ptr = max_idx;
+        return;
+    }
+
+    // Shared update body
+    uint16x8_t less_u16x8 = vcltq_u16(data_for_min_u16x8, min_u16x8);
+    uint16x8_t greater_u16x8 = vcgtq_u16(data_for_max_u16x8, max_u16x8);
+    min_u16x8 = vbslq_u16(less_u16x8, data_for_min_u16x8, min_u16x8);
+    max_u16x8 = vbslq_u16(greater_u16x8, data_for_max_u16x8, max_u16x8);
+    min_iter_u16x8 = vbslq_u16(less_u16x8, iter_u16x8, min_iter_u16x8);
+    max_iter_u16x8 = vbslq_u16(greater_u16x8, iter_u16x8, max_iter_u16x8);
+    iter_u16x8 = vaddq_u16(iter_u16x8, one_u16x8);
+    goto nk_reduce_minmax_u16_neon_cycle;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u16_neon(                              //
@@ -1835,72 +1833,72 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_strided_(                      //
     int32x4_t min_i32x4 = vdupq_n_s32(NK_I32_MAX), max_i32x4 = vdupq_n_s32(NK_I32_MIN);
     uint32x4_t min_iter_u32x4 = vdupq_n_u32(0), max_iter_u32x4 = vdupq_n_u32(0);
     uint32x4_t iter_u32x4 = vdupq_n_u32(0), one_u32x4 = vdupq_n_u32(1);
-    nk_size_t idx = 0;
-    if (stride_elements == 2) {
-        for (; idx + 4 <= count; idx += 4) {
-            int32x4x2_t loaded_i32x4x2 = vld2q_s32(data_ptr + idx * 2);
-            int32x4_t data_i32x4 = loaded_i32x4x2.val[0];
-            uint32x4_t less_u32x4 = vcltq_s32(data_i32x4, min_i32x4);
-            uint32x4_t greater_u32x4 = vcgtq_s32(data_i32x4, max_i32x4);
-            min_i32x4 = vbslq_s32(less_u32x4, data_i32x4, min_i32x4);
-            max_i32x4 = vbslq_s32(greater_u32x4, data_i32x4, max_i32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    else if (stride_elements == 3) {
-        for (; idx + 4 <= count; idx += 4) {
-            int32x4x3_t loaded_i32x4x3 = vld3q_s32(data_ptr + idx * 3);
-            int32x4_t data_i32x4 = loaded_i32x4x3.val[0];
-            uint32x4_t less_u32x4 = vcltq_s32(data_i32x4, min_i32x4);
-            uint32x4_t greater_u32x4 = vcgtq_s32(data_i32x4, max_i32x4);
-            min_i32x4 = vbslq_s32(less_u32x4, data_i32x4, min_i32x4);
-            max_i32x4 = vbslq_s32(greater_u32x4, data_i32x4, max_i32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    else {
-        for (; idx + 4 <= count; idx += 4) {
-            int32x4x4_t loaded_i32x4x4 = vld4q_s32(data_ptr + idx * 4);
-            int32x4_t data_i32x4 = loaded_i32x4x4.val[0];
-            uint32x4_t less_u32x4 = vcltq_s32(data_i32x4, min_i32x4);
-            uint32x4_t greater_u32x4 = vcgtq_s32(data_i32x4, max_i32x4);
-            min_i32x4 = vbslq_s32(less_u32x4, data_i32x4, min_i32x4);
-            max_i32x4 = vbslq_s32(greater_u32x4, data_i32x4, max_i32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    nk_i32_t min_value = vminvq_s32(min_i32x4), max_value = vmaxvq_s32(max_i32x4);
-    uint32x4_t min_value_match_u32x4 = vceqq_s32(min_i32x4, vdupq_n_s32(min_value));
-    uint32x4_t masked_min_iter_u32x4 = vbslq_u32(min_value_match_u32x4, min_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t earliest_min_cycle = vminvq_u32(masked_min_iter_u32x4);
-    uint32x4_t max_value_match_u32x4 = vceqq_s32(max_i32x4, vdupq_n_s32(max_value));
-    uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
     uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
                                                  vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
-    uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
-    uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
-    uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t min_lane_offset = vminvq_u32(min_masked_lanes_u32x4);
-    nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 4 + (nk_size_t)min_lane_offset;
-    uint32x4_t max_cycle_match_u32x4 = vceqq_u32(max_iter_u32x4, vdupq_n_u32(earliest_max_cycle));
-    uint32x4_t max_both_match_u32x4 = vandq_u32(max_value_match_u32x4, max_cycle_match_u32x4);
-    uint32x4_t max_masked_lanes_u32x4 = vbslq_u32(max_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
-    nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
-    for (; idx < count; ++idx) {
-        nk_i32_t val = *(data_ptr + idx * stride_elements);
-        if (val < min_value) min_value = val, min_idx = idx;
-        if (val > max_value) max_value = val, max_idx = idx;
+    nk_size_t idx = 0;
+    int32x4_t data_for_min_i32x4, data_for_max_i32x4;
+
+nk_reduce_minmax_i32_neon_cycle:
+    if (stride_elements == 2 && idx + 4 <= count) {
+        int32x4x2_t loaded = vld2q_s32(data_ptr + idx * 2);
+        data_for_min_i32x4 = loaded.val[0];
+        data_for_max_i32x4 = loaded.val[0];
+        idx += 4;
     }
-    *min_value_ptr = min_value, *min_index_ptr = min_idx;
-    *max_value_ptr = max_value, *max_index_ptr = max_idx;
+    else if (stride_elements == 3 && idx + 4 <= count) {
+        int32x4x3_t loaded = vld3q_s32(data_ptr + idx * 3);
+        data_for_min_i32x4 = loaded.val[0];
+        data_for_max_i32x4 = loaded.val[0];
+        idx += 4;
+    }
+    else if (stride_elements == 4 && idx + 4 <= count) {
+        int32x4x4_t loaded = vld4q_s32(data_ptr + idx * 4);
+        data_for_min_i32x4 = loaded.val[0];
+        data_for_max_i32x4 = loaded.val[0];
+        idx += 4;
+    }
+    else if (idx < count) {
+        nk_b128_vec_t tail_vec;
+        nk_strided_load_b32x4_serial_(data_ptr + idx * stride_elements, stride_elements, &tail_vec, count - idx);
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_indices_u32x4, vdupq_n_u32((uint32_t)(count - idx)));
+        data_for_min_i32x4 = vbslq_s32(valid_u32x4, tail_vec.i32x4, min_i32x4);
+        data_for_max_i32x4 = vbslq_s32(valid_u32x4, tail_vec.i32x4, max_i32x4);
+        idx = count;
+    }
+    else {
+        nk_i32_t min_value = vminvq_s32(min_i32x4), max_value = vmaxvq_s32(max_i32x4);
+        uint32x4_t min_value_match_u32x4 = vceqq_s32(min_i32x4, vdupq_n_s32(min_value));
+        uint32x4_t masked_min_iter_u32x4 = vbslq_u32(min_value_match_u32x4, min_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t earliest_min_cycle = vminvq_u32(masked_min_iter_u32x4);
+        uint32x4_t max_value_match_u32x4 = vceqq_s32(max_i32x4, vdupq_n_s32(max_value));
+        uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
+        uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
+        uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
+        uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4,
+                                                      vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t min_lane_offset = vminvq_u32(min_masked_lanes_u32x4);
+        nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 4 + (nk_size_t)min_lane_offset;
+        uint32x4_t max_cycle_match_u32x4 = vceqq_u32(max_iter_u32x4, vdupq_n_u32(earliest_max_cycle));
+        uint32x4_t max_both_match_u32x4 = vandq_u32(max_value_match_u32x4, max_cycle_match_u32x4);
+        uint32x4_t max_masked_lanes_u32x4 = vbslq_u32(max_both_match_u32x4, lane_indices_u32x4,
+                                                      vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
+        nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
+        *min_value_ptr = min_value, *min_index_ptr = min_idx;
+        *max_value_ptr = max_value, *max_index_ptr = max_idx;
+        return;
+    }
+
+    // Shared update body
+    uint32x4_t less_u32x4 = vcltq_s32(data_for_min_i32x4, min_i32x4);
+    uint32x4_t greater_u32x4 = vcgtq_s32(data_for_max_i32x4, max_i32x4);
+    min_i32x4 = vbslq_s32(less_u32x4, data_for_min_i32x4, min_i32x4);
+    max_i32x4 = vbslq_s32(greater_u32x4, data_for_max_i32x4, max_i32x4);
+    min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
+    max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
+    iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
+    goto nk_reduce_minmax_i32_neon_cycle;
 }
 
 NK_PUBLIC void nk_reduce_minmax_i32_neon(                              //
@@ -2108,72 +2106,72 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_strided_(                      //
     uint32x4_t min_u32x4 = vdupq_n_u32(NK_U32_MAX), max_u32x4 = vdupq_n_u32(0);
     uint32x4_t min_iter_u32x4 = vdupq_n_u32(0), max_iter_u32x4 = vdupq_n_u32(0);
     uint32x4_t iter_u32x4 = vdupq_n_u32(0), one_u32x4 = vdupq_n_u32(1);
-    nk_size_t idx = 0;
-    if (stride_elements == 2) {
-        for (; idx + 4 <= count; idx += 4) {
-            uint32x4x2_t loaded_u32x4x2 = vld2q_u32(data_ptr + idx * 2);
-            uint32x4_t data_u32x4 = loaded_u32x4x2.val[0];
-            uint32x4_t less_u32x4 = vcltq_u32(data_u32x4, min_u32x4);
-            uint32x4_t greater_u32x4 = vcgtq_u32(data_u32x4, max_u32x4);
-            min_u32x4 = vbslq_u32(less_u32x4, data_u32x4, min_u32x4);
-            max_u32x4 = vbslq_u32(greater_u32x4, data_u32x4, max_u32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    else if (stride_elements == 3) {
-        for (; idx + 4 <= count; idx += 4) {
-            uint32x4x3_t loaded_u32x4x3 = vld3q_u32(data_ptr + idx * 3);
-            uint32x4_t data_u32x4 = loaded_u32x4x3.val[0];
-            uint32x4_t less_u32x4 = vcltq_u32(data_u32x4, min_u32x4);
-            uint32x4_t greater_u32x4 = vcgtq_u32(data_u32x4, max_u32x4);
-            min_u32x4 = vbslq_u32(less_u32x4, data_u32x4, min_u32x4);
-            max_u32x4 = vbslq_u32(greater_u32x4, data_u32x4, max_u32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    else {
-        for (; idx + 4 <= count; idx += 4) {
-            uint32x4x4_t loaded_u32x4x4 = vld4q_u32(data_ptr + idx * 4);
-            uint32x4_t data_u32x4 = loaded_u32x4x4.val[0];
-            uint32x4_t less_u32x4 = vcltq_u32(data_u32x4, min_u32x4);
-            uint32x4_t greater_u32x4 = vcgtq_u32(data_u32x4, max_u32x4);
-            min_u32x4 = vbslq_u32(less_u32x4, data_u32x4, min_u32x4);
-            max_u32x4 = vbslq_u32(greater_u32x4, data_u32x4, max_u32x4);
-            min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
-            max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
-            iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
-        }
-    }
-    nk_u32_t min_value = vminvq_u32(min_u32x4), max_value = vmaxvq_u32(max_u32x4);
-    uint32x4_t min_value_match_u32x4 = vceqq_u32(min_u32x4, vdupq_n_u32(min_value));
-    uint32x4_t masked_min_iter_u32x4 = vbslq_u32(min_value_match_u32x4, min_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t earliest_min_cycle = vminvq_u32(masked_min_iter_u32x4);
-    uint32x4_t max_value_match_u32x4 = vceqq_u32(max_u32x4, vdupq_n_u32(max_value));
-    uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
     uint32x4_t lane_indices_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
                                                  vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
-    uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
-    uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
-    uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t min_lane_offset = vminvq_u32(min_masked_lanes_u32x4);
-    nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 4 + (nk_size_t)min_lane_offset;
-    uint32x4_t max_cycle_match_u32x4 = vceqq_u32(max_iter_u32x4, vdupq_n_u32(earliest_max_cycle));
-    uint32x4_t max_both_match_u32x4 = vandq_u32(max_value_match_u32x4, max_cycle_match_u32x4);
-    uint32x4_t max_masked_lanes_u32x4 = vbslq_u32(max_both_match_u32x4, lane_indices_u32x4, vdupq_n_u32(NK_U32_MAX));
-    nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
-    nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
-    for (; idx < count; ++idx) {
-        nk_u32_t val = *(data_ptr + idx * stride_elements);
-        if (val < min_value) min_value = val, min_idx = idx;
-        if (val > max_value) max_value = val, max_idx = idx;
+    nk_size_t idx = 0;
+    uint32x4_t data_for_min_u32x4, data_for_max_u32x4;
+
+nk_reduce_minmax_u32_neon_cycle:
+    if (stride_elements == 2 && idx + 4 <= count) {
+        uint32x4x2_t loaded = vld2q_u32(data_ptr + idx * 2);
+        data_for_min_u32x4 = loaded.val[0];
+        data_for_max_u32x4 = loaded.val[0];
+        idx += 4;
     }
-    *min_value_ptr = min_value, *min_index_ptr = min_idx;
-    *max_value_ptr = max_value, *max_index_ptr = max_idx;
+    else if (stride_elements == 3 && idx + 4 <= count) {
+        uint32x4x3_t loaded = vld3q_u32(data_ptr + idx * 3);
+        data_for_min_u32x4 = loaded.val[0];
+        data_for_max_u32x4 = loaded.val[0];
+        idx += 4;
+    }
+    else if (stride_elements == 4 && idx + 4 <= count) {
+        uint32x4x4_t loaded = vld4q_u32(data_ptr + idx * 4);
+        data_for_min_u32x4 = loaded.val[0];
+        data_for_max_u32x4 = loaded.val[0];
+        idx += 4;
+    }
+    else if (idx < count) {
+        nk_b128_vec_t tail_vec;
+        nk_strided_load_b32x4_serial_(data_ptr + idx * stride_elements, stride_elements, &tail_vec, count - idx);
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_indices_u32x4, vdupq_n_u32((uint32_t)(count - idx)));
+        data_for_min_u32x4 = vbslq_u32(valid_u32x4, tail_vec.u32x4, min_u32x4);
+        data_for_max_u32x4 = vbslq_u32(valid_u32x4, tail_vec.u32x4, max_u32x4);
+        idx = count;
+    }
+    else {
+        nk_u32_t min_value = vminvq_u32(min_u32x4), max_value = vmaxvq_u32(max_u32x4);
+        uint32x4_t min_value_match_u32x4 = vceqq_u32(min_u32x4, vdupq_n_u32(min_value));
+        uint32x4_t masked_min_iter_u32x4 = vbslq_u32(min_value_match_u32x4, min_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t earliest_min_cycle = vminvq_u32(masked_min_iter_u32x4);
+        uint32x4_t max_value_match_u32x4 = vceqq_u32(max_u32x4, vdupq_n_u32(max_value));
+        uint32x4_t masked_max_iter_u32x4 = vbslq_u32(max_value_match_u32x4, max_iter_u32x4, vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t earliest_max_cycle = vminvq_u32(masked_max_iter_u32x4);
+        uint32x4_t min_cycle_match_u32x4 = vceqq_u32(min_iter_u32x4, vdupq_n_u32(earliest_min_cycle));
+        uint32x4_t min_both_match_u32x4 = vandq_u32(min_value_match_u32x4, min_cycle_match_u32x4);
+        uint32x4_t min_masked_lanes_u32x4 = vbslq_u32(min_both_match_u32x4, lane_indices_u32x4,
+                                                      vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t min_lane_offset = vminvq_u32(min_masked_lanes_u32x4);
+        nk_size_t min_idx = (nk_size_t)earliest_min_cycle * 4 + (nk_size_t)min_lane_offset;
+        uint32x4_t max_cycle_match_u32x4 = vceqq_u32(max_iter_u32x4, vdupq_n_u32(earliest_max_cycle));
+        uint32x4_t max_both_match_u32x4 = vandq_u32(max_value_match_u32x4, max_cycle_match_u32x4);
+        uint32x4_t max_masked_lanes_u32x4 = vbslq_u32(max_both_match_u32x4, lane_indices_u32x4,
+                                                      vdupq_n_u32(NK_U32_MAX));
+        nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
+        nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
+        *min_value_ptr = min_value, *min_index_ptr = min_idx;
+        *max_value_ptr = max_value, *max_index_ptr = max_idx;
+        return;
+    }
+
+    // Shared update body
+    uint32x4_t less_u32x4 = vcltq_u32(data_for_min_u32x4, min_u32x4);
+    uint32x4_t greater_u32x4 = vcgtq_u32(data_for_max_u32x4, max_u32x4);
+    min_u32x4 = vbslq_u32(less_u32x4, data_for_min_u32x4, min_u32x4);
+    max_u32x4 = vbslq_u32(greater_u32x4, data_for_max_u32x4, max_u32x4);
+    min_iter_u32x4 = vbslq_u32(less_u32x4, iter_u32x4, min_iter_u32x4);
+    max_iter_u32x4 = vbslq_u32(greater_u32x4, iter_u32x4, max_iter_u32x4);
+    iter_u32x4 = vaddq_u32(iter_u32x4, one_u32x4);
+    goto nk_reduce_minmax_u32_neon_cycle;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u32_neon(                              //
