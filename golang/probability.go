@@ -1,0 +1,65 @@
+package numkong
+
+/*
+#cgo CFLAGS: -O3 -I../include
+#cgo LDFLAGS: -O3 -L. -lm
+#define NK_NATIVE_F16 (0)
+#define NK_NATIVE_BF16 (0)
+#include "numkong/numkong.h"
+#include <stdlib.h>
+*/
+import "C"
+
+// KullbackLeiblerF64 computes the Kullback-Leibler divergence between two f64 distributions.
+func KullbackLeiblerF64(a, b []float64) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_kld_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}
+
+// KullbackLeiblerF32 computes the Kullback-Leibler divergence between two f32 distributions.
+// Returns float64 (widened output).
+func KullbackLeiblerF32(a, b []float32) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_kld_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}
+
+// JensenShannonF64 computes the Jensen-Shannon distance between two f64 distributions.
+func JensenShannonF64(a, b []float64) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_jsd_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}
+
+// JensenShannonF32 computes the Jensen-Shannon distance between two f32 distributions.
+// Returns float64 (widened output).
+func JensenShannonF32(a, b []float32) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_jsd_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}

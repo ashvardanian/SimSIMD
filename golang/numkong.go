@@ -1,3 +1,33 @@
+// Package numkong provides SIMD-accelerated similarity measures and numeric kernels.
+//
+// Operations:
+//   - Dot products: DotF64, DotF32, DotI8, DotU8
+//   - Angular (cosine) distance: AngularF64, AngularF32, AngularI8, AngularU8
+//   - Euclidean (L2) distance: EuclideanF64, EuclideanF32, EuclideanI8, EuclideanU8
+//   - Squared Euclidean: SqEuclideanF64, SqEuclideanF32, SqEuclideanI8, SqEuclideanU8
+//   - Set similarity: HammingU8, HammingU1, JaccardU1, JaccardU16, JaccardU32
+//   - Probability: KullbackLeiblerF64/F32, JensenShannonF64/F32
+//   - Geospatial: HaversineF64/F32, VincentyF64/F32
+//
+// Batch operations use PackedMatrix for type-safe pre-packed right-hand-side matrices:
+//   - Packed dot products: DotsPackedF64/F32/I8/U8
+//   - Packed angular/Euclidean: AngularsPackedF64/F32/I8/U8, EuclideansPackedF64/F32/I8/U8
+//   - Packed binary: HammingsPackedU1, JaccardsPackedU1
+//   - Symmetric self-similarity: DotsSymmetric*, AngularsSymmetric*, EuclideansSymmetric*
+//   - MaxSim (ColBERT): MaxSimF32 with MaxSimPacked
+//
+// Output widening: f32 inputs produce f64 outputs; i8 inputs produce i32 or f32 outputs;
+// u8 inputs produce u32 or f32 outputs. This prevents overflow in accumulation.
+//
+// Thread configuration: ConfigureThread pins the goroutine to an OS thread,
+// configures SIMD state, and returns an unlock function for use with defer.
+//
+// Parallel batch operations: WorkerPool provides pre-pinned threads with
+// pre-configured SIMD state. PackedMatrix *WithPool methods and
+// *SymmetricWithPool free functions dispatch work to the pool.
+//
+// All functions panic on invalid inputs (length mismatches, insufficient slice capacity).
+// Empty inputs return the zero value for scalar functions.
 package numkong
 
 /*
@@ -9,7 +39,10 @@ package numkong
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // CPU capability bit masks in chronological order (by first commercial silicon)
 const (
@@ -50,279 +83,26 @@ const (
 	CapSierra      uint64 = 1 << 34 // 2024: Intel AVXVNNIINT8
 )
 
-// region Dot Product
-
-// DotF64 computes the inner product (dot product) of two float64 vectors.
-func DotF64(a, b []float64) float64 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f64_t
-	C.nk_dot_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float64(result)
-}
-
-// DotF32 computes the inner product (dot product) of two float32 vectors.
-func DotF32(a, b []float32) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_dot_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// DotI8 computes the inner product (dot product) of two int8 vectors.
-// Returns int32 (widened output).
-func DotI8(a, b []int8) int32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_i32_t
-	C.nk_dot_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return int32(result)
-}
-
-// endregion
-
-// region Angular (Cosine) Distance
-
-// AngularF64 computes the angular (cosine) distance between two float64 vectors.
-func AngularF64(a, b []float64) float64 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f64_t
-	C.nk_angular_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float64(result)
-}
-
-// AngularF32 computes the angular (cosine) distance between two float32 vectors.
-func AngularF32(a, b []float32) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_angular_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// AngularI8 computes the angular (cosine) distance between two int8 vectors.
-// Returns float32 (widened output).
-func AngularI8(a, b []int8) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_angular_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// endregion
-
-// region Euclidean Distance (L2)
-
-// EuclideanF64 computes the Euclidean (L2) distance between two float64 vectors.
-func EuclideanF64(a, b []float64) float64 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f64_t
-	C.nk_euclidean_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float64(result)
-}
-
-// EuclideanF32 computes the Euclidean (L2) distance between two float32 vectors.
-func EuclideanF32(a, b []float32) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_euclidean_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// EuclideanI8 computes the Euclidean (L2) distance between two int8 vectors.
-// Returns float32 (widened output).
-func EuclideanI8(a, b []int8) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_euclidean_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// L2F64 is an alias for EuclideanF64.
-func L2F64(a, b []float64) float64 { return EuclideanF64(a, b) }
-
-// L2F32 is an alias for EuclideanF32.
-func L2F32(a, b []float32) float32 { return EuclideanF32(a, b) }
-
-// L2I8 is an alias for EuclideanI8.
-func L2I8(a, b []int8) float32 { return EuclideanI8(a, b) }
-
-// endregion
-
-// region Squared Euclidean Distance (L2sq)
-
-// SqEuclideanF64 computes the squared Euclidean distance between two float64 vectors.
-func SqEuclideanF64(a, b []float64) float64 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f64_t
-	C.nk_sqeuclidean_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float64(result)
-}
-
-// SqEuclideanF32 computes the squared Euclidean distance between two float32 vectors.
-func SqEuclideanF32(a, b []float32) float32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_f32_t
-	C.nk_sqeuclidean_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return float32(result)
-}
-
-// SqEuclideanI8 computes the squared Euclidean distance between two int8 vectors.
-// Returns uint32 (widened output).
-func SqEuclideanI8(a, b []int8) uint32 {
-	if len(a) != len(b) {
-		panic("both vectors must have the same length")
-	}
-	if len(a) == 0 {
-		return 0
-	}
-	var result C.nk_u32_t
-	C.nk_sqeuclidean_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
-	return uint32(result)
-}
-
-// L2sqF64 is an alias for SqEuclideanF64.
-func L2sqF64(a, b []float64) float64 { return SqEuclideanF64(a, b) }
-
-// L2sqF32 is an alias for SqEuclideanF32.
-func L2sqF32(a, b []float32) float32 { return SqEuclideanF32(a, b) }
-
-// L2sqI8 is an alias for SqEuclideanI8.
-func L2sqI8(a, b []int8) uint32 { return SqEuclideanI8(a, b) }
-
-// endregion
-
-// region Geospatial Distance
-
-// HaversineF64 computes the Haversine (great-circle) distance between coordinate pairs.
-// Input coordinates must be in radians. Output distances are in meters.
-// aLat, aLon: latitudes and longitudes of first set of points
-// bLat, bLon: latitudes and longitudes of second set of points
-// result: output slice for distances (must be same length as input slices)
-func HaversineF64(aLat, aLon, bLat, bLon, result []float64) bool {
-	n := len(aLat)
-	if n == 0 || n != len(aLon) || n != len(bLat) || n != len(bLon) || n != len(result) {
-		return false
-	}
-	C.nk_haversine_f64(
-		(*C.nk_f64_t)(&aLat[0]), (*C.nk_f64_t)(&aLon[0]),
-		(*C.nk_f64_t)(&bLat[0]), (*C.nk_f64_t)(&bLon[0]),
-		C.nk_size_t(n), (*C.nk_f64_t)(&result[0]))
-	return true
-}
-
-// HaversineF32 computes the Haversine (great-circle) distance between coordinate pairs.
-// Input coordinates must be in radians. Output distances are in meters.
-func HaversineF32(aLat, aLon, bLat, bLon, result []float32) bool {
-	n := len(aLat)
-	if n == 0 || n != len(aLon) || n != len(bLat) || n != len(bLon) || n != len(result) {
-		return false
-	}
-	C.nk_haversine_f32(
-		(*C.nk_f32_t)(&aLat[0]), (*C.nk_f32_t)(&aLon[0]),
-		(*C.nk_f32_t)(&bLat[0]), (*C.nk_f32_t)(&bLon[0]),
-		C.nk_size_t(n), (*C.nk_f32_t)(&result[0]))
-	return true
-}
-
-// VincentyF64 computes the Vincenty (ellipsoidal geodesic) distance between coordinate pairs.
-// Input coordinates must be in radians. Output distances are in meters.
-// More accurate than Haversine for long distances.
-func VincentyF64(aLat, aLon, bLat, bLon, result []float64) bool {
-	n := len(aLat)
-	if n == 0 || n != len(aLon) || n != len(bLat) || n != len(bLon) || n != len(result) {
-		return false
-	}
-	C.nk_vincenty_f64(
-		(*C.nk_f64_t)(&aLat[0]), (*C.nk_f64_t)(&aLon[0]),
-		(*C.nk_f64_t)(&bLat[0]), (*C.nk_f64_t)(&bLon[0]),
-		C.nk_size_t(n), (*C.nk_f64_t)(&result[0]))
-	return true
-}
-
-// VincentyF32 computes the Vincenty (ellipsoidal geodesic) distance between coordinate pairs.
-// Input coordinates must be in radians. Output distances are in meters.
-func VincentyF32(aLat, aLon, bLat, bLon, result []float32) bool {
-	n := len(aLat)
-	if n == 0 || n != len(aLon) || n != len(bLat) || n != len(bLon) || n != len(result) {
-		return false
-	}
-	C.nk_vincenty_f32(
-		(*C.nk_f32_t)(&aLat[0]), (*C.nk_f32_t)(&aLon[0]),
-		(*C.nk_f32_t)(&bLat[0]), (*C.nk_f32_t)(&bLon[0]),
-		C.nk_size_t(n), (*C.nk_f32_t)(&result[0]))
-	return true
-}
-
-// endregion
-
 // Capabilities returns a bitmask of SIMD capabilities available on the current CPU.
 func Capabilities() uint64 {
 	return uint64(C.nk_capabilities())
 }
 
-// ConfigureThread configures the current thread for optimal SIMD performance.
-// Flushes denormals to zero and enables AMX on supported CPUs.
-// Must be called once per goroutine before using AMX operations.
-func ConfigureThread() bool {
-	return C.nk_configure_thread(C.nk_capability_t(C.nk_capabilities())) != 0
+// ConfigureThread pins the goroutine to an OS thread, configures SIMD state
+// (denormal flushing, AMX), and returns an unlock function.
+// Call the returned function (typically via defer) to release the OS thread
+// when SIMD work is done.
+func ConfigureThread() func() {
+	runtime.LockOSThread()
+	C.nk_configure_thread(C.nk_capability_t(C.nk_capabilities()))
+	return runtime.UnlockOSThread
 }
 
-// ConfigureThreadWith configures the current thread with a specific capability bitmask.
-func ConfigureThreadWith(caps uint64) bool {
-	return C.nk_configure_thread(C.nk_capability_t(caps)) != 0
+// ConfigureThreadWith is like ConfigureThread but with an explicit capability mask.
+func ConfigureThreadWith(caps uint64) func() {
+	runtime.LockOSThread()
+	C.nk_configure_thread(C.nk_capability_t(caps))
+	return runtime.UnlockOSThread
 }
 
 // Ensure unsafe is used (for CGO pointer conversions)
