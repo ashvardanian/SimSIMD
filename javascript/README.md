@@ -56,6 +56,36 @@ bun add numkong
 
 If you build from source, the package uses `node-gyp-build` on install and TypeScript sources under `javascript/`.
 
+## Browser and WASM
+
+NumKong ships pre-built WASM binaries attached to each [GitHub Release](https://github.com/ashvardanian/NumKong/releases).
+Download `numkong.js` and `numkong.wasm` and serve them from the same directory.
+
+```html
+<script type="module">
+  import * as numkong from "./numkong-wasm.js";
+  import NumKongModule from "./numkong.js";
+
+  const wasm = await NumKongModule();
+  numkong.initWasm(wasm);
+
+  // Same API as the native addon
+  const a = new Float32Array([1, 2, 3]);
+  const b = new Float32Array([4, 5, 6]);
+  console.log(numkong.dot(a, b));
+</script>
+```
+
+For Node.js WASM usage without the native addon:
+
+```js
+import * as numkong from "numkong/wasm";
+import NumKongModule from "./numkong.js";
+
+const wasm = await NumKongModule();
+numkong.initWasm(wasm);
+```
+
 ## Dot Products
 
 Dot products are separate from distances because dtype tagging and low-precision storage matter more here.
@@ -148,8 +178,14 @@ console.log(angular(a8, b8, DType.E4M3));
 console.log(a8.byteLength);
 ```
 
-If the underlying storage is a raw `Uint16Array` or `Uint8Array`, JS itself cannot know whether those bytes mean integers, `f16`, `bf16`, fp8, or packed bits.
+If the underlying storage is a raw `Uint16Array` or `Uint8Array`, JS itself cannot know whether those bytes mean integers, `f16`, `bf16`, mini-floats, or packed bits.
 That is exactly when the `DType` tag becomes mandatory.
+You can also pass it to `cast` to convert many values between all supported types:
+
+```ts
+numkong.cast(f32Source, "f32", bf16Dest, "bf16");
+numkong.cast(f32Source, "f32", bf16Dest, DType.E4M3);
+```
 
 ## Vector Views and Owned Buffers
 
@@ -176,22 +212,6 @@ console.log(owned.byteLength);
 
 Use `VectorView` when the bytes already live somewhere else.
 Use `Vector` when NumKong should own the storage.
-
-## Scalar Conversion Helpers
-
-The package also exposes scalar conversion helpers for the exotic formats:
-
-- `castF16ToF32`
-- `castF32ToF16`
-- `castBF16ToF32`
-- `castF32ToBF16`
-- `castE4M3ToF32`
-- `castF32ToE4M3`
-- `castE5M2ToF32`
-- `castF32ToE5M2`
-- `cast`
-
-Those are useful both for diagnostics and for building your own typed views over raw payload buffers.
 
 ## Capabilities and Runtime Selection
 

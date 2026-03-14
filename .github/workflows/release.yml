@@ -463,8 +463,42 @@ jobs:
           retention-days: 1
           overwrite: true
 
-  publish_javascript:
-    name: Publish JavaScript Package
+  publish_wasm:
+    name: Publish WASM to GitHub Release
+    needs: versioning
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+      - name: Build WASM
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake \
+            -DCMAKE_BUILD_TYPE=Release -DNK_BUILD_SHARED=ON
+          cmake --build build-wasm
+      - name: Attach WASM to GitHub Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+        run: |
+          VERSION=$(cat VERSION)
+          gh release upload "v${VERSION}" \
+            build-wasm/numkong.js \
+            build-wasm/numkong.wasm \
+            --clobber
+
+  publish_javascript_npm:
+    name: Publish JavaScript to NPM
     needs: build_javascript
     runs-on: ubuntu-24.04
     environment:
