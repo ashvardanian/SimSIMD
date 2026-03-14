@@ -36,12 +36,10 @@ package numkong
 #define NK_NATIVE_F16 (0)
 #define NK_NATIVE_BF16 (0)
 #include "numkong/numkong.h"
-#include <stdlib.h>
 */
 import "C"
 import (
 	"runtime"
-	"unsafe"
 )
 
 // CPU capability bit masks in chronological order (by first commercial silicon)
@@ -105,5 +103,3 @@ func ConfigureThreadWith(caps uint64) func() {
 	return runtime.UnlockOSThread
 }
 
-// Ensure unsafe is used (for CGO pointer conversions)
-var _ = unsafe.Pointer(nil)

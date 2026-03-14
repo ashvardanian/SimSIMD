@@ -6,7 +6,6 @@ package numkong
 #define NK_NATIVE_F16 (0)
 #define NK_NATIVE_BF16 (0)
 #include "numkong/numkong.h"
-#include <stdlib.h>
 */
 import "C"
 import (
@@ -59,7 +58,7 @@ func (p *WorkerPool) Close() {
 
 // run splits [0, totalRows) across pool workers and blocks until all complete.
 func (p *WorkerPool) run(totalRows int, fn func(lo, hi int)) {
-	workers := minInt(len(p.tasks), totalRows)
+	workers := min(len(p.tasks), totalRows)
 	if workers <= 0 {
 		fn(0, totalRows)
 		return
@@ -67,7 +66,7 @@ func (p *WorkerPool) run(totalRows int, fn func(lo, hi int)) {
 	perWorker := (totalRows + workers - 1) / workers
 	var wg sync.WaitGroup
 	for w := 0; w < workers; w++ {
-		lo, hi := w*perWorker, minInt((w+1)*perWorker, totalRows)
+		lo, hi := w*perWorker, min((w+1)*perWorker, totalRows)
 		if lo >= hi {
 			break
 		}
@@ -78,13 +77,6 @@ func (p *WorkerPool) run(totalRows int, fn func(lo, hi int)) {
 		}
 	}
 	wg.Wait()
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // region PackedMatrix WithPool methods

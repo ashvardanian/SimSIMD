@@ -6,7 +6,6 @@ package numkong
 #define NK_NATIVE_F16 (0)
 #define NK_NATIVE_BF16 (0)
 #include "numkong/numkong.h"
-#include <stdlib.h>
 */
 import "C"
 import "unsafe"

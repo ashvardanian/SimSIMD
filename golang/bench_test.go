@@ -2,7 +2,7 @@ package numkong
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -28,14 +28,14 @@ func generateRandomVector(dim int) []float32 {
 
 func BenchmarkCosineDistanceNative(b *testing.B) {
 	first, second := generateRandomVector(1536), generateRandomVector(1536)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		cosineDistance(first, second)
 	}
 }
 
 func BenchmarkAngularDistanceSIMD(b *testing.B) {
 	first, second := generateRandomVector(1536), generateRandomVector(1536)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		AngularF32(first, second)
 	}
 }
