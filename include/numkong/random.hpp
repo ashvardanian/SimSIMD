@@ -44,16 +44,16 @@ void fill_uniform(generator_type_ &generator, value_type_ *values_ptr, std::size
                 values_ptr[i][j] = static_cast<component_type_>(distribution(generator));
     }
     // Integer distribution types aren't always defined
-    else if constexpr (is_integer<value_type_>()) {
-        using small_integer_t = std::conditional_t<is_signed<value_type_>(), std::int32_t, std::uint32_t>;
-        using large_integer_t = std::conditional_t<is_signed<value_type_>(), std::int64_t, std::uint64_t>;
+    else if constexpr (is_integral_dtype<value_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed_dtype<value_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed_dtype<value_type_>(), std::int64_t, std::uint64_t>;
         using distribution_integer_t = std::conditional_t<sizeof(value_type_) <= 4, small_integer_t, large_integer_t>;
         std::uniform_int_distribution<distribution_integer_t> distribution(min_val, max_val);
         for (std::size_t i = 0; i < values_count; ++i)
             values_ptr[i] = static_cast<value_type_>(distribution(generator));
     }
     // Complex types need both real and imaginary parts filled
-    else if constexpr (is_complex<value_type_>()) {
+    else if constexpr (is_complex_dtype<value_type_>()) {
         using component_t = typename value_type_::component_t;
         using distribution_float_t = std::conditional_t<sizeof(component_t) <= 4, float, double>;
         std::uniform_real_distribution<distribution_float_t> distribution(min_val, max_val);
@@ -84,7 +84,7 @@ void fill_uniform(generator_type_ &generator, value_type_ *values_ptr, std::size
         for (std::size_t i = 0; i < values_count; ++i)
             values_ptr[i] = value_type_::from_raw(static_cast<typename value_type_::raw_t>(distribution(generator)));
     }
-    else if constexpr (is_integer<value_type_>())
+    else if constexpr (is_integral_dtype<value_type_>())
         return fill_uniform(generator, values_ptr, values_count, finite_min<value_type_>(), finite_max<value_type_>());
     else return fill_uniform(generator, values_ptr, values_count, -10, +10);
 }
@@ -113,7 +113,7 @@ void fill_lognormal(generator_type_ &generator, value_type_ *values_ptr, std::si
                 values_ptr[i][j] = static_cast<std::uint8_t>(clamp(distribution(generator), 0.0f, 255.0f));
     }
     // Complex types need both real and imaginary parts filled
-    else if constexpr (is_complex<value_type_>()) {
+    else if constexpr (is_complex_dtype<value_type_>()) {
         using component_t = typename value_type_::component_t;
         using distribution_float_t = std::conditional_t<sizeof(component_t) <= 4, float, double>;
         std::lognormal_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(mean),
@@ -139,7 +139,7 @@ void fill_lognormal(generator_type_ &generator, value_type_ *values_ptr, std::si
         constexpr distribution_float_t signs[] = {1, -1};
         for (std::size_t i = 0; i < values_count; ++i) {
             distribution_float_t val = distribution(generator);
-            if constexpr (is_signed<value_type_>()) val *= signs[sign_distribution(generator)];
+            if constexpr (is_signed_dtype<value_type_>()) val *= signs[sign_distribution(generator)];
             values_ptr[i] = static_cast<value_type_>(clamp(val, clamp_min, clamp_max));
         }
     }
@@ -169,7 +169,7 @@ void fill_cauchy(generator_type_ &generator, value_type_ *values_ptr, std::size_
                 values_ptr[i][j] = static_cast<std::uint8_t>(clamp(distribution(generator), 0.0f, 255.0f));
     }
     // Complex types need both real and imaginary parts filled
-    else if constexpr (is_complex<value_type_>()) {
+    else if constexpr (is_complex_dtype<value_type_>()) {
         using component_t = typename value_type_::component_t;
         using distribution_float_t = std::conditional_t<sizeof(component_t) <= 4, float, double>;
         std::cauchy_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(location),

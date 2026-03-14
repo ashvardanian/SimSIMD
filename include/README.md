@@ -43,14 +43,14 @@ Packing handles internal layout itself and does not require caller-side alignmen
 
 ## Ecosystem Comparison
 
-| Feature                  | NumKong                                                                | BLAS/LAPACK                  | Eigen                      | Intel MKL                       |
-| ------------------------ | ---------------------------------------------------------------------- | ---------------------------- | -------------------------- | ------------------------------- |
-| Kernel coverage          | dots, distances, binary, probability, geospatial, mesh, sparse, MaxSim | dense linear algebra only    | dense LA, some reductions  | dense LA, FFT, sparse solvers   |
-| SIMD dispatch            | automatic per-thread runtime dispatch                                  | vendor-selected at link time | compile-time ISA selection | runtime dispatch inside library |
-| Mixed-precision widening | first-class, encoded on every scalar type                              | limited (mostly same-type)   | manual casts               | some mixed GEMM paths           |
-| Allocator control        | per-container, 64-byte aligned default                                 | caller-managed buffers       | `aligned_allocator`        | MKL allocator or caller buffers |
-| Packed matrix reuse      | `packed_matrix` with one-time packing                                  | no persistent packed form    | no equivalent              | JIT internal packing, opaque    |
-| Symmetric kernels        | `try_dots_symmetric`, `try_euclideans_symmetric`                       | `SSYRK`/`DSYRK`              | `.selfadjointView()`       | `cblas_?syrk`                   |
+| Feature                  | NumKong                                                                    | BLAS/LAPACK                  | Eigen                      | Intel MKL                       |
+| ------------------------ | -------------------------------------------------------------------------- | ---------------------------- | -------------------------- | ------------------------------- |
+| Kernel coverage          | dots, distances, binary, probability, geospatial, mesh, sparse, MaxSim     | dense linear algebra only    | dense LA, some reductions  | dense LA, FFT, sparse solvers   |
+| SIMD dispatch            | automatic per-thread runtime dispatch                                      | vendor-selected at link time | compile-time ISA selection | runtime dispatch inside library |
+| Mixed-precision widening | first-class, encoded on every scalar type                                  | limited (mostly same-type)   | manual casts               | some mixed GEMM paths           |
+| Allocator control        | per-container, 64-byte aligned default                                     | caller-managed buffers       | `aligned_allocator`        | MKL allocator or caller buffers |
+| Packed matrix reuse      | `packed_matrix` with one-time packing                                      | no persistent packed form    | no equivalent              | JIT internal packing, opaque    |
+| Symmetric kernels        | `try_dots_symmetric`, `try_angulars_symmetric`, `try_euclideans_symmetric` | `SSYRK`/`DSYRK`              | `.selfadjointView()`       | `cblas_?syrk`                   |
 
 NumKong-unique features not covered by the alternatives above: binary metrics (Hamming, Jaccard on packed `u1x8_t`), probability divergences (KL, JS), geospatial solvers (Haversine, Vincenty), geometric mesh alignment (RMSD, Kabsch, Umeyama), sparse set intersections, and MaxSim late interaction.
 
@@ -341,7 +341,11 @@ namespace nk = ashvardanian::numkong;
 auto a = nk::tensor<nk::f32_t>::try_full({2, 4}, nk::f32_t {1});
 auto b = nk::tensor<nk::f32_t>::try_full({3, 4}, nk::f32_t {2});
 auto packed = nk::packed_matrix<nk::f32_t>::try_pack(b.as_matrix_view());
-auto c = nk::try_dots_packed(a.as_matrix_view(), packed);
+
+// Dot products, angular distances, and Euclidean distances all reuse the same packed B
+auto dots = nk::try_dots_packed(a.as_matrix_view(), packed);
+auto angulars = nk::try_angulars_packed(a.as_matrix_view(), packed);
+auto euclideans = nk::try_euclideans_packed(a.as_matrix_view(), packed);
 ```
 
 This is GEMM-like in the workload shape, not in the strict BLAS API.
@@ -365,6 +369,8 @@ They compute self-similarity or self-distance without paying for both triangles 
 ```cpp
 auto vectors = nk::tensor<nk::f32_t>::try_full({100, 768}, nk::f32_t {1});
 auto gram = nk::try_dots_symmetric(vectors.as_matrix_view());
+auto angular_dists = nk::try_angulars_symmetric(vectors.as_matrix_view());
+auto euclidean_dists = nk::try_euclideans_symmetric(vectors.as_matrix_view());
 ```
 
 This is SYRK-like in the sense that the output is square and symmetric.
@@ -461,7 +467,9 @@ using nk::range, nk::all;
 fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
     auto start = t * rows_per_worker;
     auto stop = std::min(start + rows_per_worker, total_rows);
-    nk::dots_packed<value_type_>(a[range(start, stop), all].as_matrix(), packed, c[range(start, stop), all].as_matrix());
+    auto a_slice = a[range(start, stop), all].as_matrix_view();
+    auto c_slice = c[range(start, stop), all].as_matrix_span();
+    nk::dots_packed<value_type_>(a_slice, packed, c_slice);
 });
 ```
 
@@ -472,6 +480,7 @@ fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
     auto start = t * rows_per_worker;
     auto count = std::min(rows_per_worker, total_rows - start);
     nk::dots_symmetric<value_type_>(vectors.as_matrix_view(), gram.as_matrix_span(), start, count);
+    nk::angulars_symmetric<value_type_>(vectors.as_matrix_view(), angular_dists.as_matrix_span(), start, count);
 });
 ```
 

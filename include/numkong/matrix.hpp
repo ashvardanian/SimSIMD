@@ -17,11 +17,147 @@
 #ifndef NK_MATRIX_HPP
 #define NK_MATRIX_HPP
 
-#include "tensor.hpp"
-#include "dots.hpp"
-#include "maxsim.hpp"
+#include <cstring>
+#include <type_traits>
+
+#include "numkong/dots.h"
+#include "numkong/maxsim.h"
+#include "numkong/tensor.hpp"
 
 namespace ashvardanian::numkong {
+
+#pragma region - Packing Utilities
+
+/**
+ *  @brief Estimates the memory requirements for packed B matrix.
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row (k)
+ *  @return Size in bytes for row-major B data plus stride metadata
+ *
+ *  @tparam in_type_ Input element type
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <numeric_dtype in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC size_t dots_packed_size(size_t row_count, size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) return nk_dots_packed_size_f64(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_dots_packed_size_f32(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_dots_packed_size_f16(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_dots_packed_size_bf16(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) return nk_dots_packed_size_i8(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) return nk_dots_packed_size_e2m3(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) return nk_dots_packed_size_e3m2(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(row_count, depth);
+    else {
+        // We need enough space for the pointer to the original B matrix and its stride
+        return sizeof(void *) + sizeof(size_t);
+    }
+}
+
+/**
+ *  @brief Packs matrix B into row-major form for efficient dots_packed access.
+ *  @param[in] b Input matrix B in row-major form [row_count x depth]
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row (k)
+ *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
+ *  @param[out] b_packed Output buffer for packed row-major B with metadata
+ *
+ *  @tparam in_type_ Input element type
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <numeric_dtype in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes, void *b_packed) {
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
+        nk_dots_pack_f64(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
+        nk_dots_pack_f32(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
+        nk_dots_pack_f16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
+        nk_dots_pack_bf16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
+        nk_dots_pack_i8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
+        nk_dots_pack_u8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
+        nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
+        nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
+        nk_dots_pack_e2m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
+        nk_dots_pack_e3m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
+        nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
+        nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else {
+        // Persist the pointer to the original B matrix and its stride
+        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
+        std::memcpy(b_packed_bytes, &b, sizeof(void *));
+        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
+    }
+}
+
+/**
+ *  @brief Estimates the memory requirements for a maxsim packed vector set.
+ *  @param[in] vector_count Number of vectors to pack.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @return Size in bytes for the packed buffer.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`.
+ */
+template <numeric_dtype in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC std::size_t maxsim_packed_size(std::size_t vector_count, std::size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_maxsim_packed_size_bf16(vector_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_maxsim_packed_size_f32(vector_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_maxsim_packed_size_f16(vector_count, depth);
+    else return sizeof(void *) + sizeof(std::size_t);
+}
+
+/**
+ *  @brief Packs vectors into a backend-specific layout for maxsim computation.
+ *  @param[in] vectors Input vectors in row-major order.
+ *  @param[in] vector_count Number of vectors.
+ *  @param[in] depth Number of dimensions per vector.
+ *  @param[in] stride Row stride in bytes for the input vectors.
+ *  @param[out] packed Output packed buffer from maxsim_packed_size.
+ *
+ *  @tparam in_type_ Input element type (bf16_t, f32_t, f16_t).
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`.
+ */
+template <numeric_dtype in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC void maxsim_pack(typename in_type_::raw_t const *vectors, std::size_t vector_count, std::size_t depth,
+                           std::size_t stride, void *packed) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
+        nk_maxsim_pack_bf16(vectors, vector_count, depth, stride, packed);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
+        nk_maxsim_pack_f32(vectors, vector_count, depth, stride, packed);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
+        nk_maxsim_pack_f16(vectors, vector_count, depth, stride, packed);
+    else {
+        char *packed_bytes = reinterpret_cast<char *>(packed);
+        std::memcpy(packed_bytes, &vectors, sizeof(void *));
+        std::memcpy(packed_bytes + sizeof(void *), &stride, sizeof(std::size_t));
+    }
+}
+
+#pragma endregion - Packing Utilities
+
+#pragma region - Packed Containers
 
 /**
  *  @brief Owning, move-only, pre-packed matrix for efficient GEMM.
@@ -29,10 +165,9 @@ namespace ashvardanian::numkong {
  *  @tparam allocator_type_ Allocator for the packed buffer (default: aligned_allocator<char>).
  *
  *  Wraps `dots_pack` to pre-arrange a matrix B into a cache-friendly layout.
- *  Use `try_pack()` to create from a matrix_view, then call `multiply()` to
- *  compute C = A × Bᵀ.
+ *  Use `try_pack()` to create from a matrix_view, then pass to `dots_packed()` for computation.
  */
-template <typename value_type_, typename allocator_type_>
+template <numeric_dtype value_type_, typename allocator_type_ = aligned_allocator<char>>
 struct packed_matrix {
     using value_type = value_type_;
     using result_type = typename value_type_::dot_result_t;
@@ -101,34 +236,6 @@ struct packed_matrix {
         return pm;
     }
 
-    /**
-     *  @brief Compute C = A × Bᵀ using this pre-packed B.
-     *  @param a 2D matrix_view for matrix A [m × k].
-     *  @param c 2D matrix_span for result C [m × n].
-     *
-     *  Requires: a.extent(1) == depth(), c.extent(0) == a.extent(0), c.extent(1) == rows().
-     */
-    void multiply(matrix_view<value_type_> a, matrix_span<result_type> c) const noexcept {
-        if (!data_ || a.rank() < 2 || c.rank() < 2) return;
-        auto m = a.extent(0);
-        dots_packed<value_type_>(a.data(), data_, c.data(), m, rows_, depth_, static_cast<size_type>(a.stride_bytes(0)),
-                                 static_cast<size_type>(c.stride_bytes(0)));
-    }
-
-    /**
-     *  @brief Compute C = A × Bᵀ using this pre-packed B (generic rank overload).
-     *  @tparam max_rank_ Max rank of the tensor types.
-     *  @param a Tensor view for matrix A [m × k] (rank >= 2).
-     *  @param c Tensor span for result C [m × n] (rank >= 2).
-     */
-    template <std::size_t max_rank_>
-    void multiply(tensor_view<value_type_, max_rank_> a, tensor_span<result_type, max_rank_> c) const noexcept {
-        if (!data_ || a.rank() < 2 || c.rank() < 2) return;
-        auto m = a.extent(0);
-        dots_packed<value_type_>(a.data(), data_, c.data(), m, rows_, depth_, static_cast<size_type>(a.stride_bytes(0)),
-                                 static_cast<size_type>(c.stride_bytes(0)));
-    }
-
     /** @brief Number of rows in the packed matrix (n). */
     constexpr size_type rows() const noexcept { return rows_; }
 
@@ -145,8 +252,6 @@ struct packed_matrix {
     constexpr void const *data() const noexcept { return data_; }
 };
 
-#pragma region - Packed MaxSim
-
 /**
  *  @brief Pre-packed vector set for MaxSim (ColBERT late-interaction).
  *
@@ -156,7 +261,7 @@ struct packed_matrix {
  *
  *  Supported types: bf16_t, f32_t, f16_t.
  */
-template <typename value_type_, typename allocator_type_ = aligned_allocator<char>>
+template <numeric_dtype value_type_, typename allocator_type_ = aligned_allocator<char>>
 class packed_maxsim {
     using alloc_traits = std::allocator_traits<allocator_type_>;
 
@@ -217,26 +322,14 @@ class packed_maxsim {
     }
 
     std::size_t vector_count() const noexcept { return vector_count_; }
+    std::size_t rows() const noexcept { return vector_count_; }
     std::size_t depth() const noexcept { return depth_; }
     bool empty() const noexcept { return data_ == nullptr; }
     void const *data() const noexcept { return data_; }
     std::size_t size_bytes() const noexcept { return size_bytes_; }
 };
 
-/** @brief MaxSim: Σᵢ minⱼ angular(qᵢ, dⱼ) on pre-packed vectors. */
-template <typename value_type_>
-typename value_type_::maxsim_result_t maxsim(packed_maxsim<value_type_> const &queries,
-                                             packed_maxsim<value_type_> const &documents) noexcept {
-    using result_t = typename value_type_::maxsim_result_t;
-    result_t result {};
-    if (queries.empty() || documents.empty()) return result;
-    if (queries.depth() != documents.depth()) return result;
-    maxsim_packed<value_type_>(queries.data(), documents.data(), queries.vector_count(), documents.vector_count(),
-                               queries.depth(), &result);
-    return result;
-}
-
-#pragma endregion - Packed MaxSim
+#pragma endregion - Packed Containers
 
 } // namespace ashvardanian::numkong
 

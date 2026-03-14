@@ -517,21 +517,21 @@ void test_tensor_ops_for_type() {
 
     // Elementwise into
     auto out = tensor_t::try_zeros({4, 8});
-    { [[maybe_unused]] bool ok = nk::add_into<value_type_>(av, bv, out.span()); }
-    { [[maybe_unused]] bool ok = nk::sub_into<value_type_>(av, bv, out.span()); }
-    { [[maybe_unused]] bool ok = nk::mul_into<value_type_>(av, bv, out.span()); }
-    { [[maybe_unused]] bool ok = nk::add_into<value_type_>(av, scalar, out.span()); }
-    { [[maybe_unused]] bool ok = nk::sub_into<value_type_>(av, scalar, out.span()); }
-    { [[maybe_unused]] bool ok = nk::mul_into<value_type_>(av, scalar, out.span()); }
+    { [[maybe_unused]] bool ok = nk::add<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::sub<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::mul<value_type_>(av, bv, out.span()); }
+    { [[maybe_unused]] bool ok = nk::add<value_type_>(av, scalar, out.span()); }
+    { [[maybe_unused]] bool ok = nk::sub<value_type_>(av, scalar, out.span()); }
+    { [[maybe_unused]] bool ok = nk::mul<value_type_>(av, scalar, out.span()); }
 
     // Affine
     scale_t alpha {1}, beta {0};
     { [[maybe_unused]] auto r = nk::try_scale<value_type_>(av, alpha, beta); }
     { [[maybe_unused]] auto r = nk::try_blend<value_type_>(av, bv, alpha, beta); }
     { [[maybe_unused]] auto r = nk::try_fma<value_type_>(av, bv, av, alpha, beta); }
-    { [[maybe_unused]] bool ok = nk::scale_into<value_type_>(av, alpha, beta, out.span()); }
-    { [[maybe_unused]] bool ok = nk::blend_into<value_type_>(av, bv, alpha, beta, out.span()); }
-    { [[maybe_unused]] bool ok = nk::fma_into<value_type_>(av, bv, av, alpha, beta, out.span()); }
+    { [[maybe_unused]] bool ok = nk::scale<value_type_>(av, alpha, beta, out.span()); }
+    { [[maybe_unused]] bool ok = nk::blend<value_type_>(av, bv, alpha, beta, out.span()); }
+    { [[maybe_unused]] bool ok = nk::fma<value_type_>(av, bv, av, alpha, beta, out.span()); }
 }
 
 template <typename value_type_>
@@ -544,9 +544,9 @@ void test_tensor_trig_for_type() {
     { [[maybe_unused]] auto r = nk::try_sin<value_type_>(av); }
     { [[maybe_unused]] auto r = nk::try_cos<value_type_>(av); }
     { [[maybe_unused]] auto r = nk::try_atan<value_type_>(av); }
-    { [[maybe_unused]] bool ok = nk::sin_into<value_type_>(av, out.span()); }
-    { [[maybe_unused]] bool ok = nk::cos_into<value_type_>(av, out.span()); }
-    { [[maybe_unused]] bool ok = nk::atan_into<value_type_>(av, out.span()); }
+    { [[maybe_unused]] bool ok = nk::sin<value_type_>(av, out.span()); }
+    { [[maybe_unused]] bool ok = nk::cos<value_type_>(av, out.span()); }
+    { [[maybe_unused]] bool ok = nk::atan<value_type_>(av, out.span()); }
 }
 
 template <typename value_type_>
@@ -571,7 +571,7 @@ void test_tensor_packed_for_type() {
     auto packed = nk::packed_matrix<value_type_, nk::aligned_allocator<char>>::try_pack(bm);
     auto am = a.as_matrix_view();
     auto result = nk::matrix<typename value_type_::dot_result_t>::try_zeros({4, 6});
-    packed.multiply(am, result.span());
+    nk::dots_packed<value_type_>(am, packed, result.span());
 }
 
 template <typename value_type_>

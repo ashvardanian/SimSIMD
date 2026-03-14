@@ -85,7 +85,13 @@
 
 #include "numkong/types.hpp"
 #include "numkong/tensor.hpp"
+#include "numkong/dots.hpp"
+#include "numkong/maxsim.hpp"
 #include "numkong/matrix.hpp"
+#include "numkong/reduce.hpp"
+#include "numkong/each.hpp"
+#include "numkong/trigonometry.hpp"
+#include "numkong/spatials.hpp"
 #include "numkong/random.hpp" // `nk::fill_uniform`
 
 namespace nk = ashvardanian::numkong;
@@ -132,7 +138,7 @@ template <typename input_type_, typename result_type_ = input_type_>
 using reference_for = std::conditional_t<
     std::is_same_v<input_type_, f32_t> || std::is_same_v<input_type_, f64_t>, f118_t,
     std::conditional_t<
-        nk::is_complex<input_type_>(),
+        nk::is_complex_dtype<input_type_>(),
         std::conditional_t<std::is_same_v<input_type_, f32c_t> || std::is_same_v<input_type_, f64c_t>, f118c_t, f64c_t>,
         f64_t>>;
 
@@ -288,7 +294,7 @@ inline bool within_time_budget(time_point start) {
 template <typename scalar_type_>
 std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     // Handle special cases - skip float checks for integer types
-    if constexpr (!nk::is_integer<scalar_type_>()) {
+    if constexpr (!nk::is_integral_dtype<scalar_type_>()) {
         if (std::isnan(static_cast<double>(a)) || std::isnan(static_cast<double>(b)))
             return std::numeric_limits<std::uint64_t>::max();
     }
@@ -340,7 +346,7 @@ std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
 template <typename scalar_type_>
 std::uint64_t integer_distance(scalar_type_ a, scalar_type_ b) noexcept {
     auto ordered = [](scalar_type_ value) noexcept -> std::uint64_t {
-        if constexpr (nk::is_signed<scalar_type_>())
+        if constexpr (nk::is_signed_dtype<scalar_type_>())
             return static_cast<std::uint64_t>(static_cast<std::int64_t>(value)) ^ (1ull << 63);
         else return static_cast<std::uint64_t>(value);
     };
@@ -375,7 +381,7 @@ struct error_stats_t {
 
     template <typename actual_type_, typename expected_type_>
     void accumulate(actual_type_ actual, expected_type_ expected) noexcept {
-        if constexpr (nk::is_complex<actual_type_>())
+        if constexpr (nk::is_complex_dtype<actual_type_>())
             accumulate_scalar(actual.real(), expected.real()), accumulate_scalar(actual.imag(), expected.imag());
         else accumulate_scalar(actual, expected);
     }
@@ -385,20 +391,21 @@ struct error_stats_t {
         actual_type_ expected_as_actual;
         if constexpr (std::is_same_v<expected_type_, f118_t> || std::is_same_v<expected_type_, f118c_t>)
             expected_as_actual = expected.template to<actual_type_>();
-        else if constexpr (nk::is_integer<expected_type_>() && nk::is_integer<actual_type_>())
+        else if constexpr (nk::is_integral_dtype<expected_type_>() && nk::is_integral_dtype<actual_type_>())
             expected_as_actual = actual_type_(expected);
         else expected_as_actual = actual_type_(static_cast<double>(expected));
 
-        bool const use_integer_distance = family == comparison_family_t::exact_k && nk::is_integer<actual_type_>();
+        bool const use_integer_distance = family == comparison_family_t::exact_k &&
+                                          nk::is_integral_dtype<actual_type_>();
         std::uint64_t ulps = use_integer_distance ? integer_distance(actual, expected_as_actual)
                                                   : ulp_distance(actual, expected_as_actual);
 
         // Skip NaN/Inf pairs — sentinel value means the comparison is meaningless
         if (ulps == std::numeric_limits<std::uint64_t>::max()) return;
 
-        if constexpr (!nk::is_integer<actual_type_>()) saw_floating_distance = true;
+        if constexpr (!nk::is_integral_dtype<actual_type_>()) saw_floating_distance = true;
 
-        if constexpr (!nk::is_integer<actual_type_>() || std::is_integral_v<actual_type_>) {
+        if constexpr (!nk::is_integral_dtype<actual_type_>() || std::is_integral_v<actual_type_>) {
             nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected_as_actual);
             nk_f64_t act_f64 = static_cast<nk_f64_t>(actual);
 

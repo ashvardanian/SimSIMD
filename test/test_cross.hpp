@@ -13,7 +13,8 @@
 
 #include "numkong/spatials.h" // `nk_angulars_packed_*`, `nk_euclideans_packed_*`, etc.
 
-#include "numkong/dots.hpp"   // `nk::dots_packed_size`, `nk::dots_pack`, etc.
+#include "numkong/dots.hpp"   // `nk::dots_packed`, `nk::dots_symmetric`, etc.
+#include "numkong/matrix.hpp" // `nk::dots_packed_size`, `nk::dots_pack`, etc.
 #include "numkong/reduce.hpp" // `nk::reduce_moments`
 
 #include "test.hpp"
@@ -133,7 +134,7 @@ error_stats_t test_hammings_packed(typename scalar_type_::hammings_packed_size_k
     auto b_packed = make_vector<char>(packed_size);
 
     // Allocate buffer for reference computation
-    nk_size_t packed_size_ref = nk::hammings_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    nk_size_t packed_size_ref = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
     auto b_packed_ref = make_vector<char>(packed_size_ref);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -145,7 +146,7 @@ error_stats_t test_hammings_packed(typename scalar_type_::hammings_packed_size_k
         hammings_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
 
         // Compute reference using C++ template with no_simd_k
-        nk::hammings_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
         nk::hammings_packed<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
                                                                c_ref.values_data(), m, n, k, a_stride, c_stride);
 
@@ -219,7 +220,7 @@ error_stats_t test_jaccards_packed(typename scalar_type_::jaccards_packed_size_k
     auto b_packed = make_vector<char>(packed_size);
 
     // Allocate buffer for reference computation
-    nk_size_t packed_size_ref = nk::jaccards_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    nk_size_t packed_size_ref = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
     auto b_packed_ref = make_vector<char>(packed_size_ref);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -231,7 +232,7 @@ error_stats_t test_jaccards_packed(typename scalar_type_::jaccards_packed_size_k
         jaccards_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
 
         // Compute reference using C++ template with no_simd_k
-        nk::jaccards_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
         nk::jaccards_packed<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
                                                                c_ref.values_data(), m, n, k, a_stride, c_stride);
 

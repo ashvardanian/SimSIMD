@@ -100,18 +100,21 @@ struct u8_t;
 struct u4x2_t;
 struct u1x8_t;
 
+template <typename scalar_type_>
+concept numeric_dtype = requires {
+    { scalar_type_::dtype() } -> std::same_as<nk_dtype_t>;
+};
+
 /** @brief Detect NumKong wrapper types with required static members. */
 template <typename scalar_type_>
-constexpr bool is_numeric_class() noexcept {
-    return requires {
-        { scalar_type_::dtype() } -> std::same_as<nk_dtype_t>;
-    };
+constexpr bool is_numeric_dtype() noexcept {
+    return numeric_dtype<scalar_type_>;
 }
 
 /** @brief Check if a type is an integer type. */
 template <typename scalar_type_>
-constexpr bool is_integer() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_integer();
+constexpr bool is_integral_dtype() noexcept {
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::is_integer();
     else return std::is_integral_v<scalar_type_>;
 }
 
@@ -129,15 +132,15 @@ constexpr bool is_std_complex_() noexcept {
 /** @brief Check if a type is an complex type - STL or NumKong. */
 template <typename scalar_type_>
 constexpr bool is_complex() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_complex();
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::is_complex();
     else return is_std_complex_<scalar_type_>();
 }
 
 /** @brief Check if a type is an complex type - STL or NumKong. */
 template <typename scalar_type_>
-constexpr bool is_signed() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_signed();
-    else if constexpr (is_complex<scalar_type_>()) return is_signed<scalar_type_::value_type>();
+constexpr bool is_signed_dtype() noexcept {
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::is_signed();
+    else if constexpr (is_complex_dtype<scalar_type_>()) return is_signed_dtype<scalar_type_::value_type>();
     else return std::is_signed<scalar_type_>::value;
 }
 
@@ -168,7 +171,7 @@ constexpr raw_integral_type_ nk_f64_to_integer_(double value) noexcept {
 }
 
 template <typename target_type_>
-    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+    requires(is_integral_dtype<target_type_>() && !std::integral<target_type_>)
 constexpr target_type_ nk_f64_to_integer_(double value) noexcept {
     using raw_t = typename target_type_::raw_t;
     return target_type_::from_raw(nk_f64_to_integer_<raw_t>(value));
@@ -176,7 +179,7 @@ constexpr target_type_ nk_f64_to_integer_(double value) noexcept {
 
 template <typename target_type_>
 constexpr target_type_ nk_f64_to_(double value) noexcept {
-    if constexpr (is_integer<target_type_>()) return nk_f64_to_integer_<target_type_>(value);
+    if constexpr (is_integral_dtype<target_type_>()) return nk_f64_to_integer_<target_type_>(value);
     else return target_type_(value);
 }
 
@@ -186,7 +189,7 @@ template <std::integral raw_integral_type_>
 constexpr raw_integral_type_ nk_f118_to_integer_(double high, double low) noexcept;
 
 template <typename target_type_>
-    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+    requires(is_integral_dtype<target_type_>() && !std::integral<target_type_>)
 constexpr target_type_ nk_f118_to_integer_(double high, double low) noexcept;
 
 template <typename target_type_>
@@ -3557,7 +3560,7 @@ constexpr raw_integral_type_ nk_f118_to_integer_(double high, double low) noexce
 }
 
 template <typename target_type_>
-    requires(is_integer<target_type_>() && !std::integral<target_type_>)
+    requires(is_integral_dtype<target_type_>() && !std::integral<target_type_>)
 constexpr target_type_ nk_f118_to_integer_(double high, double low) noexcept {
     using raw_t = typename target_type_::raw_t;
     return target_type_::from_raw(nk_f118_to_integer_<raw_t>(high, low));
@@ -3565,7 +3568,7 @@ constexpr target_type_ nk_f118_to_integer_(double high, double low) noexcept {
 
 template <typename target_type_>
 constexpr target_type_ nk_f118_to_(double high, double low) noexcept {
-    if constexpr (is_integer<target_type_>()) return nk_f118_to_integer_<target_type_>(high, low);
+    if constexpr (is_integral_dtype<target_type_>()) return nk_f118_to_integer_<target_type_>(high, low);
     else return target_type_(static_cast<double>(f118_t(high, low)));
 }
 
@@ -5279,28 +5282,28 @@ template <> struct type_for<nk_u4_k> { using type = u4x2_t; };
 /** @brief Get the maximum representable value for a type. */
 template <typename scalar_type_>
 constexpr scalar_type_ finite_max() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::finite_max();
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::finite_max();
     else return std::numeric_limits<scalar_type_>::max();
 }
 
 /** @brief Get the lowest representable value for a type. */
 template <typename scalar_type_>
 constexpr scalar_type_ finite_min() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::finite_min();
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::finite_min();
     return std::numeric_limits<scalar_type_>::lowest();
 }
 
 /** @brief Bits per value. For complex types matches value size. */
 template <typename scalar_type_>
 constexpr unsigned bits_per_value() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::bits_per_value();
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::bits_per_value();
     else return sizeof(scalar_type_) * NK_BITS_PER_BYTE;
 }
 
 /** @brief Bits per value. For complex types matches value size. */
 template <typename scalar_type_>
 constexpr unsigned bits_per_dimension() noexcept {
-    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::bits_per_dimension();
+    if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::bits_per_dimension();
     else return sizeof(scalar_type_) * NK_BITS_PER_BYTE;
 }
 
@@ -5484,14 +5487,14 @@ constexpr accumulator_type_ saturating_add(accumulator_type_ a, u4x2_t b) noexce
 
 /** @brief Saturating FMA specialization for i4x2_t (signed 4-bit packed pairs). */
 template <typename accumulator_type_>
-    requires(!is_integer<accumulator_type_>())
+    requires(!is_integral_dtype<accumulator_type_>())
 constexpr accumulator_type_ saturating_fma(i4x2_t a, i4x2_t b, accumulator_type_ acc) noexcept {
     return fma(a, b, acc);
 }
 
 /** @brief Saturating FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
 template <typename accumulator_type_>
-    requires(!is_integer<accumulator_type_>())
+    requires(!is_integral_dtype<accumulator_type_>())
 constexpr accumulator_type_ saturating_fma(u4x2_t a, u4x2_t b, accumulator_type_ acc) noexcept {
     return fma(a, b, acc);
 }
@@ -5541,6 +5544,33 @@ constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; 
 constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
 
 #pragma endregion - f118_t Mixed Operators
+
+#pragma region - Concepts
+
+template <typename matrix_type_, typename element_type_>
+concept const_matrix_of = requires(matrix_type_ const &m) {
+    { m.data() } -> std::convertible_to<element_type_ const *>;
+    { m.extent(0) } -> std::convertible_to<std::size_t>;
+    { m.stride_bytes(0) } -> std::convertible_to<std::ptrdiff_t>;
+    { m.rank() } -> std::convertible_to<std::size_t>;
+};
+
+template <typename matrix_type_, typename element_type_>
+concept mutable_matrix_of = requires(matrix_type_ &m) {
+    { m.data() } -> std::convertible_to<element_type_ *>;
+    { m.extent(0) } -> std::convertible_to<std::size_t>;
+    { m.stride_bytes(0) } -> std::convertible_to<std::ptrdiff_t>;
+    { m.rank() } -> std::convertible_to<std::size_t>;
+};
+
+template <typename packed_type_>
+concept packed_matrix_like = requires(packed_type_ const &p) {
+    { p.data() } -> std::convertible_to<void const *>;
+    { p.rows() } -> std::convertible_to<std::size_t>;
+    { p.depth() } -> std::convertible_to<std::size_t>;
+};
+
+#pragma endregion - Concepts
 
 } // namespace ashvardanian::numkong
 

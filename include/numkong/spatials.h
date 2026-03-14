@@ -1572,6 +1572,22 @@ NK_PUBLIC void nk_euclideans_packed_f64_neon(nk_f64_t const *a, void const *b_pa
 NK_PUBLIC void nk_euclideans_symmetric_f64_neon(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                 nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_bf16 */
+NK_PUBLIC void nk_angulars_packed_bf16_neon(nk_bf16_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
+                                            nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                            nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_bf16 */
+NK_PUBLIC void nk_angulars_symmetric_bf16_neon(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                               nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                               nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_bf16 */
+NK_PUBLIC void nk_euclideans_packed_bf16_neon(nk_bf16_t const *a, void const *b_packed, nk_f32_t *result,
+                                              nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                              nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_bf16 */
+NK_PUBLIC void nk_euclideans_symmetric_bf16_neon(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                 nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_NEON
 
 /*  ARM NEON with F16 arithmetic (ARMv8.2-A FP16).

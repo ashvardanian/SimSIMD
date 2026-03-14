@@ -22,85 +22,6 @@
 namespace ashvardanian::numkong {
 
 /**
- *  @brief Estimates the memory requirements for packed B matrix.
- *  @param[in] row_count Number of rows in B (n)
- *  @param[in] depth Number of dimensions per row (k)
- *  @return Size in bytes for row-major B data plus stride metadata
- *
- *  @tparam in_type_ Input element type
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC size_t dots_packed_size(size_t row_count, size_t depth) {
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) return nk_dots_packed_size_f64(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_dots_packed_size_f32(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_dots_packed_size_f16(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_dots_packed_size_bf16(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) return nk_dots_packed_size_i8(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) return nk_dots_packed_size_e2m3(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) return nk_dots_packed_size_e3m2(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(row_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(row_count, depth);
-    else {
-        // We need enough space for the pointer to the original B matrix and its stride
-        return sizeof(void *) + sizeof(size_t);
-    }
-}
-
-/**
- *  @brief Packs matrix B into row-major form for efficient dots_packed access.
- *  @param[in] b Input matrix B in row-major form [row_count x depth]
- *  @param[in] row_count Number of rows in B (n)
- *  @param[in] depth Number of dimensions per row (k)
- *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
- *  @param[out] b_packed Output buffer for packed row-major B with metadata
- *
- *  @tparam in_type_ Input element type
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes, void *b_packed) {
-    using raw_t = typename in_type_::raw_t;
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_dots_pack_f64(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_dots_pack_f32(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_dots_pack_f16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_dots_pack_bf16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_dots_pack_i8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_dots_pack_u8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
-        nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
-        nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
-        nk_dots_pack_e2m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
-        nk_dots_pack_e3m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
-        nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
-        nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else {
-        // Persist the pointer to the original B matrix and its stride
-        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
-        std::memcpy(b_packed_bytes, &b, sizeof(void *));
-        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
-    }
-}
-
-/**
  *  @brief Reference unpacked GEMM: C = A × Bᵀ (row-major A and B, B transposed).
  *
  *  This matches BLAS sgemm/dgemm with CblasNoTrans for A and CblasTrans for B.
@@ -118,7 +39,7 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size
  *  @tparam in_type_ Input element type (e.g., f32_t, bf16_t)
  *  @tparam result_type_ Accumulator/output type (e.g., f32_t, f118_t for high precision)
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t>
 void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t row_count, size_t column_count,
                    size_t depth, size_t a_stride_in_bytes, size_t b_stride_in_bytes,
                    size_t c_stride_in_bytes) noexcept {
@@ -147,7 +68,7 @@ void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t
  *  computes the standard Hermitian inner product matching `cblas_{c,z}gemm` with
  *  `CblasConjTrans`.
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t>
 void dots_unpacked_conjugated(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t row_count,
                               size_t column_count, size_t depth, size_t a_stride_in_bytes, size_t b_stride_in_bytes,
                               size_t c_stride_in_bytes) noexcept {
@@ -183,7 +104,7 @@ void dots_unpacked_conjugated(in_type_ const *a, in_type_ const *b, result_type_
  *  @tparam result_type_ Accumulator/output type, defaults to `in_type_::dot_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_t row_count, size_t column_count,
                  size_t depth, size_t a_stride_in_bytes, size_t c_stride_in_bytes) noexcept {
@@ -249,7 +170,7 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_
  *  @tparam result_type_ Accumulator/output type, defaults to `in_type_::dot_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
                     result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
@@ -314,53 +235,6 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
 }
 
 /**
- *  @brief Estimates memory requirements for packed B matrix (Hamming distances).
- *  @param[in] row_count Number of rows in B (n)
- *  @param[in] depth Number of dimensions per row in bits (k)
- *  @return Size in bytes for row-major B data plus stride metadata
- *
- *  @tparam in_type_ Input element type (u1x8_t for binary vectors)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC size_t hammings_packed_size(size_t row_count, size_t depth) {
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(row_count, depth);
-    else {
-        // We need enough space for the pointer to the original B matrix and its stride
-        return sizeof(void *) + sizeof(size_t);
-    }
-}
-
-/**
- *  @brief Packs matrix B into row-major form for efficient hammings_packed access.
- *  @param[in] b Input matrix B in row-major form [row_count x depth]
- *  @param[in] row_count Number of rows in B (n)
- *  @param[in] depth Number of dimensions per row in bits (k)
- *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
- *  @param[out] b_packed Output buffer for packed row-major B with metadata
- *
- *  @tparam in_type_ Input element type (u1x8_t for binary vectors)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC void hammings_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes,
-                             void *b_packed) {
-    using raw_t = typename in_type_::raw_t;
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else {
-        // Persist the pointer to the original B matrix and its stride
-        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
-        std::memcpy(b_packed_bytes, &b, sizeof(void *));
-        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
-    }
-}
-
-/**
  *  @brief Symmetric Hamming distance matrix: C[i,j] = hamming(A[i], A[j])
  *  @param[in] a Input matrix (n_vectors x depth)
  *  @param[in] n_vectors Number of vectors
@@ -378,7 +252,7 @@ NK_PUBLIC void hammings_pack(in_type_ const *b, size_t row_count, size_t depth, 
  *  @tparam result_type_ Output type (u32_t for Hamming distances)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
@@ -432,7 +306,7 @@ void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
  *  @tparam result_type_ Output type (u32_t for Hamming distances)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
                      std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes = 0,
@@ -484,40 +358,9 @@ void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
 }
 
 /**
- *  @brief Estimates memory requirements for packed B matrix (Jaccard distances).
- *  Includes space for per-column population counts (norms).
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC size_t jaccards_packed_size(size_t row_count, size_t depth) {
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(row_count, depth);
-    else { return sizeof(void *) + sizeof(size_t); }
-}
-
-/**
- *  @brief Packs matrix B for efficient Jaccard distance computation.
- *  Appends per-column norms after packed data.
- */
-template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC void jaccards_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes,
-                             void *b_packed) {
-    using raw_t = typename in_type_::raw_t;
-    constexpr bool simd = allow_simd_ == prefer_simd_k;
-
-    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
-    else {
-        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
-        std::memcpy(b_packed_bytes, &b, sizeof(void *));
-        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
-    }
-}
-
-/**
  *  @brief Symmetric Jaccard distance matrix: C[i,j] = jaccard(A[i], A[j])
  */
-template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
@@ -556,7 +399,7 @@ void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
 /**
  *  @brief Computes Jaccard distances between rows of A and columns of packed B.
  */
-template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
                      std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes = 0,
@@ -602,6 +445,184 @@ void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
         }
     }
 }
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+#pragma region - Concept-Constrained Symmetric Dot Products
+
+/** @brief C = A × Aᵀ where C[i,j] = ⟨A[i], A[j]⟩. */
+template <typename value_type_>
+bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_type_::dot_result_t> output) noexcept {
+    std::size_t num_vectors = input.extent(0);
+    if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
+    numkong::dots_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
+                                         static_cast<std::size_t>(input.stride_bytes(0)), output.data(),
+                                         static_cast<std::size_t>(output.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Partitioned symmetric dot products for parallel row-range work. */
+template <typename value_type_>
+bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_type_::dot_result_t> output,
+                    std::size_t row_start, std::size_t row_count) noexcept {
+    std::size_t num_vectors = input.extent(0);
+    if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
+    numkong::dots_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
+                                         static_cast<std::size_t>(input.stride_bytes(0)), output.data(),
+                                         static_cast<std::size_t>(output.stride_bytes(0)), row_start, row_count);
+    return true;
+}
+
+/** @brief Allocating symmetric dot products: C = A × Aᵀ. */
+template <typename value_type_>
+matrix<typename value_type_::dot_result_t> try_dots_symmetric(matrix_view<value_type_> input) noexcept {
+    using result_t = typename value_type_::dot_result_t;
+    using out_tensor_t = matrix<result_t>;
+    if (input.empty()) return out_tensor_t {};
+    std::size_t num_vectors = input.extent(0);
+    auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
+    if (result.empty()) return result;
+    if (!dots_symmetric<value_type_>(input, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Symmetric Hamming distances: C[i,j] = hamming(A[i], A[j]). */
+template <typename value_type_>
+bool hammings_symmetric(matrix_view<value_type_> input,
+                        matrix_span<typename value_type_::hamming_result_t> output) noexcept {
+    std::size_t num_vectors = input.extent(0);
+    if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
+    numkong::hammings_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
+                                             static_cast<std::size_t>(input.stride_bytes(0)), output.data(),
+                                             static_cast<std::size_t>(output.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Allocating symmetric Hamming distances. */
+template <typename value_type_>
+matrix<typename value_type_::hamming_result_t> try_hammings_symmetric(matrix_view<value_type_> input) noexcept {
+    using result_t = typename value_type_::hamming_result_t;
+    using out_tensor_t = matrix<result_t>;
+    if (input.empty()) return out_tensor_t {};
+    std::size_t num_vectors = input.extent(0);
+    auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
+    if (result.empty()) return result;
+    if (!hammings_symmetric<value_type_>(input, result.span())) return out_tensor_t {};
+    return result;
+}
+
+/** @brief Symmetric Jaccard distances: C[i,j] = jaccard(A[i], A[j]). */
+template <typename value_type_>
+bool jaccards_symmetric(matrix_view<value_type_> input,
+                        matrix_span<typename value_type_::jaccard_result_t> output) noexcept {
+    std::size_t num_vectors = input.extent(0);
+    if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
+    numkong::jaccards_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
+                                             static_cast<std::size_t>(input.stride_bytes(0)), output.data(),
+                                             static_cast<std::size_t>(output.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Allocating symmetric Jaccard distances. */
+template <typename value_type_>
+matrix<typename value_type_::jaccard_result_t> try_jaccards_symmetric(matrix_view<value_type_> input) noexcept {
+    using result_t = typename value_type_::jaccard_result_t;
+    using out_tensor_t = matrix<result_t>;
+    if (input.empty()) return out_tensor_t {};
+    std::size_t num_vectors = input.extent(0);
+    auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
+    if (result.empty()) return result;
+    if (!jaccards_symmetric<value_type_>(input, result.span())) return out_tensor_t {};
+    return result;
+}
+
+#pragma endregion - Concept - Constrained Symmetric Dot Products
+
+#pragma region - Concept-Constrained Packed Dot Products
+
+/** @brief Packed dot products: C = A × B_packedᵀ. */
+template <typename value_type_, packed_matrix_like packed_type_>
+bool dots_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
+                 matrix_span<typename value_type_::dot_result_t> c) noexcept {
+    if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
+    if (a.extent(1) != packed_b.depth()) return false;
+    if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
+    numkong::dots_packed<value_type_>(a.data(), packed_b.data(), c.data(), a.extent(0), packed_b.rows(),
+                                      packed_b.depth(), static_cast<std::size_t>(a.stride_bytes(0)),
+                                      static_cast<std::size_t>(c.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Allocating packed dot products: C = A × B_packedᵀ. */
+template <typename value_type_, packed_matrix_like packed_type_>
+matrix<typename value_type_::dot_result_t> try_dots_packed(matrix_view<value_type_> a,
+                                                           packed_type_ const &packed_b) noexcept {
+    using result_t = typename value_type_::dot_result_t;
+    using out_t = matrix<result_t>;
+    if (packed_b.empty() || a.rank() < 2) return out_t {};
+    auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
+    if (c.empty()) return c;
+    if (!dots_packed<value_type_>(a, packed_b, c.as_matrix_span())) return out_t {};
+    return c;
+}
+
+/** @brief Packed Hamming distances: C = hamming(A, B_packed). */
+template <typename value_type_, packed_matrix_like packed_type_>
+bool hammings_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
+                     matrix_span<typename value_type_::hamming_result_t> c) noexcept {
+    if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
+    if (a.extent(1) != packed_b.depth()) return false;
+    if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
+    numkong::hammings_packed<value_type_>(a.data(), packed_b.data(), c.data(), a.extent(0), packed_b.rows(),
+                                          packed_b.depth(), static_cast<std::size_t>(a.stride_bytes(0)),
+                                          static_cast<std::size_t>(c.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Allocating packed Hamming distances. */
+template <typename value_type_, packed_matrix_like packed_type_>
+matrix<typename value_type_::hamming_result_t> try_hammings_packed(matrix_view<value_type_> a,
+                                                                   packed_type_ const &packed_b) noexcept {
+    using result_t = typename value_type_::hamming_result_t;
+    using out_t = matrix<result_t>;
+    if (packed_b.empty() || a.rank() < 2) return out_t {};
+    auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
+    if (c.empty()) return c;
+    if (!hammings_packed<value_type_>(a, packed_b, c.as_matrix_span())) return out_t {};
+    return c;
+}
+
+/** @brief Packed Jaccard distances: C = jaccard(A, B_packed). */
+template <typename value_type_, packed_matrix_like packed_type_>
+bool jaccards_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
+                     matrix_span<typename value_type_::jaccard_result_t> c) noexcept {
+    if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
+    if (a.extent(1) != packed_b.depth()) return false;
+    if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
+    numkong::jaccards_packed<value_type_>(a.data(), packed_b.data(), c.data(), a.extent(0), packed_b.rows(),
+                                          packed_b.depth(), static_cast<std::size_t>(a.stride_bytes(0)),
+                                          static_cast<std::size_t>(c.stride_bytes(0)));
+    return true;
+}
+
+/** @brief Allocating packed Jaccard distances. */
+template <typename value_type_, packed_matrix_like packed_type_>
+matrix<typename value_type_::jaccard_result_t> try_jaccards_packed(matrix_view<value_type_> a,
+                                                                   packed_type_ const &packed_b) noexcept {
+    using result_t = typename value_type_::jaccard_result_t;
+    using out_t = matrix<result_t>;
+    if (packed_b.empty() || a.rank() < 2) return out_t {};
+    auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
+    if (c.empty()) return c;
+    if (!jaccards_packed<value_type_>(a, packed_b, c.as_matrix_span())) return out_t {};
+    return c;
+}
+
+#pragma endregion - Concept - Constrained Packed Dot Products
 
 } // namespace ashvardanian::numkong
 
