@@ -61,6 +61,9 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e4m3_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e4m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_e4m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_e4m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_e4m3_neon, *c = nk_cap_neon_k; return;

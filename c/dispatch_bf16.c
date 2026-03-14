@@ -110,6 +110,12 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_NEON
+    if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_neon, *c = nk_cap_neon_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SAPPHIREAMX
     if (v & nk_cap_sapphireamx_k) switch (k) {
         case nk_kernel_dots_packed_size_k:

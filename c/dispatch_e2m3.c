@@ -116,6 +116,9 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_SIERRA
     if (v & nk_cap_sierra_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_sierra, *c = nk_cap_sierra_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sierra, *c = nk_cap_sierra_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sierra, *c = nk_cap_sierra_k; return;
@@ -127,6 +130,9 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_ALDER
     if (v & nk_cap_alder_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_alder, *c = nk_cap_alder_k; return;
