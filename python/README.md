@@ -109,6 +109,33 @@ angular = nk.angular(a, b)
 For `float16`, a naive same-dtype implementation is exactly the kind of path that loses precision or widens too late.
 NumKong's API makes the widening policy part of the kernel contract.
 
+### Output Control: `out=`, `dtype=`, and `out_dtype=`
+
+Most distance and dot-product entrypoints accept `out=`, `dtype=`, and `out_dtype=` keyword arguments.
+Passing them is highly recommended to avoid dynamic memory allocations for temporary objects!
+
+```python
+import numpy as np
+import numkong as nk
+
+queries = np.random.randn(100, 768).astype(np.float32)
+database = np.random.randn(100, 768).astype(np.float32)
+
+# Pre-allocated output with out=
+out = nk.zeros((100,), dtype="float32")
+nk.sqeuclidean(queries, database[:100], out=out)  # writes in-place, returns None
+
+# Explicit input dtype for raw byte buffers
+raw = np.frombuffer(some_bytes, dtype=np.uint16)
+nk.dot(raw, raw, dtype="bfloat16")  # reinterpret uint16 as bf16
+
+# Output dtype override
+nk.euclidean(queries[0], database[0], out_dtype="float32")  # accumulate in f64, downcast result
+```
+
+When `out=` is provided, the function writes results in-place and returns `None`.
+The `out` array must be pre-allocated with the correct shape and a supported dtype.
+
 ## Set Similarity
 
 Packed-binary metrics operate on packed bits.
@@ -126,11 +153,12 @@ hamming = nk.hamming(a, b, dtype="uint1")
 jaccard = nk.jaccard(a, b, dtype="uint1")
 ```
 
-Integer set Jaccard works on sorted arrays of integer identifiers.
+Integer set Jaccard works on sorted ascending arrays of integer identifiers.
+Both inputs must be sorted in ascending order for correct results.
 
 ```python
-set_a = np.array([1, 3, 5, 7, 9], dtype=np.uint32)
-set_b = np.array([3, 5, 8, 9, 10], dtype=np.uint32)
+set_a = np.array([1, 3, 5, 7, 9], dtype=np.uint32)  # must be sorted ascending
+set_b = np.array([3, 5, 8, 9, 10], dtype=np.uint32)  # must be sorted ascending
 jaccard_sets = nk.jaccard(set_a, set_b) # |A ∩ B| / |A ∪ B|
 assert 0.0 < jaccard_sets < 1.0, "|A ∩ B| / |A ∪ B| should be in (0, 1)"
 ```
@@ -224,10 +252,49 @@ Use `sys.getsizeof(nk.float16(1.0))` if you need the heap footprint of the Pytho
 Use `Tensor.itemsize` and `Tensor.nbytes` for the stable payload sizes of array storage.
 
 `ml_dtypes` matters here because NumKong explicitly interoperates with the formats that NumPy still does not model well.
-The test suite compares `bfloat16`, `float8_e4m3`, and `float8_e5m2` behavior against `ml_dtypes` where that comparison is meaningful.
+The test suite compares `bfloat16`, `float8_e4m3`, `float8_e5m2`, `float6_e2m3`, and `float6_e3m2` behavior against `ml_dtypes` where that comparison is meaningful.
 
 Promotion is intentional.
 Mixed exotic floats are routed through wider compute types rather than pretending a same-width accumulator is good enough.
+
+## ml_dtypes Interoperability
+
+NumKong accepts `ml_dtypes` arrays directly — no `.view(np.uint8)` workaround needed:
+
+```python
+import ml_dtypes
+a = np.random.randn(100, 768).astype(np.float32).astype(ml_dtypes.bfloat16)
+b = np.random.randn(100, 768).astype(np.float32).astype(ml_dtypes.bfloat16)
+result = nk.cdist(a, b, "dot")  # just works
+```
+
+NumKong scalars also work as NumPy dtype specifiers:
+
+```python
+arr = np.array([1.0, 2.0, 3.0], dtype=nk.bfloat16)
+float(arr[0])  # → 1.0
+```
+
+Type name mapping between the two libraries:
+
+| ml_dtypes                    | NumKong                       | Status                                       |
+| ---------------------------- | ----------------------------- | -------------------------------------------- |
+| `ml_dtypes.bfloat16`        | `nk.bfloat16` / `"bfloat16"` | Identical format                             |
+| `ml_dtypes.float8_e4m3`     | `nk.float8_e4m3` / `"e4m3"`  | Identical (IEEE E4M3)                        |
+| `ml_dtypes.float8_e4m3fn`   | `nk.float8_e4m3` / `"e4m3"`  | Identical (E4M3FN = no inf)                  |
+| `ml_dtypes.float8_e5m2`     | `nk.float8_e5m2` / `"e5m2"`  | Identical format                             |
+| `ml_dtypes.float6_e2m3fn`   | `nk.float6_e2m3` / `"e2m3"`  | Identical (MX E2M3)                          |
+| `ml_dtypes.float6_e3m2fn`   | `nk.float6_e3m2` / `"e3m2"`  | Identical (MX E3M2)                          |
+| `ml_dtypes.float8_e4m3fnuz` | —                             | Rejected: different bias, NaN, and zero      |
+| `ml_dtypes.float8_e5m2fnuz` | —                             | Rejected: different NaN and zero encoding    |
+| `ml_dtypes.float8_e4m3b11fnuz` | —                          | Rejected: bias=11, incompatible encoding     |
+| `ml_dtypes.float8_e8m0fnu`  | —                             | Not supported: exponent-only MX scale format |
+| `ml_dtypes.float8_e3m4`     | —                             | Not supported: no NumKong kernel             |
+| `ml_dtypes.float4_e2m1fn`   | —                             | Not supported: 4-bit MX float                |
+| `ml_dtypes.int4`            | `"int4"`                      | Compatible via buffer protocol               |
+| `ml_dtypes.uint4`           | `"uint4"`                     | Compatible via buffer protocol               |
+| `ml_dtypes.int2`            | —                             | Not supported                                |
+| `ml_dtypes.uint2`           | —                             | Not supported                                |
 
 ## Tensor Objects and Buffer Interop
 
@@ -263,6 +330,17 @@ The important layout rules are:
 - General reductions accept those views.
 - Matrix-style packed kernels require row-contiguous left operands.
 - Packed and symmetric outputs require C-contiguous `out` buffers.
+
+### Memory Layout Requirements
+
+| API family                                       | Input requirement                                                                                  | Output requirement                                                        |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Dense distances (`dot`, `euclidean`, etc.)       | Rows must be contiguous (`strides[last] <= itemsize`). Strided rows (sliced columns) are rejected. | `out=` can have any stride along dim 0, but inner dim must be contiguous. |
+| `cdist`                                          | Same as dense distances                                                                            | `out=` must be rank-2 with shape `(a.count, b.count)`                     |
+| Elementwise (`scale`, `blend`, `fma`)            | Arbitrary strides (strided views are supported)                                                    | `out=` must match input shape; strides are preserved                      |
+| Packed matrix (`dots_packed`)                    | Left operand: rank-2, contiguous rows, no negative strides                                         | Output: C-contiguous with expected dtype                                  |
+| Symmetric (`dots_symmetric`)                     | Contiguous rows                                                                                    | `out=`: C-contiguous square matrix                                        |
+| Tensor reductions (`sum`, `min`, `argmin`, etc.) | Arbitrary strides (strided views supported)                                                        | N/A (returns scalar or reduced tensor)                                    |
 
 ## All-Pairs APIs and cdist
 
@@ -514,7 +592,7 @@ import numkong as nk
 left = np.random.randn(4096, 768).astype(np.float32)
 right = np.random.randn(8192, 768).astype(np.float32)
 packed = nk.dots_pack(right, dtype="float32")
-out = nk.zeros((4096, 8192), dtype="float64")
+out = nk.zeros((4096, 8192), dtype="float64")  # out must be pre-allocated with correct shape and dtype
 
 def packed_chunk(start, end):
     nk.dots_packed(left, packed, out=out, start_row=start, end_row=end) # split left rows against one shared packed RHS
@@ -530,7 +608,7 @@ import numpy as np
 import numkong as nk
 
 vectors = np.random.randn(4096, 768).astype(np.float32)
-out = nk.zeros((4096, 4096), dtype="float64")
+out = nk.zeros((4096, 4096), dtype="float64")  # out must be pre-allocated with correct shape and dtype
 
 def symmetric_chunk(start, end):
     nk.dots_symmetric(vectors, out=out, start_row=start, end_row=end) # split row windows of one square output

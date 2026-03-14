@@ -538,9 +538,11 @@ def test_cdist_edge_cases():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
-def test_cdist_with_ml_dtypes_bfloat16():
-    """Verify cdist accepts ml_dtypes.bfloat16 arrays via __array_interface__ fallback."""
-    a = np.random.randn(4, 8).astype(np.float32).astype(ml_dtypes.bfloat16)
-    b = np.random.randn(4, 8).astype(np.float32).astype(ml_dtypes.bfloat16)
+@pytest.mark.parametrize("ml_dtype", ["bfloat16", "float8_e4m3fn", "float8_e5m2", "float6_e2m3fn", "float6_e3m2fn"])
+def test_cdist_with_ml_dtypes(ml_dtype):
+    """Verify cdist accepts ml_dtypes arrays via __array_interface__ fallback."""
+    dt = getattr(ml_dtypes, ml_dtype)
+    a = np.random.randn(4, 8).astype(np.float32).clip(-1, 1).astype(dt)
+    b = np.random.randn(4, 8).astype(np.float32).clip(-1, 1).astype(dt)
     result = nk.cdist(a, b, "dot")
     assert result.shape == (4, 4)
