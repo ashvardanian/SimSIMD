@@ -6,9 +6,9 @@
  *
  *  @sa include/numkong/dots.h
  *
- *  Uses relaxed SIMD dot products for integer GEMM. I8 uses standard 2-register
- *  state (correction depends on both operands). U8 uses extmul for exact u8×u8
- *  dot products (no correction needed). E2M3 uses standard single-register state (no correction).
+ *  Uses relaxed SIMD dot products for integer GEMM. I8 uses 2×relaxed_dot with
+ *  bit-split (b_lo + (-128)·b_hi). U8 uses 2×relaxed_dot with signed reinterpretation
+ *  and b_sums compensation. E2M3 uses standard single-register state (no correction).
  */
 #ifndef NK_DOTS_V128RELAXED_H
 #define NK_DOTS_V128RELAXED_H
@@ -44,23 +44,32 @@ nk_define_cross_packed_(dots, i8, v128relaxed, i8, i8, i32, nk_b128_vec_t, nk_do
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
-/* U8 GEMM: depth_simd_dimensions=16 — non-compensated (extmul computes exact u8×u8 dot products) */
-nk_define_cross_pack_size_(dots, u8, v128relaxed, u8, u8, /*norm_value_type=*/u32,
-                           /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, u8, v128relaxed, u8, u8, nk_assign_from_to_, /*norm_value_type=*/u32,
-                      nk_dots_reduce_sumsq_u8_, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
-nk_define_cross_symmetric_(dots, u8, v128relaxed, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_v128relaxed_t,
-                           nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed, nk_load_b128_v128relaxed_,
-                           nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_v128relaxed,
-                           nk_dot_u8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
-                           nk_partial_store_b32x4_serial_,
-                           /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
-nk_define_cross_packed_(dots, u8, v128relaxed, u8, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_v128relaxed_t,
-                        nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed, nk_load_b128_v128relaxed_,
-                        nk_partial_load_b8x16_serial_, nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_,
-                        nk_dot_u8x16_update_v128relaxed, nk_dot_u8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
-                        nk_partial_store_b32x4_serial_,
-                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+/* U8 GEMM: depth_simd_dimensions=16 — compensated (2×relaxed_dot with bit-split + b_sums correction) */
+nk_define_cross_compensated_pack_size_(dots, u8, v128relaxed, u8, u8,
+                                       /*sum_value_type=*/u32, /*norm_value_type=*/u32,
+                                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_pack_(dots, u8, v128relaxed, u8, u8, nk_assign_from_to_,
+                                  /*sum_value_type=*/u32, /*norm_value_type=*/u32, nk_dots_reduce_moments_u8_,
+                                  /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_symmetric_(dots, u8, v128relaxed, u8, u32,
+                                       /*sum_value_type=*/u32, /*norm_value_type=*/u32, nk_b128_vec_t,
+                                       nk_dot_u8x16_state_v128relaxed_t, nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed,
+                                       nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_,
+                                       nk_dot_u8x16_update_v128relaxed, nk_dot_u8x16_finalize_v128relaxed,
+                                       nk_store_b128_v128relaxed_, nk_partial_store_b32x4_serial_,
+                                       nk_load_b128_v128relaxed_, nk_partial_load_b32x4_serial_,
+                                       nk_sum_u8x16_state_v128relaxed_t, nk_sum_u8x16_init_v128relaxed,
+                                       nk_sum_u8x16_update_v128relaxed, nk_sum_u8x16_finalize_v128relaxed,
+                                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_packed_(dots, u8, v128relaxed, u8, u8, u32,
+                                    /*sum_value_type=*/u32, /*norm_value_type=*/u32, nk_b128_vec_t,
+                                    nk_dot_u8x16_state_v128relaxed_t, nk_b128_vec_t, nk_dot_u8x16_init_v128relaxed,
+                                    nk_load_b128_v128relaxed_, nk_partial_load_b8x16_serial_, nk_load_b128_v128relaxed_,
+                                    nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_v128relaxed,
+                                    nk_dot_u8x16_finalize_v128relaxed, nk_store_b128_v128relaxed_,
+                                    nk_partial_store_b32x4_serial_, nk_load_b128_v128relaxed_,
+                                    nk_partial_load_b32x4_serial_, nk_dots_reduce_sum_u8_stub_,
+                                    /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E2M3 GEMM: depth_simd_dimensions=16 — standard (magnitudes fit u7, no correction) */
 nk_define_cross_pack_size_(dots, e2m3, v128relaxed, e2m3, e2m3, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/16,
