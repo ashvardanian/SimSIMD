@@ -1,48 +1,464 @@
 # NumKong for Swift
 
-Add NumKong to your `Package.swift`:
+Apple Silicon is the most power-efficient high-throughput CPU-GPU combination shipping today, and it dominates on-device AI workloads across phones, tablets, and laptops.
+NumKong brings hardware-accelerated vector math to Swift without pulling in a full tensor framework.
+It gives you collection-based dense metrics, binary set distances, owning tensors, explicit matrix views, reusable packed matrices, symmetric all-pairs kernels, MaxSim late-interaction scoring, geospatial distance helpers, and storage wrappers for low-precision formats that Swift does not model natively.
 
-```swift
-dependencies: [
-    .package(url: "https://github.com/ashvardanian/numkong")
-]
-```
+Swift users usually want one of two things.
+They either want ergonomic collection-based scalar metrics.
+Or they want a compact matrix API for repeated retrieval-style workloads.
+This package targets those two cases directly instead of pretending to be a full tensor framework.
 
-The Swift binding exposes:
-
-- Vector APIs (`dot`, `angular`, `euclidean`, `sqeuclidean`)
-- Packed matrix APIs (`dots_packed`, `angulars_packed`, `euclideans_packed`)
-- Symmetric matrix APIs (`dots_symmetric`, `angulars_symmetric`, `euclideans_symmetric`)
-- Low-precision numeric wrappers (`BFloat16`, `E4M3`, `E5M2`, `E2M3`, `E3M2`)
-
-## Vector Example
+## Quickstart
 
 ```swift
 import NumKong
 
 let a: [Float32] = [1, 2, 3]
 let b: [Float32] = [4, 5, 6]
-let value = a.dot(b)
+let dot = a.dot(b) // widened to Float64
+print(dot as Any)
 ```
 
-## Packed Matrix Example
+## Highlights
+
+__Collection-first scalar API.__
+Plain `[Float32]`, `[Float16]`, `[Int8]`, `[U1x8]`, and other wrapper arrays work directly.
+__Owning tensors.__
+`Tensor<T>` owns its storage, produces views and spans without nested pointer closures, and drives the matrix kernel API.
+__Explicit matrix views.__
+`MatrixView` and `MatrixSpan` make strides and ownership visible.
+__Reusable packed matrices.__
+`PackedMatrix` owns its internal packed buffer and can be reused across repeated queries.
+__Binary metrics.__
+`U1x8` packs 8 bits per byte; Hamming and Jaccard kernels operate directly on those packed words.
+__MaxSim and ColBERT-style late interaction.__
+`MaxSimPackedMatrix` and `.maxSimPack()` cover token-level late-interaction scoring.
+__No hidden output allocation.__
+You own the result buffers for matrix kernels.
+__Low-precision wrappers.__
+Storage wrappers preserve exact bits for bf16 and mini-float formats.
+__Unaligned caller buffers are fine.__
+Packing handles internal layout itself.
+
+## Ecosystem Comparison
+
+| Feature                   | NumKong                                                         | Accelerate/vDSP               | simd framework               | MLX                                   |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------- | ---------------------------- | ------------------------------------- |
+| Arbitrary-length vectors  | Any length, any supported type                                  | Fixed BLAS shapes, float-only | 2/3/4-wide SIMD vectors only | Tensor-oriented, requires graph setup |
+| Mini-float types          | `BFloat16`, `E4M3`, `E5M2`, `E2M3`, `E3M2` storage wrappers     | No sub-16-bit support         | No sub-16-bit support        | bf16 only, no fp8 or fp6              |
+| Binary metrics            | `U1x8` packed words, Hamming and Jaccard kernels                | No packed binary metrics      | Not applicable               | No packed binary metrics              |
+| Mixed-precision widening  | Automatic per-type widening rules                               | Manual casting required       | Not applicable               | Backend-dependent                     |
+| Packed matrix reuse       | `PackedMatrix` packs once, queries many times                   | No packed reuse primitive     | Not applicable               | Implicit caching                      |
+| Symmetric kernels         | `_symmetric` variants skip duplicate pairs                      | No built-in symmetric mode    | Not applicable               | No built-in symmetric mode            |
+| MaxSim / late interaction | `MaxSimPackedMatrix`, supports `Float32`, `BFloat16`, `Float16` | Not available                 | Not applicable               | Not available                         |
+| Hardware acceleration     | NEON, SVE, AVX-512 via C backend                                | NEON via Accelerate           | Compiler intrinsics          | Metal GPU shaders                     |
+| Precision hardening       | Kahan summation, round-to-nearest-even                          | IEEE defaults                 | IEEE defaults                | IEEE defaults                         |
+
+## Installation
+
+Add NumKong to `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/ashvardanian/NumKong.git", from: "6.5.15")
+]
+```
+
+Then add the product to your target:
+
+```swift
+.target(
+    name: "MyApp",
+    dependencies: [
+        .product(name: "NumKong", package: "NumKong")
+    ]
+)
+```
+
+The root package manifest already exposes the `NumKong` and `CNumKong` targets.
+Xcode package integration uses the same URL.
+
+## Collection-Based Dot Products
+
+Dot products follow a collection-first shape.
 
 ```swift
 import NumKong
 
-let a: [Float32] = [1, 2, 3, 4, 5, 6] // 2x3
-let b: [Float32] = [7, 8, 9, 1, 0, 1] // 2x3
-var out = Array(repeating: Float32(0), count: 4) // 2x2
+let a: [UInt8] = [1, 2, 3, 4]
+let b: [UInt8] = [4, 3, 2, 1]
 
+let dot = a.dot(b) // widened to UInt32, not UInt8
+print(dot as Any)
+```
+
+For `Float32`, the scalar result widens to `Float64`.
+For `Float16`, it widens to `Float32`.
+For `Int8`, it widens to `Int32`.
+For `UInt8`, it widens to `UInt32`.
+
+## Collection-Based Dense Distances
+
+The collection extensions are the lightest entry point.
+They are a good fit for per-vector retrieval and ranking work.
+
+```swift
+import NumKong
+
+let a: [Float16] = [1, 2, 3, 4]
+let b: [Float16] = [4, 3, 2, 1]
+
+let sqe = a.sqeuclidean(b) // widens to Float32
+let euc = a.euclidean(b)
+let ang = a.angular(b)
+
+print(sqe as Any, euc as Any, ang as Any)
+```
+
+The widening is deliberate.
+That is the main difference from a naive same-storage implementation.
+
+## Binary Metrics
+
+Binary metrics work on packed words instead of boolean slices.
+That is the right model once the workload is "semantic hash" or "binary embedding" rather than "array of booleans".
+`U1x8` packs 8 bits into one byte.
+
+```swift
+import NumKong
+
+// Each U1x8 holds 8 bits. Two elements = 16 bits total.
+let a: [U1x8] = [U1x8(bitPattern: 0b10101010), U1x8(bitPattern: 0b11110000)]
+let b: [U1x8] = [U1x8(bitPattern: 0b10101110), U1x8(bitPattern: 0b11000000)]
+
+let hamming = a.hamming(b) // UInt32: count of differing bits
+let jaccard = a.jaccard(b) // Float32: Jaccard distance in [0, 1]
+
+print(hamming as Any, jaccard as Any)
+```
+
+`Hamming` returns `UInt32` — the count of differing bits across all packed words.
+`Jaccard` returns `Float32` — the set-theoretic distance computed on bit populations.
+
+## Owning Tensors and Memory Layout
+
+`Tensor<T>` is the owning two-dimensional type.
+It allocates its own buffer, handles deallocation on `deinit`, and produces non-owning views and spans without nesting `withUnsafeBufferPointer` closures.
+
+```swift
+import NumKong
+
+// From an existing array:
+let t = try Tensor<Float32>.fromArray([1, 2, 3, 4, 5, 6], rows: 2, cols: 3)
+
+// Zero-initialized:
+let z = try Tensor<Float32>.zeros(rows: 4, cols: 768)
+
+// Constant fill:
+let c = try Tensor<Float32>.full(rows: 4, cols: 768, value: 1.0)
+
+// Subscript access:
+let v = t[0, 2] // row 0, col 2
+
+// Row buffer access:
+let row1 = t.row(1) // UnsafeBufferPointer<Float32>
+
+// Non-owning views:
+let view: MatrixView<Float32>  = t.view()  // immutable
+let span: MatrixSpan<Float32>  = t.span()  // mutable
+```
+
+The view/span split is the same aliasing discipline used throughout the binding.
+`MatrixView` is non-owning and immutable.
+`MatrixSpan` is non-owning and mutable.
+Neither allocates.
+
+The ownership model is explicit:
+
+- `MatrixView<Element>` is a non-owning immutable view.
+- `MatrixSpan<Element>` is a non-owning mutable view.
+- `PackedMatrix<Element>` owns one internal packed buffer and deallocates it on `deinit`.
+- `Tensor<Element>` owns its element storage and deallocates it on `deinit`.
+
+`PackedMatrix` allocates its internal payload with `UnsafeMutableRawPointer.allocate(byteCount:alignment:)`.
+The alignment is 64 bytes for the owned packed buffer.
+That does _not_ mean your source matrix must be aligned.
+Packing accepts ordinary Swift-managed buffers and handles the internal layout itself.
+
+The Tensor API eliminates the nested closure structure required when working directly with Swift's `withUnsafeBufferPointer`.
+The difference in call-site verbosity is significant for anything more than a single kernel call:
+
+```swift
+// Without Tensor — three nested closures just to call one kernel
 try a.withUnsafeBufferPointer { aPtr in
     try b.withUnsafeBufferPointer { bPtr in
         try out.withUnsafeMutableBufferPointer { outPtr in
-            let aMatrix = Matrix(baseAddress: aPtr.baseAddress!, rows: 2, cols: 3)
-            let bMatrix = Matrix(baseAddress: bPtr.baseAddress!, rows: 2, cols: 3)
-            var outMatrix = MutableMatrix(baseAddress: outPtr.baseAddress!, rows: 2, cols: 2)
-            let packed = try PackedMatrix<Float32>(packing: bMatrix)
-            try dots_packed(aMatrix, packed, &outMatrix)
+            let aView = MatrixView(baseAddress: aPtr.baseAddress!, rows: 2, cols: 3)
+            let bView = MatrixView(baseAddress: bPtr.baseAddress!, rows: 2, cols: 3)
+            var cSpan = MatrixSpan(baseAddress: outPtr.baseAddress!, rows: 2, cols: 2)
+            let packed = try PackedMatrix<Float32>(packing: bView)
+            try dots_packed(aView, packed, &cSpan)
         }
     }
 }
+
+// With Tensor — no closures at the call site
+let a = try Tensor<Float32>.fromArray([1, 2, 3, 4, 5, 6], rows: 2, cols: 3)
+let b = try Tensor<Float32>.fromArray([7, 8, 9, 1, 0, 1], rows: 2, cols: 3)
+let packed = try b.packForDots()
+let c = try a.dotsPacked(packed) // returns Tensor<Float64>
 ```
+
+## Matrix Views and Packed Kernels
+
+Packed kernels are the GEMM-like throughput path.
+They are useful when the right-hand side is reused across many query batches.
+
+```swift
+import NumKong
+
+let a = try Tensor<Float32>.fromArray([1, 2, 3, 4, 5, 6], rows: 2, cols: 3)
+let b = try Tensor<Float32>.fromArray([7, 8, 9, 1, 0, 1], rows: 2, cols: 3)
+
+let packed = try b.packForDots()           // PackedMatrix<Float32>, owned
+let dots   = try a.dotsPacked(packed)      // Tensor<Float64>, 2x2
+let angs   = try a.angularsPacked(packed)  // Tensor<Float64>, 2x2
+let eucs   = try a.euclideansPacked(packed)// Tensor<Float64>, 2x2
+
+assert(dots.rows == 2 && dots.cols == 2)
+```
+
+The free-function API (`dots_packed`, `angulars_packed`, etc.) accepts `MatrixView`, `PackedMatrix`, and `MatrixSpan` directly for cases where you need manual buffer management — see the verbosity comparison in the Tensors section above.
+
+## Symmetric Matrix Kernels
+
+Symmetric kernels compute self-similarity or self-distance matrices.
+They are the right shape for `SYRK`-like workloads and row-window partitioning.
+
+```swift
+import NumKong
+
+let vectors = try Tensor<Float32>.fromArray([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+], rows: 3, cols: 3)
+
+let gram = try vectors.dotsSymmetric()       // Tensor<Float64>, 3x3
+let dists = try vectors.euclideansSymmetric()// Tensor<Float64>, 3x3
+let angs  = try vectors.angularsSymmetric()  // Tensor<Float64>, 3x3
+
+assert(gram.rows == 3 && gram.cols == 3)
+```
+
+The free-function form (`dots_symmetric`, `angulars_symmetric`, etc.) exposes `rowStart` and `rowCount` parameters for external partitioning.
+
+## Set Distance Kernels
+
+Set distance kernels operate on `U1x8` matrices where each row is a packed binary vector.
+The same packed and symmetric shapes available for dense metrics exist here.
+
+```swift
+import NumKong
+
+// Eight binary vectors, each 16 bits wide (2 x U1x8 per row)
+let rows = 8
+let cols = 2
+var rawBits = [U1x8](repeating: U1x8(bitPattern: 0b10101010), count: rows * cols)
+
+let t = try rawBits.withUnsafeMutableBufferPointer { buf -> Tensor<U1x8> in
+    let data = Array(buf)
+    return try Tensor<U1x8>.fromArray(data, rows: rows, cols: cols)
+}
+
+let packed = try PackedMatrix<U1x8>(packing: t.view())
+
+// Cross-matrix Hamming distances: shape [8, 8]
+let hammings = try t.hammingsPacked(packed)  // Tensor<UInt32>
+
+// Symmetric all-pairs Jaccard distances: shape [8, 8]
+let jaccards = try t.jaccardsSymmetric()     // Tensor<Float32>
+
+assert(hammings.rows == rows && hammings.cols == rows)
+assert(jaccards.rows == rows && jaccards.cols == rows)
+```
+
+Free-function forms are also available:
+
+```swift
+try hammings_packed(view, packed, &span)
+try jaccards_packed(view, packed, &span)
+try hammings_symmetric(view, &span, rowStart: 0, rowCount: rows)
+try jaccards_symmetric(view, &span, rowStart: 0, rowCount: rows)
+```
+
+## MaxSim and ColBERT-Style Late Interaction
+
+MaxSim is the late-interaction primitive used by systems such as [ColBERT](https://arxiv.org/abs/2004.12832).
+Each query is a small matrix of token vectors.
+Each document is a small matrix of token vectors.
+The score between a query and a document is the sum of maximum cosine similarities between each query token and any document token.
+That is not a standard matrix multiply.
+
+```swift
+import NumKong
+
+// 4 query tokens, each 16-dimensional
+let queries = try Tensor<Float32>.full(rows: 4, cols: 16, value: 1.0)
+
+// 8 document tokens, each 16-dimensional
+let docs = try Tensor<Float32>.full(rows: 8, cols: 16, value: 1.0)
+
+let queryPacked = try queries.maxSimPack()  // MaxSimPackedMatrix<Float32>
+let docPacked   = try docs.maxSimPack()     // MaxSimPackedMatrix<Float32>
+
+let score = queryPacked.score(docPacked)    // Float64
+assert(score.isFinite)
+```
+
+`MaxSimPackedMatrix` can also be constructed directly from a `MatrixView`:
+
+```swift
+let view = queries.view()
+let packed = try MaxSimPackedMatrix<Float32>(packing: view)
+```
+
+Supported types and their output types:
+
+| Input type | Score output |
+| ---------- | ------------ |
+| `Float32`  | `Float64`    |
+| `BFloat16` | `Float32`    |
+| `Float16`  | `Float32`    |
+
+`Float16` support is unavailable on x86-64 targets because Swift's `Float16` type is not available on that architecture.
+
+## Low-Precision Storage Wrappers
+
+Swift has no built-in bf16, mini-float, or packed-bit scalar types.
+NumKong ships storage wrappers instead.
+
+- __`BFloat16`__ — 1+8+7 bit layout (sign + exponent + mantissa), 2 bytes.
+  Same dynamic range as `Float32` with reduced precision.
+  Supports NaN and Inf.
+- __`E4M3`__ — 1+4+3 bit layout, 1 byte.
+  Range ±448.
+  No Inf representation; NaN is encoded only as `0x7F` or `0xFF`.
+- __`E5M2`__ — 1+5+2 bit layout, 1 byte.
+  Range ±57344.
+  Supports Inf and NaN.
+- __`E2M3`__ — 1+2+3 bit layout, 1 byte (6 bits used).
+  Range ±7.5.
+  No Inf, no NaN.
+- __`E3M2`__ — 1+3+2 bit layout, 1 byte (6 bits used).
+  Range ±28.
+  No Inf, no NaN.
+- __`U1x8`__ — 8 packed bits per byte.
+  Used for binary embeddings and semantic hashing.
+  Supports Hamming and Jaccard scalar and matrix kernels.
+
+Every floating-point wrapper provides `init(bitPattern:)`, `init(float:)`, and `var float: Float32`.
+All are `@frozen`, `Equatable`, `Hashable`, `Sendable`.
+`U1x8` provides `init(bitPattern:)` and exposes its underlying `UInt8` value.
+These wrappers are exact-storage types first.
+They are there to preserve bits and make the native kernels callable from Swift.
+They are not pretending to be standard-library numeric types.
+
+## Scalar Types and Promotions
+
+The output type is intentionally wider than the storage type for most operations.
+The table below documents the promotion for scalar collection extensions.
+
+| Input type | `.dot()`  | `.angular()` | `.euclidean()` | `.sqeuclidean()` | `.hamming()` | `.jaccard()` |
+| ---------- | --------- | ------------ | -------------- | ---------------- | ------------ | ------------ |
+| `Float64`  | `Float64` | `Float64`    | `Float64`      | `Float64`        | —            | —            |
+| `Float32`  | `Float64` | `Float64`    | `Float64`      | `Float64`        | —            | —            |
+| `Float16`  | `Float32` | `Float32`    | `Float32`      | `Float32`        | —            | —            |
+| `BFloat16` | `Float32` | `Float32`    | `Float32`      | `Float32`        | —            | —            |
+| `Int8`     | `Int32`   | `Float32`    | `Float32`      | `UInt32`         | —            | —            |
+| `UInt8`    | `UInt32`  | `Float32`    | `Float32`      | `UInt32`         | —            | —            |
+| `U1x8`     | —         | —            | —              | —                | `UInt32`     | `Float32`    |
+
+The matrix kernel output types follow a similar pattern but vary for the mini-float formats:
+
+| Input type | Dots output | Spatial output | Hamming output | Jaccard output |
+| ---------- | ----------- | -------------- | -------------- | -------------- |
+| `Float32`  | `Float64`   | `Float64`      | —              | —              |
+| `Float64`  | `Float64`   | `Float64`      | —              | —              |
+| `Float16`  | `Float32`   | `Float32`      | —              | —              |
+| `BFloat16` | `Float32`   | `Float32`      | —              | —              |
+| `Int8`     | `Int32`     | `Float32`      | —              | —              |
+| `UInt8`    | `UInt32`    | `Float32`      | —              | —              |
+| `E4M3`     | `Float32`   | `Float32`      | —              | —              |
+| `E5M2`     | `Float32`   | `Float32`      | —              | —              |
+| `E2M3`     | `Float32`   | `Float32`      | —              | —              |
+| `E3M2`     | `Float32`   | `Float32`      | —              | —              |
+| `U1x8`     | `UInt32`    | —              | `UInt32`       | `Float32`      |
+
+## Geospatial Metrics
+
+The Swift geospatial helpers operate on four coordinate buffers and write into a caller-owned result buffer.
+Inputs are in radians.
+Outputs are in meters.
+
+```swift
+import NumKong
+
+let aLat: [Float64] = [0.7105724]
+let aLon: [Float64] = [-1.2916484]
+let bLat: [Float64] = [0.5943230]
+let bLon: [Float64] = [-2.0637416]
+var out = Array(repeating: 0.0, count: 1)
+
+let ok = aLat.withUnsafeBufferPointer { aLatPtr in
+    aLon.withUnsafeBufferPointer { aLonPtr in
+        bLat.withUnsafeBufferPointer { bLatPtr in
+            bLon.withUnsafeBufferPointer { bLonPtr in
+                out.withUnsafeMutableBufferPointer { outPtr in
+                    Float64.vincenty(
+                        aLat: aLatPtr,
+                        aLon: aLonPtr,
+                        bLat: bLatPtr,
+                        bLon: bLonPtr,
+                        result: outPtr
+                    )
+                }
+            }
+        }
+    }
+}
+
+assert(ok)
+assert(out[0].isFinite)
+```
+
+## Runtime Capabilities and Thread Configuration
+
+Capability detection is exposed directly for diagnostics and tests:
+
+```swift
+import NumKong
+
+let caps = Capabilities.available
+let hasNEON = (caps & Capabilities.neon) != 0
+let hasHaswell = (caps & Capabilities.haswell) != 0
+
+print(hasNEON, hasHaswell)
+```
+
+You usually do not need to branch on this in application code.
+The native layer still selects the best enabled kernel automatically.
+
+The `configure_thread` function is not yet exposed in the Swift binding.
+If you need per-thread capability pinning, call the C layer directly:
+
+```swift
+import CNumKong
+let caps = nk_capabilities()
+let ok = nk_configure_thread(caps)
+```
+
+Call `configure_thread` at the start of every thread that will invoke NumKong kernels.
+In a thread-pool setting, each worker thread needs its own call.
+The function is idempotent and cheap to call more than once on the same thread.

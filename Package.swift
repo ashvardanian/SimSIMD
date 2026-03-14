@@ -1,10 +1,16 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.4
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "NumKong",
+    platforms: [
+        .macOS(.v11),
+        .iOS(.v14),
+        .tvOS(.v14),
+        .watchOS(.v7),
+    ],
     products: [
         .library(name: "NumKong", targets: ["NumKong"])
     ],
@@ -13,13 +19,13 @@ let package = Package(
             name: "Test",
             dependencies: ["NumKong"],
             path: "swift",
-            exclude: ["NumKong.swift", "Numerics.swift", "Scalar.swift", "Matrix.swift"]
+            exclude: ["NumKong.swift", "Numerics.swift", "Scalar.swift", "Matrix.swift", "Tensor.swift", "MaxSim.swift", "README.md"]
         ),
         .target(
             name: "NumKong",
             dependencies: ["CNumKong"],
             path: "swift",
-            exclude: ["Test.swift"]
+            exclude: ["Test.swift", "README.md"]
         ),
         .target(
             name: "CNumKong",

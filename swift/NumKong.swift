@@ -1,7 +1,14 @@
+//  NumKong.swift
+//  NumKong
+//
+//  Created by Ash Vardanian on March 14, 2026.
+//
+
 import CNumKong
 
 // MARK: - Geospatial Protocols
 
+/// A type that can compute SIMD-accelerated Haversine (great-circle) distances.
 public protocol NumKongHaversine {
     static func haversine(
         aLat: UnsafeBufferPointer<Self>,
@@ -12,6 +19,7 @@ public protocol NumKongHaversine {
     ) -> Bool
 }
 
+/// A type that can compute SIMD-accelerated Vincenty (ellipsoidal) geodesic distances.
 public protocol NumKongVincenty {
     static func vincenty(
         aLat: UnsafeBufferPointer<Self>,
@@ -22,6 +30,7 @@ public protocol NumKongVincenty {
     ) -> Bool
 }
 
+/// Convenience alias for types supporting both Haversine and Vincenty geospatial distances.
 public typealias NumKongGeospatial = NumKongHaversine & NumKongVincenty
 
 extension Float64: NumKongHaversine {
@@ -138,6 +147,7 @@ extension Float32: NumKongVincenty {
 
 // MARK: - Capabilities
 
+/// Bitmask of SIMD instruction sets detected at runtime.
 public enum Capabilities {
     public static var available: UInt64 { nk_capabilities() }
 

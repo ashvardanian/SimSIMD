@@ -1,3 +1,9 @@
+//  Numerics.swift
+//  NumKong
+//
+//  Created by Ash Vardanian on March 14, 2026.
+//
+
 import CNumKong
 
 // MARK: - Shared Helpers
@@ -116,6 +122,7 @@ func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
 
 // MARK: - Low-Precision Storage Types
 
+/// Brain floating-point: 16-bit storage with 8-bit exponent, used in ML inference.
 @frozen
 public struct BFloat16: Equatable, Hashable, Sendable {
     public var bitPattern: UInt16
@@ -134,6 +141,7 @@ public struct BFloat16: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkBf16BitsToF32(bitPattern) }
 }
 
+/// FP8 format with 4-bit exponent and 3-bit mantissa (FP8 E4M3), used in transformer inference.
 @frozen
 public struct E4M3: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
@@ -152,6 +160,7 @@ public struct E4M3: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE4M3BitsToF32(bitPattern) }
 }
 
+/// FP8 format with 5-bit exponent and 2-bit mantissa (FP8 E5M2), used in gradient storage.
 @frozen
 public struct E5M2: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
@@ -170,6 +179,7 @@ public struct E5M2: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE5M2BitsToF32(bitPattern) }
 }
 
+/// MX format with 2-bit exponent and 3-bit mantissa (MX E2M3).
 @frozen
 public struct E2M3: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
@@ -188,6 +198,7 @@ public struct E2M3: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE2M3BitsToF32(bitPattern) }
 }
 
+/// MX format with 3-bit exponent and 2-bit mantissa (MX E3M2).
 @frozen
 public struct E3M2: Equatable, Hashable, Sendable {
     public var bitPattern: UInt8
@@ -204,4 +215,15 @@ public struct E3M2: Equatable, Hashable, Sendable {
 
     @inlinable
     public var float: Float32 { _nkE3M2BitsToF32(bitPattern) }
+}
+
+// MARK: - Binary Storage Type
+
+/// Packed 8-bit binary vector element for Hamming and Jaccard distance computations.
+@frozen
+public struct U1x8: Equatable, Hashable, Sendable {
+    public var bitPattern: UInt8
+    @inlinable public init(_ bits: UInt8) { self.bitPattern = bits }
+    @inlinable public init(bitPattern: UInt8) { self.bitPattern = bitPattern }
+    @inlinable public var popcount: Int { bitPattern.nonzeroBitCount }
 }

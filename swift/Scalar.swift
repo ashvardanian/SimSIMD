@@ -1,31 +1,42 @@
+//  Scalar.swift
+//  NumKong
+//
+//  Created by Ash Vardanian on March 14, 2026.
+//
+
 import CNumKong
 
 // MARK: - Spatial Protocols
 
+/// A type that can compute SIMD-accelerated dot products with output type widening.
 public protocol NumKongDot {
     associatedtype DotOutput
     static func dot<A, B>(_ a: A, _ b: B) -> DotOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
+/// A type that can compute SIMD-accelerated angular (cosine) distances.
 public protocol NumKongAngular {
     associatedtype AngularOutput
     static func angular<A, B>(_ a: A, _ b: B) -> AngularOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
+/// A type that can compute SIMD-accelerated squared Euclidean distances.
 public protocol NumKongSqEuclidean {
     associatedtype SqEuclideanOutput
     static func sqeuclidean<A, B>(_ a: A, _ b: B) -> SqEuclideanOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
+/// A type that can compute SIMD-accelerated Euclidean distances.
 public protocol NumKongEuclidean {
     associatedtype EuclideanOutput
     static func euclidean<A, B>(_ a: A, _ b: B) -> EuclideanOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
+/// Convenience alias for types supporting all four spatial distance metrics.
 public typealias NumKongSpatial = NumKongDot & NumKongAngular & NumKongEuclidean & NumKongSqEuclidean
 
 // MARK: - Built-in Scalars
@@ -606,9 +617,56 @@ extension E3M2: NumKongSqEuclidean {
     }
 }
 
+// MARK: - Set Distance Protocols
+
+/// A type that can compute SIMD-accelerated Hamming distances over bit sets.
+public protocol NumKongHamming {
+    associatedtype HammingOutput
+    static func hamming<A, B>(_ a: A, _ b: B) -> HammingOutput?
+    where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
+}
+
+/// A type that can compute SIMD-accelerated Jaccard distances over bit sets.
+public protocol NumKongJaccard {
+    associatedtype JaccardOutput
+    static func jaccard<A, B>(_ a: A, _ b: B) -> JaccardOutput?
+    where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
+}
+
+// MARK: - U1x8 Set Conformances
+
+extension U1x8: NumKongHamming {
+    @inlinable @inline(__always)
+    public static func hamming<A, B>(_ a: A, _ b: B) -> UInt32?
+    where A: Sequence, B: Sequence, A.Element == U1x8, B.Element == U1x8 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_u1x8_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_u1x8_t.self)
+            var result: UInt32 = 0
+            nk_hamming_u1(aPtr, bPtr, UInt64(n * 8), &result)
+            return result
+        }
+    }
+}
+
+extension U1x8: NumKongJaccard {
+    @inlinable @inline(__always)
+    public static func jaccard<A, B>(_ a: A, _ b: B) -> Float32?
+    where A: Sequence, B: Sequence, A.Element == U1x8, B.Element == U1x8 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_u1x8_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_u1x8_t.self)
+            var result: Float32 = 0
+            nk_jaccard_u1(aPtr, bPtr, UInt64(n * 8), &result)
+            return result
+        }
+    }
+}
+
 // MARK: - Collection Extensions
 
 extension RandomAccessCollection where Element: NumKongDot {
+    /// Computes the SIMD-accelerated dot product with another sequence.
     @inlinable @inline(__always)
     public func dot<B>(_ b: B) -> Element.DotOutput?
     where B: Sequence, B.Element == Element {
@@ -617,6 +675,7 @@ extension RandomAccessCollection where Element: NumKongDot {
 }
 
 extension RandomAccessCollection where Element: NumKongAngular {
+    /// Computes the SIMD-accelerated angular (cosine) distance to another sequence.
     @inlinable @inline(__always)
     public func angular<B>(_ b: B) -> Element.AngularOutput?
     where B: Sequence, B.Element == Element {
@@ -625,6 +684,7 @@ extension RandomAccessCollection where Element: NumKongAngular {
 }
 
 extension RandomAccessCollection where Element: NumKongEuclidean {
+    /// Computes the SIMD-accelerated Euclidean distance to another sequence.
     @inlinable @inline(__always)
     public func euclidean<B>(_ b: B) -> Element.EuclideanOutput?
     where B: Sequence, B.Element == Element {
@@ -633,9 +693,28 @@ extension RandomAccessCollection where Element: NumKongEuclidean {
 }
 
 extension RandomAccessCollection where Element: NumKongSqEuclidean {
+    /// Computes the SIMD-accelerated squared Euclidean distance to another sequence.
     @inlinable @inline(__always)
     public func sqeuclidean<B>(_ b: B) -> Element.SqEuclideanOutput?
     where B: Sequence, B.Element == Element {
         Element.sqeuclidean(self, b)
+    }
+}
+
+extension RandomAccessCollection where Element: NumKongHamming {
+    /// Computes the SIMD-accelerated Hamming distance to another sequence.
+    @inlinable @inline(__always)
+    public func hamming<B>(_ b: B) -> Element.HammingOutput?
+    where B: Sequence, B.Element == Element {
+        Element.hamming(self, b)
+    }
+}
+
+extension RandomAccessCollection where Element: NumKongJaccard {
+    /// Computes the SIMD-accelerated Jaccard distance to another sequence.
+    @inlinable @inline(__always)
+    public func jaccard<B>(_ b: B) -> Element.JaccardOutput?
+    where B: Sequence, B.Element == Element {
+        Element.jaccard(self, b)
     }
 }
