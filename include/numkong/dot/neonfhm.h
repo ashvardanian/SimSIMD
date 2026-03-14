@@ -103,31 +103,27 @@ extern "C" {
 
 NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
+    float16x8_t a_f16x8, b_f16x8;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_size_t idx = 0;
-
-    // Main loop: process 8 elements at a time using FMLAL
-    for (; idx + 8 <= count_scalars; idx += 8) {
-        float16x8_t a_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(a_scalars + idx));
-        float16x8_t b_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(b_scalars + idx));
-        // FMLAL: widening multiply-accumulate fp16 → f32
-        // low: processes elements 0-3, high: processes elements 4-7
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
-    }
-
-    // Handle remaining elements (0-7)
-    if (idx < count_scalars) {
-        nk_size_t remaining = count_scalars - idx;
+nk_dot_f16_neonfhm_cycle:
+    if (count_scalars < 8) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_serial_(a_scalars + idx, &a_vec, remaining);
-        nk_partial_load_b16x8_serial_(b_scalars + idx, &b_vec, remaining);
-        float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_vec.u16x8);
-        float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_vec.u16x8);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+        nk_partial_load_b16x8_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b16x8_serial_(b_scalars, &b_vec, count_scalars);
+        a_f16x8 = vreinterpretq_f16_u16(a_vec.u16x8);
+        b_f16x8 = vreinterpretq_f16_u16(b_vec.u16x8);
+        count_scalars = 0;
     }
-
+    else {
+        a_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(a_scalars));
+        b_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(b_scalars));
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    // FMLAL: widening multiply-accumulate fp16 → f32
+    // low: processes elements 0-3, high: processes elements 4-7
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    if (count_scalars) goto nk_dot_f16_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
@@ -249,137 +245,111 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b
 
 NK_PUBLIC void nk_dot_e4m3_neonfhm(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
+    float16x8_t a_low, a_high, b_low, b_high;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_size_t idx = 0;
-
-    // Main loop: process 16 elements at a time using TBL + FMLAL
-    for (; idx + 16 <= count_scalars; idx += 16) {
-        float16x8_t a_low, a_high, b_low, b_high;
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low, &a_high);
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
-    }
-
-    // Handle remaining elements (0-15) using partial_load and x16 converter
-    if (idx < count_scalars) {
+nk_dot_e4m3_neonfhm_cycle:
+    if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
-        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
-        float16x8_t a_low, a_high, b_low, b_high;
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         nk_e4m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
         nk_e4m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+        count_scalars = 0;
     }
-
+    else {
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low, &a_high);
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low, &b_high);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    if (count_scalars) goto nk_dot_e4m3_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e5m2_neonfhm(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
+    float16x8_t a_low, a_high, b_low, b_high;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_size_t idx = 0;
-
-    // Main loop: process 16 elements at a time using SHLL (e5m2→f16 = widen + shift left 8) + FMLAL
-    for (; idx + 16 <= count_scalars; idx += 16) {
-        uint8x16_t a_u8x16 = vld1q_u8(a_scalars + idx);
-        uint8x16_t b_u8x16 = vld1q_u8(b_scalars + idx);
-        float16x8_t a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
-        float16x8_t a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
-        float16x8_t b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
-        float16x8_t b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
-    }
-
-    // Handle remaining elements (0-15)
-    if (idx < count_scalars) {
+nk_dot_e5m2_neonfhm_cycle:
+    if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
-        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
-        float16x8_t a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
-        float16x8_t a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
-        float16x8_t b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
-        float16x8_t b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
+        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
+        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
+        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
+        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
+        count_scalars = 0;
     }
-
+    else {
+        uint8x16_t a_u8x16 = vld1q_u8(a_scalars);
+        uint8x16_t b_u8x16 = vld1q_u8(b_scalars);
+        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
+        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
+        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
+        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    if (count_scalars) goto nk_dot_e5m2_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e2m3_neonfhm(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
+    float16x8_t a_low, a_high, b_low, b_high;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_size_t idx = 0;
-
-    // Main loop: process 16 elements at a time using x16 converter + FMLAL
-    for (; idx + 16 <= count_scalars; idx += 16) {
-        float16x8_t a_low, a_high, b_low, b_high;
-        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low, &a_high);
-        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
-    }
-
-    // Handle remaining elements (0-15) using partial_load and x16 converter
-    if (idx < count_scalars) {
+nk_dot_e2m3_neonfhm_cycle:
+    if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
-        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
-        float16x8_t a_low, a_high, b_low, b_high;
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         nk_e2m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
         nk_e2m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+        count_scalars = 0;
     }
-
+    else {
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low, &a_high);
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low, &b_high);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    if (count_scalars) goto nk_dot_e2m3_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
+    float16x8_t a_low, a_high, b_low, b_high;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_size_t idx = 0;
-
-    // Main loop: process 16 elements at a time using x16 converter + FMLAL
-    for (; idx + 16 <= count_scalars; idx += 16) {
-        float16x8_t a_low, a_high, b_low, b_high;
-        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low, &a_high);
-        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
-    }
-
-    // Handle remaining elements (0-15) using partial_load and x16 converter
-    if (idx < count_scalars) {
+nk_dot_e3m2_neonfhm_cycle:
+    if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
-        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
-        float16x8_t a_low, a_high, b_low, b_high;
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         nk_e3m2x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
         nk_e3m2x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+        count_scalars = 0;
     }
-
+    else {
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low, &a_high);
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low, &b_high);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    if (count_scalars) goto nk_dot_e3m2_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
