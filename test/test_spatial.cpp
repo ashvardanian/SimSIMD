@@ -135,27 +135,27 @@ void test_spatial() {
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    check("sqeuclidean_f32_neon", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
     check("sqeuclidean_f64_neon", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_neon);
-    check("sqeuclidean_e2m3_neon", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_neon);
-    check("sqeuclidean_e3m2_neon", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neon);
-    check("euclidean_f32_neon", test_euclidean<f32_t>, nk_euclidean_f32_neon);
-    check("euclidean_f64_neon", test_euclidean<f64_t>, nk_euclidean_f64_neon);
-    check("euclidean_e2m3_neon", test_euclidean<e2m3_t>, nk_euclidean_e2m3_neon);
-    check("euclidean_e3m2_neon", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neon);
-    check("angular_f32_neon", test_angular<f32_t>, nk_angular_f32_neon);
-    check("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
-    check("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
-    check("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
-    check("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
-    check("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
-    check("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
-    check("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
-    check("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
-    check("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
+    check("sqeuclidean_f32_neon", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
     check("sqeuclidean_bf16_neon", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neon);
+    check("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
+    check("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
+    check("sqeuclidean_e3m2_neon", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neon);
+    check("sqeuclidean_e2m3_neon", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_neon);
+    check("euclidean_f64_neon", test_euclidean<f64_t>, nk_euclidean_f64_neon);
+    check("euclidean_f32_neon", test_euclidean<f32_t>, nk_euclidean_f32_neon);
     check("euclidean_bf16_neon", test_euclidean<bf16_t>, nk_euclidean_bf16_neon);
+    check("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
+    check("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
+    check("euclidean_e3m2_neon", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neon);
+    check("euclidean_e2m3_neon", test_euclidean<e2m3_t>, nk_euclidean_e2m3_neon);
+    check("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
+    check("angular_f32_neon", test_angular<f32_t>, nk_angular_f32_neon);
     check("angular_bf16_neon", test_angular<bf16_t>, nk_angular_bf16_neon);
+    check("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
+    check("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
+    check("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
+    check("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
