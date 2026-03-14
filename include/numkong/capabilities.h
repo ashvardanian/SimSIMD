@@ -733,6 +733,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 NK_DYNAMIC nk_capability_t nk_capabilities(void);
 NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void);
+NK_DYNAMIC void nk_dispatch_table_update(nk_capability_t);
 NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, nk_capability_t supported,
                                       nk_capability_t allowed, nk_kernel_punned_t *kernel_output,
                                       nk_capability_t *capability_output);
@@ -742,6 +743,7 @@ NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, n
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
+NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { (void)caps; }
 
 #endif
 
