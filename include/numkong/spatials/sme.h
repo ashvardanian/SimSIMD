@@ -53,31 +53,51 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data,
 
 NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data,
                                                      nk_size_t count) __arm_streaming_compatible {
-    svfloat32_t accumulator_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_lo_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_hi_f32x = svdup_f32(0.0f);
     svuint16_t subnorm_lut_u16x = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
-    nk_size_t const vector_length = svcntw();
+    nk_size_t const vector_length = svcnth();
+    nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, count);
-        svuint8_t raw_u8x = svld1_u8(svwhilelt_b8_u64(i, count), (nk_u8_t const *)data + i);
-        svfloat16_t values_f16x = nk_e4m3x_to_f16x_ssve_(svwhilelt_b16_u64(i, count), raw_u8x, subnorm_lut_u16x);
-        svfloat32_t values_f32x = svcvt_f32_f16_x(predicate_f32x, values_f16x);
-        accumulator_f32x = svmla_f32_x(predicate_f32x, accumulator_f32x, values_f32x, values_f32x);
+        nk_size_t const batch_size = (i + vector_length < count) ? vector_length : (count - i);
+        svbool_t predicate_i8x = svwhilelt_b8_u64(0u, batch_size);
+        svbool_t predicate_f16x = svwhilelt_b16_u64(0u, batch_size);
+        svuint8_t raw_u8x = svld1_u8(predicate_i8x, (nk_u8_t const *)data + i);
+        svfloat16_t values_f16x = nk_e4m3x_to_f16x_ssve_(predicate_f16x, raw_u8x, subnorm_lut_u16x);
+
+        svbool_t predicate_lo_f32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_lo_f32x = svcvt_f32_f16_x(predicate_lo_f32x, values_f16x);
+        accumulator_lo_f32x = svmla_f32_m(predicate_lo_f32x, accumulator_lo_f32x, values_lo_f32x, values_lo_f32x);
+
+        svbool_t predicate_hi_f32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_hi_f32x = svcvtlt_f32_f16_x(predicate_hi_f32x, values_f16x);
+        accumulator_hi_f32x = svmla_f32_m(predicate_hi_f32x, accumulator_hi_f32x, values_hi_f32x, values_hi_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_lo_f32x) + svaddv_f32(svptrue_b32(), accumulator_hi_f32x);
 }
 
 NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data,
                                                      nk_size_t count) __arm_streaming_compatible {
-    svfloat32_t accumulator_f32x = svdup_f32(0.0f);
-    nk_size_t const vector_length = svcntw();
+    svfloat32_t accumulator_lo_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_hi_f32x = svdup_f32(0.0f);
+    nk_size_t const vector_length = svcnth();
+    nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, count);
-        svuint8_t raw_u8x = svld1_u8(svwhilelt_b8_u64(i, count), (nk_u8_t const *)data + i);
-        svfloat16_t values_f16x = nk_e5m2x_to_f16x_ssve_(svwhilelt_b16_u64(i, count), raw_u8x);
-        svfloat32_t values_f32x = svcvt_f32_f16_x(predicate_f32x, values_f16x);
-        accumulator_f32x = svmla_f32_x(predicate_f32x, accumulator_f32x, values_f32x, values_f32x);
+        nk_size_t const batch_size = (i + vector_length < count) ? vector_length : (count - i);
+        svbool_t predicate_i8x = svwhilelt_b8_u64(0u, batch_size);
+        svbool_t predicate_f16x = svwhilelt_b16_u64(0u, batch_size);
+        svuint8_t raw_u8x = svld1_u8(predicate_i8x, (nk_u8_t const *)data + i);
+        svfloat16_t values_f16x = nk_e5m2x_to_f16x_ssve_(predicate_f16x, raw_u8x);
+
+        svbool_t predicate_lo_f32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_lo_f32x = svcvt_f32_f16_x(predicate_lo_f32x, values_f16x);
+        accumulator_lo_f32x = svmla_f32_m(predicate_lo_f32x, accumulator_lo_f32x, values_lo_f32x, values_lo_f32x);
+
+        svbool_t predicate_hi_f32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_hi_f32x = svcvtlt_f32_f16_x(predicate_hi_f32x, values_f16x);
+        accumulator_hi_f32x = svmla_f32_m(predicate_hi_f32x, accumulator_hi_f32x, values_hi_f32x, values_hi_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_lo_f32x) + svaddv_f32(svptrue_b32(), accumulator_hi_f32x);
 }
 
 NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data,
@@ -98,16 +118,26 @@ NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data,
 
 NK_INTERNAL nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data,
                                                      nk_size_t count) __arm_streaming_compatible {
-    svfloat32_t accumulator_f32x = svdup_f32(0.0f);
-    nk_size_t const vector_length = svcntw();
+    svfloat32_t accumulator_lo_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_hi_f32x = svdup_f32(0.0f);
+    nk_size_t const vector_length = svcnth();
+    nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, count);
-        svuint8_t raw_u8x = svld1_u8(svwhilelt_b8_u64(i, count), (nk_u8_t const *)data + i);
-        svfloat16_t values_f16x = nk_e3m2x_to_f16x_ssve_(svwhilelt_b16_u64(i, count), raw_u8x);
-        svfloat32_t values_f32x = svcvt_f32_f16_x(predicate_f32x, values_f16x);
-        accumulator_f32x = svmla_f32_x(predicate_f32x, accumulator_f32x, values_f32x, values_f32x);
+        nk_size_t const batch_size = (i + vector_length < count) ? vector_length : (count - i);
+        svbool_t predicate_i8x = svwhilelt_b8_u64(0u, batch_size);
+        svbool_t predicate_f16x = svwhilelt_b16_u64(0u, batch_size);
+        svuint8_t raw_u8x = svld1_u8(predicate_i8x, (nk_u8_t const *)data + i);
+        svfloat16_t values_f16x = nk_e3m2x_to_f16x_ssve_(predicate_f16x, raw_u8x);
+
+        svbool_t predicate_lo_f32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_lo_f32x = svcvt_f32_f16_x(predicate_lo_f32x, values_f16x);
+        accumulator_lo_f32x = svmla_f32_m(predicate_lo_f32x, accumulator_lo_f32x, values_lo_f32x, values_lo_f32x);
+
+        svbool_t predicate_hi_f32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_hi_f32x = svcvtlt_f32_f16_x(predicate_hi_f32x, values_f16x);
+        accumulator_hi_f32x = svmla_f32_m(predicate_hi_f32x, accumulator_hi_f32x, values_hi_f32x, values_hi_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_lo_f32x) + svaddv_f32(svptrue_b32(), accumulator_hi_f32x);
 }
 
 NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) __arm_streaming_compatible {
@@ -190,6 +220,30 @@ NK_INTERNAL nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_siz
     return (nk_u32_t)svaddv_u64(svptrue_b64(), accumulator_u64x);
 }
 
+NK_INTERNAL svfloat32_t nk_angulars_from_dot_f32x_ssve_(svbool_t predicate_f32x, svfloat32_t dots_f32x,
+                                                        svfloat32_t query_norm_sq_f32x,
+                                                        svfloat32_t target_norms_sq_f32x) __arm_streaming_compatible {
+    svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
+    svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
+    rsqrt_f32x = svmul_f32_x(predicate_f32x, rsqrt_f32x,
+                             svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
+    rsqrt_f32x = svmul_f32_x(predicate_f32x, rsqrt_f32x,
+                             svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
+    svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
+                                           svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
+    return svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
+}
+
+NK_INTERNAL svfloat32_t nk_euclideans_from_dot_f32x_ssve_(svbool_t predicate_f32x, svfloat32_t dots_f32x,
+                                                          svfloat32_t query_norm_sq_f32x,
+                                                          svfloat32_t target_norms_sq_f32x) __arm_streaming_compatible {
+    svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
+    svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
+                                           svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
+    dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
+    return svsqrt_f32_x(predicate_f32x, dist_sq_f32x);
+}
+
 #pragma region Half Precision Floats
 
 __arm_locally_streaming static void nk_angulars_packed_f16_sme_finalize_streaming_( //
@@ -207,18 +261,9 @@ __arm_locally_streaming static void nk_angulars_packed_f16_sme_finalize_streamin
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -249,11 +294,9 @@ __arm_locally_streaming static void nk_euclideans_packed_f16_sme_finalize_stream
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -292,18 +335,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_strea
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -346,11 +380,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_str
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -389,18 +421,9 @@ __arm_locally_streaming static void nk_angulars_packed_bf16_sme_finalize_streami
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -431,11 +454,9 @@ __arm_locally_streaming static void nk_euclideans_packed_bf16_sme_finalize_strea
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -474,18 +495,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_stre
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -528,11 +540,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_st
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -571,18 +581,9 @@ __arm_locally_streaming static void nk_angulars_packed_e4m3_sme_finalize_streami
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -613,11 +614,9 @@ __arm_locally_streaming static void nk_euclideans_packed_e4m3_sme_finalize_strea
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -656,18 +655,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_stre
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -710,11 +700,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_st
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -753,18 +741,9 @@ __arm_locally_streaming static void nk_angulars_packed_e5m2_sme_finalize_streami
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -795,11 +774,9 @@ __arm_locally_streaming static void nk_euclideans_packed_e5m2_sme_finalize_strea
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -838,18 +815,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_stre
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -892,11 +860,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_st
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -935,18 +901,9 @@ __arm_locally_streaming static void nk_angulars_packed_e2m3_sme_finalize_streami
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -977,11 +934,9 @@ __arm_locally_streaming static void nk_euclideans_packed_e2m3_sme_finalize_strea
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1020,18 +975,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_stre
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -1074,11 +1020,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_st
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -1117,18 +1061,9 @@ __arm_locally_streaming static void nk_angulars_packed_e3m2_sme_finalize_streami
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1159,11 +1094,9 @@ __arm_locally_streaming static void nk_euclideans_packed_e3m2_sme_finalize_strea
             svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, columns);
             svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
             svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, b_norms + col_index);
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1202,18 +1135,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_stre
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -1256,11 +1180,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_st
                 svbool_t predicate_f32x = svwhilelt_b32_u64(col_index, chunk_end);
                 svfloat32_t dots_f32x = svld1_f32(predicate_f32x, result_row + col_index);
                 svfloat32_t target_norms_sq_f32x = svld1_f32(predicate_f32x, norms_cache + (col_index - chunk_start));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -1300,18 +1222,9 @@ __arm_locally_streaming static void nk_angulars_packed_i8_sme_finalize_streaming
                 predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1345,11 +1258,9 @@ __arm_locally_streaming static void nk_euclideans_packed_i8_sme_finalize_streami
                 predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1392,18 +1303,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_stream
                     predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -1449,11 +1351,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_stre
                     predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -1494,18 +1394,9 @@ __arm_locally_streaming static void nk_angulars_packed_u8_sme_finalize_streaming
                 predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1539,11 +1430,9 @@ __arm_locally_streaming static void nk_euclideans_packed_u8_sme_finalize_streami
                 predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1586,18 +1475,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_stream
                     predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -1643,11 +1523,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_stre
                     predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -1688,18 +1566,9 @@ __arm_locally_streaming static void nk_angulars_packed_i4_sme_finalize_streaming
                 predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1733,11 +1602,9 @@ __arm_locally_streaming static void nk_euclideans_packed_i4_sme_finalize_streami
                 predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1780,18 +1647,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_stream
                     predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -1837,11 +1695,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_stre
                     predicate_f32x, svld1_s32(predicate_f32x, (nk_i32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
@@ -1882,18 +1738,9 @@ __arm_locally_streaming static void nk_angulars_packed_u4_sme_finalize_streaming
                 predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            rsqrt_f32x = svmul_f32_x(
-                predicate_f32x, rsqrt_f32x,
-                svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-            svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                   svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-            angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1927,11 +1774,9 @@ __arm_locally_streaming static void nk_euclideans_packed_u4_sme_finalize_streami
                 predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t const *)(result_row + col_index)));
             svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(predicate_f32x,
                                                                svld1_u32(predicate_f32x, b_norms + col_index));
-            svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-            svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                   svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-            dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-            svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+            svst1_f32(
+                predicate_f32x, result_row + col_index,
+                nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x, target_norms_sq_f32x));
         }
     }
 }
@@ -1974,18 +1819,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_stream
                     predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                rsqrt_f32x = svmul_f32_x(
-                    predicate_f32x, rsqrt_f32x,
-                    svrsqrts_f32(svmul_f32_x(predicate_f32x, norms_product_f32x, rsqrt_f32x), rsqrt_f32x));
-                svfloat32_t angular_f32x = svsub_f32_x(predicate_f32x, svdup_n_f32(1.0f),
-                                                       svmul_f32_x(predicate_f32x, dots_f32x, rsqrt_f32x));
-                angular_f32x = svmax_f32_x(predicate_f32x, angular_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, angular_f32x);
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_angulars_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                          target_norms_sq_f32x));
             }
         }
     }
@@ -2031,11 +1867,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_stre
                     predicate_f32x, svld1_u32(predicate_f32x, (nk_u32_t *)(result_row + col_index)));
                 svfloat32_t target_norms_sq_f32x = svcvt_f32_u32_x(
                     predicate_f32x, svld1_u32(predicate_f32x, norms_cache + (col_index - chunk_start)));
-                svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
-                svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
-                                                       svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));
-                dist_sq_f32x = svmax_f32_x(predicate_f32x, dist_sq_f32x, svdup_n_f32(0.0f));
-                svst1_f32(predicate_f32x, result_row + col_index, svsqrt_f32_x(predicate_f32x, dist_sq_f32x));
+                svst1_f32(predicate_f32x, result_row + col_index,
+                          nk_euclideans_from_dot_f32x_ssve_(predicate_f32x, dots_f32x, query_norm_sq_f32x,
+                                                            target_norms_sq_f32x));
             }
         }
     }
