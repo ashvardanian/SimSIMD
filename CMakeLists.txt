@@ -34,13 +34,18 @@
 #
 # To cross-compile for ARM64:
 #
-#     cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake \
+#     cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake \
 #           -D NK_BUILD_TEST=ON
 #
 # To cross-compile for RISC-V:
 #
-#     cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake \
+#     cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-gnu.cmake \
 #           -D NK_BUILD_TEST=ON
+#
+# To cross-compile for Android ARM64 (requires ANDROID_NDK_ROOT):
+#
+#     cmake -B build_android -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-android-arm64.cmake \
+#           -D NK_BUILD_SHARED=ON
 #
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
@@ -146,9 +151,15 @@ if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(NK_IS_LINUX_ TRUE)
     message(STATUS "NumKong OS: Linux")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(NK_IS_ANDROID_ TRUE)
+    message(STATUS "NumKong OS: Android (API level ${ANDROID_NATIVE_API_LEVEL})")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(NK_IS_MACOS_ TRUE)
     message(STATUS "NumKong OS: macOS")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(NK_IS_IOS_ TRUE)
+    message(STATUS "NumKong OS: iOS")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows" OR WIN32)
     set(NK_IS_WINDOWS_ TRUE)
     message(STATUS "NumKong OS: Windows")
@@ -618,7 +629,20 @@ if (NK_BUILD_SHARED)
                             NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1 NK_TARGET_SMEBF16=1
                             NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
                 )
-            elseif (NK_IS_MACOS_)
+            elseif (NK_IS_ANDROID_)
+                # Android NDK Clang supports NEON universally on ARM64.
+                # SVE/SME backends are compiled in but gated by runtime dispatch — the CPU
+                # must advertise the feature via getauxval(AT_HWCAP) for the kernel
+                # to ever call those paths.
+                target_compile_definitions(
+                    nk_shared
+                    PRIVATE NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1 NK_TARGET_NEONBFDOT=1
+                            NK_TARGET_NEONFHM=1 NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1 NK_TARGET_SVEBFDOT=1
+                            NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1 NK_TARGET_SME=1 NK_TARGET_SME2=1
+                            NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1 NK_TARGET_SMEBF16=1
+                            NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
+                )
+            elseif (NK_IS_IOS_ OR NK_IS_MACOS_)
                 # SME requires AppleClang 16+ (Xcode 16, based on Clang 18) or Clang 18+
                 if ((CMAKE_C_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "16.0"
                     ) OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "18.0"

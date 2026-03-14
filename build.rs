@@ -98,6 +98,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     let is_linux = target_os == "linux";
     let is_windows = target_os == "windows";
     let is_macos = target_os == "macos";
+    let is_android = target_os == "android";
 
     // Determine which backends to try based on target architecture and OS.
     // The fallback mechanism will disable unsupported targets one by one.
@@ -105,8 +106,8 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         "arm" | "aarch64" => {
             let mut flags = Vec::new();
 
-            // SME is available on Linux, FreeBSD, and macOS (M4+ with Clang 18+)
-            if is_linux || is_freebsd || is_macos {
+            // SME is available on Linux, FreeBSD, macOS (M4+ with Clang 18+), and Android
+            if is_linux || is_freebsd || is_macos || is_android {
                 flags.extend_from_slice(&[
                     "NK_TARGET_SMELUT2",
                     "NK_TARGET_SMEBF16",
@@ -120,8 +121,8 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
                 ]);
             }
 
-            // SVE is only available on Linux and FreeBSD (not on Apple Silicon)
-            if is_linux || is_freebsd {
+            // SVE is available on Linux, FreeBSD, and Android (not on Apple Silicon)
+            if is_linux || is_freebsd || is_android {
                 flags.extend_from_slice(&[
                     "NK_TARGET_SVE2P1",
                     "NK_TARGET_SVE2",

@@ -1,7 +1,7 @@
 # RISC-V 64-bit Linux cross-compilation toolchain for NumKong
 #
 # Usage:
-#   cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake
+#   cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-gnu.cmake
 #   cmake --build build_riscv
 #
 # Prerequisites:
@@ -12,7 +12,7 @@
 #   Tests will automatically run under QEMU via CMAKE_CROSSCOMPILING_EMULATOR
 #
 # To customize the architecture, set RISCV_MARCH before configuring:
-#   cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake -D RISCV_MARCH=rv64gcv
+#   cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-gnu.cmake -D RISCV_MARCH=rv64gcv
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR riscv64)

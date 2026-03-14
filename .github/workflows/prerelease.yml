@@ -502,6 +502,78 @@ jobs:
       - name: Test with Bun
         run: bun test ./test/test.mjs
 
+  test_android:
+    name: Test Android
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || true
+          free -h 2>/dev/null || true
+          echo "::endgroup::"
+
+      - name: Download Android NDK r29
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r29-linux.zip
+          unzip -q android-ndk-r29-linux.zip -d ~/
+          echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r29" >> "$GITHUB_ENV"
+
+      - name: Build via CMake
+        run: |
+          cmake -B build_android \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-android-arm64.cmake \
+            -DNK_BUILD_SHARED=ON
+          cmake --build build_android
+
+      - name: Verify binary
+        run: |
+          file build_android/libnumkong.so
+          file build_android/libnumkong.so | grep -q "ELF 64-bit.*aarch64"
+          readelf -d build_android/libnumkong.so | head -20
+
+      - name: Install Rust toolchain
+        uses: moonrepo/setup-rust@v1
+
+      - name: Install cargo-ndk and target
+        run: |
+          cargo install cargo-ndk
+          rustup target add aarch64-linux-android
+
+      - name: Build via Cargo
+        run: cargo ndk -t arm64-v8a build --release
+
+  test_golang:
+    name: Test Go
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || true
+          free -h 2>/dev/null || true
+          echo "::endgroup::"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Test Go bindings
+        run: go test -v -count=1 ./golang/
+
   test_rust:
     name: Test Rust
     runs-on: ubuntu-latest
@@ -564,6 +636,24 @@ jobs:
       - name: Test Swift
         run: swift test
 
+  test_macos_swift:
+    name: Swift on macOS
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          sysctl -a machdep.cpu 2>/dev/null | head -30 || true
+          echo "::endgroup::"
+      - name: Build and Test (macOS)
+        run: swift test
+      - name: Build for iOS Simulator
+        run: xcodebuild build -scheme NumKong -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+
   # Compiling Python images is a nightmare, assuming the number of platforms we support
   # To minimize cross-compilation we use separate runners for each platform
   # https://docs.github.com/en/actions/using-github-hosted-runners/using-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
@@ -574,8 +664,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -602,8 +691,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -640,8 +728,7 @@ jobs:
     runs-on: macos-15
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -665,8 +752,7 @@ jobs:
     runs-on: macos-15
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -690,8 +776,7 @@ jobs:
     runs-on: windows-2025
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
         include:
           - python-version: "310"
@@ -734,8 +819,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -762,8 +846,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python-version:
-          ["310", "311", "312", "313", "313t", "314", "314t"]
+        python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout

@@ -1,7 +1,7 @@
 # AArch64 Linux cross-compilation toolchain for NumKong
 #
 # Usage:
-#   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake
+#   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
 #   cmake --build build_arm64
 #
 # Prerequisites (choose one):
@@ -15,7 +15,7 @@
 #   Tests will automatically run under QEMU via CMAKE_CROSSCOMPILING_EMULATOR
 #
 # To customize the architecture, set AARCH64_MARCH before configuring:
-#   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake -D AARCH64_MARCH=armv8.2-a+sve
+#   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake -D AARCH64_MARCH=armv8.2-a+sve
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
