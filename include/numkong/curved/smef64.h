@@ -61,7 +61,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme,sve,sme-f64f64"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme+sme-f64f64")

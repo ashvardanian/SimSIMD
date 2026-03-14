@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme,sve"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme")
