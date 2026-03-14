@@ -9,7 +9,7 @@ import CNumKong
 // MARK: - Geospatial Protocols
 
 /// A type that can compute SIMD-accelerated Haversine (great-circle) distances.
-public protocol NumKongHaversine {
+public protocol NumKongHaversine: BinaryFloatingPoint {
     static func haversine(
         aLat: UnsafeBufferPointer<Self>,
         aLon: UnsafeBufferPointer<Self>,
@@ -17,10 +17,15 @@ public protocol NumKongHaversine {
         bLon: UnsafeBufferPointer<Self>,
         result: UnsafeMutableBufferPointer<Self>
     ) -> Bool
+
+    static func haversine<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Self]?
+    where A.Element == Self, B.Element == Self, C.Element == Self, D.Element == Self
 }
 
 /// A type that can compute SIMD-accelerated Vincenty (ellipsoidal) geodesic distances.
-public protocol NumKongVincenty {
+public protocol NumKongVincenty: BinaryFloatingPoint {
     static func vincenty(
         aLat: UnsafeBufferPointer<Self>,
         aLon: UnsafeBufferPointer<Self>,
@@ -28,6 +33,11 @@ public protocol NumKongVincenty {
         bLon: UnsafeBufferPointer<Self>,
         result: UnsafeMutableBufferPointer<Self>
     ) -> Bool
+
+    static func vincenty<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Self]?
+    where A.Element == Self, B.Element == Self, C.Element == Self, D.Element == Self
 }
 
 /// Convenience alias for types supporting both Haversine and Vincenty geospatial distances.
@@ -143,6 +153,86 @@ extension Float32: NumKongVincenty {
         )
         return true
     }
+}
+
+// MARK: - Sequence-Based Geospatial Extensions
+
+extension Float64 {
+    @inlinable @inline(__always)
+    public static func haversine<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Float64]?
+    where A.Element == Float64, B.Element == Float64, C.Element == Float64, D.Element == Float64 {
+        _nkWithGeoQuad(aLat, aLon, bLat, bLon) { a, b, c, d, r, n in
+            nk_haversine_f64(a, b, c, d, UInt64(n), r)
+        }
+    }
+
+    @inlinable @inline(__always)
+    public static func vincenty<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Float64]?
+    where A.Element == Float64, B.Element == Float64, C.Element == Float64, D.Element == Float64 {
+        _nkWithGeoQuad(aLat, aLon, bLat, bLon) { a, b, c, d, r, n in
+            nk_vincenty_f64(a, b, c, d, UInt64(n), r)
+        }
+    }
+}
+
+extension Float32 {
+    @inlinable @inline(__always)
+    public static func haversine<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Float32]?
+    where A.Element == Float32, B.Element == Float32, C.Element == Float32, D.Element == Float32 {
+        _nkWithGeoQuad(aLat, aLon, bLat, bLon) { a, b, c, d, r, n in
+            nk_haversine_f32(a, b, c, d, UInt64(n), r)
+        }
+    }
+
+    @inlinable @inline(__always)
+    public static func vincenty<A: Sequence, B: Sequence, C: Sequence, D: Sequence>(
+        aLat: A, aLon: B, bLat: C, bLon: D
+    ) -> [Float32]?
+    where A.Element == Float32, B.Element == Float32, C.Element == Float32, D.Element == Float32 {
+        _nkWithGeoQuad(aLat, aLon, bLat, bLon) { a, b, c, d, r, n in
+            nk_vincenty_f32(a, b, c, d, UInt64(n), r)
+        }
+    }
+}
+
+// MARK: - Geospatial Free Functions
+
+@inlinable @inline(__always)
+public func haversine<A: Sequence>(
+    aLat: A, aLon: A, bLat: A, bLon: A
+) -> [Float64]?
+where A.Element == Float64 {
+    Float64.haversine(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
+}
+
+@inlinable @inline(__always)
+public func haversine<A: Sequence>(
+    aLat: A, aLon: A, bLat: A, bLon: A
+) -> [Float32]?
+where A.Element == Float32 {
+    Float32.haversine(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
+}
+
+@inlinable @inline(__always)
+public func vincenty<A: Sequence>(
+    aLat: A, aLon: A, bLat: A, bLon: A
+) -> [Float64]?
+where A.Element == Float64 {
+    Float64.vincenty(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
+}
+
+@inlinable @inline(__always)
+public func vincenty<A: Sequence>(
+    aLat: A, aLon: A, bLat: A, bLon: A
+) -> [Float32]?
+where A.Element == Float32 {
+    Float32.vincenty(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
 }
 
 // MARK: - Capabilities

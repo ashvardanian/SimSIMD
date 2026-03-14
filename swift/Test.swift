@@ -246,6 +246,46 @@ class NumKongTests: XCTestCase {
         XCTAssertEqual(result[0], 5_570_000, accuracy: 50000)
     }
 
+    // MARK: - Geospatial Free Function Tests
+
+    func testHaversineFreeFloat64() throws {
+        let aLat: [Float64] = [40.7128 * .pi / 180.0]
+        let aLon: [Float64] = [-74.0060 * .pi / 180.0]
+        let bLat: [Float64] = [51.5074 * .pi / 180.0]
+        let bLon: [Float64] = [-0.1278 * .pi / 180.0]
+        let result = try XCTUnwrap(haversine(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon))
+        XCTAssertEqual(result[0], 5_539_000, accuracy: 5000)
+    }
+
+    func testHaversineFreeFloat32() throws {
+        let aLat: [Float32] = [40.7128 * .pi / 180.0]
+        let aLon: [Float32] = [-74.0060 * .pi / 180.0]
+        let bLat: [Float32] = [51.5074 * .pi / 180.0]
+        let bLon: [Float32] = [-0.1278 * .pi / 180.0]
+        let result: [Float32]? = haversine(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
+        let unwrapped = try XCTUnwrap(result)
+        XCTAssertEqual(unwrapped[0], 5_539_000, accuracy: 5000)
+    }
+
+    func testVincentyFreeFloat64() throws {
+        let aLat: [Float64] = [40.7128 * .pi / 180.0]
+        let aLon: [Float64] = [-74.0060 * .pi / 180.0]
+        let bLat: [Float64] = [51.5074 * .pi / 180.0]
+        let bLon: [Float64] = [-0.1278 * .pi / 180.0]
+        let result = try XCTUnwrap(vincenty(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon))
+        XCTAssertEqual(result[0], 5_570_000, accuracy: 20000)
+    }
+
+    func testVincentyFreeFloat32() throws {
+        let aLat: [Float32] = [40.7128 * .pi / 180.0]
+        let aLon: [Float32] = [-74.0060 * .pi / 180.0]
+        let bLat: [Float32] = [51.5074 * .pi / 180.0]
+        let bLon: [Float32] = [-0.1278 * .pi / 180.0]
+        let result: [Float32]? = vincenty(aLat: aLat, aLon: aLon, bLat: bLat, bLon: bLon)
+        let unwrapped = try XCTUnwrap(result)
+        XCTAssertEqual(unwrapped[0], 5_570_000, accuracy: 50000)
+    }
+
     // MARK: - New Low-Precision Types
 
     func testBFloat16Roundtrip() throws {
