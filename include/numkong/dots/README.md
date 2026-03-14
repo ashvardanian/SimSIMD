@@ -304,8 +304,8 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __u8__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_u8_serial`           |               4.94 gso/s |               5.14 gso/s |               4.88 gso/s |
 | `nk_dots_symmetric_u8_serial`        |               2.74 gso/s |               3.94 gso/s |               4.40 gso/s |
-| `nk_dots_packed_u8_v128relaxed`      |               61.1 gso/s |               76.9 gso/s |               83.8 gso/s |
-| `nk_dots_symmetric_u8_v128relaxed`   |               4.76 gso/s |               14.8 gso/s |               32.2 gso/s |
+| `nk_dots_packed_u8_v128relaxed`      |               24.5 gso/s |               25.3 gso/s |               25.6 gso/s |
+| `nk_dots_symmetric_u8_v128relaxed`   |               20.3 gso/s |               23.5 gso/s |               24.4 gso/s |
 | __i4__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_i4_serial`           |               6.34 gso/s |               6.40 gso/s |               6.59 gso/s |
 | `nk_dots_symmetric_i4_serial`        |               2.70 gso/s |               3.76 gso/s |               4.13 gso/s |
@@ -476,8 +476,8 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __u8__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_u8_serial`           |               4.67 gso/s |               11.4 gso/s |               14.1 gso/s |
 | `nk_dots_symmetric_u8_serial`        |               7.18 gso/s |               17.0 gso/s |               18.6 gso/s |
-| `nk_dots_packed_u8_v128relaxed`      |               78.1 gso/s |               81.4 gso/s |               89.3 gso/s |
-| `nk_dots_symmetric_u8_v128relaxed`   |               57.3 gso/s |               75.3 gso/s |               83.6 gso/s |
+| `nk_dots_packed_u8_v128relaxed`      |               24.5 gso/s |               25.3 gso/s |               25.6 gso/s |
+| `nk_dots_symmetric_u8_v128relaxed`   |               20.3 gso/s |               23.5 gso/s |               24.4 gso/s |
 | __i4__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_i4_serial`           |               7.06 gso/s |               18.5 gso/s |               19.7 gso/s |
 | `nk_dots_symmetric_i4_serial`        |               5.43 gso/s |               12.5 gso/s |               13.1 gso/s |
