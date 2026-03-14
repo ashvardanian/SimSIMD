@@ -1585,6 +1585,30 @@ NK_INTERNAL void nk_partial_store_b64x2_serial_(nk_b128_vec_t const *src, void *
     }
 }
 
+/** @brief Strided partial load for 32-bit elements (4 max) into 128-bit vector. */
+NK_INTERNAL void nk_strided_load_b32x4_serial_(void const *src, nk_size_t stride_elements, nk_b128_vec_t *dst,
+                                               nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->f32s[i] = s[i * stride_elements];
+}
+
+/** @brief Strided partial load for 16-bit elements (8 max) into 128-bit vector. */
+NK_INTERNAL void nk_strided_load_b16x8_serial_(void const *src, nk_size_t stride_elements, nk_b128_vec_t *dst,
+                                               nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u16s[i] = s[i * stride_elements];
+}
+
+/** @brief Strided partial load for 8-bit elements (16 max) into 128-bit vector. */
+NK_INTERNAL void nk_strided_load_b8x16_serial_(void const *src, nk_size_t stride_elements, nk_b128_vec_t *dst,
+                                               nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u8s[i] = s[i * stride_elements];
+}
+
 /**
  *  @brief Union for type-punned scalar values at language binding boundaries.
  *
