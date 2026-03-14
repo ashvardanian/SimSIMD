@@ -166,13 +166,17 @@ pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, AxisIterator, AxisIteratorMut, Global, Matrix, MatrixSpan, MatrixView,
-    ShapeDescriptor, SliceRange, Tensor, TensorError, TensorSpan, TensorView, DEFAULT_MAX_RANK,
-    SIMD_ALIGNMENT,
+    Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global, Matrix,
+    MatrixSpan, MatrixView, MinMaxOps, MomentsOps, ScaleOps, ShapeDescriptor, SliceRange, SumOps,
+    Tensor, TensorError, TensorMut, TensorRef, TensorSpan, TensorView, TrigAtanOps, TrigCosOps,
+    TrigSinOps, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // Re-export matrix types
-pub use matrix::{Angulars, Dots, Euclideans, Hammings, Jaccards, PackedMatrix};
+pub use matrix::{
+    Angulars, Dots, Euclideans, Hammings, Jaccards, PackedMatrix, SymmetricAngulars, SymmetricDots,
+    SymmetricEuclideans, SymmetricHammings, SymmetricJaccards,
+};
 
 // Re-export vector types
 pub use vector::{DimIterator, VecIndex, Vector, VectorSpan, VectorView};

@@ -15,7 +15,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::tensor::{
-    Allocator, Global, ShapeDescriptor, Tensor, TensorError, TensorView, SIMD_ALIGNMENT,
+    Allocator, Global, ShapeDescriptor, Tensor, TensorError, TensorRef, TensorView, SIMD_ALIGNMENT,
 };
 use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
@@ -3144,36 +3144,6 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         }
         Ok(())
     }
-
-    /// Computes symmetric angular distance matrix.
-    pub fn try_angulars_symmetric(
-        &self,
-    ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
-        if self.ndim() != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: self.ndim(),
-            });
-        }
-        let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
-            &[n, n],
-            T::SpatialResult::default(),
-        )?;
-        unsafe {
-            T::angulars_symmetric(
-                self.as_ptr(),
-                n,
-                k,
-                self.stride_bytes(0) as usize,
-                result.as_mut_ptr(),
-                result.stride_bytes(0) as usize,
-                0,
-                n,
-            );
-        }
-        Ok(result)
-    }
 }
 
 impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
@@ -3271,36 +3241,6 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
             );
         }
         Ok(())
-    }
-
-    /// Computes symmetric euclidean distance matrix.
-    pub fn try_euclideans_symmetric(
-        &self,
-    ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
-        if self.ndim() != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: self.ndim(),
-            });
-        }
-        let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::SpatialResult, Global, MAX_RANK>::try_full(
-            &[n, n],
-            T::SpatialResult::default(),
-        )?;
-        unsafe {
-            T::euclideans_symmetric(
-                self.as_ptr(),
-                n,
-                k,
-                self.stride_bytes(0) as usize,
-                result.as_mut_ptr(),
-                result.stride_bytes(0) as usize,
-                0,
-                n,
-            );
-        }
-        Ok(result)
     }
 }
 
@@ -3711,31 +3651,6 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         }
         Ok(())
     }
-
-    /// Computes symmetric Hamming distance matrix.
-    pub fn try_hammings_symmetric(&self) -> Result<Tensor<u32, Global, MAX_RANK>, TensorError> {
-        if self.ndim() != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: self.ndim(),
-            });
-        }
-        let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<u32, Global, MAX_RANK>::try_full(&[n, n], u32::default())?;
-        unsafe {
-            T::hammings_symmetric(
-                self.as_ptr(),
-                n,
-                k,
-                self.stride_bytes(0) as usize,
-                result.as_mut_ptr(),
-                result.stride_bytes(0) as usize,
-                0,
-                n,
-            );
-        }
-        Ok(result)
-    }
 }
 
 impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
@@ -3833,36 +3748,6 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
             );
         }
         Ok(())
-    }
-
-    /// Computes symmetric Jaccard distance matrix.
-    pub fn try_jaccards_symmetric(
-        &self,
-    ) -> Result<Tensor<T::JaccardResult, Global, MAX_RANK>, TensorError> {
-        if self.ndim() != 2 {
-            return Err(TensorError::DimensionMismatch {
-                expected: 2,
-                got: self.ndim(),
-            });
-        }
-        let (n, k) = (self.shape()[0], self.shape()[1]);
-        let mut result = Tensor::<T::JaccardResult, Global, MAX_RANK>::try_full(
-            &[n, n],
-            T::JaccardResult::default(),
-        )?;
-        unsafe {
-            T::jaccards_symmetric(
-                self.as_ptr(),
-                n,
-                k,
-                self.stride_bytes(0) as usize,
-                result.as_mut_ptr(),
-                result.stride_bytes(0) as usize,
-                0,
-                n,
-            );
-        }
-        Ok(result)
     }
 }
 
@@ -4061,6 +3946,69 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
 }
 
 // endregion: TensorView
+
+// region: Symmetric Extension Traits
+
+/// Extension trait: symmetric dot-product matrix for any [`TensorRef`] implementor.
+pub trait SymmetricDots<T: Dots, const MAX_RANK: usize>: TensorRef<T, MAX_RANK>
+where
+    T::Accumulator: Clone + Default + 'static,
+{
+    fn try_dots_symmetric(&self) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
+        self.view().try_dots_symmetric()
+    }
+}
+
+impl<T: Dots, const R: usize, C: TensorRef<T, R>> SymmetricDots<T, R> for C where
+    T::Accumulator: Clone + Default + 'static
+{
+}
+
+/// Extension trait: symmetric angular distance matrix for any [`TensorRef`] implementor.
+pub trait SymmetricAngulars<T: Angulars, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_angulars_symmetric(
+        &self,
+    ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
+        self.view().try_angulars_symmetric()
+    }
+}
+
+impl<T: Angulars, const R: usize, C: TensorRef<T, R>> SymmetricAngulars<T, R> for C {}
+
+/// Extension trait: symmetric euclidean distance matrix for any [`TensorRef`] implementor.
+pub trait SymmetricEuclideans<T: Euclideans, const MAX_RANK: usize>:
+    TensorRef<T, MAX_RANK>
+{
+    fn try_euclideans_symmetric(
+        &self,
+    ) -> Result<Tensor<T::SpatialResult, Global, MAX_RANK>, TensorError> {
+        self.view().try_euclideans_symmetric()
+    }
+}
+
+impl<T: Euclideans, const R: usize, C: TensorRef<T, R>> SymmetricEuclideans<T, R> for C {}
+
+/// Extension trait: symmetric Hamming distance matrix for any [`TensorRef`] implementor.
+pub trait SymmetricHammings<T: Hammings, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_hammings_symmetric(&self) -> Result<Tensor<u32, Global, MAX_RANK>, TensorError> {
+        self.view().try_hammings_symmetric()
+    }
+}
+
+impl<T: Hammings, const R: usize, C: TensorRef<T, R>> SymmetricHammings<T, R> for C {}
+
+/// Extension trait: symmetric Jaccard distance matrix for any [`TensorRef`] implementor.
+pub trait SymmetricJaccards<T: Jaccards, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_jaccards_symmetric(
+        &self,
+    ) -> Result<Tensor<T::JaccardResult, Global, MAX_RANK>, TensorError> {
+        self.view().try_jaccards_symmetric()
+    }
+}
+
+impl<T: Jaccards, const R: usize, C: TensorRef<T, R>> SymmetricJaccards<T, R> for C {}
+
+// endregion: Symmetric Extension Traits
 
 #[cfg(test)]
 mod tests {

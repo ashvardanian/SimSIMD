@@ -1242,6 +1242,100 @@ impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
 
 // endregion: TensorSpan
 
+// region: TensorRef / TensorMut Traits
+
+/// Read-only structural access to N-dimensional tensor containers.
+///
+/// Implemented by [`Tensor`], [`TensorView`], and [`TensorSpan`], enabling
+/// generic code over any tensor-like container.
+pub trait TensorRef<T, const MAX_RANK: usize> {
+    fn shape(&self) -> &[usize];
+    fn ndim(&self) -> usize;
+    fn stride_bytes(&self, dim: usize) -> isize;
+    fn as_ptr(&self) -> *const T;
+    fn numel(&self) -> usize;
+    /// Borrow as an immutable [`TensorView`].
+    fn view(&self) -> TensorView<'_, T, MAX_RANK>;
+
+    fn rank(&self) -> usize { self.ndim() }
+    fn is_empty(&self) -> bool { self.numel() == 0 }
+
+    fn has_contiguous_rows(&self) -> bool {
+        self.ndim() == 2 && self.stride_bytes(1) == core::mem::size_of::<T>() as isize
+    }
+
+    fn is_contiguous(&self) -> bool {
+        let mut expected = core::mem::size_of::<T>() as isize;
+        for i in (0..self.ndim()).rev() {
+            if self.stride_bytes(i) != expected {
+                return false;
+            }
+            expected *= self.shape()[i] as isize;
+        }
+        true
+    }
+}
+
+/// Mutable structural access to N-dimensional tensor containers.
+pub trait TensorMut<T, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn as_mut_ptr(&mut self) -> *mut T;
+}
+
+impl<T, A: Allocator, const R: usize> TensorRef<T, R> for Tensor<T, A, R> {
+    fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
+    fn ndim(&self) -> usize { self.ndim }
+    fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
+    fn as_ptr(&self) -> *const T { self.data.as_ptr() }
+    fn numel(&self) -> usize { self.len }
+    fn view(&self) -> TensorView<'_, T, R> {
+        TensorView {
+            data: self.data.as_ptr(),
+            len: self.len,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, A: Allocator, const R: usize> TensorMut<T, R> for Tensor<T, A, R> {
+    fn as_mut_ptr(&mut self) -> *mut T { self.data.as_ptr() }
+}
+
+impl<'a, T, const R: usize> TensorRef<T, R> for TensorView<'a, T, R> {
+    fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
+    fn ndim(&self) -> usize { self.ndim }
+    fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
+    fn as_ptr(&self) -> *const T { self.data }
+    fn numel(&self) -> usize { self.len }
+    fn view(&self) -> TensorView<'_, T, R> {
+        TensorView {
+            data: self.data,
+            len: self.len,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T, const R: usize> TensorRef<T, R> for TensorSpan<'a, T, R> {
+    fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
+    fn ndim(&self) -> usize { self.ndim }
+    fn stride_bytes(&self, dim: usize) -> isize { self.strides[dim] }
+    fn as_ptr(&self) -> *const T { self.data }
+    fn numel(&self) -> usize { self.len }
+    fn view(&self) -> TensorView<'_, T, R> { self.as_view() }
+}
+
+impl<'a, T, const R: usize> TensorMut<T, R> for TensorSpan<'a, T, R> {
+    fn as_mut_ptr(&mut self) -> *mut T { self.data }
+}
+
+// endregion: TensorRef / TensorMut Traits
+
 // region: AxisIterator
 
 /// Iterator over sub-tensor views along a given axis.
@@ -3724,31 +3818,42 @@ impl<'a, S: Clone + CastDtype, const MAX_RANK: usize> TensorView<'a, S, MAX_RANK
     }
 }
 
-impl<T: Clone + EachScale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
+/// Extension trait: scalar arithmetic for any [`TensorRef`] implementor.
+pub trait ScaleOps<T: Clone + EachScale, const MAX_RANK: usize>: TensorRef<T, MAX_RANK>
 where
     T::Scalar: From<f32> + core::ops::Mul<Output = T::Scalar> + Copy,
 {
-    pub fn try_add_scalar(
+    fn try_add_scalar(
         &self,
         scalar: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_add_scalar(scalar)
     }
 
-    pub fn try_sub_scalar(
+    fn try_sub_scalar(
         &self,
         scalar: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_sub_scalar(scalar)
     }
 
-    pub fn try_mul_scalar(
+    fn try_mul_scalar(
         &self,
         scalar: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_mul_scalar(scalar)
     }
+}
 
+impl<T: Clone + EachScale, const R: usize, C: TensorRef<T, R>> ScaleOps<T, R> for C where
+    T::Scalar: From<f32> + core::ops::Mul<Output = T::Scalar> + Copy
+{
+}
+
+impl<T: Clone + EachScale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
+where
+    T::Scalar: From<f32> + core::ops::Mul<Output = T::Scalar> + Copy,
+{
     pub fn try_add_scalar_into(
         &self,
         scalar: T::Scalar,
@@ -3792,14 +3897,19 @@ where
     }
 }
 
-impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    pub fn try_add_tensor(
+/// Extension trait: element-wise addition for any [`TensorRef`] implementor.
+pub trait SumOps<T: Clone + EachSum, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_add_tensor(
         &self,
-        other: &Tensor<T, Global, MAX_RANK>,
+        other: &(impl TensorRef<T, MAX_RANK> + ?Sized),
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_add_tensor(&other.view())
     }
+}
 
+impl<T: Clone + EachSum, const R: usize, C: TensorRef<T, R>> SumOps<T, R> for C {}
+
+impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     pub fn try_add_tensor_into(
         &self,
         other: &Tensor<T, Global, MAX_RANK>,
@@ -3820,17 +3930,28 @@ impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
+/// Extension trait: element-wise subtraction for any [`TensorRef`] implementor.
+pub trait BlendOps<T: Clone + EachBlend, const MAX_RANK: usize>: TensorRef<T, MAX_RANK>
+where
+    T::Scalar: From<f32> + Copy,
+{
+    fn try_sub_tensor(
+        &self,
+        other: &(impl TensorRef<T, MAX_RANK> + ?Sized),
+    ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
+        self.view().try_sub_tensor(&other.view())
+    }
+}
+
+impl<T: Clone + EachBlend, const R: usize, C: TensorRef<T, R>> BlendOps<T, R> for C where
+    T::Scalar: From<f32> + Copy
+{
+}
+
 impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
 where
     T::Scalar: From<f32> + Copy,
 {
-    pub fn try_sub_tensor(
-        &self,
-        other: &Tensor<T, Global, MAX_RANK>,
-    ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_sub_tensor(&other.view())
-    }
-
     pub fn try_sub_tensor_into(
         &self,
         other: &Tensor<T, Global, MAX_RANK>,
@@ -3851,17 +3972,28 @@ where
     }
 }
 
+/// Extension trait: element-wise multiplication for any [`TensorRef`] implementor.
+pub trait FmaOps<T: Clone + EachFMA, const MAX_RANK: usize>: TensorRef<T, MAX_RANK>
+where
+    T::Scalar: From<f32> + Copy,
+{
+    fn try_mul_tensor(
+        &self,
+        other: &(impl TensorRef<T, MAX_RANK> + ?Sized),
+    ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
+        self.view().try_mul_tensor(&other.view())
+    }
+}
+
+impl<T: Clone + EachFMA, const R: usize, C: TensorRef<T, R>> FmaOps<T, R> for C where
+    T::Scalar: From<f32> + Copy
+{
+}
+
 impl<T: Clone + EachFMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
 where
     T::Scalar: From<f32> + Copy,
 {
-    pub fn try_mul_tensor(
-        &self,
-        other: &Tensor<T, Global, MAX_RANK>,
-    ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_mul_tensor(&other.view())
-    }
-
     pub fn try_mul_tensor_into(
         &self,
         other: &Tensor<T, Global, MAX_RANK>,
@@ -3882,13 +4014,18 @@ where
     }
 }
 
-impl<S: Clone + CastDtype, const MAX_RANK: usize> Tensor<S, Global, MAX_RANK> {
-    pub fn try_cast_dtype<D: Clone + CastDtype>(
+/// Extension trait: type casting for any [`TensorRef`] implementor.
+pub trait CastOps<S: Clone + CastDtype, const MAX_RANK: usize>: TensorRef<S, MAX_RANK> {
+    fn try_cast_dtype<D: Clone + CastDtype>(
         &self,
     ) -> Result<Tensor<D, Global, MAX_RANK>, TensorError> {
         self.view().try_cast_dtype()
     }
+}
 
+impl<S: Clone + CastDtype, const R: usize, C: TensorRef<S, R>> CastOps<S, R> for C {}
+
+impl<S: Clone + CastDtype, const MAX_RANK: usize> Tensor<S, Global, MAX_RANK> {
     pub fn try_cast_dtype_into<D: Clone + CastDtype>(
         &self,
         out: &mut Tensor<D, Global, MAX_RANK>,
@@ -3937,15 +4074,32 @@ impl<'a, T: Clone + EachATan, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
     }
 }
 
+/// Extension trait: element-wise sine for any [`TensorRef`] implementor.
+pub trait TrigSinOps<T: Clone + EachSin, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_sin() }
+}
+
+impl<T: Clone + EachSin, const R: usize, C: TensorRef<T, R>> TrigSinOps<T, R> for C {}
+
+/// Extension trait: element-wise cosine for any [`TensorRef`] implementor.
+pub trait TrigCosOps<T: Clone + EachCos, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_cos() }
+}
+
+impl<T: Clone + EachCos, const R: usize, C: TensorRef<T, R>> TrigCosOps<T, R> for C {}
+
+/// Extension trait: element-wise arctangent for any [`TensorRef`] implementor.
+pub trait TrigAtanOps<T: Clone + EachATan, const MAX_RANK: usize>: TensorRef<T, MAX_RANK> {
+    fn try_atan(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
+        self.view().try_atan()
+    }
+}
+
+impl<T: Clone + EachATan, const R: usize, C: TensorRef<T, R>> TrigAtanOps<T, R> for C {}
+
 impl<T: Clone + EachSin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise sine: result\[i\] = sin(self\[i\])
-    ///
-    /// Input values are in radians.
     pub fn sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_sin() }
-
-    pub fn try_sin(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_sin()
-    }
 
     /// Element-wise sine in-place: self\[i\] = sin(self\[i\])
     pub fn sin_inplace(&mut self) { let _ = self.try_sin_inplace(); }
@@ -3957,13 +4111,7 @@ impl<T: Clone + EachSin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 
 impl<T: Clone + EachCos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise cosine: result\[i\] = cos(self\[i\])
-    ///
-    /// Input values are in radians.
     pub fn cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> { self.view().try_cos() }
-
-    pub fn try_cos(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_cos()
-    }
 
     /// Element-wise cosine in-place: self\[i\] = cos(self\[i\])
     pub fn cos_inplace(&mut self) { let _ = self.try_cos_inplace(); }
@@ -3975,13 +4123,7 @@ impl<T: Clone + EachCos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 
 impl<T: Clone + EachATan, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise arctangent: result\[i\] = atan(self\[i\])
-    ///
-    /// Output values are in radians in the range (-π/2, π/2).
     pub fn atan(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
-        self.view().try_atan()
-    }
-
-    pub fn try_atan(&self) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         self.view().try_atan()
     }
 
@@ -4314,16 +4456,18 @@ where
     }
 }
 
-impl<T: Clone + ReduceMoments, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
+/// Extension trait: statistical reductions for any [`TensorRef`] implementor.
+pub trait MomentsOps<T: Clone + ReduceMoments, const MAX_RANK: usize>:
+    TensorRef<T, MAX_RANK>
 where
     T::SumOutput: Clone + Default + core::ops::AddAssign,
     T::SumSqOutput: Clone + Default + core::ops::AddAssign + SumSqToF64,
 {
-    pub fn try_moments_all(&self) -> Result<(T::SumOutput, T::SumSqOutput), TensorError> {
+    fn try_moments_all(&self) -> Result<(T::SumOutput, T::SumSqOutput), TensorError> {
         self.view().try_moments_all()
     }
 
-    pub fn try_moments_axis<I: VecIndex>(
+    fn try_moments_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4337,7 +4481,7 @@ where
         self.view().try_moments_axis(axis, keep_dims)
     }
 
-    pub fn try_moments_axis_into<I: VecIndex>(
+    fn try_moments_axis_into<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4348,9 +4492,9 @@ where
             .try_moments_axis_into(axis, keep_dims, sum_out, sumsq_out)
     }
 
-    pub fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> { self.view().try_sum_all() }
+    fn try_sum_all(&self) -> Result<T::SumOutput, TensorError> { self.view().try_sum_all() }
 
-    pub fn try_sum_axis<I: VecIndex>(
+    fn try_sum_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4358,7 +4502,7 @@ where
         self.view().try_sum_axis(axis, keep_dims)
     }
 
-    pub fn try_sum_axis_into<I: VecIndex>(
+    fn try_sum_axis_into<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4367,9 +4511,9 @@ where
         self.view().try_sum_axis_into(axis, keep_dims, out)
     }
 
-    pub fn try_norm_all(&self) -> Result<f64, TensorError> { self.view().try_norm_all() }
+    fn try_norm_all(&self) -> Result<f64, TensorError> { self.view().try_norm_all() }
 
-    pub fn try_norm_axis<I: VecIndex>(
+    fn try_norm_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4377,7 +4521,7 @@ where
         self.view().try_norm_axis(axis, keep_dims)
     }
 
-    pub fn try_norm_axis_into<I: VecIndex>(
+    fn try_norm_axis_into<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4387,15 +4531,24 @@ where
     }
 }
 
-impl<T: Clone + ReduceMinMax, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK>
+impl<T: Clone + ReduceMoments, const R: usize, C: TensorRef<T, R>> MomentsOps<T, R> for C
+where
+    T::SumOutput: Clone + Default + core::ops::AddAssign,
+    T::SumSqOutput: Clone + Default + core::ops::AddAssign + SumSqToF64,
+{
+}
+
+/// Extension trait: min/max reductions for any [`TensorRef`] implementor.
+pub trait MinMaxOps<T: Clone + ReduceMinMax, const MAX_RANK: usize>:
+    TensorRef<T, MAX_RANK>
 where
     T::Output: Clone + Default + PartialOrd,
 {
-    pub fn try_minmax_all(&self) -> Result<(T::Output, usize, T::Output, usize), TensorError> {
+    fn try_minmax_all(&self) -> Result<(T::Output, usize, T::Output, usize), TensorError> {
         self.view().try_minmax_all()
     }
 
-    pub fn try_minmax_axis<I: VecIndex>(
+    fn try_minmax_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4411,7 +4564,7 @@ where
         self.view().try_minmax_axis(axis, keep_dims)
     }
 
-    pub fn try_minmax_axis_into<I: VecIndex>(
+    fn try_minmax_axis_into<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4424,15 +4577,15 @@ where
             .try_minmax_axis_into(axis, keep_dims, min_out, argmin_out, max_out, argmax_out)
     }
 
-    pub fn try_min_all(&self) -> Result<T::Output, TensorError> { self.view().try_min_all() }
+    fn try_min_all(&self) -> Result<T::Output, TensorError> { self.view().try_min_all() }
 
-    pub fn try_argmin_all(&self) -> Result<usize, TensorError> { self.view().try_argmin_all() }
+    fn try_argmin_all(&self) -> Result<usize, TensorError> { self.view().try_argmin_all() }
 
-    pub fn try_max_all(&self) -> Result<T::Output, TensorError> { self.view().try_max_all() }
+    fn try_max_all(&self) -> Result<T::Output, TensorError> { self.view().try_max_all() }
 
-    pub fn try_argmax_all(&self) -> Result<usize, TensorError> { self.view().try_argmax_all() }
+    fn try_argmax_all(&self) -> Result<usize, TensorError> { self.view().try_argmax_all() }
 
-    pub fn try_min_axis<I: VecIndex>(
+    fn try_min_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4440,7 +4593,7 @@ where
         self.view().try_min_axis(axis, keep_dims)
     }
 
-    pub fn try_argmin_axis<I: VecIndex>(
+    fn try_argmin_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4448,7 +4601,7 @@ where
         self.view().try_argmin_axis(axis, keep_dims)
     }
 
-    pub fn try_max_axis<I: VecIndex>(
+    fn try_max_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
@@ -4456,13 +4609,18 @@ where
         self.view().try_max_axis(axis, keep_dims)
     }
 
-    pub fn try_argmax_axis<I: VecIndex>(
+    fn try_argmax_axis<I: VecIndex>(
         &self,
         axis: I,
         keep_dims: bool,
     ) -> Result<Tensor<usize, Global, MAX_RANK>, TensorError> {
         self.view().try_argmax_axis(axis, keep_dims)
     }
+}
+
+impl<T: Clone + ReduceMinMax, const R: usize, C: TensorRef<T, R>> MinMaxOps<T, R> for C where
+    T::Output: Clone + Default + PartialOrd
+{
 }
 
 impl<const MAX_RANK: usize> Tensor<f32, Global, MAX_RANK> {
@@ -4846,6 +5004,50 @@ mod tests {
                 }
             ]
         );
+    }
+    #[test]
+    fn tensor_ref_generic() {
+        fn shape_of<T, const R: usize>(t: &impl TensorRef<T, R>) -> Vec<usize> {
+            t.shape().to_vec()
+        }
+        let t = Tensor::<f32>::try_full(&[3, 4], 1.0).unwrap();
+        assert_eq!(shape_of(&t), vec![3, 4]);
+        assert_eq!(shape_of(&t.view()), vec![3, 4]);
+
+        // TensorRef default methods
+        assert_eq!(TensorRef::rank(&t), 2);
+        assert!(!TensorRef::is_empty(&t));
+        assert!(TensorRef::is_contiguous(&t));
+        assert!(TensorRef::has_contiguous_rows(&t));
+    }
+
+    #[test]
+    fn tensor_ref_extension_traits() {
+        crate::capabilities::configure_thread();
+        let t = Tensor::<f32>::try_full(&[3, 4], 2.0).unwrap();
+        let v = t.view();
+
+        // ScaleOps works on both Tensor and TensorView
+        let r1 = ScaleOps::try_add_scalar(&t, 1.0).unwrap();
+        let r2 = ScaleOps::try_add_scalar(&v, 1.0).unwrap();
+        assert_eq!(r1.as_slice(), r2.as_slice());
+        assert!((r1.as_slice()[0] - 3.0).abs() < 0.01);
+
+        // SumOps works on Tensor with TensorView as other
+        let other = Tensor::<f32>::try_full(&[3, 4], 1.0).unwrap();
+        let r3 = SumOps::try_add_tensor(&t, &other).unwrap();
+        assert!((r3.as_slice()[0] - 3.0).abs() < 0.01);
+
+        // TrigSinOps works on both
+        let small = Tensor::<f32>::try_full(&[4], 0.0).unwrap();
+        let r4 = TrigSinOps::try_sin(&small).unwrap();
+        assert!((r4.as_slice()[0] - 0.0).abs() < 0.01);
+
+        // MomentsOps works on both
+        let sum_t = MomentsOps::try_sum_all(&t).unwrap();
+        let sum_v = MomentsOps::try_sum_all(&v).unwrap();
+        assert!((sum_t as f32 - 24.0).abs() < 0.01);
+        assert!((sum_v as f32 - 24.0).abs() < 0.01);
     }
 }
 
