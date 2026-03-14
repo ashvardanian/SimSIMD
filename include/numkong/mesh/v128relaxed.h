@@ -33,9 +33,9 @@
 
 #include "numkong/types.h"
 #include "numkong/mesh/serial.h"
-#include "numkong/scalar/v128relaxed.h"
-#include "numkong/reduce/v128relaxed.h"
 #include "numkong/dot/v128relaxed.h"
+#include "numkong/reduce/v128relaxed.h"
+#include "numkong/scalar/v128relaxed.h"
 
 #if defined(__cplusplus)
 extern "C" {

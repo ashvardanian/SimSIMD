@@ -281,15 +281,20 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_dots_symmetric_bf16_serial`      |        3.76 gso/s, 0 ulp |      6.36 gso/s, 0.5 ulp |      7.43 gso/s, 4.9 ulp |
 | `nk_dots_packed_bf16_v128relaxed`    |        23.2 gso/s, 0 ulp |      24.5 gso/s, 0.4 ulp |      24.9 gso/s, 6.8 ulp |
 | `nk_dots_symmetric_bf16_v128relaxed` |        4.92 gso/s, 0 ulp |      10.5 gso/s, 0.5 ulp |      13.7 gso/s, 4.9 ulp |
+| __f16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `nk_dots_packed_f16_serial`          |       4.33 gso/s, 26 ulp |       4.46 gso/s, 26 ulp |       4.45 gso/s, 26 ulp |
+| `nk_dots_symmetric_f16_serial`       |       3.76 gso/s, 28 ulp |       6.36 gso/s, 28 ulp |       7.43 gso/s, 28 ulp |
+| `nk_dots_packed_f16_v128relaxed`     |       7.39 gso/s, 27 ulp |       7.36 gso/s, 27 ulp |       7.45 gso/s, 27 ulp |
+| `nk_dots_symmetric_f16_v128relaxed`  |       3.70 gso/s, 28 ulp |       3.83 gso/s, 28 ulp |       3.87 gso/s, 28 ulp |
 | __e5m2__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e5m2_serial`         |        2.63 gso/s, 0 ulp |        2.69 gso/s, 0 ulp |        2.70 gso/s, 0 ulp |
 | `nk_dots_symmetric_e5m2_serial`      |        1.62 gso/s, 0 ulp |        2.04 gso/s, 0 ulp |        2.16 gso/s, 0 ulp |
-| `nk_dots_packed_e5m2_v128relaxed`    |        6.25 gso/s, ? ulp |        6.50 gso/s, ? ulp |        6.55 gso/s, ? ulp |
+| `nk_dots_packed_e5m2_v128relaxed`    |        6.25 gso/s, 0 ulp |        6.50 gso/s, 0 ulp |        6.55 gso/s, 0 ulp |
 | `nk_dots_symmetric_e5m2_v128relaxed` |        3.37 gso/s, 0 ulp |        5.23 gso/s, 0 ulp |        6.06 gso/s, 0 ulp |
 | __e4m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e4m3_serial`         |       0.348 gso/s, 0 ulp |       0.345 gso/s, 0 ulp |       0.345 gso/s, 0 ulp |
 | `nk_dots_symmetric_e4m3_serial`      |       0.321 gso/s, 0 ulp |       0.340 gso/s, 0 ulp |       0.345 gso/s, 0 ulp |
-| `nk_dots_packed_e4m3_v128relaxed`    |        4.80 gso/s, ? ulp |        4.92 gso/s, ? ulp |        4.96 gso/s, ? ulp |
+| `nk_dots_packed_e4m3_v128relaxed`    |        4.80 gso/s, 0 ulp |        4.92 gso/s, 0 ulp |        4.96 gso/s, 0 ulp |
 | `nk_dots_symmetric_e4m3_v128relaxed` |        2.85 gso/s, 0 ulp |        4.17 gso/s, 0 ulp |        4.62 gso/s, 0 ulp |
 | __e2m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e2m3_serial`         |        2.63 gso/s, 0 ulp |        2.69 gso/s, 0 ulp |        2.71 gso/s, 0 ulp |
