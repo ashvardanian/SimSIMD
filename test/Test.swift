@@ -20,12 +20,12 @@ class NumKongTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-        func testAngularFloat16() throws {
-            let a: [Float16] = [1.0, 2.0, 3.0]
-            let b: [Float16] = [1.0, 2.0, 3.0]
-            let result = try XCTUnwrap(a.angular(b))
-            XCTAssertEqual(result, 0.004930496, accuracy: 0.01)
-        }
+    func testAngularFloat16() throws {
+        let a: [Float16] = [1.0, 2.0, 3.0]
+        let b: [Float16] = [1.0, 2.0, 3.0]
+        let result = try XCTUnwrap(a.angular(b))
+        XCTAssertEqual(result, 0.004930496, accuracy: 0.01)
+    }
     #endif
 
     func testAngularFloat32() throws {
@@ -50,12 +50,12 @@ class NumKongTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-        func testDotFloat16() throws {
-            let a: [Float16] = [1.0, 2.0, 3.0]
-            let b: [Float16] = [4.0, 5.0, 6.0]
-            let result = try XCTUnwrap(a.dot(b))
-            XCTAssertEqual(result, 32.0, accuracy: 0.01)
-        }
+    func testDotFloat16() throws {
+        let a: [Float16] = [1.0, 2.0, 3.0]
+        let b: [Float16] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.dot(b))
+        XCTAssertEqual(result, 32.0, accuracy: 0.01)
+    }
     #endif
 
     func testDotFloat32() throws {
@@ -80,12 +80,12 @@ class NumKongTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-        func testEuclideanFloat16() throws {
-            let a: [Float16] = [1.0, 2.0, 3.0]
-            let b: [Float16] = [4.0, 5.0, 6.0]
-            let result = try XCTUnwrap(a.euclidean(b))
-            XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
-        }
+    func testEuclideanFloat16() throws {
+        let a: [Float16] = [1.0, 2.0, 3.0]
+        let b: [Float16] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.euclidean(b))
+        XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
+    }
     #endif
 
     func testEuclideanFloat32() throws {
@@ -110,12 +110,12 @@ class NumKongTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-        func testSqEuclideanFloat16() throws {
-            let a: [Float16] = [1.0, 2.0, 3.0]
-            let b: [Float16] = [4.0, 5.0, 6.0]
-            let result = try XCTUnwrap(a.sqeuclidean(b))
-            XCTAssertEqual(result, 27.0, accuracy: 0.01)
-        }
+    func testSqEuclideanFloat16() throws {
+        let a: [Float16] = [1.0, 2.0, 3.0]
+        let b: [Float16] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.sqeuclidean(b))
+        XCTAssertEqual(result, 27.0, accuracy: 0.01)
+    }
     #endif
 
     func testSqEuclideanFloat32() throws {
@@ -306,12 +306,12 @@ class NumKongTests: XCTestCase {
         let a: [Float32] = [
             1, 2, 3,
             4, 5, 6,
-        ] // 2x3
+        ]  // 2x3
         let b: [Float32] = [
             7, 8, 9,
             1, 0, 1,
-        ] // 2x3
-        var c = Array(repeating: Float64(0), count: 4) // 2x2, Float32 dots accumulate into Float64
+        ]  // 2x3
+        var c = Array(repeating: Float64(0), count: 4)  // 2x2, Float32 dots accumulate into Float64
 
         try a.withUnsafeBufferPointer { aPtr in
             try b.withUnsafeBufferPointer { bPtr in
@@ -325,22 +325,22 @@ class NumKongTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(c[0], 50, accuracy: 0.01) // [1,2,3] · [7,8,9]
-        XCTAssertEqual(c[1], 4, accuracy: 0.01) // [1,2,3] · [1,0,1]
-        XCTAssertEqual(c[2], 122, accuracy: 0.01) // [4,5,6] · [7,8,9]
-        XCTAssertEqual(c[3], 10, accuracy: 0.01) // [4,5,6] · [1,0,1]
+        XCTAssertEqual(c[0], 50, accuracy: 0.01)  // [1,2,3] · [7,8,9]
+        XCTAssertEqual(c[1], 4, accuracy: 0.01)  // [1,2,3] · [1,0,1]
+        XCTAssertEqual(c[2], 122, accuracy: 0.01)  // [4,5,6] · [7,8,9]
+        XCTAssertEqual(c[3], 10, accuracy: 0.01)  // [4,5,6] · [1,0,1]
     }
 
     func testAngularsPackedFloat32() throws {
         let a: [Float32] = [
             1, 0, 0,
             0, 1, 0,
-        ] // 2x3
+        ]  // 2x3
         let b: [Float32] = [
             1, 0, 0,
             0, 1, 0,
-        ] // 2x3
-        var out = Array(repeating: Float64(0), count: 4) // 2x2, Float32 spatial kernels output Float64
+        ]  // 2x3
+        var out = Array(repeating: Float64(0), count: 4)  // 2x2, Float32 spatial kernels output Float64
 
         try a.withUnsafeBufferPointer { aPtr in
             try b.withUnsafeBufferPointer { bPtr in
@@ -421,7 +421,7 @@ class NumKongTests: XCTestCase {
         let a: [U1x8] = [U1x8(0xFF), U1x8(0xFF)]
         let b: [U1x8] = [U1x8(0x00), U1x8(0x00)]
         let result = try XCTUnwrap(a.hamming(b))
-        XCTAssertEqual(result, 16) // 16 bits differ
+        XCTAssertEqual(result, 16)  // 16 bits differ
     }
 
     func testJaccardU1x8Scalar() throws {
@@ -429,18 +429,20 @@ class NumKongTests: XCTestCase {
         let b: [U1x8] = [U1x8(0xFF)]
         let result = try XCTUnwrap(a.jaccard(b))
         XCTAssertTrue(result.isFinite)
-        XCTAssertEqual(result, 0, accuracy: 0.01) // identical sets => 0 distance
+        XCTAssertEqual(result, 0, accuracy: 0.01)  // identical sets => 0 distance
     }
 
     func testHammingsPackedU1x8() throws {
         // 2 vectors of 16 bits each (2 U1x8 elements per row)
-        let a = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF), U1x8(0x00),
-            U1x8(0x00), U1x8(0xFF),
-        ], rows: 2, cols: 2)
-        let b = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF), U1x8(0xFF),
-        ], rows: 1, cols: 2)
+        let a = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF), U1x8(0x00),
+                U1x8(0x00), U1x8(0xFF),
+            ], rows: 2, cols: 2)
+        let b = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF), U1x8(0xFF),
+            ], rows: 1, cols: 2)
         let packed = try b.packForDots()
         let result = try a.hammingsPacked(packed)
         XCTAssertEqual(result.rows, 2)
@@ -453,11 +455,12 @@ class NumKongTests: XCTestCase {
 
     func testHammingsSymmetricU1x8() throws {
         // 3 vectors of 8 bits each (1 U1x8 element per row)
-        let t = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF),
-            U1x8(0x00),
-            U1x8(0x0F),
-        ], rows: 3, cols: 1)
+        let t = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF),
+                U1x8(0x00),
+                U1x8(0x0F),
+            ], rows: 3, cols: 1)
         let result = try t.hammingsSymmetric()
         XCTAssertEqual(result.rows, 3)
         XCTAssertEqual(result.cols, 3)
@@ -470,26 +473,29 @@ class NumKongTests: XCTestCase {
     }
 
     func testJaccardsPackedU1x8() throws {
-        let a = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF), U1x8(0x00),
-        ], rows: 1, cols: 2)
-        let b = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF), U1x8(0x00),
-        ], rows: 1, cols: 2)
+        let a = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF), U1x8(0x00),
+            ], rows: 1, cols: 2)
+        let b = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF), U1x8(0x00),
+            ], rows: 1, cols: 2)
         let packed = try b.packForDots()
         let result = try a.jaccardsPacked(packed)
         XCTAssertEqual(result.rows, 1)
         XCTAssertEqual(result.cols, 1)
         XCTAssertTrue(result[0, 0].isFinite)
-        XCTAssertEqual(result[0, 0], 0, accuracy: 0.01) // identical
+        XCTAssertEqual(result[0, 0], 0, accuracy: 0.01)  // identical
     }
 
     func testJaccardsSymmetricU1x8() throws {
-        let t = try Tensor<U1x8>.fromArray([
-            U1x8(0xFF),
-            U1x8(0xFF),
-            U1x8(0x00),
-        ], rows: 3, cols: 1)
+        let t = try Tensor<U1x8>.fromArray(
+            [
+                U1x8(0xFF),
+                U1x8(0xFF),
+                U1x8(0x00),
+            ], rows: 3, cols: 1)
         let result = try t.jaccardsSymmetric()
         XCTAssertEqual(result.rows, 3)
         XCTAssertEqual(result.cols, 3)
@@ -510,14 +516,16 @@ class NumKongTests: XCTestCase {
     }
 
     func testMaxSimPack_BFloat16() throws {
-        let q = try Tensor<BFloat16>.fromArray([
-            BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0), BFloat16(float: 0),
-            BFloat16(float: 0), BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0),
-        ], rows: 2, cols: 4)
-        let d = try Tensor<BFloat16>.fromArray([
-            BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0), BFloat16(float: 0),
-            BFloat16(float: 0), BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0),
-        ], rows: 2, cols: 4)
+        let q = try Tensor<BFloat16>.fromArray(
+            [
+                BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0), BFloat16(float: 0),
+                BFloat16(float: 0), BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0),
+            ], rows: 2, cols: 4)
+        let d = try Tensor<BFloat16>.fromArray(
+            [
+                BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0), BFloat16(float: 0),
+                BFloat16(float: 0), BFloat16(float: 1), BFloat16(float: 0), BFloat16(float: 0),
+            ], rows: 2, cols: 4)
         let qPacked = try q.maxSimPack()
         let dPacked = try d.maxSimPack()
         let score = qPacked.score(dPacked)

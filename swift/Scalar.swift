@@ -154,74 +154,74 @@ extension Float32: NumKongSqEuclidean {
 }
 
 #if !arch(x86_64)
-    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongDot {
-        public typealias DotOutput = Float32
+@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+extension Float16: NumKongDot {
+    public typealias DotOutput = Float32
 
-        @inlinable @inline(__always)
-        public static func dot<A, B>(_ a: A, _ b: B) -> Float32?
-        where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
-            _nkWithDensePair(a, b) { ap, bp, n in
-                let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
-                let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
-                var result: Float32 = 0
-                nk_dot_f16(aPtr, bPtr, UInt64(n), &result)
-                return result
-            }
+    @inlinable @inline(__always)
+    public static func dot<A, B>(_ a: A, _ b: B) -> Float32?
+    where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
+            var result: Float32 = 0
+            nk_dot_f16(aPtr, bPtr, UInt64(n), &result)
+            return result
         }
     }
+}
 
-    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongAngular {
-        public typealias AngularOutput = Float32
+@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+extension Float16: NumKongAngular {
+    public typealias AngularOutput = Float32
 
-        @inlinable @inline(__always)
-        public static func angular<A, B>(_ a: A, _ b: B) -> Float32?
-        where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
-            _nkWithDensePair(a, b) { ap, bp, n in
-                let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
-                let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
-                var result: Float32 = 0
-                nk_angular_f16(aPtr, bPtr, UInt64(n), &result)
-                return result
-            }
+    @inlinable @inline(__always)
+    public static func angular<A, B>(_ a: A, _ b: B) -> Float32?
+    where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
+            var result: Float32 = 0
+            nk_angular_f16(aPtr, bPtr, UInt64(n), &result)
+            return result
         }
     }
+}
 
-    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongEuclidean {
-        public typealias EuclideanOutput = Float32
+@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+extension Float16: NumKongEuclidean {
+    public typealias EuclideanOutput = Float32
 
-        @inlinable @inline(__always)
-        public static func euclidean<A, B>(_ a: A, _ b: B) -> Float32?
-        where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
-            _nkWithDensePair(a, b) { ap, bp, n in
-                let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
-                let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
-                var result: Float32 = 0
-                nk_euclidean_f16(aPtr, bPtr, UInt64(n), &result)
-                return result
-            }
+    @inlinable @inline(__always)
+    public static func euclidean<A, B>(_ a: A, _ b: B) -> Float32?
+    where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
+            var result: Float32 = 0
+            nk_euclidean_f16(aPtr, bPtr, UInt64(n), &result)
+            return result
         }
     }
+}
 
-    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongSqEuclidean {
-        public typealias SqEuclideanOutput = Float32
+@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+extension Float16: NumKongSqEuclidean {
+    public typealias SqEuclideanOutput = Float32
 
-        @inlinable @inline(__always)
-        public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
-        where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
-            _nkWithDensePair(a, b) { ap, bp, n in
-                let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
-                let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
-                var result: Float32 = 0
-                nk_sqeuclidean_f16(aPtr, bPtr, UInt64(n), &result)
-                return result
-            }
+    @inlinable @inline(__always)
+    public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
+    where A: Sequence, B: Sequence, A.Element == Float16, B.Element == Float16 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_f16_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_f16_t.self)
+            var result: Float32 = 0
+            nk_sqeuclidean_f16(aPtr, bPtr, UInt64(n), &result)
+            return result
         }
     }
-#endif
+}
+#endif  // !arch(x86_64)
 
 extension Int8: NumKongDot {
     public typealias DotOutput = Int32
@@ -612,6 +612,24 @@ extension E3M2: NumKongSqEuclidean {
         _nkWithDensePairRebound(a, b, to: nk_e3m2_t.self) { ap, bp, n in
             var result: Float32 = 0
             nk_sqeuclidean_e3m2(ap, bp, UInt64(n), &result)
+            return result
+        }
+    }
+}
+
+// MARK: - U1x8 Dot Product
+
+extension U1x8: NumKongDot {
+    public typealias DotOutput = UInt32
+
+    @inlinable @inline(__always)
+    public static func dot<A, B>(_ a: A, _ b: B) -> UInt32?
+    where A: Sequence, B: Sequence, A.Element == U1x8, B.Element == U1x8 {
+        _nkWithDensePair(a, b) { ap, bp, n in
+            let aPtr = UnsafeRawPointer(ap).assumingMemoryBound(to: nk_u1x8_t.self)
+            let bPtr = UnsafeRawPointer(bp).assumingMemoryBound(to: nk_u1x8_t.self)
+            var result: UInt32 = 0
+            nk_dot_u1(aPtr, bPtr, UInt64(n * 8), &result)
             return result
         }
     }

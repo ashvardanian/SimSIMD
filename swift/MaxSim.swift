@@ -12,8 +12,12 @@ import CNumKong
 public protocol NumKongMaxSimElement {
     associatedtype MaxSimOutput
     static func _nk_maxsim_packed_size(_ vectorCount: Int, _ depth: Int) -> Int
-    static func _nk_maxsim_pack(_ vectors: UnsafePointer<Self>, _ vectorCount: Int, _ depth: Int, _ stride: Int, _ packed: UnsafeMutableRawPointer)
-    static func _nk_maxsim_packed(_ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int, _ depth: Int, _ result: UnsafeMutablePointer<MaxSimOutput>)
+    static func _nk_maxsim_pack(
+        _ vectors: UnsafePointer<Self>, _ vectorCount: Int, _ depth: Int, _ stride: Int,
+        _ packed: UnsafeMutableRawPointer)
+    static func _nk_maxsim_packed(
+        _ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int,
+        _ depth: Int, _ result: UnsafeMutablePointer<MaxSimOutput>)
 }
 
 // MARK: - MaxSimPackedMatrix
@@ -78,11 +82,17 @@ extension Float32: NumKongMaxSimElement {
         Int(nk_maxsim_packed_size_f32(UInt64(vectorCount), UInt64(depth)))
     }
 
-    public static func _nk_maxsim_pack(_ vectors: UnsafePointer<Float32>, _ vectorCount: Int, _ depth: Int, _ stride: Int, _ packed: UnsafeMutableRawPointer) {
+    public static func _nk_maxsim_pack(
+        _ vectors: UnsafePointer<Float32>, _ vectorCount: Int, _ depth: Int, _ stride: Int,
+        _ packed: UnsafeMutableRawPointer
+    ) {
         nk_maxsim_pack_f32(vectors, UInt64(vectorCount), UInt64(depth), UInt64(stride), packed)
     }
 
-    public static func _nk_maxsim_packed(_ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int, _ depth: Int, _ result: UnsafeMutablePointer<Float64>) {
+    public static func _nk_maxsim_packed(
+        _ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int,
+        _ depth: Int, _ result: UnsafeMutablePointer<Float64>
+    ) {
         nk_maxsim_packed_f32(queryPacked, docPacked, UInt64(queryCount), UInt64(docCount), UInt64(depth), result)
     }
 }
@@ -96,12 +106,18 @@ extension BFloat16: NumKongMaxSimElement {
         Int(nk_maxsim_packed_size_bf16(UInt64(vectorCount), UInt64(depth)))
     }
 
-    public static func _nk_maxsim_pack(_ vectors: UnsafePointer<BFloat16>, _ vectorCount: Int, _ depth: Int, _ stride: Int, _ packed: UnsafeMutableRawPointer) {
+    public static func _nk_maxsim_pack(
+        _ vectors: UnsafePointer<BFloat16>, _ vectorCount: Int, _ depth: Int, _ stride: Int,
+        _ packed: UnsafeMutableRawPointer
+    ) {
         let cPtr = UnsafeRawPointer(vectors).assumingMemoryBound(to: nk_bf16_t.self)
         nk_maxsim_pack_bf16(cPtr, UInt64(vectorCount), UInt64(depth), UInt64(stride), packed)
     }
 
-    public static func _nk_maxsim_packed(_ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int, _ depth: Int, _ result: UnsafeMutablePointer<Float32>) {
+    public static func _nk_maxsim_packed(
+        _ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int,
+        _ depth: Int, _ result: UnsafeMutablePointer<Float32>
+    ) {
         nk_maxsim_packed_bf16(queryPacked, docPacked, UInt64(queryCount), UInt64(docCount), UInt64(depth), result)
     }
 }
@@ -109,21 +125,27 @@ extension BFloat16: NumKongMaxSimElement {
 // MARK: - Float16 MaxSim Conformance
 
 #if !arch(x86_64)
-    @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongMaxSimElement {
-        public typealias MaxSimOutput = Float32
+@available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
+extension Float16: NumKongMaxSimElement {
+    public typealias MaxSimOutput = Float32
 
-        public static func _nk_maxsim_packed_size(_ vectorCount: Int, _ depth: Int) -> Int {
-            Int(nk_maxsim_packed_size_f16(UInt64(vectorCount), UInt64(depth)))
-        }
-
-        public static func _nk_maxsim_pack(_ vectors: UnsafePointer<Float16>, _ vectorCount: Int, _ depth: Int, _ stride: Int, _ packed: UnsafeMutableRawPointer) {
-            let cPtr = UnsafeRawPointer(vectors).assumingMemoryBound(to: nk_f16_t.self)
-            nk_maxsim_pack_f16(cPtr, UInt64(vectorCount), UInt64(depth), UInt64(stride), packed)
-        }
-
-        public static func _nk_maxsim_packed(_ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int, _ depth: Int, _ result: UnsafeMutablePointer<Float32>) {
-            nk_maxsim_packed_f16(queryPacked, docPacked, UInt64(queryCount), UInt64(docCount), UInt64(depth), result)
-        }
+    public static func _nk_maxsim_packed_size(_ vectorCount: Int, _ depth: Int) -> Int {
+        Int(nk_maxsim_packed_size_f16(UInt64(vectorCount), UInt64(depth)))
     }
+
+    public static func _nk_maxsim_pack(
+        _ vectors: UnsafePointer<Float16>, _ vectorCount: Int, _ depth: Int, _ stride: Int,
+        _ packed: UnsafeMutableRawPointer
+    ) {
+        let cPtr = UnsafeRawPointer(vectors).assumingMemoryBound(to: nk_f16_t.self)
+        nk_maxsim_pack_f16(cPtr, UInt64(vectorCount), UInt64(depth), UInt64(stride), packed)
+    }
+
+    public static func _nk_maxsim_packed(
+        _ queryPacked: UnsafeRawPointer, _ docPacked: UnsafeRawPointer, _ queryCount: Int, _ docCount: Int,
+        _ depth: Int, _ result: UnsafeMutablePointer<Float32>
+    ) {
+        nk_maxsim_packed_f16(queryPacked, docPacked, UInt64(queryCount), UInt64(docCount), UInt64(depth), result)
+    }
+}
 #endif

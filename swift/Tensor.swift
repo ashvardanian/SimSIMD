@@ -201,9 +201,9 @@ extension Tensor where Element: NumKongMaxSimElement {
 
 // MARK: - PackedMatrix convenience from Tensor
 
-public extension PackedMatrix where Element: NumKongDotsMatrixElement {
+extension PackedMatrix where Element: NumKongDotsMatrixElement {
     /// Packs a tensor's storage into a kernel-optimized layout for batch dot products.
-    convenience init(packing tensor: Tensor<Element>) throws {
+    public convenience init(packing tensor: Tensor<Element>) throws {
         try self.init(packing: tensor.view())
     }
 }

@@ -123,10 +123,14 @@ func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
 @usableFromInline
 func _nkWithGeoQuad<A: Sequence, B: Sequence, C: Sequence, D: Sequence, T>(
     _ a: A, _ b: B, _ c: C, _ d: D,
-    _ body: (UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafeMutablePointer<T>, Int) -> Void
+    _ body: (UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafeMutablePointer<T>, Int) ->
+        Void
 ) -> [T]?
 where A.Element == T, B.Element == T, C.Element == T, D.Element == T, T: BinaryFloatingPoint {
-    let aArr = Array(a), bArr = Array(b), cArr = Array(c), dArr = Array(d)
+    let aArr = Array(a)
+    let bArr = Array(b)
+    let cArr = Array(c)
+    let dArr = Array(d)
     let n = aArr.count
     guard n > 0 && n == bArr.count && n == cArr.count && n == dArr.count else { return nil }
     var result = [T](repeating: 0, count: n)
