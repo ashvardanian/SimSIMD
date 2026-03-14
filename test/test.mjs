@@ -25,14 +25,10 @@ import assert from "node:assert";
 
 import * as numkong from "../javascript/dist/esm/numkong.js";
 
-
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
   const lowerBound = expected - tolerance;
   const upperBound = expected + tolerance;
-  assert(
-    actual >= lowerBound && actual <= upperBound,
-    `Expected ${actual} to be almost equal to ${expected}`
-  );
+  assert(actual >= lowerBound && actual <= upperBound, `Expected ${actual} to be almost equal to ${expected}`);
 }
 
 test("Distance from itself", () => {
@@ -44,24 +40,12 @@ test("Distance from itself", () => {
   assertAlmostEqual(numkong.sqeuclidean(f64s, f64s), 0.0, 0.01);
   assertAlmostEqual(numkong.angular(f64s, f64s), 0.0, 0.01);
 
-  const f32sNormalized = new Float32Array([
-    1 / Math.sqrt(14),
-    2 / Math.sqrt(14),
-    3 / Math.sqrt(14),
-  ]);
+  const f32sNormalized = new Float32Array([1 / Math.sqrt(14), 2 / Math.sqrt(14), 3 / Math.sqrt(14)]);
   assertAlmostEqual(numkong.inner(f32sNormalized, f32sNormalized), 1.0, 0.01);
 
   const f32sHistogram = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
-  assertAlmostEqual(
-    numkong.kullbackleibler(f32sHistogram, f32sHistogram),
-    0.0,
-    0.01
-  );
-  assertAlmostEqual(
-    numkong.jensenshannon(f32sHistogram, f32sHistogram),
-    0.0,
-    0.01
-  );
+  assertAlmostEqual(numkong.kullbackleibler(f32sHistogram, f32sHistogram), 0.0, 0.01);
+  assertAlmostEqual(numkong.jensenshannon(f32sHistogram, f32sHistogram), 0.0, 0.01);
 
   const u8s = new Uint8Array([1, 2, 3]);
   assertAlmostEqual(numkong.hamming(u8s, u8s), 0.0, 0.01);
