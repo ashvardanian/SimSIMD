@@ -153,6 +153,9 @@ void test_spatial() {
     check("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
     check("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
     check("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
+    check("sqeuclidean_bf16_neon", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neon);
+    check("euclidean_bf16_neon", test_euclidean<bf16_t>, nk_euclidean_bf16_neon);
+    check("angular_bf16_neon", test_angular<bf16_t>, nk_angular_bf16_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF

@@ -46,6 +46,18 @@ void test_cross_arm() {
     check("jaccards_packed_u1_neon", test_jaccards_packed<u1x8_t>, nk_dots_packed_size_u1_serial,
           nk_dots_pack_u1_serial, nk_jaccards_packed_u1_neon);
     check("jaccards_symmetric_u1_neon", test_jaccards_symmetric<u1x8_t>, nk_jaccards_symmetric_u1_neon);
+
+    check("dots_packed_bf16_neon", test_dots_packed<bf16_t>, nk_dots_packed_size_bf16_neon, nk_dots_pack_bf16_neon,
+          nk_dots_packed_bf16_neon);
+    check("dots_symmetric_bf16_neon", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_neon);
+
+    check("angulars_packed_bf16_neon", test_angulars_packed<bf16_t>, nk_dots_packed_size_bf16_neon,
+          nk_dots_pack_bf16_neon, nk_angulars_packed_bf16_neon);
+    check("angulars_symmetric_bf16_neon", test_angulars_symmetric<bf16_t>, nk_angulars_symmetric_bf16_neon);
+
+    check("euclideans_packed_bf16_neon", test_euclideans_packed<bf16_t>, nk_dots_packed_size_bf16_neon,
+          nk_dots_pack_bf16_neon, nk_euclideans_packed_bf16_neon);
+    check("euclideans_symmetric_bf16_neon", test_euclideans_symmetric<bf16_t>, nk_euclideans_symmetric_bf16_neon);
 #endif
 
 #if NK_TARGET_NEONBFDOT

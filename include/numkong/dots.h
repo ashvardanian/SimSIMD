@@ -1486,6 +1486,18 @@ NK_PUBLIC void nk_dots_packed_u1_neon(nk_u1x8_t const *a, void const *b_packed, 
 NK_PUBLIC void nk_dots_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                          nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                          nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_bf16 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_neon(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_bf16 */
+NK_PUBLIC void nk_dots_pack_bf16_neon(nk_bf16_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                      void *b_packed);
+/** @copydoc nk_dots_packed_bf16 */
+NK_PUBLIC void nk_dots_packed_bf16_neon(nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t height,
+                                        nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_PUBLIC void nk_dots_symmetric_bf16_neon(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                           nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                           nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_NEON
 
 /*  ARM NEON with F16 arithmetic (ARMv8.2-A FP16).

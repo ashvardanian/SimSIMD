@@ -64,6 +64,17 @@ void bench_cross_arm() {
                                  nk_euclideans_packed_f64_neon);
     run_euclideans_symmetric<f64_k>("euclideans_symmetric_f64_neon", nk_euclideans_symmetric_f64_neon);
 
+    run_dots_packed<bf16_k>("dots_packed_bf16_neon", nk_dots_packed_size_bf16_neon, nk_dots_pack_bf16_neon,
+                            nk_dots_packed_bf16_neon);
+    run_dots_symmetric<bf16_k>("dots_symmetric_bf16_neon", nk_dots_symmetric_bf16_neon);
+
+    run_angulars_packed<bf16_k>("angulars_packed_bf16_neon", nk_dots_packed_size_bf16_neon, nk_dots_pack_bf16_neon,
+                                nk_angulars_packed_bf16_neon);
+    run_angulars_symmetric<bf16_k>("angulars_symmetric_bf16_neon", nk_angulars_symmetric_bf16_neon);
+    run_euclideans_packed<bf16_k>("euclideans_packed_bf16_neon", nk_dots_packed_size_bf16_neon, nk_dots_pack_bf16_neon,
+                                  nk_euclideans_packed_bf16_neon);
+    run_euclideans_symmetric<bf16_k>("euclideans_symmetric_bf16_neon", nk_euclideans_symmetric_bf16_neon);
+
 #endif
 
 #if NK_TARGET_NEONHALF
