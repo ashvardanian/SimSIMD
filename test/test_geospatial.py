@@ -27,6 +27,7 @@ import numkong as nk
 from test_base import (
     numpy_available,
     dense_dimensions,
+    max_coord_angle,
     possible_capabilities,
     randomized_repetitions_count,
     keep_one_capability,
@@ -39,6 +40,8 @@ from test_base import (
 
 stats = create_stats()
 atexit.register(print_stats_report, stats)
+
+_max_angle_rad = np.radians(max_coord_angle) if numpy_available else None
 
 earth_radius_meters = 6335439.0
 
@@ -143,10 +146,12 @@ def test_haversine_random_accuracy(ndim, dtype, capability):
     """Haversine great-circle distance against Vincenty baseline for random coordinates."""
     keep_one_capability(capability)
 
-    first_latitudes = (np.random.rand(ndim) - 0.5) * np.pi
-    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi
-    second_latitudes = (np.random.rand(ndim) - 0.5) * np.pi
-    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi
+    lat_scale = min(_max_angle_rad, np.pi) / 2
+    lon_scale = min(_max_angle_rad, np.pi)
+    first_latitudes = (np.random.rand(ndim) - 0.5) * 2 * lat_scale
+    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * lon_scale
+    second_latitudes = (np.random.rand(ndim) - 0.5) * 2 * lat_scale
+    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * lon_scale
 
     first_latitudes = first_latitudes.astype(dtype)
     first_longitudes = first_longitudes.astype(dtype)
@@ -186,10 +191,12 @@ def test_vincenty_random_accuracy(ndim, dtype, capability):
     """Vincenty ellipsoidal geodesic distance against GeoPy baseline for random coordinates."""
     keep_one_capability(capability)
 
-    first_latitudes = (np.random.rand(ndim) - 0.5) * np.pi * 0.9
-    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi * 0.9
-    second_latitudes = (np.random.rand(ndim) - 0.5) * np.pi * 0.9
-    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi * 0.9
+    lat_scale = min(_max_angle_rad, np.pi) / 2
+    lon_scale = min(_max_angle_rad, np.pi)
+    first_latitudes = (np.random.rand(ndim) - 0.5) * 2 * lat_scale * 0.9
+    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * lon_scale * 0.9
+    second_latitudes = (np.random.rand(ndim) - 0.5) * 2 * lat_scale * 0.9
+    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * lon_scale * 0.9
 
     first_latitudes = first_latitudes.astype(dtype)
     first_longitudes = first_longitudes.astype(dtype)

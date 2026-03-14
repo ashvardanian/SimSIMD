@@ -158,19 +158,20 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     Py_buffer a_buffer, b_buffer;
+    nk_buffer_backing_t a_backing, b_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
 
     // Get buffer for array a
-    if (PyObject_GetBuffer(args[0], &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "First argument must support buffer protocol");
+    if (!nk_get_buffer(args[0], &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) {
+        PyErr_SetString(PyExc_TypeError, "First argument must support buffer protocol or __array_interface__");
         return NULL;
     }
 
     // Get buffer for array b
-    if (PyObject_GetBuffer(args[1], &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+    if (!nk_get_buffer(args[1], &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &b_backing)) {
         PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_TypeError, "Second argument must support buffer protocol");
+        PyErr_SetString(PyExc_TypeError, "Second argument must support buffer protocol or __array_interface__");
         return NULL;
     }
 

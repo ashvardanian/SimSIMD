@@ -148,26 +148,6 @@ PyTypeObject PackedMatrixType = {
     .tp_repr = PackedMatrix_repr,
 };
 
-/** @brief Parse a Python buffer format string into a NumKong dtype. */
-int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
-    // If the source object is a Tensor, use its dtype directly —
-    // the PEP 3118 format string may be a placeholder for exotic types.
-    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) {
-        *dtype = ((Tensor *)buffer->obj)->dtype;
-        return 1;
-    }
-    char const *format = buffer->format;
-    if (!format) {
-        PyErr_SetString(PyExc_TypeError, "Input buffer must expose a format string");
-        return 0;
-    }
-    *dtype = python_string_to_dtype(format);
-    if (*dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", format);
-        return 0;
-    }
-    return 1;
-}
 
 /** @brief Matrix multiplication operator for Tensor @ PackedMatrix. */
 PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
@@ -385,8 +365,9 @@ static PyObject *api_packed_common( //
     PackedMatrix *packed = (PackedMatrix *)b_obj;
 
     Py_buffer a_buffer;
-    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "a must support buffer protocol");
+    nk_buffer_backing_t a_backing;
+    if (!nk_get_buffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) {
+        PyErr_SetString(PyExc_TypeError, "a must support buffer protocol or __array_interface__");
         return NULL;
     }
 
@@ -396,8 +377,9 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&a_buffer, &src_dtype)) {
+    nk_dtype_t src_dtype = dtype_from_buffer(&a_buffer);
+    if (src_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", a_buffer.format);
         PyBuffer_Release(&a_buffer);
         return NULL;
     }
@@ -526,8 +508,9 @@ static PyObject *api_symmetric_common( //
     }
 
     Py_buffer vec_buf;
-    if (PyObject_GetBuffer(vectors_obj, &vec_buf, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "vectors must support buffer protocol");
+    nk_buffer_backing_t vec_backing;
+    if (!nk_get_buffer(vectors_obj, &vec_buf, PyBUF_STRIDES | PyBUF_FORMAT, &vec_backing)) {
+        PyErr_SetString(PyExc_TypeError, "vectors must support buffer protocol or __array_interface__");
         return NULL;
     }
 
@@ -542,8 +525,11 @@ static PyObject *api_symmetric_common( //
         goto cleanup;
     }
 
-    nk_dtype_t dtype;
-    if (!buffer_dtype(&vec_buf, &dtype)) goto cleanup;
+    nk_dtype_t dtype = dtype_from_buffer(&vec_buf);
+    if (dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", vec_buf.format);
+        goto cleanup;
+    }
 
     if (dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
@@ -672,8 +658,9 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     }
 
     Py_buffer b_buffer;
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
+    nk_buffer_backing_t b_backing;
+    if (!nk_get_buffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &b_backing)) {
+        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol or __array_interface__");
         return NULL;
     }
 
@@ -683,8 +670,9 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
         return NULL;
     }
 
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&b_buffer, &src_dtype)) {
+    nk_dtype_t src_dtype = dtype_from_buffer(&b_buffer);
+    if (src_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", b_buffer.format);
         PyBuffer_Release(&b_buffer);
         return NULL;
     }

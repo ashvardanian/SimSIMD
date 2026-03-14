@@ -410,6 +410,7 @@ base_sources = [
     "python/each.c",
     "python/mesh.c",
     "python/maxsim.c",
+    "python/numpy_interop.c",
     "c/numkong.c",
 ]
 
@@ -443,7 +444,7 @@ setup(
     version=__version__,
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
-    url="https://github.com/ashvardanian/numkong",
+    url="https://github.com/ashvardanian/NumKong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
     long_description=Path("README.md").read_text(encoding="utf8"),
     long_description_content_type="text/markdown",

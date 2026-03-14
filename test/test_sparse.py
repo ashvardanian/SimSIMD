@@ -27,6 +27,7 @@ import numkong as nk
 from test_base import (
     numpy_available,
     dense_dimensions,
+    sparse_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
     is_running_under_qemu,
@@ -55,8 +56,9 @@ KERNELS_SPARSE = {
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_sparse_dot(capability):
     """Test nk.sparse_dot against manual weighted intersection."""
-    a_idx = np.unique(np.random.randint(0, 1000, size=50)).astype(np.uint32)
-    b_idx = np.unique(np.random.randint(0, 1000, size=50)).astype(np.uint32)
+    sparse_dim = sparse_dimensions[0]
+    a_idx = np.unique(np.random.randint(0, sparse_dim, size=min(50, sparse_dim))).astype(np.uint32)
+    b_idx = np.unique(np.random.randint(0, sparse_dim, size=min(50, sparse_dim))).astype(np.uint32)
     a_val = np.random.randn(len(a_idx)).astype(np.float32)
     b_val = np.random.randn(len(b_idx)).astype(np.float32)
 

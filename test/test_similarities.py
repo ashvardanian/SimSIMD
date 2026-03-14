@@ -29,6 +29,7 @@ import numkong as nk
 from test_base import (
     numpy_available,
     scipy_available,
+    ml_dtypes_available,
     dense_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
@@ -44,10 +45,17 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
+    PACKING_GRANULARITY,
+    round_up_to,
 )
 
 try:
     import scipy.spatial.distance as spd
+except ImportError:
+    pass
+
+try:
+    import ml_dtypes
 except ImportError:
     pass
 
@@ -175,8 +183,6 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
 
     Skips:
         * ``angular`` at ndim=1 — degenerate (norm is a single element, 0/0).
-        * ``float16`` input + ``float32`` out_dtype — pre-existing batch-path
-          bug returns zeros.
 
     Dimensions from ``NK_DENSE_DIMENSIONS``; capabilities from platform
     auto-detection.  Integer output uses ``atol=1`` (discrete rounding);
@@ -184,8 +190,6 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
     """
     if metric == "angular" and ndim == 1:
         pytest.skip("angular at ndim=1 is degenerate (0/0 from single-element norms)")
-    if input_dtype == "float16" and out_dtype == "float32":
-        pytest.skip("batch path with float16 input and float32 out_dtype is broken (pre-existing)")
     keep_one_capability(capability)
 
     num_rows_a, num_rows_b = 10, 15
@@ -225,7 +229,6 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
     np.testing.assert_allclose(output_buffer, expected, atol=atol, rtol=NK_RTOL)
 
 
-@pytest.mark.skip(reason="2D complex cdist segfaults (pre-existing bug)")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("input_dtype", ["complex128", "complex64"])
@@ -235,10 +238,9 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
 def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
     """Verify cdist for complex-valued dot and vdot metrics.
 
-    Currently **skipped** due to a pre-existing segfault when cdist receives 2D
-    complex arrays.  When enabled, tests three output modes (default complex128,
-    explicit complex128, explicit complex64) for both ``dot`` (Hermitian-unaware)
-    and ``vdot`` (conjugate dot) metrics.  Exercises:
+    Tests three output modes (default complex128, explicit complex128,
+    explicit complex64) for both ``dot`` (Hermitian-unaware) and ``vdot``
+    (conjugate dot) metrics.  Exercises:
 
     * 1D scalar result (single row vs single row).
     * 2D matrix result (10 x 15).
@@ -311,7 +313,11 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         expected = spd.cdist(a_bits, b_bits, "hamming") * ndim
         result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1")
     else:
-        expected = (spd.cdist(a_bits, b_bits, "hamming") * ndim).astype(out_dtype)
+        raw = spd.cdist(a_bits, b_bits, "hamming") * ndim
+        if np.issubdtype(np.dtype(out_dtype), np.integer):
+            expected = round_and_clip_even(raw, out_dtype)
+        else:
+            expected = raw.astype(out_dtype)
         result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
@@ -422,15 +428,14 @@ def test_cdist_exotic_dtypes(ndim, input_dtype, metric):
     ``nk.Tensor``.  Raw numpy byte-arrays are passed to cdist with an explicit
     ``dtype=`` parameter so the C code knows how to interpret the data.
 
-    Skips int4/uint4 at odd ``ndim`` because the trailing padding nibble in
-    each packed row is interpreted as data by the kernel.
+    Sub-byte types (int4, uint4, uint1) have their ``ndim`` rounded up to
+    the packing alignment (2 for nibble types, 8 for bit types) so the
+    kernel sees a whole number of packed bytes per row.
 
-    No ``capability`` parameter — exotic-dtype batch paths have pre-existing
-    issues on non-serial backends, so only the default (serial) backend is
-    tested.  Dimensions from ``NK_DENSE_DIMENSIONS``.
+    No ``capability`` parameter — only the default backend is tested.
+    Dimensions from ``NK_DENSE_DIMENSIONS``.
     """
-    if input_dtype in ("int4", "uint4") and ndim % 2 != 0:
-        pytest.skip(f"{input_dtype} requires even ndim (2 values per packed byte)")
+    ndim = round_up_to(ndim, PACKING_GRANULARITY.get(input_dtype, 1))
 
     num_rows_a, num_rows_b = 5, 7
     a_raw, a_baseline = make_random((num_rows_a, ndim), input_dtype)
@@ -504,8 +509,7 @@ def test_cdist_edge_cases():
     2. **Rejected kwargs** — ``threads=`` was removed; verify ``TypeError`` is
        raised with "unexpected keyword" so callers get a clear error.
     3. **Input validation** — mismatched dimensions and empty matrices must
-       raise ``ValueError`` (or ``SystemError`` due to a pre-existing ``%z``
-       format-string bug in ``PyErr_Format``).
+       raise ``ValueError``.
 
     Not parameterised — uses fixed 16-element vectors on float32.
     """
@@ -523,10 +527,20 @@ def test_cdist_edge_cases():
     with pytest.raises(TypeError, match="unexpected keyword"):
         nk.cdist(np.ones((2, 3)), np.ones((2, 3)), threads=2)
 
-    # Mismatched dimensions → ValueError (or SystemError from format string bug)
-    with pytest.raises((ValueError, SystemError)):
+    # Mismatched dimensions → ValueError
+    with pytest.raises(ValueError):
         nk.cdist(np.ones((2, 3)), np.ones((2, 5)), "euclidean")
 
     # Empty matrix → ValueError
-    with pytest.raises((ValueError, SystemError)):
+    with pytest.raises(ValueError):
         nk.cdist(np.ones((0, 3)), np.ones((2, 3)), "euclidean")
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+def test_cdist_with_ml_dtypes_bfloat16():
+    """Verify cdist accepts ml_dtypes.bfloat16 arrays via __array_interface__ fallback."""
+    a = np.random.randn(4, 8).astype(np.float32).astype(ml_dtypes.bfloat16)
+    b = np.random.randn(4, 8).astype(np.float32).astype(ml_dtypes.bfloat16)
+    result = nk.cdist(a, b, "dot")
+    assert result.shape == (4, 4)

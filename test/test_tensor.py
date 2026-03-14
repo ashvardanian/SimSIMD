@@ -1016,6 +1016,58 @@ def test_float8_e5m2_vs_ml_dtypes():
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+@pytest.mark.parametrize(
+    "ml_dtype,nk_name",
+    [
+        ("bfloat16", "bfloat16"),
+        ("float8_e4m3fn", "e4m3"),
+        ("float8_e5m2", "e5m2"),
+    ],
+)
+def test_ml_dtypes_array_to_tensor(ml_dtype, nk_name):
+    """Verify that ml_dtypes arrays can be consumed as nk.Tensor via __array_interface__."""
+    dt = getattr(ml_dtypes, ml_dtype)
+    a_f32 = np.random.randn(16).astype(np.float32).clip(-1, 1)
+    a_ml = a_f32.astype(dt)
+    t = nk.Tensor(a_ml)
+    assert t.dtype == nk_name
+    assert t.shape == (16,)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "scalar_type,name",
+    [
+        (nk.bfloat16, "bfloat16"),
+        (nk.float8_e4m3, "float8_e4m3"),
+        (nk.float8_e5m2, "float8_e5m2"),
+    ],
+)
+def test_numpy_array_with_nk_dtype(scalar_type, name):
+    """Verify that nk scalar types can be used as NumPy dtype specifiers."""
+    if not hasattr(scalar_type, "dtype"):
+        pytest.skip("NumPy dtype registration not available")
+    arr = np.array([1.0, 2.0, 3.0], dtype=scalar_type)
+    assert abs(float(arr[0]) - 1.0) < 0.1
+    assert abs(float(arr[1]) - 2.0) < 0.1
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_nk_dtype_numpy_roundtrip():
+    """Verify roundtrip: np.array(dtype=nk.bfloat16) → float32 → bfloat16 preserves values."""
+    if not hasattr(nk.bfloat16, "dtype"):
+        pytest.skip("NumPy dtype registration not available")
+    vals = [0.0, 1.0, -1.0, 0.5, 3.14]
+    arr = np.array(vals, dtype=nk.bfloat16)
+    # Cast to float32 and back to verify the registered cast functions work.
+    f32 = arr.astype(np.float32)
+    back = f32.astype(nk.bfloat16)
+    for i in range(len(vals)):
+        assert float(arr[i]) == float(back[i])
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_dots_packed_row_range():
     """Test dots_packed with start_row/end_row splits produce the same result."""
     height, depth, width = 100, 64, 50

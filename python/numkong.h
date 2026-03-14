@@ -31,21 +31,18 @@ extern "C" {
  */
 typedef struct MatrixOrVectorView {
     /** Pointer to the first element. */
-    char *start;
+    char *data;
     /** Vector size (1D) or column count (2D). */
-    size_t dimensions;
+    size_t cols;
     /** Number of vectors (1 for 1D, num rows for 2D). */
-    size_t count;
+    size_t rows;
     /** Stride between rows in bytes (0 for 1D). */
-    size_t stride;
+    size_t row_stride;
     /** Number of dimensions (1 or 2). */
     int rank;
     /** Logical dtype. */
     nk_dtype_t dtype;
 } MatrixOrVectorView;
-
-/** @brief Backward-compatible alias. */
-typedef MatrixOrVectorView TensorArgument;
 
 /**
  *  @brief Lightweight view for stride-aware operations.
@@ -81,6 +78,14 @@ typedef struct {
     /** 1 if complex type, 0 otherwise. */
     int is_complex;
 } nk_dtype_info_t;
+
+/**
+ *  @brief Backing storage for shape/strides when synthesizing a Py_buffer from __array_interface__.
+ */
+typedef struct {
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
+    Py_ssize_t strides[NK_TENSOR_MAX_RANK];
+} nk_buffer_backing_t;
 
 /** @brief Global dtype metadata table. */
 extern nk_dtype_info_t const nk_dtype_table[];
@@ -225,20 +230,35 @@ int cast_scalar_buffer(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_d
 nk_dtype_t promote_dtypes(nk_dtype_t a, nk_dtype_t b);
 
 /**
+ *  @brief Acquire a Py_buffer, falling back to __array_interface__ if needed.
+ *
+ *  Tries PyObject_GetBuffer first. If that fails, reads __array_interface__
+ *  and synthesizes a Py_buffer with shape/strides pointing into @p backing.
+ *  When the fallback path is taken, buffer->obj is NULL so PyBuffer_Release
+ *  is a no-op.
+ *
+ *  @param[in]  obj     Python object.
+ *  @param[out] buffer  Output Py_buffer.
+ *  @param[in]  flags   PyBUF_* flags for PyObject_GetBuffer.
+ *  @param[out] backing Storage for shape/strides (used only on fallback path).
+ *  @return 1 on success, 0 on failure (with Python exception set).
+ */
+int nk_get_buffer(PyObject *obj, Py_buffer *buffer, int flags, nk_buffer_backing_t *backing);
+
+/**
  *  @brief Parse a Python tensor object into MatrixOrVectorView.
  *
  *  Extracts buffer information from any Python object supporting the buffer
- *  protocol. Validates that the tensor is 1D or 2D with contiguous rows.
+ *  protocol or __array_interface__. Validates that the tensor is 1D or 2D
+ *  with contiguous rows.
  *
  *  @param[in] tensor Python object supporting buffer protocol.
  *  @param[out] buffer Output Py_buffer (caller must release with PyBuffer_Release).
  *  @param[out] parsed Output MatrixOrVectorView with extracted metadata.
+ *  @param[out] backing Backing storage for shape/strides.
  *  @return 1 on success, 0 on failure (Python exception set).
  */
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed);
-
-/** @brief Parse a Python buffer format string into a NumKong dtype. */
-int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype);
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing);
 
 /**
  *  @brief Check if a Python object is a numeric scalar.

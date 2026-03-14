@@ -100,19 +100,21 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         }
     }
 
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed))
+    // Convert inputs to buffers
+    nk_buffer_backing_t a_parsed_backing, b_parsed_backing, c_parsed_backing, out_parsed_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_parsed_backing))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || c_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
         PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
         goto cleanup;
     }
-    if (a_parsed.dimensions != b_parsed.dimensions || a_parsed.dimensions != c_parsed.dimensions ||
-        (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
+    if (a_parsed.cols != b_parsed.cols || a_parsed.cols != c_parsed.cols ||
+        (out_obj && a_parsed.cols != out_parsed.cols)) {
         PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
@@ -160,7 +162,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
 
     // nk.fma(a, b, c) → returns new Tensor with α·a·b + β·c
     if (!out_obj) {
-        Py_ssize_t out_shape[1] = {a_parsed.dimensions};
+        Py_ssize_t out_shape[1] = {a_parsed.cols};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
         if (!result_tensor) goto cleanup;
         return_obj = (PyObject *)result_tensor;
@@ -168,14 +170,14 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
     }
     // nk.fma(a, b, c, out=result) → writes into provided buffer, returns None
     else {
-        result_data = out_parsed.start;
+        result_data = out_parsed.data;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     {
         PyThreadState *gil = PyEval_SaveThread();
-        kernel(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
+        kernel(a_parsed.data, b_parsed.data, c_parsed.data, a_parsed.cols, &alpha_buf, &beta_buf, result_data);
         PyEval_RestoreThread(gil);
     }
 cleanup:
@@ -273,15 +275,18 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    nk_buffer_backing_t a_parsed_backing, b_parsed_backing, out_parsed_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing))
+        goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
         PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
         goto cleanup;
     }
-    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
+    if (a_parsed.cols != b_parsed.cols || (out_obj && a_parsed.cols != out_parsed.cols)) {
         PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
@@ -328,7 +333,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // nk.blend(a, b) → returns new Tensor with α·a + β·b
     if (!out_obj) {
-        Py_ssize_t out_shape[1] = {a_parsed.dimensions};
+        Py_ssize_t out_shape[1] = {a_parsed.cols};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
         if (!result_tensor) goto cleanup;
         return_obj = (PyObject *)result_tensor;
@@ -336,14 +341,14 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
     // nk.blend(a, b, out=result) → writes into provided buffer, returns None
     else {
-        result_data = out_parsed.start;
+        result_data = out_parsed.data;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     {
         PyThreadState *gil = PyEval_SaveThread();
-        kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
+        kernel(a_parsed.data, b_parsed.data, a_parsed.cols, &alpha_buf, &beta_buf, result_data);
         PyEval_RestoreThread(gil);
     }
 cleanup:
@@ -436,15 +441,16 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    nk_buffer_backing_t a_parsed_backing, out_parsed_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
         PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
         goto cleanup;
     }
-    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
+    if (out_obj && a_parsed.cols != out_parsed.cols) {
         PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
@@ -490,7 +496,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // nk.scale(a, alpha=2.0, beta=1.0) → returns new Tensor with α·a + β
     if (!out_obj) {
-        Py_ssize_t out_shape[1] = {a_parsed.dimensions};
+        Py_ssize_t out_shape[1] = {a_parsed.cols};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
         if (!result_tensor) goto cleanup;
         return_obj = (PyObject *)result_tensor;
@@ -498,14 +504,14 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     }
     // nk.scale(a, alpha=2.0, out=result) → writes into provided buffer, returns None
     else {
-        result_data = out_parsed.start;
+        result_data = out_parsed.data;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     {
         PyThreadState *gil = PyEval_SaveThread();
-        kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_data);
+        kernel(a_parsed.data, a_parsed.cols, &alpha_buf, &beta_buf, result_data);
         PyEval_RestoreThread(gil);
     }
 cleanup:
@@ -536,16 +542,17 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     PyObject *return_obj = NULL;
     char *cast_staging = NULL;
     Py_buffer a_buffer, out_buffer;
+    nk_buffer_backing_t a_backing, out_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    if (PyObject_GetBuffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (!nk_get_buffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) return NULL;
     if (a_buffer.ndim > NK_TENSOR_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %d exceeds maximum supported rank %d", a_buffer.ndim,
                      NK_TENSOR_MAX_RANK);
         goto cleanup;
     }
-    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
@@ -638,18 +645,19 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     int a_needs_free = 0, b_needs_free = 0;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
+    nk_buffer_backing_t a_backing, b_backing, out_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (!nk_get_buffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) return NULL;
     if (a_buffer.ndim > NK_TENSOR_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %d exceeds maximum supported rank %d", a_buffer.ndim,
                      NK_TENSOR_MAX_RANK);
         goto cleanup;
     }
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
-    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (!nk_get_buffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &b_backing)) goto cleanup;
+    if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
 
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
@@ -836,16 +844,17 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     PyObject *return_obj = NULL;
     char *cast_staging = NULL;
     Py_buffer a_buffer, out_buffer;
+    nk_buffer_backing_t a_backing, out_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    if (PyObject_GetBuffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (!nk_get_buffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) return NULL;
     if (a_buffer.ndim > NK_TENSOR_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %d exceeds maximum supported rank %d", a_buffer.ndim,
                      NK_TENSOR_MAX_RANK);
         goto cleanup;
     }
-    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
@@ -938,18 +947,19 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     int a_needs_free = 0, b_needs_free = 0;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
+    nk_buffer_backing_t a_backing, b_backing, out_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (!nk_get_buffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &a_backing)) return NULL;
     if (a_buffer.ndim > NK_TENSOR_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %d exceeds maximum supported rank %d", a_buffer.ndim,
                      NK_TENSOR_MAX_RANK);
         goto cleanup;
     }
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
-    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (!nk_get_buffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &b_backing)) goto cleanup;
+    if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
 
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
@@ -1222,15 +1232,16 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    nk_buffer_backing_t a_parsed_backing, out_parsed_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
         PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
         goto cleanup;
     }
-    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
+    if (out_obj && a_parsed.cols != out_parsed.cols) {
         PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
@@ -1261,7 +1272,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
 
     // nk.sin(np.float32([0, 1.57, 3.14])) → returns new Tensor with sine values
     if (!out_obj) {
-        Py_ssize_t out_shape[1] = {(Py_ssize_t)a_parsed.dimensions};
+        Py_ssize_t out_shape[1] = {(Py_ssize_t)a_parsed.cols};
         Tensor *result_tensor = Tensor_new(dtype, 1, out_shape);
         if (!result_tensor) { goto cleanup; }
         return_obj = (PyObject *)result_tensor;
@@ -1269,14 +1280,14 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
     }
     // nk.sin(angles, out=result) → writes into provided buffer, returns None
     else {
-        result_data = out_parsed.start;
+        result_data = out_parsed.data;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     {
         PyThreadState *gil = PyEval_SaveThread();
-        kernel(a_parsed.start, a_parsed.dimensions, result_data);
+        kernel(a_parsed.data, a_parsed.cols, result_data);
         PyEval_RestoreThread(gil);
     }
 cleanup:

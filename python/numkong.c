@@ -98,6 +98,7 @@
 #include "each.h"
 #include "mesh.h"
 #include "maxsim.h"
+#include "numpy_interop.h"
 
 nk_capability_t static_capabilities = 0;
 
@@ -296,8 +297,11 @@ nk_dtype_t python_string_to_dtype(char const *name) {
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) return nk_bf16_k;
 
     // FP8 formats (ML-focused 8-bit floats):
-    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3")) return nk_e4m3_k;
-    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2")) return nk_e5m2_k;
+    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3") || same_string(name, "float8_e4m3fn") ||
+             same_string(name, "float8_e4m3fnuz"))
+        return nk_e4m3_k;
+    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2") || same_string(name, "float8_e5m2fnuz"))
+        return nk_e5m2_k;
 
     // FP6 formats (MX-focused 6-bit floats):
     else if (same_string(name, "e2m3") || same_string(name, "float6_e2m3")) return nk_e2m3_k;
@@ -572,11 +576,134 @@ int get_scalar_value(PyObject *obj, double *value) {
     return 0;
 }
 
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed) {
-    if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
+/** @brief Fallback: synthesize a Py_buffer from __array_interface__. */
+static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, nk_buffer_backing_t *backing) {
+    PyObject *iface = PyObject_GetAttrString(obj, "__array_interface__");
+    if (!iface) {
+        PyErr_Clear();
         return 0;
     }
+    if (!PyDict_Check(iface)) {
+        Py_DECREF(iface);
+        return 0;
+    }
+
+    // Extract data pointer from dict["data"][0].
+    PyObject *data_tuple = PyDict_GetItemString(iface, "data");
+    if (!data_tuple || !PyTuple_Check(data_tuple) || PyTuple_GET_SIZE(data_tuple) < 1) {
+        Py_DECREF(iface);
+        PyErr_SetString(PyExc_TypeError, "__array_interface__['data'] must be a tuple of (ptr, readonly)");
+        return 0;
+    }
+    void *data_ptr = PyLong_AsVoidPtr(PyTuple_GET_ITEM(data_tuple, 0));
+    if (!data_ptr && PyErr_Occurred()) {
+        Py_DECREF(iface);
+        return 0;
+    }
+
+    // Extract shape tuple.
+    PyObject *shape_obj = PyDict_GetItemString(iface, "shape");
+    if (!shape_obj || !PyTuple_Check(shape_obj)) {
+        Py_DECREF(iface);
+        PyErr_SetString(PyExc_TypeError, "__array_interface__['shape'] must be a tuple");
+        return 0;
+    }
+    Py_ssize_t rank = PyTuple_GET_SIZE(shape_obj);
+    if (rank < 1 || rank > NK_TENSOR_MAX_RANK) {
+        Py_DECREF(iface);
+        PyErr_Format(PyExc_ValueError, "Tensor rank %zd exceeds maximum supported rank %d", rank, NK_TENSOR_MAX_RANK);
+        return 0;
+    }
+    for (Py_ssize_t i = 0; i < rank; i++) {
+        backing->shape[i] = PyLong_AsSsize_t(PyTuple_GET_ITEM(shape_obj, i));
+        if (backing->shape[i] == -1 && PyErr_Occurred()) {
+            Py_DECREF(iface);
+            return 0;
+        }
+    }
+
+    // Resolve dtype: try obj.dtype.name first, then dict["typestr"].
+    nk_dtype_t dtype = nk_dtype_unknown_k;
+    PyObject *dtype_attr = PyObject_GetAttrString(obj, "dtype");
+    if (dtype_attr) {
+        PyObject *name_attr = PyObject_GetAttrString(dtype_attr, "name");
+        if (name_attr) {
+            char const *name_str = PyUnicode_AsUTF8(name_attr);
+            if (name_str) dtype = python_string_to_dtype(name_str);
+            Py_DECREF(name_attr);
+        }
+        else { PyErr_Clear(); }
+        Py_DECREF(dtype_attr);
+    }
+    else { PyErr_Clear(); }
+
+    if (dtype == nk_dtype_unknown_k) {
+        PyObject *typestr_obj = PyDict_GetItemString(iface, "typestr");
+        if (typestr_obj) {
+            char const *typestr = PyUnicode_AsUTF8(typestr_obj);
+            if (typestr) dtype = python_string_to_dtype(typestr);
+        }
+    }
+    if (dtype == nk_dtype_unknown_k) {
+        Py_DECREF(iface);
+        PyErr_SetString(PyExc_ValueError, "Cannot determine dtype from __array_interface__");
+        return 0;
+    }
+
+    nk_dtype_info_t const *info = dtype_info(dtype);
+    if (!info) {
+        Py_DECREF(iface);
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype from __array_interface__");
+        return 0;
+    }
+    Py_ssize_t itemsize = (Py_ssize_t)info->item_size;
+
+    // Extract strides (may be None for C-contiguous arrays).
+    PyObject *strides_obj = PyDict_GetItemString(iface, "strides");
+    if (strides_obj && PyTuple_Check(strides_obj) && PyTuple_GET_SIZE(strides_obj) == rank) {
+        for (Py_ssize_t i = 0; i < rank; i++) {
+            backing->strides[i] = PyLong_AsSsize_t(PyTuple_GET_ITEM(strides_obj, i));
+            if (backing->strides[i] == -1 && PyErr_Occurred()) {
+                Py_DECREF(iface);
+                return 0;
+            }
+        }
+    }
+    else {
+        // C-contiguous: compute strides from shape x itemsize.
+        Py_ssize_t stride = itemsize;
+        for (Py_ssize_t i = rank - 1; i >= 0; i--) {
+            backing->strides[i] = stride;
+            stride *= backing->shape[i];
+        }
+    }
+    Py_DECREF(iface);
+
+    // Populate the Py_buffer so callers can read shape/strides/itemsize uniformly.
+    memset(buffer, 0, sizeof(*buffer));
+    buffer->buf = data_ptr;
+    buffer->itemsize = itemsize;
+    buffer->format = (char *)info->buffer_format;
+    buffer->ndim = (int)rank;
+    buffer->len = itemsize;
+    for (Py_ssize_t i = 0; i < rank; i++) buffer->len *= backing->shape[i];
+    buffer->shape = backing->shape;
+    buffer->strides = backing->strides;
+    buffer->obj = NULL; // Makes PyBuffer_Release a no-op.
+    return 1;
+}
+
+int nk_get_buffer(PyObject *obj, Py_buffer *buffer, int flags, nk_buffer_backing_t *backing) {
+    if (PyObject_GetBuffer(obj, buffer, flags) == 0) return 1;
+    PyErr_Clear();
+    if (nk_get_buffer_via_array_interface(obj, buffer, backing)) return 1;
+    if (!PyErr_Occurred())
+        PyErr_SetString(PyExc_TypeError, "argument must support buffer protocol or __array_interface__");
+    return 0;
+}
+
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing) {
+    if (!nk_get_buffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT, backing)) return 0;
 
     if (buffer->ndim > NK_TENSOR_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %d exceeds maximum supported rank %d", buffer->ndim,
@@ -585,11 +712,8 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
         return 0;
     }
 
-    parsed->start = buffer->buf;
-    // If the source object is a Tensor, use its dtype directly —
-    // the PEP 3118 format string may be a placeholder for exotic types.
-    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) parsed->dtype = ((Tensor *)buffer->obj)->dtype;
-    else parsed->dtype = python_string_to_dtype(buffer->format);
+    parsed->data = buffer->buf;
+    parsed->dtype = dtype_from_buffer(buffer);
     if (parsed->dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
         PyBuffer_Release(buffer);
@@ -603,9 +727,9 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
             PyBuffer_Release(buffer);
             return 0;
         }
-        parsed->dimensions = buffer->shape[0];
-        parsed->count = 1;
-        parsed->stride = 0;
+        parsed->cols = buffer->shape[0];
+        parsed->rows = 1;
+        parsed->row_stride = 0;
     }
     else if (buffer->ndim == 2) {
         if (buffer->strides[1] > buffer->itemsize) {
@@ -613,9 +737,9 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
             PyBuffer_Release(buffer);
             return 0;
         }
-        parsed->dimensions = buffer->shape[1];
-        parsed->count = buffer->shape[0];
-        parsed->stride = buffer->strides[0];
+        parsed->cols = buffer->shape[1];
+        parsed->rows = buffer->shape[0];
+        parsed->row_stride = buffer->strides[0];
     }
     else {
         PyErr_SetString(PyExc_ValueError, "Input tensors must be 1D or 2D");
@@ -1074,5 +1198,9 @@ PyMODINIT_FUNC PyInit_numkong(void) {
         Py_XDECREF(m);
         return NULL;
     }
+
+    // Register NumPy custom dtypes (non-fatal if NumPy is not installed).
+    if (nk_register_numpy_dtypes(m) < 0) PyErr_Clear();
+
     return m;
 }

@@ -40,6 +40,9 @@ Stats:
     NK_MATRIX_DEPTH       GEMM K dimensions (default: "1536")
     NK_SEED               Deterministic seed for np.random (default: None = OS entropy)
     NK_REPETITIONS        Override randomized test repeat count (default: 10)
+    NK_SPARSE_DIMENSIONS  Universe size for sparse tests (default: "256")
+    NK_MESH_POINTS        Point count for mesh alignment tests (default: 100)
+    NK_MAX_COORD_ANGLE  Maximum angle in degrees for geospatial (default: 180)
 """
 
 from __future__ import annotations
@@ -86,6 +89,16 @@ matrix_widths: list[int] = (
 matrix_depths: list[int] = (
     [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_DEPTH")) is not None else [1536]
 )
+
+sparse_dimensions: list[int] = (
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_SPARSE_DIMENSIONS")) is not None
+    else [256]
+)
+
+mesh_points: int = int(s) if (s := os.environ.get("NK_MESH_POINTS")) is not None else 100
+
+max_coord_angle: float = float(s) if (s := os.environ.get("NK_MAX_COORD_ANGLE")) is not None else 180.0
 
 try:
     import numpy as np
@@ -143,6 +156,17 @@ NATIVE_COMPUTE_DTYPE: dict[str, type] = (
     if numpy_available
     else {}
 )
+
+
+PACKING_GRANULARITY: dict[str, int] = {
+    "int4": 2,
+    "uint4": 2,
+    "uint1": 8,
+}
+
+def round_up_to(value: int, multiple: int) -> int:
+    """Round *value* up to the nearest multiple of *multiple*."""
+    return (value + multiple - 1) // multiple * multiple
 
 
 DECIMAL_PRECISION = 120

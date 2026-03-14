@@ -2049,8 +2049,11 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$s", (char **)kwlist, &source, &dtype_str)) return NULL;
 
     Py_buffer buf;
-    if (PyObject_GetBuffer(source, &buf, PyBUF_FULL_RO) != 0) {
-        PyErr_SetString(PyExc_TypeError, "Tensor() requires an object supporting the buffer protocol");
+    nk_buffer_backing_t backing;
+    if (!nk_get_buffer(source, &buf, PyBUF_FULL_RO, &backing)) {
+        if (!PyErr_Occurred())
+            PyErr_SetString(PyExc_TypeError,
+                            "Tensor() requires an object supporting the buffer protocol or __array_interface__");
         return NULL;
     }
 
@@ -2069,11 +2072,10 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
             return NULL;
         }
     }
-    else if (buf.obj && PyObject_TypeCheck(buf.obj, &TensorType)) { dtype = ((Tensor *)buf.obj)->dtype; }
     else {
-        char const *fmt = buf.format ? buf.format : "B";
-        dtype = python_string_to_dtype(fmt);
+        dtype = dtype_from_buffer(&buf);
         if (dtype == nk_dtype_unknown_k) {
+            char const *fmt = buf.format ? buf.format : "(null)";
             PyBuffer_Release(&buf);
             PyErr_Format(PyExc_TypeError, "Cannot determine dtype from buffer format '%s'", fmt);
             return NULL;

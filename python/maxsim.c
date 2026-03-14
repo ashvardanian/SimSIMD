@@ -210,8 +210,9 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     }
 
     Py_buffer b_buffer;
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
+    nk_buffer_backing_t b_backing;
+    if (!nk_get_buffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &b_backing)) {
+        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol or __array_interface__");
         return NULL;
     }
 
@@ -221,8 +222,9 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
         return NULL;
     }
 
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&b_buffer, &src_dtype)) {
+    nk_dtype_t src_dtype = dtype_from_buffer(&b_buffer);
+    if (src_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", b_buffer.format);
         PyBuffer_Release(&b_buffer);
         return NULL;
     }
@@ -447,18 +449,19 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
 
     Py_buffer queries_buffer, documents_buffer;
+    nk_buffer_backing_t queries_backing, documents_backing;
     int have_queries = 0, have_documents = 0;
     PyObject *return_obj = NULL;
     MaxSimPackedMatrix *q_packed = NULL, *d_packed = NULL;
 
-    if (PyObject_GetBuffer(queries_obj, &queries_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "queries must support buffer protocol");
+    if (!nk_get_buffer(queries_obj, &queries_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &queries_backing)) {
+        PyErr_SetString(PyExc_TypeError, "queries must support buffer protocol or __array_interface__");
         return NULL;
     }
     have_queries = 1;
 
-    if (PyObject_GetBuffer(documents_obj, &documents_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "documents must support buffer protocol");
+    if (!nk_get_buffer(documents_obj, &documents_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &documents_backing)) {
+        PyErr_SetString(PyExc_TypeError, "documents must support buffer protocol or __array_interface__");
         goto cleanup;
     }
     have_documents = 1;
@@ -469,9 +472,16 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
 
     {
-        nk_dtype_t queries_dtype, documents_dtype;
-        if (!buffer_dtype(&queries_buffer, &queries_dtype)) goto cleanup;
-        if (!buffer_dtype(&documents_buffer, &documents_dtype)) goto cleanup;
+        nk_dtype_t queries_dtype = dtype_from_buffer(&queries_buffer);
+        if (queries_dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", queries_buffer.format);
+            goto cleanup;
+        }
+        nk_dtype_t documents_dtype = dtype_from_buffer(&documents_buffer);
+        if (documents_dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", documents_buffer.format);
+            goto cleanup;
+        }
 
         if (queries_dtype != target_dtype) {
             PyErr_Format(PyExc_TypeError, "queries dtype '%s' does not match target dtype '%s'",

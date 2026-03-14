@@ -96,19 +96,22 @@ static PyObject *implement_dense_metric( //
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    nk_buffer_backing_t a_backing, b_backing, out_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+        goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
 
     // Check dimensions
-    if (a_parsed.dimensions != b_parsed.dimensions) {
+    if (a_parsed.cols != b_parsed.cols) {
         PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
-    if (a_parsed.count == 0 || b_parsed.count == 0) {
+    if (a_parsed.rows == 0 || b_parsed.rows == 0) {
         PyErr_SetString(PyExc_ValueError, "Collections can't be empty");
         goto cleanup;
     }
-    if (a_parsed.count > 1 && b_parsed.count > 1 && a_parsed.count != b_parsed.count) {
+    if (a_parsed.rows > 1 && b_parsed.rows > 1 && a_parsed.rows != b_parsed.rows) {
         PyErr_SetString(PyExc_ValueError, "Collections must have the same number of elements or just one element");
         goto cleanup;
     }
@@ -121,16 +124,14 @@ static PyObject *implement_dense_metric( //
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
-    // When a dtype override (or a sub-byte buffer type like bool) reinterprets
-    // elements at a different width than the buffer protocol reports, rescale
-    // dimensions so the SIMD kernel receives logical element counts.
-    // Examples: uint8 → uint1 (×8), bool → uint1 (×8), float32 → complex64 (÷2).
+    // When a dtype override reinterprets elements at a different width, rescale dimensions.
+    size_t a_cols = a_parsed.cols, b_cols = b_parsed.cols;
     {
         nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);
         if (from_bits && to_bits && from_bits != to_bits) {
-            a_parsed.dimensions = a_parsed.dimensions * from_bits / to_bits;
-            b_parsed.dimensions = b_parsed.dimensions * from_bits / to_bits;
+            a_cols = a_cols * from_bits / to_bits;
+            b_cols = b_cols * from_bits / to_bits;
         }
     }
 
@@ -182,19 +183,18 @@ static PyObject *implement_dense_metric( //
     nk_dtype_t const kernel_out_dtype = nk_kernel_output_dtype(metric_kind, dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
         nk_scalar_buffer_t distance;
-        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
+        metric(a_parsed.data, b_parsed.data, a_cols, &distance);
         return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
         goto cleanup;
     }
 
-    // In some batch requests we may be computing the distance from multiple vectors to one,
-    // so the stride must be set to zero avoid illegal memory access
-    if (a_parsed.count == 1) a_parsed.stride = 0;
-    if (b_parsed.count == 1) b_parsed.stride = 0;
+    // Local working copies for broadcast stride override
+    size_t a_row_stride = a_parsed.rows == 1 ? 0 : a_parsed.row_stride;
+    size_t b_row_stride = b_parsed.rows == 1 ? 0 : b_parsed.row_stride;
 
     // We take the maximum of the two counts, because if only one entry is present in one of the arrays,
     // all distances will be computed against that single entry.
-    size_t const count_pairs = a_parsed.count > b_parsed.count ? a_parsed.count : b_parsed.count;
+    size_t const count_pairs = a_parsed.rows > b_parsed.rows ? a_parsed.rows : b_parsed.rows;
     char *distances_start = NULL;
     size_t distances_stride_bytes = 0;
 
@@ -216,7 +216,7 @@ static PyObject *implement_dense_metric( //
                 dtype_to_python_string(out_parsed.dtype));
             goto cleanup;
         }
-        distances_start = (char *)&out_parsed.start[0];
+        distances_start = out_parsed.data;
         distances_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
@@ -230,10 +230,10 @@ static PyObject *implement_dense_metric( //
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
         nk_scalar_buffer_t result;
-        metric(                                   //
-            a_parsed.start + i * a_parsed.stride, //
-            b_parsed.start + i * b_parsed.stride, //
-            a_parsed.dimensions,                  //
+        metric(                               //
+            a_parsed.data + i * a_row_stride, //
+            b_parsed.data + i * b_row_stride, //
+            a_cols,                           //
             &result);
 
         // Export out:
@@ -316,9 +316,11 @@ static PyObject *implement_curved_metric( //
         }
     }
 
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed))
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `c_obj`.
+    nk_buffer_backing_t a_backing, b_backing, c_backing;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_backing))
         goto cleanup;
 
     // Check dimensions
@@ -330,11 +332,11 @@ static PyObject *implement_curved_metric( //
         PyErr_SetString(PyExc_ValueError, "Third argument must be a matrix (rank-2 tensor)");
         goto cleanup;
     }
-    if (a_parsed.count == 0 || b_parsed.count == 0) {
+    if (a_parsed.rows == 0 || b_parsed.rows == 0) {
         PyErr_SetString(PyExc_ValueError, "Collections can't be empty");
         goto cleanup;
     }
-    if (a_parsed.count > 1 && b_parsed.count > 1 && a_parsed.count != b_parsed.count) {
+    if (a_parsed.rows > 1 && b_parsed.rows > 1 && a_parsed.rows != b_parsed.rows) {
         PyErr_SetString(PyExc_ValueError, "Collections must have the same number of elements or just one element");
         goto cleanup;
     }
@@ -368,7 +370,7 @@ static PyObject *implement_curved_metric( //
     // Return a scalar
     nk_dtype_t const kernel_out_dtype = nk_kernel_output_dtype(metric_kind, dtype);
     nk_scalar_buffer_t distance;
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distance);
+    metric(a_parsed.data, b_parsed.data, c_parsed.data, a_parsed.cols, &distance);
     return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
 
 cleanup:
@@ -452,12 +454,13 @@ static PyObject *implement_geospatial_metric( //
     }
 
     // Convert input objects to buffers
-    if (!parse_tensor(a_lats_obj, &a_lats_buffer, &a_lats_parsed) ||
-        !parse_tensor(a_lons_obj, &a_lons_buffer, &a_lons_parsed) ||
-        !parse_tensor(b_lats_obj, &b_lats_buffer, &b_lats_parsed) ||
-        !parse_tensor(b_lons_obj, &b_lons_buffer, &b_lons_parsed))
+    nk_buffer_backing_t a_lats_backing, a_lons_backing, b_lats_backing, b_lons_backing, out_backing;
+    if (!parse_tensor(a_lats_obj, &a_lats_buffer, &a_lats_parsed, &a_lats_backing) ||
+        !parse_tensor(a_lons_obj, &a_lons_buffer, &a_lons_parsed, &a_lons_backing) ||
+        !parse_tensor(b_lats_obj, &b_lats_buffer, &b_lats_parsed, &b_lats_backing) ||
+        !parse_tensor(b_lons_obj, &b_lons_buffer, &b_lons_parsed, &b_lons_backing))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
 
     // Check dimensions: all inputs must be 1D vectors of equal length
     if (a_lats_parsed.rank != 1 || a_lons_parsed.rank != 1 || b_lats_parsed.rank != 1 || b_lons_parsed.rank != 1) {
@@ -465,8 +468,8 @@ static PyObject *implement_geospatial_metric( //
         goto cleanup;
     }
     // For geospatial, n is the number of coordinate pairs (shape[0] for 1D arrays)
-    size_t const n = a_lats_parsed.dimensions;
-    if (a_lons_parsed.dimensions != n || b_lats_parsed.dimensions != n || b_lons_parsed.dimensions != n) {
+    size_t const n = a_lats_parsed.cols;
+    if (a_lons_parsed.cols != n || b_lats_parsed.cols != n || b_lons_parsed.cols != n) {
         PyErr_SetString(PyExc_ValueError, "All coordinate arrays must have the same length");
         goto cleanup;
     }
@@ -506,17 +509,17 @@ static PyObject *implement_geospatial_metric( //
         distances_start = distances_obj->data;
     }
     else {
-        if (out_parsed.dimensions < n) {
+        if (out_parsed.cols < n) {
             PyErr_SetString(PyExc_ValueError, "Output array is too small");
             goto cleanup;
         }
-        distances_start = out_parsed.start;
+        distances_start = out_parsed.data;
         return_obj = Py_None;
         Py_INCREF(Py_None);
     }
 
     // Call the kernel
-    metric(a_lats_parsed.start, a_lons_parsed.start, b_lats_parsed.start, b_lons_parsed.start, n, distances_start);
+    metric(a_lats_parsed.data, a_lons_parsed.data, b_lats_parsed.data, b_lons_parsed.data, n, distances_start);
 
 cleanup:
     if (a_lats_buffer.buf) PyBuffer_Release(&a_lats_buffer);
@@ -541,9 +544,12 @@ static PyObject *implement_sparse_metric( //
 
     Py_buffer a_buffer, b_buffer;
     MatrixOrVectorView a_parsed, b_parsed;
+    nk_buffer_backing_t a_backing, b_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) goto cleanup;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+        goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1) {
@@ -573,7 +579,7 @@ static PyObject *implement_sparse_metric( //
     }
 
     nk_size_t count = 0;
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, NULL, &count);
+    metric(a_parsed.data, b_parsed.data, a_parsed.cols, b_parsed.cols, NULL, &count);
     return_obj = PyLong_FromSize_t(count);
 
 cleanup:
@@ -704,27 +710,29 @@ static PyObject *implement_cdist(                        //
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     MatrixOrVectorView a_parsed, b_parsed, out_parsed;
+    nk_buffer_backing_t a_backing, b_backing, out_backing;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
     // Error will be set by `parse_tensor` if the input is invalid
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_backing) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_backing))
+        goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_backing)) goto cleanup;
 
     // Check dimensions
-    if (a_parsed.dimensions != b_parsed.dimensions) {
-        PyErr_Format(PyExc_ValueError, "Vector dimensions don't match (%zu != %zu)", a_parsed.dimensions,
-                     b_parsed.dimensions);
+    if (a_parsed.cols != b_parsed.cols) {
+        PyErr_Format(PyExc_ValueError, "Vector dimensions don't match (%zu != %zu)", a_parsed.cols, b_parsed.cols);
         goto cleanup;
     }
-    if (a_parsed.count == 0 || b_parsed.count == 0) {
+    if (a_parsed.rows == 0 || b_parsed.rows == 0) {
         PyErr_SetString(PyExc_ValueError, "Collections can't be empty");
         goto cleanup;
     }
     if (out_obj &&
-        (out_parsed.rank != 2 || out_buffer.shape[0] != a_parsed.count || out_buffer.shape[1] != b_parsed.count)) {
-        PyErr_Format(PyExc_ValueError, "Output tensor must have shape (%zu, %zu)", a_parsed.count, b_parsed.count);
+        (out_parsed.rank != 2 || out_buffer.shape[0] != a_parsed.rows || out_buffer.shape[1] != b_parsed.rows)) {
+        PyErr_Format(PyExc_ValueError, "Output tensor must have shape (%zu, %zu)", a_parsed.rows, b_parsed.rows);
         goto cleanup;
     }
 
@@ -736,16 +744,14 @@ static PyObject *implement_cdist(                        //
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
-    // When a dtype override (or a sub-byte buffer type like bool) reinterprets
-    // elements at a different width than the buffer protocol reports, rescale
-    // dimensions so the SIMD kernel receives logical element counts.
-    // Examples: uint8 → uint1 (×8), bool → uint1 (×8), float32 → complex64 (÷2).
+    // When a dtype override reinterprets elements at a different width, rescale dimensions.
+    size_t a_cols = a_parsed.cols, b_cols = b_parsed.cols;
     {
         nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);
         if (from_bits && to_bits && from_bits != to_bits) {
-            a_parsed.dimensions = a_parsed.dimensions * from_bits / to_bits;
-            b_parsed.dimensions = b_parsed.dimensions * from_bits / to_bits;
+            a_cols = a_cols * from_bits / to_bits;
+            b_cols = b_cols * from_bits / to_bits;
         }
     }
 
@@ -794,12 +800,12 @@ static PyObject *implement_cdist(                        //
     nk_dtype_t const kernel_out_dtype = nk_kernel_output_dtype(metric_kind, dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
         nk_scalar_buffer_t distance;
-        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
+        metric(a_parsed.data, b_parsed.data, a_cols, &distance);
         return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
         goto cleanup;
     }
 
-    size_t const count_pairs = a_parsed.count * b_parsed.count;
+    size_t const count_pairs = a_parsed.rows * b_parsed.rows;
     char *distances_start = NULL;
     size_t distances_rows_stride_bytes = 0;
     size_t distances_cols_stride_bytes = 0;
@@ -807,7 +813,7 @@ static PyObject *implement_cdist(                        //
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
 
-        Py_ssize_t cdist_shape[2] = {(Py_ssize_t)a_parsed.count, (Py_ssize_t)b_parsed.count};
+        Py_ssize_t cdist_shape[2] = {(Py_ssize_t)a_parsed.rows, (Py_ssize_t)b_parsed.rows};
         Tensor *distances_obj = Tensor_new(out_dtype, 2, cdist_shape);
         if (!distances_obj) { goto cleanup; }
         return_obj = (PyObject *)distances_obj;
@@ -824,7 +830,7 @@ static PyObject *implement_cdist(                        //
                 dtype_to_python_string(out_parsed.dtype));
             goto cleanup;
         }
-        distances_start = (char *)&out_parsed.start[0];
+        distances_start = out_parsed.data;
         distances_rows_stride_bytes = out_buffer.strides[0];
         distances_cols_stride_bytes = out_buffer.strides[1];
         //? Logic suggests to return `None` in in-place mode...
@@ -836,8 +842,8 @@ static PyObject *implement_cdist(                        //
     // Release the GIL for the compute-intensive section.
     PyThreadState *save = PyEval_SaveThread();
 
-    int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.start == b_parsed.start &&
-                             a_parsed.stride == b_parsed.stride && a_parsed.count == b_parsed.count;
+    int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.data == b_parsed.data &&
+                             a_parsed.row_stride == b_parsed.row_stride && a_parsed.rows == b_parsed.rows;
 
     // Batch kernels write typed values directly into the output buffer, so we can only use them
     // when the output dtype matches the kernel's native output dtype exactly.
@@ -848,13 +854,13 @@ static PyObject *implement_cdist(                        //
 
     // Try symmetric batch path first (A x A^T, no packing needed)
     if (has_batch && dtype_ok && is_symmetric)
-        batch_result = cdist_batch_symmetric(symmetric_kind, dtype, a_parsed.start, a_parsed.count, a_parsed.dimensions,
-                                             a_parsed.stride, distances_start, distances_rows_stride_bytes);
+        batch_result = cdist_batch_symmetric(symmetric_kind, dtype, a_parsed.data, a_parsed.rows, a_cols,
+                                             a_parsed.row_stride, distances_start, distances_rows_stride_bytes);
 
     // Symmetric kernel only writes upper triangle; mirror to lower.
     if (batch_result == 0 && is_symmetric) {
         size_t const elem_size = bytes_per_dtype(out_dtype);
-        for (size_t i = 1; i < a_parsed.count; ++i)
+        for (size_t i = 1; i < a_parsed.rows; ++i)
             for (size_t j = 0; j < i; ++j)
                 memcpy(distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes,
                        distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, elem_size);
@@ -862,14 +868,14 @@ static PyObject *implement_cdist(                        //
 
     // Try packed batch path (A x B_packed)
     if (has_batch && dtype_ok && !is_symmetric && batch_result != 0)
-        batch_result = cdist_batch_packed(packed_kind, dtype, a_parsed.start, a_parsed.count, a_parsed.stride,
-                                          b_parsed.start, b_parsed.count, b_parsed.stride, a_parsed.dimensions,
-                                          distances_start, distances_rows_stride_bytes);
+        batch_result = cdist_batch_packed(packed_kind, dtype, a_parsed.data, a_parsed.rows, a_parsed.row_stride,
+                                          b_parsed.data, b_parsed.rows, b_parsed.row_stride, a_cols, distances_start,
+                                          distances_rows_stride_bytes);
 
     // Fall back to scalar pairwise loop
     if (batch_result != 0)
-        cdist_pairwise_loop(metric, a_parsed.start, a_parsed.count, a_parsed.stride, b_parsed.start, b_parsed.count,
-                            b_parsed.stride, a_parsed.dimensions, kernel_out_dtype, out_dtype, distances_start,
+        cdist_pairwise_loop(metric, a_parsed.data, a_parsed.rows, a_parsed.row_stride, b_parsed.data, b_parsed.rows,
+                            b_parsed.row_stride, a_cols, kernel_out_dtype, out_dtype, distances_start,
                             distances_rows_stride_bytes, distances_cols_stride_bytes, is_symmetric);
 
     PyEval_RestoreThread(save);
@@ -1352,6 +1358,7 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 
     Py_buffer a_idx_buf, a_val_buf, b_idx_buf, b_val_buf;
     MatrixOrVectorView a_idx, a_val, b_idx, b_val;
+    nk_buffer_backing_t a_idx_backing, a_val_backing, b_idx_backing, b_val_backing;
     memset(&a_idx_buf, 0, sizeof(Py_buffer));
     memset(&a_val_buf, 0, sizeof(Py_buffer));
     memset(&b_idx_buf, 0, sizeof(Py_buffer));
@@ -1359,8 +1366,10 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 
     PyObject *return_obj = NULL;
 
-    if (!parse_tensor(args[0], &a_idx_buf, &a_idx) || !parse_tensor(args[1], &a_val_buf, &a_val) ||
-        !parse_tensor(args[2], &b_idx_buf, &b_idx) || !parse_tensor(args[3], &b_val_buf, &b_val)) {
+    if (!parse_tensor(args[0], &a_idx_buf, &a_idx, &a_idx_backing) ||
+        !parse_tensor(args[1], &a_val_buf, &a_val, &a_val_backing) ||
+        !parse_tensor(args[2], &b_idx_buf, &b_idx, &b_idx_backing) ||
+        !parse_tensor(args[3], &b_val_buf, &b_val, &b_val_backing)) {
         // Already uses goto-safe cleanup since buffers are zero-initialized and
         // PyBuffer_Release checks .buf before releasing.
         goto cleanup;
@@ -1372,7 +1381,7 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
         goto cleanup;
     }
     // Index lengths must match their value lengths
-    if (a_idx.dimensions != a_val.dimensions || b_idx.dimensions != b_val.dimensions) {
+    if (a_idx.cols != a_val.cols || b_idx.cols != b_val.cols) {
         PyErr_SetString(PyExc_ValueError, "Index and value arrays must have the same length");
         goto cleanup;
     }
@@ -1410,7 +1419,7 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 
     nk_scalar_buffer_t product = {0};
     nk_dtype_t product_dtype = nk_kernel_output_dtype(nk_kernel_sparse_dot_k, dispatch_dtype);
-    kernel(a_idx.start, b_idx.start, a_val.start, b_val.start, a_idx.dimensions, b_idx.dimensions, &product);
+    kernel(a_idx.data, b_idx.data, a_val.data, b_val.data, a_idx.cols, b_idx.cols, &product);
     return_obj = scalar_to_py_number(&product, product_dtype);
 
 cleanup:
