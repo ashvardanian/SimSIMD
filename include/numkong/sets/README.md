@@ -119,18 +119,18 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                             |                     256³ |                    1024³ |                    4096³ |
 | :--------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u1__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_hammings_packed_u1_serial`     |                119 gso/s |                156 gso/s |                173 gso/s |
-| `nk_hammings_symmetric_u1_serial`  |               74.5 gso/s |                122 gso/s |                282 gso/s |
-| `nk_jaccards_packed_u1_serial`     |        89.5 gso/s, 0 ulp |         143 gso/s, 0 ulp |         169 gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_serial`  |        63.6 gso/s, 0 ulp |         113 gso/s, 0 ulp |     280 gso/s, 5.59M ulp |
-| `nk_hammings_packed_u1_neon`       |                215 gso/s |                313 gso/s |                351 gso/s |
-| `nk_hammings_symmetric_u1_neon`    |               93.9 gso/s |                172 gso/s |                422 gso/s |
-| `nk_jaccards_packed_u1_neon`       |       185 gso/s, 8.6 ulp |       298 gso/s, 8.6 ulp |       347 gso/s, 8.6 ulp |
-| `nk_jaccards_symmetric_u1_neon`    |      90.1 gso/s, 8.5 ulp |       167 gso/s, 8.5 ulp |     410 gso/s, 5.59M ulp |
-| `nk_hammings_packed_u1_smebi32`    |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_hammings_symmetric_u1_smebi32` |                  ? gso/s |                  ? gso/s |                  ? gso/s |
-| `nk_jaccards_packed_u1_smebi32`    |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
-| `nk_jaccards_symmetric_u1_smebi32` |           ? gso/s, ? ulp |           ? gso/s, ? ulp |           ? gso/s, ? ulp |
+| `nk_hammings_packed_u1_serial`     |                154 gso/s |                204 gso/s |                221 gso/s |
+| `nk_hammings_symmetric_u1_serial`  |                101 gso/s |                159 gso/s |                172 gso/s |
+| `nk_jaccards_packed_u1_serial`     |         116 gso/s, 0 ulp |         203 gso/s, 0 ulp |         232 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`  |        86.3 gso/s, 0 ulp |         157 gso/s, 0 ulp |         176 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_neon`       |                315 gso/s |                428 gso/s |                481 gso/s |
+| `nk_hammings_symmetric_u1_neon`    |                132 gso/s |                240 gso/s |                294 gso/s |
+| `nk_jaccards_packed_u1_neon`       |       266 gso/s, 8.6 ulp |       416 gso/s, 8.6 ulp |       488 gso/s, 8.6 ulp |
+| `nk_jaccards_symmetric_u1_neon`    |       129 gso/s, 8.5 ulp |       242 gso/s, 8.5 ulp |       294 gso/s, 8.5 ulp |
+| `nk_hammings_packed_u1_smebi32`    |              1,420 gso/s |              2,928 gso/s |              4,027 gso/s |
+| `nk_hammings_symmetric_u1_smebi32` |                629 gso/s |              1,438 gso/s |              1,111 gso/s |
+| `nk_jaccards_packed_u1_smebi32`    |         273 gso/s, 0 ulp |       1,381 gso/s, 0 ulp |       3,280 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_smebi32` |        45.1 gso/s, 0 ulp |         267 gso/s, 0 ulp |         618 gso/s, 0 ulp |
 
 #### WASM
 

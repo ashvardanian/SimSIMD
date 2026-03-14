@@ -141,7 +141,7 @@
 // Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
 #if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)
 #if defined(__wasm_relaxed_simd__)
-#define NK_TARGET_V128RELAXED NK_TARGET_WASM_
+#define NK_TARGET_V128RELAXED 1
 #else
 #undef NK_TARGET_V128RELAXED
 #define NK_TARGET_V128RELAXED 0
@@ -151,7 +151,7 @@
 // Compiling for RISC-V Vector: NK_TARGET_RVV
 #if !defined(NK_TARGET_RVV) || (NK_TARGET_RVV && !NK_TARGET_RISCV_)
 #if defined(__riscv_v) && (__riscv_v >= 1000000)
-#define NK_TARGET_RVV NK_TARGET_RISCV_
+#define NK_TARGET_RVV 1
 #else
 #undef NK_TARGET_RVV
 #define NK_TARGET_RVV 0
@@ -162,7 +162,7 @@
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
 #if !defined(NK_TARGET_RVVHALF) || (NK_TARGET_RVVHALF && !NK_TARGET_RVV)
 #if defined(__riscv_zvfh) && (__riscv_zvfh > 0)
-#define NK_TARGET_RVVHALF NK_TARGET_RVV
+#define NK_TARGET_RVVHALF 1
 #else
 #undef NK_TARGET_RVVHALF
 #define NK_TARGET_RVVHALF 0
@@ -173,7 +173,7 @@
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
 #if !defined(NK_TARGET_RVVBF16) || (NK_TARGET_RVVBF16 && !NK_TARGET_RVV)
 #if defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
-#define NK_TARGET_RVVBF16 NK_TARGET_RVV
+#define NK_TARGET_RVVBF16 1
 #else
 #undef NK_TARGET_RVVBF16
 #define NK_TARGET_RVVBF16 0
@@ -184,7 +184,7 @@
 // Provides vcpop.v (per-element popcount), vclz.v, vctz.v, vbrev.v, vrol.v, vror.v
 #if !defined(NK_TARGET_RVVBB) || (NK_TARGET_RVVBB && !NK_TARGET_RVV)
 #if defined(__riscv_zvbb) && (__riscv_zvbb > 0)
-#define NK_TARGET_RVVBB NK_TARGET_RVV
+#define NK_TARGET_RVVBB 1
 #else
 #undef NK_TARGET_RVVBB
 #define NK_TARGET_RVVBB 0
@@ -194,7 +194,7 @@
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON NK_TARGET_ARM_
+#define NK_TARGET_NEON 1
 #else
 #undef NK_TARGET_NEON
 #define NK_TARGET_NEON 0
@@ -204,7 +204,7 @@
 // Compiling for Arm: NK_TARGET_NEONSDOT
 #if !defined(NK_TARGET_NEONSDOT) || (NK_TARGET_NEONSDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEONSDOT NK_TARGET_ARM_
+#define NK_TARGET_NEONSDOT 1
 #else
 #undef NK_TARGET_NEONSDOT
 #define NK_TARGET_NEONSDOT 0
@@ -214,7 +214,7 @@
 // Compiling for Arm: NK_TARGET_NEONHALF
 #if !defined(NK_TARGET_NEONHALF) || (NK_TARGET_NEONHALF && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEONHALF NK_TARGET_ARM_
+#define NK_TARGET_NEONHALF 1
 #else
 #undef NK_TARGET_NEONHALF
 #define NK_TARGET_NEONHALF 0
@@ -224,7 +224,7 @@
 // Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM - FMLAL/FMLSL widening ops)
 #if !defined(NK_TARGET_NEONFHM) || (NK_TARGET_NEONFHM && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEONFHM NK_TARGET_ARM_
+#define NK_TARGET_NEONFHM 1
 #else
 #undef NK_TARGET_NEONFHM
 #define NK_TARGET_NEONFHM 0
@@ -234,7 +234,7 @@
 // Compiling for Arm: NK_TARGET_NEONBFDOT
 #if !defined(NK_TARGET_NEONBFDOT) || (NK_TARGET_NEONBFDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEONBFDOT NK_TARGET_ARM_
+#define NK_TARGET_NEONBFDOT 1
 #else
 #undef NK_TARGET_NEONBFDOT
 #define NK_TARGET_NEONBFDOT 0
@@ -244,7 +244,7 @@
 // Compiling for Arm: NK_TARGET_SVE
 #if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE NK_TARGET_ARM_
+#define NK_TARGET_SVE 1
 #else
 #undef NK_TARGET_SVE
 #define NK_TARGET_SVE 0
@@ -254,7 +254,7 @@
 // Compiling for Arm: NK_TARGET_SVESDOT
 #if !defined(NK_TARGET_SVESDOT) || (NK_TARGET_SVESDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVESDOT NK_TARGET_ARM_
+#define NK_TARGET_SVESDOT 1
 #else
 #undef NK_TARGET_SVESDOT
 #define NK_TARGET_SVESDOT 0
@@ -264,7 +264,7 @@
 // Compiling for Arm: NK_TARGET_SVEHALF
 #if !defined(NK_TARGET_SVEHALF) || (NK_TARGET_SVEHALF && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVEHALF NK_TARGET_ARM_
+#define NK_TARGET_SVEHALF 1
 #else
 #undef NK_TARGET_SVEHALF
 #define NK_TARGET_SVEHALF 0
@@ -274,7 +274,7 @@
 // Compiling for Arm: NK_TARGET_SVEBFDOT
 #if !defined(NK_TARGET_SVEBFDOT) || (NK_TARGET_SVEBFDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVEBFDOT NK_TARGET_ARM_
+#define NK_TARGET_SVEBFDOT 1
 #else
 #undef NK_TARGET_SVEBFDOT
 #define NK_TARGET_SVEBFDOT 0
@@ -283,68 +283,94 @@
 
 // Compiling for Arm: NK_TARGET_SVE2
 #if !defined(NK_TARGET_SVE2) || (NK_TARGET_SVE2 && !NK_TARGET_ARM_)
-#if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE2 NK_TARGET_ARM_
+#if defined(__ARM_FEATURE_SVE2)
+#define NK_TARGET_SVE2 1
 #else
 #undef NK_TARGET_SVE2
 #define NK_TARGET_SVE2 0
-#endif // defined(__ARM_FEATURE_SVE)
+#endif // defined(__ARM_FEATURE_SVE2)
 #endif // !defined(NK_TARGET_SVE2) || ...
 
 // Compiling for Arm: NK_TARGET_SVE2P1
 #if !defined(NK_TARGET_SVE2P1) || (NK_TARGET_SVE2P1 && !NK_TARGET_ARM_)
-#if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE2P1 NK_TARGET_ARM_
-#else
 #undef NK_TARGET_SVE2P1
 #define NK_TARGET_SVE2P1 0
-#endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(NK_TARGET_SVE2P1) || ...
 
 // Compiling for Arm: NK_TARGET_SME (Scalable Matrix Extension)
 #if !defined(NK_TARGET_SME) || (NK_TARGET_SME && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_SME)
+#define NK_TARGET_SME 1
+#else
 #undef NK_TARGET_SME
 #define NK_TARGET_SME 0
-#endif
+#endif // defined(__ARM_FEATURE_SME)
+#endif // !defined(NK_TARGET_SME) || ...
 
 #if !defined(NK_TARGET_SME2) || (NK_TARGET_SME2 && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_SME2)
+#define NK_TARGET_SME2 1
+#else
 #undef NK_TARGET_SME2
 #define NK_TARGET_SME2 0
-#endif
+#endif // defined(__ARM_FEATURE_SME2)
+#endif // !defined(NK_TARGET_SME2) || ...
 
 #if !defined(NK_TARGET_SME2P1) || (NK_TARGET_SME2P1 && !NK_TARGET_ARM_)
 #undef NK_TARGET_SME2P1
 #define NK_TARGET_SME2P1 0
 #endif
 
+// AppleClang 17 exposes SME sub-features through `arm_sme.h` builtin aliases,
+// not dedicated `__ARM_FEATURE_*` predefines for every matrix subtype.
 #if !defined(NK_TARGET_SMEF64) || (NK_TARGET_SMEF64 && !NK_TARGET_ARM_)
+#if defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za64_f64_m)
+#define NK_TARGET_SMEF64 1
+#else
 #undef NK_TARGET_SMEF64
 #define NK_TARGET_SMEF64 0
-#endif
+#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za64_f64_m)
+#endif // !defined(NK_TARGET_SMEF64) || ...
+
+#if !defined(NK_TARGET_SMEBI32) || (NK_TARGET_SMEBI32 && !NK_TARGET_ARM_)
+#if defined(__has_builtin) && __has_builtin(__builtin_sme_svbmopa_za32_u32_m)
+#define NK_TARGET_SMEBI32 1
+#else
+#undef NK_TARGET_SMEBI32
+#define NK_TARGET_SMEBI32 0
+#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svbmopa_za32_u32_m)
+#endif // !defined(NK_TARGET_SMEBI32) || ...
 
 #if !defined(NK_TARGET_SMEHALF) || (NK_TARGET_SMEHALF && !NK_TARGET_ARM_)
+#if defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_f16_m)
+#define NK_TARGET_SMEHALF 1
+#else
 #undef NK_TARGET_SMEHALF
 #define NK_TARGET_SMEHALF 0
-#endif
+#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_f16_m)
+#endif // !defined(NK_TARGET_SMEHALF) || ...
 
 #if !defined(NK_TARGET_SMEBF16) || (NK_TARGET_SMEBF16 && !NK_TARGET_ARM_)
+#if defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_bf16_m)
+#define NK_TARGET_SMEBF16 1
+#else
 #undef NK_TARGET_SMEBF16
 #define NK_TARGET_SMEBF16 0
-#endif
+#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_bf16_m)
+#endif // !defined(NK_TARGET_SMEBF16) || ...
 
 #if !defined(NK_TARGET_SMELUT2) || (NK_TARGET_SMELUT2 && !NK_TARGET_ARM_)
+#if defined(__has_builtin) && __has_builtin(__builtin_sme_svluti2_lane_zt_u8)
+#define NK_TARGET_SMELUT2 1
+#else
 #undef NK_TARGET_SMELUT2
 #define NK_TARGET_SMELUT2 0
-#endif
+#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svluti2_lane_zt_u8)
+#endif // !defined(NK_TARGET_SMELUT2) || ...
 
 #if !defined(NK_TARGET_SMEFA64) || (NK_TARGET_SMEFA64 && !NK_TARGET_ARM_)
 #undef NK_TARGET_SMEFA64
 #define NK_TARGET_SMEFA64 0
-#endif
-
-#if !defined(NK_TARGET_SMEBI32) || (NK_TARGET_SMEBI32 && !NK_TARGET_ARM_)
-#undef NK_TARGET_SMEBI32
-#define NK_TARGET_SMEBI32 0
 #endif
 
 // Compiling for x86: NK_TARGET_HASWELL
