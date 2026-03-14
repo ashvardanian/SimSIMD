@@ -628,8 +628,8 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
  *  Streaming-compatible f32 dot product with f64 accumulation.
  *  Follows the svcntd()-stride + svcvt_f64_f32_x pattern from nk_dots_reduce_sumsq_f32_ssve_.
  */
-NK_INTERNAL nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                                    //
-    nk_f32_t const *a, nk_f32_t const *b, nk_size_t count) __arm_streaming_compatible { //
+NK_INTERNAL nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                                  //
+    nk_f32_t const *a, nk_f32_t const *b, nk_size_t count) NK_STREAMING_COMPATIBLE_ { //
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     for (nk_size_t i = 0; i < count; i += svcntd()) {
         svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);

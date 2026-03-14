@@ -26,18 +26,27 @@ extern "C" {
 #pragma GCC target("+sme+sme-f64f64")
 #endif
 
-NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_size_t count) __arm_streaming_compatible {
-    svfloat64_t accumulator_f64x = svdup_f64(0.0);
-    nk_size_t const vector_length = svcntd();
+NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+    svfloat64_t accumulator_lo_f64x = svdup_f64(0.0);
+    svfloat64_t accumulator_hi_f64x = svdup_f64(0.0);
+    nk_size_t const vector_length = svcntw();
+    nk_size_t const half_vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);
-        svfloat64_t values_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(svwhilelt_b32_u64(i, count), data + i));
-        accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
+        svbool_t predicate_f32x = svwhilelt_b32_u64(i, count);
+        svfloat32_t values_f32x = svld1_f32(predicate_f32x, data + i);
+
+        svbool_t predicate_lo_f64x = svwhilelt_b64_u64(i, count);
+        svfloat64_t values_lo_f64x = svcvt_f64_f32_x(predicate_lo_f64x, values_f32x);
+        accumulator_lo_f64x = svmla_f64_x(predicate_lo_f64x, accumulator_lo_f64x, values_lo_f64x, values_lo_f64x);
+
+        svbool_t predicate_hi_f64x = svwhilelt_b64_u64(i + half_vector_length, count);
+        svfloat64_t values_hi_f64x = svcvtlt_f64_f32_x(predicate_hi_f64x, values_f32x);
+        accumulator_hi_f64x = svmla_f64_x(predicate_hi_f64x, accumulator_hi_f64x, values_hi_f64x, values_hi_f64x);
     }
-    return svaddv_f64(svptrue_b64(), accumulator_f64x);
+    return svaddv_f64(svptrue_b64(), accumulator_lo_f64x) + svaddv_f64(svptrue_b64(), accumulator_hi_f64x);
 }
 
-NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_size_t count) __arm_streaming_compatible {
+NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -46,6 +55,31 @@ NK_INTERNAL nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_siz
         accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
     }
     return svaddv_f64(svptrue_b64(), accumulator_f64x);
+}
+
+NK_INTERNAL svfloat64_t nk_angulars_from_dot_f64x_ssvef64_(svbool_t predicate_f64x, svfloat64_t dots_f64x,
+                                                           svfloat64_t query_norm_sq_f64x,
+                                                           svfloat64_t target_norms_sq_f64x) NK_STREAMING_COMPATIBLE_ {
+    svfloat64_t norms_product_f64x = svmul_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
+    svbool_t positive_norms_f64x = svcmpgt_n_f64(predicate_f64x, norms_product_f64x, 0.0);
+    svfloat64_t denom_f64x = svsqrt_f64_x(positive_norms_f64x, norms_product_f64x);
+    svfloat64_t safe_denom_f64x = svsel_f64(positive_norms_f64x, denom_f64x, svdup_n_f64(1.0));
+    svfloat64_t normalized_f64x = svdiv_f64_x(predicate_f64x, dots_f64x, safe_denom_f64x);
+    svfloat64_t angular_f64x = svsub_f64_x(predicate_f64x, svdup_n_f64(1.0), normalized_f64x);
+    angular_f64x = svsel_f64(
+        positive_norms_f64x, angular_f64x,
+        svsel_f64(svcmpeq_n_f64(predicate_f64x, dots_f64x, 0.0), svdup_n_f64(0.0), svdup_n_f64(1.0)));
+    return svmax_f64_x(predicate_f64x, angular_f64x, svdup_n_f64(0.0));
+}
+
+NK_INTERNAL svfloat64_t
+nk_euclideans_from_dot_f64x_ssvef64_(svbool_t predicate_f64x, svfloat64_t dots_f64x, svfloat64_t query_norm_sq_f64x,
+                                     svfloat64_t target_norms_sq_f64x) NK_STREAMING_COMPATIBLE_ {
+    svfloat64_t sum_sq_f64x = svadd_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
+    svfloat64_t dist_sq_f64x = svsub_f64_x(predicate_f64x, sum_sq_f64x,
+                                           svmul_f64_x(predicate_f64x, svdup_n_f64(2.0), dots_f64x));
+    dist_sq_f64x = svmax_f64_x(predicate_f64x, dist_sq_f64x, svdup_n_f64(0.0));
+    return svsqrt_f64_x(predicate_f64x, dist_sq_f64x);
 }
 
 #pragma region Single Precision Packed Angular
@@ -68,21 +102,9 @@ __arm_locally_streaming static void nk_angulars_packed_f32_smef64_finalize_strea
             svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, columns);
             svfloat64_t dots_f64x = svld1_f64(predicate_f64x, c_row + col_index);
             svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, b_norms + col_index);
-            svfloat64_t norms_product_f64x = svmul_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-            svfloat64_t rsqrt_f64x = svrsqrte_f64(norms_product_f64x);
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            svfloat64_t normalized_f64x = svmul_f64_x(predicate_f64x, dots_f64x, rsqrt_f64x);
-            svfloat64_t angular_f64x = svsub_f64_x(predicate_f64x, svdup_n_f64(1.0), normalized_f64x);
-            angular_f64x = svmax_f64_x(predicate_f64x, angular_f64x, svdup_n_f64(0.0));
-            svst1_f64(predicate_f64x, c_row + col_index, angular_f64x);
+            svst1_f64(predicate_f64x, c_row + col_index,
+                      nk_angulars_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                         target_norms_sq_f64x));
         }
     }
 }
@@ -120,11 +142,9 @@ __arm_locally_streaming static void nk_euclideans_packed_f32_smef64_finalize_str
             svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, columns);
             svfloat64_t dots_f64x = svld1_f64(predicate_f64x, c_row + col_index);
             svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, b_norms + col_index);
-            svfloat64_t sum_sq_f64x = svadd_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-            svfloat64_t dist_sq_f64x = svsub_f64_x(predicate_f64x, sum_sq_f64x,
-                                                   svmul_f64_x(predicate_f64x, svdup_n_f64(2.0), dots_f64x));
-            dist_sq_f64x = svmax_f64_x(predicate_f64x, dist_sq_f64x, svdup_n_f64(0.0));
-            svst1_f64(predicate_f64x, c_row + col_index, svsqrt_f64_x(predicate_f64x, dist_sq_f64x));
+            svst1_f64(predicate_f64x, c_row + col_index,
+                      nk_euclideans_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                           target_norms_sq_f64x));
         }
     }
 }
@@ -170,21 +190,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_st
                 svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, chunk_end);
                 svfloat64_t dots_f64x = svld1_f64(predicate_f64x, result_row + col_index);
                 svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, column_norms + (col_index - chunk_start));
-                svfloat64_t norms_product_f64x = svmul_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-                svfloat64_t rsqrt_f64x = svrsqrte_f64(norms_product_f64x);
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                svfloat64_t normalized_f64x = svmul_f64_x(predicate_f64x, dots_f64x, rsqrt_f64x);
-                svfloat64_t angular_f64x = svsub_f64_x(predicate_f64x, svdup_n_f64(1.0), normalized_f64x);
-                angular_f64x = svmax_f64_x(predicate_f64x, angular_f64x, svdup_n_f64(0.0));
-                svst1_f64(predicate_f64x, result_row + col_index, angular_f64x);
+                svst1_f64(predicate_f64x, result_row + col_index,
+                          nk_angulars_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                             target_norms_sq_f64x));
             }
         }
     }
@@ -234,11 +242,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_
                 svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, chunk_end);
                 svfloat64_t dots_f64x = svld1_f64(predicate_f64x, result_row + col_index);
                 svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, column_norms + (col_index - chunk_start));
-                svfloat64_t sum_sq_f64x = svadd_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-                svfloat64_t dist_sq_f64x = svsub_f64_x(predicate_f64x, sum_sq_f64x,
-                                                       svmul_f64_x(predicate_f64x, svdup_n_f64(2.0), dots_f64x));
-                dist_sq_f64x = svmax_f64_x(predicate_f64x, dist_sq_f64x, svdup_n_f64(0.0));
-                svst1_f64(predicate_f64x, result_row + col_index, svsqrt_f64_x(predicate_f64x, dist_sq_f64x));
+                svst1_f64(predicate_f64x, result_row + col_index,
+                          nk_euclideans_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                               target_norms_sq_f64x));
             }
         }
     }
@@ -280,21 +286,9 @@ __arm_locally_streaming static void nk_angulars_packed_f64_smef64_finalize_strea
             svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, columns);
             svfloat64_t dots_f64x = svld1_f64(predicate_f64x, c_row + col_index);
             svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, b_norms + col_index);
-            svfloat64_t norms_product_f64x = svmul_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-            svfloat64_t rsqrt_f64x = svrsqrte_f64(norms_product_f64x);
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            rsqrt_f64x = svmul_f64_x(
-                predicate_f64x, rsqrt_f64x,
-                svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-            svfloat64_t normalized_f64x = svmul_f64_x(predicate_f64x, dots_f64x, rsqrt_f64x);
-            svfloat64_t distance_f64x = svsub_f64_x(predicate_f64x, svdup_n_f64(1.0), normalized_f64x);
-            distance_f64x = svmax_f64_x(predicate_f64x, distance_f64x, svdup_n_f64(0.0));
-            svst1_f64(predicate_f64x, c_row + col_index, distance_f64x);
+            svst1_f64(predicate_f64x, c_row + col_index,
+                      nk_angulars_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                         target_norms_sq_f64x));
         }
     }
 }
@@ -332,11 +326,9 @@ __arm_locally_streaming static void nk_euclideans_packed_f64_smef64_finalize_str
             svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, columns);
             svfloat64_t dots_f64x = svld1_f64(predicate_f64x, c_row + col_index);
             svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, b_norms + col_index);
-            svfloat64_t sum_sq_f64x = svadd_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-            svfloat64_t dist_sq_f64x = svsub_f64_x(predicate_f64x, sum_sq_f64x,
-                                                   svmul_f64_x(predicate_f64x, svdup_n_f64(2.0), dots_f64x));
-            dist_sq_f64x = svmax_f64_x(predicate_f64x, dist_sq_f64x, svdup_n_f64(0.0));
-            svst1_f64(predicate_f64x, c_row + col_index, svsqrt_f64_x(predicate_f64x, dist_sq_f64x));
+            svst1_f64(predicate_f64x, c_row + col_index,
+                      nk_euclideans_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                           target_norms_sq_f64x));
         }
     }
 }
@@ -382,21 +374,9 @@ __arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_st
                 svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, chunk_end);
                 svfloat64_t dots_f64x = svld1_f64(predicate_f64x, result_row + col_index);
                 svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, column_norms + (col_index - chunk_start));
-                svfloat64_t norms_product_f64x = svmul_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-                svfloat64_t rsqrt_f64x = svrsqrte_f64(norms_product_f64x);
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                rsqrt_f64x = svmul_f64_x(
-                    predicate_f64x, rsqrt_f64x,
-                    svrsqrts_f64(svmul_f64_x(predicate_f64x, norms_product_f64x, rsqrt_f64x), rsqrt_f64x));
-                svfloat64_t normalized_f64x = svmul_f64_x(predicate_f64x, dots_f64x, rsqrt_f64x);
-                svfloat64_t distance_f64x = svsub_f64_x(predicate_f64x, svdup_n_f64(1.0), normalized_f64x);
-                distance_f64x = svmax_f64_x(predicate_f64x, distance_f64x, svdup_n_f64(0.0));
-                svst1_f64(predicate_f64x, result_row + col_index, distance_f64x);
+                svst1_f64(predicate_f64x, result_row + col_index,
+                          nk_angulars_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                             target_norms_sq_f64x));
             }
         }
     }
@@ -446,11 +426,9 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_
                 svbool_t predicate_f64x = svwhilelt_b64_u64(col_index, chunk_end);
                 svfloat64_t dots_f64x = svld1_f64(predicate_f64x, result_row + col_index);
                 svfloat64_t target_norms_sq_f64x = svld1_f64(predicate_f64x, column_norms + (col_index - chunk_start));
-                svfloat64_t sum_sq_f64x = svadd_f64_x(predicate_f64x, query_norm_sq_f64x, target_norms_sq_f64x);
-                svfloat64_t dist_sq_f64x = svsub_f64_x(predicate_f64x, sum_sq_f64x,
-                                                       svmul_f64_x(predicate_f64x, svdup_n_f64(2.0), dots_f64x));
-                dist_sq_f64x = svmax_f64_x(predicate_f64x, dist_sq_f64x, svdup_n_f64(0.0));
-                svst1_f64(predicate_f64x, result_row + col_index, svsqrt_f64_x(predicate_f64x, dist_sq_f64x));
+                svst1_f64(predicate_f64x, result_row + col_index,
+                          nk_euclideans_from_dot_f64x_ssvef64_(predicate_f64x, dots_f64x, query_norm_sq_f64x,
+                                                               target_norms_sq_f64x));
             }
         }
     }

@@ -31,10 +31,11 @@
 
 #if NK_TARGET_V128RELAXED
 
-#include "numkong/dot/v128relaxed.h"
 #include "numkong/types.h"
-#include "numkong/reduce/v128relaxed.h"
 #include "numkong/mesh/serial.h"
+#include "numkong/dot/v128relaxed.h"
+#include "numkong/reduce/v128relaxed.h"
+#include "numkong/scalar/v128relaxed.h"
 
 #if defined(__cplusplus)
 extern "C" {

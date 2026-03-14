@@ -32,11 +32,12 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
-                             apply_to = function)
+#pragma clang attribute push(                                                                         \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512dq,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
+    apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512dq", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
 #endif
 
 /**

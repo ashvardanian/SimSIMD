@@ -112,12 +112,12 @@ void test_cross_sme() {
           nk_dots_packed_u1_smebi32);
     check("dots_symmetric_u1_smebi32", test_dots_symmetric<u1x8_t>, nk_dots_symmetric_u1_smebi32);
 
-    check("hammings_packed_u1_smebi32", test_hammings_packed<u1x8_t>, nk_sets_packed_size_u1_smebi32,
-          nk_sets_pack_u1_smebi32, nk_hammings_packed_u1_smebi32);
+    check("hammings_packed_u1_smebi32", test_hammings_packed<u1x8_t>, nk_dots_packed_size_u1_smebi32,
+          nk_dots_pack_u1_smebi32, nk_hammings_packed_u1_smebi32);
     check("hammings_symmetric_u1_smebi32", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_smebi32);
 
-    check("jaccards_packed_u1_smebi32", test_jaccards_packed<u1x8_t>, nk_sets_packed_size_u1_smebi32,
-          nk_sets_pack_u1_smebi32, nk_jaccards_packed_u1_smebi32);
+    check("jaccards_packed_u1_smebi32", test_jaccards_packed<u1x8_t>, nk_dots_packed_size_u1_smebi32,
+          nk_dots_pack_u1_smebi32, nk_jaccards_packed_u1_smebi32);
     check("jaccards_symmetric_u1_smebi32", test_jaccards_symmetric<u1x8_t>, nk_jaccards_symmetric_u1_smebi32);
 #endif
 

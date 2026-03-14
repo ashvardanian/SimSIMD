@@ -305,7 +305,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_strea
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
-
                 svzero_mask_za(nk_sme_zero_za32_tile_0_); // clear staging ZA0 only
 
                 // Load A rows into ZA0.S horizontally (f32 words = 2 packed f16 each)
@@ -456,6 +455,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_stre
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -638,7 +639,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
-
                 // ZA transpose for A rows (identical to packed kernel)
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
@@ -1586,7 +1586,7 @@ static nk_u16_t const nk_e4m3_subnorm_f16_lut_[8] = {
  *  @return 32 `f16` values as `svfloat16_t`: from lower 32 bytes
  */
 NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x,
-                                               svuint16_t subnorm_lut_u16x) __arm_streaming_compatible {
+                                               svuint16_t subnorm_lut_u16x) NK_STREAMING_COMPATIBLE_ {
     svuint16_t vals_u16x = svunpklo_u16(bytes_u8x); // 1: UUNPKLO
 
     svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, vals_u16x, 0x80),
@@ -1627,8 +1627,7 @@ NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_
  *  @param bytes_u8x Pre-loaded 64 bytes (svuint8_t from svld1_u8)
  *  @return 32 F16 values as svfloat16_t (from lower 32 bytes)
  */
-NK_INTERNAL svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x,
-                                               svuint8_t bytes_u8x) __arm_streaming_compatible {
+NK_INTERNAL svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
     // E5M2 and F16 share the same exponent bias (15), sign position, exponent width,
     // and mantissa field alignment. The conversion f16 = byte << 8 is exact for ALL
     // 256 values including subnormals, infinity, and NaN.
@@ -1656,7 +1655,6 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     // Load e4m3 subnormal LUT once for all conversions in this kernel
@@ -1682,6 +1680,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Convert e4m3 → f16 for each A row in this batch, then load into ZA0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -1691,8 +1691,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     nk_size_t const a_row = row_start + row_in_tile;
                     // Load raw e4m3 bytes and convert to f16 using vectorized conversion
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x,
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x,
                                                                         subnorm_lut_u16x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
@@ -1754,6 +1754,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -1761,8 +1763,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                     nk_size_t const a_row = row_start + row_in_tile;
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x,
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x,
                                                                         subnorm_lut_u16x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
@@ -1879,7 +1881,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     // Load e4m3 subnormal LUT once for all conversions in this kernel
@@ -1922,6 +1923,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // ZA transpose for A rows: convert e4m3 → f16, MOVA directly into ZA0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -1929,8 +1932,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e4m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x,
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x,
                                                                         subnorm_lut_u16x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
@@ -1943,9 +1946,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile 0 into ZA0 via MOVA, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -2057,14 +2057,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e4m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x,
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x,
                                                                         subnorm_lut_u16x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
@@ -2077,9 +2079,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile into ZA0 via MOVA, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -2160,7 +2159,6 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_size_t const row_tile_count = nk_size_divide_round_up_(rows, tile_dimension);
@@ -2183,6 +2181,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -2191,8 +2191,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     nk_size_t const a_row = row_start + row_in_tile;
                     // Vectorized e5m2 → f16 conversion (2 instructions)
                     nk_e5m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
 
@@ -2253,6 +2253,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -2260,8 +2262,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                     nk_size_t const a_row = row_start + row_in_tile;
                     nk_e5m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
 
@@ -2375,7 +2377,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_size_t const depth_remainder = depth % expansion;
@@ -2414,6 +2415,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // ZA transpose for A rows: convert e5m2 → f16, MOVA directly into ZA0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -2421,8 +2424,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e5m2_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -2434,9 +2437,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile 0 into ZA0 via MOVA, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -2544,14 +2544,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e5m2_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -2563,9 +2565,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile into ZA0 via MOVA, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -2644,7 +2643,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_
  *  @param raw_bytes_u8x Pre-loaded e2m3 bytes as `svuint8_t`
  *  @return              Signed `i8` values as `svint8_t`
  */
-NK_INTERNAL svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) __arm_streaming_compatible {
+NK_INTERNAL svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) NK_STREAMING_COMPATIBLE_ {
     // 32-entry magnitude LUT, replicated for SVE TBL (handles SVL > 256 bits)
     static NK_ALIGN64 nk_u8_t const lut_data[64] = {
         0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
@@ -2706,8 +2705,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
 
-                // Convert e2m3 -> i8 for each A row in this batch, then load into ZA0
+                // Convert e2m3 → i8 for each A row in this batch, then load into ZA0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
@@ -2715,8 +2715,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     nk_size_t const a_row = row_start + row_in_tile;
                     // Load raw e2m3 bytes and convert to i8 using vectorized conversion
                     nk_e2m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(predicate_all_i8x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_i8x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_s8(converted_i8x));
                 }
 
@@ -2786,6 +2786,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -2793,8 +2795,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                     nk_size_t const a_row = row_start + row_in_tile;
                     nk_e2m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(predicate_all_i8x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_i8x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_s8(converted_i8x));
                 }
 
@@ -2960,14 +2962,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
 
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+
                 // ZA transpose for A rows: convert e2m3 → i8 then load
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e2m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(predicate_all_i8x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_i8x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_s8(converted_i8x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -2979,8 +2983,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_s32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_s32_m(svdup_s32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
 
                 // Load B column tile 0 into ZA0, vertical read + SMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -3094,13 +3096,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
 
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e2m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(predicate_all_i8x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_i8x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_s8(converted_i8x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -3112,8 +3116,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_s32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_s32_m(svdup_s32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
 
                 // Load B column tile into ZA0, vertical read + SMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -3185,45 +3187,32 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_
 /**
  *  Inline `e3m2` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
  *
- *  E3M2 encoding (6 bits in low byte):
- *    bit 5 = sign, bits 4:2 = exponent (bias=3), bits 1:0 = mantissa
- *
- *  Conversion to f16 (1+5+10 bits, bias=15):
- *    Normal (exp!=0): f16 = sign16 | ((exp3 + 12) << 10) | (mant2 << 8)
- *    Subnormal (exp==0, mant!=0): convert mantissa to f16 float, multiply by 2^(-4)
- *    Zero (exp==0, mant==0): signed zero
+ *  The packed-B path already uses the serial `e3m2 → f32 → f16` LUT semantics. Mirror those bit
+ *  patterns here with a byte TBL over the 5-bit magnitude, then widen the selected high bytes into
+ *  16-bit lanes and apply the sign bit. All representable `e3m2` values map to `f16` bit patterns
+ *  with a zero low byte, so a single-byte lookup is sufficient.
  *
  *  @param predicate_f16x Predicate for 16-bit elements
- *  @param bytes_u8x     Pre-loaded bytes (svuint8_t from svld1_u8)
- *  @return              F16 values as svfloat16_t (from lower half of bytes via unpack)
+ *  @param bytes_u8x      Pre-loaded bytes (svuint8_t from svld1_u8)
+ *  @return               F16 values as svfloat16_t (from lower half of bytes via unpack)
  */
-NK_INTERNAL svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x,
-                                               svuint8_t bytes_u8x) __arm_streaming_compatible {
-    svuint16_t vals_u16x = svunpklo_u16(bytes_u8x);
+NK_INTERNAL svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+    static NK_ALIGN64 nk_u8_t const magnitude_hi_lut[64] = {
+        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+        0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+    };
 
-    // Extract sign (bit 5 → bit 15), exponent (bits 4:2), mantissa (bits 1:0)
-    svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, vals_u16x, 0x20),
-                                         10); // bit5 → bit15
-    svuint16_t exp3_u16x = svand_n_u16_x(predicate_f16x, svlsr_n_u16_x(predicate_f16x, vals_u16x, 2), 0x07);
-    svuint16_t mant_u16x = svand_n_u16_x(predicate_f16x, vals_u16x, 0x03);
+    svuint8_t magnitude_hi_lut_u8x = svld1_u8(svptrue_b8(), magnitude_hi_lut);
+    svuint8_t magnitude_u8x = svand_n_u8_x(svptrue_b8(), bytes_u8x, 0x1F);
+    svuint8_t magnitude_hi_u8x = svtbl_u8(magnitude_hi_lut_u8x, magnitude_u8x);
 
-    // Normal path: f16 = sign | ((exp3 + 12) << 10) | (mant << 8)
-    svuint16_t normal_u16x = svorr_u16_x(
-        predicate_f16x, svlsl_n_u16_x(predicate_f16x, svadd_n_u16_x(predicate_f16x, exp3_u16x, 12), 10),
-        svlsl_n_u16_x(predicate_f16x, mant_u16x, 8));
-    normal_u16x = svorr_u16_x(predicate_f16x, normal_u16x, sign_u16x);
-
-    // Subnormal path: value = mant * 2^(-4), where 2^(-4) in f16 = 0x2800
-    svfloat16_t mant_f16x = svcvt_f16_u16_x(predicate_f16x, mant_u16x);
-    svfloat16_t scale_f16x = svreinterpret_f16_u16(svdup_n_u16(0x2800)); // 2^(-4)
-    svfloat16_t subnorm_abs_f16x = svmul_f16_x(predicate_f16x, mant_f16x, scale_f16x);
-    svuint16_t subnorm_u16x = svorr_u16_x(predicate_f16x, svreinterpret_u16_f16(subnorm_abs_f16x), sign_u16x);
-
-    // Select: subnormal when exp3 == 0, normal otherwise
-    svbool_t is_subnorm_u16x = svcmpeq_n_u16(predicate_f16x, exp3_u16x, 0);
-    svuint16_t result_u16x = svsel_u16(is_subnorm_u16x, subnorm_u16x, normal_u16x);
-
-    return svreinterpret_f16_u16(result_u16x);
+    svuint16_t values_u16x = svunpklo_u16(bytes_u8x);
+    svuint16_t magnitude_hi_u16x = svunpklo_u16(magnitude_hi_u8x);
+    svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, values_u16x, 0x20), 10);
+    svuint16_t magnitude_bits_u16x = svlsl_n_u16_x(predicate_f16x, magnitude_hi_u16x, 8);
+    return svreinterpret_f16_u16(svorr_u16_x(predicate_f16x, magnitude_bits_u16x, sign_u16x));
 }
 
 /**
@@ -3247,7 +3236,6 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_size_t const row_tile_count = nk_size_divide_round_up_(rows, tile_dimension);
@@ -3270,6 +3258,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -3278,8 +3268,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     nk_size_t const a_row = row_start + row_in_tile;
                     // Vectorized e3m2 → f16 conversion
                     nk_e3m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
 
@@ -3340,6 +3330,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                                                       ? depth_batch_start + depth_steps_per_batch
                                                       : depth_step_count;
                 nk_size_t const batch_size = depth_batch_end - depth_batch_start;
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
@@ -3347,8 +3339,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                     nk_size_t const a_row = row_start + row_in_tile;
                     nk_e3m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svwrite_hor_za32_f32_m(0, row_in_tile, batch_predicate_f32x, svreinterpret_f32_f16(converted_f16x));
                 }
 
@@ -3464,7 +3456,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
     svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_i8x = svptrue_b8();
     svbool_t const predicate_all_f32x = svptrue_b32();
 
     nk_size_t const depth_remainder = depth % expansion;
@@ -3503,6 +3494,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // ZA transpose for A rows: convert e3m2 → f16 then load
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -3510,8 +3503,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e3m2_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -3523,9 +3516,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile 0 into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -3633,14 +3623,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svbool_t const cleanup_pred_f32x = clean_last_word ? svcmpeq_n_u32(svptrue_b32(), lane_indices_u32x,
                                                                                    (nk_u32_t)(batch_size - 1))
                                                                    : svpfalse_b();
+                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
+                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_f32x = svwhilelt_b32_u64(0u, batch_size);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e3m2_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
-                    svuint8_t raw_bytes_u8x = svld1_u8(predicate_all_i8x, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(predicate_all_f16x, raw_bytes_u8x);
+                    svuint8_t raw_bytes_u8x = svld1_u8(depth_predicate_i8x, (uint8_t const *)a_src);
+                    svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_f16x, raw_bytes_u8x);
                     svfloat32_t write_f32x = svreinterpret_f32_f16(converted_f16x);
                     if (clean_last_word)
                         write_f32x = svreinterpret_f32_u32(
@@ -3652,9 +3644,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 for (nk_size_t s = 0; s < batch_size; s++)
                     svst1_f32(predicate_all_f32x, a_buffer[s],
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_f32x, 0, s));
-
-                svbool_t const depth_predicate_i8x = svwhilelt_b8_u64(0u, batch_size * expansion);
-                svbool_t const depth_predicate_f16x = svwhilelt_b16_u64(0u, batch_size * expansion);
 
                 // Load B column tile into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
