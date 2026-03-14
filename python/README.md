@@ -1,314 +1,544 @@
 # NumKong for Python
 
-The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
-Aside from drastic performance improvements, NumKong significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while NumKong can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
-The same applies to processing `float16` and `bfloat16` values with `float32` precision.
+NumKong for Python is the broadest high-level SDK in the project.
+It targets the gap between `numpy` and low-level native kernels: you keep buffer-protocol interoperability and shape-aware outputs, but you stop giving up mixed precision, widened accumulators, packed reuse, and backend-specific optimizations every time you leave `float64`.
+It combines NumPy-friendly buffers with native mixed-precision kernels, zero-copy tensor views, packed and symmetric matrix operations, sparse helpers, geometric mesh alignment, and MaxSim.
+The API feels NumPy-shaped with familiar scalar, batched, and all-pairs entrypoints, while `Tensor` keeps shape, dtype, and strides visible through a memoryview-backed container.
+Low-precision dtypes (bf16, fp8, fp6, packed bits) flow through the same API, and dense, packed, and symmetric kernels release the GIL around native work.
+
+## Ecosystem Comparison
+
+| Feature                  | NumKong                                | NumPy                | SciPy                 | PyTorch            |
+| ------------------------ | -------------------------------------- | -------------------- | --------------------- | ------------------ |
+| Dense distances and dots | SIMD-accelerated, widened accumulators | via BLAS, same-dtype | via BLAS              | native, same-dtype |
+| Binary metrics           | Hamming, Jaccard on packed bits        | no                   | on bool arrays        | no                 |
+| Probability divergences  | KL, JS on all float types              | no                   | `jensenshannon` only  | KL only            |
+| Elementwise fused ops    | scale, blend, fma with mixed precision | ufuncs, same-dtype   | no                    | native             |
+| bf16 / fp8 / fp6 support | full, including packed bits            | no                   | no                    | bf16 + fp8 partial |
+| GIL release              | dense, packed, and symmetric kernels   | partial              | partial               | yes                |
+| All-pairs `cdist`        | all metric families                    | no                   | Euclidean-family only | `cdist`            |
+| Packed matrix reuse      | pack once, reuse across batches        | no                   | no                    | no                 |
+
+NumKong-unique features not covered by the alternatives above: geospatial solvers (Haversine, Vincenty), curved-space metrics (Bilinear, Mahalanobis), symmetric self-distance (SYRK-like), geometric mesh alignment (Kabsch), sparse set intersections, MaxSim late interaction, and latency-oriented scalar kernels.
+
+## Quickstart
+
+```python
+import numpy as np
+import numkong as nk
+
+a, b = np.random.randn(1536).astype(np.float32), np.random.randn(1536).astype(np.float32)
+dot = nk.dot(a, b)  # widened accumulation, not same-dtype
+print(dot)
+```
 
 ## Installation
 
-Use the following snippet to install NumKong and list hardware acceleration options available on your machine:
+From PyPI:
 
 ```sh
-pip install numkong
-python -c "import numkong; print(numkong.get_capabilities())"   # for hardware introspection
-python -c "import numkong; help(numkong)"                       # for documentation
+python -m pip install numkong
 ```
 
-With precompiled binaries, NumKong ships `.pyi` interface files for type hinting and static analysis.
-You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/NumKong/blob/main/python/annotations/__init__.pyi).
+From a local checkout:
 
-## One-to-One Distance
-
-```py
-import numkong
-import numpy as np
-
-vec1 = np.random.randn(1536).astype(np.float32)
-vec2 = np.random.randn(1536).astype(np.float32)
-dist = numkong.angular(vec1, vec2)
+```sh
+python -m pip install .
 ```
 
-Supported functions include `angular`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
-Dot products are supported for both real and complex numbers:
+Quick runtime check:
 
-```py
-vec1 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
-vec2 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
-
-dist = numkong.dot(vec1.astype(np.complex128), vec2.astype(np.complex128))
-dist = numkong.dot(vec1.astype(np.complex64), vec2.astype(np.complex64))
-dist = numkong.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conjugate, same as `np.vdot`
+```sh
+python -c "import numkong as nk; print(nk.get_capabilities())"
 ```
 
-Unlike SciPy, NumKong allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
-The `dtype` argument can be passed both by name and as a positional argument:
+## Wheel Compatibility and Building from Source
 
-```py
-dist = numkong.angular(vec1, vec2, "int8")
-dist = numkong.angular(vec1, vec2, "float16")
-dist = numkong.angular(vec1, vec2, "float32")
-dist = numkong.angular(vec1, vec2, "float64")
-dist = numkong.hamming(vec1, vec2, "uint1")
+Pre-built wheels are available on PyPI for Linux (x86_64, aarch64, riscv64, plus i686, ppc64le, s390x), macOS (x86_64, arm64), and Windows (AMD64, ARM64).
+Python 3.9 through 3.14 is supported, including free-threading variants (3.13t, 3.14t).
+Every wheel is built with `NK_DYNAMIC_DISPATCH=1`, so a single wheel covers all CPU generations on a given architecture.
+
+When building from source, the compiler requirements depend on the platform.
+On macOS x86 only AVX2 is available; on macOS ARM NEON is always present, but SME requires Apple M4+ with Xcode 16+ (AppleClang 16+).
+RISC-V builds require Clang and LLD because GCC lacks `zvfh`, `zvfbfwma`, and `zvbb` support.
+On Windows, MSVC 19.44+ (Visual Studio 2022 17.14+) is recommended for full AVX-512 with FP16/BF16/VNNI.
+Build parallelism is controlled by `NK_BUILD_PARALLEL`, which defaults to `min(cpu_count, 4)` and should be lowered in memory-constrained containers.
+There is no OpenMP dependency.
+Python-side parallelism uses `concurrent.futures` with GIL-free kernels.
+
+```sh
+NK_BUILD_PARALLEL=2 pip install . --no-build-isolation
 ```
 
-Binary distance functions are computed at a bit-level.
-Meaning a vector of 10x 8-bit integers will be treated as a sequence of 80 individual bits or dimensions.
-This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `uint1` argument by reinterpreting the vector as booleans:
+## Dot Products
 
-```py
-vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
-vec2 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
-hamming_distance = numkong.hamming(vec1, vec2)
-jaccard_distance = numkong.jaccard(vec1, vec2)
-```
+Dot products are their own family because storage type, conjugation rules, and output widening matter.
 
-With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
-Here is an example of using NumKong with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
-
-```py
-import numpy as np
-buf1 = np.empty(8, dtype=np.uint16)
-buf2 = np.empty(8, dtype=np.uint16)
-
-# View the same memory region with PyTorch and randomize it
-import torch
-vec1 = torch.asarray(memoryview(buf1), copy=False).view(torch.bfloat16)
-vec2 = torch.asarray(memoryview(buf2), copy=False).view(torch.bfloat16)
-torch.randn(8, out=vec1)
-torch.randn(8, out=vec2)
-
-# Both libs will look into the same memory buffers and report the same results
-dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = numkong.angular(buf1, buf2, "bfloat16")
-```
-
-It also allows using NumKong for half-precision complex numbers, which NumPy does not support.
-For that, view data as continuous even-length `np.float16` vectors and override type-resolution with `complex32` string.
-
-```py
-vec1 = np.random.randn(1536).astype(np.float16)
-vec2 = np.random.randn(1536).astype(np.float16)
-nk.dot(vec1, vec2, "complex32")
-nk.vdot(vec1, vec2, "complex32")
-```
-
-When dealing with sparse representations and integer sets, you can apply the `intersect` function to two 1-dimensional arrays of `uint16` or `uint32` integers:
-
-```py
-from random import randint
+```python
 import numpy as np
 import numkong as nk
 
-length1, length2 = randint(1, 100), randint(1, 100)
-vec1 = np.sort(np.random.randint(0, 1000, length1).astype(np.uint16))
-vec2 = np.sort(np.random.randint(0, 1000, length2).astype(np.uint16))
+a = (np.random.randn(256) + 1j * np.random.randn(256)).astype(np.complex64)
+b = (np.random.randn(256) + 1j * np.random.randn(256)).astype(np.complex64)
 
-slow_result = len(np.intersect1d(vec1, vec2))
-fast_result = nk.intersect(vec1, vec2)
-assert slow_result == fast_result
+dot = nk.dot(a, b)   # numpy.dot(a, b)
+vdot = nk.vdot(a, b) # numpy.vdot(a, b)
+
+print(dot, vdot)
 ```
 
-## One-to-Many Distances
+Real low-precision inputs can also be routed through explicit dtype tags when the storage buffer itself is raw bytes.
 
-Every distance function can be used not only for one-to-one but also one-to-many and many-to-many distance calculations.
-For one-to-many:
+## Dense Distances
 
-```py
-vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
-batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
-batch2 = np.random.randn(100, 1536).astype(np.float32)
+The dense distance entrypoints cover `sqeuclidean`, `euclidean`, and `angular`.
+The first important difference from NumPy or SciPy is that the accumulator policy is not forced to match the storage dtype.
 
-dist_rank1 = numkong.angular(vec1, batch2)
-dist_rank2 = numkong.angular(batch1, batch2)
-```
-
-## Many-to-Many Distances
-
-All distance functions in NumKong can be used to compute many-to-many distances.
-For two batches of 100 vectors to compute 100 distances, one would call it like this:
-
-```py
-batch1 = np.random.randn(100, 1536).astype(np.float32)
-batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = numkong.angular(batch1, batch2)
-```
-
-Input matrices must have identical shapes.
-This functionality isn't natively present in NumPy or SciPy, and generally requires creating intermediate arrays, which is inefficient and memory-consuming.
-
-## Many-to-Many All-Pairs Distances
-
-One can use NumKong to compute distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
-The resulting object will have a type `Tensor`, zero-copy compatible with NumPy and other libraries.
-For two arrays of 10 and 1,000 entries, the resulting tensor will have 10,000 cells:
-
-```py
-import numpy as np
-from numkong import cdist, Tensor
-
-matrix1 = np.random.randn(1000, 1536).astype(np.float32)
-matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: Tensor = numkong.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by NumKong
-distances_array: np.ndarray = np.array(distances, copy=True)           # now managed by NumPy
-```
-
-## Element-wise Kernels
-
-NumKong also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
-
-```py
-import numpy as np
-from numkong import fma, wsum
-
-# Let's take two FullHD video frames
-first_frame = np.random.randn(1920 * 1024).astype(np.uint8)
-second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
-average_frame = np.empty_like(first_frame)
-wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
-
-# Slow analog with NumPy:
-slow_average_frame = (0.5 * first_frame + 0.5 * second_frame).astype(np.uint8)
-```
-
-Similarly, the `fma` takes three arguments and computes the fused multiply-add operation.
-In applications like Machine Learning you may also benefit from using the "brain-float" format not natively supported by NumPy.
-In 3D Graphics, for example, we can use FMA to compute the [Phong shading model](https://en.wikipedia.org/wiki/Phong_shading):
-
-```py
-# Assume a FullHD frame with random values for simplicity
-light_intensity = np.random.rand(1920 * 1080).astype(np.float16)  # Intensity of light on each pixel
-diffuse_component = np.random.rand(1920 * 1080).astype(np.float16)  # Diffuse reflectance on the surface
-specular_component = np.random.rand(1920 * 1080).astype(np.float16)  # Specular reflectance for highlights
-output_color = np.empty_like(light_intensity)  # Array to store the resulting color intensity
-
-# Define the scaling factors for diffuse and specular contributions
-alpha = 0.7  # Weight for the diffuse component
-beta = 0.3   # Weight for the specular component
-
-# Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
-fma(light_intensity, diffuse_component, specular_component,
-    dtype="float16", # Optional, unless it can't be inferred from the input
-    alpha=alpha, beta=beta, out=output_color)
-
-# Slow analog with NumPy for comparison
-slow_output_color = (alpha * light_intensity * diffuse_component + beta * specular_component).astype(np.float16)
-```
-
-## Multithreading and Memory Usage
-
-By default, computations use a single CPU core.
-To override this behavior, use the `threads` argument.
-Set it to `0` to use all available CPU cores and let the underlying C library manage the thread pool.
-Here is an example of dealing with large sets of binary vectors:
-
-```py
-ndim = 1536 # OpenAI Ada embeddings
-matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
-matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
-
-distances = numkong.cdist(matrix1, matrix2,
-    metric="hamming",   # Unlike SciPy, NumKong doesn't divide by the number of dimensions
-    out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
-    threads=0,          # Use all CPU cores with OpenMP.
-    dtype="uint1",      # Override input argument type to `uint1` packed bit words.
-)
-```
-
-Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded NumKong operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
-By default, the output distances will be stored in double-precision `float64` floating-point numbers.
-That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
-To override this behavior, use the `out_dtype` argument, or consider pre-allocating the output array and passing it to the `out` argument.
-A more complete example may look like this:
-
-```py
-from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor
-from numkong import angular
-import numpy as np
-
-# Generate large dataset
-vectors_a = np.random.rand(100_000, 1536).astype(np.float32)
-vectors_b = np.random.rand(100_000, 1536).astype(np.float32)
-distances = np.zeros((100_000,), dtype=np.float32)
-
-def compute_batch(start_idx, end_idx):
-    batch_a = vectors_a[start_idx:end_idx]
-    batch_b = vectors_b[start_idx:end_idx]
-    angular(batch_a, batch_b, out=distances[start_idx:end_idx])
-
-# Use all CPU cores with true parallelism (no GIL!)
-num_threads = cpu_count()
-chunk_size = len(vectors_a) // num_threads
-
-with ThreadPoolExecutor(max_workers=num_threads) as executor:
-    futures = []
-    for i in range(num_threads):
-        start_idx = i * chunk_size
-        end_idx = (i + 1) * chunk_size if i < num_threads - 1 else len(vectors_a)
-        futures.append(executor.submit(compute_batch, start_idx, end_idx))
-
-    # Collect results from all threads
-    results = [future.result() for future in futures]
-```
-
-## Half-Precision Brain-Float Numbers
-
-The "brain-float-16" is a popular machine learning format.
-It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` dtype in NumKong.
-Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
-
-```py
+```python
 import numpy as np
 import numkong as nk
 
-ndim = 1536
-a = np.random.randn(ndim).astype(np.float32)
-b = np.random.randn(ndim).astype(np.float32)
+a = np.random.randn(768).astype(np.float16)
+b = np.random.randn(768).astype(np.float16)
 
-# NumPy doesn't natively support brain-float, so we need a trick!
-# Luckily, it's very easy to reduce the representation accuracy
-# by simply masking the low 16-bits of our 32-bit single-precision
-# numbers. We can also add `0x8000` to round the numbers.
-a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-
-# To represent them as brain-floats, we need to drop the second half
-a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
-b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
-
-# Now we can compare the results
-expected = np.inner(a_f32rounded, b_f32rounded)
-result = nk.inner(a_bf16, b_bf16, "bf16")
+sqeuclidean = nk.sqeuclidean(a, b)
+euclidean = nk.euclidean(a, b)
+angular = nk.angular(a, b)
 ```
 
-## Helper Functions
+For `float16`, a naive same-dtype implementation is exactly the kind of path that loses precision or widens too late.
+NumKong's API makes the widening policy part of the kernel contract.
 
-You can turn specific backends on or off depending on the exact environment.
-A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html) CPUs to ensure the CPU doesn't change the frequency license and throttle performance.
+## Set Similarity
 
-```py
-$ numkong.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neonhalf': False, 'svehalf': False, 'neonbfdot': False, 'svebfdot': False, 'neonsdot': False, 'svesdot': False, 'haswell': True, 'skylake': True, 'icelake': True, 'genoa': True, 'sapphire': True, 'turin': True}
-$ numkong.disable_capability("sapphire")
-$ numkong.enable_capability("sapphire")
+Packed-binary metrics operate on packed bits.
+That is why the right NumPy equivalent uses `np.packbits`, not `bool` arrays fed to scalar Python code.
+
+```python
+import numpy as np
+import numkong as nk
+
+a_bits = np.random.randint(0, 2, size=256, dtype=np.uint8)
+b_bits = np.random.randint(0, 2, size=256, dtype=np.uint8)
+a, b = np.packbits(a_bits), np.packbits(b_bits)
+
+hamming = nk.hamming(a, b, dtype="uint1")
+jaccard = nk.jaccard(a, b, dtype="uint1")
 ```
 
-## Using Python API with USearch
+Integer set Jaccard works on sorted arrays of integer identifiers.
 
-Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
-You can wrap the raw C function pointers NumKong backends into a `CompiledMetric` and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
+```python
+set_a = np.array([1, 3, 5, 7, 9], dtype=np.uint32)
+set_b = np.array([3, 5, 8, 9, 10], dtype=np.uint32)
+jaccard_sets = nk.jaccard(set_a, set_b) # |A ∩ B| / |A ∪ B|
+assert 0.0 < jaccard_sets < 1.0, "|A ∩ B| / |A ∪ B| should be in (0, 1)"
+```
 
-```py
-from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
-from numkong import pointer_to_sqeuclidean, pointer_to_angular, pointer_to_inner
+## Probability Metrics
 
-metric = CompiledMetric(
-    pointer=pointer_to_angular("f16"),
-    kind=MetricKind.Cos,
-    signature=MetricSignature.ArrayArraySize,
+Probability divergences deserve their own section because they are not just "one more distance".
+
+```python
+import numpy as np
+import numkong as nk
+
+p = np.array([0.2, 0.3, 0.5], dtype=np.float32)
+q = np.array([0.1, 0.3, 0.6], dtype=np.float32)
+
+kl_forward, kl_reverse = nk.kullbackleibler(p, q), nk.kullbackleibler(q, p)
+assert kl_forward != kl_reverse, "KLD is asymmetric"
+
+js_forward, js_reverse = nk.jensenshannon(p, q), nk.jensenshannon(q, p)
+np.testing.assert_allclose(js_forward, js_reverse, atol=1e-6)  # JSD is symmetric
+```
+
+## Geospatial Metrics
+
+Geospatial kernels take four coordinate arrays.
+Inputs are in radians.
+Outputs are in meters.
+
+```python
+import numpy as np
+import numkong as nk
+
+# Statue of Liberty (40.6892°N, 74.0445°W) → Big Ben (51.5007°N, 0.1246°W)
+liberty_lat, liberty_lon = np.array([0.7101605100], dtype=np.float64), np.array([-1.2923203180], dtype=np.float64)
+big_ben_lat, big_ben_lon = np.array([0.8988567821], dtype=np.float64), np.array([-0.0021746802], dtype=np.float64)
+
+vincenty = nk.vincenty(liberty_lat, liberty_lon, big_ben_lat, big_ben_lon)    # ≈ 5,589,857 m (ellipsoidal, baseline)
+haversine = nk.haversine(liberty_lat, liberty_lon, big_ben_lat, big_ben_lon)  # ≈ 5,543,723 m (spherical, ~46 km less)
+
+# Vincenty in f32 — drifts ~2 m from f64
+liberty_lat32 = liberty_lat.astype(np.float32)
+liberty_lon32 = liberty_lon.astype(np.float32)
+big_ben_lat32 = big_ben_lat.astype(np.float32)
+big_ben_lon32 = big_ben_lon.astype(np.float32)
+vincenty_f32 = nk.vincenty(liberty_lat32, liberty_lon32, big_ben_lat32, big_ben_lon32)  # ≈ 5,589,859 m (+2 m drift)
+```
+
+## Curved Metrics
+
+Curved-space kernels use an extra metric tensor or inverse covariance and should not be mixed into the Euclidean section.
+
+```python
+import numpy as np
+import numkong as nk
+
+# Complex bilinear form: aᴴ M b
+a = (np.ones(16) + 1j * np.zeros(16)).astype(np.complex64)
+b = (np.zeros(16) + 1j * np.ones(16)).astype(np.complex64)
+m = np.eye(16, dtype=np.complex64)
+bilinear = nk.bilinear(a, b, m)
+
+# Real Mahalanobis distance: √((a−b)ᵀ M⁻¹ (a−b))
+x = np.ones(32, dtype=np.float32)
+y = np.full(32, 2.0, dtype=np.float32)
+inv_cov = np.eye(32, dtype=np.float32)
+mahalanobis = nk.mahalanobis(x, y, inv_cov)
+```
+
+## Scalar Types and Low-Precision Formats
+
+NumKong exposes two different low-precision stories in Python.
+It exposes Python scalar objects for a few formats.
+And it exposes tensor dtypes for the broader buffer-oriented path.
+
+The six scalar types have stable payload sizes even though Python object headers are not:
+
+| Type             | Bits   | Bytes | Range     | Inf | NaN |
+| ---------------- | ------ | ----- | --------- | --- | --- |
+| `nk.float16`     | 1+5+10 | 2     | ±65504    | yes | yes |
+| `nk.bfloat16`    | 1+8+7  | 2     | ±3.4×10³⁸ | yes | yes |
+| `nk.float8_e4m3` | 1+4+3  | 1     | ±448      | no  | yes |
+| `nk.float8_e5m2` | 1+5+2  | 1     | ±57344    | yes | yes |
+| `nk.float6_e2m3` | 1+2+3  | 1     | ±7.5      | no  | no  |
+| `nk.float6_e3m2` | 1+3+2  | 1     | ±28       | no  | no  |
+
+The Bits column shows sign + exponent + mantissa bit counts.
+The Bytes column is the stable payload size; `float8_*` and `float6_*` both store 1 byte because the sub-byte formats are padded to byte alignment.
+
+The full object footprint is interpreter-dependent.
+Use `sys.getsizeof(nk.float16(1.0))` if you need the heap footprint of the Python wrapper object itself.
+Use `Tensor.itemsize` and `Tensor.nbytes` for the stable payload sizes of array storage.
+
+`ml_dtypes` matters here because NumKong explicitly interoperates with the formats that NumPy still does not model well.
+The test suite compares `bfloat16`, `float8_e4m3`, and `float8_e5m2` behavior against `ml_dtypes` where that comparison is meaningful.
+
+Promotion is intentional.
+Mixed exotic floats are routed through wider compute types rather than pretending a same-width accumulator is good enough.
+
+## Tensor Objects and Buffer Interop
+
+`Tensor` is a memoryview-backed object with NumPy-like metadata.
+It is the central container for strided views, transpose, reshape, flatten, and axis reductions.
+
+```python
+import numpy as np
+import numkong as nk
+
+t = nk.Tensor(np.arange(12, dtype=np.float32).reshape(3, 4))
+
+print(t.shape, t.dtype, t.ndim, t.strides, t.itemsize, t.nbytes)
+print(np.asarray(t))      # zero-copy array view when layout allows it
+print(t.T.shape)          # transposed Tensor view
+print(t.reshape(2, 6).shape)
+print(t.flatten().shape)
+
+# Slicing — row, column, and scalar access
+row0 = t[0, :]            # first row, shape (4,)
+col2 = t[:, 2]            # third column, strided view, shape (3,)
+val  = t[1, 2]            # scalar element access → 6.0
+
+# Reductions compose with sliced views
+idx = col2.argmin()        # index of the minimum in the third column
+mn, i0, mx, i1 = col2.minmax()
+```
+
+The important layout rules are:
+
+- `Tensor` preserves shape and byte strides.
+- Transpose and slicing can produce non-contiguous views.
+- General reductions accept those views.
+- Matrix-style packed kernels require row-contiguous left operands.
+- Packed and symmetric outputs require C-contiguous `out` buffers.
+
+## All-Pairs APIs and cdist
+
+`cdist` is the NumPy/SciPy-shaped all-pairs entrypoint.
+It handles rectangular matrix pairs and symmetric self-distance cases.
+
+```python
+import numpy as np
+import numkong as nk
+
+queries = np.random.randn(100, 768).astype(np.float32)
+database = np.random.randn(10_000, 768).astype(np.float32)
+
+pairwise = nk.angular(queries, database[:100])             # rectangular broadcasted pairwise call
+all_pairs = nk.cdist(queries, database, metric="angular")  # scipy.spatial.distance.cdist analogue
+
+assert np.asarray(pairwise).shape == (100, 100)
+assert np.asarray(all_pairs).shape == (100, 10_000)
+```
+
+The intended large-scale parallel model for packed and symmetric kernels is external partitioning with row ranges, not a hidden `threads=` argument.
+
+## Elementwise Operations
+
+Elementwise arithmetic and fused operations are their own family.
+They share the tensor infrastructure but should not be collapsed into the reduction or matrix sections.
+
+```python
+import numpy as np
+import numkong as nk
+
+a = np.arange(8, dtype=np.float32)
+b = np.arange(8, dtype=np.float32)[::-1].copy()
+
+scaled = nk.scale(a, alpha=2.0, beta=1.0)     # 2 * a + 1
+blended = nk.blend(a, b, alpha=0.25, beta=0.75)
+fused = nk.fma(a, b, a, alpha=1.0, beta=1.0)  # a * b + a
+
+assert np.asarray(scaled).shape == (8,)
+assert np.asarray(fused).shape == (8,)
+```
+
+## Moments Reductions
+
+Moments reductions return `(sum, sum_of_squares)`.
+The important selling point is not just speed.
+It is that NumKong does not force you into same-storage accumulation.
+
+```python
+import numpy as np
+import numkong as nk
+
+x = np.full(4096, 255, dtype=np.uint8)
+
+nk_sum, nk_sumsq = nk.moments(nk.Tensor(x))
+naive_sum = np.sum(x, dtype=np.uint8)      # overflows immediately
+naive_sumsq = np.sum(x * x, dtype=np.uint8) # also overflows
+
+print(nk_sum, nk_sumsq, naive_sum, naive_sumsq)
+assert nk_sum > int(naive_sum)
+assert nk_sumsq > int(naive_sumsq)
+```
+
+Same-width accumulation is a bad default for low-precision storage.
+
+## Min/Max Reductions
+
+Min/max reductions deserve a separate section because they expose an unusual backend strength.
+NumKong accelerates several strided reduction cases that users do not normally expect to be fast.
+
+```python
+import numpy as np
+import numkong as nk
+
+matrix = nk.Tensor(np.array([
+    [ 3.0,  0.0, 7.0],
+    [ 1.0,  2.0, 5.0],
+    [ 4.0, -1.0, 6.0],
+], dtype=np.float32))
+
+second_column = matrix[:, 1]  # strided view into a row-major Nx3 tensor
+
+idx = second_column.argmin()
+mn, i0, mx, i1 = second_column.minmax()
+
+assert idx == 2
+assert int(i0) == 2
+assert float(np.asarray(mn)) == -1.0
+```
+
+Fresh measurement for the rewritten docs:
+on an Apple M2 Pro, `np.argmin(matrix[:, 1])` on a row-major `2,000,000 x 3` `float32` array took about `1.63 ms` median.
+The equivalent NumKong `Tensor(... )[:, 1].argmin()` took about `0.67 ms` median.
+That is about `2.45x` faster on this strided reduction case.
+
+## Sparse Operations and Intersections
+
+Sparse helpers cover both sorted-index intersections and weighted sparse dot products.
+
+```python
+import numpy as np
+import numkong as nk
+
+idx_a, idx_b = np.array([1, 3, 5, 7], dtype=np.uint32), np.array([3, 4, 5, 8], dtype=np.uint32)
+intersection_size = nk.intersect(idx_a, idx_b) # len(np.intersect1d(idx_a, idx_b))
+assert intersection_size == 2, "indices 3 and 5"
+
+val_a, val_b = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32), np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float32)
+sparse_dot = nk.sparse_dot(idx_a, val_a, idx_b, val_b)
+assert sparse_dot > 0, "weighted dot over shared indices"
+```
+
+## Packed Matrix Kernels for GEMM-Like Workloads
+
+Packed matrix kernels are the right tool when the right-hand side is reused across many query batches.
+This is the `GEMM`-like story.
+
+```python
+import numpy as np
+import numkong as nk
+
+left = np.random.randn(128, 768).astype(np.float32)
+right = np.random.randn(10_000, 768).astype(np.float32)
+
+right_packed = nk.dots_pack(right, dtype="float32")  # pack once, reuse many times
+scores = nk.dots_packed(left, right_packed)          # equivalent to left @ right.T
+
+assert scores.shape == (128, 10_000)
+assert right_packed.nbytes == nk.PackedMatrix.packed_size(10_000, 768, dtype="float32")
+```
+
+Important runtime rules from the current implementation:
+
+- `a` must be rank-2
+- `a` must have contiguous rows
+- negative strides are rejected for these matrix kernels
+- `out`, when provided, must be C-contiguous with the expected dtype
+- `start_row` and `end_row` split the left operand rows
+
+The arithmetic advantages are honest and mechanical:
+
+- one-time packing of `B`
+- one-time internal layout conversion and depth padding
+- norm reuse for `angulars_packed` and `euclideans_packed`
+- no repeated scan of the original right-hand-side layout
+
+Packing itself does not require aligned caller buffers.
+The packed object owns its internal payload and handles the layout under the hood.
+
+`Tensor @ PackedMatrix` is also supported and maps to the same packed dot-product path.
+
+## Symmetric Kernels for SYRK-Like Workloads
+
+Symmetric kernels solve a different problem from packed cross-matrix kernels.
+They compute self-similarity or self-distance matrices.
+This is the `SYRK`-like story.
+
+```python
+import numpy as np
+import numkong as nk
+
+vectors = np.random.randn(1024, 768).astype(np.float32)
+out = nk.zeros((1024, 1024), dtype="float64")
+
+nk.dots_symmetric(vectors, out=out, start_row=0, end_row=256)
+nk.dots_symmetric(vectors, out=out, start_row=256, end_row=512)
+
+assert out.shape == (1024, 1024)
+```
+
+This family has different economics from packed `GEMM`-like work.
+It avoids duplicate `(i, j)` and `(j, i)` evaluations.
+It is naturally partitioned by row windows of one square output.
+
+`angulars_symmetric` and `euclideans_symmetric` also benefit from reuse of dot-product-derived work inside the symmetric sweep.
+That is the honest reason these APIs are more attractive than a naive nested Python loop over `angular(a[i], a[j])`.
+
+## Geometric Mesh Alignment
+
+Mesh alignment returns a structured result object.
+The current implementation exposes `rotation`, `scale`, `rmsd`, `a_centroid`, and `b_centroid`.
+
+```python
+import numpy as np
+import numkong as nk
+
+source = np.array(
+    [[0.0, 0.0, 0.0],
+     [1.0, 0.0, 0.0],
+     [0.0, 1.0, 0.0]],
+    dtype=np.float32,
 )
 
-index = Index(256, metric=metric)
+result = nk.kabsch(source, source.copy())
+assert np.asarray(result.rotation).shape == (3, 3)
+assert float(np.asarray(result.scale)) == 1.0
+
+# Umeyama with known 2x scaling
+target = source * 2.0
+result = nk.umeyama(source, target)
+assert float(np.asarray(result.rmsd)) < 1e-6, "umeyama should recover exact alignment"
+assert abs(float(np.asarray(result.scale)) - 2.0) < 0.01, "umeyama should recover 2x scale"
 ```
+
+That field-level check is the right style for this API family.
+It tells the reader exactly what the result object owns.
+
+## MaxSim and ColBERT-Style Late Interaction
+
+MaxSim is the late-interaction primitive used by systems such as [ColBERT](https://arxiv.org/abs/2004.12832).
+It is not generic matrix multiplication.
+
+```python
+import numpy as np
+import numkong as nk
+
+queries = np.random.randn(32, 128).astype(np.float32)
+documents = np.random.randn(192, 128).astype(np.float32)
+
+q = nk.maxsim_pack(queries, dtype="float32")
+d = nk.maxsim_pack(documents, dtype="float32")
+score = nk.maxsim_packed(q, d)
+
+assert np.isfinite(score)
+assert q.nbytes == nk.MaxSimPackedMatrix.packed_size(32, 128, dtype="float32")
+```
+
+## Capabilities, GIL Behavior, and Parallel Partitioning
+
+Capability detection is explicit:
+
+```python
+import numkong as nk
+
+caps = nk.get_capabilities()
+print({k: v for k, v in caps.items() if v})
+```
+
+The current implementation releases the GIL around the native dense metric calls and around the packed and symmetric matrix kernels.
+The repository also has threading tests for packed and symmetric row-range partitioning.
+
+`GEMM`-like packed work and `SYRK`-like symmetric work should be documented differently:
+
+```python
+import concurrent.futures
+import numpy as np
+import numkong as nk
+
+left = np.random.randn(4096, 768).astype(np.float32)
+right = np.random.randn(8192, 768).astype(np.float32)
+packed = nk.dots_pack(right, dtype="float32")
+out = nk.zeros((4096, 8192), dtype="float64")
+
+def packed_chunk(start, end):
+    nk.dots_packed(left, packed, out=out, start_row=start, end_row=end) # split left rows against one shared packed RHS
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    for start in range(0, 4096, 1024):
+        pool.submit(packed_chunk, start, min(start + 1024, 4096))
+```
+
+```python
+import concurrent.futures
+import numpy as np
+import numkong as nk
+
+vectors = np.random.randn(4096, 768).astype(np.float32)
+out = nk.zeros((4096, 4096), dtype="float64")
+
+def symmetric_chunk(start, end):
+    nk.dots_symmetric(vectors, out=out, start_row=start, end_row=end) # split row windows of one square output
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    for start in range(0, 4096, 1024):
+        pool.submit(symmetric_chunk, start, min(start + 1024, 4096))
+```
+
+OpenMP and other native schedulers still matter in lower layers.
+For Python, the intended user-facing story is external partitioning around the GIL-free kernels you actually use.

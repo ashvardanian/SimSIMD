@@ -194,16 +194,17 @@ import (
 )
 
 func main() {
-	aLat := []float64{0.7105724}
-	aLon := []float64{-1.2916484}
-	bLat := []float64{0.5943230}
-	bLon := []float64{-2.0637416}
-	out := make([]float64, 1)
+	// Statue of Liberty (40.6892°N, 74.0445°W) → Big Ben (51.5007°N, 0.1246°W)
+	libertyLat := []float64{0.7101605100}
+	libertyLon := []float64{-1.2923203180}
+	bigBenLat := []float64{0.8988567821}
+	bigBenLon := []float64{-0.0021746802}
+	distance := make([]float64, 1)
 
-	nk.HaversineF64(aLat, aLon, bLat, bLon, out)
-	nk.VincentyF64(aLat, aLon, bLat, bLon, out)
+	nk.VincentyF64(libertyLat, libertyLon, bigBenLat, bigBenLon, distance)  // ≈ 5,589,857 m (ellipsoidal, baseline)
+	nk.HaversineF64(libertyLat, libertyLon, bigBenLat, bigBenLon, distance) // ≈ 5,543,723 m (spherical, ~46 km less)
 
-	fmt.Println(out[0])
+	fmt.Println(distance[0])
 }
 ```
 

@@ -109,11 +109,11 @@ import NumKong
 let a: [Float16] = [1, 2, 3, 4]
 let b: [Float16] = [4, 3, 2, 1]
 
-let sqe = a.sqeuclidean(b) // widens to Float32
-let euc = a.euclidean(b)
-let ang = a.angular(b)
+let sqeuclidean = a.sqeuclidean(b) // widens to Float32
+let euclidean = a.euclidean(b)
+let angular = a.angular(b)
 
-print(sqe as Any, euc as Any, ang as Any)
+print(sqeuclidean as Any, euclidean as Any, angular as Any)
 ```
 
 The widening is deliberate.
@@ -398,40 +398,24 @@ The matrix kernel output types follow a similar pattern but vary for the mini-fl
 
 ## Geospatial Metrics
 
-The Swift geospatial helpers operate on four coordinate buffers and write into a caller-owned result buffer.
+The Swift geospatial helpers operate on four coordinate arrays.
 Inputs are in radians.
 Outputs are in meters.
 
 ```swift
 import NumKong
 
-let aLat: [Float64] = [0.7105724]
-let aLon: [Float64] = [-1.2916484]
-let bLat: [Float64] = [0.5943230]
-let bLon: [Float64] = [-2.0637416]
-var out = Array(repeating: 0.0, count: 1)
+// Statue of Liberty (40.6892°N, 74.0445°W) → Big Ben (51.5007°N, 0.1246°W)
+let libertyLat: [Float64] = [0.7101605100]
+let libertyLon: [Float64] = [-1.2923203180]
+let bigBenLat: [Float64] = [0.8988567821]
+let bigBenLon: [Float64] = [-0.0021746802]
 
-let ok = aLat.withUnsafeBufferPointer { aLatPtr in
-    aLon.withUnsafeBufferPointer { aLonPtr in
-        bLat.withUnsafeBufferPointer { bLatPtr in
-            bLon.withUnsafeBufferPointer { bLonPtr in
-                out.withUnsafeMutableBufferPointer { outPtr in
-                    Float64.vincenty(
-                        aLat: aLatPtr,
-                        aLon: aLonPtr,
-                        bLat: bLatPtr,
-                        bLon: bLonPtr,
-                        result: outPtr
-                    )
-                }
-            }
-        }
-    }
-}
-
-assert(ok)
-assert(out[0].isFinite)
+let vincenty = vincenty(aLat: libertyLat, aLon: libertyLon, bLat: bigBenLat, bLon: bigBenLon)   // ≈ [5,589,857] m
+let haversine = haversine(aLat: libertyLat, aLon: libertyLon, bLat: bigBenLat, bLon: bigBenLon) // ≈ [5,543,723] m
 ```
+
+The low-level `UnsafeBufferPointer` static methods on `Float64` and `Float32` remain available for zero-copy use cases.
 
 ## Runtime Capabilities and Thread Configuration
 
