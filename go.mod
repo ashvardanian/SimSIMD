@@ -1,3 +1,3 @@
-module github.com/ashvardanian/numkong
+module github.com/ashvardanian/NumKong
 
 go 1.22

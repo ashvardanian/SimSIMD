@@ -11,7 +11,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -51,10 +51,10 @@ No pre-compiled shared library is required — just a C compiler.
 
 Import the subpackage from the root module:
 
-    import nk "github.com/ashvardanian/numkong/golang"
+    import nk "github.com/ashvardanian/NumKong/golang"
 
-The module path is `github.com/ashvardanian/numkong`.
-The Go binding lives under `github.com/ashvardanian/numkong/golang`.
+The module path is `github.com/ashvardanian/NumKong`.
+The Go binding lives under `github.com/ashvardanian/NumKong/golang`.
 
 CGO must be enabled (the default).
 Any C11-capable compiler works: GCC, Clang, or MSVC.
@@ -69,7 +69,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -107,7 +107,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -163,7 +163,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -190,7 +190,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -222,7 +222,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -269,7 +269,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -308,7 +308,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -357,7 +357,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {
@@ -390,7 +390,7 @@ package main
 import (
 	"fmt"
 
-	nk "github.com/ashvardanian/numkong/golang"
+	nk "github.com/ashvardanian/NumKong/golang"
 )
 
 func main() {

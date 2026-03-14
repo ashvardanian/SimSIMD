@@ -65,7 +65,7 @@ project(
     VERSION 6.5.15
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
-    HOMEPAGE_URL "https://github.com/ashvardanian/numkong"
+    HOMEPAGE_URL "https://github.com/ashvardanian/NumKong"
 )
 
 set(CMAKE_C_STANDARD 99)
