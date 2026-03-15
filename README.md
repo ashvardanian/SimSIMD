@@ -3,36 +3,36 @@
 NumKong (previously SimSIMD) is a latency-oriented mixed-precision BLAS-like numerics & linear-algebra library designed for portability and multimodal retrieval tasks.
 It's one of the largest collections of SIMD kernels online, totalling over 1500 endpoints powering the [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products leveraging it.
 
-![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.jpg?raw=true)
+![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 
 NumKong covers everything — from exotic GPU-only 6-bit floating-point types in LLMs to 64-bit complex floating-point numbers in Scientific Computing — with rigorous testing of numerical stability bounds for various distributions of input data:
 
 <div align="center">
 <pre><code>
-┌──────────────────────────────-─┬──────────────────┬─────────────────────────────┬──────────────┐
-│           Operations           │    Datatypes     │          Backends           │  Ecosystems  │
-├─────────────────────────────-──┼──────────────────┼─────────────────────────────┼──────────────┤
-│ Vector-Vector                  │ <a href="#numeric-types">Bits &amp; Ints</a>      │ <a href="#compile-time-and-run-time-dispatch">x86</a>                         │ Core         │
-│   <a href="include/README.md#dot-products">dot</a> · <a href="include/README.md#dense-distances">angular</a> · <a href="include/README.md#dense-distances">euclidean</a>    │   u1 · u4 · u8   │   Haswell · Alder Lake      │   <a href="include/README.md#the-c-abi">C 99</a>       │
-│   hamming · kld · jsd · …      │   i4 · i8        │   Sierra Forest · Skylake   │              │
-│                                │                  │   Ice Lake · Genoa · Turin  │ Primary      │
-│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                  │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>      │   Sapphire Rapids ·         │   <a href="include/README.md#the-c-layer">C++ 23</a>     │
-│   <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │   e2m3 · e3m2    │   Granite Rapids            │   <a href="python/README.md">Python 3</a>   │
-│   <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │   e4m3 · e5m2    │                             │   <a href="rust/README.md">Rust</a>       │
-│                                │                  │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                         │              │
-│ Quadratic                      │ <a href="#float16--bfloat16-half-precision">Halfs &amp; Classics</a> │   NEON · NEONHalf · NEONFhm │ Additional   │
-│   <a href="include/README.md#curved-metrics">bilinear</a> · mahalanobis       │   f16 · bf16     │   NEONBFDot · NEONSDot      │   <a href="swift/README.md">Swift</a> · <a href="javascript/README.md">JS</a> │
-│                                │   f32 · f64      │   SVE · SVEHalf · SVEBfDot  │   <a href="golang/README.md">Go</a>         │
-│ <a href="include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="include/README.md#geometric-mesh-alignment">Geometric</a>         │                  │   SVESDot · SVE2            │              │
-│   haversine · vincenty         │ <a href="#complex-types">Complex</a>          │   SME · SMEF64 · SMEBI32    │ <a href="CONTRIBUTING.md">Tools</a>        │
-│   rmsd · kabsch · umeyama · …  │   f16c · bf16c   │                             │   <a href="test/README.md">Tests</a>      │
-│                                │   f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                      │   <a href="bench/README.md">Benchmarks</a> │
-│ Bespoke                        │                  │   RVV · RVVHalf             │   <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
-│   <a href="include/numkong/each/README.md">fma</a> · blend · <a href="include/numkong/trigonometry/README.md">sin</a> · <a href="include/numkong/cast/README.md">cast</a>     │                  │   RVVBf16 · RVVBB           │              │
-│   <a href="include/numkong/reduce/README.md">reduce_moments</a> · <a href="include/numkong/sparse/README.md">sparse_dot</a>  │                  │                             │              │
-│   <a href="include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                  │ <a href="CONTRIBUTING.md#cross-compilation">WASM</a>                        │              │
-│                                │                  │   V128Relaxed               │              │
-└───────────────────-────────────┴──────────────────┴─────────────────────────────┴──────────────┘
+┌──────────────────────────────┬────────────────┬───────────────────────────┬────────────┐
+│          Operations          │   Datatypes    │         Backends          │ Ecosystems │
+├──────────────────────────────┼────────────────┼───────────────────────────┼────────────┤
+│ Vector-Vector                │ <a href="#numeric-types">Bits &amp; Ints</a>    │ <a href="#compile-time-and-run-time-dispatch">x86</a>                       │ Core       │
+│ <a href="include/README.md#dot-products">dot</a> · <a href="include/README.md#dense-distances">angular</a> · <a href="include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="include/README.md#the-c-abi">C 99</a>       │
+│ hamming · kld · jsd · …      │ i4 · i8        │ Sierra Forest · Skylake   │            │
+│                              │                │ Ice Lake · Genoa · Turin  │ Primary    │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="include/README.md#the-c-layer">C++ 23</a>     │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="python/README.md">Python 3</a>   │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="rust/README.md">Rust</a>       │
+│                              │                │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                       │            │
+│ Quadratic                    │ <a href="#float16--bfloat16-half-precision">Half &amp; Classic</a> │ NEON · NEONHalf · NEONFhm │ Additional │
+│ <a href="include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="swift/README.md">Swift</a> · <a href="javascript/README.md">JS</a> │
+│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="golang/README.md">Go</a>         │
+│ <a href="include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
+│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="CONTRIBUTING.md">Tools</a>      │
+│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="test/README.md">Tests</a>      │
+│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="bench/README.md">Benchmarks</a> │
+│ Bespoke                      │                │ RVV · RVVHalf             │ <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
+│ <a href="include/numkong/each/README.md">fma</a> · blend · <a href="include/numkong/trigonometry/README.md">sin</a> · <a href="include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
+│ <a href="include/numkong/reduce/README.md">reduce_moments</a> · <a href="include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
+│ <a href="include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
+│                              │                │ V128Relaxed               │            │
+└──────────────────────────────┴────────────────┴───────────────────────────┴────────────┘
 </code></pre>
 </div>
 
@@ -61,7 +61,7 @@ NumKong promotes to wider accumulators — `f16 → f32`, `bf16 → f32`, `i8 �
 
 | Input  |        NumPy via OpenBLAS |     PyTorch via Intel MKL |                       JAX |                NumKong |
 | :----- | ------------------------: | ------------------------: | ------------------------: | ---------------------: |
-|        |        ░░░░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░░░░ |     ░░░░░░░░░░░░░░░░░░ |
+|        |           ░░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░ |
 | `f64`  |    2.0 gso/s, 1.1e-15 err |    0.6 gso/s, 1.1e-15 err |    0.4 gso/s, 1.3e-14 err | 5.8 gso/s, 1.6e-16 err |
 | `f32`  |     1.5 gso/s, 2.0e-6 err |     0.6 gso/s, 1.9e-6 err |     0.4 gso/s, 5.1e-6 err |  7.1 gso/s, 2.3e-7 err |
 | `bf16` |                         — |       0.5 gso/s, 1.9% err |       0.5 gso/s, 1.9% err |    9.7 gso/s, 1.8% err |
@@ -79,7 +79,7 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 
 | Input  |        NumPy via OpenBLAS |      PyTorch via Intel MKL |                        JAX |                NumKong |
 | :----- | ------------------------: | -------------------------: | -------------------------: | ---------------------: |
-|        |        ░░░░░░░░░░░░░░░░░░ |         ░░░░░░░░░░░░░░░░░░ |         ░░░░░░░░░░░░░░░░░░ |     ░░░░░░░░░░░░░░░░░░ |
+|        |           ░░░░░░░░░░░░░░░ |            ░░░░░░░░░░░░░░░ |            ░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░ |
 | `f64`  |    65.5 gso/s, ~1e-15 err |     68.2 gso/s, ~1e-15 err |    ~14.3 gso/s, ~1e-15 err |  8.6 gso/s, ~1e-16 err |
 | `f32`  |   140.6 gso/s, 8.9e-7 err |    144.6 gso/s, 1.1e-6 err |    ~60.5 gso/s, 1.3e-6 err | 37.7 gso/s, 4.0e-7 err |
 | `bf16` |                         — |      850.7 gso/s, 1.8% err |      ~25.8 gso/s, 3.4% err |  458.2 gso/s, 3.6% err |
@@ -87,9 +87,14 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 | `e5m2` |                         — |        0.4 gso/s, 4.6% err |      ~26.4 gso/s, 4.6% err |  398.1 gso/s, 0% err ✅ |
 | `i8`   | 0.4 gso/s, __overflow__ ❌ | 50.0 gso/s, __overflow__ ❌ | ~0.0 gso/s, __overflow__ ❌ | 1279.6 gso/s, 0% err ✅ |
 
-To see just how dangerous the "same type" convention is, take `np.dot(np.random.randint(-128, 127, 2048, dtype=np.int8), ...)`:
+For `f64`, NumKong's "Dot2" stable summation is __~10× more accurate__ than naive F64 accumulation.
+For `f32`, NumKong widens to F64, giving __~10× lower error__.
+For smaller types and especially integers, the gap is even more dramatic.
+Here's a typical example for `i8`:
 
 ```python
+>>> a = np.random.randint(-128, 127, 2048, dtype=np.int8)
+>>> b = np.random.randint(-128, 127, 2048, dtype=np.int8)
 >>> true_answer = np.dot(a.astype(np.int64), b.astype(np.int64)) # 784
 >>> np.dot(a, b)           # → 16 (i8 overflow, 98 % error)
 >>> torch.dot(at, bt)      # → 16 (same)
@@ -97,27 +102,25 @@ To see just how dangerous the "same type" convention is, take `np.dot(np.random.
 >>> numkong.dot(a, b)      # → 784 ✓ (accumulates in i32)
 ```
 
-Over 1 000 random trials, NumPy returns the __wrong sign 48 %__ of the time — worse than a coin flip.
-For `f64`, NumKong's Dot2 summation is __5-50× more accurate__ than naive F64 accumulation (measured vs arbitrary-precision reference) depending on input sizes.
-For `f32`, NumKong widens to F64, giving __5-50× lower error__ depending on input sizes.
-So you might be thinking — this must be the heaviest project of them all?
-
-| Package                |   Size | What's inside                          | Available for                       |
-| :--------------------- | -----: | :------------------------------------- | :---------------------------------- |
-| PyTorch + MKL + oneDNN | 705 MB | Autograd, JIT compiler                 | Python, C++, Java                   |
-| JAX + jaxlib           | 357 MB | XLA compiler, MLIR dialects            | Python                              |
-| NumPy + OpenBLAS       |  30 MB | 19 binaries, BLAS/LAPACK wrappers      | Python                              |
-| NumKong                |   5 MB | 1 binary, 9 x86 backends and 16 dtypes | C, C++, Rust, Python, Go, JS, Swift |
-
-> Installed `pip` package size for CPU-only x86 builds.
-> Other SDKs and platforms vary, but the relative compactness is preserved.
-
-But the kernels are only a third of the project.
-The larger — and less visible — investment is a 17,000-line test suite spanning C++, Python, JavaScript, and Swift: 43 test files, 285+ parametrized axes, and 16 numeric types from `u1` to `f64c`.
-Every kernel is validated against 118-bit extended-precision baselines, with per-type ULP budgets (4 ULP for f32, 32 for f16, 256 for bf16) across log-normal, uniform, and Cauchy input distributions.
+But the kernels, their performance, and the precision are only part of the story.
+The larger — and less visible — investment is implementing broad test coverage to ensure consistent behavior across all hardware platforms and programming languages.
+Every kernel is validated against 118-bit extended-precision baselines, with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions.
 Tests enforce triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints — then repeat all of it for every ISA variant in the table above.
 Cross-validation against OpenBLAS, Intel MKL, and Apple Accelerate catches regressions that no single reference can.
-For a broader comparison across languages and runtimes, see the [NumWars](https://github.com/ashvardanian/NumWars) benchmarking suite.
+And the byproduct of all that work fits into one of the smallest binaries in the industry, available on the most platforms:
+
+| Package                |   Size | Available for                               |
+| :--------------------- | -----: | :------------------------------------------ |
+| PyTorch + MKL + oneDNN | 705 MB | Python, C++, Java                           |
+| JAX + jaxlib           | 357 MB | Python                                      |
+| NumPy + OpenBLAS       |  30 MB | Python                                      |
+| mathjs                 |   9 MB | JavaScript                                  |
+| NumKong                |   5 MB | C, C++, Rust, Python, Go, JavaScript, Swift |
+
+There's also a broader throughput comparison against third-party alternatives also shipped in a separate repository.
+Just like StringWars was designed for StringZilla, [NumWars](https://github.com/ashvardanian/NumWars) was designed specifically to simplify work on NumKong!
+
+![NumWars banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumWars-v1.png?raw=true)
 
 ## Project Organization & Design Decisions 📚
 
