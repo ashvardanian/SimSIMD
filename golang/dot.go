@@ -1,0 +1,65 @@
+package numkong
+
+/*
+#cgo CFLAGS: -O3 -I../include
+#cgo LDFLAGS: -O3 -L. -lm
+#define NK_NATIVE_F16 (0)
+#define NK_NATIVE_BF16 (0)
+#include "numkong/numkong.h"
+*/
+import "C"
+
+// DotF64 computes the inner product (dot product) of two float64 vectors.
+func DotF64(a, b []float64) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_dot_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}
+
+// DotF32 computes the inner product (dot product) of two float32 vectors.
+// Returns float64 (widened output).
+func DotF32(a, b []float32) float64 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_f64_t
+	C.nk_dot_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return float64(result)
+}
+
+// DotI8 computes the inner product (dot product) of two int8 vectors.
+// Returns int32 (widened output).
+func DotI8(a, b []int8) int32 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_i32_t
+	C.nk_dot_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return int32(result)
+}
+
+// DotU8 computes the inner product (dot product) of two uint8 vectors.
+// Returns uint32 (widened output).
+func DotU8(a, b []uint8) uint32 {
+	if len(a) != len(b) {
+		panic("both vectors must have the same length")
+	}
+	if len(a) == 0 {
+		return 0
+	}
+	var result C.nk_u32_t
+	C.nk_dot_u8((*C.nk_u8_t)(&a[0]), (*C.nk_u8_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	return uint32(result)
+}

@@ -1,0 +1,2 @@
+unstable_features = true
+fn_single_line = true

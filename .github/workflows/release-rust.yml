@@ -1,0 +1,23 @@
+name: Release Rust
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish_rust:
+    name: Publish Rust Crate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Set Up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Publish Rust Crate to Registry
+        uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

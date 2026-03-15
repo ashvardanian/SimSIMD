@@ -1,8 +1,6 @@
-build_release
-build_debug
-build
+/build*/
 _deps
-simsimd.egg-info
+*.egg-info
 CMakeFiles
 __pycache__
 wheelhouse/
@@ -15,6 +13,14 @@ javascript/dist
 bun.lockb
 .build/
 .venv/
+.cache/
+.claude/
+tmp/
+
+# Playwright and test artifacts
+playwright-report/
+test-results/
+.pytest_cache/
 
 # for Google Benchmark
 compare.py
@@ -40,6 +46,8 @@ CMakeCache.txt
 *.so
 *.dylib
 *.dll
+*.pyd
+*.node
 
 # Fortran module files
 *.smod
@@ -54,7 +62,7 @@ CMakeCache.txt
 *.exe
 *.out
 *.app
-
+*.wasm
 
 # Rust crate
 target/
@@ -72,5 +80,10 @@ target/
 *.png
 \n
 
-# Library crate: don't commit lockfile
+# Python wheel archives
+*.whl
+
+# Library: don't commit lockfiles!
 Cargo.lock
+uv.lock
+package-lock.json

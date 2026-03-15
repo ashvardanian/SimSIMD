@@ -1,3 +1,3 @@
-module github.com/ashvardanian/simsimd
+module github.com/ashvardanian/NumKong
 
-go 1.19
+go 1.22
