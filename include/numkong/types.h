@@ -543,12 +543,15 @@
 #endif
 
 /**
- *  ARM Streaming-compatible attribute (requires SME-capable compiler: GCC 14+, Clang 16+)
- *  Used on SVE helpers that must also be callable from SME streaming mode.
+ *  ARM Streaming attributes (require SME-capable compiler: GCC 14+, Clang 16+).
+ *  NK_STREAMING_ marks functions that require streaming SVE mode (e.g. FCVTLT).
+ *  NK_STREAMING_COMPATIBLE_ marks helpers callable from both streaming and non-streaming mode.
  */
-#if NK_TARGET_ARM_ && defined(__ARM_FEATURE_SME)
+#if NK_TARGET_ARM_ && NK_TARGET_SME
+#define NK_STREAMING_            __arm_streaming
 #define NK_STREAMING_COMPATIBLE_ __arm_streaming_compatible
 #else
+#define NK_STREAMING_
 #define NK_STREAMING_COMPATIBLE_
 #endif
 
@@ -1314,12 +1317,12 @@ NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
 }
 
 /** @brief Divides the number rounding up to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) {
+NK_PUBLIC nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) NK_STREAMING_COMPATIBLE_ {
     return (number + divisor - 1) / divisor;
 }
 
 /** @brief Rounds up the number to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_size_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+NK_PUBLIC nk_size_t nk_size_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) NK_STREAMING_COMPATIBLE_ {
     return nk_size_divide_round_up_(number, divisor) * divisor;
 }
 

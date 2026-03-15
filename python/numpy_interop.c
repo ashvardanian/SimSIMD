@@ -414,7 +414,7 @@ static nk_np_registration_t const nk_np_registrations[] = {
 };
 // clang-format on
 
-static size_t const nk_np_num_dtypes = sizeof(nk_np_registrations) / sizeof(nk_np_registrations[0]);
+enum { nk_np_num_dtypes = sizeof(nk_np_registrations) / sizeof(nk_np_registrations[0]) };
 
 static nk_PyArray_ArrFuncs nk_arrfuncs[nk_np_num_dtypes];
 static nk_PyArray_DescrProto nk_protos[nk_np_num_dtypes];

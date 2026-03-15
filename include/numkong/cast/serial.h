@@ -1590,7 +1590,7 @@ NK_INTERNAL void nk_strided_load_b32x4_serial_(void const *src, nk_size_t stride
                                                nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u32_t const *s = (nk_u32_t const *)src;
-    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->f32s[i] = s[i * stride_elements];
+    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u32s[i] = s[i * stride_elements];
 }
 
 /** @brief Strided partial load for 16-bit elements (8 max) into 128-bit vector. */
