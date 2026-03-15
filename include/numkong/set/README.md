@@ -132,9 +132,9 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __u8__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_hamming_u8_v128relaxed`  |               0.370 gb/s |               0.400 gb/s |                2.19 gb/s |
 | __u16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_jaccard_u16_v128relaxed` |     2.30 gb/s, 3.19M ulp |     2.34 gb/s, 3.19M ulp |    0.381 gb/s, 3.19M ulp |
+| `nk_jaccard_u16_v128relaxed` |         2.30 gb/s, 0 ulp |         2.34 gb/s, 0 ulp |        0.381 gb/s, 0 ulp |
 | __u32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_jaccard_u32_v128relaxed` |    0.430 gb/s, 3.19M ulp |     2.46 gb/s, 3.19M ulp |     1.08 gb/s, 3.19M ulp |
+| `nk_jaccard_u32_v128relaxed` |        0.430 gb/s, 0 ulp |         2.46 gb/s, 0 ulp |         1.08 gb/s, 0 ulp |
 
 ### Apple M4
 
@@ -173,7 +173,7 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_hamming_u8_v128relaxed`  |               0.702 gb/s |               0.409 gb/s |               0.464 gb/s |
 | __u16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_jaccard_u16_serial`      |        0.647 gb/s, 0 ulp |        0.362 gb/s, 0 ulp |        0.174 gb/s, 0 ulp |
-| `nk_jaccard_u16_v128relaxed` |    0.409 gb/s, 3.19M ulp |  0.00109 gb/s, 3.19M ulp |    0.275 gb/s, 3.19M ulp |
+| `nk_jaccard_u16_v128relaxed` |        0.409 gb/s, 0 ulp |      0.00109 gb/s, 0 ulp |        0.275 gb/s, 0 ulp |
 | __u32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_jaccard_u32_serial`      |        0.320 gb/s, 0 ulp |        0.161 gb/s, 0 ulp |        0.607 gb/s, 0 ulp |
-| `nk_jaccard_u32_v128relaxed` |    0.397 gb/s, 3.19M ulp |    0.364 gb/s, 3.19M ulp |   0.0807 gb/s, 3.19M ulp |
+| `nk_jaccard_u32_v128relaxed` |        0.397 gb/s, 0 ulp |        0.364 gb/s, 0 ulp |       0.0807 gb/s, 0 ulp |

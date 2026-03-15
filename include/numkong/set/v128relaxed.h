@@ -160,100 +160,41 @@ NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_
 }
 
 NK_PUBLIC void nk_jaccard_u32_v128relaxed(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t const *a_scalars = a, *b_scalars = b;
-    nk_size_t count_scalars = n;
-    nk_b128_vec_t a_vec, b_vec;
+    nk_u32_t matches = 0;
+    nk_size_t i = 0;
+    v128_t matches_u32x4 = wasm_i32x4_splat(0);
 
-    // Accumulate in vector registers throughout the loop
-    v128_t intersection_u32x4 = wasm_i32x4_splat(0);
-    v128_t union_count_u32x4 = wasm_i32x4_splat(0);
-
-nk_jaccard_u32_v128relaxed_cycle:
-    if (count_scalars < 4) {
-        nk_partial_load_b32x4_serial_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_b32x4_serial_(b_scalars, &b_vec, count_scalars);
-        count_scalars = 0;
-    }
-    else {
-        nk_load_b128_v128relaxed_(a_scalars, &a_vec);
-        nk_load_b128_v128relaxed_(b_scalars, &b_vec);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+    for (; i + 4 <= n; i += 4) {
+        v128_t a_u32x4 = wasm_v128_load(a + i);
+        v128_t b_u32x4 = wasm_v128_load(b + i);
+        v128_t eq_mask_u32x4 = wasm_i32x4_eq(a_u32x4, b_u32x4);
+        v128_t match_bits_u32x4 = wasm_u32x4_shr(eq_mask_u32x4, 31);
+        matches_u32x4 = wasm_i32x4_add(matches_u32x4, match_bits_u32x4);
     }
 
-    // Same logic for both full and partial loads
-    v128_t zero_u32x4 = wasm_i32x4_splat(0);
-    v128_t eq_mask_u32x4 = wasm_i32x4_eq(a_vec.v128, b_vec.v128);
-    v128_t a_nonzero_mask_u32x4 = wasm_i32x4_ne(a_vec.v128, zero_u32x4);
-    v128_t b_nonzero_mask_u32x4 = wasm_i32x4_ne(b_vec.v128, zero_u32x4);
+    matches += nk_reduce_add_u32x4_v128relaxed_(matches_u32x4);
+    for (; i < n; ++i) matches += (a[i] == b[i]);
 
-    v128_t intersection_mask_u32x4 = wasm_v128_and(eq_mask_u32x4, a_nonzero_mask_u32x4);
-    v128_t union_mask_u32x4 = wasm_v128_or(a_nonzero_mask_u32x4, b_nonzero_mask_u32x4);
-
-    v128_t inter_count_u32x4 = wasm_v128_and(intersection_mask_u32x4, wasm_i32x4_splat(1));
-    v128_t union_count_vec_u32x4 = wasm_v128_and(union_mask_u32x4, wasm_i32x4_splat(1));
-
-    // Accumulate in vector registers (no reduction in hot loop!)
-    intersection_u32x4 = wasm_i32x4_add(intersection_u32x4, inter_count_u32x4);
-    union_count_u32x4 = wasm_i32x4_add(union_count_u32x4, union_count_vec_u32x4);
-
-    if (count_scalars) goto nk_jaccard_u32_v128relaxed_cycle;
-
-    // Reduce once at the end
-    nk_u32_t intersection = nk_reduce_add_u32x4_v128relaxed_(intersection_u32x4);
-    nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_count_u32x4);
-    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 0.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u16_t const *a_scalars = a, *b_scalars = b;
-    nk_size_t count_scalars = n;
-    nk_b128_vec_t a_vec, b_vec;
+    nk_u32_t matches = 0;
+    nk_size_t i = 0;
+    v128_t matches_u32x4 = wasm_i32x4_splat(0);
 
-    // Accumulate in u16 vectors throughout the loop
-    v128_t intersection_u16x8 = wasm_i16x8_splat(0);
-    v128_t union_count_u16x8 = wasm_i16x8_splat(0);
-
-nk_jaccard_u16_v128relaxed_cycle:
-    if (count_scalars < 8) {
-        nk_partial_load_b16x8_serial_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_b16x8_serial_(b_scalars, &b_vec, count_scalars);
-        count_scalars = 0;
-    }
-    else {
-        nk_load_b128_v128relaxed_(a_scalars, &a_vec);
-        nk_load_b128_v128relaxed_(b_scalars, &b_vec);
-        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    for (; i + 8 <= n; i += 8) {
+        v128_t a_u16x8 = wasm_v128_load(a + i);
+        v128_t b_u16x8 = wasm_v128_load(b + i);
+        v128_t eq_mask_u16x8 = wasm_i16x8_eq(a_u16x8, b_u16x8);
+        v128_t match_bits_u16x8 = wasm_u16x8_shr(eq_mask_u16x8, 15);
+        matches_u32x4 = wasm_i32x4_add(matches_u32x4, wasm_u32x4_extadd_pairwise_u16x8(match_bits_u16x8));
     }
 
-    // Same logic for both full and partial loads
-    v128_t zero_u16x8 = wasm_i16x8_splat(0);
-    v128_t eq_mask_u16x8 = wasm_i16x8_eq(a_vec.v128, b_vec.v128);
-    v128_t a_nonzero_mask_u16x8 = wasm_i16x8_ne(a_vec.v128, zero_u16x8);
-    v128_t b_nonzero_mask_u16x8 = wasm_i16x8_ne(b_vec.v128, zero_u16x8);
+    matches += nk_reduce_add_u32x4_v128relaxed_(matches_u32x4);
+    for (; i < n; ++i) matches += (a[i] == b[i]);
 
-    v128_t intersection_mask_u16x8 = wasm_v128_and(eq_mask_u16x8, a_nonzero_mask_u16x8);
-    v128_t union_mask_u16x8 = wasm_v128_or(a_nonzero_mask_u16x8, b_nonzero_mask_u16x8);
-
-    v128_t inter_count_u16x8 = wasm_v128_and(intersection_mask_u16x8, wasm_i16x8_splat(1));
-    v128_t union_count_vec_u16x8 = wasm_v128_and(union_mask_u16x8, wasm_i16x8_splat(1));
-
-    // Accumulate in u16 vectors (no extend/reduce in hot loop!)
-    intersection_u16x8 = wasm_i16x8_add(intersection_u16x8, inter_count_u16x8);
-    union_count_u16x8 = wasm_i16x8_add(union_count_u16x8, union_count_vec_u16x8);
-
-    if (count_scalars) goto nk_jaccard_u16_v128relaxed_cycle;
-
-    // Widen and reduce once at the end
-    v128_t intersection_low_u32x4 = wasm_u32x4_extend_low_u16x8(intersection_u16x8);
-    v128_t intersection_high_u32x4 = wasm_u32x4_extend_high_u16x8(intersection_u16x8);
-    v128_t union_low_u32x4 = wasm_u32x4_extend_low_u16x8(union_count_u16x8);
-    v128_t union_high_u32x4 = wasm_u32x4_extend_high_u16x8(union_count_u16x8);
-
-    nk_u32_t intersection = nk_reduce_add_u32x4_v128relaxed_(intersection_low_u32x4) +
-                            nk_reduce_add_u32x4_v128relaxed_(intersection_high_u32x4);
-    nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_low_u32x4) +
-                           nk_reduce_add_u32x4_v128relaxed_(union_high_u32x4);
-    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 0.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets
