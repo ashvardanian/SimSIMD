@@ -23,11 +23,12 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     make_random_buffer,
     numpy_available,
     dense_dimensions,
@@ -41,13 +42,13 @@ from test_base import (
     NATIVE_COMPUTE_DTYPE,
     make_random,
     tolerances_for_dtype,
-    hex_array,
     collect_errors,
     collect_warnings,
     create_stats,
     print_stats_report,
     LazyFormat,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    nk_seed,  # noqa: F401 — pytest fixture
 )
 from test_spatial import baseline_euclidean, baseline_sqeuclidean, baseline_angular
 
@@ -82,7 +83,6 @@ KERNELS_OVERFLOW = {
 }
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize(
@@ -101,10 +101,10 @@ KERNELS_OVERFLOW = {
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_random_accuracy(ndim, dtype, capability):
+def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
     """Inner product of random vectors across all numeric dtypes, verified against high-precision Decimal baseline."""
-    a_raw, a_baseline = make_random((ndim,), dtype)
-    b_raw, b_baseline = make_random((ndim,), dtype)
+    a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
@@ -114,24 +114,24 @@ def test_inner_random_accuracy(ndim, dtype, capability):
     accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline)
 
     # Baseline at native precision (for error stats)
-    native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
-    expected_dt, expected = profile(baseline_kernel, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
+    if baseline_kernel is not None:
+        native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
+        expected_dt, expected = profile(baseline_kernel, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
+    else:
+        expected_dt, expected = 0, None
 
     # SIMD result — pass dtype for exotic types so the kernel knows the storage format
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
-    result = np.asarray(result)
 
     err_msg = LazyFormat(
         lambda: (
             f"\ninner({dtype}, ndim={ndim}):"
             f"\n  Accurate:  {accurate}"
             f"\n  Got:       {result}"
-            f"\n  Raw a:     {hex_array(a_raw)}"
-            f"\n  Raw b:     {hex_array(b_raw)}"
         )
     )
 
-    np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
+    assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
     collect_errors("inner", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -140,26 +140,27 @@ def test_inner_random_accuracy(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["complex64", "complex128"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_vdot_complex_accuracy(ndim, dtype, capability):
+def test_dot_vdot_complex_accuracy(ndim, dtype, capability, nk_seed):
     """Complex dot and vdot products against NumPy for complex64 and complex128 inputs."""
-    a_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
-    b_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    a_vector, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_vector, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
+    atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
-    accurate_dt, accurate = profile(np.dot, a_vector.astype(np.complex128), b_vector.astype(np.complex128))
+    accurate_dt, accurate = profile(np.dot, a_baseline, b_baseline)
     expected_dt, expected = profile(np.dot, a_vector, b_vector)
     result_dt, result = profile(nk.dot, a_vector, b_vector)
     result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=atol, rtol=rtol)
     collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
-    accurate_dt, accurate = profile(np.vdot, a_vector.astype(np.complex128), b_vector.astype(np.complex128))
+    accurate_dt, accurate = profile(np.vdot, a_baseline, b_baseline)
     expected_dt, expected = profile(np.vdot, a_vector, b_vector)
     result_dt, result = profile(nk.vdot, a_vector, b_vector)
     result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=atol, rtol=rtol)
     collect_errors("vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -167,8 +168,9 @@ def test_dot_vdot_complex_accuracy(ndim, dtype, capability):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_vdot_complex_explicit_dtype(ndim, capability):
+def test_dot_vdot_complex_explicit_dtype(ndim, capability, nk_seed):
     """Complex dot and vdot with explicit dtype='complex64' passed to float32 storage."""
+    np.random.seed(nk_seed)
     a_real_parts = np.random.randn(ndim * 2).astype(dtype=np.float32)
     b_real_parts = np.random.randn(ndim * 2).astype(dtype=np.float32)
 
@@ -176,12 +178,12 @@ def test_dot_vdot_complex_explicit_dtype(ndim, capability):
     expected = np.dot(a_real_parts.view(np.complex64), b_real_parts.view(np.complex64))
     result = nk.dot(a_real_parts, b_real_parts, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     expected = np.vdot(a_real_parts.view(np.complex64), b_real_parts.view(np.complex64))
     result = nk.vdot(a_real_parts, b_real_parts, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/NumKong/issues/206")

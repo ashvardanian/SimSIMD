@@ -20,11 +20,12 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
     dense_dimensions,
     max_coord_angle,
@@ -35,7 +36,7 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 stats = create_stats()
@@ -177,7 +178,7 @@ def test_haversine_random_accuracy(ndim, dtype, capability):
 
     absolute_tolerance = 10.0
     relative_tolerance = 1e-2
-    np.testing.assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
+    assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
 
     collect_errors("haversine", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
@@ -227,7 +228,7 @@ def test_vincenty_random_accuracy(ndim, dtype, capability):
     # can show >40% relative error at f32 — this is inherent to the algorithm.
     absolute_tolerance = 100.0
     relative_tolerance = 1.0 if dtype == "float32" else 1e-2
-    np.testing.assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
+    assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
 
     collect_errors("vincenty", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
@@ -266,7 +267,7 @@ def test_haversine_out_parameter():
     assert np.all(output_distances >= 0), "Output should contain non-negative distances"
 
     expected = np.array(nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
-    np.testing.assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
+    assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)

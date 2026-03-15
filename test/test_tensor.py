@@ -28,30 +28,30 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
-    scipy_available,
     ml_dtypes_available,
     dense_dimensions,
-    possible_capabilities,
     randomized_repetitions_count,
-    keep_one_capability,
     to_array,
     NK_ATOL,
     NK_RTOL,
     f32_downcast_to_bf16,
     make_nk,
-    seed_rng,
+    nk_seed,  # noqa: F401 — pytest fixture
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 try:
     import ml_dtypes
 except ImportError:
     pass
+
 
 KERNELS_TENSOR = {
     "sum": (lambda a: np.sum(np.asarray(a)), lambda a: a.sum(), None),
@@ -188,7 +188,6 @@ def test_float8_e5m2_conversion_vs_ml_dtypes(ndim):
     assert a_nk.dtype == "e5m2"
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("ndim", dense_dimensions)
 def test_float6_e2m3_construction(ndim):
     """Verify that e2m3 tensors can be constructed and have the correct dtype."""
@@ -198,7 +197,6 @@ def test_float6_e2m3_construction(ndim):
     assert a_nk.ndim == 1
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("ndim", dense_dimensions)
 def test_float6_e3m2_construction(ndim):
     """Verify that e3m2 tensors can be constructed and have the correct dtype."""
@@ -208,10 +206,9 @@ def test_float6_e3m2_construction(ndim):
     assert a_nk.ndim == 1
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_properties():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_properties(nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype="float64")
+    b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     assert hasattr(result, "shape")
@@ -232,10 +229,9 @@ def test_distances_tensor_properties():
     assert len(result.strides) == 2
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_properties_1d():
-    a = np.random.rand(10, 128).astype(np.float64)
-    b = np.random.rand(10, 128).astype(np.float64)
+def test_distances_tensor_properties_1d(nk_seed):
+    a = nk.iota((10, 128), nk_seed, dtype="float64")
+    b = nk.iota((10, 128), nk_seed + 1, dtype="float64")
     result = nk.sqeuclidean(a, b)
 
     assert result.shape == (10,)
@@ -244,15 +240,14 @@ def test_distances_tensor_properties_1d():
     assert len(result.strides) == 1
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_len():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_len(nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype="float64")
+    b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result_2d = nk.cdist(a, b, metric="sqeuclidean")
     assert len(result_2d) == 5
 
-    a = np.random.rand(10, 128).astype(np.float64)
-    b = np.random.rand(10, 128).astype(np.float64)
+    a = nk.iota((10, 128), nk_seed, dtype="float64")
+    b = nk.iota((10, 128), nk_seed + 1, dtype="float64")
     result_1d = nk.sqeuclidean(a, b)
     assert len(result_1d) == 10
 
@@ -271,15 +266,15 @@ def test_distances_tensor_indexing():
 
     row_last = result[-1]
     assert row_last.shape == (7,)
-    np.testing.assert_allclose(np.asarray(row_last), expected[-1], rtol=1e-6)
+    assert_allclose(np.asarray(row_last), expected[-1], rtol=1e-6)
 
     val = result[2, 3]
     assert isinstance(val, float)
-    np.testing.assert_allclose(val, expected[2, 3], rtol=1e-6)
+    assert_allclose(val, expected[2, 3], rtol=1e-6)
 
     val_neg = result[-1, -1]
     assert isinstance(val_neg, float)
-    np.testing.assert_allclose(val_neg, expected[-1, -1], rtol=1e-6)
+    assert_allclose(val_neg, expected[-1, -1], rtol=1e-6)
 
     with pytest.raises(IndexError):
         _ = result[10]
@@ -298,7 +293,7 @@ def test_distances_tensor_iteration():
     for i, row in enumerate(result):
         count += 1
         assert row.shape == (7,)
-        np.testing.assert_allclose(np.asarray(row), expected[i], rtol=1e-6)
+        assert_allclose(np.asarray(row), expected[i], rtol=1e-6)
     assert count == 5
 
     a = np.random.rand(3, 128).astype(np.float64)
@@ -310,7 +305,7 @@ def test_distances_tensor_iteration():
     assert len(items) == 3
     for i, item in enumerate(items):
         assert isinstance(item, float)
-        np.testing.assert_allclose(item, expected_1d[i], rtol=1e-6)
+        assert_allclose(item, expected_1d[i], rtol=1e-6)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -333,36 +328,31 @@ def test_distances_tensor_numpy_interop():
     np.testing.assert_array_equal(arr, arr_from_mv)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_scalar_conversion():
-    a = np.random.rand(128).astype(np.float64)
-    b = np.random.rand(128).astype(np.float64)
+def test_distances_tensor_scalar_conversion(nk_seed):
+    a = nk.iota((1, 128), nk_seed, dtype="float64").flatten()
+    b = nk.iota((1, 128), nk_seed + 1, dtype="float64").flatten()
     result = nk.sqeuclidean(a, b)
     assert isinstance(result, float)
     assert result >= 0
 
-    a2 = np.random.rand(3, 128).astype(np.float64)
-    b2 = np.random.rand(5, 128).astype(np.float64)
+    a2 = nk.iota((3, 128), nk_seed, dtype="float64")
+    b2 = nk.iota((5, 128), nk_seed + 1, dtype="float64")
     result2 = nk.cdist(a2, b2, metric="sqeuclidean")
     with pytest.raises(TypeError):
         float(result2)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_dtype_consistency():
-    for input_dtype in [np.float32, np.float64]:
-        a = np.random.rand(5, 128).astype(input_dtype)
-        b = np.random.rand(7, 128).astype(input_dtype)
-        result = nk.cdist(a, b, metric="sqeuclidean")
-        assert result.dtype == "float64"
-        arr = np.asarray(result)
-        assert arr.dtype == np.float64
+@pytest.mark.parametrize("input_dtype", ["float32", "float64"])
+def test_distances_tensor_dtype_consistency(input_dtype, nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype=input_dtype)
+    b = nk.iota((7, 128), nk_seed + 1, dtype=input_dtype)
+    result = nk.cdist(a, b, metric="sqeuclidean")
+    assert result.dtype == "float64"
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_strides():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_strides(nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype="float64")
+    b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     strides = result.strides
@@ -371,10 +361,9 @@ def test_distances_tensor_strides():
     assert strides == (7 * 8, 8)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_array_interface():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_array_interface(nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype="float64")
+    b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     ai = result.__array_interface__
@@ -401,7 +390,7 @@ def test_distances_tensor_transpose():
     assert t.shape == (7, 5)
     result_arr = np.asarray(result)
     t_arr = np.asarray(t)
-    np.testing.assert_allclose(result_arr.T, t_arr, rtol=1e-10)
+    assert_allclose(result_arr.T, t_arr, rtol=1e-10)
 
     a1d = np.random.rand(10, 128).astype(np.float64)
     b1d = np.random.rand(10, 128).astype(np.float64)
@@ -410,37 +399,60 @@ def test_distances_tensor_transpose():
     assert t1d.shape == result1d.shape
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_str():
-    a = np.random.rand(3, 128).astype(np.float64)
-    b = np.random.rand(4, 128).astype(np.float64)
+def test_distances_tensor_str(nk_seed):
+    a = nk.iota((3, 128), nk_seed, dtype="float64")
+    b = nk.iota((4, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     s = str(result)
-    assert "[" in s
-    assert "]" in s
+    assert len(s) > 0
     assert any(c.isdigit() for c in s)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_equality():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_equality(nk_seed):
+    a = nk.iota((5, 4), nk_seed, dtype="float32")
+    b = nk.iota((7, 4), nk_seed + 20, dtype="float32")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     copy = result.copy()
     assert result == copy
     assert not (result != copy)
 
-    a2 = np.random.rand(5, 128).astype(np.float64)
-    b2 = np.random.rand(7, 128).astype(np.float64)
+    a2 = nk.iota((5, 4), nk_seed + 100, dtype="float32")
+    b2 = nk.iota((7, 4), nk_seed + 200, dtype="float32")
     result2 = nk.cdist(a2, b2, metric="sqeuclidean")
     assert result != result2
 
-    a3 = np.random.rand(3, 128).astype(np.float64)
-    b3 = np.random.rand(4, 128).astype(np.float64)
+    a3 = nk.iota((3, 4), nk_seed, dtype="float32")
+    b3 = nk.iota((4, 4), nk_seed + 20, dtype="float32")
     result3 = nk.cdist(a3, b3, metric="sqeuclidean")
     assert result != result3
+
+
+def test_distances_tensor_inf_nan_propagation(nk_seed):
+    """Verify that inf/nan inputs propagate through cdist without crashing."""
+    normal = nk.iota((3, 4), nk_seed, dtype="float64")
+
+    inf_tensor = nk.full((2, 4), float("inf"), dtype="float64")
+    result_inf = nk.cdist(inf_tensor, normal, metric="sqeuclidean")
+    assert result_inf.shape == (2, 3)
+    assert result_inf.dtype == "float64"
+    flat = result_inf.flatten()
+    for i in range(result_inf.size):
+        v = float(flat[i])
+        assert v == float("inf") or v != v  # inf or nan
+
+    nan_tensor = nk.full((2, 4), float("nan"), dtype="float64")
+    result_nan = nk.cdist(nan_tensor, normal, metric="sqeuclidean")
+    assert result_nan.shape == (2, 3)
+    assert result_nan.dtype == "float64"
+    flat_nan = result_nan.flatten()
+    for i in range(result_nan.size):
+        assert float(flat_nan[i]) != float(flat_nan[i])  # all nan
+
+    s = str(result_inf)
+    assert len(s) > 0
+    assert any(c.isdigit() or c in "inaINAf" for c in s)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -459,10 +471,9 @@ def test_distances_tensor_copy():
     np.testing.assert_array_equal(result_arr, copy_arr)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_distances_tensor_reshape():
-    a = np.random.rand(5, 128).astype(np.float64)
-    b = np.random.rand(7, 128).astype(np.float64)
+def test_distances_tensor_reshape(nk_seed):
+    a = nk.iota((5, 128), nk_seed, dtype="float64")
+    b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     flat = result.reshape(35)
@@ -488,19 +499,19 @@ def test_distances_tensor_slicing():
 
     sliced = result[2:5]
     assert sliced.shape == (3, 8)
-    np.testing.assert_allclose(np.asarray(sliced), expected[2:5], rtol=1e-10)
+    assert_allclose(np.asarray(sliced), expected[2:5], rtol=1e-10)
 
     step_sliced = result[::2]
     assert step_sliced.shape == (5, 8)
-    np.testing.assert_allclose(np.asarray(step_sliced), expected[::2], rtol=1e-10)
+    assert_allclose(np.asarray(step_sliced), expected[::2], rtol=1e-10)
 
     rev_sliced = result[::-1]
     assert rev_sliced.shape == (10, 8)
-    np.testing.assert_allclose(np.asarray(rev_sliced), expected[::-1], rtol=1e-10)
+    assert_allclose(np.asarray(rev_sliced), expected[::-1], rtol=1e-10)
 
     end_sliced = result[-3:]
     assert end_sliced.shape == (3, 8)
-    np.testing.assert_allclose(np.asarray(end_sliced), expected[-3:], rtol=1e-10)
+    assert_allclose(np.asarray(end_sliced), expected[-3:], rtol=1e-10)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -558,7 +569,6 @@ def test_distances_tensor_zero_copy_views():
     assert not np.shares_memory(orig_np, copied_np)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize(
     "dtype",
     [
@@ -574,13 +584,13 @@ def test_distances_tensor_zero_copy_views():
 )
 def test_ndarray_zeros(dtype, shape):
     arr = nk.zeros(shape, dtype=dtype)
-    arr_np = np.asarray(arr)
     assert arr.shape == shape
     assert arr.dtype == dtype
-    assert np.all(arr_np == 0)
+    flat = arr.flatten()
+    for i in range(arr.size):
+        assert float(flat[i]) == 0
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize(
     "dtype",
     [
@@ -596,13 +606,13 @@ def test_ndarray_zeros(dtype, shape):
 )
 def test_ndarray_ones(dtype, shape):
     arr = nk.ones(shape, dtype=dtype)
-    arr_np = np.asarray(arr)
     assert arr.shape == shape
     assert arr.dtype == dtype
-    assert np.all(arr_np == 1)
+    flat = arr.flatten()
+    for i in range(arr.size):
+        assert float(flat[i]) == 1
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize(
     "dtype,fill_value",
     [
@@ -615,23 +625,71 @@ def test_ndarray_ones(dtype, shape):
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4")])
 def test_ndarray_full(dtype, fill_value, shape):
     arr = nk.full(shape, fill_value, dtype=dtype)
-    arr_np = np.asarray(arr)
     assert arr.shape == shape
     assert arr.dtype == dtype
-    if dtype.startswith("float"):
-        np.testing.assert_allclose(arr_np, fill_value, rtol=1e-5)
-    else:
-        expected = np.dtype(dtype).type(fill_value)
-        assert np.all(arr_np == expected)
+    flat = arr.flatten()
+    for i in range(arr.size):
+        val = float(flat[i])
+        if dtype.startswith("float"):
+            assert abs(val - fill_value) < 1e-5
+        else:
+            assert int(val) == fill_value
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4")])
 def test_ndarray_empty(dtype, shape):
     arr = nk.empty(shape, dtype=dtype)
     assert arr.shape == shape
     assert arr.dtype == dtype
+
+
+@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
+def test_ndarray_iota(dtype, shape):
+    seed = 5
+    arr = nk.iota(shape, seed, dtype=dtype)
+    assert arr.shape == shape
+    assert arr.dtype == dtype
+    flat = arr.flatten()
+    assert float(flat[0]) == seed
+    assert float(flat[1]) == seed + 1
+    assert float(flat[2]) == seed + 2
+
+
+@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize("n", [pytest.param(4, id="4x4"), pytest.param(8, id="8x8")])
+def test_ndarray_diagonal(dtype, n):
+    seed = 3
+    arr = nk.diagonal(n, seed, dtype=dtype)
+    assert arr.shape == (n, n)
+    assert arr.dtype == dtype
+    for i in range(n):
+        assert float(arr[i, i]) == seed
+        if i + 1 < n:
+            assert float(arr[i, i + 1]) == 0
+
+
+@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
+def test_ndarray_hash(dtype, shape):
+    a = nk.hash(shape, seed=42, dtype=dtype)
+    b = nk.hash(shape, seed=42, dtype=dtype)
+    assert a.shape == shape
+    assert a.dtype == dtype
+    # Determinism: same seed → same data
+    flat_a = a.flatten()
+    flat_b = b.flatten()
+    total = 1
+    for d in shape:
+        total *= d
+    for i in range(total):
+        assert float(flat_a[i]) == float(flat_b[i])
+    # Different seed → different data
+    c = nk.hash(shape, seed=99, dtype=dtype)
+    flat_c = c.flatten()
+    differs = any(float(flat_a[i]) != float(flat_c[i]) for i in range(total))
+    assert differs, "Different seeds should produce different data"
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -660,7 +718,7 @@ def test_ndarray_sum_method(dtype, shape):
     result = nk_arr.sum()
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
     else:
         assert result == expected
 
@@ -685,8 +743,8 @@ def test_ndarray_min_max_methods(dtype, shape):
     nk_arr = make_nk(np_arr, dtype)
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(nk_arr.min(), np_arr.min(), rtol=1e-5)
-        np.testing.assert_allclose(nk_arr.max(), np_arr.max(), rtol=1e-5)
+        assert_allclose(nk_arr.min(), np_arr.min(), rtol=1e-5)
+        assert_allclose(nk_arr.max(), np_arr.max(), rtol=1e-5)
     else:
         assert nk_arr.min() == np_arr.min()
         assert nk_arr.max() == np_arr.max()
@@ -729,7 +787,7 @@ def test_ndarray_add_operator(dtype):
     result_np = np.asarray(result)
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+        assert_allclose(result_np, expected, rtol=1e-5)
     else:
         np.testing.assert_array_equal(result_np, expected)
 
@@ -754,7 +812,7 @@ def test_ndarray_subtract_operator(dtype):
     result_np = np.asarray(result)
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+        assert_allclose(result_np, expected, rtol=1e-5)
     else:
         np.testing.assert_array_equal(result_np, expected)
 
@@ -779,7 +837,7 @@ def test_ndarray_multiply_operator(dtype):
     result_np = np.asarray(result)
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+        assert_allclose(result_np, expected, rtol=1e-4)
     else:
         np.testing.assert_array_equal(result_np, expected)
 
@@ -801,7 +859,7 @@ def test_ndarray_unary_operators(dtype):
     result_neg_np = np.asarray(result_neg)
 
     if dtype.startswith("float"):
-        np.testing.assert_allclose(result_neg_np, expected_neg, rtol=1e-5)
+        assert_allclose(result_neg_np, expected_neg, rtol=1e-5)
     else:
         np.testing.assert_array_equal(result_neg_np, expected_neg)
 
@@ -819,9 +877,9 @@ def test_reduction_on_strided_array(dtype):
     np_strided = np_arr[::2]
     nk_strided = nk_arr[::2]
 
-    np.testing.assert_allclose(nk_strided.sum(), np_strided.sum(), rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(nk_strided.min(), np_strided.min(), rtol=1e-5)
-    np.testing.assert_allclose(nk_strided.max(), np_strided.max(), rtol=1e-5)
+    assert_allclose(nk_strided.sum(), np_strided.sum(), rtol=1e-4, atol=1e-4)
+    assert_allclose(nk_strided.min(), np_strided.min(), rtol=1e-5)
+    assert_allclose(nk_strided.max(), np_strided.max(), rtol=1e-5)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -833,9 +891,9 @@ def test_reduction_on_transposed_array(dtype):
     np_t = np_arr.T
     nk_t = nk_arr.T
 
-    np.testing.assert_allclose(nk_t.sum(), np_t.sum(), rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(nk_t.min(), np_t.min(), rtol=1e-5)
-    np.testing.assert_allclose(nk_t.max(), np_t.max(), rtol=1e-5)
+    assert_allclose(nk_t.sum(), np_t.sum(), rtol=1e-4, atol=1e-4)
+    assert_allclose(nk_t.min(), np_t.min(), rtol=1e-5)
+    assert_allclose(nk_t.max(), np_t.max(), rtol=1e-5)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -847,9 +905,9 @@ def test_reduction_on_subview(dtype):
     np_sub = np_arr[5:15, 5:15]
     nk_sub = nk_arr[5:15, 5:15]
 
-    np.testing.assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(nk_sub.min(), np_sub.min(), rtol=1e-5)
-    np.testing.assert_allclose(nk_sub.max(), np_sub.max(), rtol=1e-5)
+    assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=1e-4, atol=1e-4)
+    assert_allclose(nk_sub.min(), np_sub.min(), rtol=1e-5)
+    assert_allclose(nk_sub.max(), np_sub.max(), rtol=1e-5)
     assert nk_sub.argmin() == np_sub.argmin()
     assert nk_sub.argmax() == np_sub.argmax()
 

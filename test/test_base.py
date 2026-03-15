@@ -49,11 +49,9 @@ from __future__ import annotations
 
 import os
 import sys
-import math
 import time
 import platform
 import collections
-import warnings
 import faulthandler
 
 import array
@@ -64,7 +62,7 @@ import numkong as nk
 
 faulthandler.enable()
 
-nk_seed: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not None else None
+_nk_seed_base: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not None else None
 
 randomized_repetitions_count: int = int(s) if (s := os.environ.get("NK_REPETITIONS")) is not None else 10
 
@@ -104,12 +102,12 @@ try:
     import numpy as np
 
     numpy_available = True
-except:
+except:  # noqa: E722
     np = None
     numpy_available = False
 
 try:
-    import scipy.spatial.distance
+    import scipy.spatial.distance  # noqa: F401
 
     scipy_available = True
 except ImportError:
@@ -117,7 +115,7 @@ except ImportError:
 
 
 try:
-    import ml_dtypes
+    import ml_dtypes  # noqa: F401
 
     ml_dtypes_available = True
 except ImportError:
@@ -177,6 +175,8 @@ def is_running_under_qemu():
 
 
 def profile(callable, *args, **kwargs) -> tuple:
+    if callable is None:
+        return 0, None
     before = time.perf_counter_ns()
     result = callable(*args, **kwargs)
     after = time.perf_counter_ns()
@@ -380,20 +380,8 @@ SUBBYTE_LOOKUP_TABLES = {
 }
 
 
-def make_random(shape, dtype):
-    """Unified random-data factory.
-
-    Returns ``(raw, baseline)`` where:
-
-    - *raw*: data in the dtype's storage format, suitable for SIMD kernels.
-    - *baseline*: ``float64`` (or ``complex128``) array for reference comparison.
-
-    For exotic types the raw array uses a NumPy-native storage dtype
-    (``uint16`` for bf16, ``uint8`` for float8/float6).
-    """
-    if isinstance(shape, int):
-        shape = (shape,)
-
+def _make_random_numpy(shape, dtype):
+    """NumPy-backed random-data factory (original implementation)."""
     if dtype in ("float64", "float32", "float16"):
         raw = np.random.randn(*shape).astype(dtype)
         baseline = raw.astype(np.float64)
@@ -449,6 +437,51 @@ def make_random(shape, dtype):
         return raw, baseline
 
     raise ValueError(f"Unsupported dtype for make_random: {dtype}")
+
+
+def _make_random_fallback(shape, dtype, seed):
+    """NumPy-free random-data factory using ``nk.iota``.
+
+    Returns ``(nk_tensor, list_of_floats)`` — the list serves as the
+    baseline for Decimal-based precise functions.
+
+    Values are centered around zero and scaled to approximately [-3, 3]
+    (matching ``np.random.randn`` magnitude) to avoid overflow in
+    low-precision types.
+    """
+    n = 1
+    for d in shape:
+        n *= d
+    # Build centered iota: values from -n//2 to +n//2
+    raw = nk.iota(shape, seed=seed - n // 2, dtype=dtype)
+    if n > 6:
+        # Scale down to [-3, 3] range to match np.random.randn magnitude.
+        # This prevents overflow in product ops for float16/bf16.
+        scale_factor = 6.0 / n
+        raw = nk.scale(raw, alpha=scale_factor, beta=0.0)
+    baseline = [float(x) for x in raw.flatten()]
+    return raw, baseline
+
+
+def make_random(shape, dtype, seed=0):
+    """Unified random-data factory.
+
+    Returns ``(raw, baseline)`` where:
+
+    - *raw*: data in the dtype's storage format, suitable for SIMD kernels.
+    - *baseline*: ``float64`` (or ``complex128``) array for reference comparison.
+      When NumPy is available this is a NumPy array; otherwise a plain ``list[float]``.
+
+    For exotic types the raw array uses a NumPy-native storage dtype
+    (``uint16`` for bf16, ``uint8`` for float8/float6).
+    """
+    if isinstance(shape, int):
+        shape = (shape,)
+
+    if numpy_available:
+        return _make_random_numpy(shape, dtype)
+
+    return _make_random_fallback(shape, dtype, seed)
 
 
 def make_nk(np_arr, dtype=None):
@@ -565,6 +598,83 @@ def create_stats():
     }
 
 
+def assert_allclose(actual, expected, atol=0, rtol=1e-7, err_msg=""):
+    """Drop-in replacement for ``np.testing.assert_allclose`` that works without NumPy."""
+    if numpy_available:
+        a_arr = np.asarray(actual)
+        e_arr = np.asarray(expected)
+        if not np.issubdtype(a_arr.dtype, np.complexfloating):
+            a_arr = a_arr.astype(float)
+        if not np.issubdtype(e_arr.dtype, np.complexfloating):
+            e_arr = e_arr.astype(float)
+        np.testing.assert_allclose(
+            a_arr, e_arr,
+            atol=atol, rtol=rtol, err_msg=err_msg,
+        )
+        return
+    # Scalar path
+    if not hasattr(actual, "__len__") and not hasattr(expected, "__len__"):
+        a, e = float(actual), float(expected)
+        if abs(a - e) > atol + rtol * abs(e):
+            raise AssertionError(f"Not close: {a} vs {e}. {err_msg}")
+        return
+    # Iterable path
+    if hasattr(actual, "flatten"):
+        actual = actual.flatten()
+    if hasattr(expected, "flatten"):
+        expected = expected.flatten()
+    for i, (ai, ei) in enumerate(zip(actual, expected)):
+        ai_f, ei_f = float(ai), float(ei)
+        if abs(ai_f - ei_f) > atol + rtol * abs(ei_f):
+            raise AssertionError(f"Element {i}: {ai_f} vs {ei_f}. {err_msg}")
+
+
+def _compute_errors_numpy(accurate_result, baseline_result, nk_result):
+    """Compute error metrics using NumPy."""
+    accurate_result = np.asarray(accurate_result)
+    eps = np.finfo(accurate_result.dtype).resolution if np.issubdtype(accurate_result.dtype, np.inexact) else 1.0
+    if baseline_result is None:
+        abs_bl, rel_bl = float("nan"), float("nan")
+    else:
+        abs_bl = float(np.max(np.abs(baseline_result - accurate_result)))
+        rel_bl = float(np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps)))
+    abs_nk = float(np.max(np.abs(nk_result - accurate_result)))
+    rel_nk = float(np.max(np.abs(nk_result - accurate_result) / (np.abs(accurate_result) + eps)))
+    return abs_bl, rel_bl, abs_nk, rel_nk
+
+
+def _compute_errors_fallback(accurate_result, baseline_result, nk_result):
+    """Compute error metrics using pure Python."""
+    eps = 1e-15
+    accurate_f = float(accurate_result) if not hasattr(accurate_result, "__len__") else None
+    if accurate_f is not None:
+        nk_f = float(nk_result)
+        abs_nk = abs(nk_f - accurate_f)
+        rel_nk = abs(nk_f - accurate_f) / (abs(accurate_f) + eps)
+    else:
+        acc_flat = list(accurate_result.flatten()) if hasattr(accurate_result, "flatten") else list(accurate_result)
+        nk_flat = list(nk_result.flatten()) if hasattr(nk_result, "flatten") else list(nk_result)
+        abs_errs = [abs(float(a) - float(b)) for a, b in zip(nk_flat, acc_flat)]
+        rel_errs = [abs(float(a) - float(b)) / (abs(float(b)) + eps) for a, b in zip(nk_flat, acc_flat)]
+        abs_nk = max(abs_errs)
+        rel_nk = max(rel_errs)
+    if baseline_result is None:
+        abs_bl, rel_bl = float("nan"), float("nan")
+    else:
+        bl_f = float(baseline_result) if not hasattr(baseline_result, "__len__") else None
+        if bl_f is not None:
+            abs_bl = abs(bl_f - float(accurate_result))
+            rel_bl = abs(bl_f - float(accurate_result)) / (abs(float(accurate_result)) + eps)
+        else:
+            acc_flat = list(accurate_result.flatten()) if hasattr(accurate_result, "flatten") else list(accurate_result)
+            bl_flat = list(baseline_result.flatten()) if hasattr(baseline_result, "flatten") else list(baseline_result)
+            abs_errs = [abs(float(a) - float(b)) for a, b in zip(bl_flat, acc_flat)]
+            rel_errs = [abs(float(a) - float(b)) / (abs(float(b)) + eps) for a, b in zip(bl_flat, acc_flat)]
+            abs_bl = max(abs_errs)
+            rel_bl = max(rel_errs)
+    return abs_bl, rel_bl, abs_nk, rel_nk
+
+
 def collect_errors(
     metric: str,
     ndim: int,
@@ -578,21 +688,19 @@ def collect_errors(
     stats,
 ):
     """Calculates and aggregates errors for a given test."""
-    accurate_result = np.asarray(accurate_result)
-    eps = np.finfo(accurate_result.dtype).resolution if np.issubdtype(accurate_result.dtype, np.inexact) else 1.0
-    absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
-    relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
-    absolute_nk_error = np.max(np.abs(nk_result - accurate_result))
-    relative_nk_error = np.max(np.abs(nk_result - accurate_result) / (np.abs(accurate_result) + eps))
+    if numpy_available:
+        abs_bl, rel_bl, abs_nk, rel_nk = _compute_errors_numpy(accurate_result, baseline_result, nk_result)
+    else:
+        abs_bl, rel_bl, abs_nk, rel_nk = _compute_errors_fallback(accurate_result, baseline_result, nk_result)
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
     stats["dtype"].append(dtype)
     stats["capability"].append(current_capability or "unknown")
-    stats["absolute_baseline_error"].append(absolute_baseline_error)
-    stats["relative_baseline_error"].append(relative_baseline_error)
-    stats["absolute_nk_error"].append(absolute_nk_error)
-    stats["relative_nk_error"].append(relative_nk_error)
+    stats["absolute_baseline_error"].append(abs_bl)
+    stats["relative_baseline_error"].append(rel_bl)
+    stats["absolute_nk_error"].append(abs_nk)
+    stats["relative_nk_error"].append(rel_nk)
     stats["accurate_duration"].append(accurate_duration)
     stats["baseline_duration"].append(baseline_duration)
     stats["nk_duration"].append(nk_duration)
@@ -784,13 +892,28 @@ def print_stats_report(stats):
 
 @pytest.fixture(autouse=True)
 def seed_rng(__pytest_repeat_step_number):
-    """Auto-seed NumPy RNG before every test. When NK_SEED is set, each
-    @pytest.mark.repeat() step gets a unique derived seed."""
-    if not numpy_available:
-        return
+    """Auto-seed NumPy RNG before every test and return the computed seed.
+
+    When NK_SEED is set, each @pytest.mark.repeat() step gets a unique
+    derived seed.  Tests that use ``nk.hash`` can accept this fixture as a
+    parameter and pass the return value as the ``seed=`` argument so that
+    repeated runs exercise different data.
+    """
     step = __pytest_repeat_step_number or 0
-    if nk_seed is not None:
-        np.random.seed(nk_seed + step)
+    seed = (_nk_seed_base or 0) + step
+    if numpy_available and _nk_seed_base is not None:
+        np.random.seed(seed)
+    return seed
+
+
+@pytest.fixture
+def nk_seed(seed_rng):
+    """Per-test seed that incorporates the repeat step number.
+
+    Wraps *seed_rng* under the name ``nk_seed`` so tests that build data
+    with ``nk.hash`` / ``nk.iota`` can request it by name.
+    """
+    return seed_rng
 
 
 # Map nk dtype → (array.array typecode, low, high)

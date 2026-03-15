@@ -25,13 +25,13 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
-    scipy_available,
     curved_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
@@ -40,14 +40,13 @@ from test_base import (
     NK_ATOL,
     NK_RTOL,
     DECIMAL_PRECISION,
-    make_random,
     downcast_f32_to_dtype,
     hex_array,
     collect_errors,
     create_stats,
     print_stats_report,
     LazyFormat,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 stats = create_stats()
@@ -183,7 +182,7 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
         )
     )
 
-    np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL, err_msg=err_msg)
+    assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL, err_msg=err_msg)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -211,5 +210,5 @@ def test_bilinear_complex_accuracy(ndim, dtype, capability):
     result_dt, result = profile(simd_kernel, a_vector, b_vector, c_matrix)
     result = np.asarray(result)
 
-    np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors("bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)

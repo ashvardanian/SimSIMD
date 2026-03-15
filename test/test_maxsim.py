@@ -16,19 +16,21 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
+    nk_seed,  # noqa: F401 — pytest fixture
     possible_capabilities,
     randomized_repetitions_count,
     keep_one_capability,
     tolerances_for_dtype,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 stats = create_stats()
@@ -95,7 +97,7 @@ def test_maxsim_pack_and_packed(dtype, capability):
         d_np = np.array(documents, dtype=dtype)
         expected = baseline_maxsim(q_np, d_np)
         atol, rtol = tolerances_for_dtype(dtype)
-        np.testing.assert_allclose(result, expected, atol=atol, rtol=rtol)
+        assert_allclose(result, expected, atol=atol, rtol=rtol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -117,43 +119,40 @@ def test_maxsim_convenience(dtype, capability):
     # Convenience path
     conv_result = nk.maxsim(queries, documents, dtype=dtype_str)
 
-    np.testing.assert_allclose(packed_result, conv_result, atol=1e-6, rtol=0)
+    assert_allclose(packed_result, conv_result, atol=1e-6, rtol=0)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_maxsim_self_zero(capability):
     """Identical queries and documents should give score near zero."""
     keep_one_capability(capability)
-    vectors = np.random.randn(8, 64).astype(np.float32)
+    vectors = nk.ones((8, 64), dtype="float32")
     result = nk.maxsim(vectors, vectors, dtype="f32")
-    np.testing.assert_allclose(result, 0.0, atol=0.1)
+    assert abs(result) < 0.1, f"Expected near-zero self-distance, got {result}"
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_maxsim_type_errors(capability):
+def test_maxsim_type_errors(capability, nk_seed):
     """Wrong type and mismatched dtype/depth."""
     keep_one_capability(capability)
-    q = np.random.randn(4, 32).astype(np.float32)
-    d = np.random.randn(8, 32).astype(np.float32)
-    qp = nk.maxsim_pack(q, dtype="f32")
-    dp = nk.maxsim_pack(d, dtype="f32")
+    query = nk.hash((4, 32), seed=nk_seed, dtype="float32")
+    documents = nk.hash((8, 32), seed=nk_seed + 1, dtype="float32")
+    query_packed = nk.maxsim_pack(query, dtype="f32")
+    documents_packed = nk.maxsim_pack(documents, dtype="f32")
 
     # Wrong type for maxsim_packed
     with pytest.raises(TypeError):
-        nk.maxsim_packed(q, dp)
+        nk.maxsim_packed(query, documents_packed)
     with pytest.raises(TypeError):
-        nk.maxsim_packed(qp, d)
+        nk.maxsim_packed(query_packed, documents)
 
     # Mismatched depth
-    d_wrong = np.random.randn(8, 16).astype(np.float32)
-    dp_wrong = nk.maxsim_pack(d_wrong, dtype="f32")
+    documents_wrong = nk.hash((8, 16), seed=nk_seed + 2, dtype="float32")
+    documents_wrong_packed = nk.maxsim_pack(documents_wrong, dtype="f32")
     with pytest.raises(ValueError):
-        nk.maxsim_packed(qp, dp_wrong)
+        nk.maxsim_packed(query_packed, documents_wrong_packed)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_maxsim_packed_size(capability):
     """Verify classmethod packed_size returns a positive integer."""

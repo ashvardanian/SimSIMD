@@ -17,14 +17,13 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     make_positive_buffer,
-    numpy_available,
-    scipy_available,
     dense_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
@@ -35,7 +34,7 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 algebraic_ndims = [7, 97]
@@ -83,7 +82,7 @@ def test_jensenshannon_random_accuracy(ndim, dtype, capability):
     result_dt, result = profile(simd_kernel, a_distribution, b_distribution)
     result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors("jensenshannon", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 

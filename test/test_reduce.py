@@ -15,26 +15,31 @@ Matches C++ suite: test_reduce.cpp.
 """
 
 import atexit
+import decimal
 import math
 import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
     dense_dimensions,
     possible_capabilities,
     keep_one_capability,
     randomized_repetitions_count,
     make_nk,
+    make_random,
+    nk_seed,  # noqa: F401 — pytest fixture
     create_stats,
-    collect_errors,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    NK_ATOL,
+    NK_RTOL,
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -79,6 +84,40 @@ def baseline_norm(a):
     return np.linalg.norm(np.asarray(a).astype(np.float64))
 
 
+def precise_sum(a):
+    """High-precision sum via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        return float(sum(D.from_float(float(x)) for x in a))
+
+
+def precise_min(a):
+    return float(min(float(x) for x in a))
+
+
+def precise_max(a):
+    return float(max(float(x) for x in a))
+
+
+def precise_argmin(a):
+    vals = [float(x) for x in a]
+    return vals.index(min(vals))
+
+
+def precise_argmax(a):
+    vals = [float(x) for x in a]
+    return vals.index(max(vals))
+
+
+def precise_norm(a):
+    """High-precision L2 norm via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        return float(sum(D.from_float(float(x)) ** 2 for x in a).sqrt())
+
+
 KERNELS_REDUCE = {
     "moments": (baseline_moments, nk.moments, None),
     "minmax": (
@@ -86,12 +125,12 @@ KERNELS_REDUCE = {
         nk.minmax,
         None,
     ),
-    "sum": (baseline_sum, nk.sum, None),
-    "min": (baseline_min, nk.min, None),
-    "max": (baseline_max, nk.max, None),
-    "argmin": (baseline_argmin, nk.argmin, None),
-    "argmax": (baseline_argmax, nk.argmax, None),
-    "norm": (baseline_norm, nk.norm, None),
+    "sum": (baseline_sum, nk.sum, precise_sum),
+    "min": (baseline_min, nk.min, precise_min),
+    "max": (baseline_max, nk.max, precise_max),
+    "argmin": (baseline_argmin, nk.argmin, precise_argmin),
+    "argmax": (baseline_argmax, nk.argmax, precise_argmax),
+    "norm": (baseline_norm, nk.norm, precise_norm),
 }
 
 
@@ -112,8 +151,8 @@ def test_moments(ndim, dtype, capability):
     nk_sum, nk_sum_sq = moments_result
 
     expected_sum, expected_sum_sq = baseline_moments(np_arr)
-    np.testing.assert_allclose(nk_sum, expected_sum, rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(nk_sum_sq, expected_sum_sq, rtol=1e-4, atol=1e-4)
+    assert_allclose(nk_sum, expected_sum, rtol=1e-4, atol=1e-4)
+    assert_allclose(nk_sum_sq, expected_sum_sq, rtol=1e-4, atol=1e-4)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -132,9 +171,9 @@ def test_minmax(ndim, dtype, capability):
     minmax_result = nk.minmax(nk_arr)
     nk_min, nk_argmin, nk_max, nk_argmax = minmax_result
 
-    np.testing.assert_allclose(nk_min, np_arr.min(), rtol=1e-5)
+    assert_allclose(nk_min, np_arr.min(), rtol=1e-5)
     assert int(nk_argmin) == np_arr.argmin()
-    np.testing.assert_allclose(nk_max, np_arr.max(), rtol=1e-5)
+    assert_allclose(nk_max, np_arr.max(), rtol=1e-5)
     assert int(nk_argmax) == np_arr.argmax()
 
 
@@ -203,7 +242,6 @@ def test_individual_reductions_all_nan(ndim, dtype, capability):
     assert nk.argmax(nk_arr) is None
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize(
@@ -215,19 +253,17 @@ def test_individual_reductions_all_nan(ndim, dtype, capability):
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_module_level_reductions(ndim, dtype, capability):
+def test_module_level_reductions(ndim, dtype, capability, nk_seed):
     """Test nk.sum(), nk.min(), nk.max(), nk.argmin(), nk.argmax() module functions."""
     keep_one_capability(capability)
-    np_arr = np.random.randn(ndim).astype(dtype)
-    nk_arr = make_nk(np_arr, dtype)
+    raw, baseline = make_random((ndim,), dtype, seed=nk_seed)
+    nk_arr = make_nk(raw, dtype) if numpy_available else raw
 
-    # For float16, the SIMD kernel accumulates in float32 so compare against a float32 reference
-    sum_ref = np_arr.astype(np.float32).sum() if dtype == "float16" else np_arr.sum()
-    np.testing.assert_allclose(nk.sum(nk_arr), sum_ref, rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(nk.min(nk_arr), np_arr.min(), rtol=1e-5)
-    np.testing.assert_allclose(nk.max(nk_arr), np_arr.max(), rtol=1e-5)
-    assert nk.argmin(nk_arr) == np_arr.argmin()
-    assert nk.argmax(nk_arr) == np_arr.argmax()
+    assert_allclose(nk.sum(nk_arr), precise_sum(baseline), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(nk.min(nk_arr), precise_min(baseline), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(nk.max(nk_arr), precise_max(baseline), atol=NK_ATOL, rtol=NK_RTOL)
+    assert nk.argmin(nk_arr) == precise_argmin(baseline)
+    assert nk.argmax(nk_arr) == precise_argmax(baseline)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -244,14 +280,14 @@ def test_sum_axis(dtype, capability):
     for axis in [0, 1]:
         result = np.asarray(nk_arr.sum(axis=axis))
         expected = np_arr.astype(np.float64).sum(axis=axis)
-        np.testing.assert_allclose(result, expected, rtol=rtol, atol=1e-6)
+        assert_allclose(result, expected, rtol=rtol, atol=1e-6)
     # 3D
     np_arr3 = np.random.randn(3, 4, 5).astype(dtype)
     nk_arr3 = make_nk(np_arr3, dtype)
     for axis in [0, 1, 2]:
         result = np.asarray(nk_arr3.sum(axis=axis))
         expected = np_arr3.astype(np.float64).sum(axis=axis)
-        np.testing.assert_allclose(result, expected, rtol=rtol, atol=1e-6)
+        assert_allclose(result, expected, rtol=rtol, atol=1e-6)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -270,8 +306,8 @@ def test_min_max_axis(dtype, capability):
     np_arr = np.random.randn(6, 8).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
     for axis in [0, 1]:
-        np.testing.assert_allclose(np.asarray(nk_arr.min(axis=axis)), np_arr.min(axis=axis), rtol=1e-6)
-        np.testing.assert_allclose(np.asarray(nk_arr.max(axis=axis)), np_arr.max(axis=axis), rtol=1e-6)
+        assert_allclose(np.asarray(nk_arr.min(axis=axis)), np_arr.min(axis=axis), rtol=1e-6)
+        assert_allclose(np.asarray(nk_arr.max(axis=axis)), np_arr.max(axis=axis), rtol=1e-6)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -315,7 +351,7 @@ def test_norm_axis(dtype, capability):
     for axis in [0, 1]:
         result = np.asarray(nk_arr.norm(axis=axis))
         expected = np.linalg.norm(np_arr.astype(np.float64), axis=axis)
-        np.testing.assert_allclose(result, expected, rtol=rtol, atol=1e-6)
+        assert_allclose(result, expected, rtol=rtol, atol=1e-6)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -364,7 +400,7 @@ def test_out_parameter(dtype, capability):
     # ret should be the same object as out
     assert np.asarray(ret).ctypes.data == np.asarray(out).ctypes.data
     expected = np_arr.astype(np.float64).sum(axis=0)
-    np.testing.assert_allclose(np.asarray(out), expected, rtol=1e-10, atol=1e-6)
+    assert_allclose(np.asarray(out), expected, rtol=1e-10, atol=1e-6)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -375,9 +411,9 @@ def test_module_level_axis(capability):
     keep_one_capability(capability)
     np_arr = np.random.randn(4, 5).astype("float64")
     nk_arr = make_nk(np_arr, "float64")
-    np.testing.assert_allclose(np.asarray(nk.sum(nk_arr, axis=0)), np_arr.sum(axis=0), rtol=1e-10)
-    np.testing.assert_allclose(np.asarray(nk.min(nk_arr, axis=1)), np_arr.min(axis=1), rtol=1e-10)
-    np.testing.assert_allclose(np.asarray(nk.max(nk_arr, axis=0)), np_arr.max(axis=0), rtol=1e-10)
+    assert_allclose(np.asarray(nk.sum(nk_arr, axis=0)), np_arr.sum(axis=0), rtol=1e-10)
+    assert_allclose(np.asarray(nk.min(nk_arr, axis=1)), np_arr.min(axis=1), rtol=1e-10)
+    assert_allclose(np.asarray(nk.max(nk_arr, axis=0)), np_arr.max(axis=0), rtol=1e-10)
     np.testing.assert_array_equal(np.asarray(nk.argmin(nk_arr, axis=1)), np_arr.argmin(axis=1))
     np.testing.assert_array_equal(np.asarray(nk.argmax(nk_arr, axis=0)), np_arr.argmax(axis=0))
 
@@ -393,13 +429,13 @@ def test_negative_axis(capability):
     nk_arr = make_nk(np_arr, "float64")
     result = np.asarray(nk_arr.sum(axis=-1))
     expected = np_arr.sum(axis=-1)
-    np.testing.assert_allclose(result, expected, rtol=1e-10)
+    assert_allclose(result, expected, rtol=1e-10)
     # 3D, axis=-2
     np_arr3 = np.random.randn(2, 3, 4).astype("float64")
     nk_arr3 = make_nk(np_arr3, "float64")
     result3 = np.asarray(nk_arr3.sum(axis=-2))
     expected3 = np_arr3.sum(axis=-2)
-    np.testing.assert_allclose(result3, expected3, rtol=1e-10)
+    assert_allclose(result3, expected3, rtol=1e-10)
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -421,7 +457,7 @@ def test_integer_axis_reductions(capability):
     np_arr = np.array([[10, 3, 7], [1, 8, 5], [4, 9, 2]], dtype=np.int32)
     nk_arr = make_nk(np_arr, "int32")
     for axis in [0, 1]:
-        np.testing.assert_allclose(
+        assert_allclose(
             np.asarray(nk_arr.sum(axis=axis)), np_arr.astype(np.float64).sum(axis=axis), rtol=1e-10
         )
         np.testing.assert_array_equal(np.asarray(nk_arr.min(axis=axis)), np_arr.min(axis=axis))
@@ -440,7 +476,7 @@ def test_norm_integer(capability):
     for axis in [0, 1]:
         result = np.asarray(nk_arr.norm(axis=axis))
         expected = np.linalg.norm(np_arr.astype(np.float64), axis=axis)
-        np.testing.assert_allclose(result, expected, rtol=1e-10)
+        assert_allclose(result, expected, rtol=1e-10)
 
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)

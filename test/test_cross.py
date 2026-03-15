@@ -19,11 +19,12 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
     scipy_available,
     dense_dimensions,
@@ -41,7 +42,7 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 try:
@@ -102,34 +103,34 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
     b_matrix = np.random.randn(10, ndim).astype(dtype)
     expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # NxD vs 1xD
     b_matrix = np.random.randn(1, ndim).astype(dtype)
     expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[0]) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # 1xD vs NxD
     a_matrix = np.random.randn(1, ndim).astype(dtype)
     b_matrix = np.random.randn(10, ndim).astype(dtype)
     expected_distances = [spd.sqeuclidean(a_matrix[0], b_matrix[i]) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # NxD vs D (1D)
     a_matrix = np.random.randn(10, ndim).astype(dtype)
     b_matrix = np.random.randn(ndim).astype(dtype)
     expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # D (1D) vs NxD
     b_matrix = np.random.randn(10, ndim).astype(dtype)
     a_matrix = np.random.randn(ndim).astype(dtype)
     expected_distances = [spd.sqeuclidean(b_matrix[i], a_matrix) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(b_matrix, a_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Strided slices of bigger matrices
     a_matrix_extended = np.random.randn(10, ndim + 11).astype(dtype)
@@ -140,21 +141,21 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
     assert a_matrix.__array_interface__["strides"] is not None and b_matrix.__array_interface__["strides"] is not None
     expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Transposed matrix
     a_matrix = np.random.randn(10, ndim).astype(dtype)
     b_matrix = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
     expected_distances = [spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix)).astype(np.float64)
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Different output type
     a_matrix = np.random.randn(10, ndim).astype(dtype)
     b_matrix = np.random.randn(10, ndim).astype(dtype)
     expected_distances = np.array([spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]).astype(np.float32)
     simd_distances = np.array(nk.sqeuclidean(a_matrix, b_matrix, out_dtype="float32"))
-    np.testing.assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(simd_distances, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
     assert simd_distances.dtype == expected_distances.dtype
 
     # Supplied output buffer
@@ -163,7 +164,7 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
     expected_distances = np.array([spd.sqeuclidean(a_matrix[i], b_matrix[i]) for i in range(10)]).astype(np.float32)
     output_buffer = np.zeros(10, dtype=np.float32)
     assert nk.sqeuclidean(a_matrix, b_matrix, out=output_buffer) is None
-    np.testing.assert_allclose(output_buffer, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(output_buffer, expected_distances, atol=NK_ATOL, rtol=NK_RTOL)
     assert output_buffer.dtype == expected_distances.dtype
 
 
@@ -204,7 +205,7 @@ def test_dots_symmetric(dtype, capability):
     result = np.asarray(result)
 
     mask = np.triu(np.ones((num_vectors, num_vectors), dtype=bool))
-    np.testing.assert_allclose(result[mask], accurate[mask], atol=atol, rtol=rtol)
+    assert_allclose(result[mask], accurate[mask], atol=atol, rtol=rtol)
     collect_errors(
         "dots_symmetric",
         num_vectors * vector_depth,
@@ -237,7 +238,7 @@ def test_hammings_symmetric(capability):
         for j in range(i, num_vectors):
             expected[i, j] = np.logical_xor(bits[i], bits[j]).sum()
 
-    np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -281,7 +282,7 @@ def test_dots_pack_and_packed(dtype, capability):
     native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
     expected_dt, expected = profile(baseline_dots_packed, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
 
-    np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol)
+    assert_allclose(result, accurate, atol=atol, rtol=rtol)
     collect_errors(
         "dots_packed", height * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
     )
@@ -304,7 +305,7 @@ def test_dots_pack_matmul_operator(capability):
     result = np.asarray(a_tensor @ b_packed)
     expected = a_matrix @ b_matrix.T
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -327,7 +328,7 @@ def test_hammings_pack_and_packed(capability):
         for j in range(num_rows_b):
             expected[i, j] = np.logical_xor(a_bits[i], b_bits[j]).sum()
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -349,7 +350,7 @@ def test_spatials_pack_and_packed(metric, capability):
         result = np.asarray(nk.euclideans_packed(a, b_packed))
         expected = spd.cdist(a, b, "euclidean")
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -370,7 +371,7 @@ def test_spatials_symmetric(metric, capability):
         expected = spd.cdist(vectors, vectors, "euclidean")
 
     mask = np.triu(np.ones((num_rows, num_rows), dtype=bool))
-    np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -389,7 +390,7 @@ def test_jaccards_pack_and_packed(capability):
     result = np.asarray(nk.jaccards_packed(a_packed, b_packed))
     expected = spd.cdist(a_bits, b_bits, "jaccard")
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -406,7 +407,7 @@ def test_jaccards_symmetric(capability):
     expected = spd.cdist(bits, bits, "jaccard")
 
     mask = np.triu(np.ones((num_rows, num_rows), dtype=bool))
-    np.testing.assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result[mask], expected[mask], atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

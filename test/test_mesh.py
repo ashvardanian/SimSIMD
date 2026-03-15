@@ -18,18 +18,19 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
     scipy_available,
     possible_capabilities,
     keep_one_capability,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 stats = create_stats()
@@ -65,8 +66,8 @@ def test_mesh_kabsch(dtype, capability):
     scipy_disparity = baseline_kabsch(point_cloud, point_cloud.copy())
 
     assert hasattr(result, "rotation"), "Expected MeshAlignmentResult with .rotation attribute"
-    np.testing.assert_allclose(float(np.array(result.scale)), 1.0, atol=1e-4)
-    np.testing.assert_allclose(float(np.array(result.rmsd)), 0.0, atol=0.01)
+    assert_allclose(float(np.array(result.scale)), 1.0, atol=1e-4)
+    assert_allclose(float(np.array(result.rmsd)), 0.0, atol=0.01)
     assert scipy_disparity < 0.01
 
 
@@ -91,8 +92,8 @@ def test_mesh_rmsd(dtype, capability):
     result = nk.rmsd(point_cloud, point_cloud.copy())
     rmsd_val = float(np.array(result.rmsd))
     assert not np.isnan(rmsd_val), "RMSD should not be NaN for identical point clouds"
-    np.testing.assert_allclose(float(np.array(result.scale)), 1.0, atol=1e-4)
-    np.testing.assert_allclose(rmsd_val, 0.0, atol=1e-4)
+    assert_allclose(float(np.array(result.scale)), 1.0, atol=1e-4)
+    assert_allclose(rmsd_val, 0.0, atol=1e-4)
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -102,4 +103,4 @@ def test_rmsd_self_zero(capability):
     point_cloud = nk.ones((4, 3), dtype="float64")
     result = nk.rmsd(point_cloud, point_cloud)
     rmsd_val = float(result.rmsd)
-    np.testing.assert_allclose(rmsd_val, 0.0, atol=1e-4)
+    assert_allclose(rmsd_val, 0.0, atol=1e-4)

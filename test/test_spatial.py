@@ -22,14 +22,14 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     make_random_buffer,
     numpy_available,
-    scipy_available,
     dense_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
@@ -41,12 +41,12 @@ from test_base import (
     NATIVE_COMPUTE_DTYPE,
     make_random,
     tolerances_for_dtype,
-    hex_array,
     collect_errors,
     create_stats,
     print_stats_report,
     LazyFormat,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    nk_seed,  # noqa: F401 — pytest fixture
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -99,13 +99,12 @@ def precise_angular(a, b):
 
 
 KERNELS_SPATIAL = {
-    "euclidean": (baseline_euclidean, nk.euclidean, precise_euclidean),
-    "sqeuclidean": (baseline_sqeuclidean, nk.sqeuclidean, precise_sqeuclidean),
-    "angular": (baseline_angular, nk.angular, precise_angular),
+    "euclidean": (baseline_euclidean if numpy_available else None, nk.euclidean, precise_euclidean),
+    "sqeuclidean": (baseline_sqeuclidean if numpy_available else None, nk.sqeuclidean, precise_sqeuclidean),
+    "angular": (baseline_angular if numpy_available else None, nk.angular, precise_angular),
 }
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize(
@@ -125,10 +124,10 @@ KERNELS_SPATIAL = {
 )
 @pytest.mark.parametrize("metric", ["euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_spatial_random_accuracy(ndim, dtype, metric, capability):
+def test_spatial_random_accuracy(ndim, dtype, metric, capability, nk_seed):
     """Spatial distances across all numeric dtypes against high-precision Decimal baselines."""
-    a_raw, a_baseline = make_random((ndim,), dtype)
-    b_raw, b_baseline = make_random((ndim,), dtype)
+    a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
@@ -140,26 +139,26 @@ def test_spatial_random_accuracy(ndim, dtype, metric, capability):
         accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline)
 
     # Baseline at native precision (for error stats)
-    native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", RuntimeWarning)
-        expected_dt, expected = profile(baseline_kernel, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
+    if baseline_kernel is not None:
+        native_dt = NATIVE_COMPUTE_DTYPE.get(dtype, np.float64)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            expected_dt, expected = profile(baseline_kernel, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
+    else:
+        expected_dt, expected = 0, None
 
     # SIMD result
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
-    result = np.asarray(result)
 
     err_msg = LazyFormat(
         lambda: (
             f"\n{metric}({dtype}, ndim={ndim}):"
             f"\n  Accurate:  {accurate}"
             f"\n  Got:       {result}"
-            f"\n  Raw a:     {hex_array(a_raw)}"
-            f"\n  Raw b:     {hex_array(b_raw)}"
         )
     )
 
-    np.testing.assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
+    assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 

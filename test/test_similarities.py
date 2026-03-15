@@ -27,22 +27,20 @@ except ImportError:
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
     scipy_available,
     ml_dtypes_available,
+    nk_seed,  # noqa: F401 — pytest fixture
     dense_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
     keep_one_capability,
-    profile,
     scipy_metric_name,
     NK_ATOL,
     NK_RTOL,
     make_random,
-    make_nk,
-    tolerances_for_dtype,
-    seed_rng,
-    collect_errors,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
     create_stats,
     print_stats_report,
     PACKING_GRANULARITY,
@@ -107,7 +105,7 @@ def test_cdist_batch_metrics(ndim, input_dtype, metric, capability):
         expected = spd.cdist(a_matrix, b_matrix, scipy_metric).astype(out_dtype)
 
     result = nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype)
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -144,10 +142,10 @@ def test_cdist_self_distance(ndim, input_dtype, metric):
 
     # Default out_dtype (f64) — may use pairwise fallback
     result_default = np.asarray(nk.cdist(a_matrix, a_matrix, metric=metric))
-    np.testing.assert_allclose(result_default, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_default, expected, atol=NK_ATOL, rtol=NK_RTOL)
     # Check lower triangle explicitly
     mask_lower = np.tril(np.ones((10, 10), dtype=bool), k=-1)
-    np.testing.assert_allclose(result_default[mask_lower], expected[mask_lower], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_default[mask_lower], expected[mask_lower], atol=NK_ATOL, rtol=NK_RTOL)
 
     # Native out_dtype — should force batch symmetric path for f32
     native_out_dtype = input_dtype
@@ -158,8 +156,8 @@ def test_cdist_self_distance(ndim, input_dtype, metric):
     else:
         expected_native = spd.cdist(a_matrix, a_matrix, scipy_metric).astype(native_out_dtype)
     result_native = np.asarray(nk.cdist(a_matrix, a_matrix, metric=metric, out_dtype=native_out_dtype))
-    np.testing.assert_allclose(result_native, expected_native, atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(result_native[mask_lower], expected_native[mask_lower], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_native, expected_native, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_native[mask_lower], expected_native[mask_lower], atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -219,14 +217,14 @@ def test_cdist_float_accuracy(ndim, input_dtype, out_dtype, metric, capability):
         result = nk.cdist(a_matrix, b_matrix, metric, out_dtype=out_dtype)
 
     atol = 1 if is_integer_output else NK_ATOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
 
     # Test out= buffer with strides
     out_np_dtype = out_dtype if out_dtype else "float64"
     output_buffer_extended = np.zeros((num_rows_a, num_rows_b + 7), dtype=out_np_dtype)
     output_buffer = output_buffer_extended[:, :num_rows_b]
     assert nk.cdist(a_matrix, b_matrix, metric, out=output_buffer) is None
-    np.testing.assert_allclose(output_buffer, expected, atol=atol, rtol=NK_RTOL)
+    assert_allclose(output_buffer, expected, atol=atol, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -275,9 +273,9 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         result2d = nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype)
         assert nk.cdist(a_matrix, b_matrix, metric=metric, out_dtype=out_dtype, out=c_matrix) is None
 
-    np.testing.assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(result2d, expected, atol=NK_ATOL, rtol=NK_RTOL)
-    np.testing.assert_allclose(c_matrix, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result2d, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(c_matrix, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -320,7 +318,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
             expected = raw.astype(out_dtype)
         result = nk.cdist(a_packed_bits, b_packed_bits, metric="hamming", dtype="uint1", out_dtype=out_dtype)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -356,7 +354,7 @@ def test_cdist_jaccard(ndim, out_dtype, capability):
         expected = spd.cdist(a_bits, b_bits, "jaccard").astype(out_dtype)
         result = nk.cdist(a_packed_bits, b_packed_bits, metric="jaccard", dtype="uint1", out_dtype=out_dtype)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -405,7 +403,7 @@ def test_cdist_probability(ndim, input_dtype, metric, capability):
         expected = spd.cdist(a_matrix.astype(np.float64), b_matrix.astype(np.float64), "jensenshannon")
 
     result = nk.cdist(a_matrix, b_matrix, metric=metric)
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -455,7 +453,7 @@ def test_cdist_exotic_dtypes(ndim, input_dtype, metric):
 
     # Test with default out_dtype (f64, pairwise fallback)
     result_f64 = nk.cdist(a_raw, b_raw, **cdist_kwargs)
-    np.testing.assert_allclose(result_f64, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_f64, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -489,17 +487,16 @@ def test_cdist_shapes(m, n, k):
     expected_euc = spd.cdist(a_matrix, b_matrix, "euclidean")
     result_euc = nk.cdist(a_matrix, b_matrix, "euclidean")
     assert result_euc.shape == (m, n), f"Expected shape ({m}, {n}), got {result_euc.shape}"
-    np.testing.assert_allclose(result_euc, expected_euc, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_euc, expected_euc, atol=NK_ATOL, rtol=NK_RTOL)
 
     # sqeuclidean (pairwise)
     expected_sqeuc = spd.cdist(a_matrix, b_matrix, "sqeuclidean")
     result_sqeuc = nk.cdist(a_matrix, b_matrix, "sqeuclidean")
     assert result_sqeuc.shape == (m, n), f"Expected shape ({m}, {n}), got {result_sqeuc.shape}"
-    np.testing.assert_allclose(result_sqeuc, expected_sqeuc, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result_sqeuc, expected_sqeuc, atol=NK_ATOL, rtol=NK_RTOL)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_cdist_edge_cases():
+def test_cdist_edge_cases(nk_seed):
     """Verify cdist edge cases: scalar return, error handling, and removed API.
 
     Covers three categories:
@@ -514,26 +511,24 @@ def test_cdist_edge_cases():
     Not parameterised — uses fixed 16-element vectors on float32.
     """
     ndim = 16
-    a_vec = np.random.randn(ndim).astype(np.float32)
-    b_vec = np.random.randn(ndim).astype(np.float32)
+    a_vec = nk.hash((ndim,), seed=nk_seed, dtype="float32")
+    b_vec = nk.hash((ndim,), seed=nk_seed + 1, dtype="float32")
 
     # 1D vectors → scalar float return, not matrix
     result = nk.cdist(a_vec, b_vec, "euclidean")
-    assert np.isscalar(result) or (
-        hasattr(result, "shape") and result.shape == ()
-    ), f"Expected scalar for 1D inputs, got {type(result)}"
+    assert isinstance(result, (int, float)), f"Expected scalar for 1D inputs, got {type(result)}"
 
     # threads= is rejected (removed parameter)
     with pytest.raises(TypeError, match="unexpected keyword"):
-        nk.cdist(np.ones((2, 3)), np.ones((2, 3)), threads=2)
+        nk.cdist(nk.ones((2, 3), dtype="float32"), nk.ones((2, 3), dtype="float32"), threads=2)
 
     # Mismatched dimensions → ValueError
     with pytest.raises(ValueError):
-        nk.cdist(np.ones((2, 3)), np.ones((2, 5)), "euclidean")
+        nk.cdist(nk.ones((2, 3), dtype="float32"), nk.ones((2, 5), dtype="float32"), "euclidean")
 
     # Empty matrix → ValueError
     with pytest.raises(ValueError):
-        nk.cdist(np.ones((0, 3)), np.ones((2, 3)), "euclidean")
+        nk.cdist(nk.ones((0, 3), dtype="float32"), nk.ones((2, 3), dtype="float32"), "euclidean")
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

@@ -18,11 +18,13 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
+    make_random,
     make_random_buffer,
     numpy_available,
     dense_dimensions,
@@ -35,7 +37,8 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    seed_rng,
+    nk_seed,  # noqa: F401 — pytest fixture
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -59,32 +62,50 @@ def baseline_atan(a):
     return np.arctan(a)
 
 
+def precise_sin(a):
+    """High-precision sin via math.sin (C libm double precision)."""
+    return [math.sin(float(x)) for x in a]
+
+
+def precise_cos(a):
+    """High-precision cos via math.cos (C libm double precision)."""
+    return [math.cos(float(x)) for x in a]
+
+
+def precise_atan(a):
+    """High-precision atan via math.atan (C libm double precision)."""
+    return [math.atan(float(x)) for x in a]
+
+
 KERNELS_TRIGONOMETRY = {
-    "sin": (baseline_sin, nk.sin, None),
-    "cos": (baseline_cos, nk.cos, None),
-    "atan": (baseline_atan, nk.atan, None),
+    "sin": (baseline_sin, nk.sin, precise_sin),
+    "cos": (baseline_cos, nk.cos, precise_cos),
+    "atan": (baseline_atan, nk.atan, precise_atan),
 }
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("metric", list(KERNELS_TRIGONOMETRY.keys()))
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometry_random_accuracy(ndim, dtype, metric, capability):
-    """sin, cos, atan on random inputs in [-pi, pi] against NumPy baselines."""
-    a = np.random.uniform(-np.pi, np.pi, ndim).astype(dtype)
-
+def test_trigonometry_random_accuracy(ndim, dtype, metric, capability, nk_seed):
+    """sin, cos, atan on random inputs against high-precision baselines."""
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_TRIGONOMETRY[metric]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_TRIGONOMETRY[metric]
 
-    accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64))
-    expected_dt, expected = profile(baseline_kernel, a)
+    if numpy_available:
+        a = np.random.uniform(-np.pi, np.pi, ndim).astype(dtype)
+        accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64))
+        expected_dt, expected = profile(baseline_kernel, a)
+    else:
+        a, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+        accurate_dt, accurate = profile(precise_kernel, a_baseline)
+        expected_dt, expected = 0, None
+
     result_dt, result = profile(simd_kernel, a)
-    result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 

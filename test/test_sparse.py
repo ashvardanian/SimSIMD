@@ -20,13 +20,13 @@ import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
 from test_base import (
+    assert_allclose,
     numpy_available,
-    dense_dimensions,
     sparse_dimensions,
     possible_capabilities,
     randomized_repetitions_count,
@@ -38,7 +38,7 @@ from test_base import (
     collect_errors,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 stats = create_stats()
@@ -79,7 +79,7 @@ def test_sparse_dot(capability):
     )
     expected_dt, expected = profile(_sparse_dot_baseline, a_idx, a_val, b_idx, b_val)
 
-    np.testing.assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(
         "sparse_dot", len(a_idx), "float32", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
     )

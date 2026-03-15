@@ -21,11 +21,13 @@ Matches C++ suite: test_each.cpp.
 """
 
 import atexit
+import decimal
+import random
 import pytest
 
 try:
     import numpy as np
-except:
+except:  # noqa: E722
     np = None
 
 import numkong as nk
@@ -39,13 +41,15 @@ from test_base import (
     make_random,
     tolerances_for_dtype,
     random_of_dtype,
+    assert_allclose,
+    nk_seed,  # noqa: F401 — pytest fixture
     NK_ATOL,
     NK_RTOL,
     collect_errors,
     collect_warnings,
     create_stats,
     print_stats_report,
-    seed_rng,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -129,125 +133,206 @@ def baseline_multiply(x, y, out=None):
     return result
 
 
+_INT_CLIP_RANGES = {
+    "int8": (-128, 127), "uint8": (0, 255),
+    "int16": (-32768, 32767), "uint16": (0, 65535),
+    "int32": (-2147483648, 2147483647), "uint32": (0, 4294967295),
+}
+
+
+def _clip_int(values, dtype):
+    """Clip and round values to integer dtype range, mirroring normalize_elementwise."""
+    clip_range = _INT_CLIP_RANGES.get(dtype)
+    if clip_range is None:
+        return values
+    lo, hi = clip_range
+    return [float(max(lo, min(hi, round(v)))) for v in values]
+
+
+def precise_scale(a, alpha, beta, dtype=None):
+    """High-precision scale: alpha * x + beta via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        da = D.from_float(float(alpha))
+        db = D.from_float(float(beta))
+        result = [float(da * D.from_float(float(x)) + db) for x in a]
+    return _clip_int(result, dtype) if dtype else result
+
+
+def precise_add(a, b, dtype=None):
+    """High-precision elementwise add via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        result = [float(D.from_float(float(x)) + D.from_float(float(y))) for x, y in zip(a, b)]
+    return _clip_int(result, dtype) if dtype else result
+
+
+def precise_blend(a, b, alpha, beta, dtype=None):
+    """High-precision blend: alpha * x + beta * y via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        da, db = D.from_float(float(alpha)), D.from_float(float(beta))
+        result = [float(da * D.from_float(float(x)) + db * D.from_float(float(y))) for x, y in zip(a, b)]
+    return _clip_int(result, dtype) if dtype else result
+
+
+def precise_fma(a, b, c, alpha, beta, dtype=None):
+    """High-precision FMA: alpha * x * y + beta * z via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        da, db = D.from_float(float(alpha)), D.from_float(float(beta))
+        result = [float(da * D.from_float(float(x)) * D.from_float(float(y)) + db * D.from_float(float(z)))
+                for x, y, z in zip(a, b, c)]
+    return _clip_int(result, dtype) if dtype else result
+
+
+def precise_multiply(a, b, dtype=None):
+    """High-precision elementwise multiply via Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = 120
+        D = decimal.Decimal
+        result = [float(D.from_float(float(x)) * D.from_float(float(y))) for x, y in zip(a, b)]
+    return _clip_int(result, dtype) if dtype else result
+
+
 KERNELS_EACH = {
-    "scale": (baseline_scale, nk.scale, None),
-    "add": (baseline_add, nk.add, None),
-    "blend": (baseline_blend, nk.blend, None),
-    "fma": (baseline_fma, nk.fma, None),
-    "multiply": (baseline_multiply, nk.multiply, None),
+    "scale": (baseline_scale if numpy_available else None, nk.scale, precise_scale),
+    "add": (baseline_add if numpy_available else None, nk.add, precise_add),
+    "blend": (baseline_blend if numpy_available else None, nk.blend, precise_blend),
+    "fma": (baseline_fma if numpy_available else None, nk.fma, precise_fma),
+    "multiply": (baseline_multiply if numpy_available else None, nk.multiply, precise_multiply),
 }
 
 
 def random_coefficients(dtype, alpha_div=2, beta_div=2):
-    alpha = np.random.randn(1).astype(np.float64).item()
-    beta = np.random.randn(1).astype(np.float64).item()
-    if np.issubdtype(np.dtype(dtype), np.integer):
-        alpha, beta = abs(alpha) / alpha_div, abs(beta) / beta_div
+    if numpy_available:
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        if np.issubdtype(np.dtype(dtype), np.integer):
+            alpha, beta = abs(alpha) / alpha_div, abs(beta) / beta_div
+    else:
+        alpha = random.uniform(-2.0, 2.0)
+        beta = random.uniform(-2.0, 2.0)
+        if dtype in ("int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64"):
+            alpha, beta = abs(alpha) / alpha_div, abs(beta) / beta_div
     return alpha, beta
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_scale_random_accuracy(ndim, dtype, capability):
-    """scale(alpha * x + beta) across float and integer dtypes against NumPy baseline."""
-    input_raw, input_baseline = make_random((ndim,), dtype)
+def test_scale_random_accuracy(ndim, dtype, capability, nk_seed):
+    """scale(alpha * x + beta) across float and integer dtypes against high-precision Decimal baseline."""
+    input_raw, input_baseline = make_random((ndim,), dtype, seed=nk_seed)
     atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_EACH["scale"]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_EACH["scale"]
 
-    accurate_dt, accurate = profile(baseline_kernel, input_baseline, alpha=alpha, beta=beta)
+    # High-precision baseline
+    accurate_dt, accurate = profile(precise_kernel, input_baseline, alpha=alpha, beta=beta, dtype=dtype)
+
+    # Native precision baseline
     expected_dt, expected = profile(baseline_kernel, input_raw, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, input_raw, alpha=alpha, beta=beta)
-    result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    result_dt, result = profile(simd_kernel, input_raw, alpha=alpha, beta=beta)
+
+    assert_allclose(result, accurate, atol=atol, rtol=rtol)
     collect_errors("scale", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_add_random_accuracy(ndim, dtype, capability):
-    """Elementwise addition across float and integer dtypes against NumPy baseline."""
-    a_raw, a_baseline = make_random((ndim,), dtype)
-    b_raw, b_baseline = make_random((ndim,), dtype)
+def test_add_random_accuracy(ndim, dtype, capability, nk_seed):
+    """Elementwise addition across float and integer dtypes against high-precision Decimal baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
     atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_EACH["add"]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_EACH["add"]
 
-    accurate_dt, accurate = profile(baseline_kernel, a_baseline, b_baseline)
+    # High-precision baseline
+    accurate_dt, accurate = profile(precise_kernel, a_baseline, b_baseline, dtype=dtype)
+
+    # Native precision baseline
     expected_dt, expected = profile(baseline_kernel, a_raw, b_raw)
-    result_dt, result = profile(simd_kernel, a_raw, b_raw)
-    result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    result_dt, result = profile(simd_kernel, a_raw, b_raw)
+
+    assert_allclose(result, accurate, atol=atol, rtol=rtol)
     collect_errors("add", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_blend_random_accuracy(ndim, dtype, capability):
-    """Weighted sum (alpha * x + beta * y) across float and integer dtypes against NumPy baseline."""
-    a_raw, a_baseline = make_random((ndim,), dtype)
-    b_raw, b_baseline = make_random((ndim,), dtype)
+def test_blend_random_accuracy(ndim, dtype, capability, nk_seed):
+    """Weighted sum (alpha * x + beta * y) across float and integer dtypes against high-precision Decimal baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
     atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_EACH["blend"]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_EACH["blend"]
 
-    accurate_dt, accurate = profile(baseline_kernel, a_baseline, b_baseline, alpha=alpha, beta=beta)
+    # High-precision baseline
+    accurate_dt, accurate = profile(precise_kernel, a_baseline, b_baseline, alpha=alpha, beta=beta, dtype=dtype)
+
+    # Native precision baseline
     expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
-    result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    result_dt, result = profile(simd_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
+
+    assert_allclose(result, accurate, atol=atol, rtol=rtol)
     collect_errors("blend", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_fma_random_accuracy(ndim, dtype, capability):
-    """Fused multiply-add (alpha * x * y + beta * z) across float and integer dtypes against NumPy baseline."""
-    a_raw, a_baseline = make_random((ndim,), dtype)
-    b_raw, b_baseline = make_random((ndim,), dtype)
-    c_raw, c_baseline = make_random((ndim,), dtype)
+def test_fma_random_accuracy(ndim, dtype, capability, nk_seed):
+    """Fused multiply-add (alpha * x * y + beta * z) across float and integer dtypes against high-precision Decimal baseline."""
+    a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
+    b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
+    c_raw, c_baseline = make_random((ndim,), dtype, seed=nk_seed + 2)
     atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype, 512, 3)
 
     keep_one_capability(capability)
-    baseline_kernel, simd_kernel, _ = KERNELS_EACH["fma"]
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_EACH["fma"]
 
+    # High-precision baseline
     accurate_dt, accurate = profile(
-        baseline_kernel,
+        precise_kernel,
         a_baseline,
         b_baseline,
         c_baseline,
         alpha=alpha,
         beta=beta,
+        dtype=dtype,
     )
-    expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
-    result = np.asarray(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    # Native precision baseline
+    expected_dt, expected = profile(baseline_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
+
+    result_dt, result = profile(simd_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
+
+    assert_allclose(result, accurate, atol=atol, rtol=rtol)
     collect_errors("fma", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -291,7 +376,7 @@ def test_add_multiply_noncontiguous(dtype, kernel, capability):
         ), f"Result dtypes differ: {result_numkong.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
         if not np.allclose(result_numkong, result_numpy, atol=NK_ATOL, rtol=NK_RTOL):
-            np.testing.assert_allclose(
+            assert_allclose(
                 result_numkong,
                 result_numpy,
                 atol=NK_ATOL,
@@ -421,28 +506,28 @@ def test_add_multiply_broadcast(ndim, dtype, kernel, capability):
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Scalar-Vector
     a = np.random.randn(1).astype(first_dtype)[0]
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Vector-Scalar
     a = np.random.randn(ndim).astype(first_dtype)
     b = np.random.randn(1).astype(second_dtype)[0]
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Matrix-Matrix
     a = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(first_dtype)
     b = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # In-place operation
     a = np.random.randn(ndim).astype(first_dtype)
@@ -451,7 +536,7 @@ def test_add_multiply_broadcast(ndim, dtype, kernel, capability):
     out_result = np.zeros(ndim).astype(output_dtype)
     baseline_kernel(a, b, out=out_expected)
     simd_kernel(a, b, out=out_result)
-    np.testing.assert_allclose(out_result, out_expected, atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(out_result, out_expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -470,22 +555,22 @@ def test_scale_edge_cases(ndim, dtype, capability):
     beta = np.random.randn(1).astype(np.float64).item()
     expected = baseline_kernel(a, alpha=alpha, beta=beta)
     result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Zero alpha
     expected = baseline_kernel(a, alpha=0.0, beta=1.5)
     result = np.array(simd_kernel(a, alpha=0.0, beta=1.5))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Zero beta
     expected = baseline_kernel(a, alpha=2.0, beta=0.0)
     result = np.array(simd_kernel(a, alpha=2.0, beta=0.0))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Negative alpha and beta
     expected = baseline_kernel(a, alpha=-1.5, beta=-2.0)
     result = np.array(simd_kernel(a, alpha=-1.5, beta=-2.0))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -502,25 +587,25 @@ def test_add_edge_cases(ndim, dtype, capability):
     b = np.random.randn(ndim).astype(dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # One vector is zeros
     b = np.zeros(ndim).astype(dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Both vectors the same
     expected = baseline_kernel(a, a)
     result = np.array(simd_kernel(a, a))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Negative values
     a = -np.abs(np.random.randn(ndim).astype(dtype))
     b = -np.abs(np.random.randn(ndim).astype(dtype))
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -534,7 +619,7 @@ def test_add_numpy_buffer_protocol(dtype):
     result = nk.add(a, b)
     result_np = np.asarray(result)
 
-    np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+    assert_allclose(result_np, expected, rtol=1e-5)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -548,7 +633,7 @@ def test_multiply_numpy_buffer_protocol(dtype):
     result = nk.multiply(a, b)
     result_np = np.asarray(result)
 
-    np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+    assert_allclose(result_np, expected, rtol=1e-4)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -564,7 +649,7 @@ def test_blend_numpy_buffer_protocol(dtype):
     result = nk.blend(a, b, alpha=alpha, beta=beta)
     result_np = np.asarray(result)
 
-    np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+    assert_allclose(result_np, expected, rtol=1e-4)
 
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)
