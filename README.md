@@ -9,30 +9,30 @@ NumKong covers everything — from exotic GPU-only 6-bit floating-point types in
 
 <div align="center">
 <pre><code>
-┌───────────────────────────────┬──────────────────┬─────────────────────────────┬──────────────────┐
-│          Operations           │    Datatypes     │          Backends           │    Ecosystems    │
-├───────────────────────────────┼──────────────────┼─────────────────────────────┼──────────────────┤
-│ Vector-Vector                 │ <a href="#">Bits &amp; Ints</a>      │ <a href="#">x86</a>                         │ Core             │
-│   <a href="#">dot</a> · <a href="#">angular</a> · <a href="#">euclidean</a>   │   u1 · u4 · u8   │   Haswell · Alder Lake      │   <a href="#">C 99</a>           │
-│   hamming · kld · jsd · …     │   i4 · i8        │   Sierra Forest · Skylake   │                  │
-│                               │                  │   Ice Lake · Genoa · Turin  │ Primary          │
-│ <a href="#">Matrix-Matrix</a>                 │ <a href="#">Mini-floats</a>      │   Sapphire Rapids ·         │   <a href="#">C++ 23</a>         │
-│   dots_packed · dots_symmetric│   e2m3 · e3m2    │   Granite Rapids            │   <a href="#">Python 3</a>       │
-│   euclideans_packed · …       │   e4m3 · e5m2    │                             │   <a href="#">Rust</a>           │
-│                               │                  │ <a href="#">Arm</a>                         │                  │
-│ Quadratic                     │ <a href="#">Halfs &amp; Classics</a> │   NEON · NEONHalf · NEONFhm │ Additional       │
-│   <a href="#">bilinear</a> · mahalanobis      │   f16 · bf16     │   NEONBFDot · NEONSDot      │   <a href="#">Swift</a> · <a href="#">JS</a>     │
-│                               │   f32 · f64      │   SVE · SVEHalf · SVEBfDot  │   <a href="#">Go</a>             │
-│ <a href="#">Geospatial</a> &amp; <a href="#">Geometric</a>        │                  │   SVESDot · SVE2            │                  │
-│   haversine · vincenty        │ <a href="#">Complex</a>:         │   SME · SMEF64 · SMEBI32   │ <a href="#">Tools</a>            │
-│   rmsd · kabsch · umeyama · … │   f16c · bf16c   │                             │   <a href="#">Tests</a>          │
-│                               │   f32c · f64c    │ <a href="#">RISC-V</a>                      │   <a href="#">Benchmarks</a>     │
-│ Bespoke                       │                  │   RVV · RVVHalf             │   <a href="https://github.com/ashvardanian/NumWars">NumWars</a>        │
-│   <a href="#">fma</a> · blend · <a href="#">sin</a> · <a href="#">cast</a>    │                  │   RVVBf16 · RVVBB           │                  │
-│   <a href="#">reduce_moments</a> · <a href="#">sparse_dot</a> │                  │                             │                  │
-│   <a href="#">maxsim</a> · intersect · …     │                  │ <a href="#">WASM</a>                        │                  │
-│                               │                  │   V128Relaxed               │                  │
-└───────────────────────────────┴──────────────────┴─────────────────────────────┴──────────────────┘
+┌──────────────────────────────-─┬──────────────────┬─────────────────────────────┬──────────────┐
+│           Operations           │    Datatypes     │          Backends           │  Ecosystems  │
+├─────────────────────────────-──┼──────────────────┼─────────────────────────────┼──────────────┤
+│ Vector-Vector                  │ <a href="#numeric-types">Bits &amp; Ints</a>      │ <a href="#compile-time-and-run-time-dispatch">x86</a>                         │ Core         │
+│   <a href="include/README.md#dot-products">dot</a> · <a href="include/README.md#dense-distances">angular</a> · <a href="include/README.md#dense-distances">euclidean</a>    │   u1 · u4 · u8   │   Haswell · Alder Lake      │   <a href="include/README.md#the-c-abi">C 99</a>       │
+│   hamming · kld · jsd · …      │   i4 · i8        │   Sierra Forest · Skylake   │              │
+│                                │                  │   Ice Lake · Genoa · Turin  │ Primary      │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                  │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>      │   Sapphire Rapids ·         │   <a href="include/README.md#the-c-layer">C++ 23</a>     │
+│   <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │   e2m3 · e3m2    │   Granite Rapids            │   <a href="python/README.md">Python 3</a>   │
+│   <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │   e4m3 · e5m2    │                             │   <a href="rust/README.md">Rust</a>       │
+│                                │                  │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                         │              │
+│ Quadratic                      │ <a href="#float16--bfloat16-half-precision">Halfs &amp; Classics</a> │   NEON · NEONHalf · NEONFhm │ Additional   │
+│   <a href="include/README.md#curved-metrics">bilinear</a> · mahalanobis       │   f16 · bf16     │   NEONBFDot · NEONSDot      │   <a href="swift/README.md">Swift</a> · <a href="javascript/README.md">JS</a> │
+│                                │   f32 · f64      │   SVE · SVEHalf · SVEBfDot  │   <a href="golang/README.md">Go</a>         │
+│ <a href="include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="include/README.md#geometric-mesh-alignment">Geometric</a>         │                  │   SVESDot · SVE2            │              │
+│   haversine · vincenty         │ <a href="#complex-types">Complex</a>          │   SME · SMEF64 · SMEBI32    │ <a href="CONTRIBUTING.md">Tools</a>        │
+│   rmsd · kabsch · umeyama · …  │   f16c · bf16c   │                             │   <a href="test/README.md">Tests</a>      │
+│                                │   f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                      │   <a href="bench/README.md">Benchmarks</a> │
+│ Bespoke                        │                  │   RVV · RVVHalf             │   <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
+│   <a href="include/numkong/each/README.md">fma</a> · blend · <a href="include/numkong/trigonometry/README.md">sin</a> · <a href="include/numkong/cast/README.md">cast</a>     │                  │   RVVBf16 · RVVBB           │              │
+│   <a href="include/numkong/reduce/README.md">reduce_moments</a> · <a href="include/numkong/sparse/README.md">sparse_dot</a>  │                  │                             │              │
+│   <a href="include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                  │ <a href="CONTRIBUTING.md#cross-compilation">WASM</a>                        │              │
+│                                │                  │   V128Relaxed               │              │
+└───────────────────-────────────┴──────────────────┴─────────────────────────────┴──────────────┘
 </code></pre>
 </div>
 
