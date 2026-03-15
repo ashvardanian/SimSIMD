@@ -1069,6 +1069,8 @@ char const doc_euclidean[] =                                                    
     "    a (Tensor): First matrix or vector.\n"                                                        //
     "    b (Tensor): Second matrix or vector.\n"                                                       //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"   //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2',\n"         //
+    "        'i8', 'u8', 'i4', 'u4'.\n"                                                                //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1089,6 +1091,8 @@ char const doc_sqeuclidean[] =                                                  
     "    a (Tensor): First matrix or vector.\n"                                                        //
     "    b (Tensor): Second matrix or vector.\n"                                                       //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"   //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2',\n"         //
+    "        'i8', 'u8', 'i4', 'u4'.\n"                                                                //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1109,6 +1113,8 @@ char const doc_angular[] =                                                      
     "    a (Tensor): First matrix or vector.\n"                                                        //
     "    b (Tensor): Second matrix or vector.\n"                                                       //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"   //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2',\n"         //
+    "        'i8', 'u8', 'i4', 'u4'.\n"                                                                //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1129,6 +1135,8 @@ char const doc_dot[] =                                                          
     "    a (Tensor): First matrix or vector.\n"                                                                   //
     "    b (Tensor): Second matrix or vector.\n"                                                                  //
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n" //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2',\n"                    //
+    "        'i8', 'u8', 'i4', 'u4', 'u1', 'complex64', 'complex128', 'complex32', 'bcomplex32'.\n"               //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"            //
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"             //
     "Returns:\n"                                                                                                  //
@@ -1149,6 +1157,7 @@ char const doc_vdot[] =                                                         
     "    a (Tensor): First complex matrix or vector.\n"                                                //
     "    b (Tensor): Second complex matrix or vector.\n"                                               //
     "    dtype (ComplexType, optional): Override the presumed input type name.\n"                      //
+    "        Supported values: 'complex64', 'complex128', 'complex32', 'bcomplex32'.\n"                //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"             //
     "Returns:\n"                                                                                       //
@@ -1169,6 +1178,7 @@ char const doc_kld[] =                                                          
     "    a (Tensor): First floating-point matrix or vector.\n"                                         //
     "    b (Tensor): Second floating-point matrix or vector.\n"                                        //
     "    dtype (FloatType, optional): Override the presumed input type name.\n"                        //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16'.\n"                                         //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1188,7 +1198,8 @@ char const doc_jsd[] =                                                          
     "Parameters:\n"                                                                                    //
     "    a (Tensor): First floating-point matrix or vector.\n"                                         //
     "    b (Tensor): Second floating-point matrix or vector.\n"                                        //
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"   //
+    "    dtype (FloatType, optional): Override the presumed input type name.\n"                        //
+    "        Supported values: 'f64', 'f32', 'f16', 'bf16'.\n"                                         //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1209,6 +1220,7 @@ char const doc_hamming[] =                                                      
     "    a (Tensor): First binary matrix or vector.\n"                                                 //
     "    b (Tensor): Second binary matrix or vector.\n"                                                //
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"                     //
+    "        Supported values: 'u1', 'u8'.\n"                                                          //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //
@@ -1229,6 +1241,7 @@ char const doc_jaccard[] =                                                      
     "    a (Tensor): First binary matrix or vector.\n"                                                 //
     "    b (Tensor): Second binary matrix or vector.\n"                                                //
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"                     //
+    "        Supported values: 'u1', 'u16', 'u32'.\n"                                                  //
     "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" //
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"                      //
     "Returns:\n"                                                                                       //

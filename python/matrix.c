@@ -148,7 +148,6 @@ PyTypeObject PackedMatrixType = {
     .tp_repr = PackedMatrix_repr,
 };
 
-
 /** @brief Matrix multiplication operator for Tensor @ PackedMatrix. */
 PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
@@ -601,7 +600,8 @@ char const doc_dots_pack[] =                                                    
     "Parameters:\n"                                                                  //
     "    b (array_like): Source matrix with shape (width, depth).\n"                 //
     "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"                   //
-    "        Supported values: 'bf16', 'f16', 'f32', 'f64', 'i8', 'u8'.\n\n"         //
+    "        Supported values: 'bf16', 'f16', 'f32', 'f64', 'i8', 'u8',\n"           //
+    "        'e4m3', 'e5m2', 'e3m2', 'e2m3', 'i4', 'u4', 'u1'.\n\n"                  //
     "Returns:\n"                                                                     //
     "    PackedMatrix: Opaque packed matrix accepted by dots_packed(),\n"            //
     "        angulars_packed(), euclideans_packed(), and Tensor @ PackedMatrix.\n\n" //

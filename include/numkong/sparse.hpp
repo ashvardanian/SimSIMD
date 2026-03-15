@@ -22,7 +22,7 @@ namespace ashvardanian::numkong {
  *  @param[in] a_length,b_length Number of elements in each array
  *  @param[out] count Output intersection count
  *
- *  @tparam index_type_ Index type (u16_t, u32_t)
+ *  @tparam index_type_ Index type (u16_t, u32_t, u64_t)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
@@ -56,7 +56,7 @@ void sparse_intersect(index_type_ const *a, index_type_ const *b, std::size_t a_
  *  @param[in] a_length,b_length Number of elements in each array
  *  @param[out] product Output dot product
  *
- *  @tparam index_type_ Index type (u16_t, u32_t)
+ *  @tparam index_type_ Index type (u16_t, u32_t, u64_t)
  *  @tparam weight_t Weight type (bf16_t for u16 indices, f32_t for u32 indices)
  *  @tparam result_type_ Result type, defaults to `f32_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
