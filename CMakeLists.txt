@@ -530,18 +530,18 @@ if (NK_BUILD_SHARED)
         target_link_options(
             nk_shared
             PRIVATE
-            "SHELL:-s EXPORT_ES6=1" # Generate ES6 module
-            "SHELL:-s MODULARIZE=1" # Wrap in module factory
-            "SHELL:-s EXPORT_NAME=NumKongModule" # Export name
-            "SHELL:-s EXPORTED_FUNCTIONS=_malloc,_free,_nk_dot_f32,_nk_dot_f64,_nk_dot_f16,_nk_dot_bf16,_nk_dot_i8,_nk_dot_u8,_nk_angular_f32,_nk_angular_f64,_nk_angular_f16,_nk_angular_bf16,_nk_angular_i8,_nk_angular_u8,_nk_sqeuclidean_f32,_nk_sqeuclidean_f64,_nk_sqeuclidean_f16,_nk_sqeuclidean_bf16,_nk_sqeuclidean_i8,_nk_sqeuclidean_u8,_nk_euclidean_f32,_nk_euclidean_f64,_nk_euclidean_f16,_nk_euclidean_bf16,_nk_euclidean_i8,_nk_euclidean_u8,_nk_hamming_u1,_nk_hamming_u8,_nk_jaccard_u1,_nk_jaccard_u16,_nk_kld_f32,_nk_kld_f64,_nk_jsd_f32,_nk_jsd_f64,_nk_capabilities" # Direct exports (35 functions)
-            "SHELL:-s EXPORTED_RUNTIME_METHODS=wasmMemory" # Export memory object
-            "SHELL:-s ALLOW_MEMORY_GROWTH=1" # Dynamic memory
-            "SHELL:-s ENVIRONMENT=web,node" # Both browser and Node.js
-            "SHELL:-s SINGLE_FILE=0" # Separate .wasm file (recommended)
-            "SHELL:-s EXPORT_ALL=0" # Security - don't export everything
-            "SHELL:-s STANDALONE_WASM=0" # Keep JS wrapper (required for browser)
-            "SHELL:-s INITIAL_MEMORY=16MB" # Initial heap size
-            "SHELL:-s STACK_SIZE=5MB" # Stack size for recursion
+            "SHELL:-sEXPORT_ES6=1" # Generate ES6 module
+            "SHELL:-sMODULARIZE=1" # Wrap in module factory
+            "SHELL:-sEXPORT_NAME=NumKongModule" # Export name
+            "SHELL:-sEXPORTED_FUNCTIONS=['_malloc','_free','_nk_dot_f32','_nk_dot_f64','_nk_dot_f16','_nk_dot_bf16','_nk_dot_i8','_nk_dot_u8','_nk_angular_f32','_nk_angular_f64','_nk_angular_f16','_nk_angular_bf16','_nk_angular_i8','_nk_angular_u8','_nk_sqeuclidean_f32','_nk_sqeuclidean_f64','_nk_sqeuclidean_f16','_nk_sqeuclidean_bf16','_nk_sqeuclidean_i8','_nk_sqeuclidean_u8','_nk_euclidean_f32','_nk_euclidean_f64','_nk_euclidean_f16','_nk_euclidean_bf16','_nk_euclidean_i8','_nk_euclidean_u8','_nk_hamming_u1','_nk_hamming_u8','_nk_jaccard_u1','_nk_jaccard_u16','_nk_kld_f32','_nk_kld_f64','_nk_jsd_f32','_nk_jsd_f64','_nk_capabilities']"
+            "SHELL:-sEXPORTED_RUNTIME_METHODS=['wasmMemory']" # Export memory object
+            "SHELL:-sALLOW_MEMORY_GROWTH=1" # Dynamic memory
+            "SHELL:-sENVIRONMENT=web,node" # Both browser and Node.js
+            "SHELL:-sSINGLE_FILE=0" # Separate .wasm file (recommended)
+            "SHELL:-sEXPORT_ALL=0" # Security - don't export everything
+            "SHELL:-sSTANDALONE_WASM=0" # Keep JS wrapper (required for browser)
+            "SHELL:-sINITIAL_MEMORY=16MB" # Initial heap size
+            "SHELL:-sSTACK_SIZE=5MB" # Stack size for recursion
         )
 
         # Memory64 link option for wasm64 builds

@@ -3,6 +3,7 @@
 
 set(CMAKE_SYSTEM_NAME Emscripten)
 set(CMAKE_SYSTEM_PROCESSOR wasm32)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
 # Verify Emscripten SDK
 if(NOT DEFINED ENV{EMSDK})
@@ -14,10 +15,18 @@ endif()
 
 # Set compilers
 set(EMSCRIPTEN_ROOT "$ENV{EMSDK}/upstream/emscripten")
-set(CMAKE_C_COMPILER "${EMSCRIPTEN_ROOT}/emcc")
-set(CMAKE_CXX_COMPILER "${EMSCRIPTEN_ROOT}/em++")
-set(CMAKE_AR "${EMSCRIPTEN_ROOT}/emar")
-set(CMAKE_RANLIB "${EMSCRIPTEN_ROOT}/emranlib")
+file(TO_CMAKE_PATH "${EMSCRIPTEN_ROOT}" EMSCRIPTEN_ROOT)
+
+if(CMAKE_HOST_WIN32)
+    set(EMSCRIPTEN_TOOL_SUFFIX ".bat")
+else()
+    set(EMSCRIPTEN_TOOL_SUFFIX "")
+endif()
+
+set(CMAKE_C_COMPILER "${EMSCRIPTEN_ROOT}/emcc${EMSCRIPTEN_TOOL_SUFFIX}")
+set(CMAKE_CXX_COMPILER "${EMSCRIPTEN_ROOT}/em++${EMSCRIPTEN_TOOL_SUFFIX}")
+set(CMAKE_AR "${EMSCRIPTEN_ROOT}/emar${EMSCRIPTEN_TOOL_SUFFIX}")
+set(CMAKE_RANLIB "${EMSCRIPTEN_ROOT}/emranlib${EMSCRIPTEN_TOOL_SUFFIX}")
 
 # Required WASM SIMD flags
 set(WASM_SIMD_FLAGS "-msimd128 -mrelaxed-simd")
@@ -36,13 +45,13 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -s ASSERTIONS=2")
 
 # Linker flags for Node.js execution
 set(CMAKE_EXE_LINKER_FLAGS_INIT
-    "-s ALLOW_MEMORY_GROWTH=1 \
-     -s IMPORTED_MEMORY=1 \
-     -s INITIAL_MEMORY=64MB \
-     -s MAXIMUM_MEMORY=2GB \
-     -s STACK_SIZE=5MB \
-     -s EXPORTED_FUNCTIONS='[\"_main\"]' \
-     -s EXPORTED_RUNTIME_METHODS='[\"ccall\",\"cwrap\"]'")
+    "-sALLOW_MEMORY_GROWTH=1 \
+     -sIMPORTED_MEMORY=1 \
+     -sINITIAL_MEMORY=64MB \
+     -sMAXIMUM_MEMORY=2GB \
+     -sSTACK_SIZE=5MB \
+     -sEXPORTED_FUNCTIONS=['_main'] \
+     -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']")
 
 # Verify Emscripten version (need 3.1.27+ for relaxed SIMD)
 execute_process(
