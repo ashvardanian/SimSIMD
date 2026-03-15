@@ -102,6 +102,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const CONFIG = {
             dimensions: parseInt(urlParams.get('dimensions') || '1536'),
+            iterations: parseInt(urlParams.get('iterations') || '1000'),
             filter: new RegExp(urlParams.get('filter') || '.*'),
             seed: parseInt(urlParams.get('seed') || '42')
         };
@@ -109,15 +110,15 @@
         // Benchmark matrix (same as bench-multi-runtime.mjs)
         const BENCHMARK_MATRIX = {
             functions: ['dot', 'inner', 'angular', 'sqeuclidean', 'euclidean', 'hamming', 'jaccard', 'kullbackleibler', 'jensenshannon'],
-            dtypes: ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8', 'u1'],
+            dtypes: ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8', 'u1'],
         };
 
         const FUNCTION_DTYPE_SUPPORT = {
-            'dot': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-            'inner': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-            'angular': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8'],
-            'sqeuclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-            'euclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+            'dot': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+            'inner': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+            'angular': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8'],
+            'sqeuclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+            'euclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
             'hamming': ['u1'],
             'jaccard': ['u1'],
             'kullbackleibler': ['f64', 'f32'],
@@ -149,6 +150,8 @@
                 case 'bf16':
                 case 'e4m3':
                 case 'e5m2':
+                case 'e2m3':
+                case 'e3m2':
                     return Float32Array.from({ length }, () => rng.next() * 2 - 1);
                 case 'i8':
                     return Int8Array.from({ length }, () => Math.floor(rng.next() * 256) - 128);
@@ -165,6 +168,36 @@
         // Update UI
         function updateProgress(message) {
             document.getElementById('progress').textContent = message;
+        }
+
+
+        function benchmarkOperation(fn, iterations) {
+            const warmupIterations = Math.max(16, Math.min(256, iterations));
+            const samples = 5;
+            const sampleTimesMs = [];
+
+            for (let i = 0; i < warmupIterations; i++) {
+                fn();
+            }
+
+            for (let sample = 0; sample < samples; sample++) {
+                const start = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    fn();
+                }
+                const elapsedMs = performance.now() - start;
+                sampleTimesMs.push(elapsedMs / iterations);
+            }
+
+            const meanTime = sampleTimesMs.reduce((sum, value) => sum + value, 0) / sampleTimesMs.length;
+            const variance = sampleTimesMs.reduce((sum, value) => {
+                const delta = value - meanTime;
+                return sum + delta * delta;
+            }, 0) / sampleTimesMs.length;
+            const stdDev = Math.sqrt(variance);
+            const opsPerSec = meanTime > 0 ? 1000 / meanTime : 0;
+
+            return { opsPerSec, meanTime, stdDev };
         }
 
         function addResult(testName, opsPerSec, meanTime, stdDev) {
@@ -201,9 +234,13 @@
                 // Load NumKong WASM module
                 updateProgress('Loading NumKong WASM module...');
 
-                const wasmPath = '../build-wasm/numkong_js.js';
+                const wasmPath = '../build-wasm/numkong.js';
+                const wasmWrapperPath = '../javascript/dist/esm/numkong-wasm.js';
+                const numkongWrapper = await import(wasmWrapperPath);
                 const NumKongModule = await import(wasmPath);
-                const numkong = await NumKongModule.default();
+                const wasmInstance = await NumKongModule.default();
+                numkongWrapper.initWasm(wasmInstance);
+                const numkong = numkongWrapper;
 
                 updateProgress('NumKong WASM loaded successfully. Running benchmarks...');
 
@@ -241,37 +278,19 @@
                         const a = generateTestData(dtype, CONFIG.dimensions, CONFIG.seed);
                         const b = generateTestData(dtype, CONFIG.dimensions, CONFIG.seed + 1);
 
-                        // Run benchmark
-                        await new Promise((resolve) => {
-                            const suite = new Benchmark.Suite();
+                        const metrics = benchmarkOperation(() => numkong[func](a, b), CONFIG.iterations);
 
-                            suite.add(testName, () => {
-                                numkong[func](a, b);
-                            });
+                        addResult(testName, metrics.opsPerSec, metrics.meanTime, metrics.stdDev);
 
-                            suite.on('cycle', (event) => {
-                                const bench = event.target;
-                                const opsPerSec = bench.hz;
-                                const meanTime = bench.stats.mean * 1000; // ms
-                                const stdDev = bench.stats.deviation * 1000; // ms
-
-                                addResult(testName, opsPerSec, meanTime, stdDev);
-
-                                results.push({
-                                    function: func,
-                                    dtype: dtype,
-                                    runtime: 'browser',
-                                    dimensions: CONFIG.dimensions,
-                                    opsPerSec: opsPerSec,
-                                    meanTime: meanTime,
-                                    stdDev: stdDev,
-                                    timestamp: new Date().toISOString()
-                                });
-                            });
-
-                            suite.on('complete', resolve);
-
-                            suite.run({ async: false });
+                        results.push({
+                            function: func,
+                            dtype: dtype,
+                            runtime: 'browser',
+                            dimensions: CONFIG.dimensions,
+                            opsPerSec: metrics.opsPerSec,
+                            meanTime: metrics.meanTime,
+                            stdDev: metrics.stdDev,
+                            timestamp: new Date().toISOString()
                         });
                     }
                 }

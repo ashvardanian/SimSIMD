@@ -49,7 +49,7 @@ async function loadNumKong(runtime) {
 
     case "wasi-node":
       // Load WASI via Node.js built-in WASI support (node:wasi)
-      // Host provides capability detection imports (nk_has_v128, nk_has_relaxed)
+      // Host probes for SIMD/Relaxed SIMD support and reports honestly via imports.
       const wasi = new WASI({
         version: "preview1",
         args: [],
@@ -62,45 +62,36 @@ async function loadNumKong(runtime) {
       }
       const wasmBytes = readFileSync(wasiModule);
 
-      // prettier-ignore
-      const simd128Test = new Uint8Array([ // SIMD128 detection bytecode
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,   // Magic + version
-        0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,         // Type: [] -> [v128]
-        0x03, 0x02, 0x01, 0x00,                           // Function section
-        0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c,         // Code: v128.const
-        0x00, 0x00, 0x00, 0x00, 0x0b,                     // i32x4 [0,0,0,0] + end
-      ]);
-
-      // prettier-ignore
-      const relaxedTest = new Uint8Array([ // Relaxed SIMD detection bytecode
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60, 0x03,
-        0x7b, 0x7b, 0x7b, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07,
-        0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b, // f32x4.relaxed_madd
-      ]);
-
       // The WASI toolchain builds with --import-memory --shared-memory,
       // so we must provide a WebAssembly.Memory object in the env imports.
       const memory = new WebAssembly.Memory({ initial: 256, maximum: 4096, shared: true });
+
+      // Probe the engine for SIMD support by validating minimal test modules.
+      // A fat binary contains both serial and v128relaxed kernels — the host
+      // must report truthfully so dispatch picks the right one.
+      const hasV128 = WebAssembly.validate(new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,
+        0x03, 0x02, 0x01, 0x00,
+        0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b,
+      ])) ? 1 : 0;
+      const hasRelaxed = WebAssembly.validate(new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x06, 0x01, 0x60, 0x01, 0x7b, 0x01, 0x7b,
+        0x03, 0x02, 0x01, 0x00,
+        0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00,
+        0xfd, 0x82, 0x02, 0x0b,
+      ])) ? 1 : 0;
+      console.log(`  WASI probe: v128=${hasV128}, relaxed-simd=${hasRelaxed}`);
 
       const { instance } = await WebAssembly.instantiate(wasmBytes, {
         wasi_snapshot_preview1: wasi.wasiImport,
         env: {
           memory,
-          // Host-side capability probes imported by the WASM module
-          nk_has_v128: () => {
-            try {
-              return WebAssembly.validate(simd128Test) ? 1 : 0;
-            } catch {
-              return 0;
-            }
-          },
-          nk_has_relaxed: () => {
-            try {
-              return WebAssembly.validate(relaxedTest) ? 1 : 0;
-            } catch {
-              return 0;
-            }
-          },
+          nk_has_v128: () => hasV128,
+          nk_has_relaxed: () => hasRelaxed,
         },
       });
 

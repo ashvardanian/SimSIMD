@@ -23,6 +23,18 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_dots_symmetric_k:
             *m = (m_t)&nk_dots_symmetric_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;
+        case nk_kernel_angulars_packed_k:
+            *m = (m_t)&nk_angulars_packed_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_euclideans_packed_k:
+            *m = (m_t)&nk_euclideans_packed_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
         default: break;
         }
 #endif

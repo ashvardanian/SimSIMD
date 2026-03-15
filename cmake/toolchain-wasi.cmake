@@ -19,11 +19,20 @@ if(NOT DEFINED WASI_SDK_PATH)
     endif()
 endif()
 
+file(TO_CMAKE_PATH "${WASI_SDK_PATH}" WASI_SDK_PATH)
+
+# Windows SDK archives ship executable suffixes that Unix hosts don't use.
+if(CMAKE_HOST_WIN32)
+    set(WASI_TOOL_SUFFIX ".exe")
+else()
+    set(WASI_TOOL_SUFFIX "")
+endif()
+
 # Set compilers
-set(CMAKE_C_COMPILER "${WASI_SDK_PATH}/bin/clang")
-set(CMAKE_CXX_COMPILER "${WASI_SDK_PATH}/bin/clang++")
-set(CMAKE_AR "${WASI_SDK_PATH}/bin/llvm-ar")
-set(CMAKE_RANLIB "${WASI_SDK_PATH}/bin/llvm-ranlib")
+set(CMAKE_C_COMPILER "${WASI_SDK_PATH}/bin/clang${WASI_TOOL_SUFFIX}")
+set(CMAKE_CXX_COMPILER "${WASI_SDK_PATH}/bin/clang++${WASI_TOOL_SUFFIX}")
+set(CMAKE_AR "${WASI_SDK_PATH}/bin/llvm-ar${WASI_TOOL_SUFFIX}")
+set(CMAKE_RANLIB "${WASI_SDK_PATH}/bin/llvm-ranlib${WASI_TOOL_SUFFIX}")
 set(CMAKE_SYSROOT "${WASI_SDK_PATH}/share/wasi-sysroot")
 set(CMAKE_FIND_ROOT_PATH "${WASI_SDK_PATH}")
 

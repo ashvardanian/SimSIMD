@@ -1485,6 +1485,38 @@ NK_PUBLIC void nk_euclideans_packed_e2m3_v128relaxed(nk_e2m3_t const *a, void co
 NK_PUBLIC void nk_euclideans_symmetric_e2m3_v128relaxed(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                         nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_e4m3 */
+NK_PUBLIC void nk_angulars_packed_e4m3_v128relaxed(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *result,
+                                                   nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                                   nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_e4m3 */
+NK_PUBLIC void nk_angulars_symmetric_e4m3_v128relaxed(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                      nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                      nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_e4m3 */
+NK_PUBLIC void nk_euclideans_packed_e4m3_v128relaxed(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *result,
+                                                     nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                                     nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_e4m3 */
+NK_PUBLIC void nk_euclideans_symmetric_e4m3_v128relaxed(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                        nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                        nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_angulars_packed_e5m2 */
+NK_PUBLIC void nk_angulars_packed_e5m2_v128relaxed(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *result,
+                                                   nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                                   nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_angulars_symmetric_e5m2 */
+NK_PUBLIC void nk_angulars_symmetric_e5m2_v128relaxed(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                      nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                      nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_euclideans_packed_e5m2 */
+NK_PUBLIC void nk_euclideans_packed_e5m2_v128relaxed(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *result,
+                                                     nk_size_t rows, nk_size_t cols, nk_size_t depth,
+                                                     nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
+/** @copydoc nk_euclideans_symmetric_e5m2 */
+NK_PUBLIC void nk_euclideans_symmetric_e5m2_v128relaxed(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                                        nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                                        nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_angulars_packed_bf16 */
 NK_PUBLIC void nk_angulars_packed_bf16_v128relaxed(nk_bf16_t const *a, void const *b_packed, nk_f32_t *result,
                                                    nk_size_t rows, nk_size_t cols, nk_size_t depth,
@@ -2351,6 +2383,8 @@ NK_PUBLIC void nk_angulars_packed_e4m3(nk_e4m3_t const *a, void const *b_packed,
     nk_angulars_packed_e4m3_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_e4m3_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_V128RELAXED
+    nk_angulars_packed_e4m3_v128relaxed(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
     nk_angulars_packed_e4m3_serial(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #endif
@@ -2373,6 +2407,9 @@ NK_PUBLIC void nk_angulars_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t n_
     nk_angulars_symmetric_e4m3_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_e4m3_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_V128RELAXED
+    nk_angulars_symmetric_e4m3_v128relaxed(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                           row_count);
 #else
     nk_angulars_symmetric_e4m3_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
@@ -2394,6 +2431,8 @@ NK_PUBLIC void nk_euclideans_packed_e4m3(nk_e4m3_t const *a, void const *b_packe
     nk_euclideans_packed_e4m3_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_e4m3_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_V128RELAXED
+    nk_euclideans_packed_e4m3_v128relaxed(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
     nk_euclideans_packed_e4m3_serial(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #endif
@@ -2419,6 +2458,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t 
                                          row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_e4m3_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_V128RELAXED
+    nk_euclideans_symmetric_e4m3_v128relaxed(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                             row_count);
 #else
     nk_euclideans_symmetric_e4m3_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
@@ -2441,6 +2483,8 @@ NK_PUBLIC void nk_angulars_packed_e5m2(nk_e5m2_t const *a, void const *b_packed,
     nk_angulars_packed_e5m2_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_e5m2_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_V128RELAXED
+    nk_angulars_packed_e5m2_v128relaxed(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
     nk_angulars_packed_e5m2_serial(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #endif
@@ -2463,6 +2507,9 @@ NK_PUBLIC void nk_angulars_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t n_
     nk_angulars_symmetric_e5m2_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_e5m2_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_V128RELAXED
+    nk_angulars_symmetric_e5m2_v128relaxed(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                           row_count);
 #else
     nk_angulars_symmetric_e5m2_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
@@ -2484,6 +2531,8 @@ NK_PUBLIC void nk_euclideans_packed_e5m2(nk_e5m2_t const *a, void const *b_packe
     nk_euclideans_packed_e5m2_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_e5m2_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_V128RELAXED
+    nk_euclideans_packed_e5m2_v128relaxed(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
     nk_euclideans_packed_e5m2_serial(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #endif
@@ -2509,6 +2558,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t 
                                          row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_e5m2_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_V128RELAXED
+    nk_euclideans_symmetric_e5m2_v128relaxed(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                             row_count);
 #else
     nk_euclideans_symmetric_e5m2_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif

@@ -20,21 +20,18 @@
  * - node bench.mjs --browser    → Run browser benchmarks via Playwright
  */
 
-import Benchmark from 'benchmark';
+import { performance } from 'node:perf_hooks';
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
 import { WASI } from 'node:wasi';
 import build from 'node-gyp-build';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 const resultsDir = path.join(__dirname, 'results');
 
-// ============================================================================
-// Configuration
-// ============================================================================
 
 const CONFIG = {
     dimensions: parseInt(process.env.NK_DIMENSIONS || '1536'),
@@ -46,15 +43,15 @@ const CONFIG = {
 
 const BENCHMARK_MATRIX = {
     functions: ['dot', 'inner', 'angular', 'sqeuclidean', 'euclidean', 'hamming', 'jaccard', 'kullbackleibler', 'jensenshannon'],
-    dtypes: ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8', 'u1'],
+    dtypes: ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8', 'u1'],
 };
 
 const FUNCTION_DTYPE_SUPPORT = {
-    'dot': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-    'inner': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-    'angular': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8'],
-    'sqeuclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
-    'euclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+    'dot': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+    'inner': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+    'angular': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8'],
+    'sqeuclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
+    'euclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8'],
     'hamming': ['u1'],
     'jaccard': ['u1'],
     'kullbackleibler': ['f64', 'f32'],
@@ -84,9 +81,6 @@ const RUNTIME_INFO = {
     }
 };
 
-// ============================================================================
-// Runtime Loading
-// ============================================================================
 
 async function loadNumKong(runtime) {
     switch (runtime) {
@@ -116,9 +110,11 @@ function loadNative() {
 
 async function loadEmscripten() {
     try {
-        const wasmPath = path.join(rootDir, 'build-wasm', 'numkong_js.js');
-        const wasmModule = await import(wasmPath);
-        const numkong = await wasmModule.default();
+        const wasmPath = path.join(rootDir, 'build-wasm', 'numkong.js');
+        const wrapperPath = path.join(rootDir, 'javascript', 'dist', 'esm', 'numkong-wasm.js');
+        const wasmModule = await import(pathToFileURL(wasmPath).href);
+        const { initWasm } = await import(pathToFileURL(wrapperPath).href);
+        const numkong = await initWasm(wasmModule.default);
         console.log('✓ Loaded NumKong Emscripten WASM');
         return numkong;
     } catch (e) {
@@ -128,32 +124,26 @@ async function loadEmscripten() {
 
 async function loadWASI() {
     try {
-        const wasiCandidates = [
-            path.join(rootDir, 'build-wasi', 'nk_test.wasm'),
-            path.join(rootDir, 'build-wasi', 'test.wasm'),
-        ];
-        const wasiPath = wasiCandidates.find(candidate => existsSync(candidate));
-        if (!wasiPath) {
-            throw new Error('Missing build-wasi/nk_test.wasm (or legacy build-wasi/test.wasm)');
+        const wasiPath = path.join(rootDir, 'build-wasi', 'test.wasm');
+        if (!existsSync(wasiPath)) {
+            throw new Error('Missing build-wasi/test.wasm');
         }
 
-        // SIMD capability test bytecode
-        const simd128Test = new Uint8Array([
+        const hasV128 = WebAssembly.validate(new Uint8Array([
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
-            0x02, 0x01, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00,
-            0x41, 0x00, 0xfd, 0x0f, 0x0b
-        ]);
-
-        const relaxedTest = new Uint8Array([
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,
+            0x03, 0x02, 0x01, 0x00,
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b,
+        ])) ? 1 : 0;
+        const hasRelaxed = WebAssembly.validate(new Uint8Array([
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
-            0x02, 0x01, 0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00,
-            0x41, 0x00, 0xfd, 0x81, 0x01, 0x0b
-        ]);
-
-        const hasV128 = WebAssembly.validate(simd128Test) ? 1 : 0;
-        const hasRelaxed = WebAssembly.validate(relaxedTest) ? 1 : 0;
+            0x01, 0x06, 0x01, 0x60, 0x01, 0x7b, 0x01, 0x7b,
+            0x03, 0x02, 0x01, 0x00,
+            0x0a, 0x07, 0x01, 0x05, 0x00, 0x20, 0x00,
+            0xfd, 0x82, 0x02, 0x0b,
+        ])) ? 1 : 0;
 
         console.log(`  WASM SIMD capabilities: v128=${hasV128}, relaxed=${hasRelaxed}`);
 
@@ -181,9 +171,6 @@ async function loadWASI() {
     }
 }
 
-// ============================================================================
-// Test Data Generation
-// ============================================================================
 
 class Random {
     constructor(seed) {
@@ -208,6 +195,8 @@ function generateTestData(dtype, length, seed) {
         case 'bf16':
         case 'e4m3':
         case 'e5m2':
+        case 'e2m3':
+        case 'e3m2':
             return Float32Array.from({ length }, () => rng.next() * 2 - 1);
         case 'i8':
             return Int8Array.from({ length }, () => Math.floor(rng.next() * 256) - 128);
@@ -221,9 +210,30 @@ function generateTestData(dtype, length, seed) {
     }
 }
 
-// ============================================================================
-// Benchmark Execution
-// ============================================================================
+
+function benchmarkOperation(fn, warmupMs = 200, samples = 5) {
+    // Warmup
+    const warmupEnd = performance.now() + warmupMs;
+    while (performance.now() < warmupEnd) fn();
+
+    // Collect samples
+    const times = [];
+    for (let s = 0; s < samples; s++) {
+        let ops = 0;
+        const start = performance.now();
+        const end = start + 200; // 200ms per sample
+        while (performance.now() < end) { fn(); ops++; }
+        const elapsed = performance.now() - start;
+        times.push(elapsed / ops);
+    }
+
+    const meanTime = times.reduce((a, b) => a + b, 0) / times.length;
+    const variance = times.reduce((a, t) => a + (t - meanTime) ** 2, 0) / times.length;
+    const stdDev = Math.sqrt(variance);
+    const opsPerSec = 1000 / meanTime;
+
+    return { opsPerSec, meanTime, stdDev };
+}
 
 async function runBenchmarks() {
     console.log('╔════════════════════════════════════════════════════════════════╗');
@@ -270,36 +280,22 @@ async function runBenchmarks() {
             const b = generateTestData(dtype, CONFIG.dimensions, CONFIG.seed + 1);
 
             // Run benchmark
-            await new Promise((resolve) => {
-                const suite = new Benchmark.Suite();
+            const bench = benchmarkOperation(() => numkong[func](a, b));
+            const opsPerSec = bench.opsPerSec;
+            const meanTime = bench.meanTime;
+            const stdDev = bench.stdDev;
 
-                suite.add(testName, () => {
-                    numkong[func](a, b);
-                });
+            console.log(`✓ ${testName.padEnd(30)} ${opsPerSec.toFixed(0).padStart(10)} ops/sec  (${meanTime.toFixed(3)}ms ± ${stdDev.toFixed(3)}ms)`);
 
-                suite.on('cycle', (event) => {
-                    const bench = event.target;
-                    const opsPerSec = bench.hz;
-                    const meanTime = bench.stats.mean * 1000; // ms
-                    const stdDev = bench.stats.deviation * 1000; // ms
-
-                    console.log(`✓ ${testName.padEnd(30)} ${opsPerSec.toFixed(0).padStart(10)} ops/sec  (${meanTime.toFixed(3)}ms ± ${stdDev.toFixed(3)}ms)`);
-
-                    results.push({
-                        function: func,
-                        dtype: dtype,
-                        runtime: CONFIG.runtime,
-                        dimensions: CONFIG.dimensions,
-                        opsPerSec: opsPerSec,
-                        meanTime: meanTime,
-                        stdDev: stdDev,
-                        timestamp: new Date().toISOString()
-                    });
-                });
-
-                suite.on('complete', resolve);
-
-                suite.run({ async: false });
+            results.push({
+                function: func,
+                dtype: dtype,
+                runtime: CONFIG.runtime,
+                dimensions: CONFIG.dimensions,
+                opsPerSec: opsPerSec,
+                meanTime: meanTime,
+                stdDev: stdDev,
+                timestamp: new Date().toISOString()
             });
         }
     }
@@ -316,9 +312,6 @@ async function runBenchmarks() {
     return results;
 }
 
-// ============================================================================
-// Browser Benchmarks (Playwright)
-// ============================================================================
 
 async function runBrowserBenchmarks() {
     console.log('╔════════════════════════════════════════════════════════════════╗');
@@ -331,7 +324,7 @@ async function runBrowserBenchmarks() {
     console.log(`  Seed: ${CONFIG.seed}\n`);
 
     // Check if WASM build exists
-    const wasmPath = path.join(rootDir, 'build-wasm', 'numkong_js.js');
+    const wasmPath = path.join(rootDir, 'build-wasm', 'numkong.js');
     if (!existsSync(wasmPath)) {
         console.error('❌ Emscripten WASM build not found!');
         console.error(`   Expected: ${wasmPath}`);
@@ -368,7 +361,7 @@ async function runBrowserBenchmarks() {
     });
 
     // Build URL with query parameters
-    const benchmarkUrl = `file://${path.join(__dirname, 'bench-browser.html')}?dimensions=${CONFIG.dimensions}&filter=${encodeURIComponent(CONFIG.filter.source)}&seed=${CONFIG.seed}`;
+    const benchmarkUrl = `http://127.0.0.1:8888/bench/bench-browser.html?dimensions=${CONFIG.dimensions}&iterations=${CONFIG.iterations}&filter=${encodeURIComponent(CONFIG.filter.source)}&seed=${CONFIG.seed}`;
 
     console.log('✓ Chromium launched');
     console.log(`\nNavigating to: ${benchmarkUrl}`);
@@ -428,9 +421,6 @@ async function runBrowserBenchmarks() {
     await browser.close();
 }
 
-// ============================================================================
-// Report Generation
-// ============================================================================
 
 function loadAllResults() {
     if (!existsSync(resultsDir)) {
@@ -599,9 +589,6 @@ function generateReport() {
     }
 }
 
-// ============================================================================
-// Main Entry Point
-// ============================================================================
 
 async function main() {
     const args = process.argv.slice(2);
@@ -619,7 +606,7 @@ async function main() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1])) {
     main().catch((e) => {
         console.error('❌ Fatal error:', e.message);
         process.exit(1);
