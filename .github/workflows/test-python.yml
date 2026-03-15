@@ -1,0 +1,61 @@
+name: Test Python
+
+on:
+  pull_request:
+    branches: ["main", "main-*"]
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: 1
+
+jobs:
+  test_python:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        python-version: ["3.14", "3.10"]
+        architecture: [x64, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --no-cache-dir --upgrade pip
+          pip install --no-cache-dir py-cpuinfo pytest pytest-repeat numpy scipy tabulate
+          python -c "from cpuinfo import get_cpu_info; print(get_cpu_info())"
+
+      - name: Build locally on Ubuntu
+        run: |
+          sudo apt-get update
+          gcc --version
+          python -m pip install .
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+
+      - name: Build locally on other OS
+        run: python -m pip install .
+        if: ${{ matrix.os != 'ubuntu-24.04' }}
+
+      - name: Test with PyTest
+        run: |
+          python -c "import numkong; print(numkong.get_capabilities())"
+          pytest test/ -s -x -Wd -v

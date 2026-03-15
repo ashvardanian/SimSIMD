@@ -18,8 +18,7 @@ let package = Package(
         .testTarget(
             name: "Test",
             dependencies: ["NumKong"],
-            path: "test",
-            sources: ["Test.swift"],
+            path: "test/swift",
             cSettings: [
                 .define("NK_DYNAMIC_DISPATCH", to: "1"),
                 .define("NK_NATIVE_F16", to: "0"),

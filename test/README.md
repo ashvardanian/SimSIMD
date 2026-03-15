@@ -233,7 +233,7 @@ Optional dependencies for extended test coverage:
 | ----------- | ------------------------------------------------- |
 | `numpy`     | Array interop, cdist, custom dtype registration   |
 | `scipy`     | Cross-validation against `scipy.spatial.distance` |
-| `ml_dtypes` | `__array_interface__` fallback for bfloat16 / fp8 |
+| `ml_dtypes` | `__array_interface__` fallback for bfloat16 / fp8 / fp6 |
 | `tabulate`  | Formatted precision report tables                 |
 
 Tests that require a missing optional dependency are skipped automatically.

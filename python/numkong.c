@@ -332,15 +332,15 @@ nk_dtype_t python_string_to_dtype(char const *name) {
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) return nk_bf16_k;
 
     // FP8 formats (ML-focused 8-bit floats):
-    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3") || same_string(name, "float8_e4m3fn") ||
-             same_string(name, "float8_e4m3fnuz"))
+    // Only E4M3FN and E5M2 — fnuz/b11fnuz have different bias/NaN/zero encoding and are NOT compatible.
+    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3") || same_string(name, "float8_e4m3fn"))
         return nk_e4m3_k;
-    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2") || same_string(name, "float8_e5m2fnuz"))
+    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2"))
         return nk_e5m2_k;
 
     // FP6 formats (MX-focused 6-bit floats):
-    else if (same_string(name, "e2m3") || same_string(name, "float6_e2m3")) return nk_e2m3_k;
-    else if (same_string(name, "e3m2") || same_string(name, "float6_e3m2")) return nk_e3m2_k;
+    else if (same_string(name, "e2m3") || same_string(name, "float6_e2m3") || same_string(name, "float6_e2m3fn")) return nk_e2m3_k;
+    else if (same_string(name, "e3m2") || same_string(name, "float6_e3m2") || same_string(name, "float6_e3m2fn")) return nk_e3m2_k;
 
     // Sub-byte integers:
     else if (same_string(name, "int4")) return nk_i4_k;

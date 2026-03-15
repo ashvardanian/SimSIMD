@@ -1585,8 +1585,8 @@ static nk_u16_t const nk_e4m3_subnorm_f16_lut_[8] = {
  *  @param subnorm_lut_u16x Pre-loaded 8-entry subnormal LUT as `svuint16_t`
  *  @return 32 `f16` values as `svfloat16_t`: from lower 32 bytes
  */
-NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x,
-                                               svuint16_t subnorm_lut_u16x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x,
+                                             svuint16_t subnorm_lut_u16x) NK_STREAMING_COMPATIBLE_ {
     svuint16_t vals_u16x = svunpklo_u16(bytes_u8x); // 1: UUNPKLO
 
     svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, vals_u16x, 0x80),
@@ -1627,7 +1627,7 @@ NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_
  *  @param bytes_u8x Pre-loaded 64 bytes (svuint8_t from svld1_u8)
  *  @return 32 F16 values as svfloat16_t (from lower 32 bytes)
  */
-NK_INTERNAL svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
     // E5M2 and F16 share the same exponent bias (15), sign position, exponent width,
     // and mantissa field alignment. The conversion f16 = byte << 8 is exact for ALL
     // 256 values including subnormals, infinity, and NaN.
@@ -2643,7 +2643,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_
  *  @param raw_bytes_u8x Pre-loaded e2m3 bytes as `svuint8_t`
  *  @return              Signed `i8` values as `svint8_t`
  */
-NK_INTERNAL svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) NK_STREAMING_COMPATIBLE_ {
     // 32-entry magnitude LUT, replicated for SVE TBL (handles SVL > 256 bits)
     static NK_ALIGN64 nk_u8_t const lut_data[64] = {
         0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
@@ -3196,7 +3196,7 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_
  *  @param bytes_u8x      Pre-loaded bytes (svuint8_t from svld1_u8)
  *  @return               F16 values as svfloat16_t (from lower half of bytes via unpack)
  */
-NK_INTERNAL svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
     static NK_ALIGN64 nk_u8_t const magnitude_hi_lut[64] = {
         0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
         0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,

@@ -1023,6 +1023,8 @@ def test_float8_e5m2_vs_ml_dtypes():
         ("bfloat16", "bfloat16"),
         ("float8_e4m3fn", "e4m3"),
         ("float8_e5m2", "e5m2"),
+        ("float6_e2m3fn", "e2m3"),
+        ("float6_e3m2fn", "e3m2"),
     ],
 )
 def test_ml_dtypes_array_to_tensor(ml_dtype, nk_name):
@@ -1030,9 +1032,31 @@ def test_ml_dtypes_array_to_tensor(ml_dtype, nk_name):
     dt = getattr(ml_dtypes, ml_dtype)
     a_f32 = np.random.randn(16).astype(np.float32).clip(-1, 1)
     a_ml = a_f32.astype(dt)
+    # 1D
     t = nk.Tensor(a_ml)
     assert t.dtype == nk_name
     assert t.shape == (16,)
+    # 2D
+    a_2d = np.random.randn(4, 8).astype(np.float32).clip(-1, 1).astype(dt)
+    t2 = nk.Tensor(a_2d)
+    assert t2.dtype == nk_name
+    assert t2.shape == (4, 8)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+@pytest.mark.parametrize(
+    "ml_dtype",
+    ["float8_e4m3fnuz", "float8_e5m2fnuz", "float8_e4m3b11fnuz", "float8_e8m0fnu"],
+)
+def test_ml_dtypes_incompatible_rejected(ml_dtype):
+    """Verify that fnuz/b11fnuz/e8m0fnu types are rejected, not silently misinterpreted."""
+    dt = getattr(ml_dtypes, ml_dtype, None)
+    if dt is None:
+        pytest.skip(f"ml_dtypes.{ml_dtype} not available in this version")
+    a = np.array([0.5], dtype=dt)
+    with pytest.raises((TypeError, ValueError)):
+        nk.Tensor(a)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1077,7 +1101,7 @@ def test_dots_packed_row_range():
 
     reference = np.array(nk.dots_packed(left_matrix, right_packed))
 
-    output = nk.zeros((height, width), dtype="float32")
+    output = nk.zeros((height, width), dtype="float64")
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=0, end_row=50)
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=50, end_row=100)
 
@@ -1097,7 +1121,7 @@ def test_dots_symmetric_row_range():
     reference = np.array(nk.dots_symmetric(vectors))
     mask = np.triu(np.ones((count, count), dtype=bool))
 
-    output = nk.zeros((count, count), dtype="float32")
+    output = nk.zeros((count, count), dtype="float64")
     nk.dots_symmetric(vectors, out=output, start_row=0, end_row=count)
 
     assert np.allclose(np.array(output)[mask], reference[mask], atol=1e-5), (

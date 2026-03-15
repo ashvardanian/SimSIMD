@@ -13,6 +13,8 @@
 //      NK_MATRIX_WIDTH      — GEMM N / query rows     (default 128)
 //      NK_MATRIX_DEPTH      — GEMM K / vector dims    (default 1536)
 
+#if canImport(Darwin)
+
 import CNumKong
 import NumKong
 import XCTest
@@ -500,3 +502,5 @@ final class BenchJaccardsSymmetric: XCTestCase {
     func testU1x8() throws { try benchSymmetric(randomU1x8) { try $0.jaccardsSymmetric() } }
     func testU1x8Serial() throws { try benchSymmetric(randomU1x8, serial: true) { try $0.jaccardsSymmetric() } }
 }
+
+#endif  // canImport(Darwin)
