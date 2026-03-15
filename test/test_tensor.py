@@ -1207,7 +1207,7 @@ def test_gil_free_dots_packed_threading():
     reference = nk.dots_packed(left_matrix, right_packed)
 
     # Multi-threaded with row slicing into shared output
-    output = nk.zeros((height, width), dtype="float32")
+    output = nk.zeros((height, width), dtype="float64")
     rows_per_thread = height // num_threads
 
     def compute_slice(thread_index):
@@ -1240,7 +1240,7 @@ def test_gil_free_dots_symmetric_threading():
     reference = np.array(nk.dots_symmetric(vectors))
 
     # Multi-threaded with row slicing into shared output
-    output = nk.zeros((count, count), dtype="float32")
+    output = nk.zeros((count, count), dtype="float64")
     rows_per_thread = count // num_threads
 
     def compute_slice(thread_index):
