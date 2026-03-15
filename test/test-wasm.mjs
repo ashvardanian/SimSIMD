@@ -78,9 +78,14 @@ async function loadNumKong(runtime) {
         0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b, // f32x4.relaxed_madd
       ]);
 
+      // The WASI toolchain builds with --import-memory --shared-memory,
+      // so we must provide a WebAssembly.Memory object in the env imports.
+      const memory = new WebAssembly.Memory({ initial: 256, maximum: 4096, shared: true });
+
       const { instance } = await WebAssembly.instantiate(wasmBytes, {
         wasi_snapshot_preview1: wasi.wasiImport,
         env: {
+          memory,
           // Host-side capability probes imported by the WASM module
           nk_has_v128: () => {
             try {

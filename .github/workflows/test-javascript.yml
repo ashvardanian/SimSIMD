@@ -252,7 +252,7 @@ jobs:
         run: cargo install wasmer-cli --git https://github.com/wasmerio/wasmer.git --branch main --features cranelift
 
       - name: Test Wasmer runtime
-        run: wasmer run --enable-simd --enable-relaxed-simd ./build-wasi/test.wasm
+        run: wasmer run --enable-simd --enable-relaxed-simd ./build-wasi/nk_test.wasm
 
   test_wasm_wasmtime:
     name: Test WASM via Wasmtime
