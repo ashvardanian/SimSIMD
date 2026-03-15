@@ -1101,7 +1101,7 @@ def test_dots_packed_row_range():
 
     reference = np.array(nk.dots_packed(left_matrix, right_packed))
 
-    output = nk.zeros((height, width), dtype="float32")
+    output = nk.zeros((height, width), dtype="float64")
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=0, end_row=50)
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=50, end_row=100)
 
@@ -1121,7 +1121,7 @@ def test_dots_symmetric_row_range():
     reference = np.array(nk.dots_symmetric(vectors))
     mask = np.triu(np.ones((count, count), dtype=bool))
 
-    output = nk.zeros((count, count), dtype="float32")
+    output = nk.zeros((count, count), dtype="float64")
     nk.dots_symmetric(vectors, out=output, start_row=0, end_row=count)
 
     assert np.allclose(np.array(output)[mask], reference[mask], atol=1e-5), (
