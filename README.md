@@ -55,18 +55,19 @@ That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product 
 NumKong promotes to wider accumulators — `f16 → f32`, `bf16 → f32`, `i8 → i32`, `f32 → f64` — so results never overflow, and it's still faster.
 
 > Single 2048-d dot product on Intel Sapphire Rapids (Xeon 8468), single-threaded, CPU-only packages.
-> Each cell shows __GFLOP/s, mean relative error %__ vs higher-precision reference (1 000 trials).
+> Each cell shows __gso/s, mean relative error__ vs higher-precision reference (1 000 trials).
+> gso/s = Giga Scalar Operations per Second — a more suitable name than GFLOP/s when counting both integer and floating-point work.
 > Median of 5 runs × 500 K calls each. NumPy 2.4, PyTorch 2.10, JAX 0.9.
 
-| Input  |          NumPy via OpenBLAS |       PyTorch via Intel MKL |                         JAX |                     NumKong |
-| :----- | --------------------------: | --------------------------: | --------------------------: | --------------------------: |
-|        | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `f64`  |   2.0 GFLOP/s, 1.1e-13% err |   0.6 GFLOP/s, 1.1e-13% err |   0.4 GFLOP/s, 1.3e-12% err |   5.8 GFLOP/s, 1.6e-14% err |
-| `f32`  |    1.5 GFLOP/s, 2.0e-4% err |    0.6 GFLOP/s, 1.9e-4% err |    0.4 GFLOP/s, 5.1e-4% err |    7.1 GFLOP/s, 2.3e-5% err |
-| `bf16` |                           — |       0.5 GFLOP/s, 1.9% err |       0.5 GFLOP/s, 1.9% err |       9.7 GFLOP/s, 1.8% err |
-| `f16`  |      0.2 GFLOP/s, 0.25% err |      0.5 GFLOP/s, 0.25% err |      0.4 GFLOP/s, 0.25% err |     11.5 GFLOP/s, 0.24% err |
-| `e5m2` |                           — |       0.7 GFLOP/s, 4.6% err |       0.5 GFLOP/s, 4.6% err |       7.1 GFLOP/s, 0% err ✅ |
-| `i8`   | 1.1 GFLOP/s, __overflow__ ❌ | 0.5 GFLOP/s, __overflow__ ❌ | 0.5 GFLOP/s, __overflow__ ❌ |      14.8 GFLOP/s, 0% err ✅ |
+| Input  |        NumPy via OpenBLAS |     PyTorch via Intel MKL |                       JAX |                NumKong |
+| :----- | ------------------------: | ------------------------: | ------------------------: | ---------------------: |
+|        |        ░░░░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░░░░ |     ░░░░░░░░░░░░░░░░░░ |
+| `f64`  |    2.0 gso/s, 1.1e-15 err |    0.6 gso/s, 1.1e-15 err |    0.4 gso/s, 1.3e-14 err | 5.8 gso/s, 1.6e-16 err |
+| `f32`  |     1.5 gso/s, 2.0e-6 err |     0.6 gso/s, 1.9e-6 err |     0.4 gso/s, 5.1e-6 err |  7.1 gso/s, 2.3e-7 err |
+| `bf16` |                         — |       0.5 gso/s, 1.9% err |       0.5 gso/s, 1.9% err |    9.7 gso/s, 1.8% err |
+| `f16`  |      0.2 gso/s, 0.25% err |      0.5 gso/s, 0.25% err |      0.4 gso/s, 0.25% err |  11.5 gso/s, 0.24% err |
+| `e5m2` |                         — |       0.7 gso/s, 4.6% err |       0.5 gso/s, 4.6% err |    7.1 gso/s, 0% err ✅ |
+| `i8`   | 1.1 gso/s, __overflow__ ❌ | 0.5 gso/s, __overflow__ ❌ | 0.5 gso/s, __overflow__ ❌ |   14.8 gso/s, 0% err ✅ |
 
 A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
 They lower execution graphs through XLA or vendored BLAS libraries like Intel MKL and Nvidia cuBLAS.
@@ -74,19 +75,19 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 
 > Matrix multiplication (2048 × 2048) × (2048 × 2048), single-threaded, same machine.
 > JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
-> NumKong uses `dots_packed` (pre-packed GEMM). Same format: __GFLOP/s, mean relative error %__.
+> NumKong uses `dots_packed` (pre-packed GEMM). Same format: __gso/s, mean relative error__.
 
-| Input  |          NumPy via OpenBLAS |        PyTorch via Intel MKL |                          JAX |                     NumKong |
-| :----- | --------------------------: | ---------------------------: | ---------------------------: | --------------------------: |
-|        | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `f64`  |   65.5 GFLOP/s, ~1e-13% err |    68.2 GFLOP/s, ~1e-13% err |   ~14.3 GFLOP/s, ~1e-13% err |    8.6 GFLOP/s, ~1e-14% err |
-| `f32`  |  140.6 GFLOP/s, 8.9e-5% err |   144.6 GFLOP/s, 1.1e-4% err |   ~60.5 GFLOP/s, 1.3e-4% err |   37.7 GFLOP/s, 4.0e-5% err |
-| `bf16` |                           — |      850.7 GFLOP/s, 1.8% err |      ~25.8 GFLOP/s, 3.4% err |     458.2 GFLOP/s, 3.6% err |
-| `f16`  |      0.3 GFLOP/s, 0.25% err |     139.9 GFLOP/s, 0.37% err |     ~26.1 GFLOP/s, 0.35% err |    103.2 GFLOP/s, 0.26% err |
-| `e5m2` |                           — |        0.4 GFLOP/s, 4.6% err |      ~26.4 GFLOP/s, 4.6% err |     398.1 GFLOP/s, 0% err ✅ |
-| `i8`   | 0.4 GFLOP/s, __overflow__ ❌ | 50.0 GFLOP/s, __overflow__ ❌ | ~0.0 GFLOP/s, __overflow__ ❌ |    1279.6 GFLOP/s, 0% err ✅ |
+| Input  |        NumPy via OpenBLAS |      PyTorch via Intel MKL |                        JAX |                NumKong |
+| :----- | ------------------------: | -------------------------: | -------------------------: | ---------------------: |
+|        |        ░░░░░░░░░░░░░░░░░░ |         ░░░░░░░░░░░░░░░░░░ |         ░░░░░░░░░░░░░░░░░░ |     ░░░░░░░░░░░░░░░░░░ |
+| `f64`  |    65.5 gso/s, ~1e-15 err |     68.2 gso/s, ~1e-15 err |    ~14.3 gso/s, ~1e-15 err |  8.6 gso/s, ~1e-16 err |
+| `f32`  |   140.6 gso/s, 8.9e-7 err |    144.6 gso/s, 1.1e-6 err |    ~60.5 gso/s, 1.3e-6 err | 37.7 gso/s, 4.0e-7 err |
+| `bf16` |                         — |      850.7 gso/s, 1.8% err |      ~25.8 gso/s, 3.4% err |  458.2 gso/s, 3.6% err |
+| `f16`  |      0.3 gso/s, 0.25% err |     139.9 gso/s, 0.37% err |     ~26.1 gso/s, 0.35% err | 103.2 gso/s, 0.26% err |
+| `e5m2` |                         — |        0.4 gso/s, 4.6% err |      ~26.4 gso/s, 4.6% err |  398.1 gso/s, 0% err ✅ |
+| `i8`   | 0.4 gso/s, __overflow__ ❌ | 50.0 gso/s, __overflow__ ❌ | ~0.0 gso/s, __overflow__ ❌ | 1279.6 gso/s, 0% err ✅ |
 
-To see just how dangerous the "same type" convention is, take `dot(random_i8(2048))`:
+To see just how dangerous the "same type" convention is, take `np.dot(np.random.randint(-128, 127, 2048, dtype=np.int8), ...)`:
 
 ```python
 >>> true_answer = np.dot(a.astype(np.int64), b.astype(np.int64)) # 784
@@ -101,16 +102,21 @@ For `f64`, NumKong's Dot2 summation is __5-50× more accurate__ than naive F64 a
 For `f32`, NumKong widens to F64, giving __5-50× lower error__ depending on input sizes.
 So you might be thinking — this must be the heaviest project of them all?
 
-| Package          |   Size | What's inside                                                            |
-| :--------------- | -----: | :----------------------------------------------------------------------- |
-| NumKong          |   5 MB | 1 binary, 9 x86 backends and 16 dtypes                                   |
-| NumPy + OpenBLAS |  30 MB | 19 binaries, BLAS/LAPACK wrappers                                        |
-| JAX + jaxlib     | 357 MB | XLA compiler, MLIR dialects                                              |
-| PyTorch + MKL    | 705 MB | Autograd, JIT compiler, 444 MB in `libtorch_cpu`, including MKL & oneDNN |
+| Package                |   Size | What's inside                          | Available for                       |
+| :--------------------- | -----: | :------------------------------------- | :---------------------------------- |
+| PyTorch + MKL + oneDNN | 705 MB | Autograd, JIT compiler                 | Python, C++, Java                   |
+| JAX + jaxlib           | 357 MB | XLA compiler, MLIR dialects            | Python                              |
+| NumPy + OpenBLAS       |  30 MB | 19 binaries, BLAS/LAPACK wrappers      | Python                              |
+| NumKong                |   5 MB | 1 binary, 9 x86 backends and 16 dtypes | C, C++, Rust, Python, Go, JS, Swift |
 
-> Installed package size, CPU-only builds via `pip` for x86 alone.
-> Size for other language SDKs and target platforms varies widely, but relative compactness is preserved!
+> Installed `pip` package size for CPU-only x86 builds.
+> Other SDKs and platforms vary, but the relative compactness is preserved.
 
+But the kernels are only a third of the project.
+The larger — and less visible — investment is a 17,000-line test suite spanning C++, Python, JavaScript, and Swift: 43 test files, 285+ parametrized axes, and 16 numeric types from `u1` to `f64c`.
+Every kernel is validated against 118-bit extended-precision baselines, with per-type ULP budgets (4 ULP for f32, 32 for f16, 256 for bf16) across log-normal, uniform, and Cauchy input distributions.
+Tests enforce triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints — then repeat all of it for every ISA variant in the table above.
+Cross-validation against OpenBLAS, Intel MKL, and Apple Accelerate catches regressions that no single reference can.
 For a broader comparison across languages and runtimes, see the [NumWars](https://github.com/ashvardanian/NumWars) benchmarking suite.
 
 ## Project Organization & Design Decisions 📚
