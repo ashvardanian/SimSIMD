@@ -92,6 +92,7 @@ Accuracy is reported as mean ULP (units in last place) averaged over all test pa
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
+Rows marked `🧩` use external BLAS baselines rather than NumKong kernels.
 
 ### Intel Sapphire Rapids
 
@@ -100,31 +101,31 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                        |                     256² |                    1024² |                    4096² |
 | :---------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64c__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `bilinear_f64c_with_blas` 🧩   |               1.25 gso/s |               1.36 gso/s |               1.38 gso/s |
 | `nk_bilinear_f64c_serial`     |    0.0862 gso/s, 0.5 ulp |     0.161 gso/s, 0.2 ulp |     0.171 gso/s, 0.5 ulp |
 | `nk_bilinear_f64c_skylake`    |     0.583 gso/s, 3.5 ulp |     0.718 gso/s, 3.5 ulp |     0.765 gso/s, 3.5 ulp |
-| `nk_bilinear_f64c_with_blas`  |               1.25 gso/s |               1.36 gso/s |               1.38 gso/s |
 | __f32c__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `bilinear_f32c_with_blas` 🧩   |               2.14 gso/s |               2.61 gso/s |               2.57 gso/s |
 | `nk_bilinear_f32c_serial`     |       0.756 gso/s, 0 ulp |        1.37 gso/s, 0 ulp |        1.37 gso/s, 0 ulp |
 | `nk_bilinear_f32c_skylake`    |        1.72 gso/s, 0 ulp |        1.75 gso/s, 0 ulp |        1.46 gso/s, 0 ulp |
-| `nk_bilinear_f32c_with_blas`  |               2.14 gso/s |               2.61 gso/s |               2.57 gso/s |
 | __bf16c__                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_bilinear_bf16c_serial`    |       0.154 gso/s, 5 ulp |     0.158 gso/s, 5.8 ulp |       0.155 gso/s, 5 ulp |
 | `nk_bilinear_bf16c_genoa`     |        2.81 gso/s, 5 ulp |        4.57 gso/s, 5 ulp |        4.47 gso/s, 5 ulp |
 | __f16c__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_bilinear_f16c_serial`     |     0.585 gso/s, 7.2 ulp |     0.592 gso/s, 7.2 ulp |     0.600 gso/s, 7.2 ulp |
 | __f64__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `bilinear_f64_with_blas` 🧩    |               2.84 gso/s |               3.23 gso/s |               3.14 gso/s |
 | `nk_bilinear_f64_serial`      |     0.291 gso/s, 0.7 ulp |     0.565 gso/s, 0.4 ulp |     0.577 gso/s, 0.7 ulp |
 | `nk_mahalanobis_f64_serial`   |       0.267 gso/s, 0 ulp |       0.537 gso/s, 0 ulp |       0.539 gso/s, 0 ulp |
 | `nk_bilinear_f64_skylake`     |      1.79 gso/s, 1.6 ulp |      1.71 gso/s, 1.3 ulp |        1.59 gso/s, 1 ulp |
-| `nk_bilinear_f64_with_blas`   |               2.84 gso/s |               3.23 gso/s |               3.14 gso/s |
 | `nk_mahalanobis_f64_skylake`  |        1.77 gso/s, 0 ulp |        1.82 gso/s, 0 ulp |      2.12 gso/s, 0.2 ulp |
 | __f32__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `bilinear_f32_with_blas` 🧩    |               4.09 gso/s |               5.61 gso/s |               6.59 gso/s |
 | `nk_bilinear_f32_serial`      |        1.19 gso/s, 0 ulp |        2.71 gso/s, 0 ulp |        2.68 gso/s, 0 ulp |
 | `nk_mahalanobis_f32_serial`   |        2.36 gso/s, 0 ulp |        2.53 gso/s, 0 ulp |        2.40 gso/s, 0 ulp |
 | `nk_bilinear_f32_haswell`     |        3.45 gso/s, 0 ulp |        3.66 gso/s, 0 ulp |        3.24 gso/s, 0 ulp |
 | `nk_mahalanobis_f32_haswell`  |        3.37 gso/s, 0 ulp |        3.28 gso/s, 0 ulp |        3.30 gso/s, 0 ulp |
 | `nk_bilinear_f32_skylake`     |        3.68 gso/s, 0 ulp |        3.08 gso/s, 0 ulp |        2.71 gso/s, 0 ulp |
-| `nk_bilinear_f32_with_blas`   |               4.09 gso/s |               5.61 gso/s |               6.59 gso/s |
 | `nk_mahalanobis_f32_skylake`  |        3.45 gso/s, 0 ulp |        2.94 gso/s, 0 ulp |        3.32 gso/s, 0 ulp |
 | __bf16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_bilinear_bf16_serial`     |      0.321 gso/s, 16 ulp |      0.331 gso/s, 13 ulp |      0.314 gso/s, 12 ulp |

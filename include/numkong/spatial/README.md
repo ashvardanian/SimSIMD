@@ -78,7 +78,7 @@ This reciprocal square root is needed for both euclidean distance ($\sqrt{d}$ vi
 
 ### Absolute Differences for Integer Types
 
-`nk_sqeuclidean_i8_haswell`, `nk_sqeuclidean_u8_haswell`, `nk_sqeuclidean_i8_skylake`, `nk_sqeuclidean_u8_skylake` compute squared Euclidean distance by first obtaining element-wise absolute differences, then squaring and accumulating.
+`nk_sqeuclidean_i8_haswell`, `nk_sqeuclidean_u8_haswell`, `nk_sqeuclidean_i8_icelake`, `nk_sqeuclidean_u8_icelake` compute squared Euclidean distance by first obtaining element-wise absolute differences, then squaring and accumulating.
 For signed `i8`, XOR with `0x80` converts the range from [-128, 127] to unsigned [0, 255], then saturating subtract in both directions followed by OR gives $|a - b|$:
 
 ```

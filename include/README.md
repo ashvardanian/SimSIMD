@@ -101,8 +101,10 @@ nk_euclidean_i8(a, b, 1536, &l2);
 If you want runtime-selected kernels without naming a specific ISA, use the punned dispatch layer:
 
 ```c
-nk_metric_dense_punned_t angular =
-    (nk_metric_dense_punned_t)nk_metric_punned(nk_metric_angular_k, nk_f32_k, nk_cap_any_k);
+nk_metric_dense_punned_t angular = 0;
+nk_capability_t used = nk_cap_serial_k;
+nk_find_kernel_punned(nk_kernel_angular_k, nk_f32_k,
+    nk_capabilities(), (nk_kernel_punned_t *)&angular, &used);
 
 nk_f32_t a[768], b[768], result = 0;
 angular(a, b, 768, &result);
@@ -389,7 +391,7 @@ Sparse helpers cover sorted-index intersection and weighted sparse dot products.
 nk_u32_t a_idx[] = {1, 3, 5, 7}, b_idx[] = {3, 4, 5, 8};
 nk_u32_t intersection[4];
 nk_size_t count = 0;
-nk_intersect_u32(a_idx, 4, b_idx, 4, intersection, &count);
+nk_sparse_intersect_u32(a_idx, b_idx, 4, 4, intersection, &count);
 assert(count == 2 && "indices 3 and 5");
 
 nk_f32_t a_weights[] = {1.0f, 2.0f, 3.0f, 4.0f};
@@ -448,7 +450,7 @@ It must be called once per thread before any kernel invocation and returns 1 on 
 ```c
 nk_capability_t caps = nk_capabilities();
 nk_configure_thread(caps);
-if (caps & nk_cap_sapphire_amx_k) { /* AMX available */ }
+if (caps & nk_cap_sapphireamx_k) { /* AMX available */ }
 ```
 
 For exact register-level details, see `capabilities.h`.

@@ -228,12 +228,12 @@ This hidden allocation has caused real problems: [14 lock/unlock pairs per small
 The [BLASFEO](https://github.com/giaf/blasfeo) library was created specifically for embedded model-predictive control where `malloc` during computation is unacceptable.
 
 NumKong __never allocates memory__.
-Following the same philosophy as [Intel MKL's packed GEMM API](https://www.intel.com/content/www/us/en/developer/articles/technical/introducing-the-new-packed-apis-for-gemm.html) (`cblas_sgemm_pack_get_size` → `cblas_sgemm_pack` → `cblas_sgemm_compute`), NumKong exposes a three-phase interface — `nk_dots_packed_size` → `nk_dots_pack` → `nk_dots_packed` — where the caller owns the buffer and NumKong only fills it.
+Following the same philosophy as [Intel MKL's packed GEMM API](https://www.intel.com/content/www/us/en/developer/articles/technical/introducing-the-new-packed-apis-for-gemm.html) (`cblas_sgemm_pack_get_size` → `cblas_sgemm_pack` → `cblas_sgemm_compute`), NumKong exposes typed three-phase interfaces — `nk_dots_packed_size_*` → `nk_dots_pack_*` → `nk_dots_packed_*` — where the caller owns the buffer and NumKong only fills it.
 
 The reason GEMM libraries repack matrices at all is that every hardware target has a different preferred layout — Intel AMX expects B in a [VNNI-interleaved](https://www.intel.com/content/www/us/en/developer/articles/code-sample/advanced-matrix-extensions-intrinsics-functions.html) tile format (pairs of BF16 values packed into DWORDs across the K dimension), while Arm SME wants column vectors for its [FMOPA outer-product](https://developer.arm.com/documentation/ddi0602/latest/SME-Instructions) instructions.
 Since GEMM is $O(N^3)$ and repacking is $O(N^2)$, the cost is asymptotically free — but the allocation and locking overhead is not.
 
-NumKong's `nk_dots_pack` performs five transformations beyond simple reordering:
+NumKong's `nk_dots_pack_*` family performs five transformations beyond simple reordering:
 
 - __Type pre-conversion__ — mini-floats (e4m3, bf16, etc.) are upcast to the compute type once during packing, not on every GEMM call.
   This amortizes the conversion cost across all rows of A that will be multiplied against the packed B.
@@ -259,7 +259,7 @@ It's a powerful primitive, but the workloads that dominate modern compute — LL
 __Frozen weights justify separating packing from computation.__
 During LLM inference, a very large share of GEMM calls use a static weight matrix — weights don't change after loading.
 This makes offline repacking a one-time cost amortized over the entire serving lifetime: [NVIDIA's TurboMind](https://arxiv.org/pdf/2508.15601) explicitly splits GEMM into offline weight packing (hardware-aware layout conversion) and online mixed-precision computation, and [Intel MKL's packed GEMM API](https://www.intel.com/content/www/us/en/developer/articles/technical/introducing-the-new-packed-apis-for-gemm.html) exposes the same two-phase pattern.
-NumKong's `nk_dots_pack` → `nk_dots_packed` follows this philosophy — pack the weight matrix once, reuse it across all queries.
+NumKong's `nk_dots_pack_*` → `nk_dots_packed_*` path follows this philosophy — pack the weight matrix once, reuse it across all queries.
 
 __Mixed precision demands more than an epilogue addition.__
 Modern transformer layers operate in a precision sandwich: weights stored in bf16/fp8, [GEMM accumulated in f32](https://pytorch.org/blog/what-every-user-should-know-about-mixed-precision-training-in-pytorch/), output downcast back to bf16 for the next layer.
@@ -278,13 +278,13 @@ And the standard BLAS interface was never designed for sub-byte types — [no ve
 __Some operations need more than GEMM + postprocessing.__
 NumKong implements several GEMM-shaped operations where the "epilogue" is too complex for a simple addition:
 
-- __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's `nk_bilinear` streams through rows of $C$ with nested compensated dot products, never allocating beyond registers.
+- __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's typed `nk_bilinear_*` kernels stream through rows of $C$ with nested compensated dot products, never allocating beyond registers.
   For complex-valued quantum states, where the intermediate would be a 2N-element complex vector, the savings double.
 - __MaxSim scoring__ for [ColBERT-style late-interaction retrieval](https://github.com/stanford-futuredata/ColBERT) computes $\sum_i \min_j \text{angular}(q_i, d_j)$ — a sum-of-min-distances across token pairs.
-  A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's `nk_maxsim_packed` fuses a coarse i8-quantized screening with full-precision angular refinement on winning pairs only, __packing both query and document matrices__ to enable all 4 SME tiles as accumulators (+33% throughput vs `dots_packed`).
+  A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's typed `nk_maxsim_packed_*` kernels fuse a coarse i8-quantized screening with full-precision angular refinement on winning pairs only, __packing both query and document matrices__ to enable all 4 SME tiles as accumulators (+33% throughput vs `dots_packed`).
   [PLAID](https://ar5iv.labs.arxiv.org/html/2205.09707) and [maxsim-cpu](https://www.mixedbread.com/blog/maxsim-cpu) have independently shown that dedicated MaxSim kernels outperform the GEMM decomposition by 5–10x.
 
-NumKong treats these as first-class operations — `dots_packed`, `euclideans_packed`, `angulars_packed`, `nk_bilinear`, `nk_maxsim_packed` — rather than decomposing everything into GEMM + postprocessing.
+NumKong treats these as first-class operations — `dots_packed`, `euclideans_packed`, `angulars_packed`, typed `nk_bilinear_*` kernels, and typed `nk_maxsim_packed_*` kernels — rather than decomposing everything into GEMM + postprocessing.
 More operations are being considered as well.
 
 ### Saturating, Rounding, Stable Arithmetic, Square Roots, and Picking FP6 Over FP8
@@ -316,7 +316,7 @@ NumKong never throws exceptions, never sets `errno`, and never calls `setjmp`/`l
 Instead, every function takes inputs as `const` pointers, writes outputs through caller-provided pointers, and returns `void`:
 
 ```c
-void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 ```
 
@@ -325,7 +325,7 @@ Pointers eliminate implicit casts for types with platform-dependent storage.
 Passing by pointer keeps the representation opaque: kernels read raw and convert explicitly when needed, so the same binary works regardless of whether the compiler understands `_Float16`.
 
 The only place that requires error signaling is [dynamic dispatch](#compile-time-and-run-time-dispatch) — looking up the best kernel for the current CPU at runtime.
-When no kernel matches, the dispatcher sets the [capabilities mask](c/dispatch.h) to zero and fills the function pointer with [`nk_error_`](c/numkong.c), a stub that writes `0xFF` into the output — `NaN` for floats, `−1` for signed integers, `TYPE_MAX` for unsigned.
+When no kernel matches, the dispatcher sets the [capabilities mask](c/dispatch.h) to zero and fills the function pointer with a family-specific error stub such as `nk_error_dense_` from [c/dispatch.h](c/dispatch.h) and [c/numkong.c](c/numkong.c) that writes `0xFF` into the output — `NaN` for floats, `−1` for signed integers, `TYPE_MAX` for unsigned.
 
 ### Compile-Time and Run-Time Dispatch
 
@@ -334,7 +334,18 @@ __Compile-time dispatch__ selects the fastest kernel supported by the target pla
 __Run-time dispatch__ compiles every supported kernel into the binary and picks the best one on the target machine via `nk_capabilities()` — one pointer indirection per call, but a single binary runs everywhere.
 The run-time path is common in DBMS products (ClickHouse), web browsers (Chromium), and other upstream projects that ship to heterogeneous fleets.
 
-All kernel names follow the pattern `nk_{operation}_{type}_{backend}`, and you can use `nk_kernel_punned_t` with `nk_capabilities()` to resolve them at runtime without hard-coding the backend.
+All kernel names follow the pattern `nk_{operation}_{type}_{backend}`.
+If you need to resolve the best kernel manually, use `nk_find_kernel_punned` with a `nk_kernel_kind_t`, `nk_dtype_t`, and a viable capabilities mask:
+
+```c
+nk_metric_dense_punned_t angular = 0;
+nk_capability_t used = nk_cap_serial_k;
+nk_find_kernel_punned(
+    nk_kernel_angular_k, nk_f32_k,            // what functionality? for which input type?
+    nk_capabilities(),                        // which capabilities are viable?
+    (nk_kernel_punned_t *)&angular, &used);   // the kernel found and capabilties used!
+```
+
 The first call to `nk_capabilities()` initializes the dispatch table; all subsequent calls are lock-free.
 
 ## Numeric Types

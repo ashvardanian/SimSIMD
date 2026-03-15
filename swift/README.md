@@ -433,16 +433,3 @@ print(hasNEON, hasHaswell)
 
 You usually do not need to branch on this in application code.
 The native layer still selects the best enabled kernel automatically.
-
-The `configure_thread` function is not yet exposed in the Swift binding.
-If you need per-thread capability pinning, call the C layer directly:
-
-```swift
-import CNumKong
-let caps = nk_capabilities()
-let ok = nk_configure_thread(caps)
-```
-
-Call `configure_thread` at the start of every thread that will invoke NumKong kernels.
-In a thread-pool setting, each worker thread needs its own call.
-The function is idempotent and cheap to call more than once on the same thread.

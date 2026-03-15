@@ -63,7 +63,7 @@ Row loads are amortized across multiple dot products: each A row is loaded once 
 
 ### AMX 2D Tile Engine
 
-`nk_dots_packed_bf16_sapphireamx`, `nk_dots_packed_f32_sapphireamx`, `nk_dots_packed_i8_sapphireamx`, `nk_dots_packed_u8_sapphireamx` use Intel AMX's 8 tile registers (TMM0–TMM7), each 1 KB (16 rows × 64 bytes).
+The Sapphire Rapids AMX backends for `bf16`, mini-floats, `i8`, and `u8` use Intel AMX's 8 tile registers (TMM0–TMM7), each 1 KB (16 rows × 64 bytes).
 Convention: TMM0–1 hold A tiles, TMM2–3 hold B tiles, TMM4–7 are C accumulators — giving a 2×2 output tile (32×32 f32 results) per tile pass.
 `TDPBF16PS tmm_c, tmm_a, tmm_b` performs a 16×16 outer product with 32 bf16 multiply-adds per cell (16×16×32 = 8,192 MACs per instruction).
 Each A row contains 16 bf16 pairs interleaved as [a₀, a₁, a₀, a₁, ...] and B columns as [b₀, b₁, b₀, b₁, ...] — the hardware consumes two bf16 elements per slot, accumulating into f32.
@@ -75,7 +75,7 @@ This eliminates the explicit M×N×K loop nesting and register file pressure of 
 
 ### SME Outer-Product Streaming
 
-`nk_dots_packed_f32_sme`, `nk_dots_packed_bf16_smehalf`, `nk_dots_packed_f64_smef64` use Arm's SME ZA tile array (up to 4 named tiles ZA0–ZA3 in 32-bit mode, each SVL×SVL elements).
+`nk_dots_packed_f32_smef64`, `nk_dots_packed_bf16_sme`, `nk_dots_packed_f64_smef64` use Arm's SME ZA tile array (up to 4 named tiles ZA0–ZA3 in 32-bit mode, each SVL×SVL elements).
 `FMOPA za, pn/m, pm/m, zn.s, zm.s` computes a full SVL×SVL rank-1 update in one instruction — one row of A times one row of B, accumulated into ZA.
 ZA0 time-shares between data staging and accumulation: A rows are loaded horizontally into ZA0 (`st1w {za0h.s[ws]}, ...`), then read vertically (`svread_ver_za32_f32_m`) to produce transposed column vectors for B.
 This avoids explicit transpose operations — the tile's 2D addressing provides free transposition.
@@ -127,6 +127,7 @@ The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_M
 Columns show throughput for 256³, 1024³, and 4096³ matrix products.
 The throughput is measured in GSO/s as Giga scalar operations per second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ arithmetic complexity for an $M \times K$ by $K \times N$ product.
 Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
+Rows marked `🧩` use external BLAS or MKL baselines rather than NumKong kernels.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.
 Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run in separate passes to avoid affecting throughput measurements of other kernels.
@@ -138,9 +139,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | Kernel                               |                     256³ |                    1024³ |                    4096³ |
 | :----------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dots_packed_f64_with_blas`       |       58.7 gso/s, 16 ulp |       73.1 gso/s, 58 ulp |     73.8 gso/s, 56.2 ulp |
-| `nk_dots_packed_f64_with_mkl`        |       59.9 gso/s, 16 ulp |       73.7 gso/s, 58 ulp |     73.3 gso/s, 56.2 ulp |
-| `nk_dots_symmetric_f64_with_blas`    |       50.8 gso/s, 13 ulp |       70.4 gso/s, 30 ulp |       74 gso/s, 50.8 ulp |
+| `dots_packed_f64_with_blas` 🧩        |       58.7 gso/s, 16 ulp |       73.1 gso/s, 58 ulp |     73.8 gso/s, 56.2 ulp |
+| `dots_packed_f64_with_mkl` 🧩         |       59.9 gso/s, 16 ulp |       73.7 gso/s, 58 ulp |     73.3 gso/s, 56.2 ulp |
+| `dots_symmetric_f64_with_blas` 🧩     |       50.8 gso/s, 13 ulp |       70.4 gso/s, 30 ulp |       74 gso/s, 50.8 ulp |
 | `nk_dots_packed_f64_serial`          |       0.393 gso/s, 2 ulp |     0.489 gso/s, 4.6 ulp |     0.488 gso/s, 5.9 ulp |
 | `nk_dots_symmetric_f64_serial`       |       0.346 gso/s, 2 ulp |     0.357 gso/s, 2.9 ulp |     0.574 gso/s, 3.9 ulp |
 | `nk_dots_packed_f64_haswell`         |        5.56 gso/s, 0 ulp |        5.97 gso/s, 0 ulp |        6.15 gso/s, 0 ulp |
@@ -148,9 +149,8 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dots_packed_f64_skylake`         |        8.05 gso/s, 0 ulp |        8.69 gso/s, 0 ulp |        8.93 gso/s, 0 ulp |
 | `nk_dots_symmetric_f64_skylake`      |        7.52 gso/s, 0 ulp |        8.88 gso/s, 0 ulp |        17.6 gso/s, 0 ulp |
 | __f32__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dots_packed_f32_with_blas`       |        113 gso/s, 18 ulp |        139 gso/s, 30 ulp |       147 gso/s, 267 ulp |
-| `nk_dots_packed_f32_with_mkl`        |        116 gso/s, 18 ulp |        140 gso/s, 30 ulp |         148 gso/s, ? ulp |
-| `nk_dots_symmetric_f32_with_blas`    |       94.5 gso/s, 23 ulp |        126 gso/s, 39 ulp |       146 gso/s, 260 ulp |
+| `dots_packed_f32_with_blas` 🧩        |        113 gso/s, 18 ulp |        139 gso/s, 30 ulp |       147 gso/s, 267 ulp |
+| `dots_symmetric_f32_with_blas` 🧩     |       94.5 gso/s, 23 ulp |        126 gso/s, 39 ulp |       146 gso/s, 260 ulp |
 | `nk_dots_packed_f32_serial`          |      9.89 gso/s, 5.3 ulp |     10.2 gso/s, 11.8 ulp |        10.1 gso/s, ? ulp |
 | `nk_dots_symmetric_f32_serial`       |     6.30 gso/s, 11.1 ulp |     6.57 gso/s, 13.4 ulp |        6.53 gso/s, ? ulp |
 | `nk_dots_packed_f32_haswell`         |        30.1 gso/s, 0 ulp |        31.6 gso/s, 0 ulp |        31.9 gso/s, 0 ulp |
@@ -158,6 +158,7 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dots_packed_f32_skylake`         |          35 gso/s, 0 ulp |        38.6 gso/s, 0 ulp |        39.5 gso/s, 0 ulp |
 | `nk_dots_symmetric_f32_skylake`      |        26.6 gso/s, 0 ulp |        30.5 gso/s, 0 ulp |          62 gso/s, 0 ulp |
 | __bf16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `dots_packed_bf16_with_mkl` 🧩        |         190 gso/s, 0 ulp |       531 gso/s, 0.7 ulp |       865 gso/s, 5.8 ulp |
 | `nk_dots_packed_bf16_serial`         |       0.842 gso/s, 0 ulp |     0.824 gso/s, 0.5 ulp |     0.825 gso/s, 5.4 ulp |
 | `nk_dots_symmetric_bf16_serial`      |       0.808 gso/s, 0 ulp |     0.759 gso/s, 0.9 ulp |      1.74 gso/s, 5.4 ulp |
 | `nk_dots_packed_bf16_haswell`        |        57.4 gso/s, 0 ulp |      66.5 gso/s, 0.4 ulp |      67.1 gso/s, 4.5 ulp |
@@ -167,10 +168,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dots_packed_bf16_genoa`          |        64.1 gso/s, 0 ulp |      85.3 gso/s, 0.3 ulp |      90.3 gso/s, 3.5 ulp |
 | `nk_dots_symmetric_bf16_genoa`       |        58.1 gso/s, 0 ulp |      61.3 gso/s, 0.5 ulp |       133 gso/s, 3.5 ulp |
 | `nk_dots_packed_bf16_sapphireamx`    |         391 gso/s, 0 ulp |       531 gso/s, 0.7 ulp |       604 gso/s, 5.8 ulp |
-| `nk_dots_packed_bf16_with_mkl`       |         190 gso/s, 0 ulp |       531 gso/s, 0.7 ulp |       865 gso/s, 5.8 ulp |
 | `nk_dots_symmetric_bf16_sapphireamx` |        81.6 gso/s, 0 ulp |       120 gso/s, 0.5 ulp |       124 gso/s, 5.8 ulp |
 | __f16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dots_packed_f16_with_mkl`        |        123 gso/s, 17 ulp |        138 gso/s, 31 ulp |      138 gso/s, 39.5 ulp |
+| `dots_packed_f16_with_mkl` 🧩         |        123 gso/s, 17 ulp |        138 gso/s, 31 ulp |      138 gso/s, 39.5 ulp |
 | `nk_dots_packed_f16_serial`          |       4.44 gso/s, 14 ulp |       4.42 gso/s, 40 ulp |      4.40 gso/s, 326 ulp |
 | `nk_dots_symmetric_f16_serial`       |      3.66 gso/s, 8.9 ulp |       3.44 gso/s, 25 ulp |     5.06 gso/s, 55.6 ulp |
 | `nk_dots_packed_f16_haswell`         |       63.4 gso/s, 12 ulp |       72.4 gso/s, 22 ulp |      71.8 gso/s, 374 ulp |
@@ -222,7 +222,7 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dots_packed_e2m3_alder`          |        71.8 gso/s, 0 ulp |        80.8 gso/s, 0 ulp |        89.5 gso/s, 0 ulp |
 | `nk_dots_symmetric_e2m3_alder`       |        59.3 gso/s, 0 ulp |        73.4 gso/s, 0 ulp |        78.6 gso/s, 0 ulp |
 | __i8__                               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dots_packed_i8u8_with_mkl`       |                250 gso/s |                627 gso/s |              1,670 gso/s |
+| `dots_packed_i8u8_with_mkl` 🧩        |                250 gso/s |                627 gso/s |              1,670 gso/s |
 | `nk_dots_packed_i8_serial`           |               6.44 gso/s |               6.62 gso/s |               7.44 gso/s |
 | `nk_dots_symmetric_i8_serial`        |               2.93 gso/s |               2.99 gso/s |               5.83 gso/s |
 | `nk_dots_packed_i8_haswell`          |               87.7 gso/s |                104 gso/s |                108 gso/s |
