@@ -122,10 +122,10 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_scale_f64_serial`   |         11.4 gb/s, 0 ulp |         12.5 gb/s, 0 ulp |         7.99 gb/s, 0 ulp |
 | `nk_each_scale_f64_haswell`  |         9.61 gb/s, 0 ulp |         9.22 gb/s, 0 ulp |         5.08 gb/s, 0 ulp |
 | `nk_each_scale_f64_skylake`  |         11.2 gb/s, 0 ulp |         11.9 gb/s, 0 ulp |         6.30 gb/s, 0 ulp |
-| `nk_each_blend_f64_serial`   |      16.4 gb/s, 461K ulp |      16.4 gb/s, 811K ulp |       11.8 gb/s, 53K ulp |
+| `nk_each_blend_f64_serial`   |       16.4 gb/s, 1.4 ulp |       16.4 gb/s, 1.1 ulp |       11.8 gb/s, 1.1 ulp |
 | `nk_each_blend_f64_haswell`  |       13.4 gb/s, 1.5 ulp |       11.2 gb/s, 1.5 ulp |       7.85 gb/s, 1.1 ulp |
 | `nk_each_blend_f64_skylake`  |       16.5 gb/s, 1.7 ulp |       15.9 gb/s, 1.5 ulp |       8.55 gb/s, 1.1 ulp |
-| `nk_each_fma_f64_serial`     |      20.1 gb/s, 360K ulp |      20.8 gb/s, 123K ulp |     11.7 gb/s, 2897K ulp |
+| `nk_each_fma_f64_serial`     |       20.1 gb/s, 1.5 ulp |       20.8 gb/s, 1.5 ulp |       11.7 gb/s, 1.3 ulp |
 | `nk_each_fma_f64_haswell`    |       16.8 gb/s, 1.5 ulp |       11.1 gb/s, 1.5 ulp |       9.42 gb/s, 2.8 ulp |
 | `nk_each_fma_f64_skylake`    |       19.8 gb/s, 1.4 ulp |       20.4 gb/s, 1.5 ulp |       11.6 gb/s, 2.7 ulp |
 | __f32__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
