@@ -734,9 +734,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void);
 NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void);
 NK_DYNAMIC void nk_dispatch_table_update(nk_capability_t);
-NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, nk_capability_t supported,
-                                      nk_capability_t allowed, nk_kernel_punned_t *kernel_output,
-                                      nk_capability_t *capability_output);
+NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, nk_capability_t viable,
+                                      nk_kernel_punned_t *kernel_output, nk_capability_t *capability_output);
 
 #else
 
