@@ -667,27 +667,27 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 
 #if NK_TARGET_WASM_
 
-#if defined(__EMSCRIPTEN__)
-#if NK_DYNAMIC_DISPATCH
-extern int nk_detect_v128_(void);
-extern int nk_detect_relaxed_(void);
-#else
-NK_PUBLIC int nk_detect_v128_(void) { return 0; }
-NK_PUBLIC int nk_detect_relaxed_(void) { return 0; }
-#endif // NK_DYNAMIC_DISPATCH
-#elif defined(__wasi__) && !NK_DEFINED_WASI_
-// When hosted (e.g. Node.js WASI polyfill), the host provides capability probes.
+#if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH
+// Emscripten dynamic dispatch: EM_JS probe defined in numkong.c.
+extern int nk_has_v128(void);
+extern int nk_has_relaxed(void);
+#elif defined(__wasi__) && defined(NK_DEFINED_WASI_)
+// WASI hosted (NK_WASI_HOSTED=ON): the host provides capability probes via imports.
 __attribute__((__import_module__("env"), __import_name__("nk_has_v128"))) extern int nk_has_v128(void);
 __attribute__((__import_module__("env"), __import_name__("nk_has_relaxed"))) extern int nk_has_relaxed(void);
 #endif
 
 NK_PUBLIC nk_capability_t nk_capabilities_v128relaxed_(void) {
-#if defined(__EMSCRIPTEN__)
-    int has_relaxed = nk_detect_relaxed_();
-    return has_relaxed ? (nk_cap_serial_k | nk_cap_v128relaxed_k) : nk_cap_serial_k;
-#elif defined(__wasi__) && !NK_DEFINED_WASI_
+#if (defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH) || (defined(__wasi__) && defined(NK_DEFINED_WASI_))
+    // Hosted environment (Emscripten or WASI with NK_WASI_HOSTED): the host provides
+    // runtime probes.  Compile-time flags only mean the *compiler* emitted relaxed-SIMD
+    // opcodes, not that the current runtime can execute them.
     int has_relaxed = nk_has_relaxed();
     return has_relaxed ? (nk_cap_serial_k | nk_cap_v128relaxed_k) : nk_cap_serial_k;
+#elif defined(__wasm_relaxed_simd__) || defined(__wasm_simd128__)
+    // Standalone WASM or static Emscripten: if the compiler targeted relaxed SIMD,
+    // the runtime must support it (modules with relaxed opcodes fail validation otherwise).
+    return nk_cap_serial_k | nk_cap_v128relaxed_k;
 #else
     return nk_cap_serial_k;
 #endif
