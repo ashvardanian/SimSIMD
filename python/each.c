@@ -102,11 +102,12 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
 
     // Convert inputs to buffers
     nk_buffer_backing_t a_parsed_backing, b_parsed_backing, c_parsed_backing, out_parsed_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_parsed_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing, dtype) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing, dtype) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed, &c_parsed_backing, dtype))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing, nk_dtype_unknown_k))
+        goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || c_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -276,10 +277,11 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
     nk_buffer_backing_t a_parsed_backing, b_parsed_backing, out_parsed_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing) ||
-        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing, dtype) ||
+        !parse_tensor(b_obj, &b_buffer, &b_parsed, &b_parsed_backing, dtype))
         goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing, nk_dtype_unknown_k))
+        goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -442,8 +444,9 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`.
     nk_buffer_backing_t a_parsed_backing, out_parsed_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing, dtype)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing, nk_dtype_unknown_k))
+        goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -1233,8 +1236,9 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`
     nk_buffer_backing_t a_parsed_backing, out_parsed_backing;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing)) goto cleanup;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed, &a_parsed_backing, dtype)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed, &out_parsed_backing, nk_dtype_unknown_k))
+        goto cleanup;
 
     // Check dimensions
     if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {

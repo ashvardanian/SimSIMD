@@ -129,7 +129,7 @@ constexpr bool is_std_complex_() noexcept {
     return is_std_complex_sfinae_<scalar_type_>::value;
 }
 
-/** @brief Check if a type is an complex type - STL or NumKong. */
+/** @brief Check if a type is a complex type - STL or NumKong. */
 template <typename scalar_type_>
 constexpr bool is_complex_dtype() noexcept {
     if constexpr (is_numeric_dtype<scalar_type_>()) return scalar_type_::is_complex();

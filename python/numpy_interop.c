@@ -414,17 +414,17 @@ static nk_np_registration_t const nk_np_registrations[] = {
 };
 // clang-format on
 
-enum { nk_np_num_dtypes = sizeof(nk_np_registrations) / sizeof(nk_np_registrations[0]) };
+enum { nk_np_num_dtypes_k = sizeof(nk_np_registrations) / sizeof(nk_np_registrations[0]) };
 
-static nk_PyArray_ArrFuncs nk_arrfuncs[nk_np_num_dtypes];
-static nk_PyArray_DescrProto nk_protos[nk_np_num_dtypes];
+static nk_PyArray_ArrFuncs nk_arrfuncs[nk_np_num_dtypes_k];
+static nk_PyArray_DescrProto nk_protos[nk_np_num_dtypes_k];
 
 int nk_register_numpy_dtypes(PyObject *module) {
     (void)module;
 
     if (nk_load_numpy_api() < 0) return 0;
 
-    for (size_t i = 0; i < nk_np_num_dtypes; i++) {
+    for (size_t i = 0; i < nk_np_num_dtypes_k; i++) {
         nk_np_registration_t const *reg = &nk_np_registrations[i];
         nk_init_arrfuncs(&nk_arrfuncs[i], reg->getitem, reg->setitem, reg->copyswap, reg->copyswapn, reg->nonzero);
         nk_init_proto(&nk_protos[i], &nk_arrfuncs[i], reg->scalar_type, reg->kind, reg->type_char, reg->elsize);

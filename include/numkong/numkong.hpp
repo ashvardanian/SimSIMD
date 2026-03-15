@@ -15,7 +15,7 @@
  *  void nk_dot_f16(nk_f16_t const*, nk_f16_t const*, nk_size_t, nk_f32_t *);
  *  void nk_dot_bf16(nk_bf16_t const*, nk_bf16_t const*, nk_size_t, nk_f32_t *);
  *  void nk_dot_e4m3(nk_e4m3_t const*, nk_e4m3_t const*, nk_size_t, nk_f32_t *);
- *  void nk_dot_e4m2(nk_e4m2_t const*, nk_e4m3_t const*, nk_size_t, nk_f32_t *);
+ *  void nk_dot_e5m2(nk_e5m2_t const*, nk_e5m2_t const*, nk_size_t, nk_f32_t *);
  *  @endcode
  *
  *  As opposed to C++:

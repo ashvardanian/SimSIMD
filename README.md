@@ -48,45 +48,68 @@ In C and C++, all kernels can be accessed directly and inlined — avoiding ever
 The rest of this document unpacks the functionality and the logic behind the design decisions, starting with a few performance highlights.
 For language-specific "Quick Start" guides or dedicated testing and benchmarking reports, please refer to table above.
 
-## Performance & Numerical Stability Together
+## Latency, Throughput, & Numerical Stability Together in a Tiny Package!
 
-It's very hard to pick a baseline for performance comparison for NumKong, because pretty much no software uses mixed precision.
-Both BLAS libraries and PyTorch-like frameworks don't have the same breadth of numeric types and rarely leverage multi-precision numerics.
-Of smaller types, NumPy & SciPy can deal with `i8` and `f16`... overflowing on almost every operation, outputting dot products for both in the same `i8` and `f16`.
-Unlike them, NumKong will return `i32` and `f32` values for those input types.
-Even assuming mixed precision is typically much more expensive, here's what the latency looks like for OpenAI-style 1536-dimensional vector embeddings:
+Most libraries return dot products in the __same type as the input__ — `f16 × f16 → f16`, `i8 × i8 → i8`.
+That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product can reach ±10 million, but `int8` maxes out at 127.
+NumKong promotes to wider accumulators — `f16 → f32`, `bf16 → f32`, `i8 → i32`, `f32 → f64` — so results never overflow, and it's still faster.
 
-> Single dot product, M calls/s, higher is better. Apple M2 Pro, Python 3.12.
+> Single 2048-d dot product on Intel Sapphire Rapids (Xeon 8468), single-threaded, CPU-only packages.
+> Each cell shows __GFLOP/s, mean relative error %__ vs higher-precision reference (1 000 trials).
+> Median of 5 runs × 500 K calls each. NumPy 2.4, PyTorch 2.10, JAX 0.9.
 
-|                    | NumPy | PyTorch |  JAX | NumKong |
-| :----------------- | ----: | ------: | ---: | ------: |
-| `f32` dot products |   2.1 |     1.5 |  0.1 |     0.9 |
-| `f16` dot products |   0.4 |     1.6 |  0.2 |     1.7 |
-| `i8` dot products  |   1.0 |     0.3 |  0.2 |     2.8 |
+| Input  |          NumPy via OpenBLAS |       PyTorch via Intel MKL |                         JAX |                     NumKong |
+| :----- | --------------------------: | --------------------------: | --------------------------: | --------------------------: |
+|        | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `f64`  |   2.0 GFLOP/s, 1.1e-13% err |   0.6 GFLOP/s, 1.1e-13% err |   0.4 GFLOP/s, 1.3e-12% err |   5.8 GFLOP/s, 1.6e-14% err |
+| `f32`  |    1.5 GFLOP/s, 2.0e-4% err |    0.6 GFLOP/s, 1.9e-4% err |    0.4 GFLOP/s, 5.1e-4% err |    7.1 GFLOP/s, 2.3e-5% err |
+| `bf16` |                           — |       0.5 GFLOP/s, 1.9% err |       0.5 GFLOP/s, 1.9% err |       9.7 GFLOP/s, 1.8% err |
+| `f16`  |      0.2 GFLOP/s, 0.25% err |      0.5 GFLOP/s, 0.25% err |      0.4 GFLOP/s, 0.25% err |     11.5 GFLOP/s, 0.24% err |
+| `e5m2` |                           — |       0.7 GFLOP/s, 4.6% err |       0.5 GFLOP/s, 4.6% err |       7.1 GFLOP/s, 0% err ✅ |
+| `i8`   | 1.1 GFLOP/s, __overflow__ ❌ | 0.5 GFLOP/s, __overflow__ ❌ | 0.5 GFLOP/s, __overflow__ ❌ |      14.8 GFLOP/s, 0% err ✅ |
 
-NumKong's `f32` path is intentionally slower — it uses mixed-precision accumulation (Kahan summation and compensated dot products) for better numerical stability.
-The `f16` and `i8` paths are where mixed precision shines: NumKong returns `f32` and `i32` results without overflow, while NumPy truncates to the input type.
+A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
+They lower execution graphs through XLA or vendored BLAS libraries like Intel MKL and Nvidia cuBLAS.
+So here's the same comparison on a throughput-oriented workload — matrix multiplication:
 
-But raw call latency isn't the whole picture.
-Numerical stability matters just as much — here's what happens when you accumulate 1536 `f16` values:
+> Matrix multiplication (2048 × 2048) × (2048 × 2048), single-threaded, same machine.
+> JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
+> NumKong uses `dots_packed` (pre-packed GEMM). Same format: __GFLOP/s, mean relative error %__.
 
-> Max absolute error vs f64 reference, 1000 trials. Apple M2 Pro.
+| Input  |          NumPy via OpenBLAS |        PyTorch via Intel MKL |                          JAX |                     NumKong |
+| :----- | --------------------------: | ---------------------------: | ---------------------------: | --------------------------: |
+|        | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░░░░ |
+| `f64`  |   65.5 GFLOP/s, ~1e-13% err |    68.2 GFLOP/s, ~1e-13% err |   ~14.3 GFLOP/s, ~1e-13% err |    8.6 GFLOP/s, ~1e-14% err |
+| `f32`  |  140.6 GFLOP/s, 8.9e-5% err |   144.6 GFLOP/s, 1.1e-4% err |   ~60.5 GFLOP/s, 1.3e-4% err |   37.7 GFLOP/s, 4.0e-5% err |
+| `bf16` |                           — |      850.7 GFLOP/s, 1.8% err |      ~25.8 GFLOP/s, 3.4% err |     458.2 GFLOP/s, 3.6% err |
+| `f16`  |      0.3 GFLOP/s, 0.25% err |     139.9 GFLOP/s, 0.37% err |     ~26.1 GFLOP/s, 0.35% err |    103.2 GFLOP/s, 0.26% err |
+| `e5m2` |                           — |        0.4 GFLOP/s, 4.6% err |      ~26.4 GFLOP/s, 4.6% err |     398.1 GFLOP/s, 0% err ✅ |
+| `i8`   | 0.4 GFLOP/s, __overflow__ ❌ | 50.0 GFLOP/s, __overflow__ ❌ | ~0.0 GFLOP/s, __overflow__ ❌ |    1279.6 GFLOP/s, 0% err ✅ |
 
-| Metric              | NumPy (f16 accumulator) | NumKong (f32 accumulator) |
-| :------------------ | ----------------------: | ------------------------: |
-| Max absolute error  |                  1.0008 |                    0.0011 |
-| Mean absolute error |                  0.4987 |                    0.0003 |
-| NumKong advantage   |                         |            **878x** lower |
+To see just how dangerous the "same type" convention is, take `dot(random_i8(2048))`:
 
+```python
+>>> true_answer = np.dot(a.astype(np.int64), b.astype(np.int64)) # 784
+>>> np.dot(a, b)           # → 16 (i8 overflow, 98 % error)
+>>> torch.dot(at, bt)      # → 16 (same)
+>>> jnp.dot(aj, bj)        # → 16 (same)
+>>> numkong.dot(a, b)      # → 784 ✓ (accumulates in i32)
+```
+
+Over 1 000 random trials, NumPy returns the __wrong sign 48 %__ of the time — worse than a coin flip.
+For `f64`, NumKong's Dot2 summation is __5-50× more accurate__ than naive F64 accumulation (measured vs arbitrary-precision reference) depending on input sizes.
+For `f32`, NumKong widens to F64, giving __5-50× lower error__ depending on input sizes.
 So you might be thinking — this must be the heaviest project of them all?
 
-> Binary size of Python shared libraries (`.so` / `.dylib`).
+| Package          |   Size | What's inside                                                            |
+| :--------------- | -----: | :----------------------------------------------------------------------- |
+| NumKong          |   5 MB | 1 binary, 9 x86 backends and 16 dtypes                                   |
+| NumPy + OpenBLAS |  30 MB | 19 binaries, BLAS/LAPACK wrappers                                        |
+| JAX + jaxlib     | 357 MB | XLA compiler, MLIR dialects                                              |
+| PyTorch + MKL    | 705 MB | Autograd, JIT compiler, 444 MB in `libtorch_cpu`, including MKL & oneDNN |
 
-| Package |   Size |
-| :------ | -----: |
-| NumKong | 2.3 MB |
-| NumPy   | 6.9 MB |
-| JAX     | 232 MB |
+> Installed package size, CPU-only builds via `pip` for x86 alone.
+> Size for other language SDKs and target platforms varies widely, but relative compactness is preserved!
 
 For a broader comparison across languages and runtimes, see the [NumWars](https://github.com/ashvardanian/NumWars) benchmarking suite.
 
@@ -283,22 +306,7 @@ ARM's `FRSQRTE` provides only [~8 bits](https://github.com/DLTcollab/sse2neon/is
 NumKong selects the iteration count per platform so the final ULP bound is consistent across ISAs, rather than exposing different precision to different users.
 
 __E2M3 and E3M2 can outperform E4M3 and E5M2.__
-As described in the [Numeric Types](#e5m2-e4m3-e3m2--e2m3-quarter-precision-inputs) section, 6-bit [MX formats](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) can be scaled to exact integers that fit in `i8`/`i16`, enabling integer `VPDPBUSD` / `SDOT` accumulation instead of the floating-point pipeline.
-E4M3 and E5M2 cannot use this path — their wider range overflows practical integer types.
-Without the integer path, E5M2 falls back to f32 accumulation where its [2-bit mantissa](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/) creates a [catastrophic cancellation risk](https://www.ac.uma.es/arith2024/papers/Fused%20FP8%204-Way%20Dot%20Product%20with%20Scaling%20and%20FP32%20Accumulation.pdf) that E2M3's integer path avoids entirely:
-
-|         |  _i_ = 0 | _i_ = 1 |  _i_ = 2 |   _i_ = 3 |  _i_ = 4 |  _i_ = 5 |  _i_ = 6 |  _i_ = 7 |
-| ------- | -------: | ------: | -------: | --------: | -------: | -------: | -------: | -------: |
-| _aᵢ_    |  0.00122 |   20480 | −0.00122 |       1.5 | −0.00586 |    −3072 |     −640 |  0.00146 |
-| _bᵢ_    |      −40 |     320 |    −1280 |  −7.63e⁻⁵ |        0 | 0.000427 |    10240 | −4.58e⁻⁵ |
-| _aᵢ·bᵢ_ | −0.04883 | 6553600 |   1.5625 | −0.000114 |        0 |  −1.3125 | −6553600 |      ≈ 0 |
-
-> __Why F32 accumulation fails here.__
-> The accurate sum of these 8 products is ≈ 0.201.
-> After two `vfmaq_f32` calls, the 4 accumulator lanes hold pairwise products: lanes 1 and 2 carry values around ±6.5 M.
-> At that magnitude the F32 ULP is 0.5 — so the small meaningful terms (−0.049, 1.563, −1.313, −0.0001) are all below one ULP and get absorbed during pairwise reduction.
-> The large terms then cancel exactly to zero, and the information is gone.
-> Final F32 result: __0.0__ instead of __0.201__.
+6-bit [MX formats](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) can be scaled to exact integers, enabling integer accumulation that avoids E5M2's catastrophic cancellation risk — see [Mini-Floats](#mini-floats-e4m3-e5m2-e3m2--e2m3) for a worked example.
 
 Every such decision — saturation thresholds, Newton-Raphson iteration counts, integer vs floating-point paths — is documented per operation and per type in the [module-specific READMEs](include/numkong/).
 
@@ -331,14 +339,16 @@ The first call to `nk_capabilities()` initializes the dispatch table; all subseq
 
 ## Numeric Types
 
-### Float64: Double Precision Inputs
+### Float64 & Float32: IEEE Precision
 
-For double-precision numerics, NumKong deviates from most BLAS-like libraries by leveraging __stable compensated summation algorithms__ that track numerical errors separately. On serial paths, we use __Neumaier's algorithm__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving O(1) error growth instead of O(n).
-On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005) which maintains separate error compensators for both multiplication and accumulation, capturing rounding errors via `TwoProd` and `TwoSum` operations.
+__Float64__ — NumKong deviates from most BLAS-like libraries by leveraging __compensated summation__ that tracks numerical errors separately.
+On serial paths, we use __Neumaier's algorithm__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
+On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005), maintaining separate error compensators for both multiplication and accumulation via `TwoProd` and `TwoSum` operations.
+On 1024³ GEMM operations, NumKong's compensated F64 achieves 10–50× smaller ULP errors than Intel MKL, making it ideal for scientific computing where numerical stability matters more than raw speed.
 
-Beyond dot products, Float64 enables __Mahalanobis distance__ computation for statistical analysis and __bilinear forms__ for quantum computing, both using the same compensated summation to preserve precision through long arithmetic circuits.
-For probability distributions, __Kullback-Leibler__ and __Jensen-Shannon divergences__ benefit from F64's 52-bit mantissa when computing `log(p/q)` ratios that approach machine epsilon.
-The precision overhead is worthwhile: on 1024³ GEMM operations, NumKong's compensated F64 achieves 10-50x smaller ULP errors than Intel MKL despite running at 3x lower throughput, making it ideal for scientific computing where numerical stability matters more than raw speed.
+__Float32__ — SIMD implementations load F32 values, upcast to F64 for full-precision multiplication and accumulation, then downcast only during finalization.
+This avoids catastrophic cancellation at minimal cost since modern CPUs have dedicated F64 vector units operating at nearly the same throughput as F32.
+The same compensated accumulation strategy applies to Mahalanobis distance, bilinear forms, and KL/JS divergences.
 
 ```c
 // Dot2 TwoProd: Capture multiplication rounding error
@@ -350,103 +360,58 @@ t = sum + product;
 e = (sum - t) + product;  // Compensator term
 ```
 
-### Float32: Single Precision Inputs
+### Float16 & BFloat16: Half Precision
 
-For traditional single-precision inputs, NumKong uses __double-precision FMA__ to reduce numerical error in long arithmetic circuits.
-The SIMD implementations load 4 F32 values, upcast to F64 for full-precision multiplication and accumulation, then downcast only during finalization.
-This avoids catastrophic cancellation at minimal cost since modern CPUs have dedicated F64 vector units operating at nearly the same throughput as F32.
+__BFloat16__ — not an IEEE 754 standard type, but the __universal recommendation__ for AI workloads.
+BF16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, prioritizing __dynamic range over precision__ (±3.4×10³⁸ with coarser granularity).
+On old CPUs, upcasting BF16 to F32 requires just an unpack and left-shift by 16 bits (essentially free); on newer CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
+NumKong's Float8 types (E4M3/E5M2) upcast to BF16 before using DPBF16PS, creating a three-tier precision hierarchy: F8 for storage, BF16 for compute, F32 for accumulation.
 
-For __complex dot products__, NumKong employs a clever optimization that doubles throughput: instead of using separate FMA and FMS (fused multiply-subtract) instructions for the real component, we defer sign flips until after the accumulation loop completes, applying a single bitwise XOR to flip sign bits.
-This eliminates execution port contention—allowing dual FMA units to run at full capacity—and improves throughput from 2.5 GB/s to 5 GB/s on Haswell.
-The transformation is simple: compute `a_r × b_r + a_i × b_i` (treating negatives as positive), then XOR with `0x80000000` to flip every second element's sign bit after the loop.
+__Float16__ — IEEE 754 half-precision with 1 sign bit, 5 exponent bits (bias=15), and 10 mantissa bits, giving a range of ±65504.
+FP16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it better suited for values near zero and gradients during training.
+On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast F16→F32 conversion; Sapphire Rapids+ adds native __AVX-512-FP16__ with dedicated F16 arithmetic.
+On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused F16→F32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
 
-NumKong also handles __curved space metrics__ like the Mahalanobis distance `√((a-b)ᵀ C (a-b))` where C is a metric tensor, applying the same compensated accumulation strategies to preserve precision when multiplying small differences by large inverse covariance matrices.
-For __probability distributions__, we compute KL divergence using log2 decomposition via `VGETEXP` (extract exponent) and polynomial approximations for the mantissa, avoiding expensive transcendental function calls.
-
-```c
-// Complex multiply optimization: XOR sign flip AFTER loop
-for (...) {
-    sum_real = fma(a, b, sum_real);  // No sign flip in loop
-    sum_imag = fma(a, b_swapped, sum_imag);
-}
-sum_real = xor(sum_real, 0x80000000);  // Single XOR after loop
-```
-
-### BFloat16 & Float16: Half Precision Inputs
-
-Brain Float is not an IEEE 754 standard type, but it has become the __universal recommendation__ for AI-related applications due to its unique properties: on old CPUs, upcasting BF16 to F32 requires just an unpack and left-shift by 16 bits (essentially free), while on new CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
-These instructions compute two BF16 products per lane, accumulating directly into F32 registers, achieving 2-4x higher throughput than separate conversion and multiply-add.
-
-The format itself prioritizes __dynamic range over precision__: BF16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, allowing it to represent the same range (±3.4×10³⁸) with coarser granularity.
-This makes it perfect for neural network weights and activations where large dynamic range matters more than precision near zero.
-NumKong's Float8 types (E4M3/E5M2) upcast to BF16 before using DPBF16PS, effectively creating a three-tier precision hierarchy: F8 for storage, BF16 for compute, F32 for accumulation.
-
-Beyond dot products, BF16 excels at __cosine similarity__ where division by magnitudes benefits from the wide exponent range, and __element-wise operations__ like `α×a + β` where the BF16→F32 upcast happens once per element rather than repeatedly.
-For __L2 distance__, the formula `√(‖a‖² + ‖b‖² - 2ab)` accumulates into F32 then applies Newton-Raphson reciprocal sqrt, achieving 9x speedup over NumPy while maintaining better numerical accuracy.
-
-| Platform         | BF16 Instruction | Latency | Throughput | Elements/Cycle |
-| ---------------- | ---------------- | ------- | ---------- | -------------- |
-| Genoa AVX-512    | DPBF16PS         | 6 cy    | 2/cy       | 32 BF16/cy     |
-| Graviton 3 NEON  | BFDOT            | 4 cy    | 2/cy       | 8 BF16/cy      |
-| Haswell (compat) | Upcast→FMA       | 8 cy    | 1/cy       | 8 BF16/cy      |
-
-IEEE 754 half-precision floating point (FP16) is widely supported across modern hardware with 1 sign bit, 5 exponent bits (bias=15), and 10 mantissa bits, giving a range of ±65504.
-Unlike BFloat16 which prioritizes exponent range, FP16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it better suited for values near zero, gradients during training, and scientific computing where relative error matters more than dynamic range.
-
-On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) providing `VCVTPH2PS` for fast F16→F32 conversion, then standard FMA for computation.
-Newer CPUs (Sapphire Rapids+) add native __AVX-512-FP16__ with dedicated F16 arithmetic, though NumKong still widens to F32 for accumulation to preserve precision.
-On Arm, the story is richer: basic ARMv8.2-A provides `FCVTL` (3-cycle conversion) followed by `FMLA` (4-cycle FMA), but ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused F16→F32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20-48% speedup.
-
-FP16 serves as the ideal __accumulator for Float6 operations__, accurately representing ~20-50 products of E2M3FN or E3M2FN pairs before overflow becomes a concern.
-For __cosine similarity__, FP16's precision advantage shows clearly: computing `1 - ab/(‖a‖‖b‖)` with BF16 produces ~10⁻⁶ error, while FP16 achieves ~10⁻⁵ error—closer to F32's ~10⁻⁷.
-The __reciprocal square root__ optimization uses either `VRSQRTPS` (x86) or `FRSQRTE` (ARM) for initial approximation, then refines with Newton-Raphson: one iteration on x86 (hardware gives 12-bit accuracy), two iterations on ARM (hardware gives only 8-bit accuracy).
+| Platform         | BF16 Instruction | FP16 Instruction | Elements/Cycle |
+| ---------------- | ---------------- | ---------------- | -------------: |
+| Sapphire Rapids  | DPBF16PS         | VFMADD213PH      |     32 BF16/cy |
+| Genoa AVX-512    | DPBF16PS         | —                |     32 BF16/cy |
+| Graviton 3 NEON  | BFDOT            | FMLAL            |       8 per/cy |
+| Haswell (compat) | Upcast→FMA       | F16C→FMA         |       8 per/cy |
 
 ```c
 // ARM NEON: FMLAL widening multiply-accumulate (4cy latency)
 float32x4_t acc = vfmlalq_low_f16(acc, a_f16x8, b_f16x8);   // Elements 0-3
 acc = vfmlalq_high_f16(acc, a_f16x8, b_f16x8);  // Elements 4-7
-
-// vs older approach (7cy latency total)
-float32x4_t a_f32 = vcvt_f32_f16(vget_low_f16(a_f16x8));  // 3cy
-acc = vfmaq_f32(acc, a_f32, b_f32);  // 4cy
 ```
 
-### E5M2, E4M3, E3M2, & E2M3: Quarter Precision Inputs
+### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
 
-8-bit floating point types in NumKong follow the OCP (Open Compute Project) standard and come in two flavors designed for different use cases.
-__E4M3FN__ (1 sign + 4 exponent + 3 mantissa bits, range ±448) has no infinities—using all-ones exponent for NaN—making it preferred for __training__ where precision near zero matters more than handling overflow.
-__E5M2FN__ (1 sign + 5 exponent + 2 mantissa bits, range ±57344) supports infinities and provides wider dynamic range, making it better for __inference__ where weights can take extreme values but precision requirements are relaxed.
+| Format                    |          Bits |   Range | Mantissa | NumKong Strategy              | Support in GPUs           |
+| ------------------------- | ------------: | ------: | -------: | ----------------------------- | ------------------------- |
+| E4M3FN                    |             8 |    ±448 |   3 bits | BF16 → F32                    | H100, B200, MI300, MI325  |
+| E5M2FN                    |             8 | ±57 344 |   2 bits | BF16 → F32                    | H100, B200, MI300, MI325  |
+| E3M2FN                    | 6 padded to 8 |     ±28 |   2 bits | BF16 & F16 → F32 or I16 → I32 | only block-scaled support |
+| E2M3FN                    | 6 padded to 8 |    ±7.5 |   3 bits | BF16 & F16 → F32 or I8 → I32  | only block-scaled support |
+| Block-scaled NVFP4        |             4 |      ±6 |    1 bit | —                             | B200                      |
+| Block-scaled MXFP4 / E2M1 |             4 |      ±6 |    1 bit | —                             | B200, MI325               |
 
-The key to NumKong's Float8 performance is the __upcast-then-compute strategy__: on x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BFloat16 via lookup tables, then use native __DPBF16PS__ instructions for 2-per-lane dot products accumulating to F32.
-On Arm Graviton 3+ with ARMv8.6-A, the same BF16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
-Older platforms without DPBF16/BFDOT convert F8→F32 directly and use standard FMA, sacrificing 20-30% throughput but maintaining compatibility.
+> __FNUZ variants.__
+> AMD MI300 (CDNA 3) uses FNUZ encoding (negative-zero-is-NaN) rather than the OCP standard.
+> MI350+ and NVIDIA H100/B200 both use OCP-standard E4M3FN/E5M2FN.
+> NumKong follows the OCP convention; FNUZ inputs require conversion before processing.
 
-Float8 types are critical for __LLM inference__ where memory bandwidth dominates: storing 405B parameters in FP8 (405 GB) instead of BF16 (810 GB) halves DRAM traffic, and on-chip F8→BF16 conversion happens faster than the memory fetch would complete anyway.
-NVIDIA H100 and AMD MI300X both expose native FP8 tensor cores, while NumKong's CPU implementation serves edge deployment and mixed-CPU-GPU pipelines.
-For __GEMM operations__, the packed matrix format stores F8 values contiguously, and microkernels unpack 32-64 elements per iteration for SIMD processing.
+__8-bit floats (E4M3 & E5M2)__ follow the [OCP FP8 standard](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1).
+E4M3FN (no infinities, NaN only) is preferred for __training__ where precision near zero matters; E5M2FN (with infinities) provides wider dynamic range for __inference__.
+On x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BF16 via lookup tables, then use native __DPBF16PS__ for 2-per-lane dot products accumulating to F32.
+On Arm Graviton 3+, the same BF16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
 
-| Format | Range  | Mantissa | Use Case             | Hardware Support   |
-| ------ | ------ | -------- | -------------------- | ------------------ |
-| E4M3FN | ±448   | 3 bits   | Training (gradients) | H100, MI300, Genoa |
-| E5M2FN | ±57344 | 2 bits   | Inference (weights)  | H100, MI300, Genoa |
+__6-bit floats (E3M2 & E2M3)__ follow the [OCP MX v1.0 standard](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf).
+Their smaller range allows scaling to exact integers that fit in `i8`/`i16`, enabling integer `VPDPBUSD`/`SDOT` accumulation instead of the floating-point pipeline.
+FP16 can also serve as an accumulator, accurately representing ~50 products of E3M2FN pairs or ~20 products of E2M3FN pairs before overflow.
+On Arm, NEON FHM extensions bring widening `FMLAL` dot-products for FP16 — both faster and more widely available than `BFDOT` for BF16.
 
-6-bit floating point types are some of the smallest representations that have been shown to be accurate enough for LLM inference and potentially training.
-They come in 2 flavors: E3M2FN and E2M3FN.
-Despite sub-byte size, to simplify addressing, the values are typically padded to 8 bits.
-A smaller range compare to Float8 variants allows using smaller accumulators in dot products, such as the canonical IEEE Float16.
-Float16 can accurately represent:
-
-- sum of around 50 products of E3M2FN pairs,
-- sum of around 20 products of E2M3FN pairs.
-
-On Intel Sapphire Rapids it allows leveraging `_mm512_fmadd_ph` FMAs as opposed to `_mm512_dpbf16_ps`.
-The former, however, has lower throughput, requires periodic Float32 upcasts, and is supported on fewer machines.
-Moreover, the cost of upcasting from Float6 to Float16 and to BFloat16 is identical - be it via table lookups or bit hacks.
-On Arm, however, NEON FHM extensions bring widening `FMLAL` dot-products for Float16 - both faster and more widely available than `BFDOT` instructions for BFloat16.
-
----
-
-E4M3 and E5M2 cannot use this path.
+E4M3 and E5M2 cannot use the integer path.
 E4M3 scaled by 16 reaches 7,680 — too large for i8, barely fitting i16 with a 128-entry table.
 E5M2's range (±57,344) makes the scaled product exceed i32 entirely.
 Without the integer path, E5M2 falls back to f32 accumulation — where its [2-bit mantissa (only 4 values per binade)](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/) creates a [catastrophic cancellation risk](https://www.ac.uma.es/arith2024/papers/Fused%20FP8%204-Way%20Dot%20Product%20with%20Scaling%20and%20FP32%20Accumulation.pdf) that E2M3's integer path avoids completely:
@@ -464,48 +429,47 @@ Without the integer path, E5M2 falls back to f32 accumulation — where its [2-b
 > The large terms then cancel exactly to zero, and the information is gone.
 > Final F32 result: __0.0__ instead of __0.201__.
 
+### Int8 & Int4: Integer Types
 
-### Int8
-
-Both signed and unsigned 8-bit integers are supported extensively across dot products, angular distances, set operations, and reductions.
-The most sophisticated optimization is __algebraic transformation for symmetric operations__: on platforms like Ice Lake with AVX-512 VNNI, the native instruction __DPBUSD__ is asymmetric (unsigned × signed → signed), yet NumKong exploits it for both i8×i8 and u8×u8 via clever bit manipulation.
-
+Both signed and unsigned 8-bit and 4-bit integers are supported with __i32 accumulation__ to prevent overflow.
+The most sophisticated optimization is the __VNNI algebraic transform__: on Ice Lake+ with AVX-512 VNNI, the native __DPBUSD__ instruction is asymmetric (unsigned × signed → signed), yet NumKong exploits it for both i8×i8 and u8×u8.
 For __signed i8×i8__, we convert the signed operand to unsigned via XOR with `0x80`, compute `DPBUSD(a⊕0x80, b) = (a+128)×b`, then subtract a correction term `128×sum(b)` to recover the true result.
-This achieves __1.36x speedup__ over the naive approach because DPBUSD runs on port 0 while the correction sum accumulates on port 5 in parallel, eliminating the cvtepi8_epi16 bottleneck that serializes on port 5.
-For __unsigned u8×u8__, we XOR the second operand to make it signed, compute `DPBUSD(a, b⊕0x80) = a×(b-128)`, then add correction `128×sum(a)` using the fast SAD instruction, achieving __1.92x speedup__ by eliminating four unpack operations.
+For __unsigned u8×u8__, we XOR the second operand to make it signed, compute `DPBUSD(a, b⊕0x80) = a×(b-128)`, then add correction `128×sum(a)` via the fast SAD instruction.
 
-On older platforms without VNNI (Haswell, Skylake), NumKong falls back to __VPMADDUBSW__ (u8×i8→i16) followed by __VPMADDWD__ (i16×1→i32), processing 16 elements per iteration instead of 32-64, but still maintaining competitive performance through careful port utilization.
-Sierra Forest's AVX-VNNI variant further improves on Ice Lake by 30-40% via better instruction scheduling and lower latency.
-Long arithmetic circuits use __32-bit accumulators__ to prevent overflow: even with max values (±127 or 0-255), 16 million products fit safely in i32 range.
+__Int4__ values pack two nibbles per byte, requiring bitmask extraction: low nibbles `(byte & 0x0F)` and high nibbles `(byte >> 4)`.
+For signed i4, the transformation `(nibble ⊕ 8) - 8` maps the unsigned range [0,15] to signed range [−8,7].
+Separate accumulators for low and high nibbles avoid expensive nibble-interleaving and allow SIMD lanes to work in parallel.
 
 ```c
 // Asymmetric transform for i8×i8 using DPBUSD (unsigned×signed)
 a_unsigned = a XOR 0x80;           // Convert signed→unsigned
 result = DPBUSD(a_unsigned, b);    // Computes (a+128)×b
 correction = 128 * sum(b);         // Parallel on different port
-final = result - correction;       // True a×b value (1.36x faster!)
+final = result - correction;       // True a×b value
 ```
 
-### Int4
+### Binary: Packed Bits
 
-Both signed and unsigned 4-bit nibble-sized integers are supported for __fast AI inference__ workloads, following the same quantization strategies as ONNX and TensorFlow Lite.
-The challenge with Int4 is __sub-byte addressing__: two nibbles pack into each byte, requiring careful extraction and sign extension.
-NumKong uses bitmasks to isolate low nibbles `(byte & 0x0F)` and high nibbles `(byte >> 4)`, then for signed i4, applies the transformation `(nibble ⊕ 8) - 8` to map the unsigned range [0,15] to signed range [-8,7].
+The `u1x8` type packs 8 binary values per byte, enabling __Hamming distance__ and __Jaccard similarity__ via population-count instructions.
+On x86, `VPOPCNTDQ` (Ice Lake+) counts set bits in 512-bit registers directly; on Arm, `CNT` (NEON) operates on 8-bit lanes with a horizontal add.
+Results accumulate into `u32` — sufficient for vectors up to 4 billion bits.
+Binary representations are the most compact option for locality-sensitive hashing and binary neural network inference.
 
-For __dot products__, NumKong maintains __separate accumulators__ for low and high nibbles, processing them independently then summing at finalization.
-This avoids expensive nibble-interleaving operations and allows SIMD lanes to work in parallel.
-The memory savings are substantial: a 7B parameter LLM in Int4 requires 3.5 GB (vs 7 GB in Int8, 14 GB in FP16), fitting entirely in consumer GPU memory and enabling edge deployment.
-For __GEMM operations__, the packed matrix format stores nibbles contiguously, and unpacking happens during the microkernel's register-blocking phase, amortizing the extraction cost across multiple dot products.
+### Complex Types
+
+NumKong supports four complex types — `f16c`, `bf16c`, `f32c`, and `f64c` — stored as interleaved real/imaginary pairs.
+The `dot` operation computes the unconjugated dot product $\sum a_k b_k$, while `vdot` computes the conjugated inner product $\sum \bar{a}_k b_k$ standard in physics and signal processing.
+
+For complex dot products, NumKong defers sign flips until after the accumulation loop: instead of using separate FMA and FMS (fused multiply-subtract) instructions for the real component, we compute $a_r b_r + a_i b_i$ treating all products as positive, then apply a single bitwise XOR with `0x80000000` to flip the sign bits.
+This eliminates execution port contention, allowing dual FMA units to run at full capacity.
 
 ```c
-// Nibble extraction and sign extension for i4
-low_nibble = byte & 0x0F;             // Mask lower 4 bits
-high_nibble = (byte >> 4) & 0x0F;     // Shift and mask upper 4 bits
-i4_value = (low_nibble ^ 8) - 8;      // Maps [0,15] to [-8,7]
+for (...) { // Complex multiply optimization: XOR sign flip after the loop
+    sum_real = fma(a, b, sum_real);   // No sign flip in loop
+    sum_imag = fma(a, b_swapped, sum_imag);
+}
+sum_real = xor(sum_real, 0x80000000);  // Single XOR after loop
 ```
-
-
-
 
 ## License
 

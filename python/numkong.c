@@ -284,6 +284,41 @@ int is_complex(nk_dtype_t dtype) {
 }
 
 nk_dtype_t python_string_to_dtype(char const *name) {
+    // Fast path: single-character PEP 3118 format strings from buffer protocol.
+    // This avoids the full strcmp chain for the most common case.
+    if (name[0] != '\0' && name[1] == '\0') {
+        switch (name[0]) {
+        // Floating-point
+        case 'f': return nk_f32_k;
+        case 'e': return nk_f16_k;
+        case 'd': return nk_f64_k;
+        // Complex
+        case 'F': return nk_f32c_k;
+        case 'D': return nk_f64c_k;
+        case 'E': return nk_f16c_k;
+        // Boolean
+        case '?': return nk_u1_k;
+        // Signed integers
+        case 'b': return nk_i8_k;
+        case 'h': return nk_i16_k;
+        // Unsigned integers
+        case 'B': return nk_u8_k;
+        case 'H': return nk_u16_k;
+
+#if defined(_MSC_VER) || defined(__i386__) // Platform-dependent integers
+        case 'l': return nk_i32_k;
+        case 'q': return nk_i64_k;
+        case 'L': return nk_u32_k;
+        case 'Q': return nk_u64_k;
+#else
+        case 'i': return nk_i32_k;
+        case 'l': return nk_i64_k;
+        case 'I': return nk_u32_k;
+        case 'L': return nk_u64_k;
+#endif
+        default: return nk_dtype_unknown_k;
+        }
+    }
     // Floating-point numbers:
     if (same_string(name, "float32") || same_string(name, "f32") || same_string(name, "f4") ||
         same_string(name, "<f4") || same_string(name, "f") || same_string(name, "<f"))
@@ -335,8 +370,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-    // Platform-specific integer formats (Windows vs Unix):
-#if defined(_MSC_VER) || defined(__i386__)
+#if defined(_MSC_VER) || defined(__i386__) // Platform-specific integer formats (Windows vs Unix):
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
         return nk_i32_k;
@@ -702,7 +736,8 @@ int nk_get_buffer(PyObject *obj, Py_buffer *buffer, int flags, nk_buffer_backing
     return 0;
 }
 
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing) {
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed, nk_buffer_backing_t *backing,
+                 nk_dtype_t dtype_hint) {
     if (!nk_get_buffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT, backing)) return 0;
 
     if (buffer->ndim > NK_TENSOR_MAX_RANK) {
@@ -713,11 +748,14 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
     }
 
     parsed->data = buffer->buf;
-    parsed->dtype = dtype_from_buffer(buffer);
-    if (parsed->dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
-        PyBuffer_Release(buffer);
-        return 0;
+    if (dtype_hint != nk_dtype_unknown_k) { parsed->dtype = dtype_hint; }
+    else {
+        parsed->dtype = dtype_from_buffer(buffer);
+        if (parsed->dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
+            PyBuffer_Release(buffer);
+            return 0;
+        }
     }
 
     parsed->rank = buffer->ndim;
