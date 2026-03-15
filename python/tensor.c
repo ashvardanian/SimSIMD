@@ -2386,6 +2386,218 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     return (PyObject *)result;
 }
 
+char const doc_iota[] =                             //
+    "Create a Tensor with incrementing values.\n\n" //
+    "Parameters:\n"                                 //
+    "    shape: Shape of the array.\n"              //
+    "    seed: Starting value (default 0).\n"       //
+    "    dtype: Data type (default 'float32').\n\n" //
+    "Returns:\n"                                    //
+    "    Tensor: Array with elements seed, seed+1, seed+2, ...";
+
+PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *dtype_obj = NULL;
+    long long seed = 0;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+
+    if (nargs + nkw < 1 || nargs + nkw > 3 || nargs > 2) {
+        PyErr_SetString(PyExc_TypeError, "iota(shape, seed=0, *, dtype='float32')");
+        return NULL;
+    }
+
+    shape_obj = args[0];
+    if (nargs >= 2) seed = PyLong_AsLongLong(args[1]);
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "seed") == 0) seed = PyLong_AsLongLong(args[nargs + i]);
+        else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "iota() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    if (PyErr_Occurred()) return NULL;
+
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+
+    nk_dtype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_dtype(s);
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+
+    Tensor *result = Tensor_new(dtype, rank, shape);
+    if (!result) return NULL;
+
+    size_t total = 1;
+    for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
+
+    {
+        size_t elem_size = bytes_per_dtype(dtype);
+        nk_scalar_buffer_t val;
+        memset(&val, 0, sizeof(val));
+        for (size_t i = 0; i < total; i++) {
+            nk_scalar_buffer_set_f64(&val, (double)(seed + (long long)i), dtype);
+            memcpy(result->data + i * elem_size, &val, elem_size);
+        }
+    }
+
+    return (PyObject *)result;
+}
+
+char const doc_diagonal[] =                                 //
+    "Create an n x n Tensor with seed on the diagonal.\n\n" //
+    "Parameters:\n"                                         //
+    "    n: Size of the square matrix.\n"                   //
+    "    seed: Diagonal value (default 1).\n"               //
+    "    dtype: Data type (default 'float32').\n\n"         //
+    "Returns:\n"                                            //
+    "    Tensor: n x n matrix with seed on diagonal, 0 elsewhere.";
+
+PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *dtype_obj = NULL;
+    long long seed = 1;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+
+    if (nargs + nkw < 1 || nargs + nkw > 3 || nargs > 2) {
+        PyErr_SetString(PyExc_TypeError, "diagonal(n, seed=1, *, dtype='float32')");
+        return NULL;
+    }
+
+    Py_ssize_t n = PyLong_AsSsize_t(args[0]);
+    if (n == -1 && PyErr_Occurred()) return NULL;
+    if (n < 0) {
+        PyErr_SetString(PyExc_ValueError, "n must be non-negative");
+        return NULL;
+    }
+
+    if (nargs >= 2) seed = PyLong_AsLongLong(args[1]);
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "seed") == 0) seed = PyLong_AsLongLong(args[nargs + i]);
+        else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "diagonal() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    if (PyErr_Occurred()) return NULL;
+
+    nk_dtype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_dtype(s);
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+
+    Py_ssize_t shape[2] = {n, n};
+    Tensor *result = Tensor_new(dtype, 2, shape);
+    if (!result) return NULL;
+
+    size_t elem_size = bytes_per_dtype(dtype);
+    size_t total_bytes = (size_t)n * (size_t)n * elem_size;
+    memset(result->data, 0, total_bytes);
+
+    {
+        nk_scalar_buffer_t val;
+        memset(&val, 0, sizeof(val));
+        nk_scalar_buffer_set_f64(&val, (double)seed, dtype);
+        for (Py_ssize_t i = 0; i < n; i++) {
+            memcpy(result->data + (size_t)i * ((size_t)n + 1) * elem_size, &val, elem_size);
+        }
+    }
+
+    return (PyObject *)result;
+}
+
+static inline uint64_t splitmix64(uint64_t x) {
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9ULL;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebULL;
+    x ^= x >> 31;
+    return x;
+}
+
+char const doc_hash[] =                                                 //
+    "Create a Tensor filled with deterministic pseudo-random bits.\n\n" //
+    "Parameters:\n"                                                     //
+    "    shape: Shape of the array.\n"                                  //
+    "    seed: Hash seed (default 0).\n"                                //
+    "    dtype: Data type (default 'float32').\n\n"                     //
+    "Returns:\n"                                                        //
+    "    Tensor: Array with hashed bit patterns reinterpreted as dtype.";
+
+PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *dtype_obj = NULL;
+    long long seed = 0;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+
+    if (nargs + nkw < 1 || nargs + nkw > 3 || nargs > 2) {
+        PyErr_SetString(PyExc_TypeError, "hash(shape, seed=0, *, dtype='float32')");
+        return NULL;
+    }
+
+    shape_obj = args[0];
+    if (nargs >= 2) seed = PyLong_AsLongLong(args[1]);
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "seed") == 0) seed = PyLong_AsLongLong(args[nargs + i]);
+        else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "hash() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    if (PyErr_Occurred()) return NULL;
+
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+
+    nk_dtype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_dtype(s);
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+
+    Tensor *result = Tensor_new(dtype, rank, shape);
+    if (!result) return NULL;
+
+    size_t total = 1;
+    for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
+
+    {
+        size_t elem_size = bytes_per_dtype(dtype);
+        uint64_t seed_hash = splitmix64((uint64_t)seed ^ 0x9E3779B97F4A7C15ULL);
+        for (size_t i = 0; i < total; i++) {
+            uint64_t bits = splitmix64(seed_hash + (uint64_t)i);
+            memcpy(result->data + i * elem_size, &bits, elem_size);
+        }
+    }
+
+    return (PyObject *)result;
+}
+
 char const doc_reduce_moments[] =                                               //
     "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n" //
     "Parameters:\n"                                                             //
