@@ -1053,10 +1053,10 @@ NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
-    nk_euclidean_e4m3_genoa(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
+#if NK_TARGET_SAPPHIRE
     nk_euclidean_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
+    nk_euclidean_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1067,10 +1067,10 @@ NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
-    nk_sqeuclidean_e4m3_genoa(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
+#if NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
+    nk_sqeuclidean_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1267,14 +1267,14 @@ NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_i8_rvv(a, b, n, result);
-#elif NK_TARGET_SIERRA
-    nk_angular_i8_sierra(a, b, n, result);
-#elif NK_TARGET_ALDER
-    nk_angular_i8_alder(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_angular_i8_icelake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_angular_i8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_i8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_i8_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
@@ -1327,14 +1327,14 @@ NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_u8_rvv(a, b, n, result);
-#elif NK_TARGET_SIERRA
-    nk_angular_u8_sierra(a, b, n, result);
-#elif NK_TARGET_ALDER
-    nk_angular_u8_alder(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_angular_u8_icelake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_angular_u8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_u8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_u8_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED

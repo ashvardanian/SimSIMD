@@ -656,12 +656,12 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_dot_i8_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_i8_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_i8_alder(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_i8_haswell(a, b, n, result);
 #else
@@ -678,12 +678,12 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_dot_u8_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_u8_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_u8_alder(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_u8_haswell(a, b, n, result);
 #else
@@ -832,14 +832,14 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e2m3_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_e2m3_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_e2m3_alder(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_e2m3_haswell(a, b, n, result);
 #elif NK_TARGET_NEONSDOT

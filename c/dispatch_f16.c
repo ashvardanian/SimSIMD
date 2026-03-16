@@ -145,12 +145,6 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         default: break;
         }
 #endif
-#if NK_TARGET_SAPPHIRE
-    if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_SAPPHIREAMX
     if (v & nk_cap_sapphireamx_k) switch (k) {
         case nk_kernel_maxsim_packed_size_k:
@@ -158,6 +152,12 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             return;
         case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_sapphireamx, *c = nk_cap_sapphireamx_k; return;
         case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_sapphireamx, *c = nk_cap_sapphireamx_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SAPPHIRE
+    if (v & nk_cap_sapphire_k) switch (k) {
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_sapphire, *c = nk_cap_sapphire_k; return;
         default: break;
         }
 #endif

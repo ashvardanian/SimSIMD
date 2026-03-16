@@ -1038,10 +1038,10 @@ NK_PUBLIC void nk_reduce_minmax_f64(nk_f64_t const *d, nk_size_t n, nk_size_t s,
 NK_PUBLIC void nk_reduce_moments_i8(nk_i8_t const *d, nk_size_t n, nk_size_t s, nk_i64_t *sum, nk_u64_t *sumsq) {
 #if NK_TARGET_ICELAKE
     nk_reduce_moments_i8_icelake(d, n, s, sum, sumsq);
-#elif NK_TARGET_SIERRA
-    nk_reduce_moments_i8_sierra(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_i8_skylake(d, n, s, sum, sumsq);
+#elif NK_TARGET_SIERRA
+    nk_reduce_moments_i8_sierra(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_i8_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEONSDOT
@@ -1077,12 +1077,12 @@ NK_PUBLIC void nk_reduce_minmax_i8(nk_i8_t const *d, nk_size_t n, nk_size_t s, n
 NK_PUBLIC void nk_reduce_moments_u8(nk_u8_t const *d, nk_size_t n, nk_size_t s, nk_u64_t *sum, nk_u64_t *sumsq) {
 #if NK_TARGET_ICELAKE
     nk_reduce_moments_u8_icelake(d, n, s, sum, sumsq);
+#elif NK_TARGET_SKYLAKE
+    nk_reduce_moments_u8_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_SIERRA
     nk_reduce_moments_u8_sierra(d, n, s, sum, sumsq);
 #elif NK_TARGET_ALDER
     nk_reduce_moments_u8_alder(d, n, s, sum, sumsq);
-#elif NK_TARGET_SKYLAKE
-    nk_reduce_moments_u8_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_u8_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEONSDOT
@@ -1118,10 +1118,10 @@ NK_PUBLIC void nk_reduce_minmax_u8(nk_u8_t const *d, nk_size_t n, nk_size_t s, n
 NK_PUBLIC void nk_reduce_moments_i16(nk_i16_t const *d, nk_size_t n, nk_size_t s, nk_i64_t *sum, nk_u64_t *sumsq) {
 #if NK_TARGET_ICELAKE
     nk_reduce_moments_i16_icelake(d, n, s, sum, sumsq);
-#elif NK_TARGET_ALDER
-    nk_reduce_moments_i16_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_i16_skylake(d, n, s, sum, sumsq);
+#elif NK_TARGET_ALDER
+    nk_reduce_moments_i16_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_i16_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEON
@@ -1153,10 +1153,10 @@ NK_PUBLIC void nk_reduce_minmax_i16(nk_i16_t const *d, nk_size_t n, nk_size_t s,
 }
 
 NK_PUBLIC void nk_reduce_moments_u16(nk_u16_t const *d, nk_size_t n, nk_size_t s, nk_u64_t *sum, nk_u64_t *sumsq) {
-#if NK_TARGET_ALDER
-    nk_reduce_moments_u16_alder(d, n, s, sum, sumsq);
-#elif NK_TARGET_SKYLAKE
+#if NK_TARGET_SKYLAKE
     nk_reduce_moments_u16_skylake(d, n, s, sum, sumsq);
+#elif NK_TARGET_ALDER
+    nk_reduce_moments_u16_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_u16_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEON
@@ -1468,12 +1468,12 @@ NK_PUBLIC void nk_reduce_minmax_e5m2(nk_e5m2_t const *d, nk_size_t n, nk_size_t 
 NK_PUBLIC void nk_reduce_moments_e2m3(nk_e2m3_t const *d, nk_size_t n, nk_size_t s, nk_f32_t *sum, nk_f32_t *sumsq) {
 #if NK_TARGET_ICELAKE
     nk_reduce_moments_e2m3_icelake(d, n, s, sum, sumsq);
-#elif NK_TARGET_ALDER
-    nk_reduce_moments_e2m3_alder(d, n, s, sum, sumsq);
-#elif NK_TARGET_SIERRA
-    nk_reduce_moments_e2m3_sierra(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_e2m3_skylake(d, n, s, sum, sumsq);
+#elif NK_TARGET_SIERRA
+    nk_reduce_moments_e2m3_sierra(d, n, s, sum, sumsq);
+#elif NK_TARGET_ALDER
+    nk_reduce_moments_e2m3_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_e2m3_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEONSDOT
@@ -1509,10 +1509,10 @@ NK_PUBLIC void nk_reduce_minmax_e2m3(nk_e2m3_t const *d, nk_size_t n, nk_size_t 
 NK_PUBLIC void nk_reduce_moments_e3m2(nk_e3m2_t const *d, nk_size_t n, nk_size_t s, nk_f32_t *sum, nk_f32_t *sumsq) {
 #if NK_TARGET_ICELAKE
     nk_reduce_moments_e3m2_icelake(d, n, s, sum, sumsq);
-#elif NK_TARGET_ALDER
-    nk_reduce_moments_e3m2_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_e3m2_skylake(d, n, s, sum, sumsq);
+#elif NK_TARGET_ALDER
+    nk_reduce_moments_e3m2_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_e3m2_haswell(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEON

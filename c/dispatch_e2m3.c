@@ -95,33 +95,6 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_SIERRA
-    if (v & nk_cap_sierra_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e2m3_sierra, *c = nk_cap_sierra_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_ALDER
-    if (v & nk_cap_alder_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_alder, *c = nk_cap_alder_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_alder, *c = nk_cap_alder_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_sapphire, *c = nk_cap_sapphire_k; return;
@@ -156,6 +129,33 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SIERRA
+    if (v & nk_cap_sierra_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_ALDER
+    if (v & nk_cap_alder_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_alder, *c = nk_cap_alder_k; return;
         default: break;
         }
 #endif
