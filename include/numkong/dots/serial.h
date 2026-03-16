@@ -202,13 +202,13 @@ NK_INTERNAL void nk_dots_reduce_moments_i4_(nk_i4x2_t const *data, nk_size_t cou
  *  i4: needs A-side sum for correction term.
  */
 NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i8_stub_(nk_i8_t const *d, nk_size_t c) {
-    (void)d;
-    (void)c;
+    nk_unused_(d);
+    nk_unused_(c);
     return 0;
 }
 NK_INTERNAL nk_i32_t nk_dots_reduce_sum_u8_stub_(nk_u8_t const *d, nk_size_t c) {
-    (void)d;
-    (void)c;
+    nk_unused_(d);
+    nk_unused_(c);
     return 0;
 }
 NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t count) {
@@ -727,7 +727,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
         /* Calculate step size in storage values for loop increment */                                                 \
         nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);     \
-        (void)register_row_count; /* Used in comments, loop uses 1 directly */                                         \
+        nk_unused_(register_row_count); /* Used in comments, loop uses 1 directly */                                   \
                                                                                                                        \
         /* Zero output matrix */                                                                                       \
         for (nk_size_t row_index = 0; row_index < row_count; ++row_index) {                                            \
@@ -856,7 +856,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t const column_block_size = 2048;  /* L3 cache blocking over columns */                                \
         nk_size_t const register_row_count = 4;    /* Rows per register tile */                                        \
         nk_size_t const register_column_count = 4; /* Columns per register tile */                                     \
-        (void)register_column_count;               /* Suppress unused warnings */                                      \
+        nk_unused_(register_column_count);         /* Suppress unused warnings */                                      \
         /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                         \
         if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % depth_simd_dimensions == 0) {            \
             nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                                    \
@@ -1111,7 +1111,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_##norm_value_type##_t const *b_norms = (nk_##norm_value_type##_t const *)(packed_data +                     \
                                                                                      total_packed_values);             \
         nk_##sum_value_type##_t const *b_sums = (nk_##sum_value_type##_t const *)(b_norms + column_count);             \
-        (void)b_norms;                                                                                                 \
+        nk_unused_(b_norms);                                                                                           \
         nk_size_t const row_block_size = 128;                                                                          \
         nk_size_t const column_block_size = 2048;                                                                      \
         nk_size_t const register_row_count = 4;                                                                        \
@@ -1220,7 +1220,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_##norm_value_type##_t const *b_norms = (nk_##norm_value_type##_t const *)(packed_data +                     \
                                                                                      total_packed_values);             \
         nk_##sum_value_type##_t const *b_sums = (nk_##sum_value_type##_t const *)(b_norms + column_count);             \
-        (void)b_norms;                                                                                                 \
+        nk_unused_(b_norms);                                                                                           \
         nk_size_t const row_block_size = 128;                                                                          \
         nk_size_t const column_block_size = 2048;                                                                      \
         nk_size_t const register_column_count = 8;                                                                     \
@@ -1296,7 +1296,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t const column_block_size = 2048;                                                                      \
         nk_size_t const register_row_count = 4;                                                                        \
         nk_size_t const register_column_count = 4;                                                                     \
-        (void)register_column_count;                                                                                   \
+        nk_unused_(register_column_count);                                                                             \
         if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % depth_simd_dimensions == 0) {            \
             nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                                    \
                 a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth, a_stride_in_bytes,                \
@@ -1317,7 +1317,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_##norm_value_type##_t const *b_norms = (nk_##norm_value_type##_t const *)(packed_data +                     \
                                                                                      total_packed_values);             \
         nk_##sum_value_type##_t const *b_sums = (nk_##sum_value_type##_t const *)(b_norms + column_count);             \
-        (void)b_norms;                                                                                                 \
+        nk_unused_(b_norms);                                                                                           \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
         nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
         nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                       \
@@ -1484,8 +1484,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                            \
         nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result,       \
         nk_size_t result_stride_values, nk_size_t finalizer_batch_size, nk_size_t depth) {                             \
-        (void)finalizer_batch_size;                                                                                    \
-        (void)dimensions_per_value_runtime;                                                                            \
+        nk_unused_(finalizer_batch_size);                                                                              \
+        nk_unused_(dimensions_per_value_runtime);                                                                      \
         /* Compute sums via stateful helpers — separate loop is fine since diagonal is ~1.6% of work */                \
         nk_size_t padded_depth_dimensions = aligned_depth * dimensions_per_value +                                     \
                                             (remainder_depth > 0 ? depth_simd_dimensions : 0);                         \
@@ -1739,8 +1739,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t remainder_depth, nk_size_t remainder_dimensions, nk_size_t depth_step_values,                        \
         nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result, nk_size_t result_stride_values,    \
         nk_size_t finalizer_batch_size, nk_size_t depth) {                                                             \
-        (void)finalizer_batch_size;                                                                                    \
-        (void)dimensions_per_value_runtime;                                                                            \
+        nk_unused_(finalizer_batch_size);                                                                              \
+        nk_unused_(dimensions_per_value_runtime);                                                                      \
         nk_size_t padded_depth_dimensions = aligned_depth * dimensions_per_value +                                     \
                                             (remainder_depth > 0 ? depth_simd_dimensions : 0);                         \
         /* Sum caches for this macro-tile pair — computed once, reused across tiles */                                 \
@@ -2052,8 +2052,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result,       \
         nk_size_t result_stride_values, nk_size_t finalizer_batch_size, nk_size_t depth) {                             \
                                                                                                                        \
-        (void)dimensions_per_value_runtime;                                                                            \
-        (void)finalizer_batch_size;                                                                                    \
+        nk_unused_(dimensions_per_value_runtime);                                                                      \
+        nk_unused_(finalizer_batch_size);                                                                              \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_size; tile_row_start += 4) {                         \
             for (nk_size_t tile_column_start = tile_row_start; tile_column_start < macro_size;                         \
@@ -2234,8 +2234,8 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t dimensions_per_value_runtime, nk_##result_value_type##_t *result, nk_size_t result_stride_values,    \
         nk_size_t finalizer_batch_size, nk_size_t depth) {                                                             \
                                                                                                                        \
-        (void)dimensions_per_value_runtime;                                                                            \
-        (void)finalizer_batch_size;                                                                                    \
+        nk_unused_(dimensions_per_value_runtime);                                                                      \
+        nk_unused_(finalizer_batch_size);                                                                              \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_i_size; tile_row_start += 4) {                       \
             for (nk_size_t tile_column_start = 0; tile_column_start < macro_j_size; tile_column_start += 4) {          \

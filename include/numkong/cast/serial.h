@@ -424,7 +424,8 @@ NK_INTERNAL void nk_e4m3_to_f16_serial(nk_e4m3_t const *src, nk_f16_t *dest) {
     }
     else if (exp == 0) {
         // Subnormal: mant × 2⁻⁹, where 2⁻⁹ = 0x1800 in F16
-        nk_fui16_t scale = {.u = 0x1800};
+        nk_fui16_t scale;
+        scale.u = 0x1800;
         nk_fui16_t mant_f16;
         mant_f16.f = (nk_f16_t)mant;
         result.f = mant_f16.f * scale.f;
@@ -663,7 +664,8 @@ NK_INTERNAL void nk_e5m2_to_f16_manual_(nk_e5m2_t const *src, nk_f16_t *dest) {
         }
         else {
             // Subnormal: mant × 2⁻¹⁶, where 2⁻¹⁶ = 0x0100 in F16
-            nk_fui16_t scale = {.u = 0x0100};
+            nk_fui16_t scale;
+            scale.u = 0x0100;
             nk_fui16_t mant_f16;
             mant_f16.f = (nk_f16_t)mant;
             result.f = mant_f16.f * scale.f;

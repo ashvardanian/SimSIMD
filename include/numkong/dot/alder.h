@@ -385,7 +385,7 @@ NK_INTERNAL void nk_sum_u8x32_update_alder(nk_sum_u8x32_state_alder_t *state, nk
     state->sum_u64x4 = _mm256_add_epi64(state->sum_u64x4, sad_result_u64x4);
 }
 NK_INTERNAL nk_u32_t nk_sum_u8x32_finalize_alder(nk_sum_u8x32_state_alder_t const *state, nk_size_t count) {
-    (void)count;
+    nk_unused_(count);
     __m128i low_u64x2 = _mm256_castsi256_si128(state->sum_u64x4);
     __m128i high_u64x2 = _mm256_extracti128_si256(state->sum_u64x4, 1);
     __m128i paired_u64x2 = _mm_add_epi64(low_u64x2, high_u64x2);

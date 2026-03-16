@@ -717,7 +717,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_sapphireamx( //
     void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
     nk_size_t depth, nk_f32_t *result) {
 
-    (void)depth; // tile counts from header encode depth
+    nk_unused_(depth); // tile counts from header encode depth
 
     nk_maxsim_sapphireamx_bf16_header_t const *query_header = (nk_maxsim_sapphireamx_bf16_header_t const *)query_packed;
     nk_maxsim_sapphireamx_bf16_header_t const *document_header =

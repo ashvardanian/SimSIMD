@@ -41,22 +41,22 @@ static PyObject *PackedMatrix_repr(PyObject *self) {
 }
 
 static PyObject *PackedMatrix_get_width(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(((PackedMatrix *)self)->width);
 }
 
 static PyObject *PackedMatrix_get_depth(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(((PackedMatrix *)self)->depth);
 }
 
 static PyObject *PackedMatrix_get_dtype(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyUnicode_FromString(dtype_to_string(((PackedMatrix *)self)->dtype));
 }
 
 static PyObject *PackedMatrix_get_nbytes(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(packed_matrix_nbytes((PackedMatrix *)self));
 }
 
@@ -69,7 +69,7 @@ static PyGetSetDef PackedMatrix_getset[] = {
 };
 
 static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)cls;
+    nk_unused_(cls);
 
     PyObject *width_obj = NULL, *depth_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -746,7 +746,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
 }
 
 PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_pack_common(args, nargs, kwnames, "bf16");
 }
 
@@ -769,7 +769,7 @@ char const doc_dots_packed[] =                                                  
     "    >>> def dots_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
 PyObject *api_dots_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_packed_common(args, nargs, kwnames, &spec_dots);
 }
 
@@ -787,7 +787,7 @@ char const doc_hammings_pack[] =                                             //
     "    >>> def hammings_pack(b, /, dtype='uint1') -> PackedMatrix: ...";
 
 PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_pack_common(args, nargs, kwnames, "uint1");
 }
 
@@ -809,7 +809,7 @@ char const doc_hammings_packed[] =                                              
     "    >>> def hammings_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
 PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_packed_common(args, nargs, kwnames, &spec_hammings);
 }
 
@@ -831,7 +831,7 @@ char const doc_jaccards_packed[] =                                              
     "    >>> def jaccards_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
 PyObject *api_jaccards_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_packed_common(args, nargs, kwnames, &spec_jaccards);
 }
 
@@ -853,7 +853,7 @@ char const doc_angulars_packed[] =                                              
     "    >>> def angulars_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
 PyObject *api_angulars_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_packed_common(args, nargs, kwnames, &spec_angulars);
 }
 
@@ -875,7 +875,7 @@ char const doc_euclideans_packed[] =                                            
     "    >>> def euclideans_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
 PyObject *api_euclideans_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     return api_packed_common(args, nargs, kwnames, &spec_euclideans);
 }
 
@@ -899,7 +899,7 @@ char const doc_dots_symmetric[] =                                               
 
 PyObject *api_dots_symmetric( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_dots);
 }
 
@@ -924,7 +924,7 @@ char const doc_hammings_symmetric[] =                                           
 
 PyObject *api_hammings_symmetric( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_hammings);
 }
 
@@ -949,7 +949,7 @@ char const doc_jaccards_symmetric[] =                                           
 
 PyObject *api_jaccards_symmetric( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_jaccards);
 }
 
@@ -973,7 +973,7 @@ char const doc_angulars_symmetric[] =                                           
 
 PyObject *api_angulars_symmetric( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_angulars);
 }
 
@@ -997,6 +997,6 @@ char const doc_euclideans_symmetric[] =                                         
 
 PyObject *api_euclideans_symmetric( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     return api_symmetric_common(args, positional_args_count, args_names_tuple, &spec_euclideans);
 }

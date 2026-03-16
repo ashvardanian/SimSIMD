@@ -384,7 +384,7 @@ NK_INTERNAL void nk_sum_u8x64_update_icelake(nk_sum_u8x64_state_icelake_t *state
     state->sum_u64x8 = _mm512_add_epi64(state->sum_u64x8, sad_result_u64x8);
 }
 NK_INTERNAL nk_u32_t nk_sum_u8x64_finalize_icelake(nk_sum_u8x64_state_icelake_t const *state, nk_size_t count) {
-    (void)count;
+    nk_unused_(count);
     return (nk_u32_t)_mm512_reduce_add_epi64(state->sum_u64x8);
 }
 

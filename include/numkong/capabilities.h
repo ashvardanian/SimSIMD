@@ -393,10 +393,10 @@ NK_PUBLIC int nk_configure_thread_x86_(nk_capability_t capabilities) {
 #endif
         // On Windows, AMX tile state is automatically enabled by the OS if hardware supports it.
         // On FreeBSD, no explicit request is needed either.
-        (void)capabilities;
+        nk_unused_(capabilities);
     }
 #else
-    (void)capabilities;
+    nk_unused_(capabilities);
 #endif
     return 1;
 }
@@ -480,13 +480,13 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
 #if NK_HAS_POSIX_EXTENSIONS_
 static sigjmp_buf nk_mrs_test_jump_buffer_;
 static void nk_mrs_test_sigill_handler_(int sig) {
-    (void)sig;
+    nk_unused_(sig);
     siglongjmp(nk_mrs_test_jump_buffer_, 1);
 }
 #endif
 
 NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
-    (void)capabilities;
+    nk_unused_(capabilities);
 #if defined(NK_DEFINED_APPLE_)
     int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
     return is_success;
@@ -703,7 +703,7 @@ NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
 #if NK_TARGET_ARM_
     return nk_configure_thread_arm_(capabilities);
 #endif
-    (void)capabilities;
+    nk_unused_(capabilities);
     return 0;
 }
 
@@ -737,7 +737,7 @@ NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, n
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
-NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { (void)caps; }
+NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { nk_unused_(caps); }
 
 #endif
 

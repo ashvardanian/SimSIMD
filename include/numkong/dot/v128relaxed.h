@@ -1216,8 +1216,8 @@ NK_INTERNAL void nk_dot_u1x128_init_v128relaxed(nk_dot_u1x128_state_v128relaxed_
 NK_INTERNAL void nk_dot_u1x128_update_v128relaxed(nk_dot_u1x128_state_v128relaxed_t *state, nk_b128_vec_t a,
                                                   nk_b128_vec_t b, nk_size_t depth_offset,
                                                   nk_size_t active_dimensions) {
-    (void)depth_offset;
-    (void)active_dimensions;
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     v128_t and_u8x16 = wasm_v128_and(a.v128, b.v128);
     v128_t popcount_u8x16 = wasm_i8x16_popcnt(and_u8x16);
     v128_t popcount_u16x8 = wasm_u16x8_extadd_pairwise_u8x16(popcount_u8x16);

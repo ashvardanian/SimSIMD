@@ -375,7 +375,7 @@ char const doc_scale[] =                                                        
 
 PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                     PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
     PyObject *return_obj = NULL;
 
     // This function accepts up to 5 arguments:
@@ -770,7 +770,7 @@ cleanup:
 
 PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                   PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
 
     PyObject *a_obj = NULL, *b_obj = NULL;
     PyObject *out_obj = NULL, *a_dtype_obj = NULL, *b_dtype_obj = NULL, *out_dtype_obj = NULL;
@@ -1080,7 +1080,7 @@ cleanup:
 
 PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                        PyObject *args_names_tuple) {
-    (void)self;
+    nk_unused_(self);
 
     PyObject *a_obj = NULL, *b_obj = NULL;
     PyObject *out_obj = NULL, *a_dtype_obj = NULL, *b_dtype_obj = NULL, *out_dtype_obj = NULL;

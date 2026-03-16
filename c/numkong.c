@@ -16,7 +16,7 @@
 #endif
 #endif
 #ifndef nk_unpoison_
-#define nk_unpoison_(ptr, size) (void)(ptr), (void)(size)
+#define nk_unpoison_(ptr, size) nk_unused_(ptr), nk_unused_(size)
 #endif
 
 #ifdef __cplusplus
@@ -81,93 +81,93 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
 }
 
 void nk_error_dense_(void const *a, void const *b, nk_size_t n, void *d) {
-    (void)a;
-    (void)b;
-    (void)n;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(n);
     nk_fill_error_(d, sizeof(nk_fmax_t));
 }
 
 void nk_error_sparse_intersect_(void const *a, void const *b, nk_size_t a_length, nk_size_t b_length, void *result,
                                 nk_size_t *count) {
-    (void)a;
-    (void)b;
-    (void)a_length;
-    (void)b_length;
-    (void)result;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(a_length);
+    nk_unused_(b_length);
+    nk_unused_(result);
     if (count) *count = 0;
 }
 
 void nk_error_sparse_dot_(void const *a, void const *b, void const *a_weights, void const *b_weights,
                           nk_size_t a_length, nk_size_t b_length, void *product) {
-    (void)a;
-    (void)b;
-    (void)a_weights;
-    (void)b_weights;
-    (void)a_length;
-    (void)b_length;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(a_weights);
+    nk_unused_(b_weights);
+    nk_unused_(a_length);
+    nk_unused_(b_length);
     nk_fill_error_(product, sizeof(nk_fmax_t));
 }
 
 void nk_error_curved_(void const *a, void const *b, void const *c, nk_size_t n, void *result) {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)n;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(c);
+    nk_unused_(n);
     nk_fill_error_(result, sizeof(nk_fmax_t));
 }
 
 void nk_error_geospatial_(void const *a_lats, void const *a_lons, void const *b_lats, void const *b_lons, nk_size_t n,
                           void *results) {
-    (void)a_lats;
-    (void)a_lons;
-    (void)b_lats;
-    (void)b_lons;
-    (void)n;
+    nk_unused_(a_lats);
+    nk_unused_(a_lons);
+    nk_unused_(b_lats);
+    nk_unused_(b_lons);
+    nk_unused_(n);
     nk_fill_error_(results, sizeof(nk_fmax_t));
 }
 
 void nk_error_each_fma_(void const *a, void const *b, void const *c, nk_size_t n, void const *alpha, void const *beta,
                         void *result) {
-    (void)a;
-    (void)b;
-    (void)c;
-    (void)alpha;
-    (void)beta;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(c);
+    nk_unused_(alpha);
+    nk_unused_(beta);
     nk_fill_error_(result, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_each_blend_(void const *a, void const *b, nk_size_t n, void const *alpha, void const *beta,
                           void *result) {
-    (void)a;
-    (void)b;
-    (void)alpha;
-    (void)beta;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(alpha);
+    nk_unused_(beta);
     nk_fill_error_(result, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_each_scale_(void const *a, nk_size_t n, void const *alpha, void const *beta, void *result) {
-    (void)a;
-    (void)alpha;
-    (void)beta;
+    nk_unused_(a);
+    nk_unused_(alpha);
+    nk_unused_(beta);
     nk_fill_error_(result, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_each_sum_(void const *a, void const *b, nk_size_t n, void *y) {
-    (void)a;
-    (void)b;
+    nk_unused_(a);
+    nk_unused_(b);
     nk_fill_error_(y, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_trigonometry_(void const *x, nk_size_t n, void *y) {
-    (void)x;
+    nk_unused_(x);
     nk_fill_error_(y, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_mesh_(void const *a, void const *b, nk_size_t n, void *a_centroid, void *b_centroid, void *rotation,
                     void *scale, void *result) {
-    (void)a;
-    (void)b;
-    (void)n;
+    nk_unused_(a);
+    nk_unused_(b);
+    nk_unused_(n);
     if (a_centroid) nk_fill_error_(a_centroid, 3 * sizeof(nk_fmax_t));
     if (b_centroid) nk_fill_error_(b_centroid, 3 * sizeof(nk_fmax_t));
     if (rotation) nk_fill_error_(rotation, 9 * sizeof(nk_fmax_t));
@@ -177,14 +177,15 @@ void nk_error_mesh_(void const *a, void const *b, nk_size_t n, void *a_centroid,
 
 void nk_error_reduce_moments_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *sum_ptr,
                               void *sumsq_ptr) {
-    (void)data, (void)count, (void)stride_bytes, (void)sum_ptr, (void)sumsq_ptr;
+    nk_unused_(data), nk_unused_(count), nk_unused_(stride_bytes), nk_unused_(sum_ptr), nk_unused_(sumsq_ptr);
     nk_fill_error_(sum_ptr, sizeof(nk_fmax_t));
     nk_fill_error_(sumsq_ptr, sizeof(nk_fmax_t));
 }
 
 void nk_error_reduce_minmax_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *min_value,
                              nk_size_t *min_index, void *max_value, nk_size_t *max_index) {
-    (void)data, (void)count, (void)stride_bytes, (void)min_value, (void)min_index, (void)max_value, (void)max_index;
+    nk_unused_(data), nk_unused_(count), nk_unused_(stride_bytes), nk_unused_(min_value), nk_unused_(min_index),
+        nk_unused_(max_value), nk_unused_(max_index);
     nk_fill_error_(min_value, sizeof(nk_fmax_t));
     nk_fill_error_(min_index, sizeof(nk_size_t));
     nk_fill_error_(max_value, sizeof(nk_fmax_t));
@@ -192,35 +193,35 @@ void nk_error_reduce_minmax_(void const *data, nk_size_t count, nk_size_t stride
 }
 
 nk_size_t nk_error_packed_size_(nk_size_t n, nk_size_t k) {
-    (void)n;
-    (void)k;
+    nk_unused_(n);
+    nk_unused_(k);
     return 0;
 }
 
 void nk_error_pack_(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
-    (void)b;
-    (void)n;
-    (void)k;
-    (void)b_stride;
-    (void)b_packed;
+    nk_unused_(b);
+    nk_unused_(n);
+    nk_unused_(k);
+    nk_unused_(b_stride);
+    nk_unused_(b_packed);
 }
 
 void nk_error_dots_(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n, nk_size_t k,
                     nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a;
-    (void)b_packed;
-    (void)k;
-    (void)a_stride;
+    nk_unused_(a);
+    nk_unused_(b_packed);
+    nk_unused_(k);
+    nk_unused_(a_stride);
     for (nk_size_t row = 0; row < m; ++row) nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_fmax_t));
 }
 
 void nk_error_dots_symmetric_(void const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, void *result,
                               nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    (void)vectors;
-    (void)depth;
-    (void)stride;
-    (void)row_start;
-    (void)row_count;
+    nk_unused_(vectors);
+    nk_unused_(depth);
+    nk_unused_(stride);
+    nk_unused_(row_start);
+    nk_unused_(row_count);
     for (nk_size_t row = 0; row < n_vectors; ++row)
         nk_fill_error_((nk_u8_t *)result + row * result_stride, n_vectors * sizeof(nk_fmax_t));
 }
@@ -923,8 +924,8 @@ static void nk_auto_init(void) {
 #ifdef _WIN32
 #include <windows.h>
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-    (void)hinstDLL;
-    (void)lpReserved;
+    nk_unused_(hinstDLL);
+    nk_unused_(lpReserved);
     if (fdwReason == DLL_PROCESS_ATTACH) nk_auto_init();
     return TRUE;
 }
@@ -941,7 +942,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 // Weak linkage lets a real compiler-rt override these if available.
 #if NK_TARGET_ARM_ && NK_TARGET_SME
 __attribute__((weak, visibility("default"))) void __arm_tpidr2_save(void) {}
-__attribute__((weak, visibility("default"))) void __arm_tpidr2_restore(void *blk) { (void)blk; }
+__attribute__((weak, visibility("default"))) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
 #endif
 
 #ifdef __cplusplus

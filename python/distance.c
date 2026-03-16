@@ -1356,7 +1356,7 @@ char const doc_sparse_dot[] =                                                   
     "    >>> def sparse_dot(a_indices, a_values, b_indices, b_values, /) -> float: ...";
 
 PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
-    (void)self;
+    nk_unused_(self);
     if (nargs != 4) {
         PyErr_SetString(PyExc_TypeError,
                         "sparse_dot() expects exactly 4 arguments: a_indices, a_values, b_indices, b_values");

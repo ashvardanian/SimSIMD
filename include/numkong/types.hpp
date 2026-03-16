@@ -5543,7 +5543,7 @@ constexpr unsigned count_intersection(scalar_type_ a, scalar_type_ b) noexcept {
 /** @brief Count element-level union. For scalar types, always returns 1 (one element per pair). */
 template <typename scalar_type_>
 constexpr unsigned count_union(scalar_type_ a, scalar_type_ b) noexcept {
-    (void)a, (void)b;
+    nk_unused_(a), nk_unused_(b);
     return 1;
 }
 

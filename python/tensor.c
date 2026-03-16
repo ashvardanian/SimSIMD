@@ -397,7 +397,7 @@ static void linearize_cast_recursive(                                         //
 
 void linearize_cast_into(char const *src_data, nk_dtype_t src_dtype, char *dest_data, nk_dtype_t dest_dtype,
                          size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements) {
-    (void)total_elements;
+    nk_unused_(total_elements);
     size_t src_element_size = bytes_per_dtype(src_dtype);
     size_t dest_element_size = bytes_per_dtype(dest_dtype);
 
@@ -693,7 +693,7 @@ static PyNumberMethods Tensor_as_number = {
 };
 
 static PyObject *Tensor_get_shape(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     PyObject *shape_tuple = PyTuple_New(tensor->rank);
     if (!shape_tuple) return NULL;
@@ -704,19 +704,19 @@ static PyObject *Tensor_get_shape(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_dtype(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyUnicode_FromString(dtype_to_string(tensor->dtype));
 }
 
 static PyObject *Tensor_get_ndim(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyLong_FromSize_t(tensor->rank);
 }
 
 static PyObject *Tensor_get_size(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
@@ -724,7 +724,7 @@ static PyObject *Tensor_get_size(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_nbytes(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
@@ -732,7 +732,7 @@ static PyObject *Tensor_get_nbytes(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     PyObject *strides_tuple = PyTuple_New(tensor->rank);
     if (!strides_tuple) return NULL;
@@ -743,13 +743,13 @@ static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_itemsize(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyLong_FromSize_t(bytes_per_dtype(tensor->dtype));
 }
 
 static PyObject *Tensor_get_T(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
 
     if (tensor->rank < 2) {
@@ -771,7 +771,7 @@ static PyObject *Tensor_get_T(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
 
     PyObject *dict = PyDict_New();
@@ -828,7 +828,7 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_is_contiguous(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     size_t item_size = bytes_per_dtype(tensor->dtype);
     return PyBool_FromLong(tensor_is_c_contig(tensor, item_size));
@@ -849,7 +849,7 @@ static PyGetSetDef Tensor_getset[] = {
 };
 
 PyObject *Tensor_copy(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     size_t total_elements = 1;
@@ -944,7 +944,7 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 }
 
 PyObject *Tensor_flatten(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     Py_ssize_t total_elements = 1;
@@ -1214,7 +1214,7 @@ static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_ou
 }
 
 PyObject *Tensor_moments(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     TensorView view = {
@@ -1247,7 +1247,7 @@ PyObject *Tensor_moments(PyObject *self, PyObject *args) {
 }
 
 PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     TensorView view = {
@@ -1770,8 +1770,8 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
 }
 
 static void Tensor_releasebuffer(PyObject *export_from, Py_buffer *view) {
-    (void)export_from;
-    (void)view;
+    nk_unused_(export_from);
+    nk_unused_(view);
 }
 
 static PyBufferProcs Tensor_as_buffer = {
@@ -2039,7 +2039,7 @@ static PyObject *Tensor_iter(PyObject *self) {
 }
 
 static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    (void)type;
+    nk_unused_(type);
     static char const *kwlist[] = {"", "dtype", NULL};
     PyObject *source = NULL;
     char const *dtype_str = NULL;
@@ -2165,7 +2165,7 @@ char const doc_empty[] =                                       //
     "    Tensor: Uninitialized array.";
 
 PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2211,7 +2211,7 @@ char const doc_zeros[] =                            //
     "    Tensor: Array of zeros.";
 
 PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2264,7 +2264,7 @@ char const doc_ones[] =                             //
     "    Tensor: Array of ones.";
 
 PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2325,7 +2325,7 @@ char const doc_full[] =                               //
     "    Tensor: Array filled with fill_value.";
 
 PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *fill_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2393,7 +2393,7 @@ char const doc_iota[] =                             //
     "    Tensor: Array with elements seed, seed+1, seed+2, ...";
 
 PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     long long seed = 0;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2460,7 +2460,7 @@ char const doc_diagonal[] =                                 //
     "    Tensor: n x n matrix with seed on diagonal, 0 elsewhere.";
 
 PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *dtype_obj = NULL;
     long long seed = 1;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2539,7 +2539,7 @@ char const doc_hash[] =                                                 //
     "    Tensor: Array with hashed bit patterns reinterpreted as dtype.";
 
 PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     long long seed = 0;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2603,7 +2603,7 @@ char const doc_reduce_moments[] =                                               
     "    tuple: (sum, sum_of_squares) for all elements.";
 
 PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
         PyErr_SetString(PyExc_TypeError, "moments(a) takes exactly 1 positional argument");
         return NULL;
@@ -2622,7 +2622,7 @@ char const doc_reduce_minmax[] =                                            //
     "    tuple: (min_val, min_index, max_val, max_index), or None if all elements are NaN.";
 
 PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
         PyErr_SetString(PyExc_TypeError, "minmax(a) takes exactly 1 positional argument");
         return NULL;
@@ -2647,7 +2647,7 @@ char const doc_reduce_argmax[] =
     "Return the index of the maximum element.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Integer index.";
 
 PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "sum() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "sum() first argument must be a Tensor"), NULL);
@@ -2655,7 +2655,7 @@ PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
 }
 
 PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "norm() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "norm() first argument must be a Tensor"), NULL);
@@ -2663,7 +2663,7 @@ PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 }
 
 PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "min() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "min() first argument must be a Tensor"), NULL);
@@ -2671,7 +2671,7 @@ PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
 }
 
 PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "max() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "max() first argument must be a Tensor"), NULL);
@@ -2679,7 +2679,7 @@ PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
 }
 
 PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "argmin() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "argmin() first argument must be a Tensor"), NULL);
@@ -2687,7 +2687,7 @@ PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nar
 }
 
 PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "argmax() requires at least 1 argument"), NULL);
     if (!PyObject_TypeCheck(args[0], &TensorType))
         return (PyErr_SetString(PyExc_TypeError, "argmax() first argument must be a Tensor"), NULL);

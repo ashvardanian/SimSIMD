@@ -825,7 +825,7 @@ NK_INTERNAL void nk_sum_i4x32_update_serial(nk_sum_i4x32_state_serial_t *state, 
 }
 
 NK_INTERNAL nk_i32_t nk_sum_i4x32_finalize_serial(nk_sum_i4x32_state_serial_t const *state, nk_size_t count) {
-    (void)count;
+    nk_unused_(count);
     return (nk_i32_t)state->sum;
 }
 

@@ -34,22 +34,22 @@ static PyObject *MaxSimPackedMatrix_repr(PyObject *self) {
 }
 
 static PyObject *MaxSimPackedMatrix_get_vector_count(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->vector_count);
 }
 
 static PyObject *MaxSimPackedMatrix_get_depth(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(((MaxSimPackedMatrix *)self)->depth);
 }
 
 static PyObject *MaxSimPackedMatrix_get_dtype(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyUnicode_FromString(dtype_to_string(((MaxSimPackedMatrix *)self)->dtype));
 }
 
 static PyObject *MaxSimPackedMatrix_get_nbytes(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     return PyLong_FromSize_t(maxsim_packed_matrix_nbytes((MaxSimPackedMatrix *)self));
 }
 
@@ -63,7 +63,7 @@ static PyGetSetDef MaxSimPackedMatrix_getset[] = {
 
 static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *args, Py_ssize_t nargs,
                                                 PyObject *kwnames) {
-    (void)cls;
+    nk_unused_(cls);
 
     PyObject *vector_count_obj = NULL, *depth_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -155,7 +155,7 @@ char const doc_maxsim_pack[] =                                              //
     "    >>> def maxsim_pack(b, /, dtype='bf16') -> MaxSimPackedMatrix: ...";
 
 PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
 
     PyObject *b_obj = NULL;
     char const *dtype_str = "bf16";
@@ -336,7 +336,7 @@ static PyObject *maxsim_result_to_py_number(                  //
 }
 
 PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
 
     if (nargs != 2 || (kwnames && PyTuple_Size(kwnames) > 0)) {
         PyErr_SetString(PyExc_TypeError, "maxsim_packed() requires exactly 2 positional arguments: queries, documents");
@@ -394,7 +394,7 @@ char const doc_maxsim[] =                                                       
     "    >>> def maxsim(queries, documents, /, dtype='bf16') -> float: ...";
 
 PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
 
     PyObject *queries_obj = NULL, *documents_obj = NULL;
     char const *dtype_str = "bf16";

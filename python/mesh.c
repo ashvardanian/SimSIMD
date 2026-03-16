@@ -52,7 +52,7 @@ static PyObject *MeshAlignmentResult_repr(MeshAlignmentResultObject *self) {
 }
 
 static Py_ssize_t MeshAlignmentResult_length(MeshAlignmentResultObject *self) {
-    (void)self;
+    nk_unused_(self);
     return 5;
 }
 
@@ -333,21 +333,21 @@ cleanup:
 
 PyObject *api_kabsch(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                      PyObject *args_names_tuple) {
-    (void)self;
-    (void)args_names_tuple;
+    nk_unused_(self);
+    nk_unused_(args_names_tuple);
     return implement_mesh_alignment(nk_kernel_kabsch_k, args, positional_args_count);
 }
 
 PyObject *api_umeyama(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                       PyObject *args_names_tuple) {
-    (void)self;
-    (void)args_names_tuple;
+    nk_unused_(self);
+    nk_unused_(args_names_tuple);
     return implement_mesh_alignment(nk_kernel_umeyama_k, args, positional_args_count);
 }
 
 PyObject *api_rmsd(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                    PyObject *args_names_tuple) {
-    (void)self;
-    (void)args_names_tuple;
+    nk_unused_(self);
+    nk_unused_(args_names_tuple);
     return implement_mesh_alignment(nk_kernel_rmsd_k, args, positional_args_count);
 }
