@@ -23,8 +23,12 @@
 extern "C" {
 #endif
 
-// WASM capability detection for Emscripten
-#if defined(__EMSCRIPTEN__)
+// WASM capability detection for standalone Emscripten builds.
+// EM_JS embeds JavaScript probes for runtime SIMD detection. It only works in
+// standalone builds — Pyodide side modules cannot use EM_JS (the linker fails
+// with undefined ___em_js__* symbols). Pyodide builds define NK_PYODIDE_SIDE_MODULE
+// and fall through to compile-time detection in capabilities.h instead.
+#if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH && !defined(NK_PYODIDE_SIDE_MODULE)
 #include <emscripten.h>
 
 // EM_JS expands to an empty-parameter-list declaration `()` and a trailing `;`,
@@ -65,7 +69,7 @@ EM_JS(int, nk_has_relaxed, (), {
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-#endif // defined(__EMSCRIPTEN__)
+#endif // __EMSCRIPTEN__ && NK_DYNAMIC_DISPATCH && !NK_PYODIDE_SIDE_MODULE
 
 /**
  *  @brief Fill memory with 0xFF - produces NaN for floats, -1 for signed integers, and MAX for unsigned.
@@ -355,7 +359,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                   nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
                                                   nk_size_t a_stride, nk_size_t c_stride) {                       \
         nk_dispatch_table.api_name##_packed_##name(a, b_packed, c, m, n, k, a_stride, c_stride);                  \
-        nk_unpoison_((void *)c, m * c_stride);                                                                    \
+        nk_unpoison_((void *)c, m *c_stride);                                                                     \
     }
 
 #define nk_dispatch_cross_symmetric_(api_name, name, input_type, output_type)                                   \
@@ -364,7 +368,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_##output_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
         nk_dispatch_table.api_name##_symmetric_##name(vectors, n_vectors, depth, stride, result, result_stride, \
                                                       row_start, row_count);                                    \
-        nk_unpoison_((void *)result, row_count * result_stride);                                                \
+        nk_unpoison_((void *)result, row_count *result_stride);                                                 \
     }
 
 #define nk_dispatch_maxsim_packed_(name, output_type)                                                                 \
