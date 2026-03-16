@@ -90,7 +90,7 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_
  *  F16 format: S EEEEE MMMMMMMMMM (1 sign, 5 exponent bits with bias=15, 10 mantissa bits)
  *  F32 format: S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (1 sign, 8 exponent bits with bias=127, 23 mantissa bits)
  *
- *  Conversion: Rebias exponent from 15 to 127, extend mantissa from 10 to 23 bits.
+ *  Handles all IEEE-754 edge cases: ±zero, denormals, normals, ±inf, NaN.
  */
 NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_rvv_(vuint16m1_t f16_u16m1, nk_size_t vector_length) {
     // Widen to 32-bit for manipulation
@@ -103,14 +103,40 @@ NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_rvv_(vuint16m1_t f16_u16m1, nk_size_t
                                                        vector_length);
     // Extract mantissa: raw & 0x3FF
     vuint32m2_t mantissa_u32m2 = __riscv_vand_vx_u32m2(bits_u32m2, 0x3FF, vector_length);
-    // Rebias exponent (15 → 127): add 112
+
+    // Normal path: rebias exponent (15 → 127): add 112, combine
     vuint32m2_t f32_exponent_u32m2 = __riscv_vadd_vx_u32m2(exponent_u32m2, 112, vector_length);
-    // Combine: sign | (exponent << 23) | (mantissa << 13)
-    vuint32m2_t result_u32m2 = __riscv_vor_vv_u32m2(
+    vuint32m2_t normal_u32m2 = __riscv_vor_vv_u32m2(
         sign_u32m2,
         __riscv_vor_vv_u32m2(__riscv_vsll_vx_u32m2(f32_exponent_u32m2, 23, vector_length),
                              __riscv_vsll_vx_u32m2(mantissa_u32m2, 13, vector_length), vector_length),
         vector_length);
+
+    // Special case: exponent == 0 (zero or denormal)
+    // Zero: sign | 0. Denormal: mantissa × 2^(-24), handled via FPU normalization trick.
+    // For denormals, convert mantissa to float and subtract 0x0C000000 (24 from exponent),
+    // matching the serial implementation. For zeros (mantissa==0), (float)0 - bias = 0.
+    vbool16_t is_exp_zero = __riscv_vmseq_vx_u32m2_b16(exponent_u32m2, 0, vector_length);
+    vfloat32m2_t mantissa_f32m2 = __riscv_vfcvt_f_xu_v_f32m2(mantissa_u32m2, vector_length);
+    vuint32m2_t denorm_bits_u32m2 = __riscv_vsub_vx_u32m2(__riscv_vreinterpret_v_f32m2_u32m2(mantissa_f32m2),
+                                                          0x0C000000, vector_length);
+    vuint32m2_t zero_or_denorm_u32m2 = __riscv_vor_vv_u32m2(sign_u32m2, denorm_bits_u32m2, vector_length);
+    // For true zeros (mantissa==0), the FPU converts 0 to 0x00000000, minus bias wraps,
+    // so force to sign-only.
+    vbool16_t is_true_zero = __riscv_vmand_mm_b16(
+        is_exp_zero, __riscv_vmseq_vx_u32m2_b16(mantissa_u32m2, 0, vector_length), vector_length);
+    zero_or_denorm_u32m2 = __riscv_vmerge_vvm_u32m2(zero_or_denorm_u32m2, sign_u32m2, is_true_zero, vector_length);
+
+    // Special case: exponent == 31 (infinity or NaN)
+    // sign | 0x7F800000 | (mantissa << 13)
+    vbool16_t is_exp_max = __riscv_vmseq_vx_u32m2_b16(exponent_u32m2, 31, vector_length);
+    vuint32m2_t inf_nan_u32m2 = __riscv_vor_vv_u32m2(__riscv_vor_vx_u32m2(sign_u32m2, 0x7F800000, vector_length),
+                                                     __riscv_vsll_vx_u32m2(mantissa_u32m2, 13, vector_length),
+                                                     vector_length);
+
+    // Select: exp==0 → zero_or_denorm, exp==31 → inf_nan, else → normal
+    vuint32m2_t result_u32m2 = __riscv_vmerge_vvm_u32m2(normal_u32m2, zero_or_denorm_u32m2, is_exp_zero, vector_length);
+    result_u32m2 = __riscv_vmerge_vvm_u32m2(result_u32m2, inf_nan_u32m2, is_exp_max, vector_length);
     return __riscv_vreinterpret_v_u32m2_f32m2(result_u32m2);
 }
 
