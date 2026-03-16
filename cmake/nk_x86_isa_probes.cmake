@@ -1,19 +1,15 @@
 # cmake/nk_x86_isa_probes.cmake — x86 ISA compiler-capability probes
 #
-# Detect which ISA extensions the *compiler* can target, regardless of the host
-# CPU.  Results are used to override NK_TARGET_* on the nk_test and nk_bench
-# targets.  The nk_shared library keeps all ISAs enabled (its dispatch is
-# runtime-selected via nk_capabilities() function pointers).
+# Detect which ISA extensions the host CPU can actually execute.  Results are
+# used to override NK_TARGET_* on the nk_test and nk_bench targets so that
+# ISA-specific kernels are only compiled when they can run on the build host.
+# The nk_shared library keeps all ISAs enabled (its dispatch is runtime-selected
+# via nk_capabilities() function pointers).
 #
-# On MSVC, `types.h` auto-enables all ISAs based on _MSC_VER alone (since MSVC
-# provides no fine-grained ISA preprocessor macros like __AVXVNNI__, __AVX512VNNI__,
-# etc.).  The generic dispatch `#elif` chains always pick the highest ISA → SIGILL
-# on CPUs that don't support it.  These probes use check_source_runs to detect
-# what the host CPU actually supports.
-#
-# On GCC/Clang each probe uses check_source_compiles with per-ISA -m flags so
-# that even an older host can build test/bench binaries targeting newer ISAs.
-# Runtime dispatch in the library ensures only supported ISAs are exercised.
+# Native builds (all compilers): probes use check_source_runs to compile with
+# per-ISA flags *and* verify the host CPU can execute the resulting binary.
+# Cross-compilation (GCC/Clang): probes use check_source_compiles (can't run
+# host binaries), relying on runtime dispatch in the library.
 #
 # Contract:
 #   Input:  NK_BUILD_TEST, NK_BUILD_BENCH (from parent scope)
@@ -32,16 +28,21 @@ set(nk_saved_required_flags_ "${CMAKE_REQUIRED_FLAGS}")
 set(nk_saved_try_compile_config_ "${CMAKE_TRY_COMPILE_CONFIGURATION}")
 set(CMAKE_TRY_COMPILE_CONFIGURATION "Release")
 
-# Helper macro: on MSVC use check_source_runs (compiler always succeeds, need
-# runtime host detection); on GCC/Clang use check_source_compiles with per-ISA
-# -m flags (tests compiler capability, not host capability).
+# Helper macro: use check_source_runs to verify both compiler support AND host
+# CPU capability.  On MSVC the compiler always succeeds so runtime detection is
+# essential; on GCC/Clang the per-ISA -m flags let the compiler emit the
+# instructions, and running the probe confirms the host can execute them.
+# When cross-compiling, fall back to check_source_compiles (can't run probes).
 macro(nk_isa_probe_ var_ msvc_arch_ gcc_flags_ source_)
-    if (MSVC)
+    if (CMAKE_CROSSCOMPILING)
+        set(CMAKE_REQUIRED_FLAGS "${gcc_flags_}")
+        check_source_compiles(C "${source_}" ${var_})
+    elseif (MSVC)
         set(CMAKE_REQUIRED_FLAGS "${msvc_arch_}")
         check_source_runs(C "${source_}" ${var_})
     else ()
         set(CMAKE_REQUIRED_FLAGS "${gcc_flags_}")
-        check_source_compiles(C "${source_}" ${var_})
+        check_source_runs(C "${source_}" ${var_})
     endif ()
 endmacro()
 
