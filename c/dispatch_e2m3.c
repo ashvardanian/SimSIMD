@@ -64,9 +64,12 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e2m3_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e2m3_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -115,6 +118,7 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_skylake, *c = nk_cap_skylake_k; return;
@@ -152,6 +156,7 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_alder, *c = nk_cap_alder_k; return;

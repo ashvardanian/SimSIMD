@@ -103,6 +103,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
@@ -196,6 +199,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -240,6 +246,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
             return;
         case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_f16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_f16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -273,6 +282,15 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

@@ -63,9 +63,12 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e3m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e3m2_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -111,6 +114,7 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_skylake, *c = nk_cap_skylake_k; return;
