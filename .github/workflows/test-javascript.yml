@@ -153,7 +153,7 @@ jobs:
       - name: Build WASI
         run: |
           export WASI_SDK_PATH=~/wasi-sdk
-          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_HOSTED=ON
           cmake --build build-wasi
 
       - name: Set up Node.js

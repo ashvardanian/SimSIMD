@@ -128,13 +128,13 @@
 #endif
 #endif // !defined(NK_TARGET_WASM_)
 
-// Compiling for WASI (standalone runtimes): NK_DEFINED_WASI_
+// WASI hosted mode: NK_DEFINED_WASI_
+// When NK_WASI_HOSTED=ON in CMake, this is predefined to 1 so the library
+// imports capability probes (nk_has_v128, nk_has_relaxed) from the host.
+// Standalone runtimes (Wasmer, Wasmtime CLI) cannot supply those imports,
+// so the default for plain __wasi__ builds is 0 (compile-time detection).
 #if !defined(NK_DEFINED_WASI_)
-#if defined(__wasi__)
-#define NK_DEFINED_WASI_ 1
-#else
 #define NK_DEFINED_WASI_ 0
-#endif
 #endif // !defined(NK_DEFINED_WASI_)
 
 // Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED

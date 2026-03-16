@@ -395,7 +395,7 @@ if (NK_BUILD_BENCH)
     # WASI-specific configuration for benchmarks
     if (NK_IS_WASI_PROJECT_)
         if (NK_WASI_HOSTED)
-            target_compile_definitions(nk_bench PRIVATE NK_DEFINED_WASI_=0)
+            target_compile_definitions(nk_bench PRIVATE NK_DEFINED_WASI_=1)
         endif ()
 
         set_target_properties(nk_bench PROPERTIES OUTPUT_NAME "nk_bench.wasm")
@@ -452,7 +452,7 @@ if (NK_BUILD_TEST)
     # WASI-specific configuration
     if (NK_IS_WASI_PROJECT_)
         if (NK_WASI_HOSTED)
-            target_compile_definitions(nk_test PRIVATE NK_DEFINED_WASI_=0)
+            target_compile_definitions(nk_test PRIVATE NK_DEFINED_WASI_=1)
         endif ()
 
         set_target_properties(nk_test PROPERTIES OUTPUT_NAME "nk_test.wasm")
