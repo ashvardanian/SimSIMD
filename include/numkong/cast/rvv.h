@@ -90,7 +90,11 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_
  *  F16 format: S EEEEE MMMMMMMMMM (1 sign, 5 exponent bits with bias=15, 10 mantissa bits)
  *  F32 format: S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (1 sign, 8 exponent bits with bias=127, 23 mantissa bits)
  *
- *  Handles all IEEE-754 edge cases: ±zero, denormals, normals, ±inf, NaN.
+ *  Uses the Giesen magic-multiply trick: treat the magnitude bits as a denormal f32 and
+ *  multiply by 2^112 to rebias the exponent.  This correctly handles ±zero, denormals,
+ *  and normals in a single FP multiply; only inf/NaN needs a fixup compare+merge.
+ *
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_rvv_(vuint16m1_t f16_u16m1, nk_size_t vector_length) {
     // Widen to 32-bit for manipulation
@@ -98,45 +102,31 @@ NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_rvv_(vuint16m1_t f16_u16m1, nk_size_t
     // Extract sign: (raw >> 15) << 31
     vuint32m2_t sign_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vsrl_vx_u32m2(bits_u32m2, 15, vector_length), 31,
                                                    vector_length);
-    // Extract exponent: (raw >> 10) & 0x1F
-    vuint32m2_t exponent_u32m2 = __riscv_vand_vx_u32m2(__riscv_vsrl_vx_u32m2(bits_u32m2, 10, vector_length), 0x1F,
+    // Strip sign, shift magnitude into f32 mantissa position.
+    // For a normal f16 with exp E, this places E into the f32 exponent field,
+    // creating a tiny f32 whose value is proportional to the f16 magnitude.
+    vuint32m2_t nonsign_u32m2 = __riscv_vand_vx_u32m2(bits_u32m2, 0x7FFF, vector_length);
+    vuint32m2_t shifted_u32m2 = __riscv_vsll_vx_u32m2(nonsign_u32m2, 13, vector_length);
+    // Multiply by 2^112 (= magic 0x77800000 as f32) to rebias the exponent.
+    // This single multiply correctly handles zero, denormals, and normals:
+    //   zero:     0.0 × 2^112 = 0.0
+    //   denormal: (M × 2^-136) × 2^112 = M × 2^-24  (correct f16 denormal value)
+    //   normal:   (2^(E-127) × …) × 2^112 = 2^(E-15) × …  (correct rebiased value)
+    vfloat32m2_t magic_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
+        __riscv_vmv_v_x_u32m2(((nk_u32_t)(254 - 15) << 23), vector_length));
+    vfloat32m2_t result_f32m2 = __riscv_vfmul_vv_f32m2(__riscv_vreinterpret_v_u32m2_f32m2(shifted_u32m2), magic_f32m2,
                                                        vector_length);
-    // Extract mantissa: raw & 0x3FF
-    vuint32m2_t mantissa_u32m2 = __riscv_vand_vx_u32m2(bits_u32m2, 0x3FF, vector_length);
-
-    // Normal path: rebias exponent (15 → 127): add 112, combine
-    vuint32m2_t f32_exponent_u32m2 = __riscv_vadd_vx_u32m2(exponent_u32m2, 112, vector_length);
-    vuint32m2_t normal_u32m2 = __riscv_vor_vv_u32m2(
-        sign_u32m2,
-        __riscv_vor_vv_u32m2(__riscv_vsll_vx_u32m2(f32_exponent_u32m2, 23, vector_length),
-                             __riscv_vsll_vx_u32m2(mantissa_u32m2, 13, vector_length), vector_length),
-        vector_length);
-
-    // Special case: exponent == 0 (zero or denormal)
-    // Zero: sign | 0. Denormal: mantissa × 2^(-24), handled via FPU normalization trick.
-    // For denormals, convert mantissa to float and subtract 0x0C000000 (24 from exponent),
-    // matching the serial implementation. For zeros (mantissa==0), (float)0 - bias = 0.
-    vbool16_t is_exp_zero = __riscv_vmseq_vx_u32m2_b16(exponent_u32m2, 0, vector_length);
-    vfloat32m2_t mantissa_f32m2 = __riscv_vfcvt_f_xu_v_f32m2(mantissa_u32m2, vector_length);
-    vuint32m2_t denorm_bits_u32m2 = __riscv_vsub_vx_u32m2(__riscv_vreinterpret_v_f32m2_u32m2(mantissa_f32m2),
-                                                          0x0C000000, vector_length);
-    vuint32m2_t zero_or_denorm_u32m2 = __riscv_vor_vv_u32m2(sign_u32m2, denorm_bits_u32m2, vector_length);
-    // For true zeros (mantissa==0), the FPU converts 0 to 0x00000000, minus bias wraps,
-    // so force to sign-only.
-    vbool16_t is_true_zero = __riscv_vmand_mm_b16(
-        is_exp_zero, __riscv_vmseq_vx_u32m2_b16(mantissa_u32m2, 0, vector_length), vector_length);
-    zero_or_denorm_u32m2 = __riscv_vmerge_vvm_u32m2(zero_or_denorm_u32m2, sign_u32m2, is_true_zero, vector_length);
-
-    // Special case: exponent == 31 (infinity or NaN)
-    // sign | 0x7F800000 | (mantissa << 13)
-    vbool16_t is_exp_max = __riscv_vmseq_vx_u32m2_b16(exponent_u32m2, 31, vector_length);
-    vuint32m2_t inf_nan_u32m2 = __riscv_vor_vv_u32m2(__riscv_vor_vx_u32m2(sign_u32m2, 0x7F800000, vector_length),
-                                                     __riscv_vsll_vx_u32m2(mantissa_u32m2, 13, vector_length),
-                                                     vector_length);
-
-    // Select: exp==0 → zero_or_denorm, exp==31 → inf_nan, else → normal
-    vuint32m2_t result_u32m2 = __riscv_vmerge_vvm_u32m2(normal_u32m2, zero_or_denorm_u32m2, is_exp_zero, vector_length);
-    result_u32m2 = __riscv_vmerge_vvm_u32m2(result_u32m2, inf_nan_u32m2, is_exp_max, vector_length);
+    // Inf/NaN fixup: the multiply maps f16 exp=31 to a large finite f32.
+    // Detect those lanes and force the f32 exponent to 255 (inf/NaN).
+    // Threshold 0x47800000 = 2^16; any f16 with exp=31 exceeds it after scaling.
+    vfloat32m2_t infnan_threshold_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
+        __riscv_vmv_v_x_u32m2(((nk_u32_t)(127 + 16) << 23), vector_length));
+    vbool16_t is_infnan = __riscv_vmfge_vv_f32m2_b16(result_f32m2, infnan_threshold_f32m2, vector_length);
+    vuint32m2_t result_u32m2 = __riscv_vreinterpret_v_f32m2_u32m2(result_f32m2);
+    vuint32m2_t fixed_u32m2 = __riscv_vor_vx_u32m2(result_u32m2, 0x7F800000, vector_length);
+    result_u32m2 = __riscv_vmerge_vvm_u32m2(result_u32m2, fixed_u32m2, is_infnan, vector_length);
+    // Restore sign
+    result_u32m2 = __riscv_vor_vv_u32m2(result_u32m2, sign_u32m2, vector_length);
     return __riscv_vreinterpret_v_u32m2_f32m2(result_u32m2);
 }
 
@@ -176,242 +166,258 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t
 }
 
 /**
- *  @brief Convert e4m3 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
- *  E4M3FN: sign = bit 7, magnitude = bits 6:0 (128 entries). Sign bit 7 → f32 bit 31 (<<24).
+ *  @brief Convert e4m3 (m1) to f32 (m4) via Giesen-inspired integer-add.
+ *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
+ *  Subnormal path: int→float conversion with scale factor. NaN fixup for magnitude 0x7F.
  */
 NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
-    static nk_u32_t const nk_e4m3_mag_to_f32_lut_[128] = {
-        0x00000000u, 0x3B000000u, 0x3B800000u, 0x3BC00000u,
-        0x3C000000u, 0x3C200000u, 0x3C400000u, 0x3C600000u, /* [  0..  7] */
-        0x3C800000u, 0x3C900000u, 0x3CA00000u, 0x3CB00000u,
-        0x3CC00000u, 0x3CD00000u, 0x3CE00000u, 0x3CF00000u, /* [  8.. 15] */
-        0x3D000000u, 0x3D100000u, 0x3D200000u, 0x3D300000u,
-        0x3D400000u, 0x3D500000u, 0x3D600000u, 0x3D700000u, /* [ 16.. 23] */
-        0x3D800000u, 0x3D900000u, 0x3DA00000u, 0x3DB00000u,
-        0x3DC00000u, 0x3DD00000u, 0x3DE00000u, 0x3DF00000u, /* [ 24.. 31] */
-        0x3E000000u, 0x3E100000u, 0x3E200000u, 0x3E300000u,
-        0x3E400000u, 0x3E500000u, 0x3E600000u, 0x3E700000u, /* [ 32.. 39] */
-        0x3E800000u, 0x3E900000u, 0x3EA00000u, 0x3EB00000u,
-        0x3EC00000u, 0x3ED00000u, 0x3EE00000u, 0x3EF00000u, /* [ 40.. 47] */
-        0x3F000000u, 0x3F100000u, 0x3F200000u, 0x3F300000u,
-        0x3F400000u, 0x3F500000u, 0x3F600000u, 0x3F700000u, /* [ 48.. 55] */
-        0x3F800000u, 0x3F900000u, 0x3FA00000u, 0x3FB00000u,
-        0x3FC00000u, 0x3FD00000u, 0x3FE00000u, 0x3FF00000u, /* [ 56.. 63] */
-        0x40000000u, 0x40100000u, 0x40200000u, 0x40300000u,
-        0x40400000u, 0x40500000u, 0x40600000u, 0x40700000u, /* [ 64.. 71] */
-        0x40800000u, 0x40900000u, 0x40A00000u, 0x40B00000u,
-        0x40C00000u, 0x40D00000u, 0x40E00000u, 0x40F00000u, /* [ 72.. 79] */
-        0x41000000u, 0x41100000u, 0x41200000u, 0x41300000u,
-        0x41400000u, 0x41500000u, 0x41600000u, 0x41700000u, /* [ 80.. 87] */
-        0x41800000u, 0x41900000u, 0x41A00000u, 0x41B00000u,
-        0x41C00000u, 0x41D00000u, 0x41E00000u, 0x41F00000u, /* [ 88.. 95] */
-        0x42000000u, 0x42100000u, 0x42200000u, 0x42300000u,
-        0x42400000u, 0x42500000u, 0x42600000u, 0x42700000u, /* [ 96..103] */
-        0x42800000u, 0x42900000u, 0x42A00000u, 0x42B00000u,
-        0x42C00000u, 0x42D00000u, 0x42E00000u, 0x42F00000u, /* [104..111] */
-        0x43000000u, 0x43100000u, 0x43200000u, 0x43300000u,
-        0x43400000u, 0x43500000u, 0x43600000u, 0x43700000u, /* [112..119] */
-        0x43800000u, 0x43900000u, 0x43A00000u, 0x43B00000u,
-        0x43C00000u, 0x43D00000u, 0x43E00000u, 0x7FC00000u /* [120..127] */
-    };
-    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
-    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
-                                                      vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e4m3_mag_to_f32_lut_, offsets_u32m4, vector_length);
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 24,
-                                                   vector_length);
-    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
+    // Extract sign: (raw & 0x80) → bit 7, shift to bit 31
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length), vector_length), 24,
+        vector_length);
+    // Strip sign to get 7-bit magnitude, widen to u32, shift left by 20
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
+
+    // Normal path: integer add of (127-7)<<23 produces correct f32 bits directly
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3C000000, vector_length));
+    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e4m3_sub_lut_[8] = {0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,
+                                                 0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e4m3_sub_lut_, 8);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+
+    // NaN fixup: masked OR writes sign|0x7FC00000 only into NaN lanes
+    vbool8_t is_nan = __riscv_vmseq_vx_u8m1_b8(nonsign_u8m1, 0x7F, vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vor_vx_u32m4_mu(is_nan, __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4),
+                                                       sign_u32m4, 0x7FC00000, vector_length);
+
+    // Restore sign
+    result_u32m4 = __riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
 /**
- *  @brief Convert e5m2 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
- *  E5M2: sign = bit 7, magnitude = bits 6:0 (128 entries). Sign bit 7 → f32 bit 31 (<<24).
+ *  @brief Convert e5m2 (m1) to f32 (m4) via Giesen-inspired integer-add.
+ *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
+ *  Subnormal path: int→float conversion with scale factor. Inf/NaN fixup for exp=31.
  */
 NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
-    static nk_u32_t const nk_e5m2_mag_to_f32_lut_[128] = {
-        0x00000000u, 0x37800000u, 0x38000000u, 0x38400000u,
-        0x38800000u, 0x38A00000u, 0x38C00000u, 0x38E00000u, /* [  0..  7] */
-        0x39000000u, 0x39200000u, 0x39400000u, 0x39600000u,
-        0x39800000u, 0x39A00000u, 0x39C00000u, 0x39E00000u, /* [  8.. 15] */
-        0x3A000000u, 0x3A200000u, 0x3A400000u, 0x3A600000u,
-        0x3A800000u, 0x3AA00000u, 0x3AC00000u, 0x3AE00000u, /* [ 16.. 23] */
-        0x3B000000u, 0x3B200000u, 0x3B400000u, 0x3B600000u,
-        0x3B800000u, 0x3BA00000u, 0x3BC00000u, 0x3BE00000u, /* [ 24.. 31] */
-        0x3C000000u, 0x3C200000u, 0x3C400000u, 0x3C600000u,
-        0x3C800000u, 0x3CA00000u, 0x3CC00000u, 0x3CE00000u, /* [ 32.. 39] */
-        0x3D000000u, 0x3D200000u, 0x3D400000u, 0x3D600000u,
-        0x3D800000u, 0x3DA00000u, 0x3DC00000u, 0x3DE00000u, /* [ 40.. 47] */
-        0x3E000000u, 0x3E200000u, 0x3E400000u, 0x3E600000u,
-        0x3E800000u, 0x3EA00000u, 0x3EC00000u, 0x3EE00000u, /* [ 48.. 55] */
-        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u,
-        0x3F800000u, 0x3FA00000u, 0x3FC00000u, 0x3FE00000u, /* [ 56.. 63] */
-        0x40000000u, 0x40200000u, 0x40400000u, 0x40600000u,
-        0x40800000u, 0x40A00000u, 0x40C00000u, 0x40E00000u, /* [ 64.. 71] */
-        0x41000000u, 0x41200000u, 0x41400000u, 0x41600000u,
-        0x41800000u, 0x41A00000u, 0x41C00000u, 0x41E00000u, /* [ 72.. 79] */
-        0x42000000u, 0x42200000u, 0x42400000u, 0x42600000u,
-        0x42800000u, 0x42A00000u, 0x42C00000u, 0x42E00000u, /* [ 80.. 87] */
-        0x43000000u, 0x43200000u, 0x43400000u, 0x43600000u,
-        0x43800000u, 0x43A00000u, 0x43C00000u, 0x43E00000u, /* [ 88.. 95] */
-        0x44000000u, 0x44200000u, 0x44400000u, 0x44600000u,
-        0x44800000u, 0x44A00000u, 0x44C00000u, 0x44E00000u, /* [ 96..103] */
-        0x45000000u, 0x45200000u, 0x45400000u, 0x45600000u,
-        0x45800000u, 0x45A00000u, 0x45C00000u, 0x45E00000u, /* [104..111] */
-        0x46000000u, 0x46200000u, 0x46400000u, 0x46600000u,
-        0x46800000u, 0x46A00000u, 0x46C00000u, 0x46E00000u, /* [112..119] */
-        0x47000000u, 0x47200000u, 0x47400000u, 0x47600000u,
-        0x7F800000u, 0x7FC00000u, 0x7FC00000u, 0x7FC00000u /* [120..127] */
-    };
-    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
-    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
-                                                      vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e5m2_mag_to_f32_lut_, offsets_u32m4, vector_length);
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 24,
-                                                   vector_length);
-    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
+    // Extract sign: (raw & 0x80) → bit 7, shift to bit 31
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length), vector_length), 24,
+        vector_length);
+    // Strip sign to get 7-bit magnitude, widen to u32, shift left by 21
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length),
+                                                        vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
+
+    // Normal path: integer add of (127-15)<<23 produces correct f32 bits directly
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x38000000, vector_length));
+    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e5m2_sub_lut_[4] = {0x00000000, 0x37800000, 0x38000000, 0x38400000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e5m2_sub_lut_, 4);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+
+    // Inf/NaN fixup: masked OR writes 0x7F800000 only into inf/NaN lanes (nonsign > 123)
+    vbool8_t is_infnan = __riscv_vmsgtu_vx_u32m4_b8(nonsign_u32m4, 123, vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vor_vx_u32m4_mu(is_infnan, __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4),
+                                                       __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 0x7F800000,
+                                                       vector_length);
+
+    // Restore sign
+    result_u32m4 = __riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
 /**
- *  @brief Convert e2m3 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
- *  E2M3FN: sign = bit 5, magnitude = bits 4:0 (32 entries). Sign bit 5 → f32 bit 31 (<<26).
+ *  @brief Convert e2m3 (m1) to f32 (m4) via Giesen-inspired integer-add.
+ *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
+ *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e2m3.
  */
 NK_INTERNAL vfloat32m4_t nk_e2m3m1_to_f32m4_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
-    static nk_u32_t const nk_e2m3_mag_to_f32_lut_[32] = {
-        0x00000000u, 0x3E000000u, 0x3E800000u, 0x3EC00000u,
-        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u, /* [  0..  7] */
-        0x3F800000u, 0x3F900000u, 0x3FA00000u, 0x3FB00000u,
-        0x3FC00000u, 0x3FD00000u, 0x3FE00000u, 0x3FF00000u, /* [  8.. 15] */
-        0x40000000u, 0x40100000u, 0x40200000u, 0x40300000u,
-        0x40400000u, 0x40500000u, 0x40600000u, 0x40700000u, /* [ 16.. 23] */
-        0x40800000u, 0x40900000u, 0x40A00000u, 0x40B00000u,
-        0x40C00000u, 0x40D00000u, 0x40E00000u, 0x40F00000u /* [ 24.. 31] */
-    };
-    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
-    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
-                                                      vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e2m3_mag_to_f32_lut_, offsets_u32m4, vector_length);
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 26,
-                                                   vector_length);
-    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
+    // Extract sign: bit 5 → bit 31
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length), vector_length), 26,
+        vector_length);
+    // Strip sign to get 5-bit magnitude, widen to u32, shift left by 20
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length),
+                                                        vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
+
+    // Normal path: integer add of (127-1)<<23 produces correct f32 bits directly
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3F000000, vector_length));
+    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e2m3_sub_lut_[8] = {0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,
+                                                 0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e2m3_sub_lut_, 8);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+
+    // Restore sign (no inf/NaN fixup needed for e2m3)
+    vuint32m4_t result_u32m4 = __riscv_vor_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), sign_u32m4,
+                                                    vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
 /**
- *  @brief Convert e3m2 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
- *  E3M2FN: sign = bit 5, magnitude = bits 4:0 (32 entries). Sign bit 5 → f32 bit 31 (<<26).
+ *  @brief Convert e3m2 (m1) to f32 (m4) via Giesen-inspired integer-add.
+ *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
+ *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e3m2.
  */
 NK_INTERNAL vfloat32m4_t nk_e3m2m1_to_f32m4_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
-    static nk_u32_t const nk_e3m2_mag_to_f32_lut_[32] = {
-        0x00000000u, 0x3D800000u, 0x3E000000u, 0x3E400000u,
-        0x3E800000u, 0x3EA00000u, 0x3EC00000u, 0x3EE00000u, /* [  0..  7] */
-        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u,
-        0x3F800000u, 0x3FA00000u, 0x3FC00000u, 0x3FE00000u, /* [  8.. 15] */
-        0x40000000u, 0x40200000u, 0x40400000u, 0x40600000u,
-        0x40800000u, 0x40A00000u, 0x40C00000u, 0x40E00000u, /* [ 16.. 23] */
-        0x41000000u, 0x41200000u, 0x41400000u, 0x41600000u,
-        0x41800000u, 0x41A00000u, 0x41C00000u, 0x41E00000u /* [ 24.. 31] */
-    };
-    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
-    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
-                                                      vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e3m2_mag_to_f32_lut_, offsets_u32m4, vector_length);
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 26,
-                                                   vector_length);
-    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
+    // Extract sign: bit 5 → bit 31
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length), vector_length), 26,
+        vector_length);
+    // Strip sign to get 5-bit magnitude, widen to u32, shift left by 21
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(__riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length),
+                                                        vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
+
+    // Normal path: integer add of (127-3)<<23 produces correct f32 bits directly
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3E000000, vector_length));
+    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e3m2_sub_lut_[4] = {0x00000000, 0x3D800000, 0x3E000000, 0x3E400000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e3m2_sub_lut_, 4);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+
+    // Restore sign (no inf/NaN fixup needed for e3m2)
+    vuint32m4_t result_u32m4 = __riscv_vor_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), sign_u32m4,
+                                                    vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
-/** @brief Convert e4m3 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 7 → bf16 bit 15 (<<8). */
+/** @brief Convert e4m3 (m1) to bf16 (m2) via Giesen-inspired integer-add.
+ *  Integer-add to f32, truncate upper 16 bits to bf16. NaN fixup for magnitude 0x7F. */
 NK_INTERNAL vuint16m2_t nk_e4m3m1_to_bf16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
-    static nk_u16_t const nk_e4m3_mag_to_bf16_lut_[128] = {
-        0x0000u, 0x3B00u, 0x3B80u, 0x3BC0u, 0x3C00u, 0x3C20u, 0x3C40u, 0x3C60u, /* [  0..  7] */
-        0x3C80u, 0x3C90u, 0x3CA0u, 0x3CB0u, 0x3CC0u, 0x3CD0u, 0x3CE0u, 0x3CF0u, /* [  8.. 15] */
-        0x3D00u, 0x3D10u, 0x3D20u, 0x3D30u, 0x3D40u, 0x3D50u, 0x3D60u, 0x3D70u, /* [ 16.. 23] */
-        0x3D80u, 0x3D90u, 0x3DA0u, 0x3DB0u, 0x3DC0u, 0x3DD0u, 0x3DE0u, 0x3DF0u, /* [ 24.. 31] */
-        0x3E00u, 0x3E10u, 0x3E20u, 0x3E30u, 0x3E40u, 0x3E50u, 0x3E60u, 0x3E70u, /* [ 32.. 39] */
-        0x3E80u, 0x3E90u, 0x3EA0u, 0x3EB0u, 0x3EC0u, 0x3ED0u, 0x3EE0u, 0x3EF0u, /* [ 40.. 47] */
-        0x3F00u, 0x3F10u, 0x3F20u, 0x3F30u, 0x3F40u, 0x3F50u, 0x3F60u, 0x3F70u, /* [ 48.. 55] */
-        0x3F80u, 0x3F90u, 0x3FA0u, 0x3FB0u, 0x3FC0u, 0x3FD0u, 0x3FE0u, 0x3FF0u, /* [ 56.. 63] */
-        0x4000u, 0x4010u, 0x4020u, 0x4030u, 0x4040u, 0x4050u, 0x4060u, 0x4070u, /* [ 64.. 71] */
-        0x4080u, 0x4090u, 0x40A0u, 0x40B0u, 0x40C0u, 0x40D0u, 0x40E0u, 0x40F0u, /* [ 72.. 79] */
-        0x4100u, 0x4110u, 0x4120u, 0x4130u, 0x4140u, 0x4150u, 0x4160u, 0x4170u, /* [ 80.. 87] */
-        0x4180u, 0x4190u, 0x41A0u, 0x41B0u, 0x41C0u, 0x41D0u, 0x41E0u, 0x41F0u, /* [ 88.. 95] */
-        0x4200u, 0x4210u, 0x4220u, 0x4230u, 0x4240u, 0x4250u, 0x4260u, 0x4270u, /* [ 96..103] */
-        0x4280u, 0x4290u, 0x42A0u, 0x42B0u, 0x42C0u, 0x42D0u, 0x42E0u, 0x42F0u, /* [104..111] */
-        0x4300u, 0x4310u, 0x4320u, 0x4330u, 0x4340u, 0x4350u, 0x4360u, 0x4370u, /* [112..119] */
-        0x4380u, 0x4390u, 0x43A0u, 0x43B0u, 0x43C0u, 0x43D0u, 0x43E0u, 0x7FC0u  /* [120..127] */
-    };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    // Integer-add: shift 7-bit magnitude, add (127-7)<<23 for correct f32 bits
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3C000000, vector_length));
+    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e4m3_sub_lut_[8] = {0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,
+                                                 0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e4m3_sub_lut_, 8);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Truncate f32 → bf16 (right shift 16, exact for all e4m3 values)
+    vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);
-    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e4m3_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    // NaN fixup: magnitude 0x7F → bf16 quiet NaN 0x7FC0
+    vbool8_t is_nan = __riscv_vmseq_vx_u8m1_b8(nonsign_u8m1, 0x7F, vector_length);
+    result_u16m2 = __riscv_vmerge_vxm_u16m2(result_u16m2, 0x7FC0, is_nan, vector_length);
+    // Restore sign: bit 7 → bf16 bit 15 (<<8)
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e5m2 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 7 → bf16 bit 15 (<<8). */
+/** @brief Convert e5m2 (m1) to bf16 (m2) via Giesen-inspired integer-add.
+ *  Integer-add to f32, inf/NaN fixup, truncate upper 16 bits to bf16. */
 NK_INTERNAL vuint16m2_t nk_e5m2m1_to_bf16m2_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
-    static nk_u16_t const nk_e5m2_mag_to_bf16_lut_[128] = {
-        0x0000u, 0x3780u, 0x3800u, 0x3840u, 0x3880u, 0x38A0u, 0x38C0u, 0x38E0u, /* [  0..  7] */
-        0x3900u, 0x3920u, 0x3940u, 0x3960u, 0x3980u, 0x39A0u, 0x39C0u, 0x39E0u, /* [  8.. 15] */
-        0x3A00u, 0x3A20u, 0x3A40u, 0x3A60u, 0x3A80u, 0x3AA0u, 0x3AC0u, 0x3AE0u, /* [ 16.. 23] */
-        0x3B00u, 0x3B20u, 0x3B40u, 0x3B60u, 0x3B80u, 0x3BA0u, 0x3BC0u, 0x3BE0u, /* [ 24.. 31] */
-        0x3C00u, 0x3C20u, 0x3C40u, 0x3C60u, 0x3C80u, 0x3CA0u, 0x3CC0u, 0x3CE0u, /* [ 32.. 39] */
-        0x3D00u, 0x3D20u, 0x3D40u, 0x3D60u, 0x3D80u, 0x3DA0u, 0x3DC0u, 0x3DE0u, /* [ 40.. 47] */
-        0x3E00u, 0x3E20u, 0x3E40u, 0x3E60u, 0x3E80u, 0x3EA0u, 0x3EC0u, 0x3EE0u, /* [ 48.. 55] */
-        0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, 0x3F80u, 0x3FA0u, 0x3FC0u, 0x3FE0u, /* [ 56.. 63] */
-        0x4000u, 0x4020u, 0x4040u, 0x4060u, 0x4080u, 0x40A0u, 0x40C0u, 0x40E0u, /* [ 64.. 71] */
-        0x4100u, 0x4120u, 0x4140u, 0x4160u, 0x4180u, 0x41A0u, 0x41C0u, 0x41E0u, /* [ 72.. 79] */
-        0x4200u, 0x4220u, 0x4240u, 0x4260u, 0x4280u, 0x42A0u, 0x42C0u, 0x42E0u, /* [ 80.. 87] */
-        0x4300u, 0x4320u, 0x4340u, 0x4360u, 0x4380u, 0x43A0u, 0x43C0u, 0x43E0u, /* [ 88.. 95] */
-        0x4400u, 0x4420u, 0x4440u, 0x4460u, 0x4480u, 0x44A0u, 0x44C0u, 0x44E0u, /* [ 96..103] */
-        0x4500u, 0x4520u, 0x4540u, 0x4560u, 0x4580u, 0x45A0u, 0x45C0u, 0x45E0u, /* [104..111] */
-        0x4600u, 0x4620u, 0x4640u, 0x4660u, 0x4680u, 0x46A0u, 0x46C0u, 0x46E0u, /* [112..119] */
-        0x4700u, 0x4720u, 0x4740u, 0x4760u, 0x7F80u, 0x7FC0u, 0x7FC0u, 0x7FC0u  /* [120..127] */
-    };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
-                                                      vector_length);
-    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e5m2_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
+    // Integer-add: shift 7-bit magnitude, add (127-15)<<23 for correct f32 bits
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x38000000, vector_length));
+    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e5m2_sub_lut_[4] = {0x00000000, 0x37800000, 0x38000000, 0x38400000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e5m2_sub_lut_, 4);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Inf/NaN fixup: masked OR writes 0x7F800000 only into inf/NaN lanes (nonsign > 123)
+    vbool8_t is_infnan = __riscv_vmsgtu_vx_u32m4_b8(nonsign_u32m4, 123, vector_length);
+    vuint32m4_t f32_bits = __riscv_vor_vx_u32m4_mu(is_infnan, __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4),
+                                                   __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 0x7F800000,
+                                                   vector_length);
+    // Truncate f32 → bf16 (right shift 16, exact for all e5m2 values)
+    vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(f32_bits, 16, vector_length);
+    // Restore sign: bit 7 → bf16 bit 15 (<<8)
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e2m3 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → bf16 bit 15 (<<10). */
+/** @brief Convert e2m3 (m1) to bf16 (m2) via Giesen-inspired integer-add.
+ *  Integer-add to f32, truncate upper 16 bits to bf16. No inf/NaN in e2m3. */
 NK_INTERNAL vuint16m2_t nk_e2m3m1_to_bf16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
-    static nk_u16_t const nk_e2m3_mag_to_bf16_lut_[32] = {
-        0x0000u, 0x3E00u, 0x3E80u, 0x3EC0u, 0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, /* [  0..  7] */
-        0x3F80u, 0x3F90u, 0x3FA0u, 0x3FB0u, 0x3FC0u, 0x3FD0u, 0x3FE0u, 0x3FF0u, /* [  8.. 15] */
-        0x4000u, 0x4010u, 0x4020u, 0x4030u, 0x4040u, 0x4050u, 0x4060u, 0x4070u, /* [ 16.. 23] */
-        0x4080u, 0x4090u, 0x40A0u, 0x40B0u, 0x40C0u, 0x40D0u, 0x40E0u, 0x40F0u  /* [ 24.. 31] */
-    };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
+    // Integer-add: shift 5-bit magnitude, add (127-1)<<23 for correct f32 bits
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3F000000, vector_length));
+    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e2m3_sub_lut_[8] = {0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,
+                                                 0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e2m3_sub_lut_, 8);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Truncate f32 → bf16 (right shift 16, exact for all e2m3 values)
+    vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);
-    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e2m3_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    // Restore sign: bit 5 → bf16 bit 15 (<<10)
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
                                                    vector_length);
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e3m2 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → bf16 bit 15 (<<10). */
+/** @brief Convert e3m2 (m1) to bf16 (m2) via Giesen-inspired integer-add.
+ *  Integer-add to f32, truncate upper 16 bits to bf16. No inf/NaN in e3m2. */
 NK_INTERNAL vuint16m2_t nk_e3m2m1_to_bf16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
-    static nk_u16_t const nk_e3m2_mag_to_bf16_lut_[32] = {
-        0x0000u, 0x3D80u, 0x3E00u, 0x3E40u, 0x3E80u, 0x3EA0u, 0x3EC0u, 0x3EE0u, /* [  0..  7] */
-        0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, 0x3F80u, 0x3FA0u, 0x3FC0u, 0x3FE0u, /* [  8.. 15] */
-        0x4000u, 0x4020u, 0x4040u, 0x4060u, 0x4080u, 0x40A0u, 0x40C0u, 0x40E0u, /* [ 16.. 23] */
-        0x4100u, 0x4120u, 0x4140u, 0x4160u, 0x4180u, 0x41A0u, 0x41C0u, 0x41E0u  /* [ 24.. 31] */
-    };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
+    // Integer-add: shift 5-bit magnitude, add (127-3)<<23 for correct f32 bits
+    vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
+    vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
+    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3E000000, vector_length));
+    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
+    static nk_u32_t const nk_e3m2_sub_lut_[4] = {0x00000000, 0x3D800000, 0x3E000000, 0x3E400000};
+    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
+    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e3m2_sub_lut_, 4);
+    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
+        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
+                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
+                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Truncate f32 → bf16 (right shift 16, exact for all e3m2 values)
+    vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);
-    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    // Restore sign: bit 5 → bf16 bit 15 (<<10)
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
                                                    vector_length);
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
@@ -438,8 +444,8 @@ NK_INTERNAL vuint16m2_t nk_e4m3m1_to_f16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t 
         0x5C00u, 0x5C80u, 0x5D00u, 0x5D80u, 0x5E00u, 0x5E80u, 0x5F00u, 0x7E00u  /* [120..127] */
     };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(nonsign_u8m1, vector_length), 1,
                                                       vector_length);
     vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e4m3_mag_to_f16_lut_, offsets_u16m2, vector_length);
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
@@ -455,8 +461,8 @@ NK_INTERNAL vuint16m2_t nk_e2m3m1_to_f16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t 
         0x4400u, 0x4480u, 0x4500u, 0x4580u, 0x4600u, 0x4680u, 0x4700u, 0x4780u  /* [ 24.. 31] */
     };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(nonsign_u8m1, vector_length), 1,
                                                       vector_length);
     vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e2m3_mag_to_f16_lut_, offsets_u16m2, vector_length);
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
@@ -473,8 +479,8 @@ NK_INTERNAL vuint16m2_t nk_e3m2m1_to_f16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t 
         0x4800u, 0x4900u, 0x4A00u, 0x4B00u, 0x4C00u, 0x4D00u, 0x4E00u, 0x4F00u  /* [ 24.. 31] */
     };
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
-    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
-    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+    vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(nonsign_u8m1, vector_length), 1,
                                                       vector_length);
     vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_mag_to_f16_lut_, offsets_u16m2, vector_length);
     vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,

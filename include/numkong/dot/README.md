@@ -188,24 +188,26 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dot_f16_haswell`    |       30.6 gb/s, 7.0 ulp |      23.3 gb/s, 14.0 ulp |      20.0 gb/s, 29.8 ulp |
 | `nk_dot_f16_skylake`    |       54.4 gb/s, 6.2 ulp |       31.4 gb/s, 8.6 ulp |      30.0 gb/s, 22.8 ulp |
 | __e5m2__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e5m2_serial`    |         1.99 gb/s, 0 ulp |         2.11 gb/s, 0 ulp |         2.13 gb/s, 0 ulp |
-| `nk_dot_e5m2_haswell`   |         4.90 gb/s, 0 ulp |         4.87 gb/s, 0 ulp |         4.56 gb/s, 0 ulp |
-| `nk_dot_e5m2_skylake`   |         6.34 gb/s, 0 ulp |         6.45 gb/s, 0 ulp |         6.17 gb/s, 0 ulp |
-| `nk_dot_e5m2_genoa`     |         12.6 gb/s, 0 ulp |         12.7 gb/s, 0 ulp |         12.8 gb/s, 0 ulp |
+| `nk_dot_e5m2_serial`    |         1.69 gb/s, 0 ulp |         1.83 gb/s, 0 ulp |         1.94 gb/s, 0 ulp |
+| `nk_dot_e5m2_haswell`   |         5.50 gb/s, 0 ulp |         5.21 gb/s, 0 ulp |         5.31 gb/s, 0 ulp |
+| `nk_dot_e5m2_skylake`   |         6.89 gb/s, 0 ulp |         6.98 gb/s, 0 ulp |         7.05 gb/s, 0 ulp |
+| `nk_dot_e5m2_genoa`     |         11.6 gb/s, 0 ulp |         12.0 gb/s, 0 ulp |         11.7 gb/s, 0 ulp |
 | __e4m3__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e4m3_serial`    |        0.797 gb/s, 0 ulp |        0.801 gb/s, 0 ulp |        0.816 gb/s, 0 ulp |
-| `nk_dot_e4m3_haswell`   |         3.25 gb/s, 0 ulp |         3.25 gb/s, 0 ulp |         2.53 gb/s, 0 ulp |
-| `nk_dot_e4m3_skylake`   |         4.99 gb/s, 0 ulp |         5.03 gb/s, 0 ulp |         4.94 gb/s, 0 ulp |
-| `nk_dot_e4m3_genoa`     |         12.4 gb/s, 0 ulp |         13.0 gb/s, 0 ulp |         12.7 gb/s, 0 ulp |
+| `nk_dot_e4m3_serial`    |        0.701 gb/s, 0 ulp |        0.644 gb/s, 0 ulp |        0.749 gb/s, 0 ulp |
+| `nk_dot_e4m3_haswell`   |         5.03 gb/s, 0 ulp |         4.84 gb/s, 0 ulp |         4.80 gb/s, 0 ulp |
+| `nk_dot_e4m3_skylake`   |         6.88 gb/s, 0 ulp |         7.05 gb/s, 0 ulp |         7.19 gb/s, 0 ulp |
+| `nk_dot_e4m3_genoa`     |         11.2 gb/s, 0 ulp |         12.1 gb/s, 0 ulp |         12.1 gb/s, 0 ulp |
 | __e3m2__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e3m2_serial`    |         2.02 gb/s, 0 ulp |         2.08 gb/s, 0 ulp |         2.14 gb/s, 0 ulp |
-| `nk_dot_e3m2_haswell`   |         11.9 gb/s, 0 ulp |         12.0 gb/s, 0 ulp |         11.5 gb/s, 0 ulp |
-| `nk_dot_e3m2_icelake`   |         22.6 gb/s, 0 ulp |         24.1 gb/s, 0 ulp |         22.5 gb/s, 0 ulp |
+| `nk_dot_e3m2_serial`    |         1.63 gb/s, 0 ulp |         1.76 gb/s, 0 ulp |         1.92 gb/s, 0 ulp |
+| `nk_dot_e3m2_haswell`   |         12.5 gb/s, 0 ulp |         11.8 gb/s, 0 ulp |         11.9 gb/s, 0 ulp |
+| `nk_dot_e3m2_skylake`   |         21.0 gb/s, 0 ulp |         21.3 gb/s, 0 ulp |         21.4 gb/s, 0 ulp |
+| `nk_dot_e3m2_icelake`   |         20.9 gb/s, 0 ulp |         22.5 gb/s, 0 ulp |         22.5 gb/s, 0 ulp |
 | __e2m3__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e2m3_serial`    |         2.07 gb/s, 0 ulp |         2.05 gb/s, 0 ulp |         2.14 gb/s, 0 ulp |
-| `nk_dot_e2m3_haswell`   |         20.0 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |         18.7 gb/s, 0 ulp |
-| `nk_dot_e2m3_icelake`   |         56.9 gb/s, 0 ulp |         43.1 gb/s, 0 ulp |         30.1 gb/s, 0 ulp |
-| `nk_dot_e2m3_alder`     |         29.8 gb/s, 0 ulp |         30.2 gb/s, 0 ulp |         25.6 gb/s, 0 ulp |
+| `nk_dot_e2m3_serial`    |         1.57 gb/s, 0 ulp |         1.75 gb/s, 0 ulp |         2.04 gb/s, 0 ulp |
+| `nk_dot_e2m3_haswell`   |         20.5 gb/s, 0 ulp |         18.7 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |
+| `nk_dot_e2m3_skylake`   |         34.5 gb/s, 0 ulp |         28.9 gb/s, 0 ulp |         26.6 gb/s, 0 ulp |
+| `nk_dot_e2m3_icelake`   |         56.4 gb/s, 0 ulp |         39.2 gb/s, 0 ulp |         30.1 gb/s, 0 ulp |
+| `nk_dot_e2m3_alder`     |         25.8 gb/s, 0 ulp |         27.4 gb/s, 0 ulp |         27.1 gb/s, 0 ulp |
 | __i8__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_i8_serial`      |                17.4 gb/s |                17.2 gb/s |                16.0 gb/s |
 | `nk_dot_i8_haswell`     |                33.4 gb/s |                23.5 gb/s |                24.9 gb/s |
