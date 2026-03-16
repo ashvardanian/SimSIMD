@@ -119,8 +119,8 @@ For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} -
 
 ### Widening Chains on RISC-V
 
-`nk_dot_i8_rvv`, `nk_dot_u8_rvv` use `vwmul` for $\text{Int8} \times \text{Int8} \to \text{Int16}$ widening multiply followed by `vwadd` to widen-accumulate into Int32 — a two-stage chain that naturally prevents overflow.
-`nk_dot_bf16_rvvbf16` uses the Zvfbfwma extension's `vfwmaccbf16` for fused $\text{BFloat16} \times \text{BFloat16} \to \text{Float32}$ widening multiply-accumulate.
+`nk_dot_i8_rvv`, `nk_dot_u8_rvv` use `vwmul` for Int8 × Int8 → Int16 widening multiply followed by `vwadd` to widen-accumulate into Int32 — a two-stage chain that naturally prevents overflow.
+`nk_dot_bf16_rvvbf16` uses the Zvfbfwma extension's `vfwmaccbf16` for fused BFloat16 × BFloat16 → Float32 widening multiply-accumulate.
 `nk_dot_e4m3_rvvbf16`, `nk_dot_e5m2_rvvbf16` convert Float8 to BFloat16 via 256-entry LUTs, then feed the same `vfwmaccbf16` path.
 
 ## Performance

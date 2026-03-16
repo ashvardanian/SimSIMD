@@ -50,7 +50,7 @@ def dots_symmetric(a: np.ndarray) -> np.ndarray:
 
 `nk_dots_pack_f32_serial`, `nk_dots_pack_f32_haswell`, `nk_dots_pack_bf16_haswell`, `nk_dots_pack_i8_haswell` pre-pack the B matrix into a contiguous buffer optimized for streaming access during GEMM.
 Power-of-2 stride detection — when `stride_bytes & (stride_bytes - 1) == 0` — adds `depth_simd_dimensions` padding to avoid cache associativity conflicts on set-associative caches.
-Type conversion is amortized into the pack step: $\text{BFloat16} \to \text{Float32}$, $\text{Float16} \to \text{Float32}$, and $\text{Float8} \to \text{Float32}$ conversions happen once during packing instead of per-row during GEMM.
+Type conversion is amortized into the pack step: BFloat16 → Float32, Float16 → Float32, and Float8 → Float32 conversions happen once during packing instead of per-row during GEMM.
 A 64-byte header stores metadata: column count, depth dimensions, and padded depth.
 Row grouping (`group_size=16`) zero-pads partial groups at matrix edges for uniform SIMD processing.
 
@@ -82,7 +82,7 @@ This avoids explicit transpose operations — the tile's 2D addressing provides 
 ZA1–ZA3 serve as accumulators while ZA0 stages the next data.
 A 3-column-tile fast path handles B column count ≤ 3×SVL using ZA1–ZA3 as three separate accumulator tiles, avoiding spill/reload cycles.
 For wider B, the kernel falls back to multi-pass accumulation with ZA store/load between passes.
-`BFMOPA` for BFloat16 uses the same outer-product pattern but with $\text{BFloat16} \to \text{Float32}$ widening — 2× the depth per instruction vs Float32 `FMOPA`.
+`BFMOPA` for BFloat16 uses the same outer-product pattern but with BFloat16 → Float32 widening — 2× the depth per instruction vs Float32 `FMOPA`.
 `SMSTART`/`SMSTOP` streaming mode transitions cost ~50–100 cycles, amortized across the full M×N output.
 Ozaki splitting for Float64 (`nk_dots_packed_f64_smef64`) splits each Float64 into 3 mantissa-masked Float32 slices, computes 6 FMOPAs (all cross-products of 3×2 slices) into 3 ZA accumulators, then reconstructs the Float64 result — achieving Float64 precision using Float32 tile hardware.
 
@@ -125,7 +125,7 @@ This design decouples the GEMM loop from the distance metric: the same tiled acc
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for products of two square matrices.
 Columns show throughput for 256³, 1024³, and 4096³ matrix products.
-The throughput is measured in GSO/s as Giga Scalar Operations per Second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ arithmetic complexity for an $M \times K$ by $K \times N$ product.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second, with `ops = 2 · M · N · K` arithmetic complexity for an M × K by K × N product.
 Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
 Rows marked `🧩` use external BLAS or MKL baselines rather than NumKong kernels.
 Each kernel runs for at least 20 seconds per configuration.

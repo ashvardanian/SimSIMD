@@ -54,7 +54,7 @@ By inclusion-exclusion, $|A \cup B| = |A| + |B| - |A \cap B|$.
 Hamming distance counts positions where exactly one bit is set: $D_H = |A| + |B| - 2|A \cap B| = \text{popcount}(a \oplus b)$.
 Finalizer `nk_hamming_u32x4_from_dot_serial_` computes `pop_a + pop_b - 2 * dot` in pure UInt32 arithmetic — no division, no float conversion, no sqrt.
 Jaccard distance: $D_J = 1 - \frac{|A \cap B|}{|A \cup B|} = 1 - \frac{\text{dot}}{\text{pop}_a + \text{pop}_b - \text{dot}}$.
-Finalizer `nk_jaccard_f32x4_from_dot_serial_` requires $\text{UInt32} \to \text{Float32}$ cast plus Float32 division (~11cy latency on Haswell), making it ~3× more expensive per element than Hamming's integer subtraction chain.
+Finalizer `nk_jaccard_f32x4_from_dot_serial_` requires UInt32 → Float32 cast plus Float32 division (~11cy latency on Haswell), making it ~3× more expensive per element than Hamming's integer subtraction chain.
 Per-column popcount norms ($\|a\|_1$, $\|b\|_1$) are precomputed during packing and stored in packed buffer metadata, avoiding per-pair recomputation.
 
 ### SME Binary Outer-Product Accumulation

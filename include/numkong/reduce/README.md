@@ -92,7 +92,7 @@ SIMD backends (`nk_reduce_moments_f32_haswell`) carry 8 independent compensation
 `nk_reduce_moments_f32_haswell`, `nk_reduce_moments_f64_skylake` compute sum and sum-of-squares simultaneously — one load feeds both a `VADDPS` (sum accumulator) and a `VFMADD231PS` (square accumulator).
 Two accumulators share the same loaded data, halving memory bandwidth compared to separate sum + norm passes.
 The squared-norm $\|a\|^2 = \sum a_i^2$ is a self-dot-product, reused by packing routines (`nk_dots_pack_f32_haswell`) to precompute per-vector norms during layout transformation.
-For Float16/BFloat16/Float8 inputs, all backends widen to Float32 before accumulation — NEON FHM (`nk_reduce_moments_e4m3_neonfhm`) converts e4m3->f16 via lookup, then uses `vfmlalq_low_f16` to fuse the $\text{Float16} \to \text{Float32}$ widening with the FMA into the Float32 accumulator.
+For Float16/BFloat16/Float8 inputs, all backends widen to Float32 before accumulation — NEON FHM (`nk_reduce_moments_e4m3_neonfhm`) converts e4m3->f16 via lookup, then uses `vfmlalq_low_f16` to fuse the Float16 → Float32 widening with the FMA into the Float32 accumulator.
 
 ### Integer Saturation in Sum-of-Squares
 

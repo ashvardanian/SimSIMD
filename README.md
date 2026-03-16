@@ -7,9 +7,9 @@ Over 1500 hand-tuned SIMD kernels for x86, Arm, RISC-V, and WASM power [Unum](ht
 
 ## Latency, Throughput, & Numerical Stability Together in a Tiny Package
 
-Most libraries return dot products in the __same type as the input__ — $\text{Float16} \times \text{Float16} \to \text{Float16}$, $\text{Int8} \times \text{Int8} \to \text{Int8}$.
+Most libraries return dot products in the __same type as the input__ — Float16 × Float16 → Float16, Int8 × Int8 → Int8.
 That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
-NumKong promotes to wider accumulators — $\text{Float16} \to \text{Float32}$, $\text{BFloat16} \to \text{Float32}$, $\text{Int8} \to \text{Int32}$, $\text{Float32} \to \text{Float64}$ — so results never overflow, and it's still faster.
+NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results never overflow, and it's still faster.
 
 > Single 2048-d dot product on Intel Sapphire Rapids (Xeon 8468), single-threaded, CPU-only packages.
 > Each cell shows __gso/s, mean relative error__ vs higher-precision reference.
@@ -377,32 +377,39 @@ NumKong's Float8 types (E4M3/E5M2) upcast to BFloat16 before using DPBF16PS, cre
 
 __Float16__ — IEEE 754 half-precision with 1 sign bit, 5 exponent bits (bias=15), and 10 mantissa bits, giving a range of ±65504.
 Float16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it better suited for values near zero and gradients during training.
-On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast $\text{Float16} \to \text{Float32}$ conversion; Sapphire Rapids+ adds native __AVX-512-FP16__ with dedicated Float16 arithmetic.
-On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused $\text{Float16} \to \text{Float32}$ widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
+On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast Float16 → Float32 conversion; Sapphire Rapids+ adds native __AVX-512-FP16__ with dedicated Float16 arithmetic.
+On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
 
-| Platform              | BFloat16 Instruction | Float16 Instruction | Elements/Cycle |
-| --------------------- | -------------------- | ------------------- | -------------: |
-| Intel Sapphire Rapids | DPBF16PS             | VFMADD213PH         |             32 |
-| AMD Genoa             | DPBF16PS             | —                   |             32 |
-| AWS Graviton 3        | BFDOT                | FMLAL               |              8 |
-| Intel Haswell         | Shift → FMA          | F16C → FMA          |              8 |
+| Platform               | BFloat16 Path            | Elem/Op | Float16 Path           | Elem/Op |
+| ---------------------- | ------------------------ | ------: | ---------------------- | ------: |
+| __x86__                |                          |         |                        |         |
+| Sapphire Rapids (2023) | ↓ Genoa                  |      32 | ↓ Skylake              |      16 |
+| Genoa (2022)           | `VDPBF16PS` widening dot |      32 | ↓ Skylake              |      16 |
+| Skylake (2015)         | `SLLI` + `VFMADD`        |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
+| Haswell (2013)         | `SLLI` + `VFMADD`        |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
+| __Arm__                |                          |         |                        |         |
+| Graviton 3 (2021)      | `BFDOT` widening dot     |       8 | `SVCVT` → `SVFMLA`     |    4–32 |
+| Apple M2+ (2022)       | `BFDOT` widening dot     |       8 | ↓ FP16FML              |       8 |
+| Apple M1 (2020)        | ↓ NEON                   |       8 | `FMLAL` widening FMA   |       8 |
+| Graviton 2 (2019)      | ↓ NEON                   |       8 | `FCVTL` + `FMLA`       |       4 |
+| Graviton 1 (2018)      | `SHLL` + `FMLA`          |       8 | —                      |       — |
 
-```c
-// ARM NEON: FMLAL widening multiply-accumulate (4cy latency)
-float32x4_t acc = vfmlalq_low_f16(acc, a_f16x8, b_f16x8);   // Elements 0-3
-acc = vfmlalq_high_f16(acc, a_f16x8, b_f16x8);  // Elements 4-7
-```
+> BFloat16 shares Float32's 8-bit exponent, so upcasting is a 16-bit left shift (`SLLI` on x86, `SHLL` on Arm) that zero-pads the truncated mantissa — essentially free.
+> Float16 has a different exponent width (5 vs 8 bits), requiring a dedicated convert: `VCVTPH2PS` (x86 F16C) or `FCVTL` (Arm NEON).
+> Widening dot products (`VDPBF16PS`, `BFDOT`, `FMLAL`) fuse the conversion and multiply-accumulate into one instruction.
+> Sapphire Rapids has native `VFMADDPH` for Float16 arithmetic, but NumKong does not use it for general dot products — Float16 accumulation loses precision.
+> It is only used for mini-float (E2M3/E3M2) paths where periodic flush-to-Float32 windows keep error bounded.
 
 ### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
 
-| Format                    |          Bits |   Range | Mantissa | NumKong Strategy                              | Support in GPUs           |
-| ------------------------- | ------------: | ------: | -------: | --------------------------------------------- | ------------------------- |
-| E4M3FN                    |             8 |    ±448 |   3 bits | BFloat16 → Float32                            | H100, B200, MI300, MI325  |
-| E5M2FN                    |             8 | ±57 344 |   2 bits | BFloat16 → Float32                            | H100, B200, MI300, MI325  |
-| E3M2FN                    | 6 padded to 8 |     ±28 |   2 bits | BFloat16 & Float16 → Float32 or Int16 → Int32 | only block-scaled support |
-| E2M3FN                    | 6 padded to 8 |    ±7.5 |   3 bits | BFloat16 & Float16 → Float32 or Int8 → Int32  | only block-scaled support |
-| Block-scaled NVFP4        |             4 |      ±6 |    1 bit | —                                             | B200                      |
-| Block-scaled MXFP4 / E2M1 |             4 |      ±6 |    1 bit | —                                             | B200, MI325               |
+| Format                    |  Bits |  Range | NumKong Promotion Strategy                  | Support in GPUs           |
+| ------------------------- | ----: | -----: | ------------------------------------------- | ------------------------- |
+| E5M2FN                    |     8 | ±57344 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
+| E4M3FN                    |     8 |   ±448 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
+| E3M2FN                    | 6 → 8 |    ±28 | BFloat16 & Float16 → Float32, Int16 → Int32 | only block-scaled support |
+| E2M3FN                    | 6 → 8 |   ±7.5 | BFloat16 & Float16 → Float32, Int8 → Int32  | only block-scaled support |
+| Block-scaled NVFP4        |     4 |     ±6 | —                                           | B200                      |
+| Block-scaled MXFP4 / E2M1 |     4 |     ±6 | —                                           | B200, MI325               |
 
 > __Block scaling.__
 > NumKong does not implement block-scaled variants (MXFP4, NVFP4, or block-scaled E3M2/E2M3).
