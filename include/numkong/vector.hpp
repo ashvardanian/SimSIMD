@@ -64,6 +64,11 @@ struct aligned_allocator {
     using propagate_on_container_move_assignment = std::true_type;
     using is_always_equal = std::true_type;
 
+    template <typename other_type_>
+    struct rebind {
+        using other = aligned_allocator<other_type_, alignment_>;
+    };
+
     static constexpr std::size_t alignment = alignment_;
 
     constexpr aligned_allocator() noexcept = default;

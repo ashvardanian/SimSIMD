@@ -315,7 +315,7 @@ And heterogenous index types for `operator[]` enable more interesting access pat
 #include <numkong/numkong.hpp>
 
 namespace nk = ashvardanian::numkong;
-using nk::slice, nk::all, nk::index, nk::f32_t, nk::tensor, nk::tensor_view;
+using nk::slice, nk::all, nk::f32_t, nk::tensor, nk::tensor_view;
 
 auto t = tensor<f32_t>::try_from({
     {1, 2, 3},
@@ -337,8 +337,8 @@ You can also use a more traditional syntax with member functions, also leveragin
 Similar to NumPy, but statically typed:
 
 ```cpp
-auto col1 = t.cview().slice({all, index(1)});   // strided column view → {2, 5, 8}
-auto idx = col1.argmin();                       // index of the minimum in the second column
+auto first_column = t[all, 1, slice];             // strided column view → {2, 5, 8}
+auto minimum_index = nk::argmin(first_column);    // index of the minimum in the second column
 ```
 
 The view types are conceptually close to `std::mdspan` from C++23.
@@ -500,12 +500,12 @@ The library is designed to sit inside a larger scheduler.
 GEMM-like packed work is usually partitioned across row ranges of `A` against one shared packed `B`:
 
 ```cpp
-using nk::range, nk::all;
+using nk::range, nk::all, nk::slice;
 fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
     auto start = t * rows_per_worker;
     auto stop = std::min(start + rows_per_worker, total_rows);
-    auto a_slice = a[range(start, stop), all].as_matrix_view();
-    auto c_slice = c[range(start, stop), all].as_matrix_span();
+    auto a_slice = a[range(start, stop), all, slice].as_matrix_view();
+    auto c_slice = c[range(start, stop), all, slice].as_matrix_span();
     nk::dots_packed<value_type_>(a_slice, packed, c_slice);
 });
 ```

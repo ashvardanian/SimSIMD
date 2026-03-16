@@ -32,6 +32,7 @@
 #include <cstdlib> // `std::abort`
 #include <cstring> // `std::memset`
 #include <span>    // `std::span`
+#include <tuple>   // `std::tuple_element_t`
 #include <type_traits>
 
 #include "vector.hpp" // `aligned_allocator`
@@ -56,6 +57,12 @@ struct trailing_tensor_slice_args_<tensor_slice_t> : std::true_type {};
 
 template <std::integral index_type_, typename... rest_types_>
 struct trailing_tensor_slice_args_<index_type_, rest_types_...> : trailing_tensor_slice_args_<rest_types_...> {};
+
+template <typename... rest_types_>
+struct trailing_tensor_slice_args_<all_t, rest_types_...> : trailing_tensor_slice_args_<rest_types_...> {};
+
+template <typename... rest_types_>
+struct trailing_tensor_slice_args_<range, rest_types_...> : trailing_tensor_slice_args_<rest_types_...> {};
 
 template <typename... arg_types_>
 inline constexpr bool trailing_tensor_slice_args_v =
@@ -193,6 +200,12 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, tensor_slice_t) noexcept;
 template <typename tensor_type_, std::integral index_type_, typename... rest_types_>
 tensor_type_ tensor_slice_suffix_(tensor_type_ input, index_type_ idx, rest_types_... rest) noexcept;
 
+template <typename tensor_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, all_t, rest_types_... rest) noexcept;
+
+template <typename tensor_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... rest) noexcept;
+
 #pragma endregion - Shape Storage
 
 #pragma region - Tensor View
@@ -220,6 +233,14 @@ struct tensor_view {
 
     constexpr tensor_view(char const *data, shape_storage_<max_rank_> const &shape) noexcept
         : data_(data), shape_(shape) {}
+
+    /** @brief Convenience constructor for rank-2 views from typed pointer, rows, and cols. */
+    tensor_view(value_type const *data, size_type rows, size_type cols) noexcept
+        requires(max_rank_ >= 2)
+        : data_(reinterpret_cast<char const *>(data)) {
+        std::size_t extents[2] = {rows, cols};
+        shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents, 2);
+    }
 
     /** @brief Number of dimensions. */
     constexpr size_type rank() const noexcept { return shape_.rank; }
@@ -259,6 +280,12 @@ struct tensor_view {
             sub.strides[d] = shape_.strides[d + 1];
         }
         return {data_ + offset, sub};
+    }
+
+    /** @brief Row access (alias for slice_leading). */
+    template <std::integral index_type_>
+    tensor_view<value_type_, max_rank_> row(index_type_ i) const noexcept {
+        return slice_leading(i);
     }
 
     /** @brief Rank-0 scalar access. */
@@ -399,6 +426,14 @@ struct tensor_span {
 
     constexpr tensor_span(char *data, shape_storage_<max_rank_> const &shape) noexcept : data_(data), shape_(shape) {}
 
+    /** @brief Convenience constructor for rank-2 spans from typed pointer, rows, and cols. */
+    tensor_span(value_type *data, size_type rows, size_type cols) noexcept
+        requires(max_rank_ >= 2)
+        : data_(reinterpret_cast<char *>(data)) {
+        std::size_t extents[2] = {rows, cols};
+        shape_ = make_contiguous_shape_<value_type_, max_rank_>(extents, 2);
+    }
+
     /** @brief Number of dimensions. */
     constexpr size_type rank() const noexcept { return shape_.rank; }
     /** @brief Extent along the i-th dimension. */
@@ -438,6 +473,12 @@ struct tensor_span {
             sub.strides[d] = shape_.strides[d + 1];
         }
         return {data_ + offset, sub};
+    }
+
+    /** @brief Mutable row access (alias for slice_leading). */
+    template <std::integral index_type_>
+    tensor_span row(index_type_ i) const noexcept {
+        return slice_leading(i);
     }
 
     /** @brief Flat logical scalar access. */
@@ -720,6 +761,92 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, index_type_ idx, rest_type
     return tensor_slice_suffix_(input.slice_leading(idx), rest...);
 }
 
+template <typename tensor_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, all_t, rest_types_... rest) noexcept {
+    // `all` keeps the leading dimension intact — apply remaining args to inner dimensions.
+    if (input.rank() == 0) return {};
+    using size_type = typename tensor_type_::size_type;
+    using difference_type = typename tensor_type_::difference_type;
+    using shape_type = std::remove_cvref_t<decltype(input.shape())>;
+
+    auto leading_extent = input.extent(0);
+    auto leading_stride = input.stride_bytes(0);
+
+    // Slice the first row to discover the resulting sub-shape.
+    auto first_row = input.slice_leading(static_cast<size_type>(0));
+    auto inner = tensor_slice_suffix_(first_row, rest...);
+
+    // Build the output shape: leading dimension + inner dimensions.
+    shape_type result_shape;
+    result_shape.rank = 1 + inner.rank();
+    result_shape.extents[0] = leading_extent;
+    result_shape.strides[0] = leading_stride;
+    for (size_type d = 0; d < inner.rank(); ++d) {
+        result_shape.extents[1 + d] = inner.extent(d);
+        result_shape.strides[1 + d] = inner.stride_bytes(d);
+    }
+
+    // The data pointer is the inner slice's offset relative to the first row,
+    // applied to the original data pointer.
+    using byte_ptr = decltype(input.byte_data());
+    auto inner_byte_offset = inner.byte_data() - first_row.byte_data();
+    return {const_cast<byte_ptr>(input.byte_data() + inner_byte_offset), result_shape};
+}
+
+template <typename tensor_type_, typename... rest_types_>
+tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... rest) noexcept {
+    if (input.rank() == 0) return {};
+    using size_type = typename tensor_type_::size_type;
+    using difference_type = typename tensor_type_::difference_type;
+    using shape_type = std::remove_cvref_t<decltype(input.shape())>;
+
+    auto leading_extent = input.extent(0);
+    auto leading_stride = input.stride_bytes(0);
+    auto start = resolve_index_(r.start, leading_extent);
+    auto stop = resolve_index_(r.stop, leading_extent);
+    auto step = r.step;
+    if (start >= stop || step <= 0) return {};
+
+    auto range_extent = static_cast<size_type>((stop - start + static_cast<size_type>(step) - 1) /
+                                               static_cast<size_type>(step));
+    auto range_stride = leading_stride * static_cast<difference_type>(step);
+    auto data_offset = static_cast<difference_type>(start) * leading_stride;
+
+    if constexpr (sizeof...(rest_types_) == 1 &&
+                  std::is_same_v<std::tuple_element_t<0, std::tuple<std::remove_cvref_t<rest_types_>...>>,
+                                 tensor_slice_t>) {
+        // Fast path: range followed by just `slice` — no inner recursion needed.
+        shape_type result_shape;
+        result_shape.rank = input.rank();
+        result_shape.extents[0] = range_extent;
+        result_shape.strides[0] = range_stride;
+        for (size_type d = 1; d < input.rank(); ++d) {
+            result_shape.extents[d] = input.extent(d);
+            result_shape.strides[d] = input.stride_bytes(d);
+        }
+        using byte_ptr = decltype(input.byte_data());
+        return {const_cast<byte_ptr>(input.byte_data() + data_offset), result_shape};
+    }
+    else {
+        // General path: recurse into inner dimensions (like `all_t` but with narrowed leading).
+        auto first_row = input.slice_leading(static_cast<size_type>(start));
+        auto inner = tensor_slice_suffix_(first_row, rest...);
+
+        shape_type result_shape;
+        result_shape.rank = 1 + inner.rank();
+        result_shape.extents[0] = range_extent;
+        result_shape.strides[0] = range_stride;
+        for (size_type d = 0; d < inner.rank(); ++d) {
+            result_shape.extents[1 + d] = inner.extent(d);
+            result_shape.strides[1 + d] = inner.stride_bytes(d);
+        }
+
+        using byte_ptr = decltype(input.byte_data());
+        auto inner_byte_offset = inner.byte_data() - first_row.byte_data();
+        return {const_cast<byte_ptr>(input.byte_data() + data_offset + inner_byte_offset), result_shape};
+    }
+}
+
 #pragma region - Axis Iterator
 
 /**
@@ -969,6 +1096,44 @@ struct tensor {
     }
 
     /**
+     *  @brief Factory: create a rank-1 tensor from an initializer list of values.
+     *  @param values Values to fill the tensor with.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on failure.
+     */
+    [[nodiscard]] static tensor try_from(std::initializer_list<value_type_> values,
+                                         allocator_type_ alloc = {}) noexcept {
+        tensor t = try_empty({values.size()}, alloc);
+        if (t.empty()) return t;
+        size_type index = 0;
+        for (auto const &value : values) t.data_[index++] = value;
+        return t;
+    }
+
+    /**
+     *  @brief Factory: create a rank-2 tensor from a nested initializer list.
+     *  @param rows Each inner list is a row. All rows must have the same length.
+     *  @param alloc Allocator instance.
+     *  @return Non-empty tensor on success, empty on ragged input or allocation failure.
+     */
+    [[nodiscard]] static tensor try_from(std::initializer_list<std::initializer_list<value_type_>> rows,
+                                         allocator_type_ alloc = {}) noexcept
+        requires(max_rank_ >= 2)
+    {
+        auto num_rows = rows.size();
+        if (num_rows == 0) return tensor(alloc);
+        auto num_cols = rows.begin()->size();
+        for (auto const &row : rows)
+            if (row.size() != num_cols) return tensor(alloc);
+        tensor t = try_empty({num_rows, num_cols}, alloc);
+        if (t.empty()) return t;
+        size_type index = 0;
+        for (auto const &row : rows)
+            for (auto const &value : row) t.data_[index++] = value;
+        return t;
+    }
+
+    /**
      *  @brief Factory: adopt raw memory.
      */
     [[nodiscard]] static tensor from_raw(pointer ptr, shape_storage_<max_rank_> const &shape,
@@ -1069,6 +1234,18 @@ struct tensor {
     template <std::integral index_type_>
     span_type slice_leading(index_type_ idx) noexcept {
         return span().slice_leading(idx);
+    }
+
+    /** @brief Row access (immutable view, alias for slice_leading). */
+    template <std::integral index_type_>
+    view_type row(index_type_ i) const noexcept {
+        return view().slice_leading(i);
+    }
+
+    /** @brief Row access (mutable span, alias for slice_leading). */
+    template <std::integral index_type_>
+    span_type row(index_type_ i) noexcept {
+        return span().slice_leading(i);
     }
 
     /** @brief Flat logical scalar access. */

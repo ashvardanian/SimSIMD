@@ -455,8 +455,9 @@ namespace ashvardanian::numkong {
 #pragma region - Concept-Constrained Symmetric Dot Products
 
 /** @brief C = A × Aᵀ where C[i,j] = ⟨A[i], A[j]⟩. */
-template <typename value_type_>
-bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_type_::dot_result_t> output) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::dot_result_t> output_matrix_>
+bool dots_symmetric(input_matrix_ const &input, output_matrix_ &&output) noexcept {
     std::size_t num_vectors = input.extent(0);
     if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
     numkong::dots_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
@@ -466,9 +467,10 @@ bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_t
 }
 
 /** @brief Partitioned symmetric dot products for parallel row-range work. */
-template <typename value_type_>
-bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_type_::dot_result_t> output,
-                    std::size_t row_start, std::size_t row_count) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::dot_result_t> output_matrix_>
+bool dots_symmetric(input_matrix_ const &input, output_matrix_ output, std::size_t row_start,
+                    std::size_t row_count) noexcept {
     std::size_t num_vectors = input.extent(0);
     if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
     numkong::dots_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
@@ -478,10 +480,11 @@ bool dots_symmetric(matrix_view<value_type_> input, matrix_span<typename value_t
 }
 
 /** @brief Allocating symmetric dot products: C = A × Aᵀ. */
-template <typename value_type_>
-matrix<typename value_type_::dot_result_t> try_dots_symmetric(matrix_view<value_type_> input) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::dot_result_t>>
+matrix<typename value_type_::dot_result_t, allocator_type_> try_dots_symmetric(input_matrix_ const &input) noexcept {
     using result_t = typename value_type_::dot_result_t;
-    using out_tensor_t = matrix<result_t>;
+    using out_tensor_t = matrix<result_t, allocator_type_>;
     if (input.empty()) return out_tensor_t {};
     std::size_t num_vectors = input.extent(0);
     auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
@@ -491,9 +494,9 @@ matrix<typename value_type_::dot_result_t> try_dots_symmetric(matrix_view<value_
 }
 
 /** @brief Symmetric Hamming distances: C[i,j] = hamming(A[i], A[j]). */
-template <typename value_type_>
-bool hammings_symmetric(matrix_view<value_type_> input,
-                        matrix_span<typename value_type_::hamming_result_t> output) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::hamming_result_t> output_matrix_>
+bool hammings_symmetric(input_matrix_ const &input, output_matrix_ &&output) noexcept {
     std::size_t num_vectors = input.extent(0);
     if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
     numkong::hammings_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
@@ -503,10 +506,12 @@ bool hammings_symmetric(matrix_view<value_type_> input,
 }
 
 /** @brief Allocating symmetric Hamming distances. */
-template <typename value_type_>
-matrix<typename value_type_::hamming_result_t> try_hammings_symmetric(matrix_view<value_type_> input) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::hamming_result_t>>
+matrix<typename value_type_::hamming_result_t, allocator_type_> try_hammings_symmetric(
+    input_matrix_ const &input) noexcept {
     using result_t = typename value_type_::hamming_result_t;
-    using out_tensor_t = matrix<result_t>;
+    using out_tensor_t = matrix<result_t, allocator_type_>;
     if (input.empty()) return out_tensor_t {};
     std::size_t num_vectors = input.extent(0);
     auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
@@ -516,9 +521,9 @@ matrix<typename value_type_::hamming_result_t> try_hammings_symmetric(matrix_vie
 }
 
 /** @brief Symmetric Jaccard distances: C[i,j] = jaccard(A[i], A[j]). */
-template <typename value_type_>
-bool jaccards_symmetric(matrix_view<value_type_> input,
-                        matrix_span<typename value_type_::jaccard_result_t> output) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::jaccard_result_t> output_matrix_>
+bool jaccards_symmetric(input_matrix_ const &input, output_matrix_ &&output) noexcept {
     std::size_t num_vectors = input.extent(0);
     if (output.extent(0) != num_vectors || output.extent(1) != num_vectors) return false;
     numkong::jaccards_symmetric<value_type_>(input.data(), num_vectors, input.extent(1),
@@ -528,10 +533,12 @@ bool jaccards_symmetric(matrix_view<value_type_> input,
 }
 
 /** @brief Allocating symmetric Jaccard distances. */
-template <typename value_type_>
-matrix<typename value_type_::jaccard_result_t> try_jaccards_symmetric(matrix_view<value_type_> input) noexcept {
+template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::jaccard_result_t>>
+matrix<typename value_type_::jaccard_result_t, allocator_type_> try_jaccards_symmetric(
+    input_matrix_ const &input) noexcept {
     using result_t = typename value_type_::jaccard_result_t;
-    using out_tensor_t = matrix<result_t>;
+    using out_tensor_t = matrix<result_t, allocator_type_>;
     if (input.empty()) return out_tensor_t {};
     std::size_t num_vectors = input.extent(0);
     auto result = out_tensor_t::try_zeros({num_vectors, num_vectors});
@@ -545,9 +552,9 @@ matrix<typename value_type_::jaccard_result_t> try_jaccards_symmetric(matrix_vie
 #pragma region - Concept-Constrained Packed Dot Products
 
 /** @brief Packed dot products: C = A × B_packedᵀ. */
-template <typename value_type_, packed_matrix_like packed_type_>
-bool dots_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
-                 matrix_span<typename value_type_::dot_result_t> c) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::dot_result_t> output_matrix_>
+bool dots_packed(input_matrix_ const &a, packed_type_ const &packed_b, output_matrix_ &&c) noexcept {
     if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
     if (a.extent(1) != packed_b.depth()) return false;
     if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
@@ -558,11 +565,12 @@ bool dots_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
 }
 
 /** @brief Allocating packed dot products: C = A × B_packedᵀ. */
-template <typename value_type_, packed_matrix_like packed_type_>
-matrix<typename value_type_::dot_result_t> try_dots_packed(matrix_view<value_type_> a,
-                                                           packed_type_ const &packed_b) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::dot_result_t>>
+matrix<typename value_type_::dot_result_t, allocator_type_> try_dots_packed(input_matrix_ const &a,
+                                                                            packed_type_ const &packed_b) noexcept {
     using result_t = typename value_type_::dot_result_t;
-    using out_t = matrix<result_t>;
+    using out_t = matrix<result_t, allocator_type_>;
     if (packed_b.empty() || a.rank() < 2) return out_t {};
     auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
     if (c.empty()) return c;
@@ -571,9 +579,9 @@ matrix<typename value_type_::dot_result_t> try_dots_packed(matrix_view<value_typ
 }
 
 /** @brief Packed Hamming distances: C = hamming(A, B_packed). */
-template <typename value_type_, packed_matrix_like packed_type_>
-bool hammings_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
-                     matrix_span<typename value_type_::hamming_result_t> c) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::hamming_result_t> output_matrix_>
+bool hammings_packed(input_matrix_ const &a, packed_type_ const &packed_b, output_matrix_ &&c) noexcept {
     if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
     if (a.extent(1) != packed_b.depth()) return false;
     if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
@@ -584,11 +592,12 @@ bool hammings_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
 }
 
 /** @brief Allocating packed Hamming distances. */
-template <typename value_type_, packed_matrix_like packed_type_>
-matrix<typename value_type_::hamming_result_t> try_hammings_packed(matrix_view<value_type_> a,
-                                                                   packed_type_ const &packed_b) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::hamming_result_t>>
+matrix<typename value_type_::hamming_result_t, allocator_type_> try_hammings_packed(
+    input_matrix_ const &a, packed_type_ const &packed_b) noexcept {
     using result_t = typename value_type_::hamming_result_t;
-    using out_t = matrix<result_t>;
+    using out_t = matrix<result_t, allocator_type_>;
     if (packed_b.empty() || a.rank() < 2) return out_t {};
     auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
     if (c.empty()) return c;
@@ -597,9 +606,9 @@ matrix<typename value_type_::hamming_result_t> try_hammings_packed(matrix_view<v
 }
 
 /** @brief Packed Jaccard distances: C = jaccard(A, B_packed). */
-template <typename value_type_, packed_matrix_like packed_type_>
-bool jaccards_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
-                     matrix_span<typename value_type_::jaccard_result_t> c) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          mutable_matrix_of<typename value_type_::jaccard_result_t> output_matrix_>
+bool jaccards_packed(input_matrix_ const &a, packed_type_ const &packed_b, output_matrix_ &&c) noexcept {
     if (packed_b.empty() || a.rank() < 2 || c.rank() < 2) return false;
     if (a.extent(1) != packed_b.depth()) return false;
     if (c.extent(0) != a.extent(0) || c.extent(1) != packed_b.rows()) return false;
@@ -610,11 +619,12 @@ bool jaccards_packed(matrix_view<value_type_> a, packed_type_ const &packed_b,
 }
 
 /** @brief Allocating packed Jaccard distances. */
-template <typename value_type_, packed_matrix_like packed_type_>
-matrix<typename value_type_::jaccard_result_t> try_jaccards_packed(matrix_view<value_type_> a,
-                                                                   packed_type_ const &packed_b) noexcept {
+template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
+          typename allocator_type_ = aligned_allocator<typename value_type_::jaccard_result_t>>
+matrix<typename value_type_::jaccard_result_t, allocator_type_> try_jaccards_packed(
+    input_matrix_ const &a, packed_type_ const &packed_b) noexcept {
     using result_t = typename value_type_::jaccard_result_t;
-    using out_t = matrix<result_t>;
+    using out_t = matrix<result_t, allocator_type_>;
     if (packed_b.empty() || a.rank() < 2) return out_t {};
     auto c = out_t::try_empty({a.extent(0), packed_b.rows()});
     if (c.empty()) return c;

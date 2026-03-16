@@ -26,7 +26,7 @@ namespace ashvardanian::numkong {
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::euclidean_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::euclidean_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::euclidean_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -63,7 +63,7 @@ void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::sqeuclidean_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::sqeuclidean_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::sqeuclidean_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -100,7 +100,7 @@ void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_typ
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::angular_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::angular_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::angular_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -131,6 +131,51 @@ void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
         result_type_ distance = result_type_(1) - cos_sim;
         *r = distance > result_type_(0) ? distance : result_type_(0);
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::euclidean_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void euclidean(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+               result_type_ *r) noexcept {
+    euclidean<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::euclidean_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void euclidean(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    euclidean<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::sqeuclidean_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void sqeuclidean(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+                 result_type_ *r) noexcept {
+    sqeuclidean<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::sqeuclidean_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void sqeuclidean(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    sqeuclidean<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::angular_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void angular(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+             result_type_ *r) noexcept {
+    angular<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::angular_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void angular(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    angular<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
 }
 
 } // namespace ashvardanian::numkong

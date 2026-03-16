@@ -30,7 +30,7 @@ namespace ashvardanian::numkong {
  *  @note Uses spherical Earth model with mediatorial radius (6335439.0 m)
  *  @note Accuracy: 0.3-0.6% vs WGS-84, suitable for ranking/similarity
  */
-template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+template <numeric_dtype in_type_, numeric_dtype precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void haversine(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_lats, in_type_ const *b_lons,
                std::size_t d, in_type_ *results) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
@@ -87,7 +87,7 @@ void haversine(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b
  *  @note Accuracy: 0.01-0.2% vs WGS-84, 3-20x more accurate than Haversine
  *  @note Iterative algorithm with max 100 iterations
  */
-template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+template <numeric_dtype in_type_, numeric_dtype precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_lats, in_type_ const *b_lons,
               std::size_t d, in_type_ *results) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
@@ -208,6 +208,26 @@ void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_
                 static_cast<double>(polar_radius * series_a * (angular_distance - angular_correction)));
         }
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void haversine(vector_view<in_type_> a_lats, vector_view<in_type_> a_lons, vector_view<in_type_> b_lats,
+               vector_view<in_type_> b_lons, in_type_ *results) noexcept {
+    haversine<in_type_, precision_type_, allow_simd_>(a_lats.data(), a_lons.data(), b_lats.data(), b_lons.data(),
+                                                      a_lats.size(), results);
+}
+
+template <numeric_dtype in_type_, numeric_dtype precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void vincenty(vector_view<in_type_> a_lats, vector_view<in_type_> a_lons, vector_view<in_type_> b_lats,
+              vector_view<in_type_> b_lons, in_type_ *results) noexcept {
+    vincenty<in_type_, precision_type_, allow_simd_>(a_lats.data(), a_lons.data(), b_lats.data(), b_lons.data(),
+                                                     a_lats.size(), results);
 }
 
 } // namespace ashvardanian::numkong

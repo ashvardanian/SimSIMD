@@ -25,7 +25,7 @@ namespace ashvardanian::numkong {
  *  @tparam index_type_ Index type (u16_t, u32_t, u64_t)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+template <numeric_dtype index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void sparse_intersect(index_type_ const *a, index_type_ const *b, std::size_t a_length, std::size_t b_length,
                       nk_size_t *count) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k;
@@ -63,7 +63,7 @@ void sparse_intersect(index_type_ const *a, index_type_ const *b, std::size_t a_
  *
  *  @note Computes sum of a_weights[i] * b_weights[j] for all i,j where a[i] == b[j]
  */
-template <typename index_type_, typename weight_t, typename result_type_ = typename weight_t::dot_result_t,
+template <numeric_dtype index_type_, numeric_dtype weight_t, numeric_dtype result_type_ = typename weight_t::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_weights, weight_t const *b_weights,
                 std::size_t a_length, std::size_t b_length, result_type_ *product) noexcept {
@@ -87,6 +87,25 @@ void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_we
         }
         *product = sum;
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void sparse_intersect(vector_view<index_type_> a, vector_view<index_type_> b, nk_size_t *count) noexcept {
+    sparse_intersect<index_type_, allow_simd_>(a.data(), b.data(), a.size(), b.size(), count);
+}
+
+template <numeric_dtype index_type_, numeric_dtype weight_t, numeric_dtype result_type_ = typename weight_t::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void sparse_dot(vector_view<index_type_> a, vector_view<index_type_> b, vector_view<weight_t> a_weights,
+                vector_view<weight_t> b_weights, result_type_ *product) noexcept {
+    sparse_dot<index_type_, weight_t, result_type_, allow_simd_>(a.data(), b.data(), a_weights.data(), b_weights.data(),
+                                                                  a.size(), b.size(), product);
 }
 
 } // namespace ashvardanian::numkong

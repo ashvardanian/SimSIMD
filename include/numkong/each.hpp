@@ -202,7 +202,7 @@ namespace ashvardanian::numkong {
 #pragma region - Tensor Elementwise
 
 /** @brief Scale: output[i] = α × input[i] + β. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool scale(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t alpha,
            typename value_type_::scale_t beta, tensor_span<value_type_, max_rank_> output) noexcept {
     return elementwise_into_<value_type_, max_rank_>(
@@ -212,11 +212,12 @@ bool scale(tensor_view<value_type_, max_rank_> input, typename value_type_::scal
 }
 
 /** @brief Allocating scale: result[i] = α × input[i] + β. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_scale(tensor_view<value_type_, max_rank_> input,
-                                                                         typename value_type_::scale_t alpha,
-                                                                         typename value_type_::scale_t beta) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_scale(tensor_view<value_type_, max_rank_> input,
+                                                          typename value_type_::scale_t alpha,
+                                                          typename value_type_::scale_t beta) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
     auto &input_shape = input.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -226,7 +227,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_scale(tensor_
 }
 
 /** @brief Blend: output[i] = α × lhs[i] + β × rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool blend(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
            typename value_type_::scale_t alpha, typename value_type_::scale_t beta,
            tensor_span<value_type_, max_rank_> output) noexcept {
@@ -239,12 +240,13 @@ bool blend(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max
 }
 
 /** @brief Allocating blend: result[i] = α × lhs[i] + β × rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_blend(tensor_view<value_type_, max_rank_> lhs,
-                                                                         tensor_view<value_type_, max_rank_> rhs,
-                                                                         typename value_type_::scale_t alpha,
-                                                                         typename value_type_::scale_t beta) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_blend(tensor_view<value_type_, max_rank_> lhs,
+                                                          tensor_view<value_type_, max_rank_> rhs,
+                                                          typename value_type_::scale_t alpha,
+                                                          typename value_type_::scale_t beta) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -254,7 +256,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_blend(tensor_
 }
 
 /** @brief FMA: output[i] = α × lhs[i] × rhs[i] + β × addend[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool fma(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
          tensor_view<value_type_, max_rank_> addend, typename value_type_::scale_t alpha,
          typename value_type_::scale_t beta, tensor_span<value_type_, max_rank_> output) noexcept {
@@ -267,13 +269,14 @@ bool fma(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 }
 
 /** @brief Allocating FMA: result[i] = α × lhs[i] × rhs[i] + β × addend[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_fma(tensor_view<value_type_, max_rank_> lhs,
-                                                                       tensor_view<value_type_, max_rank_> rhs,
-                                                                       tensor_view<value_type_, max_rank_> addend,
-                                                                       typename value_type_::scale_t alpha,
-                                                                       typename value_type_::scale_t beta) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_fma(tensor_view<value_type_, max_rank_> lhs,
+                                                        tensor_view<value_type_, max_rank_> rhs,
+                                                        tensor_view<value_type_, max_rank_> addend,
+                                                        typename value_type_::scale_t alpha,
+                                                        typename value_type_::scale_t beta) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || !shapes_match_(lhs, addend) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -283,7 +286,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_fma(tensor_vi
 }
 
 /** @brief Elementwise addition: output[i] = lhs[i] + rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool add(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
          tensor_span<value_type_, max_rank_> output) noexcept {
     return elementwise_into_<value_type_, max_rank_>(
@@ -295,10 +298,11 @@ bool add(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 }
 
 /** @brief Allocating elementwise add: result = lhs + rhs. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_add(
     tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -308,7 +312,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(
 }
 
 /** @brief Elementwise add scalar: output[i] = input[i] + scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool add(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
          tensor_span<value_type_, max_rank_> output) noexcept {
     typename value_type_::scale_t one {1};
@@ -316,10 +320,11 @@ bool add(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_
 }
 
 /** @brief Allocating add scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_add(tensor_view<value_type_, max_rank_> input,
+                                                        typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
     auto &input_shape = input.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -329,7 +334,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_add(tensor_vi
 }
 
 /** @brief Elementwise subtraction: output[i] = lhs[i] − rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool sub(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
          tensor_span<value_type_, max_rank_> output) noexcept {
     typename value_type_::scale_t alpha {1}, beta {-1};
@@ -337,10 +342,11 @@ bool sub(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 }
 
 /** @brief Allocating elementwise sub. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_sub(
     tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -350,7 +356,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(
 }
 
 /** @brief Elementwise sub scalar: output[i] = input[i] − scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool sub(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
          tensor_span<value_type_, max_rank_> output) noexcept {
     typename value_type_::scale_t one {1};
@@ -359,10 +365,11 @@ bool sub(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_
 }
 
 /** @brief Allocating sub scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_sub(tensor_view<value_type_, max_rank_> input,
+                                                        typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
     auto &input_shape = input.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
@@ -372,7 +379,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_sub(tensor_vi
 }
 
 /** @brief Elementwise multiplication: output[i] = lhs[i] × rhs[i]. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool mul(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs,
          tensor_span<value_type_, max_rank_> output) noexcept {
     return elementwise_into_<value_type_, max_rank_>(
@@ -385,10 +392,11 @@ bool mul(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 }
 
 /** @brief Allocating elementwise multiply. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_mul(
     tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
     auto result = out_tensor_t::try_zeros(input_shape.extents, input_shape.rank);
@@ -398,7 +406,7 @@ tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(
 }
 
 /** @brief Elementwise multiply by scalar: output[i] = input[i] × scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 bool mul(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_t scalar,
          tensor_span<value_type_, max_rank_> output) noexcept {
     typename value_type_::scale_t zero {0};
@@ -406,10 +414,11 @@ bool mul(tensor_view<value_type_, max_rank_> input, typename value_type_::scale_
 }
 
 /** @brief Allocating multiply by scalar. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<value_type_, aligned_allocator<value_type_>, max_rank_> try_mul(tensor_view<value_type_, max_rank_> input,
-                                                                       typename value_type_::scale_t scalar) noexcept {
-    using out_tensor_t = tensor<value_type_, aligned_allocator<value_type_>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
+tensor<value_type_, allocator_type_, max_rank_> try_mul(tensor_view<value_type_, max_rank_> input,
+                                                        typename value_type_::scale_t scalar) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
     auto &input_shape = input.shape();
     auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);

@@ -293,6 +293,9 @@ struct f32_t {
     static constexpr f32_t from_bits(uint_t bits) noexcept { return f32_t {std::bit_cast<raw_t>(bits)}; }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr f32_t zero() noexcept { return f32_t {}; }
+    static constexpr f32_t one() noexcept { return f32_t {1.0f}; }
+
     static constexpr f32_t finite_max() noexcept { return f32_t {3.40282347e+38f}; }
     static constexpr f32_t finite_min() noexcept { return f32_t {-3.40282347e+38f}; }
     static constexpr f32_t positive_min() noexcept { return f32_t {1.17549435e-38f}; }
@@ -558,6 +561,9 @@ struct f64_t {
     static constexpr f64_t from_raw(raw_t r) noexcept { return f64_t {r}; }
     static constexpr f64_t from_bits(uint_t bits) noexcept { return f64_t {std::bit_cast<raw_t>(bits)}; }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
+
+    static constexpr f64_t zero() noexcept { return f64_t {}; }
+    static constexpr f64_t one() noexcept { return f64_t {1.0}; }
 
     static constexpr f64_t finite_max() noexcept { return f64_t {1.7976931348623157e+308}; }
     static constexpr f64_t finite_min() noexcept { return f64_t {-1.7976931348623157e+308}; }
@@ -1328,6 +1334,9 @@ struct f16_t {
     }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr f16_t zero() noexcept { return from_bits(0x0000); }
+    static constexpr f16_t one() noexcept { return from_bits(0x3C00); } // 1.0
+
     static constexpr f16_t finite_max() noexcept { return from_bits(0x7BFF); }    // 65504.0
     static constexpr f16_t finite_min() noexcept { return from_bits(0xFBFF); }    // -65504.0
     static constexpr f16_t positive_min() noexcept { return from_bits(0x0400); }  // Smallest positive normal
@@ -1574,6 +1583,9 @@ struct bf16_t {
     }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr bf16_t zero() noexcept { return from_bits(0x0000); }
+    static constexpr bf16_t one() noexcept { return from_bits(0x3F80); } // 1.0
+
     static constexpr bf16_t finite_max() noexcept { return from_bits(0x7F7F); }    // ~3.39e38
     static constexpr bf16_t finite_min() noexcept { return from_bits(0xFF7F); }    // ~-3.39e38
     static constexpr bf16_t positive_min() noexcept { return from_bits(0x0080); }  // Smallest positive normal
@@ -1752,6 +1764,7 @@ struct f16c_t {
     inline f16_t imag() const noexcept { return f16_t::from_raw(raw_.imag); }
 
     static constexpr f16c_t zero() noexcept { return f16c_t {}; }
+    static constexpr f16c_t one() noexcept { return f16c_t {f16_t::one()}; }
 
     static constexpr f16c_t finite_max() noexcept { return f16c_t {f16_t::finite_max(), f16_t::finite_max()}; }
     static constexpr f16c_t finite_min() noexcept { return f16c_t {f16_t::finite_min(), f16_t::finite_min()}; }
@@ -1849,6 +1862,7 @@ struct bf16c_t {
     inline bf16_t imag() const noexcept { return bf16_t::from_raw(raw_.imag); }
 
     static constexpr bf16c_t zero() noexcept { return bf16c_t {}; }
+    static constexpr bf16c_t one() noexcept { return bf16c_t {bf16_t::one()}; }
 
     static constexpr bf16c_t finite_max() noexcept { return bf16c_t {bf16_t::finite_max(), bf16_t::finite_max()}; }
     static constexpr bf16c_t finite_min() noexcept { return bf16c_t {bf16_t::finite_min(), bf16_t::finite_min()}; }
@@ -2000,6 +2014,9 @@ struct e4m3_t {
         return v;
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    static constexpr e4m3_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e4m3_t one() noexcept { return from_bits(0x38); } // 1.0
 
     // Exp all 1s (0xF) with non-zero mantissa = NaN, no infinity representation
     static constexpr e4m3_t finite_max() noexcept { return from_bits(0x7E); }    // 448.0
@@ -2217,6 +2234,9 @@ struct e5m2_t {
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
+    static constexpr e5m2_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e5m2_t one() noexcept { return from_bits(0x3C); } // 1.0
+
     static constexpr e5m2_t finite_max() noexcept { return from_bits(0x7B); }    // 57344.0
     static constexpr e5m2_t finite_min() noexcept { return from_bits(0xFB); }    // -57344.0
     static constexpr e5m2_t positive_min() noexcept { return from_bits(0x04); }  // Smallest positive normal
@@ -2433,6 +2453,9 @@ struct e2m3_t {
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
+    static constexpr e2m3_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e2m3_t one() noexcept { return from_bits(0x08); } // 1.0
+
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
     static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
     static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
@@ -2610,6 +2633,9 @@ struct e3m2_t {
         return v;
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    static constexpr e3m2_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e3m2_t one() noexcept { return from_bits(0x0C); } // 1.0
 
     // E3M2FN range: [-28, +28], no Inf/NaN
     static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0

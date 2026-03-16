@@ -16,7 +16,7 @@
 
 namespace ashvardanian::numkong {
 
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
@@ -43,7 +43,7 @@ void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) n
     }
 }
 
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
@@ -55,6 +55,38 @@ void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) 
         for (std::size_t i = 0; i < d; i++) sum = fcma(a[i], b[i], sum);
         *r = sum;
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void dot(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+         result_type_ *r) noexcept {
+    dot<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void dot(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    dot<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void vdot(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+          result_type_ *r) noexcept {
+    vdot<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void vdot(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    vdot<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
 }
 
 } // namespace ashvardanian::numkong
