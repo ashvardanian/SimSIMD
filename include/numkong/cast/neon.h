@@ -53,6 +53,7 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
+#include "numkong/cast/serial.h"   // `nk_cast_serial`, `nk_dtype_bits`
 #include "numkong/reduce/serial.h" // `nk_reduce_moments_f32_serial`
 
 #if defined(__cplusplus)
