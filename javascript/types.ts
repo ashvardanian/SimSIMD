@@ -28,7 +28,7 @@ export function setConversionFunctions(fns: typeof conversionFunctions) {
 }
 
 // Type alias for any TypedArray
-export type TypedArray = Float64Array | Float32Array | Int8Array | Uint8Array | Uint16Array | Uint32Array;
+export type TypedArray = Float64Array | Float32Array | Int32Array | Int8Array | Uint8Array | Uint16Array | Uint32Array;
 
 /** @brief Numeric data type enum — integer switch, compiles to jump table. */
 export enum DType {
@@ -43,11 +43,13 @@ export enum DType {
   I8 = 8,
   U8 = 9,
   U1 = 10,
+  I32 = 11,
+  U32 = 12,
 }
 
 /** @brief O(1) array lookup for DType → string conversion (needed at N-API/WASM boundaries). */
 export const DTYPE_STRINGS: readonly string[] = [
-  'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8', 'u1',
+  'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8', 'u1', 'i32', 'u32',
 ];
 
 /** @brief Convert a DType enum value to its string representation. */
@@ -57,10 +59,11 @@ export function dtypeToString(d: DType): string { return DTYPE_STRINGS[d]; }
 function inferDtype(arr: TypedArray): DType {
   if (arr instanceof Float64Array) return DType.F64;
   if (arr instanceof Float32Array) return DType.F32;
+  if (arr instanceof Int32Array) return DType.I32;
   if (arr instanceof Int8Array) return DType.I8;
   if (arr instanceof Uint8Array) return DType.U8;
   if (arr instanceof Uint16Array) return DType.F16;
-  if (arr instanceof Uint32Array) return DType.F32;
+  if (arr instanceof Uint32Array) return DType.U32;
   throw new Error(`Cannot infer dtype from ${(arr as any).constructor.name}`);
 }
 
@@ -88,7 +91,7 @@ export abstract class TensorBase {
   get bytesPerElement(): number {
     switch (this.dtype) {
       case DType.F64: return 8;
-      case DType.F32: return 4;
+      case DType.F32: case DType.I32: case DType.U32: return 4;
       case DType.F16: case DType.BF16: return 2;
       default: return 1;
     }
@@ -146,7 +149,7 @@ export class Vector extends VectorBase {
       let bpe: number;
       switch (dt) {
         case DType.F64: bpe = 8; break;
-        case DType.F32: bpe = 4; break;
+        case DType.F32: case DType.I32: case DType.U32: bpe = 4; break;
         case DType.F16: case DType.BF16: bpe = 2; break;
         default: bpe = 1; break;
       }
@@ -172,6 +175,8 @@ export class Vector extends VectorBase {
     switch (this.dtype) {
       case DType.F64: return new Float64Array(this.buffer, 0, this.length);
       case DType.F32: return new Float32Array(this.buffer, 0, this.length);
+      case DType.I32: return new Int32Array(this.buffer, 0, this.length);
+      case DType.U32: return new Uint32Array(this.buffer, 0, this.length);
       case DType.F16: case DType.BF16: return new Uint16Array(this.buffer, 0, this.length);
       case DType.I8: return new Int8Array(this.buffer, 0, this.length);
       default: return new Uint8Array(this.buffer, 0, this.length);
@@ -180,9 +185,10 @@ export class Vector extends VectorBase {
 }
 
 /**
- * @brief Abstract rank-2 tensor base class (stub for future matmul/convolutions).
+ * @brief Abstract rank-2 tensor base class.
  *
  * All 4 dimension fields are embedded — no dynamic allocation.
+ * Strides are in bytes to match the C API directly.
  */
 export abstract class MatrixBase extends TensorBase {
   readonly rows: number;
@@ -203,6 +209,118 @@ export abstract class MatrixBase extends TensorBase {
 
   get length(): number { return this.rows * this.cols; }
   get rank(): 2 { return 2; }
+}
+
+/**
+ * @brief Owning rank-2 tensor (row-major, C-contiguous by default).
+ *
+ * Strides are byte strides. Default for C-contiguous layout:
+ * rowStride = cols * bytesPerElement, colStride = bytesPerElement.
+ */
+export class Matrix extends MatrixBase {
+  constructor(rows: number, cols: number, dtype: DType);
+  constructor(buffer: ArrayBuffer, byteOffset: number, dtype: DType, rows: number, cols: number, rowStride?: number, colStride?: number);
+  constructor(
+    rowsOrBuffer: number | ArrayBuffer,
+    colsOrByteOffset: number,
+    dtype: DType,
+    rows?: number,
+    cols?: number,
+    rowStride?: number,
+    colStride?: number,
+  ) {
+    if (typeof rowsOrBuffer === 'number') {
+      const r = rowsOrBuffer;
+      const c = colsOrByteOffset;
+      let bpe: number;
+      switch (dtype) {
+        case DType.F64: bpe = 8; break;
+        case DType.F32: case DType.I32: case DType.U32: bpe = 4; break;
+        case DType.F16: case DType.BF16: bpe = 2; break;
+        default: bpe = 1; break;
+      }
+      super(new ArrayBuffer(r * c * bpe), 0, dtype, r, c, c * bpe, bpe);
+    } else {
+      const r = rows!;
+      const c = cols!;
+      let bpe: number;
+      switch (dtype) {
+        case DType.F64: bpe = 8; break;
+        case DType.F32: case DType.I32: case DType.U32: bpe = 4; break;
+        case DType.F16: case DType.BF16: bpe = 2; break;
+        default: bpe = 1; break;
+      }
+      super(rowsOrBuffer, colsOrByteOffset, dtype, r, c, rowStride ?? c * bpe, colStride ?? bpe);
+    }
+  }
+
+  static fromTypedArray(array: TypedArray, rows: number, cols: number, dtype?: DType): Matrix {
+    const d = dtype ?? inferDtype(array);
+    const buf = (array.buffer as ArrayBuffer).slice(array.byteOffset, array.byteOffset + array.byteLength);
+    return new Matrix(buf, 0, d, rows, cols);
+  }
+
+  toTypedArray(): TypedArray {
+    switch (this.dtype) {
+      case DType.F64: return new Float64Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      case DType.F32: return new Float32Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      case DType.I32: return new Int32Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      case DType.U32: return new Uint32Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      case DType.F16: case DType.BF16: return new Uint16Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      case DType.I8: return new Int8Array(this.buffer, this.byteOffset, this.rows * this.cols);
+      default: return new Uint8Array(this.buffer, this.byteOffset, this.rows * this.cols);
+    }
+  }
+
+  row(index: number): VectorView {
+    return new VectorView(this.buffer, this.byteOffset + index * this.rowStride, this.cols, this.dtype);
+  }
+}
+
+/**
+ * @brief Opaque packed matrix container.
+ *
+ * Packed layout is not indexable — this is a data container for packed GEMM kernels.
+ * N-API path: buffer is a V8-managed ArrayBuffer, auto-freed by GC.
+ * WASM path: stores a heap pointer, dispose() calls Module._free().
+ */
+export class PackedMatrix {
+  readonly width: number;
+  readonly depth: number;
+  readonly dtype: DType;
+  readonly byteLength: number;
+  readonly buffer: ArrayBuffer;
+  private _disposed: boolean = false;
+
+  constructor(buffer: ArrayBuffer, width: number, depth: number, dtype: DType, byteLength: number) {
+    this.buffer = buffer;
+    this.width = width;
+    this.depth = depth;
+    this.dtype = dtype;
+    this.byteLength = byteLength;
+  }
+
+  dispose(): void { this._disposed = true; }
+  get disposed(): boolean { return this._disposed; }
+}
+
+/** @brief Kernel family identifiers for output dtype resolution. */
+export type KernelFamily = 'dots' | 'angulars' | 'euclideans';
+
+/**
+ * @brief Determines the output dtype for a given kernel family and input dtype.
+ * Mirrors nk_kernel_output_dtype from C.
+ */
+export function outputDtype(family: KernelFamily, input: DType): DType {
+  switch (input) {
+    case DType.F64: return DType.F64;
+    case DType.F32: return DType.F64;
+    case DType.F16: case DType.BF16: case DType.E4M3: case DType.E5M2: case DType.E2M3: case DType.E3M2:
+      return DType.F32;
+    case DType.I8: return family === 'dots' ? DType.I32 : DType.F32;
+    case DType.U8: return family === 'dots' ? DType.U32 : DType.F32;
+    default: return DType.F32;
+  }
 }
 
 /**

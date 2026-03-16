@@ -1,8 +1,7 @@
 # NumKong for JavaScript
 
 NumKong's JavaScript package brings low-latency vector kernels to Node and Bun-style runtimes, targeting the space between handwritten loops over `TypedArray`s and much heavier tensor frameworks.
-It keeps the JS surface intentionally compact: dense distances, dot products, binary metrics, probability divergences, dtype-tagged low-precision storage, typed views, and runtime capability inspection.
-The binding does not include symmetric matrix kernels or MaxSim; use the Python or Rust SDK for those workloads.
+It keeps the JS surface intentionally compact: dense distances, dot products, binary metrics, probability divergences, packed GEMM-like matrix multiplication, symmetric Gram matrices, dtype-tagged low-precision storage, typed views, and runtime capability inspection.
 
 ## Quickstart
 
@@ -34,11 +33,11 @@ This binding stays centered on the vector families it actually exports.
 
 | Feature                      | NumKong                                                        | [mathjs](https://github.com/josdejong/mathjs) | [tensorflow.js](https://github.com/tensorflow/tfjs) |
 | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
-| Operation families           | dots, distances, binary, probability, cast                     | general arithmetic, matrix ops, statistics    | matmul, elementwise, reductions                     |
+| Operation families           | dots, distances, binary, probability, cast, packed, symmetric  | general arithmetic, matrix ops, statistics    | matmul, elementwise, reductions                     |
 | Precision                    | BFloat16 through sub-byte; automatic widening; Kahan summation | Float64 only; standard accuracy               | Float32 primarily; no sub-byte; standard accuracy   |
 | Runtime SIMD dispatch        | auto-selects best ISA per-thread across x86, ARM, RISC-V       | none; pure JS                                 | fixed at build time via WASM SIMD or WebGL          |
-| Packed matrix, GEMM-like     | in C core; not exposed in JS binding                           | `math.multiply` — no persistent packing       | `tf.matMul` — no persistent packing                 |
-| Symmetric kernels, SYRK-like | in C core; not exposed in JS binding                           | no duplicate-pair skipping                    | no duplicate-pair skipping                          |
+| Packed matrix, GEMM-like     | `dotsPack` + `dotsPacked`; persistent packing; amortized       | `math.multiply` — no persistent packing       | `tf.matMul` — no persistent packing                 |
+| Symmetric kernels, SYRK-like | `dotsSymmetric`; upper triangle only; row-range partitioning   | no duplicate-pair skipping                    | no duplicate-pair skipping                          |
 | WASM fallback                | yes — portable, runs in browser without native addon           | yes — pure JS, no native required             | yes — also WebGL/WebGPU                             |
 | Bundle size                  | small                                                          | moderate                                      | large                                               |
 
@@ -244,4 +243,4 @@ Practical guidance:
 
 - Use the native addon for the lowest host-call latency.
 - Use the WASM path when portability matters more than absolute latency.
-- Keep your expectations scoped to the vector-oriented API that this binding actually exports.
+- Keep your expectations scoped to the vector and matrix-oriented API that this binding actually exports.
