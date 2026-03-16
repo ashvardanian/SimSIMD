@@ -103,7 +103,8 @@ bool sin(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max
 }
 
 /** @brief Allocating sin. */
-template <numeric_dtype value_type_, std::size_t max_rank_ = 8, typename allocator_type_ = aligned_allocator<value_type_>>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
 tensor<value_type_, allocator_type_, max_rank_> try_sin(tensor_view<value_type_, max_rank_> input) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
@@ -124,7 +125,8 @@ bool cos(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max
 }
 
 /** @brief Allocating cos. */
-template <numeric_dtype value_type_, std::size_t max_rank_ = 8, typename allocator_type_ = aligned_allocator<value_type_>>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
 tensor<value_type_, allocator_type_, max_rank_> try_cos(tensor_view<value_type_, max_rank_> input) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};
@@ -145,7 +147,8 @@ bool atan(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, ma
 }
 
 /** @brief Allocating atan. */
-template <numeric_dtype value_type_, std::size_t max_rank_ = 8, typename allocator_type_ = aligned_allocator<value_type_>>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<value_type_>>
 tensor<value_type_, allocator_type_, max_rank_> try_atan(tensor_view<value_type_, max_rank_> input) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (input.empty()) return out_tensor_t {};

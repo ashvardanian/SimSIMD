@@ -476,8 +476,8 @@ std::size_t argmax(tensor_view<value_type_, max_rank_> input) noexcept {
 /** @brief Σ along a single axis. Returns empty tensor on failure. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<typename value_type_::reduce_moments_sum_t>>
-tensor<typename value_type_::reduce_moments_sum_t, allocator_type_, max_rank_>
-try_sum(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+tensor<typename value_type_::reduce_moments_sum_t, allocator_type_, max_rank_> try_sum(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
     using sum_tensor_t = tensor<sum_t, allocator_type_, max_rank_>;
 
@@ -540,9 +540,8 @@ try_moments(tensor_view<value_type_, max_rank_> input, std::size_t axis,
 /** @brief Min and max along an axis. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
-minmax_result<tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_>>
-try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
-           keep_dims_t keep_dims = collapse_dims_k) noexcept {
+minmax_result<tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_>> try_minmax(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
     using out_tensor_t = tensor<minmax_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input))
@@ -567,8 +566,8 @@ try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
 /** @brief Argmin along an axis. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<std::size_t>>
-tensor<std::size_t, allocator_type_, max_rank_> try_argmin(
-    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+tensor<std::size_t, allocator_type_, max_rank_> try_argmin(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                                           keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using out_tensor_t = tensor<std::size_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
     if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
@@ -583,8 +582,8 @@ tensor<std::size_t, allocator_type_, max_rank_> try_argmin(
 /** @brief Argmax along an axis. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<std::size_t>>
-tensor<std::size_t, allocator_type_, max_rank_> try_argmax(
-    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+tensor<std::size_t, allocator_type_, max_rank_> try_argmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                                           keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using out_tensor_t = tensor<std::size_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
     if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
@@ -599,16 +598,16 @@ tensor<std::size_t, allocator_type_, max_rank_> try_argmax(
 /** @brief Min along an axis. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
-tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_>
-try_min(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_> try_min(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     return try_minmax<value_type_, max_rank_, allocator_type_>(input, axis, keep_dims).min_value;
 }
 
 /** @brief Max along an axis. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
-tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_>
-try_max(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_> try_max(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     return try_minmax<value_type_, max_rank_, allocator_type_>(input, axis, keep_dims).max_value;
 }
 

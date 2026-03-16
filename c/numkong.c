@@ -359,7 +359,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                                   nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
                                                   nk_size_t a_stride, nk_size_t c_stride) {                       \
         nk_dispatch_table.api_name##_packed_##name(a, b_packed, c, m, n, k, a_stride, c_stride);                  \
-        nk_unpoison_((void *)c, m *c_stride);                                                                     \
+        nk_unpoison_((void *)c, m * c_stride);                                                                    \
     }
 
 #define nk_dispatch_cross_symmetric_(api_name, name, input_type, output_type)                                   \
@@ -368,7 +368,7 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
         nk_##output_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
         nk_dispatch_table.api_name##_symmetric_##name(vectors, n_vectors, depth, stride, result, result_stride, \
                                                       row_start, row_count);                                    \
-        nk_unpoison_((void *)result, row_count *result_stride);                                                 \
+        nk_unpoison_((void *)result, row_count * result_stride);                                                \
     }
 
 #define nk_dispatch_maxsim_packed_(name, output_type)                                                                 \

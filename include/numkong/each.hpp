@@ -300,8 +300,8 @@ bool add(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 /** @brief Allocating elementwise add: result = lhs + rhs. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<value_type_>>
-tensor<value_type_, allocator_type_, max_rank_> try_add(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+tensor<value_type_, allocator_type_, max_rank_> try_add(tensor_view<value_type_, max_rank_> lhs,
+                                                        tensor_view<value_type_, max_rank_> rhs) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
@@ -344,8 +344,8 @@ bool sub(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 /** @brief Allocating elementwise sub. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<value_type_>>
-tensor<value_type_, allocator_type_, max_rank_> try_sub(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+tensor<value_type_, allocator_type_, max_rank_> try_sub(tensor_view<value_type_, max_rank_> lhs,
+                                                        tensor_view<value_type_, max_rank_> rhs) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();
@@ -394,8 +394,8 @@ bool mul(tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_r
 /** @brief Allocating elementwise multiply. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
           typename allocator_type_ = aligned_allocator<value_type_>>
-tensor<value_type_, allocator_type_, max_rank_> try_mul(
-    tensor_view<value_type_, max_rank_> lhs, tensor_view<value_type_, max_rank_> rhs) noexcept {
+tensor<value_type_, allocator_type_, max_rank_> try_mul(tensor_view<value_type_, max_rank_> lhs,
+                                                        tensor_view<value_type_, max_rank_> rhs) noexcept {
     using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
     if (!shapes_match_(lhs, rhs) || lhs.empty()) return out_tensor_t {};
     auto &input_shape = lhs.shape();

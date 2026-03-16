@@ -378,7 +378,8 @@ bool angulars_symmetric(input_matrix_ const &input, output_matrix_ &&output) noe
 /** @brief Allocating symmetric angular distances. */
 template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
           typename allocator_type_ = aligned_allocator<typename value_type_::angular_result_t>>
-matrix<typename value_type_::angular_result_t, allocator_type_> try_angulars_symmetric(input_matrix_ const &input) noexcept {
+matrix<typename value_type_::angular_result_t, allocator_type_> try_angulars_symmetric(
+    input_matrix_ const &input) noexcept {
     using result_t = typename value_type_::angular_result_t;
     using out_tensor_t = matrix<result_t, allocator_type_>;
     if (input.empty()) return out_tensor_t {};
@@ -404,7 +405,8 @@ bool euclideans_symmetric(input_matrix_ const &input, output_matrix_ &&output) n
 /** @brief Allocating symmetric Euclidean distances. */
 template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
           typename allocator_type_ = aligned_allocator<typename value_type_::euclidean_result_t>>
-matrix<typename value_type_::euclidean_result_t, allocator_type_> try_euclideans_symmetric(input_matrix_ const &input) noexcept {
+matrix<typename value_type_::euclidean_result_t, allocator_type_> try_euclideans_symmetric(
+    input_matrix_ const &input) noexcept {
     using result_t = typename value_type_::euclidean_result_t;
     using out_tensor_t = matrix<result_t, allocator_type_>;
     if (input.empty()) return out_tensor_t {};
@@ -461,8 +463,8 @@ bool angulars_packed(input_matrix_ const &a, packed_type_ const &packed_b, outpu
 /** @brief Allocating packed angular distances. */
 template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
           typename allocator_type_ = aligned_allocator<typename value_type_::angular_result_t>>
-matrix<typename value_type_::angular_result_t, allocator_type_> try_angulars_packed(input_matrix_ const &a,
-                                                                                    packed_type_ const &packed_b) noexcept {
+matrix<typename value_type_::angular_result_t, allocator_type_> try_angulars_packed(
+    input_matrix_ const &a, packed_type_ const &packed_b) noexcept {
     using result_t = typename value_type_::angular_result_t;
     using out_t = matrix<result_t, allocator_type_>;
     if (packed_b.empty() || a.rank() < 2) return out_t {};
@@ -488,8 +490,8 @@ bool euclideans_packed(input_matrix_ const &a, packed_type_ const &packed_b, out
 /** @brief Allocating packed Euclidean distances. */
 template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
           typename allocator_type_ = aligned_allocator<typename value_type_::euclidean_result_t>>
-matrix<typename value_type_::euclidean_result_t, allocator_type_> try_euclideans_packed(input_matrix_ const &a,
-                                                                                        packed_type_ const &packed_b) noexcept {
+matrix<typename value_type_::euclidean_result_t, allocator_type_> try_euclideans_packed(
+    input_matrix_ const &a, packed_type_ const &packed_b) noexcept {
     using result_t = typename value_type_::euclidean_result_t;
     using out_t = matrix<result_t, allocator_type_>;
     if (packed_b.empty() || a.rank() < 2) return out_t {};
