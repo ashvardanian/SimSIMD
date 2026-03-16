@@ -50,7 +50,8 @@ endmacro()
 nk_isa_probe_(nk_target_haswell_ "/arch:AVX2" "-mavx2 -mfma -mf16c" "
     #include <immintrin.h>
     int main(void) {
-        __m256i a = _mm256_set1_epi32(1);
+        volatile int one = 1;
+        __m256i a = _mm256_set1_epi32(one);
         __m256i b = _mm256_add_epi32(a, a);
         return _mm256_extract_epi32(b, 0) == 2 ? 0 : 1;
     }
@@ -60,7 +61,8 @@ nk_isa_probe_(nk_target_haswell_ "/arch:AVX2" "-mavx2 -mfma -mf16c" "
 nk_isa_probe_(nk_target_skylake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl" "
     #include <immintrin.h>
     int main(void) {
-        __m512i a = _mm512_set1_epi32(1);
+        volatile int one = 1;
+        __m512i a = _mm512_set1_epi32(one);
         __m512i b = _mm512_add_epi32(a, a);
         return (int)_mm512_reduce_add_epi32(b) == 32 ? 0 : 1;
     }
@@ -70,9 +72,10 @@ nk_isa_probe_(nk_target_skylake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq
 nk_isa_probe_(nk_target_icelake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512vnni" "
     #include <immintrin.h>
     int main(void) {
+        volatile int one = 1;
         __m512i acc = _mm512_setzero_si512();
-        __m512i a = _mm512_set1_epi8(1);
-        __m512i b = _mm512_set1_epi8(1);
+        __m512i a = _mm512_set1_epi8((char)one);
+        __m512i b = _mm512_set1_epi8((char)one);
         acc = _mm512_dpbusd_epi32(acc, a, b);
         return (int)_mm512_reduce_add_epi32(acc) == 64 ? 0 : 1;
     }
@@ -82,13 +85,13 @@ nk_isa_probe_(nk_target_icelake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq
 nk_isa_probe_(nk_target_genoa_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512bf16" "
     #include <immintrin.h>
     int main(void) {
-        __m512 f = _mm512_set1_ps(1.0f);
+        volatile float one = 1.0f;
+        __m512 f = _mm512_set1_ps(one);
         __m256bh a = _mm512_cvtneps_pbh(f);
         __m512bh wide = (__m512bh)_mm512_castsi512_ps(
             _mm512_inserti64x4(_mm512_setzero_si512(), (__m256i)a, 0));
         __m512 r = _mm512_dpbf16_ps(_mm512_setzero_ps(), wide, wide);
-        (void)r;
-        return 0;
+        return _mm512_reduce_add_ps(r) >= 0.0f ? 0 : 1;
     }
 ")
 
@@ -96,11 +99,11 @@ nk_isa_probe_(nk_target_genoa_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -
 nk_isa_probe_(nk_target_sapphire_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512fp16" "
     #include <immintrin.h>
     int main(void) {
-        __m512h a = _mm512_set1_ph(1.0f);
-        __m512h b = _mm512_set1_ph(2.0f);
+        volatile float one = 1.0f;
+        __m512h a = _mm512_set1_ph((_Float16)one);
+        __m512h b = _mm512_set1_ph((_Float16)(one + one));
         __m512h c = _mm512_fmadd_ph(a, b, a);
-        (void)c;
-        return 0;
+        return (int)_mm_extract_epi16(_mm256_castsi256_si128(_mm512_castsi512_si256((__m512i)c)), 0) != 0 ? 0 : 1;
     }
 ")
 
@@ -108,8 +111,9 @@ nk_isa_probe_(nk_target_sapphire_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512d
 nk_isa_probe_(nk_target_sapphireamx_ "/arch:AVX512" "-mamx-tile -mamx-int8" "
     #include <immintrin.h>
     int main(void) {
+        volatile int zero = 0;
         _tile_release();
-        return 0;
+        return zero;
     }
 ")
 
@@ -118,8 +122,9 @@ nk_isa_probe_(nk_target_graniteamx_ "/arch:AVX512" "-mamx-tile -mamx-fp16" "
     #include <immintrin.h>
     #include <amxfp16intrin.h>
     int main(void) {
+        volatile int zero = 0;
         _tile_release();
-        return 0;
+        return zero;
     }
 ")
 
@@ -127,8 +132,9 @@ nk_isa_probe_(nk_target_graniteamx_ "/arch:AVX512" "-mamx-tile -mamx-fp16" "
 nk_isa_probe_(nk_target_turin_ "/arch:AVX512" "-mavx512f -mavx512vp2intersect" "
     #include <immintrin.h>
     int main(void) {
-        __m512i a = _mm512_set1_epi32(42);
-        __m512i b = _mm512_set1_epi32(42);
+        volatile int val = 42;
+        __m512i a = _mm512_set1_epi32(val);
+        __m512i b = _mm512_set1_epi32(val);
         __mmask16 k0, k1;
         _mm512_2intersect_epi32(a, b, &k0, &k1);
         return k0 != 0 ? 0 : 1;
@@ -139,9 +145,10 @@ nk_isa_probe_(nk_target_turin_ "/arch:AVX512" "-mavx512f -mavx512vp2intersect" "
 nk_isa_probe_(nk_target_alder_ "/arch:AVX2" "-mavx2 -mavxvnni" "
     #include <immintrin.h>
     int main(void) {
+        volatile int two = 2;
         __m256i acc = _mm256_setzero_si256();
-        __m256i a = _mm256_set1_epi8(2);
-        __m256i b = _mm256_set1_epi8(3);
+        __m256i a = _mm256_set1_epi8((char)two);
+        __m256i b = _mm256_set1_epi8((char)(two + 1));
         acc = _mm256_dpbusd_avx_epi32(acc, a, b);
         return _mm256_extract_epi32(acc, 0) == 24 ? 0 : 1;
     }
@@ -151,9 +158,10 @@ nk_isa_probe_(nk_target_alder_ "/arch:AVX2" "-mavx2 -mavxvnni" "
 nk_isa_probe_(nk_target_sierra_ "/arch:AVX2" "-mavx2 -mavxvnniint8" "
     #include <immintrin.h>
     int main(void) {
+        volatile int two = 2;
         __m256i acc = _mm256_setzero_si256();
-        __m256i a = _mm256_set1_epi8(2);
-        __m256i b = _mm256_set1_epi8(3);
+        __m256i a = _mm256_set1_epi8((char)two);
+        __m256i b = _mm256_set1_epi8((char)(two + 1));
         acc = _mm256_dpbssd_epi32(acc, a, b);
         return _mm256_extract_epi32(acc, 0) == 24 ? 0 : 1;
     }
