@@ -1203,7 +1203,7 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
 /**
  *  @brief  Public bf16 packed GEMM wrapper matching the declared signature in dots.h.
  *
- *  Dispatches to the aligned kernel for all cases -- RVV's `vsetvl` handles partial
+ *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
 NK_PUBLIC void nk_dots_packed_bf16_rvv(nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
@@ -1416,7 +1416,7 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
 /**
  *  @brief  Public f16 packed GEMM wrapper matching the declared signature in dots.h.
  *
- *  Dispatches to the aligned kernel for all cases -- RVV's `vsetvl` handles partial
+ *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
 NK_PUBLIC void nk_dots_packed_f16_rvv(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
@@ -1486,7 +1486,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8_rvv(nk_size_t column_count, nk_size_t
 /**
  *  @brief  Pack B matrix from i8 to i8 (direct copy) for integer dot product.
  *
- *  No conversion needed -- values are copied directly.
+ *  No conversion needed — values are copied directly.
  *  Padding values are zeroed. Column-panel layout with depth-contiguous storage.
  */
 NK_PUBLIC void nk_dots_pack_i8_rvv(nk_i8_t const *b, nk_size_t column_count, nk_size_t depth,
@@ -1629,7 +1629,7 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
 /**
  *  @brief  Public i8 packed GEMM wrapper matching the declared signature in dots.h.
  *
- *  Dispatches to the aligned kernel for all cases -- RVV's `vsetvl` handles partial
+ *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
 NK_PUBLIC void nk_dots_packed_i8_rvv(nk_i8_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m, nk_size_t n,
@@ -1698,7 +1698,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_u8_rvv(nk_size_t column_count, nk_size_t
 /**
  *  @brief  Pack B matrix from u8 to u8 (direct copy) for integer dot product.
  *
- *  No conversion needed -- values are copied directly.
+ *  No conversion needed — values are copied directly.
  *  Padding values are zeroed. Column-panel layout with depth-contiguous storage.
  */
 NK_PUBLIC void nk_dots_pack_u8_rvv(nk_u8_t const *b, nk_size_t column_count, nk_size_t depth,
@@ -1841,7 +1841,7 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
 /**
  *  @brief  Public u8 packed GEMM wrapper matching the declared signature in dots.h.
  *
- *  Dispatches to the aligned kernel for all cases -- RVV's `vsetvl` handles partial
+ *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
 NK_PUBLIC void nk_dots_packed_u8_rvv(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,

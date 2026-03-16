@@ -52,8 +52,8 @@ Real and integer dot products:
 | `f32`      | `f32`       | 32-bit IEEE 754 single precision               |
 | `f16`      | `f32`       | 16-bit IEEE 754 half precision, widened output |
 | `bf16`     | `f32`       | 16-bit brain float, widened output             |
-| `e4m3`     | `f32`       | 8-bit FP8: 4 exponent, 3 mantissa bits         |
-| `e5m2`     | `f32`       | 8-bit FP8: 5 exponent, 2 mantissa bits         |
+| `e4m3`     | `f32`       | 8-bit Float8: 4 exponent, 3 mantissa bits      |
+| `e5m2`     | `f32`       | 8-bit Float8: 5 exponent, 2 mantissa bits      |
 | `e2m3`     | `f32`       | 8-bit MX format: 2 exponent, 3 mantissa bits   |
 | `e3m2`     | `f32`       | 8-bit MX format: 3 exponent, 2 mantissa bits   |
 | `i8`       | `i32`       | 8-bit signed integers                          |
@@ -86,42 +86,42 @@ Dot2 avoids those branches entirely — TwoProd and TwoSum are pure arithmetic w
 `nk_dot_e2m3_haswell`, `nk_dot_e3m2_haswell`, `nk_dot_e2m3_skylake`, `nk_dot_e3m2_skylake` encode 32 MX format values into scaled integers via dual 16-entry LUTs loaded into vector registers.
 The low 4 magnitude bits index `VPSHUFB`, bit 4 selects between the lower and upper table via blending, and the results feed into `VPMADDUBSW` + `VPMADDWD` chains with a final $\div 256$ scaling.
 The Sapphire-specific MX implementation in `sapphire.h` replaces this with a single 64-entry signed LUT via `VPERMUTEX2VAR`, where the sign bit naturally selects between positive and negative tables.
-That path accumulates in native FP16 via `VFMADD_PH` and flushes to FP32 every 128 elements to avoid overflow.
+That path accumulates in native Float16 via `VFMADD_PH` and flushes to Float32 every 128 elements to avoid overflow.
 
 ### Algebraic Domain Shifting
 
-`nk_dot_i8_icelake`, `nk_dot_u8_icelake` work around `VPDPBUSD` requiring u8 × i8 operands.
-For i8 × i8, one operand is XORed with `0x80` to shift to unsigned, and the correction $128 \cdot \sum b_i$ is computed via `VPSADBW`, which runs on port 5 and avoids contention with `DPBUSD` on ports 0-1.
+`nk_dot_i8_icelake`, `nk_dot_u8_icelake` work around `VPDPBUSD` requiring UInt8 × Int8 operands.
+For Int8 × Int8, one operand is XORed with `0x80` to shift to unsigned, and the correction $128 \cdot \sum b_i$ is computed via `VPSADBW`, which runs on port 5 and avoids contention with `DPBUSD` on ports 0-1.
 `nk_dot_i4_icelake` extends this to packed nibbles using the identity $(a'-8)(b'-8) = a' b' - 8(a'+b') + 64$ — two `VPDPBUSD` calls handle low and high nibbles separately, with SAD-based correction.
-`nk_dot_i8_v128relaxed`, `nk_dot_u8_v128relaxed` face an even tighter constraint: WASM's `i32x4_relaxed_dot_i8x16_i7x16_add` computes i8 × i7, so the sign bit of one operand must be masked off entirely.
-For i8 × i8, the sign bit of $b$ is cleared to produce a 7-bit value, and a windowed correction $-128 \cdot \sum_{b_i < 0} a_i$ is accumulated in i16 and flushed every 127 iterations to prevent overflow.
-For u8 × u8, $b$ is XORed with `0x80` to shift into signed range, same as Ice Lake, with the correction $128 \cdot \sum a_i$ computed via pairwise widening adds.
+`nk_dot_i8_v128relaxed`, `nk_dot_u8_v128relaxed` face an even tighter constraint: WASM's `i32x4_relaxed_dot_i8x16_i7x16_add` computes Int8 × Int7, so the sign bit of one operand must be masked off entirely.
+For Int8 × Int8, the sign bit of $b$ is cleared to produce a 7-bit value, and a windowed correction $-128 \cdot \sum_{b_i < 0} a_i$ is accumulated in Int16 and flushed every 127 iterations to prevent overflow.
+For UInt8 × UInt8, $b$ is XORed with `0x80` to shift into signed range, same as Ice Lake, with the correction $128 \cdot \sum a_i$ computed via pairwise widening adds.
 
-### Widening Fusion Through BF16 on x86
+### Widening Fusion Through BFloat16 on x86
 
-`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa`, `nk_dot_e2m3_genoa`, `nk_dot_e3m2_genoa` convert FP8/MX values to BF16, then accumulate via `VDPBF16PS` — repurposing Genoa's BF16 dot-product hardware for types it was never designed for.
-Each `VDPBF16PS` fuses two BF16 multiply-adds per 32-bit lane at 6-cycle throughput.
-`nk_dot_bf16c_genoa` uses the same instruction for complex BF16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
+`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa`, `nk_dot_e2m3_genoa`, `nk_dot_e3m2_genoa` convert Float8/MX values to BFloat16, then accumulate via `VDPBF16PS` — repurposing Genoa's BFloat16 dot-product hardware for types it was never designed for.
+Each `VDPBF16PS` fuses two BFloat16 multiply-adds per 32-bit lane at 6-cycle throughput.
+`nk_dot_bf16c_genoa` uses the same instruction for complex BFloat16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
 
 ### Deferred Sign-Flip in Complex Dot Products
 
-The Haswell bf16c/f16c/f32c kernels compute $\sum (a_r b_r - a_i b_i)$ without per-pair subtraction.
+The Haswell BFloat16Complex/Float16Complex/Float32Complex kernels compute $\sum (a_r b_r - a_i b_i)$ without per-pair subtraction.
 Instead, two accumulators collect interleaved products $[a_r b_r, a_i b_i, \ldots]$ and $[a_r b_i, a_i b_r, \ldots]$, and a post-loop XOR flips the sign of every odd lane to produce the subtraction.
 This gives one FMA per accumulator per iteration, but each lane grows $O(n)$ while the true result is $O(\sqrt{n})$.
-The f32c kernel absorbs this via f64 accumulators; Genoa's `VDPBF16PS` and ARM's `FMLSL` pair terms naturally.
-For bf16c/f16c on Haswell the accumulator is f32, so the $O(\log n)$ precision loss from lane separation is visible in max ULP at large $n$, though mean ULP remains low.
+The Float32Complex kernel absorbs this via Float64 accumulators; Genoa's `VDPBF16PS` and ARM's `FMLSL` pair terms naturally.
+For BFloat16Complex/Float16Complex on Haswell the accumulator is Float32, so the $O(\log n)$ precision loss from lane separation is visible in max ULP at large $n$, though mean ULP remains low.
 
-### Widening Fusion Through F16 on Arm
+### Widening Fusion Through Float16 on Arm
 
-`nk_dot_f16_neonfhm`, `nk_dot_f16c_neonfhm`, `nk_dot_e2m3_neonfhm`, `nk_dot_e3m2_neonfhm` use the ARMv8.4-FHM instructions `FMLAL`/`FMLSL`, which fuse FP16-to-FP32 conversion with multiply-accumulate in a single operation.
-`vfmlalq_low_f16` and `vfmlalq_high_f16` process the lower and upper 4 elements of an 8-wide FP16 vector respectively.
+`nk_dot_f16_neonfhm`, `nk_dot_f16c_neonfhm`, `nk_dot_e2m3_neonfhm`, `nk_dot_e3m2_neonfhm` use the ARMv8.4-FHM instructions `FMLAL`/`FMLSL`, which fuse Float16-to-Float32 conversion with multiply-accumulate in a single operation.
+`vfmlalq_low_f16` and `vfmlalq_high_f16` process the lower and upper 4 elements of an 8-wide Float16 vector respectively.
 For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} - a_{im} b_{re}$ without a separate negate step.
 
 ### Widening Chains on RISC-V
 
-`nk_dot_i8_rvv`, `nk_dot_u8_rvv` use `vwmul` for i8 × i8 → i16 widening multiply followed by `vwadd` to widen-accumulate into i32 — a two-stage chain that naturally prevents overflow.
-`nk_dot_bf16_rvvbf16` uses the Zvfbfwma extension's `vfwmaccbf16` for fused bf16 × bf16 → f32 widening multiply-accumulate.
-`nk_dot_e4m3_rvvbf16`, `nk_dot_e5m2_rvvbf16` convert FP8 to BF16 via 256-entry LUTs, then feed the same `vfwmaccbf16` path.
+`nk_dot_i8_rvv`, `nk_dot_u8_rvv` use `vwmul` for $\text{Int8} \times \text{Int8} \to \text{Int16}$ widening multiply followed by `vwadd` to widen-accumulate into Int32 — a two-stage chain that naturally prevents overflow.
+`nk_dot_bf16_rvvbf16` uses the Zvfbfwma extension's `vfwmaccbf16` for fused $\text{BFloat16} \times \text{BFloat16} \to \text{Float32}$ widening multiply-accumulate.
+`nk_dot_e4m3_rvvbf16`, `nk_dot_e5m2_rvvbf16` convert Float8 to BFloat16 via 256-entry LUTs, then feed the same `vfwmaccbf16` path.
 
 ## Performance
 

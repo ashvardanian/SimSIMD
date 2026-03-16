@@ -32,16 +32,15 @@ This binding stays centered on the vector families it actually exports.
 
 ## Ecosystem Comparison
 
-| Feature                 | NumKong                         | onnxruntime-node | tensorflow.js     | TypedArray loops |
-| ----------------------- | ------------------------------- | ---------------- | ----------------- | ---------------- |
-| Vector distances        | sqeuclidean, euclidean, angular | not included     | limited set       | manual loops     |
-| Dot products            | SIMD-accelerated, dtype-tagged  | not included     | `matMul`-based    | manual loops     |
-| Binary metrics          | Hamming, Jaccard on packed bits | not included     | not included      | manual loops     |
-| Probability divergences | KL, JS on all float types       | not included     | limited           | manual loops     |
-| Low-precision types     | `f16`, `bf16`, `e4m3`, `e5m2`   | not included     | not included      | not included     |
-| SIMD acceleration       | native addon                    | WASM SIMD        | WASM SIMD / WebGL | none             |
-| Portable WASM fallback  | yes                             | yes              | yes               | n/a              |
-| Bundle size             | small                           | large            | large             | zero             |
+| Feature                      | NumKong                                                        | [mathjs](https://github.com/josdejong/mathjs) | [tensorflow.js](https://github.com/tensorflow/tfjs) |
+| ---------------------------- | -------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| Operation families           | dots, distances, binary, probability, cast                     | general arithmetic, matrix ops, statistics    | matmul, elementwise, reductions                     |
+| Precision                    | BFloat16 through sub-byte; automatic widening; Kahan summation | Float64 only; standard accuracy               | Float32 primarily; no sub-byte; standard accuracy   |
+| Runtime SIMD dispatch        | auto-selects best ISA per-thread across x86, ARM, RISC-V       | none; pure JS                                 | fixed at build time via WASM SIMD or WebGL          |
+| Packed matrix, GEMM-like     | in C core; not exposed in JS binding                           | `math.multiply` — no persistent packing       | `tf.matMul` — no persistent packing                 |
+| Symmetric kernels, SYRK-like | in C core; not exposed in JS binding                           | no duplicate-pair skipping                    | no duplicate-pair skipping                          |
+| WASM fallback                | yes — portable, runs in browser without native addon           | yes — pure JS, no native required             | yes — also WebGL/WebGPU                             |
+| Bundle size                  | small                                                          | moderate                                      | large                                               |
 
 ## Installation
 

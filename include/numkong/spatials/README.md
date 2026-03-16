@@ -40,8 +40,8 @@ def euclideans_packed(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 | `f32`      | `f32`       | 32-bit IEEE 754 single precision               |
 | `f16`      | `f32`       | 16-bit IEEE 754 half precision, widened output |
 | `bf16`     | `f32`       | 16-bit brain float, widened output             |
-| `e4m3`     | `f32`       | 8-bit FP8: 4 exponent, 3 mantissa bits         |
-| `e5m2`     | `f32`       | 8-bit FP8: 5 exponent, 2 mantissa bits         |
+| `e4m3`     | `f32`       | 8-bit Float8: 4 exponent, 3 mantissa bits      |
+| `e5m2`     | `f32`       | 8-bit Float8: 5 exponent, 2 mantissa bits      |
 | `e2m3`     | `f32`       | 8-bit MX format: 2 exponent, 3 mantissa bits   |
 | `e3m2`     | `f32`       | 8-bit MX format: 3 exponent, 2 mantissa bits   |
 | `i8`       | `f32`       | 8-bit signed integers, float output            |
@@ -61,11 +61,11 @@ The singular `spatial/` kernels compute these three sums ($\sum a_i b_i$, $\sum 
 
 ### Serial vs Vectorized Sqrt and Rsqrt Cost
 
-`nk_angular_through_f32_from_dot_serial_` uses the Quake 3 fast inverse square root (magic constant `0x5F375A86`, three Newton-Raphson iterations, ~34.9 correct bits for f32) to compute `dot * rsqrt(query_norm * target_norm)`.
+`nk_angular_through_f32_from_dot_serial_` uses the Quake 3 fast inverse square root (magic constant `0x5F375A86`, three Newton-Raphson iterations, ~34.9 correct bits for Float32) to compute `dot * rsqrt(query_norm * target_norm)`.
 `nk_angular_through_f32_from_dot_haswell_` replaces this with hardware `_mm_rsqrt_ps` (~12-bit approximation, 5cy latency, 1/cy on port 0) plus one Newton-Raphson refinement step (~22–24 correct bits).
 `nk_euclidean_through_f32_from_dot_serial_` computes `sqrt(x)` as `x * rsqrt(x)` — reusing the same rsqrt path.
 `nk_euclidean_through_f32_from_dot_haswell_` uses exact `_mm_sqrt_ps` (11cy latency, 7cy throughput for XMM) instead of the rsqrt approximation — the subtraction $\|a\|^2 + \|b\|^2 - 2 \cdot \text{dot}$ can produce values near zero where rsqrt error would be amplified by the subsequent multiply.
-For f64, all backends use exact division and sqrt — no fast rsqrt approximation, since reaching 52 mantissa bits of precision would need 4+ Newton-Raphson iterations, negating the speed advantage.
+For Float64, all backends use exact division and sqrt — no fast rsqrt approximation, since reaching 52 mantissa bits of precision would need 4+ Newton-Raphson iterations, negating the speed advantage.
 The 4-wide finalizer batching amortizes these costs: one rsqrt or sqrt call processes 4 output elements simultaneously, hiding the latency behind the GEMM tile's computation.
 
 ### Norm Precomputation in Packed Buffers
@@ -79,7 +79,7 @@ Angular and Euclidean finalizers read norms from packed buffer metadata, elimina
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for batched distance computations over square matrices.
 Columns show throughput for 256³, 1024³, and 4096³ configurations.
-The throughput is measured in GSO/s as Giga scalar operations per second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ complexity for computing $M \times N$ pairwise distances over $K$-dimensional vectors.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ complexity for computing $M \times N$ pairwise distances over $K$-dimensional vectors.
 Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.

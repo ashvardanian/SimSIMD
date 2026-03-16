@@ -34,8 +34,8 @@ def dots_symmetric(a: np.ndarray) -> np.ndarray:
 | `f32`      | `f32`       | 32-bit IEEE 754 single precision               |
 | `f16`      | `f32`       | 16-bit IEEE 754 half precision, widened output |
 | `bf16`     | `f32`       | 16-bit brain float, widened output             |
-| `e4m3`     | `f32`       | 8-bit FP8: 4 exponent, 3 mantissa bits         |
-| `e5m2`     | `f32`       | 8-bit FP8: 5 exponent, 2 mantissa bits         |
+| `e4m3`     | `f32`       | 8-bit Float8: 4 exponent, 3 mantissa bits      |
+| `e5m2`     | `f32`       | 8-bit Float8: 5 exponent, 2 mantissa bits      |
 | `e2m3`     | `f32`       | 8-bit MX format: 2 exponent, 3 mantissa bits   |
 | `e3m2`     | `f32`       | 8-bit MX format: 3 exponent, 2 mantissa bits   |
 | `i8`       | `i32`       | 8-bit signed integers                          |
@@ -50,7 +50,7 @@ def dots_symmetric(a: np.ndarray) -> np.ndarray:
 
 `nk_dots_pack_f32_serial`, `nk_dots_pack_f32_haswell`, `nk_dots_pack_bf16_haswell`, `nk_dots_pack_i8_haswell` pre-pack the B matrix into a contiguous buffer optimized for streaming access during GEMM.
 Power-of-2 stride detection — when `stride_bytes & (stride_bytes - 1) == 0` — adds `depth_simd_dimensions` padding to avoid cache associativity conflicts on set-associative caches.
-Type conversion is amortized into the pack step: bf16→f32, f16→f32, and FP8→f32 conversions happen once during packing instead of per-row during GEMM.
+Type conversion is amortized into the pack step: $\text{BFloat16} \to \text{Float32}$, $\text{Float16} \to \text{Float32}$, and $\text{Float8} \to \text{Float32}$ conversions happen once during packing instead of per-row during GEMM.
 A 64-byte header stores metadata: column count, depth dimensions, and padded depth.
 Row grouping (`group_size=16`) zero-pads partial groups at matrix edges for uniform SIMD processing.
 
@@ -64,11 +64,11 @@ Row loads are amortized across multiple dot products: each A row is loaded once 
 ### AMX 2D Tile Engine
 
 The Sapphire Rapids AMX backends for `bf16`, mini-floats, `i8`, and `u8` use Intel AMX's 8 tile registers (TMM0–TMM7), each 1 KB (16 rows × 64 bytes).
-Convention: TMM0–1 hold A tiles, TMM2–3 hold B tiles, TMM4–7 are C accumulators — giving a 2×2 output tile (32×32 f32 results) per tile pass.
-`TDPBF16PS tmm_c, tmm_a, tmm_b` performs a 16×16 outer product with 32 bf16 multiply-adds per cell (16×16×32 = 8,192 MACs per instruction).
-Each A row contains 16 bf16 pairs interleaved as [a₀, a₁, a₀, a₁, ...] and B columns as [b₀, b₁, b₀, b₁, ...] — the hardware consumes two bf16 elements per slot, accumulating into f32.
-`TDPBSSD tmm_c, tmm_a, tmm_b` does the same for i8: 64 bytes per row gives 16×16×64 = 16,384 i8 MACs per instruction.
-i8 data is quad-interleaved: [a₀, a₁, a₂, a₃, a₀, a₁, a₂, a₃, ...] so the hardware can consume four i8 elements per 32-bit slot.
+Convention: TMM0–1 hold A tiles, TMM2–3 hold B tiles, TMM4–7 are C accumulators — giving a 2×2 output tile (32×32 Float32 results) per tile pass.
+`TDPBF16PS tmm_c, tmm_a, tmm_b` performs a 16×16 outer product with 32 BFloat16 multiply-adds per cell (16×16×32 = 8,192 MACs per instruction).
+Each A row contains 16 BFloat16 pairs interleaved as [a₀, a₁, a₀, a₁, ...] and B columns as [b₀, b₁, b₀, b₁, ...] — the hardware consumes two BFloat16 elements per slot, accumulating into Float32.
+`TDPBSSD tmm_c, tmm_a, tmm_b` does the same for Int8: 64 bytes per row gives 16×16×64 = 16,384 Int8 MACs per instruction.
+Int8 data is quad-interleaved: [a₀, a₁, a₂, a₃, a₀, a₁, a₂, a₃, ...] so the hardware can consume four Int8 elements per 32-bit slot.
 Tile configuration via `LDTILECFG` sets row counts and column byte-widths per tile — allows undersized tiles at matrix edges without masking.
 Morton Z-curve ordering for tile traversal improves cache reuse when both A and B exceed L2.
 This eliminates the explicit M×N×K loop nesting and register file pressure of vector ISAs — the entire dot-product reduction happens inside the tile instruction.
@@ -82,19 +82,19 @@ This avoids explicit transpose operations — the tile's 2D addressing provides 
 ZA1–ZA3 serve as accumulators while ZA0 stages the next data.
 A 3-column-tile fast path handles B column count ≤ 3×SVL using ZA1–ZA3 as three separate accumulator tiles, avoiding spill/reload cycles.
 For wider B, the kernel falls back to multi-pass accumulation with ZA store/load between passes.
-`BFMOPA` for bf16 uses the same outer-product pattern but with bf16→f32 widening — 2× the depth per instruction vs f32 `FMOPA`.
+`BFMOPA` for BFloat16 uses the same outer-product pattern but with $\text{BFloat16} \to \text{Float32}$ widening — 2× the depth per instruction vs Float32 `FMOPA`.
 `SMSTART`/`SMSTOP` streaming mode transitions cost ~50–100 cycles, amortized across the full M×N output.
-Ozaki splitting for f64 (`nk_dots_packed_f64_smef64`) splits each f64 into 3 mantissa-masked f32 slices, computes 6 FMOPAs (all cross-products of 3×2 slices) into 3 ZA accumulators, then reconstructs the f64 result — achieving f64 precision using f32 tile hardware.
+Ozaki splitting for Float64 (`nk_dots_packed_f64_smef64`) splits each Float64 into 3 mantissa-masked Float32 slices, computes 6 FMOPAs (all cross-products of 3×2 slices) into 3 ZA accumulators, then reconstructs the Float64 result — achieving Float64 precision using Float32 tile hardware.
 
 ### Compensated Integer GEMM
 
 `nk_dots_packed_i8_icelake`, `nk_dots_packed_u8_icelake`, `nk_dots_packed_i8_haswell` work around the unsigned×signed operand requirement of integer dot-product instructions.
-`VPDPBUSD` (Ice Lake+) computes u8×i8 dot products accumulating directly to i32 — but requires one unsigned and one signed operand.
-For signed×signed (i8×i8), one operand is XOR'd with `0x80` to shift to unsigned range, introducing a bias of $128 \cdot \sum_k b_k$ per output element.
+`VPDPBUSD` (Ice Lake+) computes UInt8×Int8 dot products accumulating directly to Int32 — but requires one unsigned and one signed operand.
+For signed×signed (Int8×Int8), one operand is XOR'd with `0x80` to shift to unsigned range, introducing a bias of $128 \cdot \sum_k b_k$ per output element.
 Rather than computing the bias correction per-element inside the inner loop (requiring extra registers for running sums), the B column sums $\sum_k b_k$ are pre-computed once during packing and stored in the packed buffer metadata.
 The inner loop only needs the `VPDPBUSD` accumulator — the bias subtraction is a single post-loop correction: `result[i][j] -= 128 * b_column_sum[j]`.
 This reduces per-accumulator state from 2 registers (dot + running sum) to 1 register (dot only), freeing registers for more accumulators in the 4×4 tile.
-Haswell fallback uses `VPMADDUBSW` (u8×i8→i16) + `VPMADDWD` (i16→i32), a two-instruction chain with i16 intermediate overflow risk — quantization ranges must be tighter ([-79, 79] vs [-127, 127]).
+Haswell fallback uses `VPMADDUBSW` (UInt8×Int8→Int16) + `VPMADDWD` (Int16→Int32), a two-instruction chain with Int16 intermediate overflow risk — quantization ranges must be tighter ([-79, 79] vs [-127, 127]).
 
 ### 4-Way Finalizer Amortization
 
@@ -125,7 +125,7 @@ This design decouples the GEMM loop from the distance metric: the same tiled acc
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for products of two square matrices.
 Columns show throughput for 256³, 1024³, and 4096³ matrix products.
-The throughput is measured in GSO/s as Giga scalar operations per second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ arithmetic complexity for an $M \times K$ by $K \times N$ product.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second, with $\text{ops} = 2 \cdot M \cdot N \cdot K$ arithmetic complexity for an $M \times K$ by $K \times N$ product.
 Accuracy is reported as mean ULP (units in last place) unless noted otherwise — the average number of representable floating-point values between the result and the exact answer.
 Rows marked `🧩` use external BLAS or MKL baselines rather than NumKong kernels.
 Each kernel runs for at least 20 seconds per configuration.

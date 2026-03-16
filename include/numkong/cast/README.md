@@ -1,10 +1,10 @@
 # Type Conversions in NumKong
 
-NumKong implements bidirectional type conversions between all supported numeric formats through f32 as a hub type.
-Conversions cover IEEE 754 floats (f16, f32, f64), brain float (bf16), FP8 formats (e4m3, e5m2, e2m3, e3m2), and integers (i8-i64, u8-u64, packed i4x2/u4x2).
+NumKong implements bidirectional type conversions between all supported numeric formats through Float32 as a hub type.
+Conversions cover IEEE 754 floats (Float16, Float32, Float64), brain float (BFloat16), Float8 formats (e4m3, e5m2, e2m3, e3m2), and integers (Int8–Int64, UInt8–UInt64, packed i4x2/u4x2).
 All conversions use round-to-nearest-even (RNE) for narrowing and exact widening where the target format has sufficient range and precision.
 
-BF16 relates to F32 by truncation with rounding:
+BFloat16 relates to Float32 by truncation with rounding:
 
 ```math
 \text{bf16} \approx \text{f32} \gg 16
@@ -12,7 +12,7 @@ BF16 relates to F32 by truncation with rounding:
 
 With RNE tie-breaking to preserve the least significant bit of the truncated result.
 
-F16 range and precision:
+Float16 range and precision:
 
 ```math
 \text{f16} \in [-65504, 65504], \quad \text{min positive normal} = 2^{-14}
@@ -40,18 +40,18 @@ Float-to-float conversions:
 | `f32`      | `bf16`      | 32-bit to brain float, truncation with RNE |
 | `bf16`     | `f32`       | Brain float to 32-bit, exact widening      |
 
-Float-to-FP8 conversions:
+Float-to-Float8 conversions:
 
-| Input Type | Output Type | Description                                |
-| ---------- | ----------- | ------------------------------------------ |
-| `f32`      | `e4m3`      | 32-bit to FP8: 4 exponent, 3 mantissa bits |
-| `e4m3`     | `f32`       | FP8 to 32-bit, exact via lookup table      |
-| `f32`      | `e5m2`      | 32-bit to FP8: 5 exponent, 2 mantissa bits |
-| `e5m2`     | `f32`       | FP8 to 32-bit, exact via lookup table      |
-| `f32`      | `e2m3`      | 32-bit to MX: 2 exponent, 3 mantissa bits  |
-| `e2m3`     | `f32`       | MX to 32-bit, exact via lookup table       |
-| `f32`      | `e3m2`      | 32-bit to MX: 3 exponent, 2 mantissa bits  |
-| `e3m2`     | `f32`       | MX to 32-bit, exact via lookup table       |
+| Input Type | Output Type | Description                                   |
+| ---------- | ----------- | --------------------------------------------- |
+| `f32`      | `e4m3`      | 32-bit to Float8: 4 exponent, 3 mantissa bits |
+| `e4m3`     | `f32`       | Float8 to 32-bit, exact via lookup table      |
+| `f32`      | `e5m2`      | 32-bit to Float8: 5 exponent, 2 mantissa bits |
+| `e5m2`     | `f32`       | Float8 to 32-bit, exact via lookup table      |
+| `f32`      | `e2m3`      | 32-bit to MX: 2 exponent, 3 mantissa bits     |
+| `e2m3`     | `f32`       | MX to 32-bit, exact via lookup table          |
+| `f32`      | `e3m2`      | 32-bit to MX: 3 exponent, 2 mantissa bits     |
+| `e3m2`     | `f32`       | MX to 32-bit, exact via lookup table          |
 
 Float-to-integer conversions:
 
@@ -61,10 +61,10 @@ Float-to-integer conversions:
 | `f32`      | `u8`        | Clamped to [0, 255], rounded        |
 | `f32`      | `i16`       | Clamped to [-32768, 32767], rounded |
 | `f32`      | `u16`       | Clamped to [0, 65535], rounded      |
-| `f64`      | `i32`       | Clamped to i32 range, rounded       |
-| `f64`      | `u32`       | Clamped to u32 range, rounded       |
-| `f64`      | `i64`       | Clamped to i64 range, rounded       |
-| `f64`      | `u64`       | Clamped to u64 range, rounded       |
+| `f64`      | `i32`       | Clamped to Int32 range, rounded     |
+| `f64`      | `u32`       | Clamped to UInt32 range, rounded    |
+| `f64`      | `i64`       | Clamped to Int64 range, rounded     |
+| `f64`      | `u64`       | Clamped to UInt64 range, rounded    |
 
 Packed sub-byte conversions:
 
@@ -75,23 +75,23 @@ Packed sub-byte conversions:
 
 ## Optimizations
 
-### Lookup Tables for FP8 and Mini-Floats
+### Lookup Tables for Mini-Floats
 
-`nk_e4m3_to_f32_serial`, `nk_e5m2_to_f32_serial`, `nk_e2m3_to_f32_serial`, `nk_e3m2_to_f32_serial` use 256-entry precomputed lookup tables -- each 8-bit input indexes directly into an f32 result array.
-The reverse direction (`nk_f32_to_e4m3_serial`) uses clamping + rounding: clamp to format range, multiply by scale, round-to-nearest, cast to u8.
+`nk_e4m3_to_f32_serial`, `nk_e5m2_to_f32_serial`, `nk_e2m3_to_f32_serial`, `nk_e3m2_to_f32_serial` use 256-entry precomputed lookup tables — each 8-bit input indexes directly into a Float32 result array.
+The reverse direction (`nk_f32_to_e4m3_serial`) uses clamping + rounding: clamp to format range, multiply by scale, round-to-nearest, cast to UInt8.
 SIMD backends (`nk_cast_haswell`, `nk_cast_skylake`) use `VPGATHERDD` to perform 8 or 16 simultaneous table lookups from the same 256-entry table.
 AVX-512 gathers on Skylake achieve ~3cy throughput per 16-element lookup vs ~8cy on Haswell for 8-element gathers.
 
-### BF16 as Truncated F32
+### BFloat16 as Truncated Float32
 
-`nk_bf16_to_f32_serial` zero-extends by left-shifting 16 bits -- exact, no rounding error, single-cycle on all platforms.
+`nk_bf16_to_f32_serial` zero-extends by left-shifting 16 bits — exact, no rounding error, single-cycle on all platforms.
 `nk_f32_to_bf16_serial` right-shifts with round-to-nearest-even: adds a rounding bias of `0x7FFF + ((bits >> 16) & 1)` before truncating, matching the IEEE 754 RNE tie-breaking rule.
 NEON backend uses `vreinterpretq_u16_u8` + `vzip` for zero-extension; Haswell uses `VPSLLD` / `VPSRLD` shifts.
 
 ### F16C Hardware Conversion
 
-`nk_f16_to_f32_haswell`, `nk_f32_to_f16_haswell` use the F16C extension instructions `VCVTPH2PS` / `VCVTPS2PH` -- single-instruction conversion of 8 elements with correct denormal handling, NaN propagation, and RNE rounding.
-The serial fallback (`nk_f16_to_f32_serial`) must handle denormals via explicit exponent/mantissa extraction and conditional re-normalization -- ~15 integer ops per element vs 1 instruction with F16C.
+`nk_f16_to_f32_haswell`, `nk_f32_to_f16_haswell` use the F16C extension instructions `VCVTPH2PS` / `VCVTPS2PH` — single-instruction conversion of 8 elements with correct denormal handling, NaN propagation, and RNE rounding.
+The serial fallback (`nk_f16_to_f32_serial`) must handle denormals via explicit exponent/mantissa extraction and conditional re-normalization — ~15 integer ops per element vs 1 instruction with F16C.
 AVX-512 (`nk_cast_skylake`) doubles throughput to 16 elements per instruction.
 
 ## Performance
@@ -186,13 +186,13 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel           |        ↓ 256 |         ↓ 1K |            ↓ 4K |        ↑ 256 |         ↑ 1K |            ↑ 4K |
 | :--------------- | -----------: | -----------: | --------------: | -----------: | -----------: | --------------: |
 | __f32 ↔ bf16__   | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ |
-| `nk_cast_serial` |       0 gb/s |       0 gb/s |       1.63 gb/s |       0 gb/s |       0 gb/s |       2.21 gb/s |
+| `nk_cast_serial` |       ? gb/s |       ? gb/s |       1.63 gb/s |       ? gb/s |       ? gb/s |       2.21 gb/s |
 | __f32 ↔ f16__    | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ |
-| `nk_cast_serial` |       0 gb/s |       0 gb/s |      0.436 gb/s |       0 gb/s |       0 gb/s |       1.19 gb/s |
+| `nk_cast_serial` |       ? gb/s |       ? gb/s |      0.436 gb/s |       ? gb/s |       ? gb/s |       1.19 gb/s |
 | __f32 ↔ e5m2__   | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ |
-| `nk_cast_serial` |       0 gb/s |       0 gb/s |      0.294 gb/s |       0 gb/s |       0 gb/s |       1.45 gb/s |
+| `nk_cast_serial` |       ? gb/s |       ? gb/s |      0.294 gb/s |       ? gb/s |       ? gb/s |       1.45 gb/s |
 | __f32 ↔ e4m3__   | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░ |
-| `nk_cast_serial` |       0 gb/s |       0 gb/s |      0.239 gb/s |       0 gb/s |       0 gb/s |      0.746 gb/s |
+| `nk_cast_serial` |       ? gb/s |       ? gb/s |      0.239 gb/s |       ? gb/s |       ? gb/s |      0.746 gb/s |
 
 ### Apple M4
 

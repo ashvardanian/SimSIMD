@@ -4,22 +4,22 @@ NumKong for Python is the broadest high-level SDK in the project.
 It targets the gap between `numpy` and low-level native kernels: you keep buffer-protocol interoperability and shape-aware outputs, but you stop giving up mixed precision, widened accumulators, packed reuse, and backend-specific optimizations every time you leave `float64`.
 It combines NumPy-friendly buffers with native mixed-precision kernels, zero-copy tensor views, packed and symmetric matrix operations, sparse helpers, geometric mesh alignment, and MaxSim.
 The API feels NumPy-shaped with familiar scalar, batched, and all-pairs entrypoints, while `Tensor` keeps shape, dtype, and strides visible through a memoryview-backed container.
-Low-precision dtypes (bf16, fp8, fp6, packed bits) flow through the same API, and dense, packed, and symmetric kernels release the GIL around native work.
+Low-precision dtypes (BFloat16, Float8, Float6, packed bits) flow through the same API, and dense, packed, and symmetric kernels release the GIL around native work.
 
 ## Ecosystem Comparison
 
-| Feature                  | NumKong                                | NumPy                | SciPy                 | PyTorch            |
-| ------------------------ | -------------------------------------- | -------------------- | --------------------- | ------------------ |
-| Dense distances and dots | SIMD-accelerated, widened accumulators | via BLAS, same-dtype | via BLAS              | native, same-dtype |
-| Binary metrics           | Hamming, Jaccard on packed bits        | no                   | on bool arrays        | no                 |
-| Probability divergences  | KL, JS on all float types              | no                   | `jensenshannon` only  | KL only            |
-| Elementwise fused ops    | scale, blend, fma with mixed precision | ufuncs, same-dtype   | no                    | native             |
-| bf16 / fp8 / fp6 support | full, including packed bits            | no                   | no                    | bf16 + fp8 partial |
-| GIL release              | dense, packed, and symmetric kernels   | partial              | partial               | yes                |
-| All-pairs `cdist`        | all metric families                    | no                   | Euclidean-family only | `cdist`            |
-| Packed matrix reuse      | pack once, reuse across batches        | no                   | no                    | no                 |
+| Feature                         | NumKong                                                                                                                      | [NumPy](https://github.com/numpy/numpy)/[SciPy](https://github.com/scipy/scipy) | [PyTorch](https://github.com/pytorch/pytorch)                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Operation families              | dots, distances, binary, probability, geospatial, curved, mesh, sparse, MaxSim, elementwise, reductions, cast, trig          | dots, distances, elementwise, reductions, some probability via `cdist`          | dots, distances, elementwise, reductions                                    |
+| Precision                       | BFloat16 through sub-byte — Float8, Float6, Int4, packed bits; automatic widening; Kahan summation; 0 ULP in Float32/Float64 | Float16, partial BFloat16; no auto-widening; standard accuracy                  | Float16, BFloat16, partial Float8; explicit AMP required; standard accuracy |
+| Runtime SIMD dispatch           | auto-selects best ISA per-thread at runtime on x86, ARM, RISC-V                                                              | compile-time only                                                               | CPU: compile-time; CUDA: runtime                                            |
+| Packed matrix, GEMM-like        | pack once, reuse across query batches                                                                                        | `np.dot`/`@` — no persistent packing                                            | `torch.mm` — no persistent distance-oriented packing                        |
+| Symmetric kernels, SYRK-like    | skip duplicate pairs, up to 2x speedup for self-distance                                                                     | `pdist` computes one triangle; `cdist` recomputes both                          | `X @ X.T` recomputes both triangles                                         |
+| Output parameter `out=`         | Yes — all major entrypoints                                                                                                  | Yes — most `ufunc`s and functions; SciPy: some functions only                   | Yes for `torch.mm`, `torch.matmul`; No for `torch.cdist`                    |
+| Fast CPython calling convention | Yes — direct `METH_FASTCALL`                                                                                                 | Yes — `vectorcall` in 2.0+                                                      | No — tensor dispatch overhead                                               |
+| GIL release                     | batched, packed, and symmetric kernels                                                                                       | some ops only                                                                   | most ops                                                                    |
 
-NumKong-unique features not covered by the alternatives above: geospatial solvers (Haversine, Vincenty), curved-space metrics (Bilinear, Mahalanobis), symmetric self-distance (SYRK-like), geometric mesh alignment (Kabsch), sparse set intersections, MaxSim late interaction, and latency-oriented scalar kernels.
+
 
 ## Quickstart
 
@@ -277,24 +277,24 @@ float(arr[0])  # → 1.0
 
 Type name mapping between the two libraries:
 
-| ml_dtypes                    | NumKong                       | Status                                       |
-| ---------------------------- | ----------------------------- | -------------------------------------------- |
-| `ml_dtypes.bfloat16`        | `nk.bfloat16` / `"bfloat16"` | Identical format                             |
-| `ml_dtypes.float8_e4m3`     | `nk.float8_e4m3` / `"e4m3"`  | Identical (IEEE E4M3)                        |
-| `ml_dtypes.float8_e4m3fn`   | `nk.float8_e4m3` / `"e4m3"`  | Identical (E4M3FN = no inf)                  |
-| `ml_dtypes.float8_e5m2`     | `nk.float8_e5m2` / `"e5m2"`  | Identical format                             |
-| `ml_dtypes.float6_e2m3fn`   | `nk.float6_e2m3` / `"e2m3"`  | Identical (MX E2M3)                          |
-| `ml_dtypes.float6_e3m2fn`   | `nk.float6_e3m2` / `"e3m2"`  | Identical (MX E3M2)                          |
-| `ml_dtypes.float8_e4m3fnuz` | —                             | Rejected: different bias, NaN, and zero      |
-| `ml_dtypes.float8_e5m2fnuz` | —                             | Rejected: different NaN and zero encoding    |
-| `ml_dtypes.float8_e4m3b11fnuz` | —                          | Rejected: bias=11, incompatible encoding     |
-| `ml_dtypes.float8_e8m0fnu`  | —                             | Not supported: exponent-only MX scale format |
-| `ml_dtypes.float8_e3m4`     | —                             | Not supported: no NumKong kernel             |
-| `ml_dtypes.float4_e2m1fn`   | —                             | Not supported: 4-bit MX float                |
-| `ml_dtypes.int4`            | `"int4"`                      | Compatible via buffer protocol               |
-| `ml_dtypes.uint4`           | `"uint4"`                     | Compatible via buffer protocol               |
-| `ml_dtypes.int2`            | —                             | Not supported                                |
-| `ml_dtypes.uint2`           | —                             | Not supported                                |
+| ml_dtypes                      | NumKong                      | Status                                       |
+| ------------------------------ | ---------------------------- | -------------------------------------------- |
+| `ml_dtypes.bfloat16`           | `nk.bfloat16` / `"bfloat16"` | Identical format                             |
+| `ml_dtypes.float8_e4m3`        | `nk.float8_e4m3` / `"e4m3"`  | Identical (IEEE E4M3)                        |
+| `ml_dtypes.float8_e4m3fn`      | `nk.float8_e4m3` / `"e4m3"`  | Identical (E4M3FN = no inf)                  |
+| `ml_dtypes.float8_e5m2`        | `nk.float8_e5m2` / `"e5m2"`  | Identical format                             |
+| `ml_dtypes.float6_e2m3fn`      | `nk.float6_e2m3` / `"e2m3"`  | Identical (MX E2M3)                          |
+| `ml_dtypes.float6_e3m2fn`      | `nk.float6_e3m2` / `"e3m2"`  | Identical (MX E3M2)                          |
+| `ml_dtypes.float8_e4m3fnuz`    | —                            | Rejected: different bias, NaN, and zero      |
+| `ml_dtypes.float8_e5m2fnuz`    | —                            | Rejected: different NaN and zero encoding    |
+| `ml_dtypes.float8_e4m3b11fnuz` | —                            | Rejected: bias=11, incompatible encoding     |
+| `ml_dtypes.float8_e8m0fnu`     | —                            | Not supported: exponent-only MX scale format |
+| `ml_dtypes.float8_e3m4`        | —                            | Not supported: no NumKong kernel             |
+| `ml_dtypes.float4_e2m1fn`      | —                            | Not supported: 4-bit MX float                |
+| `ml_dtypes.int4`               | `"int4"`                     | Compatible via buffer protocol               |
+| `ml_dtypes.uint4`              | `"uint4"`                    | Compatible via buffer protocol               |
+| `ml_dtypes.int2`               | —                            | Not supported                                |
+| `ml_dtypes.uint2`              | —                            | Not supported                                |
 
 ## Tensor Objects and Buffer Interop
 
