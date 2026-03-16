@@ -1486,6 +1486,18 @@ NK_PUBLIC void nk_dots_packed_u1_neon(nk_u1x8_t const *a, void const *b_packed, 
 NK_PUBLIC void nk_dots_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                          nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                          nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_f16 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_f16_neon(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_f16 */
+NK_PUBLIC void nk_dots_pack_f16_neon(nk_f16_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                     void *b_packed);
+/** @copydoc nk_dots_packed_f16 */
+NK_PUBLIC void nk_dots_packed_f16_neon(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t height,
+                                       nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_f16 */
+NK_PUBLIC void nk_dots_symmetric_f16_neon(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_neon(nk_size_t width, nk_size_t depth);
 /** @copydoc nk_dots_pack_bf16 */
@@ -1903,6 +1915,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f16(nk_size_t width, nk_size_t depth) {
     return nk_dots_packed_size_f16_neonfhm(width, depth);
 #elif NK_TARGET_NEONHALF
     return nk_dots_packed_size_f16_neonhalf(width, depth);
+#elif NK_TARGET_NEON
+    return nk_dots_packed_size_f16_neon(width, depth);
 #elif NK_TARGET_SKYLAKE
     return nk_dots_packed_size_f16_skylake(width, depth);
 #elif NK_TARGET_HASWELL
@@ -1922,6 +1936,8 @@ NK_PUBLIC void nk_dots_pack_f16(nk_f16_t const *b, nk_size_t width, nk_size_t de
     nk_dots_pack_f16_neonfhm(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_NEONHALF
     nk_dots_pack_f16_neonhalf(b, width, depth, b_stride, b_packed);
+#elif NK_TARGET_NEON
+    nk_dots_pack_f16_neon(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
     nk_dots_pack_f16_skylake(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
@@ -1941,6 +1957,8 @@ NK_PUBLIC void nk_dots_packed_f16(nk_f16_t const *a, void const *b_packed, nk_f3
     nk_dots_packed_f16_neonfhm(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_NEONHALF
     nk_dots_packed_f16_neonhalf(a, b_packed, c, height, width, depth, a_stride, c_stride);
+#elif NK_TARGET_NEON
+    nk_dots_packed_f16_neon(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
     nk_dots_packed_f16_skylake(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
@@ -2620,6 +2638,8 @@ NK_PUBLIC void nk_dots_symmetric_f16(nk_f16_t const *vectors, nk_size_t n_vector
     nk_dots_symmetric_f16_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONHALF
     nk_dots_symmetric_f16_neonhalf(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_NEON
+    nk_dots_symmetric_f16_neon(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONFHM
     nk_dots_symmetric_f16_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE

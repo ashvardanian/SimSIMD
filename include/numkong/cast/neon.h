@@ -538,6 +538,32 @@ NK_INTERNAL float32x4_t nk_bf16x4_to_f32x4_neon_(uint16x4_t bf16_u16x4) {
     return vreinterpretq_f32_u32(bits_u32x4);
 }
 
+/** @brief Convert 4x f16 (as u16 bits) → f32x4 via integer bit manipulation (NEON).
+ *  F16 format: S EEEEE MMMMMMMMMM (bias=15, 5-bit exponent, 10-bit mantissa).
+ *  Works on ARMv8.0 without the FP16 arithmetic extension. Treats denormals as zero. */
+NK_INTERNAL float32x4_t nk_f16x4_to_f32x4_neon_(uint16x4_t half_u16x4) {
+    // Widen u16 to u32
+    uint32x4_t bits_u32x4 = vmovl_u16(half_u16x4);
+    // Extract sign, exponent, mantissa
+    uint32x4_t sign_u32x4 = vshlq_n_u32(vandq_u32(bits_u32x4, vdupq_n_u32(0x8000)), 16);
+    uint32x4_t exponent_u32x4 = vandq_u32(bits_u32x4, vdupq_n_u32(0x7C00));
+    uint32x4_t mantissa_u32x4 = vandq_u32(bits_u32x4, vdupq_n_u32(0x03FF));
+    // Normal path: ((exponent + mantissa) << 13) + rebias(112 << 23 = 0x38000000)
+    uint32x4_t exponent_mantissa_u32x4 = vandq_u32(bits_u32x4, vdupq_n_u32(0x7FFF));
+    uint32x4_t normal_u32x4 = vaddq_u32(vshlq_n_u32(exponent_mantissa_u32x4, 13), vdupq_n_u32(0x38000000));
+    // Inf/NaN path (exponent == 0x7C00): 0x7F800000 | (mantissa << 13)
+    uint32x4_t inf_nan_u32x4 = vorrq_u32(vdupq_n_u32(0x7F800000), vshlq_n_u32(mantissa_u32x4, 13));
+    // Select inf/NaN where exponent == 31 (0x7C00)
+    uint32x4_t is_inf_nan_u32x4 = vceqq_u32(exponent_u32x4, vdupq_n_u32(0x7C00));
+    uint32x4_t result_u32x4 = vbslq_u32(is_inf_nan_u32x4, inf_nan_u32x4, normal_u32x4);
+    // Zero path (exponent == 0): treat denormals as zero for simplicity
+    uint32x4_t is_zero_u32x4 = vceqq_u32(exponent_u32x4, vdupq_n_u32(0));
+    result_u32x4 = vbslq_u32(is_zero_u32x4, vdupq_n_u32(0), result_u32x4);
+    // OR sign back
+    result_u32x4 = vorrq_u32(result_u32x4, sign_u32x4);
+    return vreinterpretq_f32_u32(result_u32x4);
+}
+
 /** @brief Convert f32x4 → 4x bf16 with RNE rounding (NEON).
  *  Round-to-nearest-even: add (0x7FFF + lsb) before truncation. */
 NK_INTERNAL uint16x4_t nk_f32x4_to_bf16x4_neon_(float32x4_t f32x4) {

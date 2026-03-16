@@ -388,11 +388,11 @@ On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float
 | Skylake (2015)         | `SLLI` + `VFMADD`        |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
 | Haswell (2013)         | `SLLI` + `VFMADD`        |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
 | __Arm__                |                          |         |                        |         |
-| Graviton 3 (2021)      | `BFDOT` widening dot     |       8 | `SVCVT` → `SVFMLA`     |    4–32 |
+| Graviton 3 (2021)      | `SVBFDOT` widening dot   |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
 | Apple M2+ (2022)       | `BFDOT` widening dot     |       8 | ↓ FP16FML              |       8 |
 | Apple M1 (2020)        | ↓ NEON                   |       8 | `FMLAL` widening FMA   |       8 |
 | Graviton 2 (2019)      | ↓ NEON                   |       8 | `FCVTL` + `FMLA`       |       4 |
-| Graviton 1 (2018)      | `SHLL` + `FMLA`          |       8 | —                      |       — |
+| Graviton 1 (2018)      | `SHLL` + `FMLA`          |       8 | bit-manip → `FMLA`     |       8 |
 
 > BFloat16 shares Float32's 8-bit exponent, so upcasting is a 16-bit left shift (`SLLI` on x86, `SHLL` on Arm) that zero-pads the truncated mantissa — essentially free.
 > Float16 has a different exponent width (5 vs 8 bits), requiring a dedicated convert: `VCVTPH2PS` (x86 F16C) or `FCVTL` (Arm NEON).
