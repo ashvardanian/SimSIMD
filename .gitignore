@@ -7,7 +7,6 @@ wheelhouse/
 node_modules/
 package-ci/
 prebuilds/
-bench/
 build/
 dist/
 javascript/dist

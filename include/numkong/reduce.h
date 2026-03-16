@@ -683,10 +683,6 @@ NK_PUBLIC void nk_reduce_moments_bf16_genoa(nk_bf16_t const *, nk_size_t, nk_siz
 NK_PUBLIC void nk_reduce_moments_e4m3_genoa(nk_e4m3_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_e5m2_genoa(nk_e5m2_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
-/** @copydoc nk_reduce_moments_f64 */
-NK_PUBLIC void nk_reduce_moments_e2m3_genoa(nk_e2m3_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
-/** @copydoc nk_reduce_moments_f64 */
-NK_PUBLIC void nk_reduce_moments_e3m2_genoa(nk_e3m2_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_ALDER
@@ -1478,8 +1474,6 @@ NK_PUBLIC void nk_reduce_moments_e2m3(nk_e2m3_t const *d, nk_size_t n, nk_size_t
     nk_reduce_moments_e2m3_alder(d, n, s, sum, sumsq);
 #elif NK_TARGET_SIERRA
     nk_reduce_moments_e2m3_sierra(d, n, s, sum, sumsq);
-#elif NK_TARGET_GENOA
-    nk_reduce_moments_e2m3_genoa(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_e2m3_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
@@ -1519,8 +1513,6 @@ NK_PUBLIC void nk_reduce_moments_e3m2(nk_e3m2_t const *d, nk_size_t n, nk_size_t
     nk_reduce_moments_e3m2_icelake(d, n, s, sum, sumsq);
 #elif NK_TARGET_ALDER
     nk_reduce_moments_e3m2_alder(d, n, s, sum, sumsq);
-#elif NK_TARGET_GENOA
-    nk_reduce_moments_e3m2_genoa(d, n, s, sum, sumsq);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_moments_e3m2_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL

@@ -237,12 +237,6 @@ void test_spatial() {
     check("angular_bf16_genoa", test_angular<bf16_t>, nk_angular_bf16_genoa);
     check("sqeuclidean_bf16_genoa", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_genoa);
     check("euclidean_bf16_genoa", test_euclidean<bf16_t>, nk_euclidean_bf16_genoa);
-    check("angular_e2m3_genoa", test_angular<e2m3_t>, nk_angular_e2m3_genoa);
-    check("sqeuclidean_e2m3_genoa", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_genoa);
-    check("euclidean_e2m3_genoa", test_euclidean<e2m3_t>, nk_euclidean_e2m3_genoa);
-    check("angular_e3m2_genoa", test_angular<e3m2_t>, nk_angular_e3m2_genoa);
-    check("sqeuclidean_e3m2_genoa", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_genoa);
-    check("euclidean_e3m2_genoa", test_euclidean<e3m2_t>, nk_euclidean_e3m2_genoa);
     check("angular_e4m3_genoa", test_angular<e4m3_t>, nk_angular_e4m3_genoa);
     check("sqeuclidean_e4m3_genoa", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_genoa);
     check("euclidean_e4m3_genoa", test_euclidean<e4m3_t>, nk_euclidean_e4m3_genoa);

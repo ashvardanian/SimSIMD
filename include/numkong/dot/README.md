@@ -99,7 +99,7 @@ For u8 × u8, $b$ is XORed with `0x80` to shift into signed range, same as Ice L
 
 ### Widening Fusion Through BF16 on x86
 
-`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa`, `nk_dot_e2m3_genoa`, `nk_dot_e3m2_genoa` convert FP8/MX values to BF16, then accumulate via `VDPBF16PS` — repurposing Genoa's BF16 dot-product hardware for types it was never designed for.
+`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa` convert FP8 values to BF16, then accumulate via `VDPBF16PS` — repurposing Genoa's BF16 dot-product hardware for types it was never designed for.
 Each `VDPBF16PS` fuses two BF16 multiply-adds per 32-bit lane at 6-cycle throughput.
 `nk_dot_bf16c_genoa` uses the same instruction for complex BF16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
 

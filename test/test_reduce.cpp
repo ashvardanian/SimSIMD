@@ -351,10 +351,6 @@ void test_reduce() {
           nk_reduce_moments_e4m3_serial);
     check("reduce_moments_e5m2_genoa", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_genoa,
           nk_reduce_moments_e5m2_serial);
-    check("reduce_moments_e2m3_genoa", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_genoa,
-          nk_reduce_moments_e2m3_serial);
-    check("reduce_moments_e3m2_genoa", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_genoa,
-          nk_reduce_moments_e3m2_serial);
 #endif
 
 #if NK_TARGET_ALDER

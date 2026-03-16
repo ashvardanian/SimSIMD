@@ -262,50 +262,27 @@ void test_cross_x86() {
           nk_dots_packed_e4m3_genoa);
     check("dots_packed_e5m2_genoa", test_dots_packed<e5m2_t>, nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
           nk_dots_packed_e5m2_genoa);
-    check("dots_packed_e2m3_genoa", test_dots_packed<e2m3_t>, nk_dots_packed_size_e2m3_genoa, nk_dots_pack_e2m3_genoa,
-          nk_dots_packed_e2m3_genoa);
-    check("dots_packed_e3m2_genoa", test_dots_packed<e3m2_t>, nk_dots_packed_size_e3m2_genoa, nk_dots_pack_e3m2_genoa,
-          nk_dots_packed_e3m2_genoa);
-
     check("dots_symmetric_bf16_genoa", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_genoa);
     check("dots_symmetric_e4m3_genoa", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_genoa);
     check("dots_symmetric_e5m2_genoa", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_genoa);
-    check("dots_symmetric_e2m3_genoa", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_genoa);
-    check("dots_symmetric_e3m2_genoa", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_genoa);
-
     check("angulars_packed_bf16_genoa", test_angulars_packed<bf16_t>, nk_dots_packed_size_bf16_genoa,
           nk_dots_pack_bf16_genoa, nk_angulars_packed_bf16_genoa);
     check("angulars_packed_e4m3_genoa", test_angulars_packed<e4m3_t>, nk_dots_packed_size_e4m3_genoa,
           nk_dots_pack_e4m3_genoa, nk_angulars_packed_e4m3_genoa);
     check("angulars_packed_e5m2_genoa", test_angulars_packed<e5m2_t>, nk_dots_packed_size_e5m2_genoa,
           nk_dots_pack_e5m2_genoa, nk_angulars_packed_e5m2_genoa);
-    check("angulars_packed_e2m3_genoa", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_genoa,
-          nk_dots_pack_e2m3_genoa, nk_angulars_packed_e2m3_genoa);
-    check("angulars_packed_e3m2_genoa", test_angulars_packed<e3m2_t>, nk_dots_packed_size_e3m2_genoa,
-          nk_dots_pack_e3m2_genoa, nk_angulars_packed_e3m2_genoa);
-
     check("angulars_symmetric_bf16_genoa", test_angulars_symmetric<bf16_t>, nk_angulars_symmetric_bf16_genoa);
     check("angulars_symmetric_e4m3_genoa", test_angulars_symmetric<e4m3_t>, nk_angulars_symmetric_e4m3_genoa);
     check("angulars_symmetric_e5m2_genoa", test_angulars_symmetric<e5m2_t>, nk_angulars_symmetric_e5m2_genoa);
-    check("angulars_symmetric_e2m3_genoa", test_angulars_symmetric<e2m3_t>, nk_angulars_symmetric_e2m3_genoa);
-    check("angulars_symmetric_e3m2_genoa", test_angulars_symmetric<e3m2_t>, nk_angulars_symmetric_e3m2_genoa);
-
     check("euclideans_packed_bf16_genoa", test_euclideans_packed<bf16_t>, nk_dots_packed_size_bf16_genoa,
           nk_dots_pack_bf16_genoa, nk_euclideans_packed_bf16_genoa);
     check("euclideans_packed_e4m3_genoa", test_euclideans_packed<e4m3_t>, nk_dots_packed_size_e4m3_genoa,
           nk_dots_pack_e4m3_genoa, nk_euclideans_packed_e4m3_genoa);
     check("euclideans_packed_e5m2_genoa", test_euclideans_packed<e5m2_t>, nk_dots_packed_size_e5m2_genoa,
           nk_dots_pack_e5m2_genoa, nk_euclideans_packed_e5m2_genoa);
-    check("euclideans_packed_e2m3_genoa", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_genoa,
-          nk_dots_pack_e2m3_genoa, nk_euclideans_packed_e2m3_genoa);
-    check("euclideans_packed_e3m2_genoa", test_euclideans_packed<e3m2_t>, nk_dots_packed_size_e3m2_genoa,
-          nk_dots_pack_e3m2_genoa, nk_euclideans_packed_e3m2_genoa);
-
     check("euclideans_symmetric_bf16_genoa", test_euclideans_symmetric<bf16_t>, nk_euclideans_symmetric_bf16_genoa);
     check("euclideans_symmetric_e4m3_genoa", test_euclideans_symmetric<e4m3_t>, nk_euclideans_symmetric_e4m3_genoa);
     check("euclideans_symmetric_e5m2_genoa", test_euclideans_symmetric<e5m2_t>, nk_euclideans_symmetric_e5m2_genoa);
-    check("euclideans_symmetric_e2m3_genoa", test_euclideans_symmetric<e2m3_t>, nk_euclideans_symmetric_e2m3_genoa);
-    check("euclideans_symmetric_e3m2_genoa", test_euclideans_symmetric<e3m2_t>, nk_euclideans_symmetric_e3m2_genoa);
 #endif
 
 #if NK_TARGET_ALDER

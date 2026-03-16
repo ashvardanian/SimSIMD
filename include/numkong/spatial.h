@@ -1131,8 +1131,6 @@ NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_euclidean_e2m3_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_euclidean_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1151,8 +1149,6 @@ NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e2m3_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_sqeuclidean_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1171,8 +1167,6 @@ NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_si
 NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_angular_e2m3_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_angular_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1191,8 +1185,6 @@ NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_euclidean_e3m2_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_euclidean_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e3m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1207,8 +1199,6 @@ NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e3m2_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_sqeuclidean_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1223,8 +1213,6 @@ NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
 NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SAPPHIRE
     nk_angular_e3m2_sapphire(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_angular_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e3m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL

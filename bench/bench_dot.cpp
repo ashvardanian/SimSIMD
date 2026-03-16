@@ -233,8 +233,6 @@ void bench_dot() {
     run_dense<bf16c_k, f32c_k>("vdot_bf16c_genoa", nk_vdot_bf16c_genoa);
     run_dense<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
     run_dense<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
-    run_dense<e2m3_k, f32_k>("dot_e2m3_genoa", nk_dot_e2m3_genoa);
-    run_dense<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
 #endif
 
 #if NK_TARGET_RVV

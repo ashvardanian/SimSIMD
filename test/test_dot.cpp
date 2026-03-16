@@ -228,8 +228,6 @@ void test_dot() {
     check("dot_bf16_genoa", test_dot<bf16_t>, nk_dot_bf16_genoa);
     check("dot_e4m3_genoa", test_dot<e4m3_t>, nk_dot_e4m3_genoa);
     check("dot_e5m2_genoa", test_dot<e5m2_t>, nk_dot_e5m2_genoa);
-    check("dot_e2m3_genoa", test_dot<e2m3_t>, nk_dot_e2m3_genoa);
-    check("dot_e3m2_genoa", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
     check("dot_bf16c_genoa", test_dot<bf16c_t>, nk_dot_bf16c_genoa);
     check("vdot_bf16c_genoa", test_vdot<bf16c_t>, nk_vdot_bf16c_genoa);
 #endif // NK_TARGET_GENOA

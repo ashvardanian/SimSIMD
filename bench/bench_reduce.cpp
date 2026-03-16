@@ -249,8 +249,6 @@ void bench_reduce() {
     run_reduce_moments<bf16_k>("reduce_moments_bf16_genoa", nk_reduce_moments_bf16_genoa);
     run_reduce_moments<e4m3_k>("reduce_moments_e4m3_genoa", nk_reduce_moments_e4m3_genoa);
     run_reduce_moments<e5m2_k>("reduce_moments_e5m2_genoa", nk_reduce_moments_e5m2_genoa);
-    run_reduce_moments<e2m3_k>("reduce_moments_e2m3_genoa", nk_reduce_moments_e2m3_genoa);
-    run_reduce_moments<e3m2_k>("reduce_moments_e3m2_genoa", nk_reduce_moments_e3m2_genoa);
 #endif
 
 #if NK_TARGET_ALDER

@@ -468,10 +468,6 @@ NK_PUBLIC void nk_vdot_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_
 NK_PUBLIC void nk_dot_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_e2m3 */
-NK_PUBLIC void nk_dot_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_e3m2 */
-NK_PUBLIC void nk_dot_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_ALDER
@@ -827,8 +823,6 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e2m3_icelake(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_dot_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_e2m3_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
@@ -855,8 +849,6 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e3m2_icelake(a, b, n, result);
-#elif NK_TARGET_GENOA
-    nk_dot_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_e3m2_neonsdot(a, b, n, result);
 #elif NK_TARGET_V128RELAXED

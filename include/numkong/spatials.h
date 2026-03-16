@@ -565,39 +565,6 @@ NK_PUBLIC void nk_euclideans_symmetric_e5m2_genoa(nk_e5m2_t const *vectors, nk_s
                                                   nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                   nk_size_t row_start, nk_size_t row_count);
 
-/** @copydoc nk_angulars_packed_e2m3 */
-NK_PUBLIC void nk_angulars_packed_e2m3_genoa(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
-                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
-                                             nk_size_t r_stride_in_bytes);
-/** @copydoc nk_angulars_symmetric_e2m3 */
-NK_PUBLIC void nk_angulars_symmetric_e2m3_genoa(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                nk_size_t row_start, nk_size_t row_count);
-/** @copydoc nk_euclideans_packed_e2m3 */
-NK_PUBLIC void nk_euclideans_packed_e2m3_genoa(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *result,
-                                               nk_size_t rows, nk_size_t cols, nk_size_t depth,
-                                               nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
-/** @copydoc nk_euclideans_symmetric_e2m3 */
-NK_PUBLIC void nk_euclideans_symmetric_e2m3_genoa(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                  nk_size_t row_start, nk_size_t row_count);
-
-/** @copydoc nk_angulars_packed_e3m2 */
-NK_PUBLIC void nk_angulars_packed_e3m2_genoa(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *result, nk_size_t rows,
-                                             nk_size_t cols, nk_size_t depth, nk_size_t a_stride_in_bytes,
-                                             nk_size_t r_stride_in_bytes);
-/** @copydoc nk_angulars_symmetric_e3m2 */
-NK_PUBLIC void nk_angulars_symmetric_e3m2_genoa(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                nk_size_t row_start, nk_size_t row_count);
-/** @copydoc nk_euclideans_packed_e3m2 */
-NK_PUBLIC void nk_euclideans_packed_e3m2_genoa(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *result,
-                                               nk_size_t rows, nk_size_t cols, nk_size_t depth,
-                                               nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
-/** @copydoc nk_euclideans_symmetric_e3m2 */
-NK_PUBLIC void nk_euclideans_symmetric_e3m2_genoa(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                  nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_GENOA
 
 /*  Sapphire Rapids backends using Intel AMX (Advanced Matrix Extensions).
@@ -2575,8 +2542,6 @@ NK_PUBLIC void nk_angulars_packed_e2m3(nk_e2m3_t const *a, void const *b_packed,
     nk_angulars_packed_e2m3_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_packed_e2m3_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_GENOA
-    nk_angulars_packed_e2m3_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SIERRA
     nk_angulars_packed_e2m3_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ALDER
@@ -2603,8 +2568,6 @@ NK_PUBLIC void nk_angulars_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_symmetric_e2m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                            row_count);
-#elif NK_TARGET_GENOA
-    nk_angulars_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_angulars_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ALDER
@@ -2631,8 +2594,6 @@ NK_PUBLIC void nk_euclideans_packed_e2m3(nk_e2m3_t const *a, void const *b_packe
     nk_euclideans_packed_e2m3_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_packed_e2m3_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_GENOA
-    nk_euclideans_packed_e2m3_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SIERRA
     nk_euclideans_packed_e2m3_sierra(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ALDER
@@ -2660,8 +2621,6 @@ NK_PUBLIC void nk_euclideans_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t 
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_symmetric_e2m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                              row_count);
-#elif NK_TARGET_GENOA
-    nk_euclideans_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_euclideans_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ALDER
@@ -2691,8 +2650,6 @@ NK_PUBLIC void nk_angulars_packed_e3m2(nk_e3m2_t const *a, void const *b_packed,
     nk_angulars_packed_e3m2_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_packed_e3m2_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_GENOA
-    nk_angulars_packed_e3m2_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
     nk_angulars_packed_e3m2_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
@@ -2713,8 +2670,6 @@ NK_PUBLIC void nk_angulars_symmetric_e3m2(nk_e3m2_t const *vectors, nk_size_t n_
 #elif NK_TARGET_SAPPHIREAMX
     nk_angulars_symmetric_e3m2_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                            row_count);
-#elif NK_TARGET_GENOA
-    nk_angulars_symmetric_e3m2_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_angulars_symmetric_e3m2_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
@@ -2734,8 +2689,6 @@ NK_PUBLIC void nk_euclideans_packed_e3m2(nk_e3m2_t const *a, void const *b_packe
     nk_euclideans_packed_e3m2_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_packed_e3m2_sapphireamx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_GENOA
-    nk_euclideans_packed_e3m2_genoa(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
     nk_euclideans_packed_e3m2_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
@@ -2757,8 +2710,6 @@ NK_PUBLIC void nk_euclideans_symmetric_e3m2(nk_e3m2_t const *vectors, nk_size_t 
 #elif NK_TARGET_SAPPHIREAMX
     nk_euclideans_symmetric_e3m2_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                              row_count);
-#elif NK_TARGET_GENOA
-    nk_euclideans_symmetric_e3m2_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_euclideans_symmetric_e3m2_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                          row_count);
