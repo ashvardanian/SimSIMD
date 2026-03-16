@@ -612,6 +612,12 @@ NK_PUBLIC void nk_angular_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_
 NK_PUBLIC void nk_euclidean_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_ALDER
 
 #if NK_TARGET_V128RELAXED
@@ -1187,6 +1193,8 @@ NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size
     nk_euclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_euclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_euclidean_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1201,6 +1209,8 @@ NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
     nk_sqeuclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_sqeuclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_sqeuclidean_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1215,6 +1225,8 @@ NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t
     nk_angular_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON

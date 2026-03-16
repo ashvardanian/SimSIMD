@@ -255,6 +255,9 @@ void test_spatial() {
     check("angular_i8_alder", test_angular<i8_t>, nk_angular_i8_alder);
     check("angular_u8_alder", test_angular<u8_t>, nk_angular_u8_alder);
     check("angular_e2m3_alder", test_angular<e2m3_t>, nk_angular_e2m3_alder);
+    check("sqeuclidean_e3m2_alder", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_alder);
+    check("euclidean_e3m2_alder", test_euclidean<e3m2_t>, nk_euclidean_e3m2_alder);
+    check("angular_e3m2_alder", test_angular<e3m2_t>, nk_angular_e3m2_alder);
 #endif // NK_TARGET_ALDER
 
 #if NK_TARGET_SIERRA

@@ -34,15 +34,15 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 > JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
 > NumKong uses `dots_packed` (pre-packed GEMM). Same format: __gso/s, mean relative error__.
 
-| Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |               NumKong |
-| :----- | ----------------------: | -----------------------: | -----------------------: | --------------------: |
-|        |          ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
-| `f64`  |  65.5 gso/s, ~1e-15 err |   68.2 gso/s, ~1e-15 err |  ~14.3 gso/s, ~1e-15 err | 8.6 gso/s, ~1e-16 err |
-| `f32`  |     140 gso/s, 9e-7 err |      145 gso/s, 1e-6 err |    ~60.5 gso/s, 1e-6 err |  37.7 gso/s, 4e-7 err |
-| `bf16` |                       — |      851 gso/s, 1.8% err |    ~25.8 gso/s, 3.4% err |   458 gso/s, 3.6% err |
-| `f16`  |    0.3 gso/s, 0.25% err |     140 gso/s, 0.37% err |   ~26.1 gso/s, 0.35% err |  103 gso/s, 0.26% err |
-| `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |     398 gso/s, 0% err |
-| `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |    1279 gso/s, 0% err |
+| Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |              NumKong |
+| :----- | ----------------------: | -----------------------: | -----------------------: | -------------------: |
+|        |          ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |
+| `f64`  |   65.5 gso/s, 1e-15 err |    68.2 gso/s, 1e-15 err |   ~14.3 gso/s, 1e-15 err | 8.6 gso/s, 1e-16 err |
+| `f32`  |     140 gso/s, 9e-7 err |      145 gso/s, 1e-6 err |    ~60.5 gso/s, 1e-6 err | 37.7 gso/s, 4e-7 err |
+| `bf16` |                       — |      851 gso/s, 1.8% err |    ~25.8 gso/s, 3.4% err |  458 gso/s, 3.6% err |
+| `f16`  |    0.3 gso/s, 0.25% err |     140 gso/s, 0.37% err |   ~26.1 gso/s, 0.35% err | 103 gso/s, 0.26% err |
+| `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |    398 gso/s, 0% err |
+| `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |   1279 gso/s, 0% err |
 
 For `f64`, NumKong's compensated "Dot2" summation is __10–50× more accurate__ than naive Float64 accumulation, depending on vector length.
 For `f32`, widening to Float64 gives __5–10× lower error__.
@@ -60,18 +60,16 @@ And all of that fits into one of the smallest binaries in the industry:
 But kernels and precision are only part of the story — the larger investment is test coverage: every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions, enforcing triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above, cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
 A broader throughput comparison is maintained in [NumWars](https://github.com/ashvardanian/NumWars).
 
-![NumWars banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumWars-v1.png?raw=true)
-
 ## Quick Start
 
-| Language   | Install                                       | Pre-built for                    | Guide                                        |
-| :--------- | :-------------------------------------------- | :------------------------------- | :------------------------------------------- |
-| C / C++    | CMake, header-only, or prebuilt `.so`/`.dll`  | Linux, macOS, Windows, Android   | [include/README.md](include/README.md)       |
-| Python     | `pip install numkong`                         | Linux, macOS, Windows            | [python/README.md](python/README.md)         |
-| Rust       | `cargo add numkong`                           | Builds from source               | [rust/README.md](rust/README.md)             |
-| JavaScript | `npm install numkong` or WASM for browsers    | Node.js, Bun, Deno & any browser | [javascript/README.md](javascript/README.md) |
-| Swift      | SPM `https://github.com/ashvardanian/NumKong` | macOS, iOS, tvOS, watchOS        | [swift/README.md](swift/README.md)           |
-| Go         | `go get github.com/ashvardanian/NumKong`      | Builds from source via cGo       | [golang/README.md](golang/README.md)         |
+| Language   | Install                          | Compatible with                  | Guide                                        |
+| :--------- | :------------------------------- | :------------------------------- | :------------------------------------------- |
+| C / C++    | CMake, headers, or prebuilt      | Linux, macOS, Windows, Android   | [include/README.md](include/README.md)       |
+| Python     | `pip install`                    | Linux, macOS, Windows            | [python/README.md](python/README.md)         |
+| Rust       | `cargo add`                      | Linux, macOS, Windows            | [rust/README.md](rust/README.md)             |
+| JavaScript | `npm install` or `import` remote | Node.js, Bun, Deno & any browser | [javascript/README.md](javascript/README.md) |
+| Swift      | Swift Package Manager            | macOS, iOS, tvOS, watchOS        | [swift/README.md](swift/README.md)           |
+| Go         | `go get`                         | Linux, macOS, Windows via cGo    | [golang/README.md](golang/README.md)         |
 
 ## What's Inside
 

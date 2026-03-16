@@ -137,6 +137,9 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_ALDER
     if (v & nk_cap_alder_k) switch (k) {
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_alder, *c = nk_cap_alder_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_alder, *c = nk_cap_alder_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e3m2_alder, *c = nk_cap_alder_k; return;
         default: break;
         }
