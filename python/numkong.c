@@ -844,6 +844,15 @@ char const doc_enable_capability[] =            //
     "    capability : str\n"                    //
     "        Name of the SIMD feature to enable (for example, 'haswell').";
 
+static int refresh_runtime_dispatch_after_capability_change(void) {
+    if (!nk_configure_thread(static_capabilities)) {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to configure thread for updated capabilities");
+        return 0;
+    }
+    nk_dispatch_table_update(static_capabilities);
+    return 1;
+}
+
 PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     char const *cap_name = PyUnicode_AsUTF8(cap_name_obj);
     if (!cap_name) {
@@ -858,6 +867,7 @@ PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
                 return NULL;
             }
             static_capabilities |= cap_table[i].flag;
+            if (!refresh_runtime_dispatch_after_capability_change()) return NULL;
             Py_RETURN_NONE;
         }
     }
@@ -886,6 +896,7 @@ PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) {
                 return NULL;
             }
             static_capabilities &= ~cap_table[i].flag;
+            if (!refresh_runtime_dispatch_after_capability_change()) return NULL;
             Py_RETURN_NONE;
         }
     }
