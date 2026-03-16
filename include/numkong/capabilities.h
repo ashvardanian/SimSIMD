@@ -704,7 +704,7 @@ NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
     return nk_configure_thread_arm_(capabilities);
 #endif
     nk_unused_(capabilities);
-    return 0;
+    return 1; // success — no platform-specific thread configuration needed
 }
 
 NK_PUBLIC nk_capability_t nk_capabilities_(void) {
