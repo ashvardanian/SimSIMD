@@ -76,7 +76,7 @@ log2(x) ≈ exponent + c₁·m + c₂·m² + c₃·m³ + c₄·m⁴ + c₅·m⁵
 This approach reinterprets the float as an integer, shifts out the mantissa bits to obtain the exponent, then masks and recombines to produce a normalized mantissa in $[1, 2)$.
 It works on any ISA with integer-float reinterpretation and avoids the need for specialized exponent/mantissa instructions.
 
-### Kahan Compensated Summation for F64
+### Kahan Compensated Summation for Float64
 
 `nk_kld_f64_haswell`, `nk_jsd_f64_haswell` use Kahan compensated summation to maintain a running correction term alongside the accumulator.
 The Kahan update for each divergence term is:

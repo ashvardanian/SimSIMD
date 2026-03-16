@@ -71,6 +71,7 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_SVEBFDOT
     if (v & nk_cap_svebfdot_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;

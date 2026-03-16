@@ -43,17 +43,15 @@ Packing handles internal layout itself.
 
 ## Ecosystem Comparison
 
-| Feature                   | NumKong                                                         | Accelerate/vDSP               | simd framework               | MLX                                   |
-| ------------------------- | --------------------------------------------------------------- | ----------------------------- | ---------------------------- | ------------------------------------- |
-| Arbitrary-length vectors  | Any length, any supported type                                  | Fixed BLAS shapes, float-only | 2/3/4-wide SIMD vectors only | Tensor-oriented, requires graph setup |
-| Mini-float types          | `BFloat16`, `E4M3`, `E5M2`, `E2M3`, `E3M2` storage wrappers     | No sub-16-bit support         | No sub-16-bit support        | bf16 only, no fp8 or fp6              |
-| Binary metrics            | `U1x8` packed words, Hamming and Jaccard kernels                | No packed binary metrics      | Not applicable               | No packed binary metrics              |
-| Mixed-precision widening  | Automatic per-type widening rules                               | Manual casting required       | Not applicable               | Backend-dependent                     |
-| Packed matrix reuse       | `PackedMatrix` packs once, queries many times                   | No packed reuse primitive     | Not applicable               | Implicit caching                      |
-| Symmetric kernels         | `_symmetric` variants skip duplicate pairs                      | No built-in symmetric mode    | Not applicable               | No built-in symmetric mode            |
-| MaxSim / late interaction | `MaxSimPackedMatrix`, supports `Float32`, `BFloat16`, `Float16` | Not available                 | Not applicable               | Not available                         |
-| Hardware acceleration     | NEON, SVE, AVX-512 via C backend                                | NEON via Accelerate           | Compiler intrinsics          | Metal GPU shaders                     |
-| Precision hardening       | Kahan summation, round-to-nearest-even                          | IEEE defaults                 | IEEE defaults                | IEEE defaults                         |
+| Feature                      | NumKong                                                                                                                | Accelerate/vDSP                                                   | [MLX](https://github.com/ml-explore/mlx)                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Operation families           | dots, distances, binary, geospatial, MaxSim                                                                            | dots, distances, FFT, some BLAS                                   | matmul, elementwise, reductions, FFT                               |
+| Precision                    | BFloat16 through sub-byte — Float8, Float6, packed bits; automatic widening; Kahan summation; 0 ULP in Float32/Float64 | Float32/Float64, limited Float16; no auto-widening; IEEE defaults | Float16/BFloat16/Float32; no Float8 or sub-byte; backend-dependent |
+| Runtime SIMD dispatch        | auto-selects best ISA per-thread at runtime across x86, ARM, RISC-V                                                    | Apple-only, no runtime ISA selection                              | GPU dispatch only, no CPU ISA selection                            |
+| Packed matrix, GEMM-like     | `PackedMatrix` packs once, reused across query batches                                                                 | BLAS GEMM available                                               | GEMM via graph, implicit caching                                   |
+| Symmetric kernels, SYRK-like | `dots_symmetric`, `angulars_symmetric`, etc. skip duplicate pairs, up to 2x speedup                                    | `cblas_ssyrk` available for rank-k updates                        | no duplicate-pair skipping                                         |
+| Collection-based API         | works with any `RandomAccessCollection` conforming type                                                                | pointer-based vDSP functions                                      | `MLXArray`-based                                                   |
+| Memory model                 | caller-owned buffers; `Tensor`/`PackedMatrix` own their storage                                                        | caller-managed via `UnsafePointer`                                | graph-managed; implicit allocation and caching                     |
 
 ## Installation
 

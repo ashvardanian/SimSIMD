@@ -30,9 +30,7 @@
  *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
  *  `NK_INTERNAL` functions:
  *
- *  - nk_dot_f16x8 state with native FMLAL f16 dot-products,
- *  - nk_dot_e2m3x16 state for 6-bit float inputs via f16 upcasting,
- *  - nk_dot_e3m2x16 state for 6-bit float inputs via f16 upcasting.
+ *  - nk_dot_f16x8 state with native FMLAL f16 dot-products.
  *
  *  @code{c}
  *  nk_dot_f16x8_state_neonfhm_t state_first, state_second, state_third, state_fourth;

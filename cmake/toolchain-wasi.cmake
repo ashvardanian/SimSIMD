@@ -51,7 +51,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_EXE_LINKER_FLAGS_INIT
     "-Wl,--allow-undefined \
      -Wl,--import-memory -Wl,--export-memory \
-     -Wl,--shared-memory -Wl,--max-memory=268435456 \
+     -Wl,--shared-memory -Wl,--max-memory=2147483648 \
      -Wl,--export=main \
      -Wl,--export=_start")
 

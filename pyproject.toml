@@ -201,6 +201,20 @@ environment.NK_TARGET_X86_ = "0"
 inherit.environment = "append"
 select = "*-musllinux*_riscv64"
 
+# Pyodide / Emscripten WASM builds
+# The Pyodide venv creates Python-script entry points (like `pytest`) that can't
+# be executed directly as shell commands, so we must use `python -m pytest`.
+# Also, `ml_dtypes` has no Pyodide wheel, so we skip it.
+[[tool.cibuildwheel.overrides]]
+select = "*-pyodide*"
+before-build = ["rm -rf {project}/build"]
+test-command = """
+    python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
+    python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
+    python -c "import numkong; print(numkong.get_capabilities())" &&
+    python -m pytest {project}/test/ -s -x -Wd
+"""
+
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]

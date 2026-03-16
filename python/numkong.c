@@ -224,10 +224,11 @@ nk_dtype_info_t const nk_dtype_table[] = {
     {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
     {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
     {nk_u16_k, "uint16", "H", "<u2", sizeof(nk_u16_t), 0},
-#if defined(_MSC_VER) || defined(__i386__)
-    // On Windows/i386 C `long` is 32-bit so NumPy uses 'l'/'L' for int32/uint32
-    // and 'q'/'Q' for int64/uint64. On LP64 (Linux, macOS) C `long` is 64-bit
-    // so NumPy uses 'i'/'I' for int32/uint32 and 'l'/'L' for int64/uint64.
+#if SIZEOF_LONG == 4
+    // PEP 3118 format characters for integers depend on sizeof(long):
+    //   ILP32 / LLP64 (Windows, i386, WASM): long = 4 bytes → 'l'/'L' = int32/uint32
+    //   LP64 (Linux x86_64, macOS arm64):    long = 8 bytes → 'l'/'L' = int64/uint64
+    // CPython's pyconfig.h provides SIZEOF_LONG on all platforms.
     // These must match `python_string_to_dtype` so round-tripping through
     // the buffer protocol works correctly.
     {nk_i32_k, "int32", "l", "<i4", sizeof(nk_i32_t), 0},
@@ -305,7 +306,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
         case 'B': return nk_u8_k;
         case 'H': return nk_u16_k;
 
-#if defined(_MSC_VER) || defined(__i386__) // Platform-dependent integers
+#if SIZEOF_LONG == 4
         case 'l': return nk_i32_k;
         case 'q': return nk_i64_k;
         case 'L': return nk_u32_k;
@@ -371,7 +372,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-#if defined(_MSC_VER) || defined(__i386__) // Platform-specific integer formats (Windows vs Unix):
+#if SIZEOF_LONG == 4
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
         return nk_i32_k;
@@ -395,7 +396,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<u2") || same_string(name, "H") || same_string(name, "<H"))
         return nk_u16_k;
 
-#if defined(_MSC_VER) || defined(__i386__)
+#if SIZEOF_LONG == 4
     else if (same_string(name, "uint32") || same_string(name, "u4") || same_string(name, "|u4") ||
              same_string(name, "<u4") || same_string(name, "L") || same_string(name, "<L"))
         return nk_u32_k;

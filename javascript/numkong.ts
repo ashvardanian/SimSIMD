@@ -29,7 +29,7 @@ import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
-import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, DType, dtypeToString } from "./types.js";
+import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, DType, dtypeToString, outputDtype, KernelFamily } from "./types.js";
 
 let compiled: any;
 
@@ -99,7 +99,7 @@ export const Capability = {
   RVVBB: 1n << 33n,          // 2025+: RISC-V Zvbb
 } as const;
 
-export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase };
+export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, outputDtype };
 
 /** Convert a single FP16 value (as uint16 bits) to FP32 */
 export const castF16ToF32 = compiled.castF16ToF32;
@@ -404,6 +404,110 @@ export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8
   return packedVector;
 };
 
+/**
+ * Extract a TypedArray from a Matrix for passing to the N-API backend.
+ */
+function unwrapMatrix(matrix: Matrix): { array: DistanceArray; dtype: DType } {
+  switch (matrix.dtype) {
+    case DType.F64: return { array: new Float64Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+    case DType.F32: return { array: new Float32Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+    case DType.F16: case DType.BF16: return { array: new Uint16Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+    case DType.I8: return { array: new Int8Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+    case DType.U8: return { array: new Uint8Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+    default: return { array: new Uint8Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols), dtype: matrix.dtype };
+  }
+}
+
+/**
+ * Extract a result TypedArray from a Matrix matching its output dtype.
+ */
+function unwrapResultMatrix(matrix: Matrix): Float64Array | Float32Array | Int32Array | Uint32Array {
+  switch (matrix.dtype) {
+    case DType.F64: return new Float64Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols);
+    case DType.F32: return new Float32Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols);
+    case DType.I32: return new Int32Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols);
+    case DType.U32: return new Uint32Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols);
+    default: return new Float64Array(matrix.buffer, matrix.byteOffset, matrix.rows * matrix.cols);
+  }
+}
+
+/**
+ * Query the packed buffer byte count for a given matrix shape and dtype.
+ */
+export function dotsPackedSize(width: number, depth: number, dtype: DType): number {
+  return compiled.dotsPackedSize(width, depth, dtypeToString(dtype));
+}
+
+/**
+ * Pack a Matrix for use with packed GEMM-like operations.
+ */
+export function dotsPack(matrix: Matrix): PackedMatrix {
+  const { array, dtype } = unwrapMatrix(matrix);
+  const result = compiled.dotsPack(array, matrix.rows, matrix.cols, matrix.rowStride, dtypeToString(dtype));
+  return new PackedMatrix(result.buffer, result.width, result.depth, matrix.dtype, result.byteLength);
+}
+
+function packedOperation(compiledName: string, family: KernelFamily, a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  if (a.cols !== packed.depth) {
+    throw new Error(`Matrix cols (${a.cols}) must match packed depth (${packed.depth})`);
+  }
+  const outDtype = outputDtype(family, a.dtype);
+  if (!out) {
+    out = new Matrix(a.rows, packed.width, outDtype);
+  }
+  const aUnwrapped = unwrapMatrix(a);
+  const resultArray = unwrapResultMatrix(out);
+  (compiled as any)[compiledName](
+    aUnwrapped.array, packed.buffer, resultArray,
+    a.rows, packed.width, a.cols,
+    a.rowStride, out.rowStride,
+    dtypeToString(a.dtype),
+  );
+  return out;
+}
+
+function symmetricOperation(compiledName: string, family: KernelFamily, vectors: Matrix, out?: Matrix, rowStart = 0, rowCount?: number): Matrix {
+  const count = rowCount ?? vectors.rows - rowStart;
+  const outDtype = outputDtype(family, vectors.dtype);
+  if (!out) {
+    out = new Matrix(vectors.rows, vectors.rows, outDtype);
+  }
+  const vectorsUnwrapped = unwrapMatrix(vectors);
+  const resultArray = unwrapResultMatrix(out);
+  (compiled as any)[compiledName](
+    vectorsUnwrapped.array, resultArray,
+    vectors.rows, vectors.cols,
+    vectors.rowStride, out.rowStride,
+    rowStart, count,
+    dtypeToString(vectors.dtype),
+  );
+  return out;
+}
+
+export function dotsPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return packedOperation('dotsPacked', 'dots', a, packed, out);
+}
+
+export function angularsPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return packedOperation('angularsPacked', 'angulars', a, packed, out);
+}
+
+export function euclideansPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return packedOperation('euclideansPacked', 'euclideans', a, packed, out);
+}
+
+export function dotsSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return symmetricOperation('dotsSymmetric', 'dots', vectors, out, options?.rowStart ?? 0, options?.rowCount);
+}
+
+export function angularsSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return symmetricOperation('angularsSymmetric', 'angulars', vectors, out, options?.rowStart ?? 0, options?.rowCount);
+}
+
+export function euclideansSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return symmetricOperation('euclideansSymmetric', 'euclideans', vectors, out, options?.rowStart ?? 0, options?.rowCount);
+}
+
 export default {
   dot,
   inner,
@@ -425,6 +529,8 @@ export default {
   VectorView,
   Vector,
   MatrixBase,
+  Matrix,
+  PackedMatrix,
   castF16ToF32,
   castF32ToF16,
   castBF16ToF32,
@@ -434,6 +540,15 @@ export default {
   castE5M2ToF32,
   castF32ToE5M2,
   cast,
+  dotsPack,
+  dotsPacked,
+  angularsPacked,
+  euclideansPacked,
+  dotsSymmetric,
+  angularsSymmetric,
+  euclideansSymmetric,
+  dotsPackedSize,
+  outputDtype,
 };
 
 /**

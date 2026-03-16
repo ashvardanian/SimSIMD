@@ -69,6 +69,13 @@
     "http-server": "^14.1.1",
     "typescript": "^5.9.3"
   },
+  "files": [
+    "c/",
+    "include/",
+    "javascript/",
+    "binding.gyp",
+    "LICENSE"
+  ],
   "prettier": {
     "printWidth": 120
   },

@@ -245,7 +245,7 @@ NK_PUBLIC void nk_dot_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b
     // Every e2m3 value * 16 is an exact integer in [-120, +120].
     // Result = i32_dot / 256.0f (exact, no rounding error).
     //
-    // Uses dpbssd instead of dpbusd -- both operands are already signed i8 after
+    // Uses dpbssd instead of dpbusd — both operands are already signed i8 after
     // LUT + sign application, so no unsigned conversion is needed.
     //
     __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,

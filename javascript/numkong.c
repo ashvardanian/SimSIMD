@@ -106,6 +106,20 @@ static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *re
     return js_result;
 }
 
+/** @brief Returns the byte width for a given dtype. */
+static inline size_t dtype_byte_width(nk_dtype_t dtype) { return nk_dtype_bits(dtype) / NK_BITS_PER_BYTE; }
+
+/** @brief Returns the N-API typed array type for a given output dtype. */
+static inline napi_typedarray_type napi_type_for_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return napi_float64_array;
+    case nk_f32_k: return napi_float32_array;
+    case nk_i32_k: return napi_int32_array;
+    case nk_u32_k: return napi_uint32_array;
+    default: return napi_float32_array;
+    }
+}
+
 #pragma endregion Helpers
 
 #pragma region Distance API
@@ -176,8 +190,7 @@ static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t 
 
     nk_metric_dense_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(kernel_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&metric,
-                          &capability);
+    nk_find_kernel_punned(kernel_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&metric, &capability);
     if (!metric || !capability) {
         napi_throw_error(env, NULL, "Unsupported dtype for given metric");
         return NULL;
@@ -368,6 +381,264 @@ napi_value api_cast(napi_env env, napi_callback_info info) {
 
 #pragma endregion Cast API
 
+#pragma region Packed API
+
+/** @brief Query packed buffer byte count: dotsPackedSize(width, depth, dtype) → number */
+static napi_value api_dots_packed_size(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value args[3];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    if (argc != 3) {
+        napi_throw_error(env, NULL, "dotsPackedSize requires 3 arguments: (width, depth, dtype)");
+        return NULL;
+    }
+
+    uint32_t width, depth;
+    napi_get_value_uint32(env, args[0], &width);
+    napi_get_value_uint32(env, args[1], &depth);
+
+    char dtype_str[16];
+    size_t str_len;
+    napi_get_value_string_utf8(env, args[2], dtype_str, sizeof(dtype_str), &str_len);
+    nk_dtype_t dtype = parse_dtype_string(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        napi_throw_error(env, NULL, "Unsupported dtype string");
+        return NULL;
+    }
+
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, (nk_kernel_punned_t *)&size_fn,
+                          &cap);
+    if (!size_fn) {
+        napi_throw_error(env, NULL, "dots_packed_size not available for this dtype");
+        return NULL;
+    }
+
+    nk_size_t byte_count = size_fn((nk_size_t)width, (nk_size_t)depth);
+
+    napi_value result;
+    napi_create_double(env, (double)byte_count, &result);
+    return result;
+}
+
+/** @brief Pack B matrix: dotsPack(data, width, depth, strideBytes, dtype) → { buffer, width, depth, byteLength } */
+static napi_value api_dots_pack(napi_env env, napi_callback_info info) {
+    size_t argc = 5;
+    napi_value args[5];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    if (argc != 5) {
+        napi_throw_error(env, NULL, "dotsPack requires 5 arguments: (data, width, depth, strideBytes, dtype)");
+        return NULL;
+    }
+
+    void *data;
+    size_t data_len;
+    napi_typedarray_type arr_type;
+    napi_get_typedarray_info(env, args[0], &arr_type, &data_len, &data, NULL, NULL);
+
+    uint32_t width, depth, stride_bytes;
+    napi_get_value_uint32(env, args[1], &width);
+    napi_get_value_uint32(env, args[2], &depth);
+    napi_get_value_uint32(env, args[3], &stride_bytes);
+
+    char dtype_str[16];
+    size_t str_len;
+    napi_get_value_string_utf8(env, args[4], dtype_str, sizeof(dtype_str), &str_len);
+    nk_dtype_t dtype = parse_dtype_string(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        napi_throw_error(env, NULL, "Unsupported dtype string");
+        return NULL;
+    }
+
+    // Get packed size
+    nk_dots_packed_size_punned_t size_fn = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, (nk_kernel_punned_t *)&size_fn,
+                          &cap);
+    if (!size_fn) {
+        napi_throw_error(env, NULL, "dots_packed_size not available for this dtype");
+        return NULL;
+    }
+    nk_size_t packed_byte_count = size_fn((nk_size_t)width, (nk_size_t)depth);
+
+    // Allocate V8-managed ArrayBuffer for packed data
+    void *packed_data = NULL;
+    napi_value arraybuffer;
+    if (napi_create_arraybuffer(env, packed_byte_count, &packed_data, &arraybuffer) != napi_ok) {
+        napi_throw_error(env, NULL, "Failed to allocate packed buffer");
+        return NULL;
+    }
+
+    // Pack
+    nk_dots_pack_punned_t pack_fn = NULL;
+    cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_dots_pack_k, dtype, static_capabilities, (nk_kernel_punned_t *)&pack_fn, &cap);
+    if (!pack_fn) {
+        napi_throw_error(env, NULL, "dots_pack not available for this dtype");
+        return NULL;
+    }
+    pack_fn(data, (nk_size_t)width, (nk_size_t)depth, (nk_size_t)stride_bytes, packed_data);
+
+    // Return object { buffer, width, depth, byteLength }
+    napi_value result_obj;
+    napi_create_object(env, &result_obj);
+
+    napi_value js_width, js_depth, js_byte_length;
+    napi_create_uint32(env, width, &js_width);
+    napi_create_uint32(env, depth, &js_depth);
+    napi_create_double(env, (double)packed_byte_count, &js_byte_length);
+
+    napi_set_named_property(env, result_obj, "buffer", arraybuffer);
+    napi_set_named_property(env, result_obj, "width", js_width);
+    napi_set_named_property(env, result_obj, "depth", js_depth);
+    napi_set_named_property(env, result_obj, "byteLength", js_byte_length);
+
+    return result_obj;
+}
+
+/**
+ *  @brief Shared dispatcher for packed operations (dots, angulars, euclideans).
+ *  Args: TypedArray a, ArrayBuffer packed, TypedArray result, numbers height/width/depth/aStride/resultStride, string
+ * dtype
+ */
+static napi_value api_packed_common(napi_env env, napi_callback_info info, nk_kernel_kind_t kernel_kind) {
+    size_t argc = 9;
+    napi_value args[9];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    if (argc != 9) {
+        napi_throw_error(env, NULL, "Packed operation requires 9 arguments");
+        return NULL;
+    }
+
+    // arg[0]: TypedArray a
+    void *a_data;
+    size_t a_len;
+    napi_typedarray_type a_type;
+    napi_get_typedarray_info(env, args[0], &a_type, &a_len, &a_data, NULL, NULL);
+
+    // arg[1]: ArrayBuffer packed
+    void *packed_data;
+    size_t packed_len;
+    napi_get_arraybuffer_info(env, args[1], &packed_data, &packed_len);
+
+    // arg[2]: TypedArray result
+    void *result_data;
+    size_t result_len;
+    napi_typedarray_type result_type;
+    napi_get_typedarray_info(env, args[2], &result_type, &result_len, &result_data, NULL, NULL);
+
+    // args[3..7]: height, width, depth, aStride, resultStride
+    uint32_t height, width, depth, a_stride, result_stride;
+    napi_get_value_uint32(env, args[3], &height);
+    napi_get_value_uint32(env, args[4], &width);
+    napi_get_value_uint32(env, args[5], &depth);
+    napi_get_value_uint32(env, args[6], &a_stride);
+    napi_get_value_uint32(env, args[7], &result_stride);
+
+    // arg[8]: dtype string
+    char dtype_str[16];
+    size_t str_len;
+    napi_get_value_string_utf8(env, args[8], dtype_str, sizeof(dtype_str), &str_len);
+    nk_dtype_t dtype = parse_dtype_string(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        napi_throw_error(env, NULL, "Unsupported dtype string");
+        return NULL;
+    }
+
+    nk_dots_packed_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(kernel_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) {
+        napi_throw_error(env, NULL, "Packed kernel not available for this dtype");
+        return NULL;
+    }
+
+    kernel(a_data, packed_data, result_data, (nk_size_t)height, (nk_size_t)width, (nk_size_t)depth, (nk_size_t)a_stride,
+           (nk_size_t)result_stride);
+    return NULL;
+}
+
+static napi_value api_dots_packed(napi_env env, napi_callback_info info) {
+    return api_packed_common(env, info, nk_kernel_dots_packed_k);
+}
+static napi_value api_angulars_packed(napi_env env, napi_callback_info info) {
+    return api_packed_common(env, info, nk_kernel_angulars_packed_k);
+}
+static napi_value api_euclideans_packed(napi_env env, napi_callback_info info) {
+    return api_packed_common(env, info, nk_kernel_euclideans_packed_k);
+}
+
+/**
+ *  @brief Shared dispatcher for symmetric operations (dots, angulars, euclideans).
+ *  Args: TypedArray vectors, TypedArray result, numbers nVectors/depth/vectorsStride/resultStride/rowStart/rowCount,
+ * string dtype
+ */
+static napi_value api_symmetric_common(napi_env env, napi_callback_info info, nk_kernel_kind_t kernel_kind) {
+    size_t argc = 9;
+    napi_value args[9];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    if (argc != 9) {
+        napi_throw_error(env, NULL, "Symmetric operation requires 9 arguments");
+        return NULL;
+    }
+
+    // arg[0]: TypedArray vectors
+    void *vectors_data;
+    size_t vectors_len;
+    napi_typedarray_type vectors_type;
+    napi_get_typedarray_info(env, args[0], &vectors_type, &vectors_len, &vectors_data, NULL, NULL);
+
+    // arg[1]: TypedArray result
+    void *result_data;
+    size_t result_len;
+    napi_typedarray_type result_type;
+    napi_get_typedarray_info(env, args[1], &result_type, &result_len, &result_data, NULL, NULL);
+
+    // args[2..7]: nVectors, depth, vectorsStride, resultStride, rowStart, rowCount
+    uint32_t n_vectors, depth, vectors_stride, result_stride, row_start, row_count;
+    napi_get_value_uint32(env, args[2], &n_vectors);
+    napi_get_value_uint32(env, args[3], &depth);
+    napi_get_value_uint32(env, args[4], &vectors_stride);
+    napi_get_value_uint32(env, args[5], &result_stride);
+    napi_get_value_uint32(env, args[6], &row_start);
+    napi_get_value_uint32(env, args[7], &row_count);
+
+    // arg[8]: dtype string
+    char dtype_str[16];
+    size_t str_len;
+    napi_get_value_string_utf8(env, args[8], dtype_str, sizeof(dtype_str), &str_len);
+    nk_dtype_t dtype = parse_dtype_string(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        napi_throw_error(env, NULL, "Unsupported dtype string");
+        return NULL;
+    }
+
+    nk_dots_symmetric_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(kernel_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) {
+        napi_throw_error(env, NULL, "Symmetric kernel not available for this dtype");
+        return NULL;
+    }
+
+    kernel(vectors_data, (nk_size_t)n_vectors, (nk_size_t)depth, (nk_size_t)vectors_stride, result_data,
+           (nk_size_t)result_stride, (nk_size_t)row_start, (nk_size_t)row_count);
+    return NULL;
+}
+
+static napi_value api_dots_symmetric(napi_env env, napi_callback_info info) {
+    return api_symmetric_common(env, info, nk_kernel_dots_symmetric_k);
+}
+static napi_value api_angulars_symmetric(napi_env env, napi_callback_info info) {
+    return api_symmetric_common(env, info, nk_kernel_angulars_symmetric_k);
+}
+static napi_value api_euclideans_symmetric(napi_env env, napi_callback_info info) {
+    return api_symmetric_common(env, info, nk_kernel_euclideans_symmetric_k);
+}
+
+#pragma endregion Packed API
+
 #pragma region Module Init
 
 /** @brief Registers a C function as a named JavaScript export. */
@@ -398,7 +669,15 @@ napi_value Init(napi_env env, napi_value exports) {
         export_function(env, exports, "castF32ToE4M3", api_cast_f32_to_e4m3) != napi_ok ||
         export_function(env, exports, "castE5M2ToF32", api_cast_e5m2_to_f32) != napi_ok ||
         export_function(env, exports, "castF32ToE5M2", api_cast_f32_to_e5m2) != napi_ok ||
-        export_function(env, exports, "cast", api_cast) != napi_ok) {
+        export_function(env, exports, "cast", api_cast) != napi_ok ||
+        export_function(env, exports, "dotsPackedSize", api_dots_packed_size) != napi_ok ||
+        export_function(env, exports, "dotsPack", api_dots_pack) != napi_ok ||
+        export_function(env, exports, "dotsPacked", api_dots_packed) != napi_ok ||
+        export_function(env, exports, "angularsPacked", api_angulars_packed) != napi_ok ||
+        export_function(env, exports, "euclideansPacked", api_euclideans_packed) != napi_ok ||
+        export_function(env, exports, "dotsSymmetric", api_dots_symmetric) != napi_ok ||
+        export_function(env, exports, "angularsSymmetric", api_angulars_symmetric) != napi_ok ||
+        export_function(env, exports, "euclideansSymmetric", api_euclideans_symmetric) != napi_ok) {
         return NULL;
     }
     static_capabilities = nk_capabilities();

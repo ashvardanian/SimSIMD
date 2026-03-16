@@ -12,7 +12,7 @@
  * - Both wasm32 and wasm64 (memory64) modes
  */
 
-import { TensorBase, DType, dtypeToString } from './types.js';
+import { TensorBase, Matrix, PackedMatrix, DType, dtypeToString, outputDtype, KernelFamily } from './types.js';
 
 /**
  * Emscripten module interface.
@@ -538,4 +538,219 @@ export function getCapabilities(): bigint {
  */
 export function hasCapability(cap: bigint): boolean {
   return (getCapabilities() & cap) !== 0n;
+}
+
+// FinalizationRegistry for WASM PackedMatrix cleanup (ES2021+, available in Node 14+)
+declare class FinalizationRegistry<T> { constructor(callback: (value: T) => void); register(target: object, value: T): void; }
+let packedRegistry: FinalizationRegistry<number> | null = null;
+
+/**
+ * WASM-backed PackedMatrix that owns a WASM heap allocation.
+ */
+class WasmPackedMatrix extends PackedMatrix {
+  private _heapPointer: number;
+  private _wasmDisposed: boolean = false;
+
+  constructor(heapPointer: number, byteLength: number, width: number, depth: number, dtype: DType) {
+    // Create a JS ArrayBuffer that is a copy of the WASM heap region for read access
+    const buffer = new ArrayBuffer(byteLength);
+    new Uint8Array(buffer).set(HEAPU8.subarray(heapPointer, heapPointer + byteLength));
+    super(buffer, width, depth, dtype, byteLength);
+    this._heapPointer = heapPointer;
+
+    // Register with FinalizationRegistry as safety net
+    if (!packedRegistry && typeof FinalizationRegistry !== 'undefined') {
+      packedRegistry = new FinalizationRegistry((ptr: number) => {
+        if (Module) Module._free(ptr);
+      });
+    }
+    if (packedRegistry) {
+      packedRegistry.register(this, heapPointer);
+    }
+  }
+
+  get heapPointer(): number { return this._heapPointer; }
+
+  dispose(): void {
+    if (!this._wasmDisposed && Module) {
+      Module._free(this._heapPointer);
+      this._wasmDisposed = true;
+    }
+    // Call parent dispose to set disposed flag
+    super.dispose();
+  }
+}
+
+/**
+ * Allocate WASM heap, copy matrix data, return pointer. Caller must free.
+ */
+function allocAndCopyMatrix(matrix: Matrix): number {
+  const byteLength = matrix.rows * matrix.rowStride;
+  return allocAndCopyResolved(matrix.buffer, matrix.byteOffset, byteLength);
+}
+
+/**
+ * Query the packed buffer byte count for a given matrix shape and dtype.
+ */
+export function dotsPackedSize(width: number, depth: number, dtype: DType): number {
+  if (!Module) throw new Error('WASM module not initialized');
+
+  const fnName = `_nk_dots_packed_size_${dtypeToString(dtype)}`;
+  const fn = Module[fnName] as any;
+  if (!fn || typeof fn !== 'function') {
+    throw new Error(`Function ${fnName} not available in WASM module`);
+  }
+  return fn(width, depth);
+}
+
+/**
+ * Pack a Matrix for use with packed GEMM-like operations.
+ */
+export function dotsPack(matrix: Matrix): PackedMatrix {
+  if (!Module) throw new Error('WASM module not initialized');
+
+  const dtypeStr = dtypeToString(matrix.dtype);
+  const sizeFnName = `_nk_dots_packed_size_${dtypeStr}`;
+  const packFnName = `_nk_dots_pack_${dtypeStr}`;
+
+  const sizeFn = Module[sizeFnName] as any;
+  const packFn = Module[packFnName] as any;
+  if (!sizeFn || !packFn) {
+    throw new Error(`Pack functions not available for dtype ${dtypeStr}`);
+  }
+
+  const packedByteCount = sizeFn(matrix.rows, matrix.cols) as number;
+  const packedPtr = Module._malloc(packedByteCount);
+  const matrixPtr = allocAndCopyMatrix(matrix);
+
+  try {
+    packFn(
+      toWasmPtr(matrixPtr),
+      matrix.rows, matrix.cols,
+      matrix.rowStride,
+      toWasmPtr(packedPtr),
+    );
+  } finally {
+    Module._free(matrixPtr);
+  }
+
+  return new WasmPackedMatrix(packedPtr, packedByteCount, matrix.rows, matrix.cols, matrix.dtype);
+}
+
+function wasmPackedOperation(metricPrefix: string, family: KernelFamily, a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  if (!Module) throw new Error('WASM module not initialized');
+  if (a.cols !== packed.depth) {
+    throw new Error(`Matrix cols (${a.cols}) must match packed depth (${packed.depth})`);
+  }
+
+  const outDtype = outputDtype(family, a.dtype);
+  if (!out) {
+    out = new Matrix(a.rows, packed.width, outDtype);
+  }
+
+  const dtypeStr = dtypeToString(a.dtype);
+  const fnName = `_nk_${metricPrefix}_${dtypeStr}`;
+  const fn = Module[fnName] as any;
+  if (!fn || typeof fn !== 'function') {
+    throw new Error(`Function ${fnName} not available in WASM module`);
+  }
+
+  const outBpe = out.bytesPerElement;
+  const resultByteLength = out.rows * out.cols * outBpe;
+  const aPtr = allocAndCopyMatrix(a);
+  const resultPtr = Module._malloc(resultByteLength);
+
+  // For WasmPackedMatrix, copy the packed data to heap; otherwise use the buffer directly
+  let packedPtr: number;
+  let packedAllocated = false;
+  if (packed instanceof WasmPackedMatrix) {
+    // The heap pointer may have been freed if disposed; re-copy from JS buffer
+    packedPtr = allocAndCopyResolved(packed.buffer, 0, packed.byteLength);
+    packedAllocated = true;
+  } else {
+    packedPtr = allocAndCopyResolved(packed.buffer, 0, packed.byteLength);
+    packedAllocated = true;
+  }
+
+  try {
+    fn(
+      toWasmPtr(aPtr), toWasmPtr(packedPtr), toWasmPtr(resultPtr),
+      a.rows, packed.width, a.cols,
+      a.rowStride, out.rowStride,
+    );
+
+    // Copy result back
+    const outArray = new Uint8Array(out.buffer, out.byteOffset, resultByteLength);
+    outArray.set(HEAPU8.subarray(resultPtr, resultPtr + resultByteLength));
+  } finally {
+    Module._free(aPtr);
+    Module._free(resultPtr);
+    if (packedAllocated) Module._free(packedPtr);
+  }
+
+  return out;
+}
+
+function wasmSymmetricOperation(metricPrefix: string, family: KernelFamily, vectors: Matrix, out?: Matrix, rowStart = 0, rowCount?: number): Matrix {
+  if (!Module) throw new Error('WASM module not initialized');
+
+  const count = rowCount ?? vectors.rows - rowStart;
+  const outDtype = outputDtype(family, vectors.dtype);
+  if (!out) {
+    out = new Matrix(vectors.rows, vectors.rows, outDtype);
+  }
+
+  const dtypeStr = dtypeToString(vectors.dtype);
+  const fnName = `_nk_${metricPrefix}_${dtypeStr}`;
+  const fn = Module[fnName] as any;
+  if (!fn || typeof fn !== 'function') {
+    throw new Error(`Function ${fnName} not available in WASM module`);
+  }
+
+  const resultByteLength = out.rows * out.cols * out.bytesPerElement;
+  const vectorsPtr = allocAndCopyMatrix(vectors);
+  const resultPtr = Module._malloc(resultByteLength);
+
+  try {
+    fn(
+      toWasmPtr(vectorsPtr),
+      vectors.rows, vectors.cols,
+      vectors.rowStride,
+      toWasmPtr(resultPtr), out.rowStride,
+      rowStart, count,
+    );
+
+    // Copy result back
+    const outArray = new Uint8Array(out.buffer, out.byteOffset, resultByteLength);
+    outArray.set(HEAPU8.subarray(resultPtr, resultPtr + resultByteLength));
+  } finally {
+    Module._free(vectorsPtr);
+    Module._free(resultPtr);
+  }
+
+  return out;
+}
+
+export function dotsPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return wasmPackedOperation('dots_packed', 'dots', a, packed, out);
+}
+
+export function angularsPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return wasmPackedOperation('angulars_packed', 'angulars', a, packed, out);
+}
+
+export function euclideansPacked(a: Matrix, packed: PackedMatrix, out?: Matrix): Matrix {
+  return wasmPackedOperation('euclideans_packed', 'euclideans', a, packed, out);
+}
+
+export function dotsSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return wasmSymmetricOperation('dots_symmetric', 'dots', vectors, out, options?.rowStart ?? 0, options?.rowCount);
+}
+
+export function angularsSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return wasmSymmetricOperation('angulars_symmetric', 'angulars', vectors, out, options?.rowStart ?? 0, options?.rowCount);
+}
+
+export function euclideansSymmetric(vectors: Matrix, out?: Matrix, options?: { rowStart?: number; rowCount?: number }): Matrix {
+  return wasmSymmetricOperation('euclideans_symmetric', 'euclideans', vectors, out, options?.rowStart ?? 0, options?.rowCount);
 }

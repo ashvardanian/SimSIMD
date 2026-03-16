@@ -67,7 +67,9 @@ SpacesInSquareBrackets: false
 
 BinPackArguments: true
 BinPackParameters: true
-# BinPackLongBracedList: true  # Requires clang-format 19+
+# Requires clang-format 22+; older versions will error on unknown keys below.
+BinPackLongBracedList: true
+BreakBeforeCloseBracketBracedList: false
 PenaltyBreakBeforeFirstCallParameter: 1
 
 # Macros treated as attributes (Python C API + NumKong visibility)

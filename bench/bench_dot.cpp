@@ -116,6 +116,7 @@ void bench_dot() {
     run_dense<e2m3_k, f32_k>("dot_e2m3_neon", nk_dot_e2m3_neon);
     run_dense<e3m2_k, f32_k>("dot_e3m2_neon", nk_dot_e3m2_neon);
     run_dense<u1_k, u32_k>("dot_u1_neon", nk_dot_u1_neon);
+    run_dense<f16_k, f32_k>("dot_f16_neon", nk_dot_f16_neon);
 #endif
 
 #if NK_TARGET_NEONSDOT
@@ -162,6 +163,10 @@ void bench_dot() {
     run_dense<f16_k, f32_k>("dot_f16_svehalf", nk_dot_f16_svehalf);
     run_dense<f16c_k, f32c_k>("dot_f16c_svehalf", nk_dot_f16c_svehalf);
     run_dense<f16c_k, f32c_k>("vdot_f16c_svehalf", nk_vdot_f16c_svehalf);
+#endif
+
+#if NK_TARGET_SVEBFDOT
+    run_dense<bf16_k, f32_k>("dot_bf16_svebfdot", nk_dot_bf16_svebfdot);
 #endif
 
 #if NK_TARGET_HASWELL

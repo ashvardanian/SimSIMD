@@ -573,6 +573,70 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neon(                                   
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
+NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
+    uint16x8_t a_u16x8, b_u16x8;
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+nk_dot_f16_neon_cycle:
+    if (count_scalars < 8) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b16x8_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b16x8_serial_(b_scalars, &b_vec, count_scalars);
+        a_u16x8 = a_vec.u16x8;
+        b_u16x8 = b_vec.u16x8;
+        count_scalars = 0;
+    }
+    else {
+        a_u16x8 = vld1q_u16((nk_u16_t const *)a_scalars);
+        b_u16x8 = vld1q_u16((nk_u16_t const *)b_scalars);
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    float32x4_t a_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(a_u16x8));
+    float32x4_t a_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(a_u16x8));
+    float32x4_t b_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(b_u16x8));
+    float32x4_t b_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(b_u16x8));
+    sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
+    if (count_scalars) goto nk_dot_f16_neon_cycle;
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over f16 scalars on plain NEON.
+ *
+ *  Processes 8 f16 values at a time (128 bits), converting to f32 via integer bit
+ *  manipulation for accumulation without requiring the ARMv8.2-A FP16 extension.
+ */
+typedef struct nk_dot_f16x8_state_neon_t {
+    float32x4_t sum_f32x4;
+} nk_dot_f16x8_state_neon_t;
+
+NK_INTERNAL void nk_dot_f16x8_init_neon(nk_dot_f16x8_state_neon_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
+
+NK_INTERNAL void nk_dot_f16x8_update_neon(nk_dot_f16x8_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                          nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    // Convert f16 to f32 via integer bit manipulation (low and high halves)
+    float32x4_t a_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(a.u16x8));
+    float32x4_t a_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(a.u16x8));
+    float32x4_t b_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(b.u16x8));
+    float32x4_t b_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(b.u16x8));
+    state->sum_f32x4 = vfmaq_f32(state->sum_f32x4, a_low_f32x4, b_low_f32x4);
+    state->sum_f32x4 = vfmaq_f32(state->sum_f32x4, a_high_f32x4, b_high_f32x4);
+}
+
+NK_INTERNAL void nk_dot_f16x8_finalize_neon(                                            //
+    nk_dot_f16x8_state_neon_t const *state_a, nk_dot_f16x8_state_neon_t const *state_b, //
+    nk_dot_f16x8_state_neon_t const *state_c, nk_dot_f16x8_state_neon_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
+    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
+    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
+    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+}
+
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
     float16x8_t a_f16x8, b_f16x8;

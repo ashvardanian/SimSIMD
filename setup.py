@@ -363,7 +363,68 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-if sys.platform == "linux":
+def emscripten_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+    """Build settings for Emscripten/Pyodide (WASM)."""
+    compile_args = [
+        "-std=c11",
+        "-O3",
+        "-w",
+    ]
+    link_args: List[str] = []
+    # Dynamic dispatch is needed for the Python bindings (nk_find_kernel_punned).
+    # The EM_JS runtime probes in c/numkong.c are guarded by NK_DYNAMIC_DISPATCH
+    # and __EMSCRIPTEN__; when building as a Pyodide side module, we define
+    # NK_PYODIDE_SIDE_MODULE to replace them with conservative stubs (serial only).
+    macros = [
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_PYODIDE_SIDE_MODULE", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
+        # No x86, ARM, or RISC-V targets in WASM
+        ("NK_TARGET_HASWELL", "0"),
+        ("NK_TARGET_SKYLAKE", "0"),
+        ("NK_TARGET_ICELAKE", "0"),
+        ("NK_TARGET_GENOA", "0"),
+        ("NK_TARGET_SAPPHIRE", "0"),
+        ("NK_TARGET_TURIN", "0"),
+        ("NK_TARGET_ALDER", "0"),
+        ("NK_TARGET_SIERRA", "0"),
+        ("NK_TARGET_SAPPHIREAMX", "0"),
+        ("NK_TARGET_GRANITEAMX", "0"),
+        ("NK_TARGET_NEON", "0"),
+        ("NK_TARGET_NEONHALF", "0"),
+        ("NK_TARGET_NEONSDOT", "0"),
+        ("NK_TARGET_NEONBFDOT", "0"),
+        ("NK_TARGET_NEONFHM", "0"),
+        ("NK_TARGET_SVE", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
+        ("NK_TARGET_SME", "0"),
+        ("NK_TARGET_SME2", "0"),
+        ("NK_TARGET_SME2P1", "0"),
+        ("NK_TARGET_SMEF64", "0"),
+        ("NK_TARGET_SMEHALF", "0"),
+        ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
+        ("NK_TARGET_SMELUT2", "0"),
+        ("NK_TARGET_SMEFA64", "0"),
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
+    ]
+    return compile_args, link_args, macros
+
+
+# pyodide-build sets _PYTHON_HOST_PLATFORM to "emscripten-wasm32" during cross-compilation.
+# sys.platform remains "darwin" or "linux" on the host, so we check this env var first.
+_host_platform = os.environ.get("_PYTHON_HOST_PLATFORM", "")
+if "emscripten" in _host_platform:
+    compile_args, link_args, macros = emscripten_settings()
+elif sys.platform == "linux":
     compile_args, link_args, macros = linux_settings()
 elif sys.platform.startswith("freebsd"):
     # FreeBSD platform strings can be "freebsd11", "freebsd12", etc.
@@ -446,7 +507,7 @@ setup(
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/NumKong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
-    long_description=Path("README.md").read_text(encoding="utf8"),
+    long_description=Path("python/README.md").read_text(encoding="utf8") + "\n\n" + Path("README.md").read_text(encoding="utf8"),
     long_description_content_type="text/markdown",
     license="Apache-2.0",
     classifiers=[

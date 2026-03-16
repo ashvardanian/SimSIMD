@@ -42,16 +42,15 @@ The `parallel` feature is the intended native orchestration layer.
 
 ## Ecosystem Comparison
 
-| Feature                  | NumKong                                                                         | nalgebra                          | ndarray                          |
-| ------------------------ | ------------------------------------------------------------------------------- | --------------------------------- | -------------------------------- |
-| Operation families       | dots, distances, binary, probability, geospatial, mesh, elementwise, reductions | linear algebra, decompositions    | general n-dimensional arithmetic |
-| SIMD acceleration        | runtime-dispatched across x86, ARM, RISC-V                                      | optional SIMD via `simba`         | none built-in                    |
-| Type support             | `f64`, `f32`, `f16`, `bf16`, fp8, fp6, `i8`, `u8`, packed bits                  | `f64`, `f32`, generic `RealField` | `f64`, `f32`, integer types      |
-| Mixed-precision widening | automatic per-operation promotions                                              | manual                            | manual                           |
-| Custom allocators        | `Tensor`, `PackedMatrix`, `MaxSimPackedMatrix`                                  | `VecStorage` with global only     | global only                      |
-| Packed matrix reuse      | pack once, reuse across batches                                                 | no equivalent                     | no equivalent                    |
-| Symmetric kernels        | `SYRK`-like, skips duplicate pairs                                              | manual triangular access          | no equivalent                    |
-| Parallel helpers         | Fork Union, row-range partitioning                                              | Rayon via `par-rayon` feature     | `par_azip` via `rayon`           |
+| Feature                      | NumKong                                                                                                             | [nalgebra](https://github.com/dimforge/nalgebra)     | [ndarray](https://github.com/rust-ndarray/ndarray)   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| Operation families           | dots, distances, binary, probability, geospatial, curved, mesh, sparse, MaxSim, elementwise, reductions, cast, trig | linear algebra, decompositions                       | general n-dimensional arithmetic                     |
+| Precision                    | BFloat16 through sub-byte; automatic widening; Kahan summation; 0 ULP in Float32/Float64                            | Float32/Float64 only; no widening; standard accuracy | Float32/Float64 only; no widening; standard accuracy |
+| Runtime SIMD dispatch        | auto-selects best ISA per-thread at runtime across x86, ARM, RISC-V                                                 | none                                                 | none                                                 |
+| Packed matrix, GEMM-like     | pack once, reuse across query batches                                                                               | standard matmul; no persistent packing               | `dot` for matmul; no persistent packing              |
+| Symmetric kernels, SYRK-like | skip duplicate pairs, up to 2x speedup for self-distance                                                            | no duplicate-pair skipping                           | no duplicate-pair skipping                           |
+| Memory model                 | Caller-owned; `Tensor`/`PackedMatrix` support custom allocators                                                     | Heap-allocated matrices; custom storage trait        | Heap-allocated; no custom allocator support          |
+| Host-side parallelism        | row-range partitioning via reusable `ThreadPool`; no hidden threads                                                 | Rayon-based parallelism possible                     | Rayon-based parallelism possible                     |
 
 NumKong validates `f16` and `bf16` interop against the `half` crate in its own test suite.
 That lets you move between ecosystem-standard half types and NumKong's kernel-facing wrappers without ambiguity.

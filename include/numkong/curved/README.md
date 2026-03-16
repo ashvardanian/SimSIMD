@@ -87,7 +87,7 @@ The following performance tables are produced by manually re-running `nk_test` a
 The input size is controlled by the `NK_CURVED_DIMENSIONS` environment variable.
 The metric tensor is a square matrix of side $N$, so each bilinear form $\mathbf{x}^\top M \mathbf{x}$ has $O(N^2)$ arithmetic complexity.
 Columns show matrix side length: 256², 1024², 4096².
-The throughput is measured in GSO/s as Giga scalar operations per second.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second.
 Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the average number of representable floating-point values between the computed result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.

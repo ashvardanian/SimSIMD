@@ -49,8 +49,8 @@ def angular(a: np.ndarray, b: np.ndarray) -> float:
 | `f32`      | `f32`       | 32-bit IEEE 754 single precision               |
 | `f16`      | `f32`       | 16-bit IEEE 754 half precision, widened output |
 | `bf16`     | `f32`       | 16-bit brain float, widened output             |
-| `e5m2`     | `f32`       | 8-bit FP8: 5 exponent, 2 mantissa bits         |
-| `e4m3`     | `f32`       | 8-bit FP8: 4 exponent, 3 mantissa bits         |
+| `e5m2`     | `f32`       | 8-bit Float8: 5 exponent, 2 mantissa bits      |
+| `e4m3`     | `f32`       | 8-bit Float8: 4 exponent, 3 mantissa bits      |
 | `e3m2`     | `f32`       | 8-bit MX format: 3 exponent, 2 mantissa bits   |
 | `e2m3`     | `f32`       | 8-bit MX format: 2 exponent, 3 mantissa bits   |
 | `i8`       | `f32`       | 8-bit signed integers                          |

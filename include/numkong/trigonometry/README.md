@@ -1,6 +1,6 @@
 # Trigonometric Functions in NumKong
 
-NumKong implements element-wise trigonometric functions -- sine, cosine, and arc tangent -- with ~3 ulp error bounds for f32 and faithful rounding for f64.
+NumKong implements element-wise trigonometric functions — sine, cosine, and arc tangent — with ~3 ulp error bounds for f32 and faithful rounding for f64.
 Each function operates on dense vectors, reading input angles (radians) and writing output values of the same length.
 The implementations derive from SLEEF (SIMD Library for Evaluating Elementary Functions), adapted for NumKong's ISA dispatch and type system.
 
@@ -57,14 +57,14 @@ The quadrant index $n = \text{round}(x / \pi)$ selects which trigonometric ident
 ### Minimax Polynomial Approximation
 
 `nk_each_sin_f32_serial`, `nk_each_cos_f32_serial` evaluate degree-9 minimax polynomials via Horner's method after range reduction.
-The polynomial coefficients are precomputed to minimize maximum error over $[-\pi/4, \pi/4]$ -- Chebyshev-optimal, not Taylor truncation.
-Horner evaluation: `p = c9*x^2 + c7; p = p*x^2 + c5; p = p*x^2 + c3; p = p*x^2 + c1; p = p*x` -- 4 FMA operations plus 1 multiply for the final odd-power term.
+The polynomial coefficients are precomputed to minimize maximum error over $[-\pi/4, \pi/4]$ — Chebyshev-optimal, not Taylor truncation.
+Horner evaluation: `p = c9*x^2 + c7; p = p*x^2 + c5; p = p*x^2 + c3; p = p*x^2 + c1; p = p*x` — 4 FMA operations plus 1 multiply for the final odd-power term.
 `nk_each_sin_f64_serial` uses degree-19 polynomials for 52-bit mantissa coverage.
 
 ### Vectorized Polynomial Evaluation
 
 `nk_each_sin_f32_haswell`, `nk_each_cos_f32_skylake` evaluate the same polynomial on 8 (AVX2) or 16 (AVX-512) elements simultaneously.
-Range reduction, quadrant selection, and polynomial evaluation all operate on packed vectors -- the only scalar operation is the final sign correction via `VBLENDVPS` with the quadrant mask.
+Range reduction, quadrant selection, and polynomial evaluation all operate on packed vectors — the only scalar operation is the final sign correction via `VBLENDVPS` with the quadrant mask.
 `nk_each_sin_f32_neon` processes 4 elements per iteration using `vfmaq_f32` for the Horner chain.
 WASM v128relaxed (`nk_each_sin_f32_v128relaxed`) uses `f32x4.relaxed_madd` for the FMA steps, achieving ~2x throughput over strict `f32x4.mul` + `f32x4.add` sequences.
 

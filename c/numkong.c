@@ -23,8 +23,12 @@
 extern "C" {
 #endif
 
-// WASM capability detection for Emscripten
-#if defined(__EMSCRIPTEN__)
+// WASM capability detection for standalone Emscripten builds.
+// EM_JS embeds JavaScript probes for runtime SIMD detection. It only works in
+// standalone builds — Pyodide side modules cannot use EM_JS (the linker fails
+// with undefined ___em_js__* symbols). Pyodide builds define NK_PYODIDE_SIDE_MODULE
+// and fall through to compile-time detection in capabilities.h instead.
+#if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH && !defined(NK_PYODIDE_SIDE_MODULE)
 #include <emscripten.h>
 
 // EM_JS expands to an empty-parameter-list declaration `()` and a trailing `;`,
@@ -65,7 +69,7 @@ EM_JS(int, nk_has_relaxed, (), {
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-#endif // defined(__EMSCRIPTEN__)
+#endif // __EMSCRIPTEN__ && NK_DYNAMIC_DISPATCH && !NK_PYODIDE_SIDE_MODULE
 
 /**
  *  @brief Fill memory with 0xFF - produces NaN for floats, -1 for signed integers, and MAX for unsigned.
