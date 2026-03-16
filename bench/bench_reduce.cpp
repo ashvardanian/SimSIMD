@@ -158,7 +158,6 @@ void bench_reduce() {
 #if NK_TARGET_NEONFHM
     run_reduce_moments<e4m3_k>("reduce_moments_e4m3_neonfhm", nk_reduce_moments_e4m3_neonfhm);
     run_reduce_moments<e5m2_k>("reduce_moments_e5m2_neonfhm", nk_reduce_moments_e5m2_neonfhm);
-    run_reduce_moments<e3m2_k>("reduce_moments_e3m2_neonfhm", nk_reduce_moments_e3m2_neonfhm);
     run_reduce_minmax<e4m3_k>("reduce_minmax_e4m3_neonfhm", nk_reduce_minmax_e4m3_neonfhm);
     run_reduce_minmax<e5m2_k>("reduce_minmax_e5m2_neonfhm", nk_reduce_minmax_e5m2_neonfhm);
 #endif

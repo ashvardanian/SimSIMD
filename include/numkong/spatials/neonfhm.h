@@ -43,40 +43,6 @@ nk_define_cross_normalized_symmetric_(euclidean, f16, neonfhm, f16, f32, /*norm_
                                       nk_dots_reduce_sumsq_f16_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
                                       nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
 
-nk_define_cross_normalized_packed_(angular, e2m3, neonfhm, e2m3, e2m3, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_e2m3_neonfhm, nk_angular_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_e2m3_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_packed_(euclidean, e2m3, neonfhm, e2m3, e2m3, f32, /*norm_value_type=*/f32, f32,
-                                   nk_b128_vec_t, nk_dots_packed_e2m3_neonfhm, nk_euclidean_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_e2m3_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(angular, e2m3, neonfhm, e2m3, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_e2m3_neonfhm, nk_angular_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_e2m3_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(euclidean, e2m3, neonfhm, e2m3, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_e2m3_neonfhm, nk_euclidean_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_e2m3_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-
-nk_define_cross_normalized_packed_(angular, e3m2, neonfhm, e3m2, e3m2, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                   nk_dots_packed_e3m2_neonfhm, nk_angular_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_e3m2_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_packed_(euclidean, e3m2, neonfhm, e3m2, e3m2, f32, /*norm_value_type=*/f32, f32,
-                                   nk_b128_vec_t, nk_dots_packed_e3m2_neonfhm, nk_euclidean_through_f32_from_dot_neon_,
-                                   nk_dots_reduce_sumsq_e3m2_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                   nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(angular, e3m2, neonfhm, e3m2, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_e3m2_neonfhm, nk_angular_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_e3m2_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-nk_define_cross_normalized_symmetric_(euclidean, e3m2, neonfhm, e3m2, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
-                                      nk_dots_symmetric_e3m2_neonfhm, nk_euclidean_through_f32_from_dot_neon_,
-                                      nk_dots_reduce_sumsq_e3m2_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                                      nk_store_b128_neon_, nk_partial_store_b32x4_serial_, 1)
-
 nk_define_cross_normalized_packed_(angular, e4m3, neonfhm, e4m3, e4m3, f32, /*norm_value_type=*/f32, f32, nk_b128_vec_t,
                                    nk_dots_packed_e4m3_neonfhm, nk_angular_through_f32_from_dot_neon_,
                                    nk_dots_reduce_sumsq_e4m3_, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,

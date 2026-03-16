@@ -452,10 +452,6 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_angulars_symmetric_e3m2_serial`      |        2.48 gso/s, 0 ulp |        2.67 gso/s, 0 ulp |        5.36 gso/s, 0 ulp |
 | `nk_euclideans_packed_e3m2_serial`       |      8.74 gso/s, 0.5 ulp |      9.08 gso/s, 0.5 ulp |      8.91 gso/s, 0.5 ulp |
 | `nk_euclideans_symmetric_e3m2_serial`    |      2.50 gso/s, 0.5 ulp |      2.69 gso/s, 0.5 ulp |      5.22 gso/s, 0.5 ulp |
-| `nk_angulars_packed_e3m2_neonfhm`        |        57.0 gso/s, 0 ulp |        60.7 gso/s, 0 ulp |        61.7 gso/s, 0 ulp |
-| `nk_angulars_symmetric_e3m2_neonfhm`     |        54.0 gso/s, 0 ulp |        46.5 gso/s, 0 ulp |        47.5 gso/s, 0 ulp |
-| `nk_euclideans_packed_e3m2_neonfhm`      |        57.4 gso/s, 0 ulp |        60.8 gso/s, 0 ulp |        61.8 gso/s, 0 ulp |
-| `nk_euclideans_symmetric_e3m2_neonfhm`   |        55.3 gso/s, 0 ulp |        57.5 gso/s, 0 ulp |        53.8 gso/s, 0 ulp |
 | `nk_angulars_packed_e3m2_sme`            |    183 gso/s, 0.0130 ulp |    185 gso/s, 0.0130 ulp |    177 gso/s, 0.0130 ulp |
 | `nk_angulars_symmetric_e3m2_sme`         |   87.8 gso/s, 0.0131 ulp |   78.5 gso/s, 0.0131 ulp |   87.5 gso/s, 0.0131 ulp |
 | `nk_euclideans_packed_e3m2_sme`          |         423 gso/s, 0 ulp |         422 gso/s, 0 ulp |         422 gso/s, 0 ulp |
@@ -465,10 +461,6 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_angulars_symmetric_e2m3_serial`      |        2.52 gso/s, 0 ulp |        2.64 gso/s, 0 ulp |        5.43 gso/s, 0 ulp |
 | `nk_euclideans_packed_e2m3_serial`       |      8.65 gso/s, 0.5 ulp |      9.03 gso/s, 0.5 ulp |      8.98 gso/s, 0.5 ulp |
 | `nk_euclideans_symmetric_e2m3_serial`    |      2.53 gso/s, 0.5 ulp |      2.68 gso/s, 0.5 ulp |      5.30 gso/s, 0.5 ulp |
-| `nk_angulars_packed_e2m3_neonfhm`        |        46.5 gso/s, 0 ulp |        48.2 gso/s, 0 ulp |        48.7 gso/s, 0 ulp |
-| `nk_angulars_symmetric_e2m3_neonfhm`     |        39.1 gso/s, 0 ulp |        43.7 gso/s, 0 ulp |        46.5 gso/s, 0 ulp |
-| `nk_euclideans_packed_e2m3_neonfhm`      |        47.0 gso/s, 0 ulp |        48.2 gso/s, 0 ulp |        48.7 gso/s, 0 ulp |
-| `nk_euclideans_symmetric_e2m3_neonfhm`   |        47.0 gso/s, 0 ulp |        48.0 gso/s, 0 ulp |        39.2 gso/s, 0 ulp |
 | `nk_angulars_packed_e2m3_sme`            |    141 gso/s, 0.0132 ulp |    128 gso/s, 0.0132 ulp |    132 gso/s, 0.0132 ulp |
 | `nk_angulars_symmetric_e2m3_sme`         |    134 gso/s, 0.0130 ulp |    132 gso/s, 0.0130 ulp |    138 gso/s, 0.0130 ulp |
 | `nk_euclideans_packed_e2m3_sme`          |         307 gso/s, 0 ulp |         307 gso/s, 0 ulp |         307 gso/s, 0 ulp |

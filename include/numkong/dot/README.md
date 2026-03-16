@@ -113,7 +113,7 @@ For bf16c/f16c on Haswell the accumulator is f32, so the $O(\log n)$ precision l
 
 ### Widening Fusion Through F16 on Arm
 
-`nk_dot_f16_neonfhm`, `nk_dot_f16c_neonfhm`, `nk_dot_e2m3_neonfhm`, `nk_dot_e3m2_neonfhm` use the ARMv8.4-FHM instructions `FMLAL`/`FMLSL`, which fuse FP16-to-FP32 conversion with multiply-accumulate in a single operation.
+`nk_dot_f16_neonfhm`, `nk_dot_f16c_neonfhm` use the ARMv8.4-FHM instructions `FMLAL`/`FMLSL`, which fuse FP16-to-FP32 conversion with multiply-accumulate in a single operation.
 `vfmlalq_low_f16` and `vfmlalq_high_f16` process the lower and upper 4 elements of an 8-wide FP16 vector respectively.
 For complex dot products, `FMLSL` provides the subtraction path $a_{re} b_{im} - a_{im} b_{re}$ without a separate negate step.
 
@@ -343,11 +343,9 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __e3m2__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_e3m2_serial`      |         1.24 gb/s, 0 ulp |         1.15 gb/s, 0 ulp |         1.13 gb/s, 0 ulp |
 | `nk_dot_e3m2_neonsdot`    |         7.69 gb/s, 0 ulp |         7.64 gb/s, 0 ulp |         7.70 gb/s, 0 ulp |
-| `nk_dot_e3m2_neonfhm`     |         9.11 gb/s, 0 ulp |         6.24 gb/s, 0 ulp |         4.31 gb/s, 0 ulp |
 | __e2m3__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_e2m3_serial`      |         1.23 gb/s, 0 ulp |         1.15 gb/s, 0 ulp |         1.13 gb/s, 0 ulp |
 | `nk_dot_e2m3_neonsdot`    |         16.6 gb/s, 0 ulp |         16.8 gb/s, 0 ulp |         16.4 gb/s, 0 ulp |
-| `nk_dot_e2m3_neonfhm`     |         7.55 gb/s, 0 ulp |         5.09 gb/s, 0 ulp |         4.10 gb/s, 0 ulp |
 | __i8__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_i8_serial`        |                43.2 gb/s |                48.5 gb/s |                48.0 gb/s |
 | `nk_dot_i8_neonsdot`      |                29.8 gb/s |                29.4 gb/s |                22.9 gb/s |

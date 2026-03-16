@@ -177,8 +177,6 @@ void test_reduce() {
           nk_reduce_moments_e4m3_serial);
     check("reduce_moments_e5m2_neonfhm", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_neonfhm,
           nk_reduce_moments_e5m2_serial);
-    check("reduce_moments_e3m2_neonfhm", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_neonfhm,
-          nk_reduce_moments_e3m2_serial);
     check("reduce_minmax_e4m3_neonfhm", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3_neonfhm,
           nk_reduce_minmax_e4m3_serial);
     check("reduce_minmax_e5m2_neonfhm", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2_neonfhm,

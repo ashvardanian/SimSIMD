@@ -475,8 +475,6 @@ NK_PUBLIC void nk_reduce_moments_e2m3_neonsdot(nk_e2m3_t const *, nk_size_t, nk_
 NK_PUBLIC void nk_reduce_moments_e4m3_neonfhm(nk_e4m3_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_e5m2_neonfhm(nk_e5m2_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
-/** @copydoc nk_reduce_moments_f64 */
-NK_PUBLIC void nk_reduce_moments_e3m2_neonfhm(nk_e3m2_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
 /** @copydoc nk_reduce_minmax_f64 */
 NK_PUBLIC void nk_reduce_minmax_e4m3_neonfhm(nk_e4m3_t const *, nk_size_t, nk_size_t, nk_e4m3_t *, nk_size_t *,
                                              nk_e4m3_t *, nk_size_t *);
@@ -1517,8 +1515,6 @@ NK_PUBLIC void nk_reduce_moments_e3m2(nk_e3m2_t const *d, nk_size_t n, nk_size_t
     nk_reduce_moments_e3m2_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_e3m2_haswell(d, n, s, sum, sumsq);
-#elif NK_TARGET_NEONFHM
-    nk_reduce_moments_e3m2_neonfhm(d, n, s, sum, sumsq);
 #elif NK_TARGET_NEON
     nk_reduce_moments_e3m2_neon(d, n, s, sum, sumsq);
 #elif NK_TARGET_RVV

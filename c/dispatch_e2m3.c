@@ -55,24 +55,6 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_NEONFHM
-    if (v & nk_cap_neonfhm_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_angulars_symmetric_k:
-            *m = (m_t)&nk_angulars_symmetric_e2m3_neonfhm, *c = nk_cap_neonfhm_k;
-            return;
-        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_euclideans_symmetric_k:
-            *m = (m_t)&nk_euclideans_symmetric_e2m3_neonfhm, *c = nk_cap_neonfhm_k;
-            return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_neonsdot, *c = nk_cap_neonsdot_k; return;

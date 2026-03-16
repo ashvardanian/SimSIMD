@@ -380,15 +380,11 @@ Measured with Wasmtime v42 (Cranelift backend).
 | __e3m2__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e3m2_serial`       |        12.0 gso/s, 0 ulp |        11.7 gso/s, 0 ulp |        11.4 gso/s, 0 ulp |
 | `nk_dots_symmetric_e3m2_serial`    |        7.56 gso/s, 0 ulp |        7.75 gso/s, 0 ulp |        7.76 gso/s, 0 ulp |
-| `nk_dots_packed_e3m2_neonfhm`      |        59.9 gso/s, 0 ulp |        61.5 gso/s, 0 ulp |        61.9 gso/s, 0 ulp |
-| `nk_dots_symmetric_e3m2_neonfhm`   |        53.9 gso/s, 0 ulp |        64.4 gso/s, 0 ulp |        64.9 gso/s, 0 ulp |
 | `nk_dots_packed_e3m2_sme`          |        15.4 gso/s, 0 ulp |        11.9 gso/s, 0 ulp |        12.3 gso/s, 0 ulp |
 | `nk_dots_symmetric_e3m2_sme`       |        1.59 gso/s, 0 ulp |        1.67 gso/s, 0 ulp |        1.79 gso/s, 0 ulp |
 | __e2m3__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e2m3_serial`       |        13.3 gso/s, 0 ulp |        11.5 gso/s, 0 ulp |        14.6 gso/s, 0 ulp |
 | `nk_dots_symmetric_e2m3_serial`    |        7.85 gso/s, 0 ulp |        8.23 gso/s, 0 ulp |        8.30 gso/s, 0 ulp |
-| `nk_dots_packed_e2m3_neonfhm`      |        47.8 gso/s, 0 ulp |        48.5 gso/s, 0 ulp |        48.8 gso/s, 0 ulp |
-| `nk_dots_symmetric_e2m3_neonfhm`   |        44.1 gso/s, 0 ulp |        46.5 gso/s, 0 ulp |        52.0 gso/s, 0 ulp |
 | `nk_dots_packed_e2m3_sme`          |         518 gso/s, 0 ulp |         740 gso/s, 0 ulp |       1,017 gso/s, 0 ulp |
 | `nk_dots_symmetric_e2m3_sme`       |        65.1 gso/s, 0 ulp |        79.6 gso/s, 0 ulp |        98.4 gso/s, 0 ulp |
 | __i8__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |

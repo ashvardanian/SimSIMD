@@ -308,10 +308,6 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
 NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
-/** @copydoc nk_dot_e2m3 */
-NK_PUBLIC void nk_dot_e2m3_neonfhm(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_e3m2 */
-NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_NEONSDOT
@@ -835,8 +831,6 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
     nk_dot_e2m3_haswell(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_e2m3_neonsdot(a, b, n, result);
-#elif NK_TARGET_NEONFHM
-    nk_dot_e2m3_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_e2m3_neon(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
@@ -859,8 +853,6 @@ NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, 
     nk_dot_e3m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_e3m2_haswell(a, b, n, result);
-#elif NK_TARGET_NEONFHM
-    nk_dot_e3m2_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_e3m2_neon(a, b, n, result);
 #else

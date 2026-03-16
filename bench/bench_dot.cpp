@@ -137,8 +137,6 @@ void bench_dot() {
     run_dense<f16_k, f32_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm);
     run_dense<f16c_k, f32c_k>("dot_f16c_neonfhm", nk_dot_f16c_neonfhm);
     run_dense<f16c_k, f32c_k>("vdot_f16c_neonfhm", nk_vdot_f16c_neonfhm);
-    run_dense<e2m3_k, f32_k>("dot_e2m3_neonfhm", nk_dot_e2m3_neonfhm);
-    run_dense<e3m2_k, f32_k>("dot_e3m2_neonfhm", nk_dot_e3m2_neonfhm);
     run_dense<e4m3_k, f32_k>("dot_e4m3_neonfhm", nk_dot_e4m3_neonfhm);
     run_dense<e5m2_k, f32_k>("dot_e5m2_neonfhm", nk_dot_e5m2_neonfhm);
 #endif
