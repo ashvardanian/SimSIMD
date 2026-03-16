@@ -1,7 +1,7 @@
 # NumKong: Mixed Precision for All
 
-NumKong (previously SimSIMD) delivers mixed-precision numerics that are both faster _and_ more accurate than standard BLAS libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
-Over 1500 hand-tuned SIMD kernel endpoints power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
+NumKong (previously SimSIMD) delivers mixed-precision numerics that are often faster _and_ more accurate than standard BLAS libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
+Over 1500 hand-tuned SIMD kernels for x86, Arm, RISC-V, and WASM power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
 
 ![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 
@@ -16,15 +16,15 @@ NumKong promotes to wider accumulators — $\text{Float16} \to \text{Float32}$, 
 > gso/s = Giga Scalar Operations per Second — a more suitable name than GFLOP/s when counting both integer and floating-point work.
 > Median of 5 runs × 500 K calls each. NumPy 2.4, PyTorch 2.10, JAX 0.9.
 
-| Input  |        NumPy via OpenBLAS |     PyTorch via Intel MKL |                       JAX |                NumKong |
-| :----- | ------------------------: | ------------------------: | ------------------------: | ---------------------: |
-|        |           ░░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░ |
-| `f64`  |    2.0 gso/s, 1.1e-15 err |    0.6 gso/s, 1.1e-15 err |    0.4 gso/s, 1.3e-14 err | 5.8 gso/s, 1.6e-16 err |
-| `f32`  |     1.5 gso/s, 2.0e-6 err |     0.6 gso/s, 1.9e-6 err |     0.4 gso/s, 5.1e-6 err |  7.1 gso/s, 2.3e-7 err |
-| `bf16` |                         — |       0.5 gso/s, 1.9% err |       0.5 gso/s, 1.9% err |    9.7 gso/s, 1.8% err |
-| `f16`  |      0.2 gso/s, 0.25% err |      0.5 gso/s, 0.25% err |      0.4 gso/s, 0.25% err |  11.5 gso/s, 0.24% err |
-| `e5m2` |                         — |       0.7 gso/s, 4.6% err |       0.5 gso/s, 4.6% err |    7.1 gso/s, 0% err ✅ |
-| `i8`   | 1.1 gso/s, __overflow__ ❌ | 0.5 gso/s, __overflow__ ❌ | 0.5 gso/s, __overflow__ ❌ |   14.8 gso/s, 0% err ✅ |
+| Input  |        NumPy + OpenBLAS |           PyTorch + MKL |                     JAX |               NumKong |
+| :----- | ----------------------: | ----------------------: | ----------------------: | --------------------: |
+|        |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
+| `f64`  |    2.0 gso/s, 1e-15 err |    0.6 gso/s, 1e-15 err |    0.4 gso/s, 1e-14 err |  5.8 gso/s, 1e-16 err |
+| `f32`  |     1.5 gso/s, 2e-6 err |     0.6 gso/s, 2e-6 err |     0.4 gso/s, 5e-6 err |   7.1 gso/s, 2e-7 err |
+| `bf16` |                       — |     0.5 gso/s, 1.9% err |     0.5 gso/s, 1.9% err |   9.7 gso/s, 1.8% err |
+| `f16`  |    0.2 gso/s, 0.25% err |    0.5 gso/s, 0.25% err |    0.4 gso/s, 0.25% err | 11.5 gso/s, 0.24% err |
+| `e5m2` |                       — |     0.7 gso/s, 4.6% err |     0.5 gso/s, 4.6% err |     7.1 gso/s, 0% err |
+| `i8`   | 1.1 gso/s, __overflow__ | 0.5 gso/s, __overflow__ | 0.5 gso/s, __overflow__ |    14.8 gso/s, 0% err |
 
 A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
 They lower execution graphs through XLA or vendored BLAS libraries like Intel MKL and Nvidia cuBLAS.
@@ -34,54 +34,48 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 > JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
 > NumKong uses `dots_packed` (pre-packed GEMM). Same format: __gso/s, mean relative error__.
 
-| Input  |        NumPy via OpenBLAS |      PyTorch via Intel MKL |                        JAX |                NumKong |
-| :----- | ------------------------: | -------------------------: | -------------------------: | ---------------------: |
-|        |           ░░░░░░░░░░░░░░░ |            ░░░░░░░░░░░░░░░ |            ░░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░░ |
-| `f64`  |    65.5 gso/s, ~1e-15 err |     68.2 gso/s, ~1e-15 err |    ~14.3 gso/s, ~1e-15 err |  8.6 gso/s, ~1e-16 err |
-| `f32`  |   140.6 gso/s, 8.9e-7 err |    144.6 gso/s, 1.1e-6 err |    ~60.5 gso/s, 1.3e-6 err | 37.7 gso/s, 4.0e-7 err |
-| `bf16` |                         — |      850.7 gso/s, 1.8% err |      ~25.8 gso/s, 3.4% err |  458.2 gso/s, 3.6% err |
-| `f16`  |      0.3 gso/s, 0.25% err |     139.9 gso/s, 0.37% err |     ~26.1 gso/s, 0.35% err | 103.2 gso/s, 0.26% err |
-| `e5m2` |                         — |        0.4 gso/s, 4.6% err |      ~26.4 gso/s, 4.6% err |  398.1 gso/s, 0% err ✅ |
-| `i8`   | 0.4 gso/s, __overflow__ ❌ | 50.0 gso/s, __overflow__ ❌ | ~0.0 gso/s, __overflow__ ❌ | 1279.6 gso/s, 0% err ✅ |
+| Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |               NumKong |
+| :----- | ----------------------: | -----------------------: | -----------------------: | --------------------: |
+|        |          ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
+| `f64`  |  65.5 gso/s, ~1e-15 err |   68.2 gso/s, ~1e-15 err |  ~14.3 gso/s, ~1e-15 err | 8.6 gso/s, ~1e-16 err |
+| `f32`  |     140 gso/s, 9e-7 err |      145 gso/s, 1e-6 err |    ~60.5 gso/s, 1e-6 err |  37.7 gso/s, 4e-7 err |
+| `bf16` |                       — |      851 gso/s, 1.8% err |    ~25.8 gso/s, 3.4% err |   458 gso/s, 3.6% err |
+| `f16`  |    0.3 gso/s, 0.25% err |     140 gso/s, 0.37% err |   ~26.1 gso/s, 0.35% err |  103 gso/s, 0.26% err |
+| `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |     398 gso/s, 0% err |
+| `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |    1279 gso/s, 0% err |
 
-For `f64`, NumKong's "Dot2" stable summation is __~10× more accurate__ than naive Float64 accumulation.
-For `f32`, NumKong widens to Float64, giving __~10× lower error__.
+For `f64`, NumKong's compensated "Dot2" summation is __10–50× more accurate__ than naive Float64 accumulation, depending on vector length.
+For `f32`, widening to Float64 gives __5–10× lower error__.
 For smaller types and especially integers, the gap is even more dramatic.
-But the kernels, their performance, and the precision are only part of the story.
+And all of that fits into one of the smallest binaries in the industry:
 
-The larger — and less visible — investment is implementing broad test coverage to ensure consistent behavior across all hardware platforms and programming languages.
-Every kernel is validated against 118-bit extended-precision baselines, with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions.
-Tests enforce triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints — then repeat all of it for every ISA variant in the table above.
-Cross-validation against OpenBLAS, Intel MKL, and Apple Accelerate catches regressions that no single reference can.
-And the byproduct of all that work fits into one of the smallest binaries in the industry, available on the most platforms:
+| Package                |   Size | Parallelism & Memory                                | Available For                       |
+| :--------------------- | -----: | :-------------------------------------------------- | :---------------------------------- |
+| PyTorch + MKL + oneDNN | 705 MB | Vector & Tile SIMD, OpenMP Threads, Internal Allocs | Python, C++, Java                   |
+| JAX + jaxlib           | 357 MB | Vector SIMD, XLA Threads, Internal Allocs           | Python                              |
+| NumPy + OpenBLAS       |  30 MB | Vector SIMD, Built-in Threads, Internal Allocs      | Python                              |
+| mathjs                 |   9 MB | No SIMD, No Threads, Countless Allocs               | JS                                  |
+| NumKong                |   5 MB | Vector & Tile SIMD, Your Threads, Your Allocs       | C, C++, Rust, Python, Go, JS, Swift |
 
-| Package                |   Size | Available for                               |
-| :--------------------- | -----: | :------------------------------------------ |
-| PyTorch + MKL + oneDNN | 705 MB | Python, C++, Java                           |
-| JAX + jaxlib           | 357 MB | Python                                      |
-| NumPy + OpenBLAS       |  30 MB | Python                                      |
-| mathjs                 |   9 MB | JavaScript                                  |
-| NumKong                |   5 MB | C, C++, Rust, Python, Go, JavaScript, Swift |
-
-There's also a broader throughput comparison against third-party alternatives also shipped in a separate repository.
-Just like StringWars was designed for StringZilla, [NumWars](https://github.com/ashvardanian/NumWars) was designed specifically to simplify work on NumKong!
+But kernels and precision are only part of the story — the larger investment is test coverage: every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions, enforcing triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above, cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
+A broader throughput comparison is maintained in [NumWars](https://github.com/ashvardanian/NumWars).
 
 ![NumWars banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumWars-v1.png?raw=true)
 
 ## Quick Start
 
-| Language   | Install                                       | Guide                                        |
-| :--------- | :-------------------------------------------- | :------------------------------------------- |
-| Python     | `pip install numkong`                         | [python/README.md](python/README.md)         |
-| C / C++    | CMake `FetchContent` or single-header         | [include/README.md](include/README.md)       |
-| Rust       | `cargo add numkong`                           | [rust/README.md](rust/README.md)             |
-| JavaScript | `npm install numkong`                         | [javascript/README.md](javascript/README.md) |
-| Swift      | SPM `https://github.com/ashvardanian/NumKong` | [swift/README.md](swift/README.md)           |
-| Go         | `go get github.com/ashvardanian/NumKong`      | [golang/README.md](golang/README.md)         |
+| Language   | Install                                       | Pre-built for                    | Guide                                        |
+| :--------- | :-------------------------------------------- | :------------------------------- | :------------------------------------------- |
+| C / C++    | CMake, header-only, or prebuilt `.so`/`.dll`  | Linux, macOS, Windows, Android   | [include/README.md](include/README.md)       |
+| Python     | `pip install numkong`                         | Linux, macOS, Windows            | [python/README.md](python/README.md)         |
+| Rust       | `cargo add numkong`                           | Builds from source               | [rust/README.md](rust/README.md)             |
+| JavaScript | `npm install numkong` or WASM for browsers    | Node.js, Bun, Deno & any browser | [javascript/README.md](javascript/README.md) |
+| Swift      | SPM `https://github.com/ashvardanian/NumKong` | macOS, iOS, tvOS, watchOS        | [swift/README.md](swift/README.md)           |
+| Go         | `go get github.com/ashvardanian/NumKong`      | Builds from source via cGo       | [golang/README.md](golang/README.md)         |
 
 ## What's Inside
 
-NumKong covers exotic GPU-only 6-bit floats through 64-bit complex numbers, rigorously tested across input distributions:
+NumKong spans 16 numeric types — from exotic GPU-only 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
 
 <div align="center">
 <pre><code>
@@ -112,15 +106,9 @@ NumKong covers exotic GPU-only 6-bit floats through 64-bit complex numbers, rigo
 </code></pre>
 </div>
 
-Not every combination of Datatype × Operation × Backend is implemented — only the ones that unlock interesting new opportunities.
-The `icelake` capability level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
-Every operation has a `serial` fallback, but even the 6-bit or 8-bit floats supported by zero CPUs today won't be evaluated sequentially — they use lookup tables and bit-twiddling hacks tuned per backend.
-
-The library makes many opinionated (and documented) design decisions around saturation, rounding, and numerical stability.
-Because of that, NumKong's `f32` and `f64` GEMM-like kernels can be 5x slower than the go-to BLAS, but 50x more numerically accurate — as the [benchmarks above](#latency-throughput--numerical-stability-together-in-a-tiny-package) show.
-It also respects hardware popularity — on Arm, `f16` is the most common path for mini-floats; on x86, `bf16` is more widely available.
-In most SDKs, you ship a single binary — the best kernel for each ISA variant is selected at runtime.
-In C and C++, all kernels can be accessed directly and inlined — avoiding every layer of indirection.
+Not every combination is implemented — only the ones that unlock interesting new opportunities.
+The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
+Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
 
 ## Design Decisions
 
@@ -364,7 +352,7 @@ The first call to `nk_capabilities()` initializes the dispatch table; all subseq
 __Float64__ — NumKong deviates from most BLAS-like libraries by leveraging __compensated summation__ that tracks numerical errors separately.
 On serial paths, we use __Neumaier's algorithm__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
 On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005), maintaining separate error compensators for both multiplication and accumulation via `TwoProd` and `TwoSum` operations.
-On 1024³ GEMM operations, NumKong's compensated Float64 achieves 10–50× smaller ULP errors than Intel MKL, making it ideal for scientific computing where numerical stability matters more than raw speed.
+The accuracy gains are visible in the [benchmark tables above](#latency-throughput--numerical-stability-together-in-a-tiny-package) — compensated Float64 is ideal for scientific computing where numerical stability matters more than raw speed.
 
 __Float32__ — SIMD implementations load Float32 values, upcast to Float64 for full-precision multiplication and accumulation, then downcast only during finalization.
 This avoids catastrophic cancellation at minimal cost since modern CPUs have dedicated Float64 vector units operating at nearly the same throughput as Float32.
