@@ -507,7 +507,7 @@ setup(
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/NumKong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
-    long_description=Path("README.md").read_text(encoding="utf8"),
+    long_description=Path("python/README.md").read_text(encoding="utf8") + "\n\n" + Path("README.md").read_text(encoding="utf8"),
     long_description_content_type="text/markdown",
     license="Apache-2.0",
     classifiers=[
