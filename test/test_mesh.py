@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test mesh alignment: nk.kabsch, nk.umeyama, nk.rmsd.
 
 Covers dtypes: float64, float32.
@@ -14,6 +13,7 @@ Matches C++ suite: test_mesh.cpp.
 """
 
 import atexit
+
 import pytest
 
 try:
@@ -24,12 +24,12 @@ except:  # noqa: E722
 import numkong as nk
 from test_base import (
     assert_allclose,
-    numpy_available,
-    scipy_available,
-    possible_capabilities,
-    keep_one_capability,
     create_stats,
+    keep_one_capability,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    scipy_available,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test MaxSim (ColBERT late-interaction): nk.maxsim, nk.maxsim_pack, nk.maxsim_packed.
 
 Covers dtypes: float32, bfloat16, float16.
@@ -12,6 +11,7 @@ Precision notes:
 """
 
 import atexit
+
 import pytest
 
 try:
@@ -22,15 +22,15 @@ except:  # noqa: E722
 import numkong as nk
 from test_base import (
     assert_allclose,
-    numpy_available,
-    nk_seed,  # noqa: F401 — pytest fixture
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    tolerances_for_dtype,
     create_stats,
+    keep_one_capability,
+    nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
 
 stats = create_stats()

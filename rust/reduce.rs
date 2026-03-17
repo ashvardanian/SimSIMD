@@ -6,9 +6,7 @@
 //! - [`ReduceMinMax`]: Minimum and maximum over a strided slice
 //! - [`Reductions`]: Blanket trait combining `ReduceMoments + ReduceMinMax`
 
-use crate::types::{
-    bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, StorageElement,
-};
+use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -1043,7 +1041,9 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{assert_close, bf16, e2m3, e3m2, e4m3, e5m2, f16, FloatLike, NumberLike, TestableType};
+    use crate::types::{
+        assert_close, bf16, e2m3, e3m2, e4m3, e5m2, f16, FloatLike, NumberLike, TestableType,
+    };
 
     // region: ReduceMoments
 

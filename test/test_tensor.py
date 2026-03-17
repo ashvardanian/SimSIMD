@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test tensor API: constructors, slicing, ndarray marshalling, scalar types.
 
 Covers: nk.zeros, nk.ones, nk.full, nk.empty, nk.cdist,
@@ -17,11 +16,11 @@ Parametrized over: dtype, shape, ndim.
 Matches C++ suite: test_tensor.cpp.
 """
 
-import sys
-import time
-import sysconfig
-import multiprocessing
 import concurrent.futures
+import multiprocessing
+import sys
+import sysconfig
+import time
 import warnings
 
 import pytest
@@ -33,18 +32,18 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    ml_dtypes_available,
-    dense_dimensions,
-    randomized_repetitions_count,
-    to_array,
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
+    dense_dimensions,
     f32_downcast_to_bf16,
     make_nk,
+    ml_dtypes_available,
     nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    to_array,
 )
 
 try:
@@ -416,7 +415,7 @@ def test_distances_tensor_equality(nk_seed):
 
     copy = result.copy()
     assert result == copy
-    assert not (result != copy)
+    assert not (result != copy)  # noqa: SIM202 — intentionally tests __ne__
 
     a2 = nk.iota((5, 4), nk_seed + 100, dtype="float32")
     b2 = nk.iota((7, 4), nk_seed + 200, dtype="float32")
@@ -553,7 +552,7 @@ def test_distances_tensor_zero_copy_views():
     chained_np = np.asarray(chained)
     assert np.shares_memory(orig_np, chained_np)
 
-    for i, row in enumerate(result):
+    for _i, row in enumerate(result):
         row_np = np.asarray(row)
         assert np.shares_memory(orig_np, row_np)
 

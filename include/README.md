@@ -491,7 +491,7 @@ if (caps & nk_cap_sapphireamx_k) { /* AMX available */ }
 For exact register-level details, see `capabilities.h`.
 The C++ wrappers can also call directly into named backends if you want to pin a path for testing or benchmarking.
 
-## Parallelism and Fork Union
+## Parallelism and ForkUnion
 
 NumKong does not manage its own threads.
 That is deliberate.
@@ -521,7 +521,7 @@ fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
 });
 ```
 
-We recommend [Fork Union](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
+We recommend [ForkUnion](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
 OpenMP is still a reasonable fit if the rest of your application already uses it.
 Manual thread pools and task systems also work well because the kernels have explicit row-range interfaces.
 
@@ -570,4 +570,4 @@ cmake -B build -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
 
 NumKong does not use OpenMP and does not create a hidden thread pool.
 Standard pthreads are linked via CMake's `Threads` package.
-Parallelism is host-controlled: partition work across row ranges and dispatch through Fork Union, `std::thread`, or any external scheduler.
+Parallelism is host-controlled: partition work across row ranges and dispatch through ForkUnion, `std::thread`, or any external scheduler.

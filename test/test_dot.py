@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test inner/dot products: nk.inner, nk.dot, nk.vdot.
 
 Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8.
@@ -19,6 +18,7 @@ Matches C++ suite: test_dot.cpp.
 
 import atexit
 import decimal
+
 import pytest
 
 try:
@@ -28,29 +28,29 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    make_random_buffer,
-    numpy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
-    NK_ATOL,
-    NK_RTOL,
     DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
-    make_random,
-    tolerances_for_dtype,
+    NK_ATOL,
+    NK_RTOL,
+    LazyFormat,
+    assert_allclose,
     collect_errors,
     collect_warnings,
     create_stats,
-    print_stats_report,
-    LazyFormat,
-    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    make_random_buffer,
     nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
+    print_stats_report,
+    profile,
+    randomized_repetitions_count,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
-from test_spatial import baseline_euclidean, baseline_sqeuclidean, baseline_angular
+from test_spatial import baseline_angular, baseline_euclidean, baseline_sqeuclidean
 
 algebraic_dtypes = ["float32", "float64"]
 algebraic_ndims = [7, 97]
@@ -288,7 +288,7 @@ def test_inner_integer_overflow_detection(ndim, metric, capability):
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = KERNELS_OVERFLOW[metric]
-    expected = baseline_kernel(a, b)
+    _ = baseline_kernel(a, b)
     result = simd_kernel(a, b)
     assert np.isinf(result), f"Expected ±inf, but got {result}"
 

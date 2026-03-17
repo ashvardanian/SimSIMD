@@ -116,6 +116,9 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+# Generate compile_commands.json for clang-tidy and other tooling
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # MSVC does not set `CMAKE_SYSTEM_PROCESSOR` correctly
 # Use `CMAKE_C_COMPILER_ARCHITECTURE_ID` instead
 if (MSVC)
@@ -703,8 +706,8 @@ if (NK_BUILD_SHARED)
                 )
             endif ()
 
-        # ARM32 — serial-only (the NEON kernels target AArch64 intrinsics)
         elseif (NK_IS_32BIT_ARM_)
+            # ARM32 — serial-only (the NEON kernels target AArch64 intrinsics)
             target_compile_definitions(
                 nk_shared
                 PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0

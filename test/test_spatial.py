@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test spatial distances: nk.euclidean, nk.sqeuclidean, nk.angular.
 
 Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8.
@@ -15,9 +14,10 @@ Matches C++ suite: test_spatial.cpp.
 """
 
 import atexit
-import warnings
 import decimal
 import math
+import warnings
+
 import pytest
 
 try:
@@ -27,26 +27,26 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    make_random_buffer,
-    numpy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
-    NK_ATOL,
-    NK_RTOL,
     DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
-    make_random,
-    tolerances_for_dtype,
+    NK_ATOL,
+    NK_RTOL,
+    LazyFormat,
+    assert_allclose,
     collect_errors,
     create_stats,
-    print_stats_report,
-    LazyFormat,
-    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    make_random_buffer,
     nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
+    print_stats_report,
+    profile,
+    randomized_repetitions_count,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -181,7 +181,7 @@ def test_angular_zero_vector(ndim, dtype, capability):
     result = nk.angular(b, b)
     assert abs(result) < NK_ATOL, f"Expected 0 distance from itself, but got {result}"
 
-    assert np.all(result >= 0), f"Negative result for angular distance"
+    assert np.all(result >= 0), "Negative result for angular distance"
 
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)

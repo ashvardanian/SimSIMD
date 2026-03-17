@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Module: test_base.py
 
@@ -47,18 +46,17 @@ Stats:
 
 from __future__ import annotations
 
-import os
-import sys
-import time
-import platform
+import array
 import collections
 import faulthandler
-
-import array
+import os
+import platform
 import random
+import sys
+import time
 
-import pytest
 import numkong as nk
+import pytest
 
 faulthandler.enable()
 
@@ -303,7 +301,7 @@ def hex_array(arr):
     if not np.issubdtype(arr.dtype, np.integer):
         # View non-integer data as raw bytes for hex display
         shape = arr.shape
-        arr = arr.view(np.uint8).reshape(shape + (-1,))
+        arr = arr.view(np.uint8).reshape((*shape, -1))
     printer = np.vectorize(hex)
     strings = printer(arr)
     if strings.ndim == 1:
@@ -562,7 +560,7 @@ elif sys.platform.startswith("freebsd"):
 elif sys.platform in ("emscripten", "wasi"):
     hardware_capabilities = possible_wasm_capabilities
 
-possible_capabilities: list[str] = ["serial"] + hardware_capabilities
+possible_capabilities: list[str] = ["serial", *hardware_capabilities]
 
 current_capability: str | None = None
 

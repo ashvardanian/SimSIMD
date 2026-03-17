@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test reductions: nk.moments, nk.minmax, nk.sum, nk.min, nk.max, nk.argmin, nk.argmax, nk.norm.
 
 Covers dtypes: float64, float32, float16, int32 (axis reductions also test int32 norm).
@@ -17,6 +16,7 @@ Matches C++ suite: test_reduce.cpp.
 import atexit
 import decimal
 import math
+
 import pytest
 
 try:
@@ -26,20 +26,20 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
+    NK_ATOL,
+    NK_RTOL,
     assert_allclose,
-    numpy_available,
+    create_stats,
     dense_dimensions,
-    possible_capabilities,
     keep_one_capability,
-    randomized_repetitions_count,
     make_nk,
     make_random,
     nk_seed,  # noqa: F401 — pytest fixture
-    create_stats,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
-    NK_ATOL,
-    NK_RTOL,
 )
 
 algebraic_dtypes = ["float32", "float64"]

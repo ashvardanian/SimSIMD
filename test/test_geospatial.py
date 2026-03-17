@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test geospatial distances: nk.haversine, nk.vincenty.
 
 Covers dtypes: float64, float32.
@@ -16,6 +15,7 @@ Matches C++ suite: test_geospatial.cpp.
 """
 
 import atexit
+
 import pytest
 
 try:
@@ -26,16 +26,16 @@ except:  # noqa: E722
 import numkong as nk
 from test_base import (
     assert_allclose,
-    numpy_available,
-    dense_dimensions,
-    max_coord_angle,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
     collect_errors,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    max_coord_angle,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
@@ -277,7 +277,7 @@ def test_haversine_self_zero(capability):
     lat = nk.full((1,), 0.5, dtype="float64")
     lon = nk.full((1,), 0.5, dtype="float64")
     result = nk.haversine(lat, lon, lat, lon)
-    val = list(result)[0]
+    val = next(iter(result))
     assert abs(val) < 1.0, f"haversine(self) = {val}, expected ~0"
 
 
@@ -288,5 +288,5 @@ def test_vincenty_self_zero(capability):
     lat = nk.full((1,), 0.5, dtype="float64")
     lon = nk.full((1,), 0.5, dtype="float64")
     result = nk.vincenty(lat, lon, lat, lon)
-    val = list(result)[0]
+    val = next(iter(result))
     assert abs(val) < 1.0, f"vincenty(self) = {val}, expected ~0"

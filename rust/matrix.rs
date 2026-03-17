@@ -2790,7 +2790,7 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 }
 
-// Parallel dots_packed implementations, if Fork Union is available
+// Parallel dots_packed implementations, if ForkUnion is available
 #[cfg(feature = "parallel")]
 impl<T: Dots + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
     Tensor<T, A, MAX_RANK>

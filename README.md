@@ -213,7 +213,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
     list(pool.map(compute_slice, range(num_threads)))
 ```
 
-For users who want a ready-made low-latency thread pool without the oversubscription baggage of OpenMP, we built [Fork Union](https://github.com/ashvardanian/ForkUnion) — a minimalist fork-join library for C, C++, and Rust that avoids mutexes, CAS atomics, and dynamic allocations on the critical path, with optional NUMA pinning on Linux.
+For users who want a ready-made low-latency thread pool without the oversubscription baggage of OpenMP, we built [ForkUnion](https://github.com/ashvardanian/ForkUnion) — a minimalist fork-join library for C, C++, and Rust that avoids mutexes, CAS atomics, and dynamic allocations on the critical path, with optional NUMA pinning on Linux.
 
 ### Memory Allocation & Management
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test cdist (pairwise cross-distance) operations.
 
 Covers cdist for all metric families: dot, angular, euclidean, sqeuclidean,
@@ -13,6 +12,7 @@ Matches C++ suite: test_cross_*.cpp.
 """
 
 import atexit
+
 import pytest
 
 try:
@@ -27,24 +27,24 @@ except ImportError:
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    scipy_available,
-    ml_dtypes_available,
-    nk_seed,  # noqa: F401 — pytest fixture
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    scipy_metric_name,
     NK_ATOL,
     NK_RTOL,
-    make_random,
-    seed_rng,  # noqa: F401 — pytest fixture (autouse)
-    create_stats,
-    print_stats_report,
     PACKING_GRANULARITY,
+    assert_allclose,
+    create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    ml_dtypes_available,
+    nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
+    print_stats_report,
+    randomized_repetitions_count,
     round_up_to,
+    scipy_available,
+    scipy_metric_name,
+    seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
 try:

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test elementwise operations: nk.scale, nk.add, nk.blend, nk.fma, nk.multiply.
 
 Covers dtypes: float64, float32, float16, int8, uint8 (core ops);
@@ -23,6 +22,7 @@ Matches C++ suite: test_each.cpp.
 import atexit
 import decimal
 import random
+
 import pytest
 
 try:
@@ -32,24 +32,24 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    numpy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
-    make_random,
-    tolerances_for_dtype,
-    random_of_dtype,
-    assert_allclose,
-    nk_seed,  # noqa: F401 — pytest fixture
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     collect_warnings,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    random_of_dtype,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
 
 algebraic_dtypes = ["float32", "float64"]

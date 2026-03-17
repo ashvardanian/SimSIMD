@@ -76,7 +76,7 @@ numkong = { version = "7", features = ["parallel", "std"] }
 The crate uses the `cc` build system to compile the C backend with `NK_DYNAMIC_DISPATCH=1` automatically.
 All supported backends for the target architecture are compiled into a single binary and selected at runtime.
 
-The two Cargo features are `std`, which enables standard library support, and `parallel`, which adds host-side orchestration via Fork Union and implies `std`.
+The two Cargo features are `std`, which enables standard library support, and `parallel`, which adds host-side orchestration via ForkUnion and implies `std`.
 
 Backend selection follows the target architecture.
 ARM gets NEON, SVE, and SME, with SME available on Linux, FreeBSD, and macOS.
@@ -511,10 +511,10 @@ assert!(result.rmsd < 1e-6);
 assert!((result.scale - 2.0).abs() < 0.01);
 ```
 
-## Parallelism and Fork Union
+## Parallelism and ForkUnion
 
 NumKong does not own a thread pool.
-The `parallel` feature adds host-side orchestration helpers via [Fork Union](https://github.com/ashvardanian/ForkUnion), not a hidden scheduler.
+The `parallel` feature adds host-side orchestration helpers via [ForkUnion](https://github.com/ashvardanian/ForkUnion), not a hidden scheduler.
 
 ```rust
 use numkong::{PackedMatrix, Tensor};

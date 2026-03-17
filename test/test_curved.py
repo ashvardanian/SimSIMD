@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test curved-space distances: nk.bilinear, nk.mahalanobis.
 
 Covers dtypes: float64, float32, float16 (with float32 compute), bfloat16,
@@ -21,6 +20,7 @@ Matches C++ suite: test_curved.cpp.
 
 import atexit
 import decimal
+
 import pytest
 
 try:
@@ -30,22 +30,22 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    curved_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
+    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
-    DECIMAL_PRECISION,
-    downcast_f32_to_dtype,
-    hex_array,
+    LazyFormat,
+    assert_allclose,
     collect_errors,
     create_stats,
+    curved_dimensions,
+    downcast_f32_to_dtype,
+    hex_array,
+    keep_one_capability,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
-    LazyFormat,
+    profile,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 
@@ -62,7 +62,7 @@ try:
             result = spd.mahalanobis(x, y, z).astype(np.float64)
             if not np.isnan(result):
                 return result
-        except:
+        except Exception:
             pass
         pytest.skip(f"SciPy Mahalanobis distance returned {result} due to `sqrt` of a negative number")
 

@@ -678,13 +678,11 @@ impl<'a, T: StorageElement> VectorView<'a, T> {
             } else {
                 0
             }
+        } else if start > end {
+            let abs_step = (-step) as usize;
+            (start - end + abs_step - 1) / abs_step
         } else {
-            if start > end {
-                let abs_step = (-step) as usize;
-                (start - end + abs_step - 1) / abs_step
-            } else {
-                0
-            }
+            0
         };
         let new_data = unsafe {
             (self.data as *const u8).offset(self.stride_bytes * start as isize) as *const T

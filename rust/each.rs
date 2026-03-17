@@ -2346,7 +2346,9 @@ impl<T: EachSin + EachCos + EachATan> Trigonometry for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{assert_close, bf16, e2m3, e3m2, e4m3, e5m2, f16, FloatLike, NumberLike, TestableType};
+    use crate::types::{
+        assert_close, bf16, e2m3, e3m2, e4m3, e5m2, f16, FloatLike, NumberLike, TestableType,
+    };
     /// Test a binary elementwise op: convert inputs, apply `op`, compare element-wise.
     pub(crate) fn check_each_binary<T, F>(
         a_vals: &[f32],

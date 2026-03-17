@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test sparse operations: nk.sparse_dot, nk.intersect.
 
 Covers dtypes: float32 values with uint32 indices (sparse_dot),
@@ -25,20 +24,20 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    sparse_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    is_running_under_qemu,
-    keep_one_capability,
-    profile,
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     create_stats,
+    is_running_under_qemu,
+    keep_one_capability,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    sparse_dimensions,
 )
 
 stats = create_stats()

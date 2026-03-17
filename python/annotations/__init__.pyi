@@ -1,4 +1,4 @@
-from typing import Any, Literal, Optional, TypeAlias, Union
+from typing import Any, Literal, TypeAlias
 
 # Many annotation features depend on the Python version:
 # - `typing.TypeAlias` type aliases are supported in Python 3.10-3.11.
@@ -72,7 +72,7 @@ _MetricType = Literal[
 ]
 
 # Buffer-compatible tensor inputs accepted by most functions.
-_BufferType: TypeAlias = Union[NDArray[Any], memoryview]
+_BufferType: TypeAlias = NDArray[Any] | memoryview
 
 class Tensor(memoryview):
     """N-dimensional tensor type returned by NumKong operations.
@@ -80,7 +80,7 @@ class Tensor(memoryview):
     Supports NumPy-like properties and buffer protocol for interoperability.
     """
 
-    def __new__(cls, array_like: _BufferType, /, *, dtype: Optional[str] = None) -> "Tensor":
+    def __new__(cls, array_like: _BufferType, /, *, dtype: str | None = None) -> Tensor:
         """Construct a Tensor by copying data from a buffer-protocol object."""
         ...
 
@@ -90,7 +90,7 @@ class Tensor(memoryview):
         ...
 
     @property
-    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
+    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
         """Data type of the tensor elements (e.g., 'float64')."""
         ...
 
@@ -127,7 +127,7 @@ class Tensor(memoryview):
         """Iterate over the first dimension."""
         ...
 
-    def __getitem__(self, key: Union[int, slice, tuple[Union[int, slice], ...]]) -> Union[float, "Tensor"]:
+    def __getitem__(self, key: int | slice | tuple[int | slice, ...]) -> float | Tensor:
         """Get an element or sub-tensor by index or slice."""
         ...
 
@@ -161,23 +161,23 @@ class Tensor(memoryview):
         ...
 
     @property
-    def T(self) -> "Tensor":
+    def T(self) -> Tensor:
         """Transpose of the tensor."""
         ...
 
-    def copy(self) -> "Tensor":
+    def copy(self) -> Tensor:
         """Return a deep copy of the tensor."""
         ...
 
-    def reshape(self, *shape: int) -> "Tensor":
+    def reshape(self, *shape: int) -> Tensor:
         """Return tensor reshaped to given dimensions."""
         ...
 
-    def flatten(self) -> "Tensor":
+    def flatten(self) -> Tensor:
         """Return a flattened 1D view (copies if non-contiguous)."""
         ...
 
-    def squeeze(self, axis: Optional[int] = None) -> "Tensor":
+    def squeeze(self, axis: int | None = None) -> Tensor:
         """Remove dimensions of size 1."""
         ...
 
@@ -187,34 +187,34 @@ class Tensor(memoryview):
         ...
 
     def sum(
-        self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, int, "Tensor"]:
+        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    ) -> float | int | Tensor:
         """Return the sum of all elements."""
         ...
 
     def norm(
-        self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, "Tensor"]:
+        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    ) -> float | Tensor:
         """Return the L2 norm."""
         ...
 
     def min(
-        self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, int, None, "Tensor"]:
+        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    ) -> float | int | None | Tensor:
         """Return the minimum element, or None if all elements are NaN."""
         ...
 
     def max(
-        self, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional["Tensor"] = None
-    ) -> Union[float, int, None, "Tensor"]:
+        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    ) -> float | int | None | Tensor:
         """Return the maximum element, or None if all elements are NaN."""
         ...
 
-    def argmin(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, None, "Tensor"]:
+    def argmin(self, axis: int | None = None, *, out: Tensor | None = None) -> int | None | Tensor:
         """Return the index of the minimum element, or None if all elements are NaN."""
         ...
 
-    def argmax(self, axis: Optional[int] = None, *, out: Optional["Tensor"] = None) -> Union[int, None, "Tensor"]:
+    def argmax(self, axis: int | None = None, *, out: Tensor | None = None) -> int | None | Tensor:
         """Return the index of the maximum element, or None if all elements are NaN."""
         ...
 
@@ -237,7 +237,7 @@ class PackedMatrix:
         ...
 
     @property
-    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
+    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
         """Data type of the packed matrix (like 'bf16' or 'i8')."""
         ...
 
@@ -252,7 +252,7 @@ class PackedMatrix:
         width: int,
         depth: int,
         /,
-        dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
+        dtype: _IntegralType | _FloatType | _ComplexType = "bf16",
     ) -> int:
         """Return packed buffer size in bytes for given dimensions and dtype."""
         ...
@@ -275,7 +275,7 @@ class MaxSimPackedMatrix:
         ...
 
     @property
-    def dtype(self) -> Union[_IntegralType, _FloatType, _ComplexType]:
+    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
         """Data type of the packed vectors."""
         ...
 
@@ -303,12 +303,12 @@ def enable_capability(capability: str, /) -> None: ...
 def disable_capability(capability: str, /) -> None: ...
 
 # Kernel pointer accessors.
-def pointer_to_euclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
-def pointer_to_sqeuclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
-def pointer_to_angular(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
-def pointer_to_inner(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
-def pointer_to_dot(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
-def pointer_to_vdot(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
+def pointer_to_euclidean(dtype: _IntegralType | _FloatType, /) -> int: ...
+def pointer_to_sqeuclidean(dtype: _IntegralType | _FloatType, /) -> int: ...
+def pointer_to_angular(dtype: _IntegralType | _FloatType, /) -> int: ...
+def pointer_to_inner(dtype: _FloatType | _ComplexType, /) -> int: ...
+def pointer_to_dot(dtype: _FloatType | _ComplexType, /) -> int: ...
+def pointer_to_vdot(dtype: _FloatType | _ComplexType, /) -> int: ...
 def pointer_to_jensenshannon(dtype: _FloatType, /) -> int: ...
 def pointer_to_kullbackleibler(dtype: _FloatType, /) -> int: ...
 
@@ -325,10 +325,10 @@ def cdist(
     metric: _MetricType = "euclidean",
     *,
     threads: int = 1,
-    dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
-    out: Optional[_BufferType] = None,
-    out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Optional[Union[float, complex, Tensor]]: ...
+    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
+    out: _BufferType | None = None,
+    out_dtype: _FloatType | _ComplexType | None = None,
+) -> float | complex | Tensor | None: ...
 
 # endregion Pairwise Distances
 
@@ -341,11 +341,11 @@ def inner(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_FloatType, _ComplexType]] = None,
+    dtype: _FloatType | _ComplexType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Optional[Union[float, complex, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType | _ComplexType | None = None,
+) -> float | complex | Tensor | None: ...
 
 # Dot product, similar to: `numpy.dot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.dot.html
@@ -353,11 +353,11 @@ def dot(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_FloatType, _ComplexType]] = None,
+    dtype: _FloatType | _ComplexType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType, _ComplexType] = None,
-) -> Optional[Union[float, complex, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType | _ComplexType = None,
+) -> float | complex | Tensor | None: ...
 
 # Vector-vector dot product for complex conjugates, similar to: `numpy.vdot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.vdot.html
@@ -365,11 +365,11 @@ def vdot(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_ComplexType] = None,
+    dtype: _ComplexType | None = None,
     *,
-    out: Optional[Union[float, complex, Tensor]] = None,
-    out_dtype: Optional[_ComplexType] = None,
-) -> Optional[Union[complex, Tensor]]: ...
+    out: float | complex | Tensor | None = None,
+    out_dtype: _ComplexType | None = None,
+) -> complex | Tensor | None: ...
 
 # endregion Vector Dot Products
 
@@ -383,11 +383,11 @@ def sqeuclidean(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_IntegralType, _FloatType]] = None,
+    dtype: _IntegralType | _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # Vector-vector angular distance (also known as cosine distance), similar to: `scipy.spatial.distance.cosine`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cosine.html
@@ -395,11 +395,11 @@ def angular(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_IntegralType, _FloatType]] = None,
+    dtype: _IntegralType | _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # Vector-vector Euclidean distance, similar to: `scipy.spatial.distance.euclidean`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.euclidean.html
@@ -407,11 +407,11 @@ def euclidean(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_IntegralType, _FloatType]] = None,
+    dtype: _IntegralType | _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Optional[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType | None = None,
+) -> float | Tensor | None: ...
 
 # endregion Spatial Distance Metrics
 
@@ -424,11 +424,11 @@ def hamming(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_IntegralType] = None,
+    dtype: _IntegralType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # Vector-vector Jaccard distance, similar to: `scipy.spatial.distance.jaccard`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.jaccard.html
@@ -436,11 +436,11 @@ def jaccard(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_IntegralType] = None,
+    dtype: _IntegralType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # endregion Binary Similarity
 
@@ -453,20 +453,20 @@ def jensenshannon(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 def jsd(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.kullback_leibler.html
@@ -474,20 +474,20 @@ def kullbackleibler(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 def kld(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+    out_dtype: _FloatType = None,
+) -> float | Tensor | None: ...
 
 # endregion Probability Distances
 
@@ -501,7 +501,7 @@ def bilinear(
     b: _BufferType,
     metric_tensor: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
 ) -> float: ...
 
 # Vector-vector Mahalanobis distance, similar to: `scipy.spatial.distance.mahalanobis`.
@@ -511,7 +511,7 @@ def mahalanobis(
     b: _BufferType,
     inverse_covariance: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
 ) -> float: ...
 
 # endregion Curved Space Metrics
@@ -524,20 +524,20 @@ def haversine(
     b_lats: _BufferType,
     b_lons: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+) -> float | Tensor | None: ...
 def vincenty(
     a_lats: _BufferType,
     a_lons: _BufferType,
     b_lats: _BufferType,
     b_lons: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-) -> Optional[Union[float, Tensor]]: ...
+    out: _BufferType | None = None,
+) -> float | Tensor | None: ...
 
 # endregion Geospatial Distances
 
@@ -559,29 +559,29 @@ def sparse_dot(
 
 # region Tensor Constructors
 def empty(
-    shape: Union[int, tuple[int, ...]],
+    shape: int | tuple[int, ...],
     /,
     *,
-    dtype: Union[_IntegralType, _FloatType, _ComplexType] = "float32",
+    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
 ) -> Tensor: ...
 def zeros(
-    shape: Union[int, tuple[int, ...]],
+    shape: int | tuple[int, ...],
     /,
     *,
-    dtype: Union[_IntegralType, _FloatType, _ComplexType] = "float32",
+    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
 ) -> Tensor: ...
 def ones(
-    shape: Union[int, tuple[int, ...]],
+    shape: int | tuple[int, ...],
     /,
     *,
-    dtype: Union[_IntegralType, _FloatType, _ComplexType] = "float32",
+    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
 ) -> Tensor: ...
 def full(
-    shape: Union[int, tuple[int, ...]],
-    fill_value: Union[int, float],
+    shape: int | tuple[int, ...],
+    fill_value: int | float,
     /,
     *,
-    dtype: Union[_IntegralType, _FloatType, _ComplexType] = "float32",
+    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
 ) -> Tensor: ...
 
 # endregion Tensor Constructors
@@ -589,25 +589,25 @@ def full(
 # region Reductions
 
 def moments(a: _BufferType, /) -> tuple[float, float]: ...
-def minmax(a: _BufferType, /) -> Optional[tuple[float, int, float, int]]: ...
+def minmax(a: _BufferType, /) -> tuple[float, int, float, int] | None: ...
 def sum(
-    a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, int, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+) -> float | int | Tensor: ...
 def norm(
-    a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+) -> float | Tensor: ...
 def min(
-    a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, int, None, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+) -> float | int | None | Tensor: ...
 def max(
-    a: _BufferType, /, axis: Optional[int] = None, *, keepdims: bool = False, out: Optional[Tensor] = None
-) -> Union[float, int, None, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+) -> float | int | None | Tensor: ...
 def argmin(
-    a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None
-) -> Union[int, None, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, out: Tensor | None = None
+) -> int | None | Tensor: ...
 def argmax(
-    a: _BufferType, /, axis: Optional[int] = None, *, out: Optional[Tensor] = None
-) -> Union[int, None, Tensor]: ...
+    a: _BufferType, /, axis: int | None = None, *, out: Tensor | None = None
+) -> int | None | Tensor: ...
 
 # endregion Reductions
 
@@ -619,24 +619,24 @@ def fma(
     b: _BufferType,
     c: _BufferType,
     /,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    dtype: _FloatType | _IntegralType | None = None,
     *,
     alpha: float = 1,
     beta: float = 1,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # Vector-vector element-wise blend.
 def blend(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    dtype: _FloatType | _IntegralType | None = None,
     *,
     alpha: float = 1,
     beta: float = 1,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # endregion Vector Math
 
@@ -646,28 +646,28 @@ def blend(
 def sin(
     a: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # Element-wise trigonometric cosine.
 def cos(
     a: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # Element-wise trigonometric arctangent.
 def atan(
     a: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
     *,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # endregion Trigonometry
 
@@ -677,36 +677,36 @@ def atan(
 def scale(
     a: _BufferType,
     /,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    dtype: _FloatType | _IntegralType | None = None,
     *,
     alpha: float = 1,
     beta: float = 0,
-    out: Optional[_BufferType] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+) -> Tensor | None: ...
 
 # Element-wise add (NumPy-compatible with broadcasting).
 def add(
-    a: Union[_BufferType, float, int],
-    b: Union[_BufferType, float, int],
+    a: _BufferType | float | int,
+    b: _BufferType | float | int,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+    a_dtype: _FloatType | _IntegralType | None = None,
+    b_dtype: _FloatType | _IntegralType | None = None,
+    out_dtype: _FloatType | _IntegralType | None = None,
+) -> Tensor | None: ...
 
 # Element-wise multiply (NumPy-compatible with broadcasting).
 def multiply(
-    a: Union[_BufferType, float, int],
-    b: Union[_BufferType, float, int],
+    a: _BufferType | float | int,
+    b: _BufferType | float | int,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-) -> Optional[Tensor]: ...
+    out: _BufferType | None = None,
+    a_dtype: _FloatType | _IntegralType | None = None,
+    b_dtype: _FloatType | _IntegralType | None = None,
+    out_dtype: _FloatType | _IntegralType | None = None,
+) -> Tensor | None: ...
 
 # endregion Elementwise Arithmetic
 
@@ -715,46 +715,46 @@ def dots_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    dtype: _FloatType | _IntegralType | None = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 def hammings_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: Optional[_IntegralType] = None,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    dtype: _IntegralType | None = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 def jaccards_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: Optional[_IntegralType] = None,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    dtype: _IntegralType | None = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 def angulars_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    dtype: _FloatType | _IntegralType | None = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 def euclideans_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    dtype: _FloatType | _IntegralType | None = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # endregion Symmetric Pairwise Operations
@@ -765,7 +765,7 @@ def euclideans_symmetric(
 def dots_pack(
     b: _BufferType,
     /,
-    dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
+    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
 ) -> PackedMatrix: ...
 
 # Dot-product matrix multiplication with a pre-packed B matrix.
@@ -774,16 +774,16 @@ def dots_packed(
     b: PackedMatrix,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # Pack a matrix for repeated Hamming distance computation.
 def hammings_pack(
     b: _BufferType,
     /,
-    dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
+    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
 ) -> PackedMatrix: ...
 
 # Hamming distance computation with a pre-packed B matrix.
@@ -792,9 +792,9 @@ def hammings_packed(
     b: PackedMatrix,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # Jaccard distance computation with a pre-packed B matrix.
@@ -803,9 +803,9 @@ def jaccards_packed(
     b: PackedMatrix,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # Angular distance computation with a pre-packed B matrix.
@@ -814,9 +814,9 @@ def angulars_packed(
     b: PackedMatrix,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # Euclidean distance computation with a pre-packed B matrix.
@@ -825,17 +825,17 @@ def euclideans_packed(
     b: PackedMatrix,
     /,
     *,
-    out: Optional[_BufferType] = None,
-    start_row: Optional[int] = None,
-    end_row: Optional[int] = None,
+    out: _BufferType | None = None,
+    start_row: int | None = None,
+    end_row: int | None = None,
 ) -> Tensor: ...
 
 # endregion Packed Matrix Operations
 
 # region MaxSim
-def maxsim_pack(b: _BufferType, /, dtype: Optional[_FloatType] = None) -> MaxSimPackedMatrix: ...
+def maxsim_pack(b: _BufferType, /, dtype: _FloatType | None = None) -> MaxSimPackedMatrix: ...
 def maxsim_packed(queries: MaxSimPackedMatrix, documents: MaxSimPackedMatrix, /) -> float: ...
-def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: Optional[_FloatType] = None) -> float: ...
+def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: _FloatType | None = None) -> float: ...
 
 # endregion MaxSim
 
@@ -868,19 +868,19 @@ def kabsch(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
 ) -> MeshAlignmentResult: ...
 def umeyama(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
 ) -> MeshAlignmentResult: ...
 def rmsd(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: Optional[_FloatType] = None,
+    dtype: _FloatType | None = None,
 ) -> float: ...
 
 # endregion Mesh Alignment
