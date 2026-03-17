@@ -10,15 +10,14 @@
 
 include(CheckCXXSourceCompiles)
 
-function(nk_detect_cxx_math_lib_ output_var_)
+function (nk_detect_cxx_math_lib_ output_var_)
     set(${output_var_} "" PARENT_SCOPE)
 
     if (MSVC OR NK_IS_WASI_PROJECT_ OR CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         return()
     endif ()
 
-    set(
-        nk_cxx_math_probe_src_
+    set(nk_cxx_math_probe_src_
         "
         #include <cmath>
         int main() {
@@ -44,4 +43,4 @@ function(nk_detect_cxx_math_lib_ output_var_)
 
     unset(CMAKE_REQUIRED_LIBRARIES)
     unset(CMAKE_REQUIRED_QUIET)
-endfunction()
+endfunction ()

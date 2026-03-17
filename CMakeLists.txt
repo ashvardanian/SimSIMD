@@ -367,11 +367,7 @@ if (NK_BUILD_BENCH)
     set(BENCHMARK_USE_BUNDLED_GTEST ON CACHE BOOL "" FORCE)
     set(HAVE_STD_REGEX ON CACHE BOOL "Force std::regex for Google Benchmark" FORCE)
 
-    FetchContent_Declare(
-        benchmark
-        GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG main
-    )
+    FetchContent_Declare(benchmark GIT_REPOSITORY https://github.com/google/benchmark.git GIT_TAG main)
     FetchContent_MakeAvailable(benchmark)
 
     # Remove the Google Benchmark's "built in debug warning"

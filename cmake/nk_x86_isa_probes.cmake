@@ -33,7 +33,7 @@ set(CMAKE_TRY_COMPILE_CONFIGURATION "Release")
 # essential; on GCC/Clang the per-ISA -m flags let the compiler emit the
 # instructions, and running the probe confirms the host can execute them.
 # When cross-compiling, fall back to check_source_compiles (can't run probes).
-macro(nk_isa_probe_ var_ msvc_arch_ gcc_flags_ source_)
+macro (nk_isa_probe_ var_ msvc_arch_ gcc_flags_ source_)
     if (CMAKE_CROSSCOMPILING)
         set(CMAKE_REQUIRED_FLAGS "${gcc_flags_}")
         check_source_compiles(C "${source_}" ${var_})
@@ -44,10 +44,11 @@ macro(nk_isa_probe_ var_ msvc_arch_ gcc_flags_ source_)
         set(CMAKE_REQUIRED_FLAGS "${gcc_flags_}")
         check_source_runs(C "${source_}" ${var_})
     endif ()
-endmacro()
+endmacro ()
 
 # Haswell — AVX2
-nk_isa_probe_(nk_target_haswell_ "/arch:AVX2" "-mavx2 -mfma -mf16c" "
+nk_isa_probe_(
+    nk_target_haswell_ "/arch:AVX2" "-mavx2 -mfma -mf16c" "
     #include <immintrin.h>
     int main(void) {
         volatile int one = 1;
@@ -55,10 +56,12 @@ nk_isa_probe_(nk_target_haswell_ "/arch:AVX2" "-mavx2 -mfma -mf16c" "
         __m256i b = _mm256_add_epi32(a, a);
         return _mm256_extract_epi32(b, 0) == 2 ? 0 : 1;
     }
-")
+"
+)
 
 # Skylake — AVX-512F
-nk_isa_probe_(nk_target_skylake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl" "
+nk_isa_probe_(
+    nk_target_skylake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl" "
     #include <immintrin.h>
     int main(void) {
         volatile int one = 1;
@@ -66,10 +69,15 @@ nk_isa_probe_(nk_target_skylake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq
         __m512i b = _mm512_add_epi32(a, a);
         return (int)_mm512_reduce_add_epi32(b) == 32 ? 0 : 1;
     }
-")
+"
+)
 
 # Ice Lake — AVX-512VNNI
-nk_isa_probe_(nk_target_icelake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512vnni" "
+nk_isa_probe_(
+    nk_target_icelake_
+    "/arch:AVX512"
+    "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512vnni"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile int one = 1;
@@ -79,10 +87,15 @@ nk_isa_probe_(nk_target_icelake_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq
         acc = _mm512_dpbusd_epi32(acc, a, b);
         return (int)_mm512_reduce_add_epi32(acc) == 64 ? 0 : 1;
     }
-")
+"
+)
 
 # Genoa — AVX-512BF16
-nk_isa_probe_(nk_target_genoa_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512bf16" "
+nk_isa_probe_(
+    nk_target_genoa_
+    "/arch:AVX512"
+    "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512bf16"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile float one = 1.0f;
@@ -93,10 +106,15 @@ nk_isa_probe_(nk_target_genoa_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -
         __m512 r = _mm512_dpbf16_ps(_mm512_setzero_ps(), wide, wide);
         return _mm512_reduce_add_ps(r) >= 0.0f ? 0 : 1;
     }
-")
+"
+)
 
 # Sapphire Rapids — AVX-512FP16
-nk_isa_probe_(nk_target_sapphire_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512fp16" "
+nk_isa_probe_(
+    nk_target_sapphire_
+    "/arch:AVX512"
+    "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512fp16"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile float one = 1.0f;
@@ -105,20 +123,24 @@ nk_isa_probe_(nk_target_sapphire_ "/arch:AVX512" "-mavx512f -mavx512bw -mavx512d
         __m512h c = _mm512_fmadd_ph(a, b, a);
         return (int)_mm_extract_epi16(_mm256_castsi256_si128(_mm512_castsi512_si256((__m512i)c)), 0) != 0 ? 0 : 1;
     }
-")
+"
+)
 
 # Sapphire Rapids AMX — AMX-TILE + INT8
-nk_isa_probe_(nk_target_sapphireamx_ "/arch:AVX512" "-mamx-tile -mamx-int8" "
+nk_isa_probe_(
+    nk_target_sapphireamx_ "/arch:AVX512" "-mamx-tile -mamx-int8" "
     #include <immintrin.h>
     int main(void) {
         volatile int zero = 0;
         _tile_release();
         return zero;
     }
-")
+"
+)
 
 # Granite Rapids AMX — AMX-FP16
-nk_isa_probe_(nk_target_graniteamx_ "/arch:AVX512" "-mamx-tile -mamx-fp16" "
+nk_isa_probe_(
+    nk_target_graniteamx_ "/arch:AVX512" "-mamx-tile -mamx-fp16" "
     #include <immintrin.h>
     #include <amxfp16intrin.h>
     int main(void) {
@@ -126,10 +148,15 @@ nk_isa_probe_(nk_target_graniteamx_ "/arch:AVX512" "-mamx-tile -mamx-fp16" "
         _tile_release();
         return zero;
     }
-")
+"
+)
 
 # Turin — AVX-512VP2INTERSECT
-nk_isa_probe_(nk_target_turin_ "/arch:AVX512" "-mavx512f -mavx512vp2intersect" "
+nk_isa_probe_(
+    nk_target_turin_
+    "/arch:AVX512"
+    "-mavx512f -mavx512vp2intersect"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile int val = 42;
@@ -139,10 +166,15 @@ nk_isa_probe_(nk_target_turin_ "/arch:AVX512" "-mavx512f -mavx512vp2intersect" "
         _mm512_2intersect_epi32(a, b, &k0, &k1);
         return k0 != 0 ? 0 : 1;
     }
-")
+"
+)
 
 # Alder Lake — AVX-VNNI (DPBUSD 256-bit, VEX-encoded)
-nk_isa_probe_(nk_target_alder_ "/arch:AVX2" "-mavx2 -mavxvnni" "
+nk_isa_probe_(
+    nk_target_alder_
+    "/arch:AVX2"
+    "-mavx2 -mavxvnni"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile int two = 2;
@@ -152,10 +184,15 @@ nk_isa_probe_(nk_target_alder_ "/arch:AVX2" "-mavx2 -mavxvnni" "
         acc = _mm256_dpbusd_avx_epi32(acc, a, b);
         return _mm256_extract_epi32(acc, 0) == 24 ? 0 : 1;
     }
-")
+"
+)
 
 # Sierra Forest — AVXVNNIINT8 (DPBSSD 256-bit)
-nk_isa_probe_(nk_target_sierra_ "/arch:AVX2" "-mavx2 -mavxvnniint8" "
+nk_isa_probe_(
+    nk_target_sierra_
+    "/arch:AVX2"
+    "-mavx2 -mavxvnniint8"
+    "
     #include <immintrin.h>
     int main(void) {
         volatile int two = 2;
@@ -165,7 +202,8 @@ nk_isa_probe_(nk_target_sierra_ "/arch:AVX2" "-mavx2 -mavxvnniint8" "
         acc = _mm256_dpbssd_epi32(acc, a, b);
         return _mm256_extract_epi32(acc, 0) == 24 ? 0 : 1;
     }
-")
+"
+)
 
 set(CMAKE_REQUIRED_FLAGS "${nk_saved_required_flags_}")
 set(CMAKE_TRY_COMPILE_CONFIGURATION "${nk_saved_try_compile_config_}")

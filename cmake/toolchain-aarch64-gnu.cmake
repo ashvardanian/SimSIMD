@@ -1,4 +1,4 @@
-# AArch64 Linux cross-compilation toolchain for NumKong
+# AArch64 GNU toolchain for NumKong.
 #
 # Usage:
 #   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
@@ -24,12 +24,12 @@ set(CMAKE_SYSTEM_PROCESSOR aarch64)
 # 1. AARCH64_TOOLCHAIN_PATH (explicit path to Arm GNU Toolchain)
 # 2. /tmp/aarch64 (default Arm GNU Toolchain location)
 # 3. System packages (aarch64-linux-gnu-)
-if(DEFINED AARCH64_TOOLCHAIN_PATH)
+if (DEFINED AARCH64_TOOLCHAIN_PATH)
     set(AARCH64_TOOLCHAIN_PREFIX "${AARCH64_TOOLCHAIN_PATH}/bin/aarch64-none-linux-gnu-")
     set(CMAKE_SYSROOT "${AARCH64_TOOLCHAIN_PATH}/aarch64-none-linux-gnu/libc")
-elseif(NOT DEFINED AARCH64_TOOLCHAIN_PREFIX)
+elseif (NOT DEFINED AARCH64_TOOLCHAIN_PREFIX)
     set(AARCH64_TOOLCHAIN_PREFIX "aarch64-linux-gnu-")
-endif()
+endif ()
 
 set(CMAKE_C_COMPILER ${AARCH64_TOOLCHAIN_PREFIX}gcc)
 set(CMAKE_CXX_COMPILER ${AARCH64_TOOLCHAIN_PREFIX}g++)
@@ -67,19 +67,19 @@ set(CMAKE_CXX_COMPILER ${AARCH64_TOOLCHAIN_PREFIX}g++)
 # Default: armv9-a with SVE2 and common extensions (GCC 13 compatible)
 # For SME/SME2 support, use GCC 14+ and set:
 #   -DAARCH64_MARCH="armv9.2-a+sve2+sme2+fp16+bf16+i8mm+dotprod+fp16fml"
-if(NOT DEFINED AARCH64_MARCH)
+if (NOT DEFINED AARCH64_MARCH)
     set(AARCH64_MARCH "armv9-a+sve2+fp16+bf16+i8mm+dotprod+fp16fml")
-endif()
+endif ()
 
 set(CMAKE_C_FLAGS_INIT "-march=${AARCH64_MARCH}")
 set(CMAKE_CXX_FLAGS_INIT "-march=${AARCH64_MARCH}")
 
-# QEMU user-mode emulation for running tests
-# -cpu max enables all supported features
+# QEMU user-mode emulation for running tests.
+# -cpu max enables all supported features.
 # For specific CPU emulation: -cpu neoverse-v1, -cpu neoverse-v2, etc.
 set(CMAKE_CROSSCOMPILING_EMULATOR "qemu-aarch64;-cpu;max")
 
-# Search paths for libraries and headers (target system only)
+# Search paths for libraries and headers (target system only).
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

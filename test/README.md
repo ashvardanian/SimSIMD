@@ -174,6 +174,8 @@ Default arch: `armv9-a+sve2+fp16+bf16+i8mm+dotprod+fp16fml`.
 __RISC-V 64 with GCC__
 
 ```sh
+export RISCV_TOOLCHAIN_PATH=/path/to/riscv-gnu-toolchain    # optional
+# export RISCV_SYSROOT=/path/to/riscv-sysroot               # optional override
 cmake -B build_riscv -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-gnu.cmake \
       -DNK_BUILD_TEST=1
 cmake --build build_riscv --parallel
@@ -186,6 +188,7 @@ __RISC-V 64 with LLVM__
 
 ```sh
 export RISCV_SYSROOT=/path/to/riscv-sysroot
+export LLVM_ROOT=/path/to/llvm                           # optional
 cmake -B build_riscv_llvm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-llvm.cmake \
       -DNK_BUILD_TEST=1
 cmake --build build_riscv_llvm --parallel

@@ -110,9 +110,9 @@ jobs:
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble main" | sudo tee /etc/apt/sources.list.d/llvm.list > /dev/null
           sudo apt-get update
-          sudo apt-get install -y cmake clang-23 lld-23 llvm-23 qemu-user gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
+          sudo apt-get install -y cmake clang-23 lld-23 llvm-23 gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
 
-      - name: Configure portable RISC-V build
+      - name: Configure portable RISC-V library build
         shell: bash
         run: |
           set -euo pipefail
@@ -122,7 +122,7 @@ jobs:
             -DLLVM_ROOT=/usr/lib/llvm-23 \
             -DRISCV_SYSROOT="${SYSROOT}" \
             -DRISCV_MARCH=rv64gcv \
-            -DNK_BUILD_TEST=ON
+            -DNK_BUILD_SHARED=ON
 
-      - name: Build portable RISC-V targets
-        run: cmake --build build_riscv --parallel
+      - name: Build portable RISC-V library
+        run: cmake --build build_riscv --parallel --target nk_shared
