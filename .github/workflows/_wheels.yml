@@ -228,6 +228,9 @@ jobs:
 
   build_wheels_linux_riscv:
     name: Build Python Wheels (Linux RISC-V)
+    # Temporarily disabled until the official PyPA riscv64 images expose a
+    # packaged LLVM 23 toolchain, or until we switch to custom images.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     strategy:
       matrix:
