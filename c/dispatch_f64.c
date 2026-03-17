@@ -43,11 +43,16 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_f64_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif
 #if NK_TARGET_SMEF64
     if (v & nk_cap_smef64_k) switch (k) {
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f64_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f64_smef64, *c = nk_cap_smef64_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f64_smef64, *c = nk_cap_smef64_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_smef64, *c = nk_cap_smef64_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_smef64, *c = nk_cap_smef64_k; return;

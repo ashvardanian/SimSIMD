@@ -21,8 +21,8 @@
  *
  *  Math for fused centroid+covariance:
  *    H[i][j] = Σ (a[i] - ca[i]) * (b[j] - cb[j])
- *            = Σ a[i]*b[j] - n*ca[i]*cb[j]
- *  So we accumulate raw Σ a[i]*b[j] in the loop, then fix up after.
+ *            = Σ a[i] * b[j] - n * ca[i] * cb[j]
+ *  So we accumulate raw Σ a[i] * b[j] in the loop, then fix up after.
  *
  *  Key RVV-specific optimizations (vs. scalar or x86 backends):
  *

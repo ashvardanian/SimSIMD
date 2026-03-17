@@ -790,6 +790,24 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t n_
                                           nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SME
 
+/*  ARM SME with integer-accumulating binary outer products.
+ *  Used for packed 1-bit dot products backed by ZA32.
+ */
+#if NK_TARGET_SMEBI32
+/** @copydoc nk_dots_packed_size_u1 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1_smebi32(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_u1 */
+NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t height,
+                                         nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
+#endif // NK_TARGET_SMEBI32
+
 /*  ARM SME with FEAT_SME_F64F64 (F32/F64 with F64 accumulators).
  *  Requires Apple M4 or equivalent with F64 outer product support.
  */

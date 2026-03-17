@@ -15,6 +15,12 @@ void nk_dispatch_f64c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_SMEF64
+    if (v & nk_cap_smef64_k) switch (k) {
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f64c_smef64, *c = nk_cap_smef64_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE
     if (v & nk_cap_sve_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64c_sve, *c = nk_cap_sve_k; return;
@@ -55,6 +61,8 @@ void nk_dispatch_f64c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64c_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f64c_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f64c_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f64c_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f64c_haswell, *c = nk_cap_haswell_k; return;
