@@ -251,6 +251,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading
           CIBW_PLATFORM: linux
           CIBW_ARCHS: riscv64
+          QEMU_CPU: max
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:

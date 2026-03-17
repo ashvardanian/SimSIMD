@@ -83,13 +83,14 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-fPIC",
         "-w",  # Hush warnings
     ]
-    # On RISC-V, GCC needs `-march` with V extension for vector types to be
+    # On RISC-V, GCC needs `-march` with the V extension for vector types to be
     # available at translation-unit scope (`#pragma GCC target` only affects
     # codegen, not type declarations).
-    # In manylinux_2_39 riscv64 CI we build with Clang + LLD to support
-    # zvfh/zvfbfwma/zvbb in this target string.
+    # Keep the module-wide baseline portable (`rv64gcv`) so wheels can import on
+    # weaker emulated CPUs. Richer kernels still compile through the explicit
+    # NK_TARGET_* defines below plus per-function target attributes.
     if is_64bit_riscv():
-        compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
+        compile_args.append("-march=rv64gcv")
     link_args = [
         "-shared",
         "-lm",  # Add vectorized `logf` implementation from the `glibc`
