@@ -1,1492 +1,493 @@
-![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.jpg?raw=true)
+# NumKong: Mixed Precision for All
 
-Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geospatial Analysis, and Information Retrieval.
-These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
-In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
-Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
-Moreover, most lack mixed-precision support, which is crucial for modern AI!
-The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
-SimSIMD provides an alternative.
-1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
-3️⃣ SimSIMD often [ships more binaries than NumPy][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
+NumKong (previously SimSIMD) delivers mixed-precision numerics that are often faster _and_ more accurate than standard BLAS libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
+Over 1500 hand-tuned SIMD kernels for x86, Arm, RISC-V, and WASM power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
 
-[benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
-[compatibility]: https://pypi.org/project/simsimd/#files
+![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 
-<div>
-<a href="https://pepy.tech/project/simsimd">
-    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs" />
-</a>
-<a href="https://www.npmjs.com/package/simsimd">
-    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=JavaScript%20NPM%20installs" />
-</a>
-<a href="https://crates.io/crates/simsimd">
-    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?label=Rust%20Crate%20installs" />
-</a>
-<img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions Ubuntu" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Ubuntu&logo=github&color=blue">
-</a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
-</a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions macOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=macOS&logo=apple&color=blue">
-</a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
-</a>
+## Latency, Throughput, & Numerical Stability Together in a Tiny Package
 
+Most libraries return dot products in the __same type as the input__ — Float16 × Float16 → Float16, Int8 × Int8 → Int8.
+That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
+NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results never overflow, and it's still faster.
+
+> Single 2048-d dot product on Intel Sapphire Rapids (Xeon 8468), single-threaded, CPU-only packages.
+> Each cell shows __gso/s, mean relative error__ vs higher-precision reference.
+> gso/s = Giga Scalar Operations per Second — a more suitable name than GFLOP/s when counting both integer and floating-point work.
+> Median of 5 runs × 500 K calls each. NumPy 2.4, PyTorch 2.10, JAX 0.9.
+
+| Input  |        NumPy + OpenBLAS |           PyTorch + MKL |                     JAX |               NumKong |
+| :----- | ----------------------: | ----------------------: | ----------------------: | --------------------: |
+|        |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
+| `f64`  |    2.0 gso/s, 1e-15 err |    0.6 gso/s, 1e-15 err |    0.4 gso/s, 1e-14 err |  5.8 gso/s, 1e-16 err |
+| `f32`  |     1.5 gso/s, 2e-6 err |     0.6 gso/s, 2e-6 err |     0.4 gso/s, 5e-6 err |   7.1 gso/s, 2e-7 err |
+| `bf16` |                       — |     0.5 gso/s, 1.9% err |     0.5 gso/s, 1.9% err |   9.7 gso/s, 1.8% err |
+| `f16`  |    0.2 gso/s, 0.25% err |    0.5 gso/s, 0.25% err |    0.4 gso/s, 0.25% err | 11.5 gso/s, 0.24% err |
+| `e5m2` |                       — |     0.7 gso/s, 4.6% err |     0.5 gso/s, 4.6% err |     7.1 gso/s, 0% err |
+| `i8`   | 1.1 gso/s, __overflow__ | 0.5 gso/s, __overflow__ | 0.5 gso/s, __overflow__ |    14.8 gso/s, 0% err |
+
+A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
+They lower execution graphs through XLA or vendored BLAS libraries like Intel MKL and Nvidia cuBLAS.
+So here's the same comparison on a throughput-oriented workload — matrix multiplication:
+
+> Matrix multiplication (2048 × 2048) × (2048 × 2048), single-threaded, same machine.
+> JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
+> NumKong uses `dots_packed` (pre-packed GEMM). Same format: __gso/s, mean relative error__.
+
+| Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |              NumKong |
+| :----- | ----------------------: | -----------------------: | -----------------------: | -------------------: |
+|        |          ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |
+| `f64`  |   65.5 gso/s, 1e-15 err |    68.2 gso/s, 1e-15 err |   ~14.3 gso/s, 1e-15 err | 8.6 gso/s, 1e-16 err |
+| `f32`  |     140 gso/s, 9e-7 err |      145 gso/s, 1e-6 err |    ~60.5 gso/s, 1e-6 err | 37.7 gso/s, 4e-7 err |
+| `bf16` |                       — |      851 gso/s, 1.8% err |    ~25.8 gso/s, 3.4% err |  458 gso/s, 3.6% err |
+| `f16`  |    0.3 gso/s, 0.25% err |     140 gso/s, 0.37% err |   ~26.1 gso/s, 0.35% err | 103 gso/s, 0.26% err |
+| `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |    398 gso/s, 0% err |
+| `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |   1279 gso/s, 0% err |
+
+For `f64`, NumKong's compensated "Dot2" summation is __10–50× more accurate__ than naive Float64 accumulation, depending on vector length.
+For `f32`, widening to Float64 gives __5–10× lower error__.
+For smaller types and especially integers, the gap is even more dramatic.
+And all of that fits into one of the smallest binaries in the industry:
+
+| Package                |   Size | Parallelism & Memory                                | Available For                       |
+| :--------------------- | -----: | :-------------------------------------------------- | :---------------------------------- |
+| PyTorch + MKL + oneDNN | 705 MB | Vector & Tile SIMD, OpenMP Threads, Internal Allocs | Python, C++, Java                   |
+| JAX + jaxlib           | 357 MB | Vector SIMD, XLA Threads, Internal Allocs           | Python                              |
+| NumPy + OpenBLAS       |  30 MB | Vector SIMD, Built-in Threads, Internal Allocs      | Python                              |
+| mathjs                 |   9 MB | No SIMD, No Threads, Countless Allocs               | JS                                  |
+| NumKong                |   5 MB | Vector & Tile SIMD, Your Threads, Your Allocs       | C, C++, Rust, Python, Go, JS, Swift |
+
+But kernels and precision are only part of the story — the larger investment is test coverage: every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions, enforcing triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above, cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
+A broader throughput comparison is maintained in [NumWars](https://github.com/ashvardanian/NumWars).
+
+## Quick Start
+
+| Language   | Install                          | Compatible with                  | Guide                                        |
+| :--------- | :------------------------------- | :------------------------------- | :------------------------------------------- |
+| C / C++    | CMake, headers, or prebuilt      | Linux, macOS, Windows, Android   | [include/README.md](include/README.md)       |
+| Python     | `pip install`                    | Linux, macOS, Windows            | [python/README.md](python/README.md)         |
+| Rust       | `cargo add`                      | Linux, macOS, Windows            | [rust/README.md](rust/README.md)             |
+| JavaScript | `npm install` or `import` remote | Node.js, Bun, Deno & any browser | [javascript/README.md](javascript/README.md) |
+| Swift      | Swift Package Manager            | macOS, iOS, tvOS, watchOS        | [swift/README.md](swift/README.md)           |
+| Go         | `go get`                         | Linux, macOS, Windows via cGo    | [golang/README.md](golang/README.md)         |
+
+## What's Inside
+
+NumKong spans 16 numeric types — from exotic GPU-only 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
+
+<div align="center">
+<pre><code>
+┌──────────────────────────────┬────────────────┬───────────────────────────┬────────────┐
+│          Operations          │   Datatypes    │         Backends          │ Ecosystems │
+├──────────────────────────────┼────────────────┼───────────────────────────┼────────────┤
+│ Vector-Vector                │ <a href="#numeric-types">Bits &amp; Ints</a>    │ <a href="#compile-time-and-run-time-dispatch">x86</a>                       │ Core       │
+│ <a href="include/README.md#dot-products">dot</a> · <a href="include/README.md#dense-distances">angular</a> · <a href="include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="include/README.md#the-c-abi">C 99</a>       │
+│ hamming · kld · jsd · …      │ i4 · i8        │ Sierra Forest · Skylake   │            │
+│                              │                │ Ice Lake · Genoa · Turin  │ Primary    │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="include/README.md#the-c-layer">C++ 23</a>     │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="python/README.md">Python 3</a>   │
+│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="rust/README.md">Rust</a>       │
+│                              │                │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                       │            │
+│ Quadratic                    │ <a href="#float16--bfloat16-half-precision">Half &amp; Classic</a> │ NEON · NEONHalf · NEONFhm │ Additional │
+│ <a href="include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="swift/README.md">Swift</a> · <a href="javascript/README.md">JS</a> │
+│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="golang/README.md">Go</a>         │
+│ <a href="include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
+│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="CONTRIBUTING.md">Tools</a>      │
+│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="test/README.md">Tests</a>      │
+│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="bench/README.md">Benchmarks</a> │
+│ Bespoke                      │                │ RVV · RVVHalf             │ <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
+│ <a href="include/numkong/each/README.md">fma</a> · blend · <a href="include/numkong/trigonometry/README.md">sin</a> · <a href="include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
+│ <a href="include/numkong/reduce/README.md">reduce_moments</a> · <a href="include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
+│ <a href="include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
+│                              │                │ V128Relaxed               │            │
+└──────────────────────────────┴────────────────┴───────────────────────────┴────────────┘
+</code></pre>
 </div>
 
-## Features
-
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSIMD can help you 10x the cost-efficiency of your computational pipelines.
-Implemented distance functions include:
-
-- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
-- Dot-Products for real & complex vectors for DSP & Quantum computing. _[docs][docs-dot]_
-- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances. _[docs][docs-binary]_
-- Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
-- Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
-- Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
-- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-fma]_
-- For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
-- 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
-
-[docs-spatial]: #cosine-similarity-reciprocal-square-root-and-newton-raphson-iteration
-[docs-curved]: #curved-spaces-mahalanobis-distance-and-bilinear-quadratic-forms
-[docs-sparse]: #set-intersection-galloping-and-binary-search
-[docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
-[docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
-[docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
-[docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
-[scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
-[numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
-[stringzilla]: https://github.com/ashvardanian/stringzilla
-
-Moreover, SimSIMD...
-
-- handles `float64`, `float32`, `float16`, and `bfloat16` real & complex vectors.
-- handles `int8` integral, `int4` sub-byte, and `b8` binary vectors.
-- handles sparse `uint32` and `uint16` sets, and weighted sparse vectors.
-- is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
-- has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
-- has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
-- with both compile-time and runtime CPU feature detection easily integrates anywhere!
-
-Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD generally uses the names of select Intel CPU generations for its backends.
-They, however, also work on AMD CPUs.
-Intel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
-You can learn more about the technical implementation details in the following blog-posts:
-
-- [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
-- [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Substitutes libc's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
-- [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
-- For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
-- For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
-
-## Benchmarks
-
-<table style="width: 100%; text-align: center; table-layout: fixed;">
-  <colgroup>
-    <col style="width: 33%;">
-    <col style="width: 33%;">
-    <col style="width: 33%;">
-  </colgroup>
-  <tr>
-    <th align="center">NumPy</th>
-    <th align="center">C 99</th>
-    <th align="center">SimSIMD</th>
-  </tr>
-  <!-- Cosine distances with different precision levels -->
-  <tr>
-    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>int8</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      🚧 overflows<br/>
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>10,548,600</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>11,379,300</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>16,151,800</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>13,524,000</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>bfloat16</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      🚧 not supported<br/>
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>119,835</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>403,909</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>9,738,540</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>4,881,900</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float16</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      <span style="color:#ABABAB;">x86:</span> <b>40,481</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>21,451</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>501,310</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>871,963</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>7,627,600</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>3,316,810</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float32</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      <span style="color:#ABABAB;">x86:</span> <b>253,902</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>46,394</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>882,484</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>399,661</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>8,202,910</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>3,400,620</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float64</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      <span style="color:#ABABAB;">x86:</span> <b>212,421</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>52,904</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>839,301</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>837,126</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>1,538,530</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>1,678,920</b> ops/s
-    </td>
-  </tr>
-
-  <!-- Euclidean distance with different precision level -->
-  <tr>
-    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>int8</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      <span style="color:#ABABAB;">x86:</span> <b>252,113</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>177,443</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>6,690,110</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>4,114,160</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>18,989,000</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>18,878,200</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>bfloat16</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      🚧 not supported<br/>
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>119,842</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>1,049,230</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>9,727,210</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>4,233,420</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float16</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      <span style="color:#ABABAB;">x86:</span> <b>54,621</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>71,793</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>196,413</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>911,370</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>19,466,800</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>3,522,760</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float32</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      <span style="color:#ABABAB;">x86:</span> <b>424,944</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>292,629</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>1,295,210</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>1,055,940</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>8,924,100</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>3,602,650</b> ops/s
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float64</code></td>
-  </tr>
-  <tr>
-    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      <span style="color:#ABABAB;">x86:</span> <b>334,929</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>237,505</b> ops/s
-    </td>
-    <td align="center"> <!-- serial -->
-      <span style="color:#ABABAB;">x86:</span> <b>1,215,190</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>905,782</b> ops/s
-    </td>
-    <td align="center"> <!-- simsimd -->
-      <span style="color:#ABABAB;">x86:</span> <b>1,701,740</b> ops/s<br/>
-      <span style="color:#ABABAB;">arm:</span> <b>1,735,840</b> ops/s
-    </td>
-  </tr>
-  <!-- Bilinear forms -->
-  <!-- Sparse set intersections -->
-</table>
-
-> For benchmarks we mostly use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
-> The code was compiled with GCC 12, using glibc v2.35.
-> The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
-> Most modern Arm-based 64-bit CPUs will have similar relative speedups.
-> Variance within x86 CPUs will be larger.
-
-Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
-Broader benchmarking results:
-
-- [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
-- [Intel Sapphire Rapids](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
-- [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
-
-## Using SimSIMD in Python
-
-The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
-Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while SimSIMD can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
-The same applies to processing `float16` and `bfloat16` values with `float32` precision.
-
-### Installation
-
-Use the following snippet to install SimSIMD and list hardware acceleration options available on your machine:
-
-```sh
-pip install simsimd
-python -c "import simsimd; print(simsimd.get_capabilities())"   # for hardware introspection
-python -c "import simsimd; help(simsimd)"                       # for documentation
-```
-
-With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
-You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/SimSIMD/blob/main/python/annotations/__init__.pyi).
-
-### One-to-One Distance
-
-```py
-import simsimd
-import numpy as np
-
-vec1 = np.random.randn(1536).astype(np.float32)
-vec2 = np.random.randn(1536).astype(np.float32)
-dist = simsimd.cosine(vec1, vec2)
-```
-
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
-Dot products are supported for both real and complex numbers:
-
-```py
-vec1 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
-vec2 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
-
-dist = simsimd.dot(vec1.astype(np.complex128), vec2.astype(np.complex128))
-dist = simsimd.dot(vec1.astype(np.complex64), vec2.astype(np.complex64))
-dist = simsimd.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conjugate, same as `np.vdot`
-```
-
-Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
-The `dtype` argument can be passed both by name and as a positional argument:
-
-```py
-dist = simsimd.cosine(vec1, vec2, "int8")
-dist = simsimd.cosine(vec1, vec2, "float16")
-dist = simsimd.cosine(vec1, vec2, "float32")
-dist = simsimd.cosine(vec1, vec2, "float64")
-dist = simsimd.hamming(vec1, vec2, "bin8")
-```
-
-Binary distance functions are computed at a bit-level.
-Meaning a vector of 10x 8-bit integers will be treated as a sequence of 80 individual bits or dimensions.
-This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `bin8` argument by reinterpreting the vector as booleans:
-
-```py
-vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
-vec2 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
-hamming_distance = simsimd.hamming(vec1, vec2)
-jaccard_distance = simsimd.jaccard(vec1, vec2)
-```
-
-With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
-Here is an example of using SimSIMD with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
-
-```py
-import numpy as np
-buf1 = np.empty(8, dtype=np.uint16)
-buf2 = np.empty(8, dtype=np.uint16)
-
-# View the same memory region with PyTorch and randomize it
-import torch
-vec1 = torch.asarray(memoryview(buf1), copy=False).view(torch.bfloat16)
-vec2 = torch.asarray(memoryview(buf2), copy=False).view(torch.bfloat16)
-torch.randn(8, out=vec1)
-torch.randn(8, out=vec2)
-
-# Both libs will look into the same memory buffers and report the same results
-dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.cosine(buf1, buf2, "bfloat16")
-```
-
-It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
-For that, view data as continuous even-length `np.float16` vectors and override type-resolution with `complex32` string.
-
-```py
-vec1 = np.random.randn(1536).astype(np.float16)
-vec2 = np.random.randn(1536).astype(np.float16)
-simd.dot(vec1, vec2, "complex32")
-simd.vdot(vec1, vec2, "complex32")
-```
-
-When dealing with sparse representations and integer sets, you can apply the `intersect` function to two 1-dimensional arrays of `uint16` or `uint32` integers:
-
-```py
-from random import randint
-import numpy as np
-import simsimd as simd
-
-length1, length2 = randint(1, 100), randint(1, 100)
-vec1 = np.sort(np.random.randint(0, 1000, length1).astype(np.uint16))
-vec2 = np.sort(np.random.randint(0, 1000, length2).astype(np.uint16))
-
-slow_result = len(np.intersect1d(vec1, vec2))
-fast_result = simd.intersect(vec1, vec2)
-assert slow_result == fast_result
-```
-
-### One-to-Many Distances
-
-Every distance function can be used not only for one-to-one but also one-to-many and many-to-many distance calculations.
-For one-to-many:
-
-```py
-vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
-batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
-batch2 = np.random.randn(100, 1536).astype(np.float32)
-
-dist_rank1 = simsimd.cosine(vec1, batch2)
-dist_rank2 = simsimd.cosine(batch1, batch2)
-```
-
-### Many-to-Many Distances
-
-All distance functions in SimSIMD can be used to compute many-to-many distances.
-For two batches of 100 vectors to compute 100 distances, one would call it like this:
-
-```py
-batch1 = np.random.randn(100, 1536).astype(np.float32)
-batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = simsimd.cosine(batch1, batch2)
-```
-
-Input matrices must have identical shapes.
-This functionality isn't natively present in NumPy or SciPy, and generally requires creating intermediate arrays, which is inefficient and memory-consuming.
-
-### Many-to-Many All-Pairs Distances
-
-One can use SimSIMD to compute distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
-The resulting object will have a type `DistancesTensor`, zero-copy compatible with NumPy and other libraries.
-For two arrays of 10 and 1,000 entries, the resulting tensor will have 10,000 cells:
-
-```py
-import numpy as np
-from simsimd import cdist, DistancesTensor
-
-matrix1 = np.random.randn(1000, 1536).astype(np.float32)
-matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by SimSIMD
-distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
-```
-
-### Element-wise Kernels
-
-SimSIMD also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
-
-```py
-import numpy as np
-from simsimd import fma, wsum
-
-# Let's take two FullHD video frames
-first_frame = np.random.randn(1920 * 1024).astype(np.uint8)
-second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
-average_frame = np.empty_like(first_frame)
-wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
-
-# Slow analog with NumPy:
-slow_average_frame = (0.5 * first_frame + 0.5 * second_frame).astype(np.uint8)
-```
-
-Similarly, the `fma` takes three arguments and computes the fused multiply-add operation.
-In applications like Machine Learning you may also benefit from using the "brain-float" format not natively supported by NumPy.
-In 3D Graphics, for example, we can use FMA to compute the [Phong shading model](https://en.wikipedia.org/wiki/Phong_shading):
-
-```py
-# Assume a FullHD frame with random values for simplicity
-light_intensity = np.random.rand(1920 * 1080).astype(np.float16)  # Intensity of light on each pixel
-diffuse_component = np.random.rand(1920 * 1080).astype(np.float16)  # Diffuse reflectance on the surface
-specular_component = np.random.rand(1920 * 1080).astype(np.float16)  # Specular reflectance for highlights
-output_color = np.empty_like(light_intensity)  # Array to store the resulting color intensity
-
-# Define the scaling factors for diffuse and specular contributions
-alpha = 0.7  # Weight for the diffuse component
-beta = 0.3   # Weight for the specular component
-
-# Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
-fma(light_intensity, diffuse_component, specular_component,
-    dtype="float16", # Optional, unless it can't be inferred from the input
-    alpha=alpha, beta=beta, out=output_color)
-
-# Slow analog with NumPy for comparison
-slow_output_color = (alpha * light_intensity * diffuse_component + beta * specular_component).astype(np.float16)
-```
-
-### Multithreading and Memory Usage
-
-By default, computations use a single CPU core.
-To override this behavior, use the `threads` argument.
-Set it to `0` to use all available CPU cores and let the underlying C library manage the thread pool.
-Here is an example of dealing with large sets of binary vectors:
-
-```py
-ndim = 1536 # OpenAI Ada embeddings
-matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
-matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
-
-distances = simsimd.cdist(matrix1, matrix2,
-    metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
-    out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
-    threads=0,          # Use all CPU cores with OpenMP.
-    dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
-)
-```
-
-Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded SimSIMD operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
-By default, the output distances will be stored in double-precision `float64` floating-point numbers.
-That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
-To override this behavior, use the `out_dtype` argument, or consider pre-allocating the output array and passing it to the `out` argument.
-A more complete example may look like this:
-
-```py
-from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor
-from simsimd import cosine
-import numpy as np
-
-# Generate large dataset
-vectors_a = np.random.rand(100_000, 1536).astype(np.float32)
-vectors_b = np.random.rand(100_000, 1536).astype(np.float32)
-distances = np.zeros((100_000,), dtype=np.float32)
-
-def compute_batch(start_idx, end_idx):
-    batch_a = vectors_a[start_idx:end_idx]
-    batch_b = vectors_b[start_idx:end_idx]
-    cosine(batch_a, batch_b, out=distances[start_idx:end_idx])
-
-# Use all CPU cores with true parallelism (no GIL!)
-num_threads = cpu_count()
-chunk_size = len(vectors_a) // num_threads
-
-with ThreadPoolExecutor(max_workers=num_threads) as executor:
-    futures = []
-    for i in range(num_threads):
-        start_idx = i * chunk_size
-        end_idx = (i + 1) * chunk_size if i < num_threads - 1 else len(vectors_a)
-        futures.append(executor.submit(compute_batch, start_idx, end_idx))
-
-    # Collect results from all threads
-    results = [future.result() for future in futures]
-```
-
-### Half-Precision Brain-Float Numbers
-
-The "brain-float-16" is a popular machine learning format.
-It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
-Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
-
-```py
-import numpy as np
-import simsimd as simd
-
-ndim = 1536
-a = np.random.randn(ndim).astype(np.float32)
-b = np.random.randn(ndim).astype(np.float32)
-
-# NumPy doesn't natively support brain-float, so we need a trick!
-# Luckily, it's very easy to reduce the representation accuracy
-# by simply masking the low 16-bits of our 32-bit single-precision
-# numbers. We can also add `0x8000` to round the numbers.
-a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-
-# To represent them as brain-floats, we need to drop the second half
-a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
-b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
-
-# Now we can compare the results
-expected = np.inner(a_f32rounded, b_f32rounded)
-result = simd.inner(a_bf16, b_bf16, "bf16")
-```
-
-### Helper Functions
-
-You can turn specific backends on or off depending on the exact environment.
-A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html) CPUs to ensure the CPU doesn't change the frequency license and throttle performance.
-
-```py
-$ simsimd.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
-$ simsimd.disable_capability("sapphire")
-$ simsimd.enable_capability("sapphire")
-```
-
-### Using Python API with USearch
-
-Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
-You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric` and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
-
-```py
-from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
-from simsimd import pointer_to_sqeuclidean, pointer_to_cosine, pointer_to_inner
-
-metric = CompiledMetric(
-    pointer=pointer_to_cosine("f16"),
-    kind=MetricKind.Cos,
-    signature=MetricSignature.ArrayArraySize,
-)
-
-index = Index(256, metric=metric)
-```
-
-## Using SimSIMD in Rust
-
-To install, add the following to your `Cargo.toml`:
-
-```toml
-[dependencies]
-simsimd = "..."
-```
-
-Before using the SimSIMD library, ensure you have imported the necessary traits and types into your Rust source file.
-The library provides several traits for different distance/similarity kinds - `SpatialSimilarity`, `BinarySimilarity`, and `ProbabilitySimilarity`.
-
-### Spatial Similarity: Cosine and Euclidean Distances
-
-```rust
-use simsimd::SpatialSimilarity;
-
-fn main() {
-    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
-    let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
-
-    // Compute the cosine distance between vectors
-    let cosine_distance = f32::cosine(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Cosine Distance: {}", cosine_distance);
-
-    // Compute the squared Euclidean distance between vectors
-    let sq_euclidean_distance = f32::sqeuclidean(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Squared Euclidean Distance: {}", sq_euclidean_distance);
-}
-```
-
-Spatial similarity functions are available for `f64`, `f32`, `f16`, and `i8` types.
-
-### Dot-Products: Inner and Complex Inner Products
-
-```rust
-use simsimd::SpatialSimilarity;
-use simsimd::ComplexProducts;
-
-fn main() {
-    // Complex vectors have interleaved real & imaginary components
-    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0];
-    let vector_b: Vec<f32> = vec![5.0, 6.0, 7.0, 8.0];
-
-    // Compute the inner product between vectors
-    let inner_product = SpatialSimilarity::dot(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Inner Product: {}", inner_product);
-
-    // Compute the complex inner product between vectors
-    let complex_inner_product = ComplexProducts::dot(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    let complex_conjugate_inner_product = ComplexProducts::vdot(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Complex Inner Product: {:?}", complex_inner_product); // -18, 69
-    println!("Complex C. Inner Product: {:?}", complex_conjugate_inner_product); // 70, -8
-}
-```
-
-Complex inner products are available for `f64`, `f32`, and `f16` types.
-
-### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
-
-```rust
-use simsimd::ProbabilitySimilarity;
-
-fn main() {
-    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
-    let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
-
-    let jensen_shannon = f32::jensenshannon(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Jensen-Shannon Divergence: {}", jensen_shannon);
-
-    let kullback_leibler = f32::kullbackleibler(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Kullback-Leibler Divergence: {}", kullback_leibler);
-}
-```
-
-Probability similarity functions are available for `f64`, `f32`, and `f16` types.
-
-### Binary Similarity: Hamming and Jaccard Distances
-
-Similar to spatial distances, one can compute bit-level distance functions between slices of unsigned integers:
-
-```rust
-use simsimd::BinarySimilarity;
-
-fn main() {
-    let vector_a = &[0b11110000, 0b00001111, 0b10101010];
-    let vector_b = &[0b11110000, 0b00001111, 0b01010101];
-
-    // Compute the Hamming distance between vectors
-    let hamming_distance = u8::hamming(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Hamming Distance: {}", hamming_distance);
-
-    // Compute the Jaccard distance between vectors
-    let jaccard_distance = u8::jaccard(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Jaccard Distance: {}", jaccard_distance);
-}
-```
-
-Binary similarity functions are available only for `u8` types.
-
-### Half-Precision Floating-Point Numbers
-
-Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type with built-in conversion methods.
-The underlying `u16` representation is publicly accessible for direct bit manipulation.
-
-```rust
-use simsimd::{SpatialSimilarity, f16};
-
-fn main() {
-    // Create f16 vectors using built-in conversion methods
-    let vector_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
-    let vector_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
-
-    // Compute the cosine distance
-    let cosine_distance = f16::cosine(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-    
-    println!("Cosine Distance: {}", cosine_distance);
-
-    // Direct bit manipulation
-    let half = f16::from_f32(3.14159);
-    let bits = half.0; // Access raw u16 representation
-    let reconstructed = f16(bits);
-    
-    // Convert back to f32
-    let float_value = half.to_f32();
-}
-```
-
-For interoperability with the `half` crate:
-
-```rust
-use simsimd::{SpatialSimilarity, f16 as SimF16};
-use half::f16 as HalfF16;
-
-fn main() {
-    let vector_a: Vec<HalfF16> = vec![1.0, 2.0, 3.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
-    let vector_b: Vec<HalfF16> = vec![4.0, 5.0, 6.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
-
-    // Safe reinterpret cast due to identical memory layout
-    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_a.as_ptr() as *const SimF16, vector_a.len()) };
-    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_b.as_ptr() as *const SimF16, vector_b.len()) };
-
-    let cosine_distance = SimF16::cosine(buffer_a, buffer_b)
-        .expect("Vectors must be of the same length");
-
-    println!("Cosine Distance: {}", cosine_distance);
-}
-```
-
-### Half-Precision Brain-Float Numbers
-
-The "brain-float-16" is a popular machine learning format.
-It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
-SimSIMD provides a `bf16` type with built-in conversion methods and direct bit access.
-
-```rust
-use simsimd::{SpatialSimilarity, bf16};
-
-fn main() {
-    // Create bf16 vectors using built-in conversion methods
-    let vector_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
-    let vector_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
-
-    // Compute the cosine similarity
-    let cosine_distance = bf16::cosine(&vector_a, &vector_b)
-        .expect("Vectors must be of the same length");
-    
-    println!("Cosine Distance: {}", cosine_distance);
-
-    // Direct bit manipulation
-    let brain_half = bf16::from_f32(3.14159);
-    let bits = brain_half.0; // Access raw u16 representation
-    let reconstructed = bf16(bits);
-    
-    // Convert back to f32
-    let float_value = brain_half.to_f32();
-
-    // Compare precision differences
-    let original = 3.14159_f32;
-    let f16_roundtrip = f16::from_f32(original).to_f32();
-    let bf16_roundtrip = bf16::from_f32(original).to_f32();
-    
-    println!("Original: {}", original);
-    println!("f16 roundtrip: {}", f16_roundtrip);
-    println!("bf16 roundtrip: {}", bf16_roundtrip);
-}
-```
-
-### Dynamic Dispatch in Rust
-
-SimSIMD provides a [dynamic dispatch](#dynamic-dispatch) mechanism to select the most advanced micro-kernel for the current CPU.
-You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
-
-```rust
-println!("uses neon: {}", capabilities::uses_neon());
-println!("uses sve: {}", capabilities::uses_sve());
-println!("uses haswell: {}", capabilities::uses_haswell());
-println!("uses skylake: {}", capabilities::uses_skylake());
-println!("uses ice: {}", capabilities::uses_ice());
-println!("uses genoa: {}", capabilities::uses_genoa());
-println!("uses sapphire: {}", capabilities::uses_sapphire());
-println!("uses turin: {}", capabilities::uses_turin());
-println!("uses sierra: {}", capabilities::uses_sierra());
-```
-
-## Using SimSIMD in JavaScript
-
-To install, choose one of the following options depending on your environment:
-
-- `npm install --save simsimd`
-- `yarn add simsimd`
-- `pnpm add simsimd`
-- `bun install simsimd`
-
-The package is distributed with prebuilt binaries, but if your platform is not supported, you can build the package from the source via `npm run build`.
-This will automatically happen unless you install the package with the `--ignore-scripts` flag or use Bun.
-After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
-
-```js
-const { sqeuclidean, cosine, inner, hamming, jaccard } = require("simsimd");
-
-const vectorA = new Float32Array([1.0, 2.0, 3.0]);
-const vectorB = new Float32Array([4.0, 5.0, 6.0]);
-
-const distance = sqeuclidean(vectorA, vectorB);
-console.log("Squared Euclidean Distance:", distance);
-```
-
-Other numeric types and precision levels are supported as well.
-For double-precision floating-point numbers, use `Float64Array`:
-
-```js
-const vectorA = new Float64Array([1.0, 2.0, 3.0]);
-const vectorB = new Float64Array([4.0, 5.0, 6.0]);
-const distance = cosine(vectorA, vectorB);
-```
-
-When doing machine learning and vector search with high-dimensional vectors you may want to quantize them to 8-bit integers.
-You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ range and then cast them to `Int8Array`:
-
-```js
-const quantizedVectorA = new Int8Array(vectorA.map((v) => v * 127));
-const quantizedVectorB = new Int8Array(vectorB.map((v) => v * 127));
-const distance = cosine(quantizedVectorA, quantizedVectorB);
-```
-
-A more extreme quantization case would be to use binary vectors.
-You can map all positive values to `1` and all negative values and zero to `0`, packing eight values into a single byte.
-After that, Hamming and Jaccard distances can be computed.
-
-```js
-const { toBinary, hamming } = require("simsimd");
-
-const binaryVectorA = toBinary(vectorA);
-const binaryVectorB = toBinary(vectorB);
-const distance = hamming(binaryVectorA, binaryVectorB);
-```
-
-## Using SimSIMD in Swift
-
-To install, simply add the following dependency to your `Package.swift`:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/ashvardanian/simsimd")
-]
-```
-
-The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
-
-```swift
-import SimSIMD
-
-let vectorA: [Int8] = [1, 2, 3]
-let vectorB: [Int8] = [4, 5, 6]
-
-let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
-let cosineDistance = vectorA.cosine(vectorB)    // Computes the cosine distance
-let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
-```
-
-## Using SimSIMD in C
-
-For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
-
-```cmake
-FetchContent_Declare(
-    simsimd
-    GIT_REPOSITORY https://github.com/ashvardanian/simsimd.git
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(simsimd)
-```
-
-After that, you can use the SimSIMD library in your C code in several ways.
-Simplest of all, you can include the headers, and the compiler will automatically select the most recent CPU extensions that SimSIMD will use.
-
-```c
-#include <simsimd/simsimd.h>
-
-int main() {
-    simsimd_flush_denormals(); // Optional, to avoid performance penalties on denormal numbers
-
-    simsimd_f32_t vector_a[1536];
-    simsimd_f32_t vector_b[1536];
-    simsimd_kernel_punned_t metric_punned = simsimd_metric_punned(
-        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
-        simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
-    simsimd_distance_t distance;
-    simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
-    metric(vector_a, vector_b, 1536, &distance);
-    return 0;
-}
-```
-
-### Dynamic Dispatch in C
-
-To avoid hard-coding the backend, you can rely on `c/lib.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
-That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) and is extensively used in the Python, JavaScript, and Rust bindings.
-To test which CPU features are available on the machine at runtime, use the following APIs:
-
-```c
-int uses_dynamic_dispatch = simsimd_uses_dynamic_dispatch(); // Check if dynamic dispatch was enabled
-simsimd_capability_t capabilities = simsimd_capabilities();  // Returns a bitmask
-
-int uses_neon = simsimd_uses_neon();
-int uses_sve = simsimd_uses_sve();
-int uses_haswell = simsimd_uses_haswell();
-int uses_skylake = simsimd_uses_skylake();
-int uses_ice = simsimd_uses_ice();
-int uses_genoa = simsimd_uses_genoa();
-int uses_sapphire = simsimd_uses_sapphire();
-```
-
-To override compilation settings and switch between runtime and compile-time dispatch, define the following macro:
-
-```c
-#define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
-```
-
-### Spatial Distances: Cosine and Euclidean Distances
-
-```c
-#include <simsimd/simsimd.h>
-
-int main() {
-    simsimd_i8_t i8s[1536];
-    simsimd_u8_t u8s[1536];
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_bf16_t bf16s[1536];
-    simsimd_distance_t distance;
-
-    // Cosine distance between two vectors
-    simsimd_cos_i8(i8s, i8s, 1536, &distance);
-    simsimd_cos_u8(u8s, u8s, 1536, &distance);
-    simsimd_cos_f16(f16s, f16s, 1536, &distance);
-    simsimd_cos_f32(f32s, f32s, 1536, &distance);
-    simsimd_cos_f64(f64s, f64s, 1536, &distance);
-    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
-
-    // Euclidean distance between two vectors
-    simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
-    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
-    simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
-    simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
-    simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
-    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
-
-    return 0;
-}
-```
-
-### Dot-Products: Inner and Complex Inner Products
-
-```c
-#include <simsimd/simsimd.h>
-
-int main() {
-    // SimSIMD provides "sized" type-aliases without relying on `stdint.h`
-    simsimd_i8_t i8[1536];
-    simsimd_i8_t u8[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f64_t f64s[1536];
-    simsimd_bf16_t bf16s[1536];
-    simsimd_distance_t product;
-
-    // Inner product between two real vectors
-    simsimd_dot_i8(i8s, i8s, 1536, &product);
-    simsimd_dot_u8(u8s, u8s, 1536, &product);
-    simsimd_dot_f16(f16s, f16s, 1536, &product);
-    simsimd_dot_f32(f32s, f32s, 1536, &product);
-    simsimd_dot_f64(f64s, f64s, 1536, &product);
-    simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
-
-    // SimSIMD provides complex types with `real` and `imag` fields
-    simsimd_f64c_t f64cs[768];
-    simsimd_f32c_t f32cs[768];
-    simsimd_f16c_t f16cs[768];
-    simsimd_bf16c_t bf16cs[768];
-    simsimd_distance_t products[2]; // real and imaginary parts
-
-    // Complex inner product between two vectors
-    simsimd_dot_f16c(f16cs, f16cs, 768, &products[0]);
-    simsimd_dot_f32c(f32cs, f32cs, 768, &products[0]);
-    simsimd_dot_f64c(f64cs, f64cs, 768, &products[0]);
-    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &products[0]);
-
-    // Complex conjugate inner product between two vectors
-    simsimd_vdot_f16c(f16cs, f16cs, 768, &products[0]);
-    simsimd_vdot_f32c(f32cs, f32cs, 768, &products[0]);
-    simsimd_vdot_f64c(f64cs, f64cs, 768, &products[0]);
-    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &products[0]);
-    return 0;
-}
-```
-
-### Binary Distances: Hamming and Jaccard Distances
-
-```c
-#include <simsimd/simsimd.h>
-
-int main() {
-    simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
-    simsimd_distance_t distance;
-    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
-    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
-    return 0;
-}
-```
-
-### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
-
-```c
-#include <simsimd/simsimd.h>
-
-int main() {
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_distance_t divergence;
-
-    // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &divergence);
-    simsimd_js_f32(f32s, f32s, 1536, &divergence);
-    simsimd_js_f64(f64s, f64s, 1536, &divergence);
-
-    // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &divergence);
-    simsimd_kl_f32(f32s, f32s, 1536, &divergence);
-    simsimd_kl_f64(f64s, f64s, 1536, &divergence);
-    return 0;
-}
-```
-
-### Half-Precision Floating-Point Numbers
-
-If you aim to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11.
-For other SimSIMD functionalities, C 99 compatibility will suffice.
-To explicitly disable half-precision support, define the following macro before imports:
-
-```c
-#define SIMSIMD_NATIVE_F16 0 // or 1
-#define SIMSIMD_NATIVE_BF16 0 // or 1
-#include <simsimd/simsimd.h>
-```
-
-### Compilation Settings and Debugging
-
-`SIMSIMD_DYNAMIC_DISPATCH`:
-
-> By default, SimSIMD is a header-only library.
-> But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
-> This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
-
-For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
-
-> By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
-> In some cases, you may want to explicitly disable some of the kernels.
-> Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
-> In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
-
-`SIMSIMD_SQRT`, `SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
-
-> By default, for __non__-SIMD backends, SimSIMD may use `libc` functions like `sqrt` and `log`.
-> Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
-> To avoid that you can override those definitions with your custom implementations, like: `#define SIMSIMD_RSQRT(x) (1 / sqrt(x))`.
-
-## Algorithms & Design Decisions 📚
-
-In general there are a few principles that SimSIMD follows:
-
-- Avoid loop unrolling.
-- Never allocate memory.
-- Never throw exceptions or set `errno`.
-- Keep all function arguments the size of the pointer.
-- Avoid returning from public interfaces, use out-arguments instead.
-- Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
-- Prioritize mixed-precision and integer operations, and new ISA extensions.
-- Prefer saturated arithmetic and avoid overflows.
-
-Possibly, in the future:
-
-- Best effort computation silencing `NaN` components in low-precision inputs.
-- Detect overflows and report the distance with a "signaling" `NaN`.
-
-Last, but not the least - don't build unless there is a demand for it.
-So if you have a specific use-case, please open an issue or a pull request, and ideally, bring in more users with similar needs.
-
-### Cosine Similarity, Reciprocal Square Root, and Newton-Raphson Iteration
-
-The cosine similarity is the most common and straightforward metric used in machine learning and information retrieval.
-Interestingly, there are multiple ways to shoot yourself in the foot when computing it.
-The cosine similarity is the inverse of the cosine distance, which is the cosine of the angle between two vectors.
-
-```math
-\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|}
-```
-
-```math
-\text{CosineDistance}(a, b) = 1 - \frac{a \cdot b}{\|a\| \cdot \|b\|}
-```
-
-In NumPy terms, SimSIMD implementation is similar to:
-
-```python
-import numpy as np
-
-def cos_numpy(a: np.ndarray, b: np.ndarray) -> float:
-    ab, a2, b2 = np.dot(a, b), np.dot(a, a), np.dot(b, b) # Fused in SimSIMD
-    if a2 == 0 and b2 == 0: result = 0                    # Same in SciPy
-    elif ab == 0: result = 1                              # Division by zero error in SciPy
-    else: result = 1 - ab / (sqrt(a2) * sqrt(b2))         # Bigger rounding error in SciPy
-    return result
-```
-
-In SciPy, however, the cosine distance is computed as `1 - ab / np.sqrt(a2 * b2)`.
-It handles the edge case of a zero and non-zero argument pair differently, resulting in a division by zero error.
-It's not only less efficient, but also less accurate, given how the reciprocal square roots are computed.
-The C standard library provides the `sqrt` function, which is generally very accurate, but slow.
-The `rsqrt` in-hardware implementations are faster, but have different accuracy characteristics.
-
-- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal relative error.
-- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal relative error.
-- NEON `frsqrte` instruction has no documented error bounds, but [can be][arm-rsqrt] $2^{-3}$.
-
-[arm-rsqrt]: https://gist.github.com/ashvardanian/5e5cf585d63f8ab6d240932313c75411
-
-To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
-It can be defined as:
-
-```math
-x_{n+1} = x_n \cdot (3 - x_n \cdot x_n) / 2
-```
-
-On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration can result in a 2-3 orders of magnitude relative error reduction:
-
-| Datatype   |         NumPy Error | SimSIMD w/out Iteration |             SimSIMD |
-| :--------- | ------------------: | ----------------------: | ------------------: |
-| `bfloat16` | 1.89e-08 ± 1.59e-08 |     3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
-| `float16`  | 1.67e-02 ± 1.44e-02 |     2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
-| `float32`  | 2.21e-08 ± 1.65e-08 |     3.47e-07 ± 3.49e-07 | 3.77e-09 ± 2.84e-09 |
-| `float64`  | 0.00e+00 ± 0.00e+00 |     3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
-
-### Curved Spaces, Mahalanobis Distance, and Bilinear Quadratic Forms
-
-The Mahalanobis distance is a generalization of the Euclidean distance, which takes into account the covariance of the data.
-It's very similar in its form to the bilinear form, which is a generalization of the dot product.
-
-```math
-\text{BilinearForm}(a, b, M) = a^T M b
-```
-
-```math
-\text{Mahalanobis}(a, b, M) = \sqrt{(a - b)^T M^{-1} (a - b)}
-```
-
-Bilinear Forms can be seen as one of the most important linear algebraic operations, surprisingly missing in BLAS and LAPACK.
-They are versatile and appear in various domains:
-
-- In Quantum Mechanics, the expectation value of an observable $A$ in a state $\psi$ is given by $\langle \psi | A | \psi \rangle$, which is a bilinear form.
-- In Machine Learning, in Support Vector Machines (SVMs), bilinear forms define kernel functions that measure similarity between data points.
-- In Differential Geometry, the metric tensor, which defines distances and angles on a manifold, is a bilinear form on the tangent space.
-- In Economics, payoff functions in certain Game Theoretic problems can be modeled as bilinear forms of players' strategies.
-- In Physics, interactions between electric and magnetic fields can be expressed using bilinear forms.
-
-Broad applications aside, the lack of a specialized primitive for bilinear forms in BLAS and LAPACK means significant performance overhead.
-A $vector * matrix * vector$ product is a scalar, whereas its constituent parts ($vector * matrix$ and $matrix * vector$) are vectors:
-
-- They need memory to be stored in: $O(n)$ allocation.
-- The data will be written to memory and read back, wasting CPU cycles.
-
-SimSIMD doesn't produce intermediate vector results, like `a @ M @ b`, but computes the bilinear form directly.
-
-### Set Intersection, Galloping, and Binary Search
-
-The set intersection operation is generally defined as the number of elements that are common between two sets, represented as sorted arrays of integers.
-The most common way to compute it is a linear scan:
-
-```c
-size_t intersection_size(int *a, int *b, size_t n, size_t m) {
-    size_t i = 0, j = 0, count = 0;
-    while (i < n && j < m) {
-        if (a[i] < b[j]) i++;
-        else if (a[i] > b[j]) j++;
-        else i++, j++, count++;
-    }
-    return count;
-}
-```
-
-Alternatively, one can use the binary search to find the elements in the second array that are present in the first one.
-On every step the checked region of the second array is halved, which is called the _galloping search_.
-It's faster, but only when large arrays of very different sizes are intersected.
-Third approach is to use the SIMD instructions to compare multiple elements at once:
-
-- Using string-intersection instructions on x86, like `pcmpestrm`.
-- Using integer-intersection instructions in AVX-512, like `vp2intersectd`.
-- Using vanilla equality checks present in all SIMD instruction sets.
-
-After benchmarking, the last approach was chosen, as it's the most flexible and often the fastest.
-
-### Complex Dot Products, Conjugate Dot Products, and Complex Numbers
-
-Complex dot products are a generalization of the dot product to complex numbers.
-They are supported by most BLAS packages, but almost never in mixed precision.
-SimSIMD defines `dot` and `vdot` kernels as:
-
-```math
-\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
-```
-
-```math
-\text{vdot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot \bar{b_i}
-```
-
-Where $\bar{b_i}$ is the complex conjugate of $b_i$.
-Putting that into Python code for scalar arrays:
-
-```python
-def dot(a: List[number], b: List[number]) -> number:
-    a_real, a_imaginary = a[0::2], a[1::2]
-    b_real, b_imaginary = b[0::2], b[1::2]
-    ab_real, ab_imaginary = 0, 0
-    for ar, ai, br, bi in zip(a_real, a_imaginary, b_real, b_imaginary):
-        ab_real += ar * br - ai * bi
-        ab_imaginary += ar * bi + ai * br
-    return ab_real, ab_imaginary
-
-def vdot(a: List[number], b: List[number]) -> number:
-    a_real, a_imaginary = a[0::2], a[1::2]
-    b_real, b_imaginary = b[0::2], b[1::2]
-    ab_real, ab_imaginary = 0, 0
-    for ar, ai, br, bi in zip(a_real, a_imaginary, b_real, b_imaginary):
-        ab_real += ar * br + ai * bi
-        ab_imaginary += ar * bi - ai * br
-    return ab_real, ab_imaginary
-```
-
-### Logarithms in Kullback-Leibler & Jensen–Shannon Divergences
-
-The Kullback-Leibler divergence is a measure of how one probability distribution diverges from a second, expected probability distribution.
-Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-Leibler divergence, which can be used as a distance metric between probability distributions.
-
-```math
-\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)}
-```
-
-```math
-\text{JS}(P, Q) = \frac{1}{2} \text{KL}(P || M) + \frac{1}{2} \text{KL}(Q || M), M = \frac{P + Q}{2}
-```
-
-Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
-
-### Mixed Precision in Fused-Multiply-Add and Weighted Sums
-
-The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
-The Weighted Sum is its simplified variant without element-wise multiplication.
-
-```math
-\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
-```
-
-```math
-\text{WSum}_i(A, B, \alpha, \beta) = \alpha \cdot A_i + \beta \cdot B_i
-```
-
-In NumPy terms, the implementation may look like:
-
-```py
-import numpy as np
-def wsum(A: np.ndarray, B: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
-    assert A.dtype == B.dtype, "Input types must match and affect the output style"
-    return (Alpha * A + Beta * B).astype(A.dtype)
-def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
-    assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
-    return (Alpha * A * B + Beta * C).astype(A.dtype)
-```
-
-The tricky part is implementing those operations in mixed precision, where the scaling factors are of different precision than the input and output vectors.
-SimSIMD uses double-precision floating-point scaling factors for any input and output precision, including `i8` and `u8` integers and `f16` and `bf16` floats.
-Depending on the generation of the CPU, given native support for `f16` addition and multiplication, the `f16` temporaries are used for `i8` and `u8` multiplication, scaling, and addition.
-For `bf16`, native support is generally limited to dot-products with subsequent partial accumulation, which is not enough for the FMA and WSum operations, so `f32` is used as a temporary.
+Not every combination is implemented — only the ones that unlock interesting new opportunities.
+The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
+Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
+
+## Design Decisions
+
+In general there are a few principles that NumKong follows:
+
+- Avoid loop unrolling and scalar tails.
+- Don't manage threads and be compatible with any parallelism models.
+- Don't manage memory and be compatible with arbitrary allocators & alignment.
+- Don't constrain ourselves to traditional BLAS-like Matrix Multiplication APIs.
+- Don't throw exceptions and pass values by pointers.
+- Prefer saturated arithmetic and avoid overflows, where needed.
+- Cover most modern CPUs with flexible dispatch and wait for them to converge with GPUs.
+
+The rest of this document unpacks the functionality and the logic behind the design decisions.
 
 ### Auto-Vectorization & Loop Unrolling
 
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
-GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
+Most "optimized SIMD code" is a 2–4x unrolled data-parallel `for`-loop over `f32` arrays with a serial scalar tail for the last few elements:
 
-| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+```c
+float boring_dot_product_f32(float const *a, float const *b, size_t n) {
+    __m256 sum0 = _mm256_setzero_ps(), sum1 = _mm256_setzero_ps();
+    size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        sum0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i), _mm256_loadu_ps(b + i), sum0);
+        sum1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + i + 8), _mm256_loadu_ps(b + i + 8), sum1);
+    }
+    float result = _mm256_reduce_add_ps(_mm256_add_ps(sum0, sum1));
+    for (; i < n; i++) result += a[i] * b[i]; // serial tail
+    return result;
+}
+```
+
+This kind of unrolling has been historically the most commonly requested optimization for NumKong, and it's intentionally avoided.
+
+__Modern CPUs already "unroll" in hardware.__
+Out-of-order engines with reorder buffers of 320–630 entries (Zen 4: 320, Golden Cove: 512, Apple Firestorm: ~630) can keep a dozen of loop iterations in-flight simultaneously.
+The physical register file is much larger than the ISA-visible architectural registers — Skylake has ~180 physical integer registers behind 16 architectural GPRs, and ~168 physical vector registers behind 32 architectural ZMMs.
+The register renaming unit maps the same `zmm0` in iteration N and iteration N+1 to different physical registers, extracting cross-iteration parallelism automatically — exactly the benefit that source-level unrolling was historically supposed to provide.
+
+__Unrolling actively hurts at NumKong's scale.__
+Every unrolled copy is a distinct instruction in the binary.
+With 1,500+ kernel endpoints across 30+ backends, even 2x unrolling would inflate the `.text` section by megabytes — directly impacting install size for Python wheels, NPM packages, and Rust crates.
+Larger loop bodies also increase instruction-cache and micro-op-cache pressure; Agner Fog also recommends:
+
+> _"avoid loop unrolling where possible in order to economize the use of the micro-op cache"_.
+
+A loop that spills out of the uop cache falls back to the slower legacy decoder, making the "optimized" version slower than the compact original.
+For a header-only library, unrolling also compounds __compilation time__: register allocation is NP-hard (reducible to graph coloring), and unrolling multiplies the number of simultaneously live ranges the allocator must consider, increasing compile time super-linearly across every translation unit that includes the headers.
+
+__Serial tails are a correctness hazard.__
+The leftover elements after the last full SIMD chunk run through a scalar loop that silently drops FMA fusion, compensated accumulation, and saturating arithmetic — producing results with different numerical properties than the SIMD body.
+NumKong often uses masked loads instead (`_mm512_maskz_loadu_ps` on AVX-512, predicated `svld1_f32` on SVE), processing every element through the same arithmetic path regardless of alignment.
+It's not exactly orthogonal to loop-unrolling, but makes a different kernel layout more compatible.
+
+__The real performance gap is elsewhere.__
+On Intel Sapphire Rapids, NumKong was benchmarked against auto-vectorized code compiled with GCC 12.
+GCC handles single-precision `float` competently, but struggles with `_Float16` and other mixed-precision paths:
+
+| Kind                      | GCC 12 `f32` | GCC 12 `f16` | NumKong `f16` | `f16` improvement |
 | :------------------------ | -----------: | -----------: | ------------: | ----------------: |
 | Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
 | Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
 | Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
 | Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
 
-### Dynamic Dispatch
+NumKong's `f16` kernels are faster than GCC's `f32` output — not because of unrolling, but because they use F16C conversion instructions, widening FMA pipelines, and compensated accumulation that no compiler will synthesize from a plain `for` loop.
+The same story repeats for `bf16`, `e4m3`, `i8`, and `i4`: these types require algorithmic transformations — lookup tables, algebraic domain shifts, asymmetric VNNI tricks — that live beyond the reach of auto-vectorization.
 
-Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
-Database Management platforms, like ClickHouse, and Web Browsers, like Google Chrome,need to run on billions of devices, and they can't afford to be picky about the CPU features.
-For such users SimSIMD provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
+### Parallelism & Multi-Threading
 
-<table>
-  <tr>
-    <th>Subset</th>
-    <th>F</th>
-    <th>CD</th>
-    <th>ER</th>
-    <th>PF</th>
-    <th>4FMAPS</th>
-    <th>4VNNIW</th>
-    <th>VPOPCNTDQ</th>
-    <th>VL</th>
-    <th>DQ</th>
-    <th>BW</th>
-    <th>IFMA</th>
-    <th>VBMI</th>
-    <th>VNNI</th>
-    <th>BF16</th>
-    <th>VBMI2</th>
-    <th>BITALG</th>
-    <th>VPCLMULQDQ</th>
-    <th>GFNI</th>
-    <th>VAES</th>
-    <th>VP2INTERSECT</th>
-    <th>FP16</th>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Xeon_Phi#Knights_Landing">Knights Landing</a> (Xeon Phi x200, 2016)</td>
-    <td colspan="2" rowspan="9" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="2" rowspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="17" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Xeon_Phi#Knights_Mill">Knights Mill</a> (Xeon Phi x205, 2017)</td>
-    <td colspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="14" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td>
-      <a href="https://en.wikipedia.org/wiki/Skylake_(microarchitecture)#Skylake-SP_(14_nm)_Scalable_Performance">Skylake-SP</a>, 
-      <a href="https://en.wikipedia.org/wiki/Skylake_(microarchitecture)#Mainstream_desktop_processors">Skylake-X</a> (2017)
-    </td>
-    <td colspan="4" rowspan="11" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-    <td rowspan="4" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-    <td colspan="3" rowspan="4" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="11" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Cannon_Lake_(microarchitecture)">Cannon Lake</a> (2018)</td>
-    <td colspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="9" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Cascade_Lake_(microarchitecture)">Cascade Lake</a> (2019)</td>
-    <td colspan="2" rowspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-    <td rowspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="8" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Cooper_Lake_(microarchitecture)">Cooper Lake</a> (2020)</td>
-    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="7" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Ice_Lake_(microarchitecture)">Ice Lake</a> (2019)</td>
-    <td colspan="7" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td rowspan="3" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-    <td colspan="5" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Tiger_Lake_(microarchitecture)">Tiger Lake</a> (2020)</td>
-    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Rocket_Lake">Rocket Lake</a> (2021)</td>
-    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Alder_Lake">Alder Lake</a> (2021)</td>
-    <td colspan="2" style="background:#FFB;color:black;vertical-align:middle;text-align:center;">Partial</td>
-    <td colspan="15" style="background:#FFB;color:black;vertical-align:middle;text-align:center;">Partial</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Zen_4">Zen 4</a> (2022)</td>
-    <td colspan="2" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="13" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Sapphire_Rapids_(microprocessor)">Sapphire Rapids</a> (2023)</td>
-    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-  </tr>
-  <tr>
-    <td><a href="https://en.wikipedia.org/wiki/Zen_5">Zen 5</a> (2024)</td>
-    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
-    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
-  </tr>
-</table>
+BLAS libraries traditionally manage their own thread pools.
+[OpenBLAS](https://github.com/OpenMathLib/OpenBLAS/blob/develop/USAGE.md) spawns threads controlled by `OPENBLAS_NUM_THREADS`, [Intel MKL](https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-linux/2025-1/techniques-to-set-the-number-of-threads.html) forks its own OpenMP runtime via `MKL_NUM_THREADS`, and [Apple Accelerate](https://developer.apple.com/documentation/accelerate/blas) delegates to GCD.
+This works in isolation — but the moment your application adds its own parallelism (joblib, std::thread, Tokio, GCD, OpenMP), you get __thread oversubscription__: MKL spawns 8 threads inside each of your 8 joblib workers, producing 64 threads on 8 cores, thrashing caches and stalling on context switches.
+The Python ecosystem has built [entire libraries](https://github.com/joblib/threadpoolctl) just to work around this problem, and [scikit-learn's documentation](https://scikit-learn.org/stable/computing/parallelism.html) devotes a full page to managing the interaction between joblib parallelism and BLAS thread pools.
 
-You can compile SimSIMD on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
-Reverse is also true, you can compile on a new CPU and run on an old one, and it will automatically fall back to the most basic instructions.
-Moreover, the very first time you prove for CPU capabilities with `simsimd_capabilities()`, it initializes the dynamic dispatch mechanism, and all subsequent calls will be faster and won't face race conditions in multi-threaded environments.
+NumKong takes a different position: __the numerics layer should not own threads__.
+Modern hardware makes the "spawn N threads and split evenly" model increasingly untenable:
 
-## Target Specific Backends
+- __Server-grade CPUs__ have hundreds of cores split across sockets, chiplets, and tiles, resulting in dozens of physical NUMA domains with vastly different memory access latencies.
+  A thread pool that ignores NUMA topology will spend more time on remote memory stalls than on arithmetic.
+- __Consumer-grade CPUs__ pack heterogeneous Quality-of-Service core types on the same die — Intel P-cores and E-cores run at different frequencies and sometimes support different ISA extensions.
+  A naive work-split gives equal chunks to fast and slow cores, and the whole task stalls waiting for the slowest partition.
+- __Real-time operating systems__ in robotics and edge AI cannot afford to yield the main thread to a BLAS-managed pool.
+  These systems need deterministic latency, not maximum throughput.
 
-SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
-That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
-All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
+Instead, NumKong exposes __row-range parameters__ that let the caller partition work across any threading model.
+For GEMM-shaped `dots_packed`, this is straightforward — pass a slice of A's rows and the full packed B to compute the corresponding slice of C.
+For SYRK-shaped `dots_symmetric`, explicit `start_row` / `end_row` parameters control which rows of the symmetric output matrix a given thread computes.
+The GIL is released around every kernel call, making NumKong compatible with `concurrent.futures`, `multiprocessing`, or any other parallelism model:
 
-- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
-- The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
-- The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
+```python
+import concurrent.futures, numkong as nk, numpy as np
 
-To avoid hard-coding the backend, you can use the `simsimd_kernel_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
-To match all the function names, consider a RegEx:
+vectors, num_threads = np.random.randn(1000, 768).astype(np.float32), 4
+output = nk.zeros((1000, 1000), dtype="float32")
 
-```regex
-SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(
+def compute_slice(t):
+    start = t * (len(vectors) // num_threads)
+    end = start + len(vectors) // num_threads if t < num_threads - 1 else len(vectors)
+    nk.dots_symmetric(vectors, out=output, start_row=start, end_row=end)
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+    list(pool.map(compute_slice, range(num_threads)))
 ```
 
-On Linux, you can use the following command to list all unique functions:
+For users who want a ready-made low-latency thread pool without the oversubscription baggage of OpenMP, we built [Fork Union](https://github.com/ashvardanian/ForkUnion) — a minimalist fork-join library for C, C++, and Rust that avoids mutexes, CAS atomics, and dynamic allocations on the critical path, with optional NUMA pinning on Linux.
 
-```sh
-$ grep -oP 'SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(' include/simsimd/*.h | sort | uniq
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(
+### Memory Allocation & Management
+
+BLAS libraries typically allocate internal buffers during GEMM — [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS) packs matrices into L2/L3-sized panels via per-thread buffer pools backed by `mmap` or `shmget`.
+This hidden allocation has caused real problems: [14 lock/unlock pairs per small GEMM call](https://github.com/xianyi/OpenBLAS/issues/478) throttling 12-thread scaling to 2x, [silently incorrect results](https://github.com/xianyi/OpenBLAS/issues/1844) from thread-unsafe allocation in `np.dot`, and [deadlocks after `fork()`](https://github.com/numpy/numpy/issues/30092) due to mutex state not being reset in child processes.
+The [BLASFEO](https://github.com/giaf/blasfeo) library was created specifically for embedded model-predictive control where `malloc` during computation is unacceptable.
+
+NumKong __never allocates memory__.
+Following the same philosophy as [Intel MKL's packed GEMM API](https://www.intel.com/content/www/us/en/developer/articles/technical/introducing-the-new-packed-apis-for-gemm.html) (`cblas_sgemm_pack_get_size` → `cblas_sgemm_pack` → `cblas_sgemm_compute`), NumKong exposes typed three-phase interfaces — `nk_dots_packed_size_*` → `nk_dots_pack_*` → `nk_dots_packed_*` — where the caller owns the buffer and NumKong only fills it.
+
+The reason GEMM libraries repack matrices at all is that every hardware target has a different preferred layout — Intel AMX expects B in a [VNNI-interleaved](https://www.intel.com/content/www/us/en/developer/articles/code-sample/advanced-matrix-extensions-intrinsics-functions.html) tile format (pairs of BFloat16 values packed into DWORDs across the K dimension), while Arm SME wants column vectors for its [FMOPA outer-product](https://developer.arm.com/documentation/ddi0602/latest/SME-Instructions) instructions.
+Since GEMM is $O(N^3)$ and repacking is $O(N^2)$, the cost is asymptotically free — but the allocation and locking overhead is not.
+
+NumKong's `nk_dots_pack_*` family performs five transformations beyond simple reordering:
+
+- __Type pre-conversion__ — mini-floats (E4M3, BFloat16, etc.) are upcast to the compute type once during packing, not on every GEMM call.
+  This amortizes the conversion cost across all rows of A that will be multiplied against the packed B.
+- __SIMD depth padding__ — rows are zero-padded to the SIMD vector width (16 for AVX-512 Float32, 64 for AVX-512 Int8), allowing inner loops to load without boundary checks.
+- __Per-column norm precomputation__ — squared norms ($\|b_j\|^2$) are computed and stored alongside the packed data, so distance kernels (`angulars_packed`, `euclideans_packed`) can reuse them without a separate pass.
+- __ISA-specific tile layout__ — AMX packing interleaves BFloat16 pairs into 16×32 tiles matching `TDPBF16PS` expectations; SME packing arranges vectors at SVE granularity for `FMOPA` outer products; generic backends use simple column-major with depth padding.
+- __Power-of-2 stride breaking__ — when the padded row stride is a power of 2, one extra SIMD step of padding is added.
+  Power-of-2 strides cause [cache set aliasing](https://en.algorithmica.org/hpc/cpu-cache/associativity/) where consecutive rows map to the same cache sets, effectively shrinking usable L1/L2 capacity — stride-256 traversals can be [~10x slower](https://en.algorithmica.org/hpc/cpu-cache/associativity/) than stride-257.
+
+```python
+import numkong as nk, numpy as np
+
+right_matrix = np.random.randn(1000, 768).astype(np.float16)
+right_packed = nk.dots_pack(right_matrix, dtype="float16")                        # pack once
+for query_batch in stream: results = nk.dots_packed(query_batch, right_packed)    # reuse many times
+```
+
+### Why Not Just GEMM? The Evolution of Matrix Multiplication APIs
+
+The classic BLAS GEMM computes $C = \alpha A B + \beta C$ for Float32/Float64 matrices.
+It's a powerful primitive, but the workloads that dominate modern compute — LLM inference, vector search, quantum simulation — expose three ways in which the traditional GEMM interface falls short.
+
+__Frozen weights justify separating packing from computation.__
+During LLM inference, a very large share of GEMM calls use a static weight matrix — weights don't change after loading.
+This makes offline repacking a one-time cost amortized over the entire serving lifetime: [NVIDIA's TurboMind](https://arxiv.org/pdf/2508.15601) explicitly splits GEMM into offline weight packing (hardware-aware layout conversion) and online mixed-precision computation, and [Intel MKL's packed GEMM API](https://www.intel.com/content/www/us/en/developer/articles/technical/introducing-the-new-packed-apis-for-gemm.html) exposes the same two-phase pattern.
+NumKong's `nk_dots_pack_*` → `nk_dots_packed_*` path follows this philosophy — pack the weight matrix once, reuse it across all queries.
+
+__Mixed precision demands more than an epilogue addition.__
+Modern transformer layers operate in a precision sandwich: weights stored in BFloat16/Float8, [GEMM accumulated in Float32](https://pytorch.org/blog/what-every-user-should-know-about-mixed-precision-training-in-pytorch/), output downcast back to BFloat16 for the next layer.
+Between GEMM calls, [LayerNorm or RMSNorm](https://arxiv.org/html/2409.12951v2) re-normalizes hidden states, so the next layer is often much closer to an angular or normalized similarity computation than to a plain raw dot product.
+[nGPT](https://arxiv.org/html/2410.01131v1) takes this to its logical conclusion: all vectors live on the unit hypersphere, and every matrix-vector product is a pure angular distance.
+This means many "GEMM" workloads in production are semantically closer to many-to-many angular distance computation — which is exactly what NumKong's `angulars_packed` and `euclideans_packed` kernels compute directly, fusing norm handling and type conversion into a single pass.
+
+__The GEMM-for-distances trick has real costs.__
+A common shortcut in vector search is to decompose pairwise Euclidean distance as $\|a - b\|^2 = \|a\|^2 + \|b\|^2 - 2 \langle a, b \rangle$, precompute norms, and call `sgemm` for the inner-product matrix.
+Both [FAISS](https://github.com/facebookresearch/faiss/wiki/Implementation-notes) and [scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.euclidean_distances.html) use this approach — and both document its limitations.
+Scikit-learn's docs warn of _"catastrophic cancellation"_ in the subtraction; this has caused [real bugs](https://github.com/scikit-learn/scikit-learn/issues/9354) with ~37% error on near-identical Float32 vectors.
+The $O(N^2)$ postprocessing pass (adding norms, square roots, divisions) is not free either — [NVIDIA's RAFT](https://github.com/rapidsai/raft/pull/339) measured a __20–25% speedup__ from fusing it into the GEMM epilogue.
+Even [FAISS switches to direct SIMD](https://github.com/facebookresearch/faiss/wiki/Implementation-notes) when the query count drops below 20.
+The standard BLAS interface was never designed for sub-byte types either — [no vendor supports Int4](https://research.colfax-intl.com/cutlass-tutorial-sub-byte-gemm-on-nvidia-blackwell-gpus/), and sub-byte types cannot even be strided without bit-level repacking.
+
+__Some operations need more than GEMM + postprocessing.__
+NumKong implements several GEMM-shaped operations where the "epilogue" is too complex for a simple addition:
+
+- __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's typed `nk_bilinear_*` kernels stream through rows of $C$ with nested compensated dot products, never allocating beyond registers.
+  For complex-valued quantum states, where the intermediate would be a 2N-element complex vector, the savings double.
+- __MaxSim scoring__ for [ColBERT-style late-interaction retrieval](https://github.com/stanford-futuredata/ColBERT) computes $\sum_i \min_j \text{angular}(q_i, d_j)$ — a sum-of-min-distances across token pairs.
+  A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's typed `nk_maxsim_packed_*` kernels fuse a coarse Int8-quantized screening with full-precision angular refinement on winning pairs only, __packing both query and document matrices__ to enable all 4 SME tiles as accumulators (+33% throughput vs `dots_packed`).
+  [PLAID](https://ar5iv.labs.arxiv.org/html/2205.09707) and [maxsim-cpu](https://www.mixedbread.com/blog/maxsim-cpu) have independently shown that dedicated MaxSim kernels outperform the GEMM decomposition by 5–10x.
+
+NumKong treats these as first-class operations — `dots_packed`, `euclideans_packed`, `angulars_packed`, typed `nk_bilinear_*` kernels, and typed `nk_maxsim_packed_*` kernels — rather than decomposing everything into GEMM + postprocessing.
+
+### Precision by Design: Saturation, Rounding, & Float6 Over Float8
+
+Floating-point arithmetic on computers [is not associative](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html): $(a + b) + c \neq a + (b + c)$ in general, and the standard advice — "upcast to wider types" — often isn't enough, and always costs performance.
+NumKong makes opinionated, operation-specific decisions about where to spend precision and where to economize, rather than applying one IEEE rule uniformly.
+
+__Saturation depends on the operation.__
+A reduction over a 4 GB array of `i8` values contains ~4 billion elements — but [Int32 wrapping overflow](https://cedardb.com/blog/overflow_handling/) occurs after just ~17 million Int8 summands ($127 \times 16.9\text{M} > 2^{31}$).
+Reductions in NumKong use saturating arithmetic because the input can be arbitrarily long.
+Matrix multiplications don't need saturation because GEMM depth rarely exceeds tens of thousands — well within Int32 range.
+x86 provides no saturating 32-bit SIMD add ([only byte/word variants](https://www.felixcloutier.com/x86/paddb:paddw:paddd:paddq)), so NumKong implements saturation via overflow detection with XOR-based unsigned comparison on platforms that lack native support.
+
+__Square roots & special math ops are platform-specific.__
+Angular distance requires $1/\sqrt{\|a\|^2 \cdot \|b\|^2}$ — but the cost of computing this normalization varies dramatically across hardware.
+x86 `VSQRTPS` takes [~12 cycles](https://uops.info/html-lat/SKX/VSQRTPS_XMM_XMM-Measurements.html), followed by `VDIVPS` at ~11 cycles — totalling ~23 cycles for a precise `1/sqrt(x)`.
+The `VRSQRT14PS` alternative starts with a [14-bit estimate in ~4 cycles](https://www.intel.com/content/www/us/en/developer/articles/code-sample/reference-implementations-for-ia-approximation-instructions-vrcp14-vrsqrt14-vrcp28-vrsqrt28-vexp2.html), then one Newton-Raphson iteration ($y = y \cdot (1.5 - 0.5 x y^2)$, ~4 more cycles) reaches full Float32 precision — a __~3x speedup__.
+ARM's `FRSQRTE` provides only [~8 bits](https://github.com/DLTcollab/sse2neon/issues/526), requiring __two__ Newton-Raphson iterations to match.
+NumKong selects the iteration count per platform so the final ULP bound is consistent across ISAs, rather than exposing different precision to different users.
+
+__E2M3 and E3M2 can outperform E4M3 and E5M2.__
+6-bit [MX formats](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf) can be scaled to exact integers, enabling integer accumulation that avoids E5M2's catastrophic cancellation risk.
+This works because E2M3's narrower exponent range means every representable value maps to an integer after a fixed shift — no rounding, no cancellation.
+See [Mini-Floats](#mini-floats-e4m3-e5m2-e3m2--e2m3) for a worked example.
+
+Every such decision — saturation thresholds, Newton-Raphson iteration counts, integer vs floating-point paths — is documented per operation and per type in the [module-specific READMEs](include/numkong/).
+
+### Calling Convention & Error Handling
+
+NumKong never throws exceptions, never sets `errno`, and never calls `setjmp`/`longjmp` — [exceptions bloat call sites with unwind tables](https://monkeywritescode.blogspot.com/p/c-exceptions-under-hood.html) and are invisible to C, Python, Rust, Swift, Go, and JavaScript FFI; `errno` is thread-local state whose [storage model varies across C runtimes](https://en.cppreference.com/w/c/error/errno).
+Instead, every function takes inputs as `const` pointers, writes outputs through caller-provided pointers, and returns `void`:
+
+```c
+void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
+void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+```
+
+Pointers eliminate implicit casts for types with platform-dependent storage — this is why they matter for half-precision types.
+`nk_f16_t` and `nk_bf16_t` resolve to native `__fp16` / `__bf16` when available but fall back to `unsigned short` otherwise — if passed by value, the compiler would silently apply integer promotion instead of preserving the bit pattern.
+Passing by pointer keeps the representation opaque: kernels read raw and convert explicitly when needed, so the same binary works regardless of whether the compiler understands `_Float16`.
+
+The only place that requires error signaling is [dynamic dispatch](#compile-time-and-run-time-dispatch) — looking up the best kernel for the current CPU at runtime.
+When no kernel matches, the dispatcher sets the [capabilities mask](c/dispatch.h) to zero and fills the function pointer with a family-specific error stub such as `nk_error_dense_` from [c/dispatch.h](c/dispatch.h) and [c/numkong.c](c/numkong.c) that writes `0xFF` into the output — `NaN` for floats, `−1` for signed integers, `TYPE_MAX` for unsigned.
+
+### Compile-Time and Run-Time Dispatch
+
+NumKong provides two dispatch mechanisms.
+__Compile-time dispatch__ selects the fastest kernel supported by the target platform at build time — thinner binaries, no indirection overhead, but requires knowing your deployment hardware.
+__Run-time dispatch__ compiles every supported kernel into the binary and picks the best one on the target machine via `nk_capabilities()` — one pointer indirection per call, but a single binary runs everywhere.
+The run-time path is common in DBMS products (ClickHouse), web browsers (Chromium), and other upstream projects that ship to heterogeneous fleets.
+
+All kernel names follow the pattern `nk_{operation}_{type}_{backend}`.
+If you need to resolve the best kernel manually, use `nk_find_kernel_punned` with a `nk_kernel_kind_t`, `nk_dtype_t`, and a viable capabilities mask:
+
+```c
+nk_metric_dense_punned_t angular = 0;
+nk_capability_t used = nk_cap_serial_k;
+nk_find_kernel_punned(
+    nk_kernel_angular_k, nk_f32_k,            // what functionality? for which input type?
+    nk_capabilities(),                        // which capabilities are viable?
+    (nk_kernel_punned_t *)&angular, &used);   // the kernel found and capabilties used!
+```
+
+The first call to `nk_capabilities()` initializes the dispatch table; all subsequent calls are lock-free.
+
+## Numeric Types
+
+### Float64 & Float32: IEEE Precision
+
+__Float64__ — NumKong deviates from most BLAS-like libraries by leveraging __compensated summation__ that tracks numerical errors separately.
+On serial paths, we use __Neumaier's algorithm__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
+On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005), maintaining separate error compensators for both multiplication and accumulation via `TwoProd` and `TwoSum` operations.
+The accuracy gains are visible in the [benchmark tables above](#latency-throughput--numerical-stability-together-in-a-tiny-package) — compensated Float64 is ideal for scientific computing where numerical stability matters more than raw speed.
+
+__Float32__ — SIMD implementations load Float32 values, upcast to Float64 for full-precision multiplication and accumulation, then downcast only during finalization.
+This avoids catastrophic cancellation at minimal cost since modern CPUs have dedicated Float64 vector units operating at nearly the same throughput as Float32.
+The same compensated accumulation strategy applies to Mahalanobis distance, bilinear forms, and KL/JS divergences.
+
+```c
+// Dot2 TwoProd: Capture multiplication rounding error
+h = a * b;
+r = fma(a, b, -h);  // Extracts rounding error
+
+// Dot2 TwoSum: Capture addition rounding error
+t = sum + product;
+e = (sum - t) + product;  // Compensator term
+```
+
+### BFloat16 & Float16: Half Precision
+
+__BFloat16__ — not an IEEE 754 standard type, but the __universal recommendation__ for AI workloads.
+BFloat16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, prioritizing __dynamic range over precision__ (±3.4×10³⁸ with coarser granularity).
+On old CPUs, upcasting BFloat16 to Float32 requires just an unpack and left-shift by 16 bits (essentially free); on newer CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
+NumKong's Float8 types (E4M3/E5M2) upcast to BFloat16 before using DPBF16PS, creating a three-tier precision hierarchy: Float8 for storage, BFloat16 for compute, Float32 for accumulation.
+
+__Float16__ — IEEE 754 half-precision with 1 sign bit, 5 exponent bits (bias=15), and 10 mantissa bits, giving a range of ±65504.
+Float16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it better suited for values near zero and gradients during training.
+On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast Float16 → Float32 conversion; Sapphire Rapids+ adds native __AVX-512-FP16__ with dedicated Float16 arithmetic.
+On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
+
+| Platform               | BFloat16 Path            | Elem/Op | Float16 Path           | Elem/Op |
+| ---------------------- | ------------------------ | ------: | ---------------------- | ------: |
+| __x86__                |                          |         |                        |         |
+| Sapphire Rapids (2023) | ↓ Genoa                  |      32 | ↓ Skylake              |      16 |
+| Genoa (2022)           | `VDPBF16PS` widening dot |      32 | ↓ Skylake              |      16 |
+| Skylake (2015)         | `SLLI` + `VFMADD`        |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
+| Haswell (2013)         | `SLLI` + `VFMADD`        |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
+| __Arm__                |                          |         |                        |         |
+| Graviton 3 (2021)      | `SVBFDOT` widening dot   |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
+| Apple M2+ (2022)       | `BFDOT` widening dot     |       8 | ↓ FP16FML              |       8 |
+| Apple M1 (2020)        | ↓ NEON                   |       8 | `FMLAL` widening FMA   |       8 |
+| Graviton 2 (2019)      | ↓ NEON                   |       8 | `FCVTL` + `FMLA`       |       4 |
+| Graviton 1 (2018)      | `SHLL` + `FMLA`          |       8 | bit-manip → `FMLA`     |       8 |
+
+> BFloat16 shares Float32's 8-bit exponent, so upcasting is a 16-bit left shift (`SLLI` on x86, `SHLL` on Arm) that zero-pads the truncated mantissa — essentially free.
+> Float16 has a different exponent width (5 vs 8 bits), requiring a dedicated convert: `VCVTPH2PS` (x86 F16C) or `FCVTL` (Arm NEON).
+> Widening dot products (`VDPBF16PS`, `BFDOT`, `FMLAL`) fuse the conversion and multiply-accumulate into one instruction.
+> Sapphire Rapids has native `VFMADDPH` for Float16 arithmetic, but NumKong does not use it for general dot products — Float16 accumulation loses precision.
+> It is only used for mini-float (E2M3/E3M2) paths where periodic flush-to-Float32 windows keep error bounded.
+
+### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
+
+| Format                    |  Bits |  Range | NumKong Promotion Strategy                  | Support in GPUs           |
+| ------------------------- | ----: | -----: | ------------------------------------------- | ------------------------- |
+| E5M2FN                    |     8 | ±57344 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
+| E4M3FN                    |     8 |   ±448 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
+| E3M2FN                    | 6 → 8 |    ±28 | BFloat16 & Float16 → Float32, Int16 → Int32 | only block-scaled support |
+| E2M3FN                    | 6 → 8 |   ±7.5 | BFloat16 & Float16 → Float32, Int8 → Int32  | only block-scaled support |
+| Block-scaled NVFP4        |     4 |     ±6 | —                                           | B200                      |
+| Block-scaled MXFP4 / E2M1 |     4 |     ±6 | —                                           | B200, MI325               |
+
+> __Block scaling.__
+> NumKong does not implement block-scaled variants (MXFP4, NVFP4, or block-scaled E3M2/E2M3).
+> Block scaling couples elements through a shared exponent per block, introducing structural bias into a fundamentally uniform operation.
+> NumKong treats each element independently; block-scaled inputs should be dequantized before processing.
+
+> __FNUZ variants.__
+> AMD MI300 (CDNA 3) uses FNUZ encoding (negative-zero-is-NaN) rather than the OCP standard.
+> MI350+ and NVIDIA H100/B200 both use OCP-standard E4M3FN/E5M2FN.
+> NumKong follows the OCP convention; FNUZ inputs require conversion before processing.
+
+__8-bit floats (E4M3 & E5M2)__ follow the [OCP FP8 standard](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1).
+E4M3FN (no infinities, NaN only) is preferred for __training__ where precision near zero matters; E5M2FN (with infinities) provides wider dynamic range for __inference__.
+On x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BFloat16 via lookup tables, then use native __DPBF16PS__ for 2-per-lane dot products accumulating to Float32.
+On Arm Graviton 3+, the same BFloat16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
+
+__6-bit floats (E3M2 & E2M3)__ follow the [OCP MX v1.0 standard](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf).
+Their smaller range allows scaling to exact integers that fit in `i8`/`i16`, enabling integer `VPDPBUSD`/`SDOT` accumulation instead of the floating-point pipeline.
+Float16 can also serve as an accumulator, accurately representing ~50 products of E3M2FN pairs or ~20 products of E2M3FN pairs before overflow.
+On Arm, NEON FHM extensions bring widening `FMLAL` dot-products for Float16 — both faster and more widely available than `BFDOT` for BFloat16.
+
+E4M3 and E5M2 cannot use the integer path.
+E4M3 scaled by 16 reaches 7,680 — too large for Int8, barely fitting Int16 with a 128-entry table.
+E5M2's range (±57,344) makes the scaled product exceed Int32 entirely.
+Without the integer path, E5M2 falls back to Float32 accumulation — where its [2-bit mantissa (only 4 values per binade)](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/) creates a [catastrophic cancellation risk](https://www.ac.uma.es/arith2024/papers/Fused%20FP8%204-Way%20Dot%20Product%20with%20Scaling%20and%20FP32%20Accumulation.pdf) that E2M3's integer path avoids completely:
+
+|         |  _i_ = 0 | _i_ = 1 |  _i_ = 2 |   _i_ = 3 |  _i_ = 4 |  _i_ = 5 |  _i_ = 6 |  _i_ = 7 |
+| ------- | -------: | ------: | -------: | --------: | -------: | -------: | -------: | -------: |
+| _aᵢ_    |  0.00122 |   20480 | −0.00122 |       1.5 | −0.00586 |    −3072 |     −640 |  0.00146 |
+| _bᵢ_    |      −40 |     320 |    −1280 |  −7.63e⁻⁵ |        0 | 0.000427 |    10240 | −4.58e⁻⁵ |
+| _aᵢ·bᵢ_ | −0.04883 | 6553600 |   1.5625 | −0.000114 |        0 |  −1.3125 | −6553600 |      ≈ 0 |
+
+> __Why Float32 accumulation fails here.__
+> The accurate sum of these 8 products is ≈ 0.201.
+> After two `vfmaq_f32` calls, the 4 accumulator lanes hold pairwise products: lanes 1 and 2 carry values around ±6.5 M.
+> At that magnitude the Float32 ULP is 0.5 — so the small meaningful terms (−0.049, 1.563, −1.313, −0.0001) are all below one ULP and get absorbed during pairwise reduction.
+> The large terms then cancel exactly to zero, and the information is gone.
+> Final Float32 result: __0.0__ instead of __0.201__.
+
+### Int8 & Int4: Integer Types
+
+Both signed and unsigned 8-bit and 4-bit integers are supported with __Int32 accumulation__ to prevent overflow.
+The most sophisticated optimization is the __VNNI algebraic transform__: on Ice Lake+ with AVX-512 VNNI, the native __DPBUSD__ instruction is asymmetric (unsigned × signed → signed), yet NumKong exploits it for both Int8×Int8 and UInt8×UInt8.
+For __signed Int8×Int8__, we convert the signed operand to unsigned via XOR with `0x80`, compute `DPBUSD(a⊕0x80, b) = (a+128)×b`, then subtract a correction term `128×sum(b)` to recover the true result.
+For __unsigned UInt8×UInt8__, we XOR the second operand to make it signed, compute `DPBUSD(a, b⊕0x80) = a×(b-128)`, then add correction `128×sum(a)` via the fast SAD instruction.
+
+__Int4__ values pack two nibbles per byte, requiring bitmask extraction: low nibbles `(byte & 0x0F)` and high nibbles `(byte >> 4)`.
+For signed Int4, the transformation `(nibble ⊕ 8) - 8` maps the unsigned range [0,15] to signed range [−8,7].
+Separate accumulators for low and high nibbles avoid expensive nibble-interleaving and allow SIMD lanes to work in parallel.
+
+```c
+// Asymmetric transform for i8×i8 using DPBUSD (unsigned×signed)
+a_unsigned = a XOR 0x80;           // Convert signed→unsigned
+result = DPBUSD(a_unsigned, b);    // Computes (a+128)×b
+correction = 128 * sum(b);         // Parallel on different port
+final = result - correction;       // True a×b value
+```
+
+### Binary: Packed Bits
+
+The `u1x8` type packs 8 binary values per byte, enabling __Hamming distance__ and __Jaccard similarity__ via population-count instructions.
+On x86, `VPOPCNTDQ` (Ice Lake+) counts set bits in 512-bit registers directly; on Arm, `CNT` (NEON) operates on 8-bit lanes with a horizontal add.
+Results accumulate into `u32` — sufficient for vectors up to 4 billion bits.
+Binary representations are the most compact option for locality-sensitive hashing and binary neural network inference.
+
+### Complex Types
+
+NumKong supports four complex types — `f16c`, `bf16c`, `f32c`, and `f64c` — stored as interleaved real/imaginary pairs.
+Complex types are essential in quantum simulation (state vectors, density matrices), signal processing (FFT coefficients, filter design), and electromagnetic modeling.
+The `dot` operation computes the unconjugated dot product $\sum a_k b_k$, while `vdot` computes the conjugated inner product $\sum \bar{a}_k b_k$ standard in physics and signal processing.
+
+For complex dot products, NumKong defers sign flips until after the accumulation loop: instead of using separate FMA and FMS (fused multiply-subtract) instructions for the real component, we compute $a_r b_r + a_i b_i$ treating all products as positive, then apply a single bitwise XOR with `0x80000000` to flip the sign bits.
+This eliminates execution port contention, allowing dual FMA units to run at full capacity.
+
+```c
+for (...) { // Complex multiply optimization: XOR sign flip after the loop
+    sum_real = fma(a, b, sum_real);   // No sign flip in loop
+    sum_imag = fma(a, b_swapped, sum_imag);
+}
+sum_real = xor(sum_real, 0x80000000);  // Single XOR after loop
 ```
 
 ## License

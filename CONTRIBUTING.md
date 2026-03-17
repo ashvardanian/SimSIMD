@@ -6,42 +6,59 @@ To keep the quality of the code high, we have a set of [guidelines](https://gith
 - [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
 - [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
 
-## Navigating the Codebase
+## Directory Tree
 
-Primary kernels are implemented in header files under `include/simsimd/`:
-
-- `dot.h` - dot products for real and complex vectors.
-- `spatial.h` - spatial distances: L2, cosine distance.
-- `binary.h` - binary distances: Hamming, Jaccard, etc.
-- `probability.h` - probability metrics: KL-divergence, Jensen-Shannon, etc.
-- `sparse.h` - sparse distances: weighted and normal set intersections.
-- `curved.h` - bilinear forms for real and complex vectors, and Mahalanobis distance.
-
-Bindings to other languages are in the respective directories:
-
-- `python/lib.c` - Python bindings.
-- `javascript/lib.c` - JavaScript bindings.
-- `rust/lib.rs` - Rust bindings.
-- `swift/SimSIMD.swift` - Swift bindings.
-
-All tests, benchmarks, and examples are placed in the `scripts/` directory, if compatible with the toolchain of the implementation language.
+```
+include/numkong/          C and C++ headers — one .h per kernel family, one .hpp per C++ API
+include/numkong/*/        Per-ISA kernel implementations — serial, haswell, neon, rvv, sme, etc.
+c/                        Runtime dispatch layer — one dispatch_*.c per dtype
+test/                     C++ precision tests — see test/README.md
+bench/                    C++ Google Benchmark suite and JS bench runner — see bench/README.md
+python/                   CPython extension, no SWIG or PyBind11
+javascript/               Node.js native addon + Emscripten WASM + TypeScript API
+rust/                     Rust FFI bindings
+swift/                    Swift Package Manager bindings
+golang/                   Go cgo bindings
+cmake/                    Toolchain files for cross-compilation — WASM, WASI, RISC-V, AArch64
+```
 
 ## C and C++
 
-To rerun experiments utilize the following command:
+### Building
 
 ```sh
-sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
-cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
-cmake --build build_release --config Release
-build_release/simsimd_bench
-build_release/simsimd_bench --benchmark_filter=js
-build_release/simsimd_test_run_time
-build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
+cmake -B build_release -D CMAKE_BUILD_TYPE=Release \
+      -D NK_BUILD_TEST=1 \
+      -D NK_BUILD_BENCH=1 \
+      -D NK_COMPARE_TO_BLAS=1
+cmake --build build_release --config Release --parallel
+build_release/nk_bench
+build_release/nk_test
 ```
 
-To utilize `f16` instructions, use GCC 12 or newer, or Clang 16 or newer.
-To install them on Ubuntu 22.04, use:
+| CMake Flag             | Default            | Description                                     |
+| ---------------------- | ------------------ | ----------------------------------------------- |
+| `NK_BUILD_TEST`        | `OFF`              | Compile precision tests with ULP error analysis |
+| `NK_BUILD_BENCH`       | `OFF`              | Compile micro-benchmarks                        |
+| `NK_BUILD_SHARED`      | `ON`, if top-level | Compile dynamic library                         |
+| `NK_BUILD_SHARED_TEST` | `OFF`              | Compile tests against the shared library        |
+| `NK_COMPARE_TO_BLAS`   | `AUTO`             | Include OpenBLAS or Apple Accelerate            |
+| `NK_COMPARE_TO_MKL`    | `AUTO`             | Include Intel MKL                               |
+
+### Compiler Requirements
+
+| ISA Family                              | GCC | Clang | AppleClang     | MSVC        |
+| --------------------------------------- | --- | ----- | -------------- | ----------- |
+| Base — serial, NEON, AVX2               | 9+  | 10+   | Any            | 2019+       |
+| Float16 — NEONHalf, Sapphire FP16, Zvfh | 12+ | 16+   | Any            | 2022 17.14+ |
+| AVX-512 — Skylake, Ice Lake             | 9+  | 10+   | N/A            | 2019+       |
+| AVX-512BF16 — Genoa                     | 12+ | 16+   | N/A            | 2022 17.14+ |
+| Intel AMX — Sapphire, Granite           | 14+ | 18+   | N/A            | 2022 17.14+ |
+| Arm SME/SME2                            | 14+ | 18+   | 16+ / Xcode 16 | N/A         |
+| RISC-V Vector — RVV 1.0                 | 13+ | 17+   | N/A            | N/A         |
+| RVV + Zvfh/Zvfbfwma/Zvbb                | 14+ | 18+   | N/A            | N/A         |
+
+To install on Ubuntu 22.04:
 
 ```sh
 sudo apt install gcc-12 g++-12
@@ -49,49 +66,149 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
-To compile with the default Apple Clang on macOS, use:
+### Cross-Compilation
+
+NumKong ships 8 toolchain files in `cmake/` for cross-compiling to non-native targets.
+Tests and benchmarks run transparently under QEMU via `CMAKE_CROSSCOMPILING_EMULATOR`.
+
+| Target                    | Toolchain File                  | Emulator                | Prerequisites                                                                                    |
+| ------------------------- | ------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| ARM64 Linux               | `toolchain-aarch64-gnu.cmake`   | `qemu-aarch64 -cpu max` | `gcc-aarch64-linux-gnu`, `qemu-user`                                                             |
+| RISC-V 64 GCC             | `toolchain-riscv64-gnu.cmake`   | `qemu-riscv64 -cpu max` | [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain/releases), `qemu-user` |
+| RISC-V 64 LLVM            | `toolchain-riscv64-llvm.cmake`  | `qemu-riscv64 -cpu max` | LLVM 17+, `RISCV_SYSROOT`                                                                        |
+| Android ARM64             | `toolchain-android-arm64.cmake` | —                       | `ANDROID_NDK_ROOT`                                                                               |
+| x86_64 from Apple Silicon | `toolchain-x86_64-llvm.cmake`   | `arch -x86_64`          | Homebrew LLVM                                                                                    |
+| WASM Emscripten           | `toolchain-wasm.cmake`          | Node.js                 | Emscripten 3.1.27+                                                                               |
+| WASM64 Memory64           | `toolchain-wasm64.cmake`        | Node.js                 | Emscripten 3.1.35+                                                                               |
+| WASI                      | `toolchain-wasi.cmake`          | Wasmtime / Wasmer       | WASI SDK 24+                                                                                     |
+
+Set `NK_IN_QEMU=1` to relax half-precision accuracy thresholds under emulation.
+
+__ARM64 Linux__
+
+```sh
+cmake -B build_arm64 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
+cmake --build build_arm64 --parallel
+```
+
+To build and run tests under emulation, see [test/README.md](test/README.md#cross-compilation).
+
+Default arch: `armv9-a+sve2+fp16+bf16+i8mm+dotprod+fp16fml`.
+
+__RISC-V 64 with GCC__
+
+```sh
+cmake -B build_riscv -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-gnu.cmake
+cmake --build build_riscv --parallel
+```
+
+To build and run tests under emulation, see [test/README.md](test/README.md#cross-compilation).
+
+Default arch: `rv64gcv_zvfh_zvfbfwma_zvbb`.
+
+__RISC-V 64 with LLVM__
+
+```sh
+export RISCV_SYSROOT=/path/to/riscv-sysroot
+cmake -B build_riscv_llvm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-llvm.cmake
+cmake --build build_riscv_llvm --parallel
+```
+
+To build and run tests under emulation, see [test/README.md](test/README.md#cross-compilation).
+
+__Android ARM64__
+
+```sh
+cmake -B build_android -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-android-arm64.cmake
+cmake --build build_android --parallel
+```
+
+To build and run tests under emulation, see [test/README.md](test/README.md#cross-compilation).
+
+__WASM via Emscripten__
+
+```sh
+source ~/emsdk/emsdk_env.sh
+cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake
+cmake --build build-wasm --parallel
+```
+
+For wasm64 — Memory64:
+
+```sh
+cmake -B build-wasm64 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm64.cmake
+cmake --build build-wasm64 --parallel
+```
+
+__WASI__
+
+```sh
+export WASI_SDK_PATH=~/wasi-sdk-24.0-x86_64-linux
+cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake
+cmake --build build-wasi --parallel
+```
+
+__iOS Simulator via Xcode__
+
+```sh
+xcodebuild test -scheme NumKong -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+
+__x86_64 from Apple Silicon__
+
+```sh
+cmake -B build_x86 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-x86_64-llvm.cmake
+cmake --build build_x86 --parallel
+```
+
+### macOS
+
+With Apple Clang and Homebrew OpenBLAS:
 
 ```sh
 brew install openblas
-cmake -D CMAKE_BUILD_TYPE=Release \
-      -D SIMSIMD_BUILD_TESTS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+cmake -B build_release -D CMAKE_BUILD_TYPE=Release \
+      -D NK_BUILD_TEST=1 \
+      -D NK_BUILD_BENCH=1 \
+      -D NK_COMPARE_TO_BLAS=1 \
       -D CMAKE_PREFIX_PATH="$(brew --prefix openblas)" \
-      -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
-      -B build_release
-cmake --build build_release --config Release
+      -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include"
+cmake --build build_release --config Release --parallel
 ```
 
-On macOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
-Replacing the default compiler across the entire system is not recommended on macOS, as it may break the system, but you can pass it as an environment variable:
+With Homebrew Clang — recommended for full ISA support:
 
 ```sh
 brew install llvm openblas
 unset DEVELOPER_DIR
-cmake -D CMAKE_BUILD_TYPE=Release \
-      -D SIMSIMD_BUILD_TESTS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+cmake -B build_release -D CMAKE_BUILD_TYPE=Release \
+      -D NK_BUILD_TEST=1 \
+      -D NK_BUILD_BENCH=1 \
+      -D NK_COMPARE_TO_BLAS=1 \
       -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
       -D CMAKE_C_LINK_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
       -D CMAKE_EXE_LINKER_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
       -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
       -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
       -D CMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
-      -D CMAKE_OSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion) \
-      -B build_release
-cmake --build build_release --config Release
+      -D CMAKE_OSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion)
+cmake --build build_release --config Release --parallel
 ```
 
-When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
+### BLAS Threading
 
-```sh
-export OPENBLAS_NUM_THREADS=1    # for OpenBLAS
-export MKL_NUM_THREADS=1         # for Intel MKL
-export VECLIB_MAXIMUM_THREADS=1  # for Apple Accelerate
-export BLIS_NUM_THREADS=1        # for BLIS
-```
+When benchmarking with BLAS cross-validation, disable multi-threading in BLAS libraries to avoid interference — see [bench/README.md](bench/README.md#environment-variables) for the `*_NUM_THREADS` variables.
+
+### Debugger Breakpoints
+
+Useful breakpoints for debugging:
+
+- `__asan::ReportGenericError` — illegal memory accesses.
+- `__GI_exit` — exit points at end of any executable.
+- `__builtin_unreachable` — unexpected code paths.
+- `_sz_assert_failure` — StringZilla logic assertions.
+
+See [test/README.md](test/README.md) for test framework details and [bench/README.md](bench/README.md) for benchmark configuration.
 
 ## Python
 
@@ -102,10 +219,10 @@ If you already have one:
 ```sh
 pip install -e .                             # build locally from source
 pip install pytest pytest-repeat tabulate    # testing dependencies
-pytest scripts/test.py -s -x -Wd             # to run tests
+pytest test/ -s -x -Wd                       # to run tests
 
 # to check supported SIMD instructions:
-python -c "import simsimd; print(simsimd.get_capabilities())"
+python -c "import numkong; print(numkong.get_capabilities())"
 ```
 
 Alternatively, use `uv` to create the virtual environment.
@@ -117,7 +234,7 @@ uv pip install -e .             # build locally from source
 
 # to run GIL-related tests in a free-threaded environment:
 uv pip install pytest pytest-repeat tabulate numpy scipy
-PYTHON_GIL=0 python -m pytest scripts/test.py -s -x -Wd -k gil
+PYTHON_GIL=0 python -m pytest test/ -s -x -Wd -k gil
 ```
 
 Here, `-s` will output the logs.
@@ -131,49 +248,7 @@ brew install llvm
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ pip install -e .
 ```
 
-Benchmarking:
-
-```sh
-pip install numpy scipy scikit-learn                 # for comparison baselines
-python scripts/bench_vectors.py                      # to run default benchmarks
-python scripts/bench_vectors.py --n 1000 --ndim 1536 # batch size and dimensions
-```
-
-You can also benchmark against other libraries, filter the numeric types, and distance metrics:
-
-```sh
-$ python scripts/bench_vectors.py --help
-> usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
->                 [--metric {all,dot,spatial,binary,probability,sparse}]
->                 [--dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
->                 [--scipy] [--scikit] [--torch] [--tf] [--jax]
-> 
-> Benchmark SimSIMD vs. other libraries
-> 
-> optional arguments:
->   -h, --help            show this help message and exit
->   --ndim NDIM           Number of dimensions in vectors (default: 1536) For binary vectors (e.g., Hamming, Jaccard), this is the number of bits. In
->                         case of SimSIMD, the inputs will be treated at the bit-level. Other packages will be matching/comparing 8-bit integers. The
->                         volume of exchanged data will be identical, but the results will differ.
->   -n COUNT, --count COUNT
->                         Number of vectors per batch (default: 1) By default, when set to 1 the benchmark will generate many vectors of size (ndim, )
->                         and call the functions on pairs of single vectors: both directly, and through `cdist`. Alternatively, for larger batch sizes
->                         the benchmark will generate two matrices of size (n, ndim) and compute: - batch mode: (n) distances between vectors in
->                         identical rows of the two matrices, - all-pairs mode: (n^2) distances between all pairs of vectors in the two matrices via
->                         `cdist`.
->   --metric {all,dot,spatial,binary,probability,sparse}
->                         Distance metric to use, profiles everything by default
->   --dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}
->                         Defines numeric types to benchmark, profiles everything by default
->   --scipy               Profile SciPy, must be installed
->   --scikit              Profile scikit-learn, must be installed
->   --torch               Profile PyTorch, must be installed
->   --tf                  Profile TensorFlow, must be installed
->   --jax                 Profile JAX, must be installed
-```
-
-
-Before merging your changes you may want to test your changes against the entire matrix of Python versions USearch supports.
+Before merging your changes you may want to test your changes against the entire matrix of Python versions NumKong supports.
 For that you need the `cibuildwheel`, which is tricky to use on macOS and Windows, as it would target just the local environment.
 Still, if you have Docker running on any desktop OS, you can use it to build and test the Python bindings for all Python versions for Linux:
 
@@ -203,13 +278,11 @@ python -m cibuildwheel --platform windows
 ## Rust
 
 ```sh
-cargo test -p simsimd
-cargo test -p simsimd -- --nocapture # To see the output
-cargo bench
-open target/criterion/report/index.html
+cargo test -p numkong
+cargo test -p numkong -- --nocapture # To see the output
 ```
 
-To automatically detect the Minimum Supported Rust Version (MSRV):
+To automatically detect the Minimum Supported Rust Version — MSRV:
 
 ```sh
 cargo +stable install cargo-msrv
@@ -218,64 +291,15 @@ cargo msrv find --ignore-lockfile
 
 ## JavaScript
 
-### NodeJS
+See [javascript/README.md](javascript/README.md) for JavaScript/TypeScript development, WASM support, and API documentation.
 
-If you don't have the environment configured, here are the [installation options](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) with different tools:
-
-```sh
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash # Linux
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # macOS
-```
-
-Install dependencies:
+Quick reference:
 
 ```sh
-nvm install 20
-npm install -g typescript           # Install the TypeScript compiler globally
-npm install --save-dev @types/node  # Install the Node.js type definitions as a dev dependency
+npm run build-js        # Build TypeScript
+npm test                # Run tests
+npm run bench           # Run benchmarks
 ```
-
-Testing and benchmarking:
-
-```sh
-npm run build-js                    # Build the JavaScript code using TypeScript configurations
-npm test                            # Run the test suite
-npm run bench                       # Run the benchmark script
-```
-
-### Deno
-
-If you don't have the environment configured, here are [installation options](https://docs.deno.com/runtime/getting_started/installation/) with different tools:
-
-```sh
-wget -qO- https://deno.land/x/install/install.sh | sh # Linux
-curl -fsSL https://deno.land/install.sh | sh          # macOS
-irm https://deno.land/install.ps1 | iex               # Windows
-```
-
-Testing:
-
-```sh
-deno test -A
-```
-
-### Bun
-
-If you don't have the environment configured, here are the [installation options](https://bun.sh/docs/installation) with different tools:
-
-```sh
-wget -qO- https://bun.sh/install | bash   # for Linux
-curl -fsSL https://bun.sh/install | bash  # for macOS and WSL
-```
-
-Testing:
-
-```sh
-bun install
-bun test ./scripts/test.mjs
-```
-
-... wouldn't work for now.
 
 ## Swift
 
@@ -319,3 +343,35 @@ cd golang
 go test # To test
 go test -run=^$ -bench=. -benchmem # To benchmark
 ```
+
+## Adding a New Kernel Family
+
+To add a new operation family, for example `foo`:
+
+1. __C header__: create `include/numkong/foo.h` with serial implementation and dispatch function signatures.
+2. __ISA implementations__: add `include/numkong/foo/serial.h`, `foo/neon.h`, `foo/haswell.h`, etc.
+3. __Dispatch layer__: add entries to the appropriate `c/dispatch_*.c` files for each dtype the kernel supports.
+4. __C++ wrapper__: create `include/numkong/foo.hpp` with the typed C++ API.
+5. __Test__: create `test/test_foo.cpp` with precision validation against `f118_t` references.
+6. __Benchmark__: create `bench/bench_foo.cpp` with Google Benchmark harness.
+7. __Cross-platform tests__: add entries to `test/test_cross.hpp` and the relevant `test_cross_*.cpp` files.
+8. __CMakeLists.txt__: wire the new source files into the `nk_test` and `nk_bench` targets.
+9. __Language bindings__: update `python/numkong.c`, `javascript/numkong.c`, `rust/numkong.rs`, etc. as needed.
+
+## Adding a Backend Kernel to an Existing Family
+
+For primary kernels, every backend implementation should be wired in five places beyond the backend header itself:
+
+1. __Forward declaration__: add the `NK_PUBLIC` declaration with the matching `@copydoc` in the first half of `include/numkong/<family>.h`.
+2. __Compile-time dispatch__: add the `#if !NK_DYNAMIC_DISPATCH` branch in the second half of `include/numkong/<family>.h`.
+3. __Run-time dispatch__: add the dtype-specific entry to the relevant `c/dispatch_*.c` table.
+4. __Precision tests__: register the kernel in `nk_test`, usually in the existing `test/test_<family>.cpp` suite.
+5. __Benchmarks__: register the kernel in `nk_bench`, usually in the existing `bench/bench_<family>.cpp` suite.
+
+Use the existing family suite unless the kernel introduces a genuinely new test shape.
+The rule is about coverage and reachability, not about creating a brand new source file for every symbol.
+
+There are two intentional exceptions:
+
+- `cast`: the family-level `nk_cast_*` kernels follow the same header/dispatch/test/bench rule, but scalar conversion helpers are wired through `c/dispatch_other.c` and are covered through `test/test_cast.cpp` and `bench/bench_cast.cpp`.
+- `scalar`: scalar helpers are centrally declared in `include/numkong/scalar.h`, wired through `c/dispatch_other.c`, and currently do not follow the per-helper `nk_test` and `nk_bench` registration pattern.

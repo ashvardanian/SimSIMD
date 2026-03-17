@@ -1,0 +1,261 @@
+name: Release C
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  create_linux_deb_package:
+    name: Create Debian Package
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang
+      CXX: clang++
+      AR: llvm-ar
+      NM: llvm-nm
+      RANLIB: llvm-ranlib
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-linux-gnu
+          - arch: arm64
+            target: aarch64-linux-gnu
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Get Version
+        id: set_version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld make crossbuild-essential-arm64
+      - name: Build Shared Library
+        run: |
+          cmake -B build_release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_TARGET=${{ matrix.target }} \
+            -DCMAKE_CXX_COMPILER_TARGET=${{ matrix.target }} \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} \
+            -DNK_BUILD_SHARED=ON \
+            -DNK_BUILD_TEST=OFF \
+            -DNK_BUILD_BENCH=OFF
+          cmake --build build_release --config Release
+          cp build_release/libnumkong.so \
+            "numkong_linux_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.so"
+      - name: Package Debian Archive
+        run: |
+          DEB_DIR="numkong_linux_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}"
+          mkdir -p "${DEB_DIR}/DEBIAN"
+          mkdir -p "${DEB_DIR}/usr/local/lib"
+          mkdir -p "${DEB_DIR}/usr/local/include/numkong"
+          mkdir -p "${DEB_DIR}/usr/local/share/doc/numkong"
+          cp build_release/libnumkong.so "${DEB_DIR}/usr/local/lib/"
+          cp -r include/numkong/* "${DEB_DIR}/usr/local/include/numkong/"
+          cp LICENSE "${DEB_DIR}/usr/local/share/doc/numkong/"
+          cat > "${DEB_DIR}/DEBIAN/control" <<CTRL
+          Package: numkong
+          Version: ${{ steps.set_version.outputs.version }}
+          Maintainer: Ash Vardanian
+          Architecture: ${{ matrix.arch }}
+          Description: Portable SIMD-Accelerated Algebra for Vectors, Matrices, and Tensors
+          CTRL
+          sed -i 's/^          //' "${DEB_DIR}/DEBIAN/control"
+          dpkg-deb --build "${DEB_DIR}"
+      - name: Upload to GitHub Release
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.so;*.deb"
+          update_latest_release: true
+
+  create_windows_dll_library:
+    name: Create DLL Library for Windows
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            cmake_arch: x64
+          - arch: arm64
+            cmake_arch: ARM64
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+      - name: Get Version
+        id: set_version
+        shell: bash
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Build Shared Library
+        run: |
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.cmake_arch }} `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DNK_BUILD_SHARED=ON `
+            -DNK_BUILD_TEST=OFF `
+            -DNK_BUILD_BENCH=OFF `
+            -B build_release
+          cmake --build build_release --config Release
+      - name: Package Archive
+        shell: bash
+        run: |
+          tar -cvf "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar" \
+            build_release/Release/numkong.dll \
+            include/numkong/ \
+            LICENSE
+      - name: Upload to GitHub Release
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar"
+          update_latest_release: true
+
+  create_macos_dylib_library:
+    name: Create Library for macOS
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Get Version
+        id: set_version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Build Shared Library
+        run: |
+          cmake -B build_release \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DNK_BUILD_SHARED=ON \
+            -DNK_BUILD_TEST=OFF \
+            -DNK_BUILD_BENCH=OFF
+          cmake --build build_release --config Release
+          cp build_release/libnumkong.dylib \
+            "numkong_macos_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.dylib"
+          zip -r "numkong_macos_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.zip" \
+            build_release/libnumkong.dylib include/numkong/ LICENSE
+      - name: Upload Library
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.dylib"
+          update_latest_release: true
+      - name: Upload Archive
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.zip"
+          update_latest_release: true
+
+  create_android_library:
+    name: Create Android Libraries
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: armeabi-v7a
+            arch: arm32
+          - abi: arm64-v8a
+            arch: arm64
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Get Version
+        id: set_version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Build Shared Library
+        run: |
+          cmake -B build_android \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_LATEST_HOME}/build/cmake/android.toolchain.cmake \
+            -DCMAKE_ANDROID_STL_TYPE=c++_static \
+            -DANDROID_PLATFORM=28 \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DNK_BUILD_SHARED=ON \
+            -DNK_BUILD_TEST=OFF \
+            -DNK_BUILD_BENCH=OFF
+          cmake --build build_android --config Release
+      - name: Package Archive
+        run: |
+          zip -r "numkong_android_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.zip" \
+            build_android/libnumkong.so include/numkong/ LICENSE
+      - name: Upload to GitHub Release
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.zip"
+          update_latest_release: true
+
+  create_wasm_library:
+    name: Create WASM Libraries
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Get Version
+        id: set_version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+      - name: Build WASM
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          cmake -B build_wasm \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNK_BUILD_SHARED=ON
+          cmake --build build_wasm --config Release
+          cp LICENSE build_wasm/
+          cd build_wasm
+          tar -czf "../numkong_wasm_${{ steps.set_version.outputs.version }}.tar.gz" \
+            numkong.js numkong.wasm LICENSE
+          zip -r "../numkong_wasm_${{ steps.set_version.outputs.version }}.zip" \
+            numkong.js numkong.wasm LICENSE
+      - name: Upload to GitHub Release
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "numkong_wasm_*.tar.gz;numkong_wasm_*.zip"
+          update_latest_release: true

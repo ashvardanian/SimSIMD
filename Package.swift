@@ -1,27 +1,72 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.4
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
-    name: "SimSIMD",
+    name: "NumKong",
+    platforms: [
+        .macOS(.v11),
+        .iOS(.v14),
+        .tvOS(.v14),
+        .watchOS(.v7),
+    ],
     products: [
-        .library(name: "SimSIMD", targets: ["SimSIMD"]),
+        .library(name: "NumKong", targets: ["NumKong"])
     ],
     targets: [
-        .testTarget(name: "Test", dependencies: ["SimSIMD"], path: "swift", exclude:["SimSIMD.swift"]),
-        .target(name: "SimSIMD", dependencies: ["CSimSIMD"], path: "swift", exclude:["Test.swift"]),
+        .testTarget(
+            name: "Test",
+            dependencies: ["NumKong"],
+            path: "test/swift",
+            cSettings: [
+                .define("NK_DYNAMIC_DISPATCH", to: "1"),
+                .define("NK_NATIVE_F16", to: "0"),
+                .define("NK_NATIVE_BF16", to: "0"),
+            ]
+        ),
+        .testTarget(
+            name: "Bench",
+            dependencies: ["NumKong", "CNumKong"],
+            path: "bench",
+            sources: ["Bench.swift"],
+            cSettings: [
+                .define("NK_DYNAMIC_DISPATCH", to: "1"),
+                .define("NK_NATIVE_F16", to: "0"),
+                .define("NK_NATIVE_BF16", to: "0"),
+            ]
+        ),
         .target(
-            name: "CSimSIMD",
-            path: "include/simsimd/", // Adjust the path to include your C source files
-            sources: ["../../c/lib.c"], // Include the source file here
+            name: "NumKong",
+            dependencies: ["CNumKong", "CNumKongDispatch"],
+            path: "swift",
+            exclude: ["README.md"],
+            cSettings: [
+                .define("NK_DYNAMIC_DISPATCH", to: "1"),
+                .define("NK_NATIVE_F16", to: "0"),
+                .define("NK_NATIVE_BF16", to: "0"),
+            ]
+        ),
+        .target(
+            name: "CNumKong",
+            path: "include",
             publicHeadersPath: ".",
             cSettings: [
-                .define("SIMSIMD_DYNAMIC_DISPATCH", to: "1"), // Define a C macro
-                .define("SIMSIMD_NATIVE_F16", to: "0"), // Define a C macro
-                .define("SIMSIMD_NATIVE_BF16", to: "0"), // Define a C macro
-                .headerSearchPath("include/"), // Specify header search paths
-                .unsafeFlags(["-Wall"]) // Use with caution: specify custom compiler flags
+                .define("NK_DYNAMIC_DISPATCH", to: "1"),
+                .define("NK_NATIVE_F16", to: "0"),
+                .define("NK_NATIVE_BF16", to: "0"),
+            ]
+        ),
+        .target(
+            name: "CNumKongDispatch",
+            dependencies: ["CNumKong"],
+            path: "c",
+            cSettings: [
+                .define("NK_DYNAMIC_DISPATCH", to: "1"),
+                .define("NK_NATIVE_F16", to: "0"),
+                .define("NK_NATIVE_BF16", to: "0"),
+                .headerSearchPath("../include"),
+                .unsafeFlags(["-Wall", "-Wno-psabi"]),
             ]
         ),
     ]

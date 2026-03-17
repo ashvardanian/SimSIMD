@@ -1,0 +1,60 @@
+name: Release Python
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write
+
+env:
+  PYTHONUTF8: 1
+
+jobs:
+  wheels:
+    name: Build Wheels
+    uses: ./.github/workflows/_wheels.yml
+    with:
+      ref: "main"
+    secrets: inherit
+
+  publish_python:
+    name: Publish Python
+    needs:
+      - wheels
+    # Run even if some build jobs fail (e.g., due to transient network issues)
+    # This ensures successfully built wheels still get published
+    if: always()
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/numkong
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download wheels
+        # unpacks all CIBW artifacts into dist/
+        # continue-on-error handles cases where some wheel jobs failed
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+
+      - name: Download source distribution
+        uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist
+
+      - name: List available distributions
+        run: ls -la dist/
+
+      - name: Publish to PyPi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          verbose: true
+          print-hash: true
