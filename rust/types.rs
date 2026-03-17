@@ -871,6 +871,64 @@ impl core::cmp::PartialOrd for e3m2 {
 
 // endregion: e3m2 Type
 
+// region: From<f32> Conversions
+
+impl From<f32> for f16 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<f16> for f32 {
+    #[inline(always)]
+    fn from(value: f16) -> Self { value.to_f32() }
+}
+
+impl From<f32> for bf16 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<bf16> for f32 {
+    #[inline(always)]
+    fn from(value: bf16) -> Self { value.to_f32() }
+}
+
+impl From<f32> for e4m3 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<e4m3> for f32 {
+    #[inline(always)]
+    fn from(value: e4m3) -> Self { value.to_f32() }
+}
+
+impl From<f32> for e5m2 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<e5m2> for f32 {
+    #[inline(always)]
+    fn from(value: e5m2) -> Self { value.to_f32() }
+}
+
+impl From<f32> for e2m3 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<e2m3> for f32 {
+    #[inline(always)]
+    fn from(value: e2m3) -> Self { value.to_f32() }
+}
+
+impl From<f32> for e3m2 {
+    #[inline(always)]
+    fn from(value: f32) -> Self { Self::from_f32(value) }
+}
+impl From<e3m2> for f32 {
+    #[inline(always)]
+    fn from(value: e3m2) -> Self { value.to_f32() }
+}
+
+// endregion: From<f32> Conversions
+
 // region: u1x8 Type
 
 /// Packed 8-bit bit-vector (8 booleans in one byte).
