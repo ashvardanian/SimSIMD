@@ -271,6 +271,8 @@ struct vector_view {
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
 
+    using const_iterator = dim_iterator<vector_view const>;
+
   private:
     char const *data_ = nullptr;
     size_type dimensions_ = 0;
@@ -342,6 +344,14 @@ struct vector_view {
         if (dimensions_ == 0) return *this;
         return {data_ + static_cast<difference_type>(dimensions_ - 1) * stride_bytes_, dimensions_, -stride_bytes_};
     }
+
+    /** @brief Dimension iterator to beginning. */
+    const_iterator begin() const noexcept { return {*this, 0}; }
+    const_iterator cbegin() const noexcept { return {*this, 0}; }
+
+    /** @brief Dimension iterator to end. */
+    const_iterator end() const noexcept { return {*this, dimensions_}; }
+    const_iterator cend() const noexcept { return {*this, dimensions_}; }
 };
 
 #pragma endregion - Vector View
@@ -359,6 +369,9 @@ struct vector_span {
     using value_type = value_type_;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
+
+    using iterator = dim_iterator<vector_span>;
+    using const_iterator = dim_iterator<vector_span const>;
 
   private:
     char *data_ = nullptr;
@@ -442,6 +455,16 @@ struct vector_span {
 
     /** @brief Select all elements. */
     vector_span operator[](all_t) noexcept { return *this; }
+
+    /** @brief Dimension iterator to beginning. */
+    iterator begin() noexcept { return {*this, 0}; }
+    const_iterator begin() const noexcept { return {*this, 0}; }
+    const_iterator cbegin() const noexcept { return {*this, 0}; }
+
+    /** @brief Dimension iterator to end. */
+    iterator end() noexcept { return {*this, dimensions_}; }
+    const_iterator end() const noexcept { return {*this, dimensions_}; }
+    const_iterator cend() const noexcept { return {*this, dimensions_}; }
 };
 
 #pragma endregion - Vector Span
