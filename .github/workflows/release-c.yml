@@ -9,17 +9,18 @@ permissions:
 
 env:
   BUILD_TYPE: Release
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   create_linux_deb_package:
     name: Create Debian Package
     runs-on: ubuntu-24.04
     env:
-      CC: clang
-      CXX: clang++
-      AR: llvm-ar
-      NM: llvm-nm
-      RANLIB: llvm-ranlib
+      CC: clang-20
+      CXX: clang++-20
+      AR: llvm-ar-20
+      NM: llvm-nm-20
+      RANLIB: llvm-ranlib-20
     strategy:
       fail-fast: false
       matrix:
@@ -40,14 +41,17 @@ jobs:
         run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
       - name: Install Dependencies
         run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm-20.list
           sudo apt-get update
-          sudo apt-get install -y clang lld make crossbuild-essential-arm64
+          sudo apt-get install -y clang-20 lld-20 make crossbuild-essential-arm64
       - name: Build Shared Library
         run: |
           cmake -B build_release \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_TARGET=${{ matrix.target }} \
             -DCMAKE_CXX_COMPILER_TARGET=${{ matrix.target }} \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld-20" \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.arch }} \
             -DNK_BUILD_SHARED=ON \
@@ -76,12 +80,9 @@ jobs:
           sed -i 's/^          //' "${DEB_DIR}/DEBIAN/control"
           dpkg-deb --build "${DEB_DIR}"
       - name: Upload to GitHub Release
-        uses: xresloader/upload-to-github-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "*.so;*.deb"
-          update_latest_release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} *.so *.deb --clobber
 
   create_windows_dll_library:
     name: Create DLL Library for Windows
@@ -124,12 +125,10 @@ jobs:
             include/numkong/ \
             LICENSE
       - name: Upload to GitHub Release
-        uses: xresloader/upload-to-github-release@v1
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar"
-          update_latest_release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar" --clobber
 
   create_macos_dylib_library:
     name: Create Library for macOS
@@ -161,20 +160,10 @@ jobs:
             "numkong_macos_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.dylib"
           zip -r "numkong_macos_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.zip" \
             build_release/libnumkong.dylib include/numkong/ LICENSE
-      - name: Upload Library
-        uses: xresloader/upload-to-github-release@v1
+      - name: Upload to GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "*.dylib"
-          update_latest_release: true
-      - name: Upload Archive
-        uses: xresloader/upload-to-github-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "*.zip"
-          update_latest_release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} *.dylib *.zip --clobber
 
   create_android_library:
     name: Create Android Libraries
@@ -214,12 +203,9 @@ jobs:
           zip -r "numkong_android_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.zip" \
             build_android/libnumkong.so include/numkong/ LICENSE
       - name: Upload to GitHub Release
-        uses: xresloader/upload-to-github-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "*.zip"
-          update_latest_release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} *.zip --clobber
 
   create_wasm_library:
     name: Create WASM Libraries
@@ -253,9 +239,6 @@ jobs:
           zip -r "../numkong_wasm_${{ steps.set_version.outputs.version }}.zip" \
             numkong.js numkong.wasm LICENSE
       - name: Upload to GitHub Release
-        uses: xresloader/upload-to-github-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          file: "numkong_wasm_*.tar.gz;numkong_wasm_*.zip"
-          update_latest_release: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} numkong_wasm_*.tar.gz numkong_wasm_*.zip --clobber
