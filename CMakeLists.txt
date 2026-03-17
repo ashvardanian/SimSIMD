@@ -213,7 +213,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 # Define the header-only library
-file(GLOB NK_SOURCES include/numkong/*.h)
+file(GLOB NK_SOURCES include/numkong/*.h include/numkong/*.hpp)
 add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
