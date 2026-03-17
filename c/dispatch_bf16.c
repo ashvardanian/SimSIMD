@@ -292,6 +292,15 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_bf16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_bf16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_bf16_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif
