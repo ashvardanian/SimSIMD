@@ -56,12 +56,12 @@ Each SIMD lane may converge at a different iteration count, so the kernel accumu
 Early exit uses `_mm256_movemask_pd` — when all 4 bits (for `f64`) or 8 bits (for `f32`) are set, the loop breaks.
 Coincident points and equatorial edge cases are handled by blending safe values (ones) into the intermediate terms to avoid division by zero, without requiring branches that would diverge across SIMD lanes.
 
-### Haversine Without Final Arc Conversion
+### Potential Optimization: Haversine Without Final Arc Conversion
 
-`nk_haversine_f32_haswell`, `nk_haversine_f64_haswell` support a similarity mode where the haversine formula involves $2R \cdot \text{asin}(\sqrt{h})$ and the intermediate value $h = \sin^2(\Delta\phi/2) + \cos\phi_1 \cos\phi_2 \cdot \sin^2(\Delta\lambda/2)$ is monotonic with distance.
-For ranking and comparison use cases, comparing $h$ values directly produces the same ordering as comparing full Haversine distances, since both asin and sqrt are monotonically increasing.
-This eliminates the two most expensive operations in the pipeline.
-The kernels compute the full distance by default, but the streaming API can optionally skip the final conversion when only relative ordering is needed.
+The haversine formula computes $d = 2R \cdot \text{asin}(\sqrt{h})$ where $h = \sin^2(\Delta\phi/2) + \cos\phi_1 \cos\phi_2 \cdot \sin^2(\Delta\lambda/2)$.
+Since both `asin` and `sqrt` are monotonically increasing, comparing $h$ values directly produces the same ordering as comparing full haversine distances.
+For ranking-only use cases, a future "similarity mode" could skip the final `sqrt`/`atan2` conversion and return $h$ directly, eliminating the two most expensive operations in the pipeline.
+Currently, all kernels compute the full distance.
 
 ## Performance
 

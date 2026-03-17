@@ -102,13 +102,13 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - Earth Ellipsoid: https://en.wikipedia.org/wiki/Earth_ellipsoid
  *  - Oblate Spheroid Geodesic: https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
- *  - Staging experiments: https://github.com/ashvardanian/HaversineMathKong
  *  - Speeding up atan2f by 50x: https://mazzo.li/posts/vectorized-atan2.html
- *  - Simplifying the GNU C Sine Function: https://www.awelm.com/posts/simplifying-the-gnu-c-sine-function/
+ *  - Simplifying the GNU C Sine Function:
+ *    https://web.archive.org/web/20230605051610/https://www.awelm.com/posts/simplifying-the-gnu-c-sine-function/
  *
  */
 #ifndef NK_GEOSPATIAL_H

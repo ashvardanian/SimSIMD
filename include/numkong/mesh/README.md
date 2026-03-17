@@ -87,14 +87,14 @@ RVV uses indexed loads with dynamic stride to adapt to variable vector length.
 
 ### Reflection Correction
 
-`nk_kabsch_f32_haswell`, `nk_kabsch_f64_skylake` check for improper rotations (det(R) = -1, reflections) after computing R = V·Uᵀ.
-If det(R) is negative, the last column of V is flipped.
-This ensures the output is always a proper rotation matrix (det = +1).
+`nk_kabsch_f32_haswell`, `nk_kabsch_f64_skylake` check for improper rotations after computing $R = V U^T$ from the SVD of the cross-covariance matrix $H = U \Sigma V^T$.
+If $\det(R) = -1$ (a reflection rather than a rotation), the last column of $V$ is negated before recomputing $R$.
+This ensures the output is always a proper rotation matrix with $\det(R) = +1$.
 
 ### Pre-Scaled Rotation for Umeyama
 
-`nk_umeyama_f32_haswell`, `nk_umeyama_f64_skylake` fold the computed scale factor into the rotation matrix before applying to points.
-`sr[i] = scale * r[i]` is computed once and broadcast — avoiding a per-point scalar multiply.
+`nk_umeyama_f32_haswell`, `nk_umeyama_f64_skylake` fold the computed scale factor $s$ into the rotation matrix before applying to points.
+The Umeyama transform is $b_i = s R a_i + t$; by precomputing $R' = s R$ once, the per-point operation reduces to $b_i = R' a_i + t$, avoiding a per-point scalar multiply.
 
 ### Why SME and SVE Were Removed
 

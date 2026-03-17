@@ -61,14 +61,14 @@ Minimal:
 
 ```toml
 [dependencies]
-numkong = "6.5.15"
+numkong = "7"
 ```
 
 With host-side parallel helpers:
 
 ```toml
 [dependencies]
-numkong = { version = "6.5.15", features = ["parallel", "std"] }
+numkong = { version = "7", features = ["parallel", "std"] }
 ```
 
 ## Compilation and Backend Selection

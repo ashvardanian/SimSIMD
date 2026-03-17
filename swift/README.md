@@ -59,7 +59,7 @@ Add NumKong to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ashvardanian/NumKong.git", from: "6.5.15")
+    .package(url: "https://github.com/ashvardanian/NumKong.git", from: "7.0")
 ]
 ```
 

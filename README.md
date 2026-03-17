@@ -1,7 +1,7 @@
 # NumKong: Mixed Precision for All
 
-NumKong (previously SimSIMD) delivers mixed-precision numerics that are often faster _and_ more accurate than standard BLAS libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
-Over 1500 hand-tuned SIMD kernels for x86, Arm, RISC-V, and WASM power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
+NumKong (previously SimSIMD) delivers mixed-precision numerics that are often faster _and_ more accurate than standard [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms) libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
+Over 2'000 hand-tuned kernels leveraging [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) instructions on x86, Arm, RISC-V, and WASM power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
 
 ![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 
@@ -11,10 +11,10 @@ Most libraries return dot products in the __same type as the input__ — Float16
 That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
 NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results never overflow, and it's still faster.
 
-> Single 2048-d dot product on Intel Sapphire Rapids (Xeon 8468), single-threaded, CPU-only packages.
+> Single 2048-d dot product on Intel [Sapphire Rapids](https://en.wikipedia.org/wiki/Sapphire_Rapids), single-threaded.
 > Each cell shows __gso/s, mean relative error__ vs higher-precision reference.
 > gso/s = Giga Scalar Operations per Second — a more suitable name than GFLOP/s when counting both integer and floating-point work.
-> Median of 5 runs × 500 K calls each. NumPy 2.4, PyTorch 2.10, JAX 0.9.
+> NumPy 2.4, PyTorch 2.10, JAX 0.9.
 
 | Input  |        NumPy + OpenBLAS |           PyTorch + MKL |                     JAX |               NumKong |
 | :----- | ----------------------: | ----------------------: | ----------------------: | --------------------: |
@@ -27,12 +27,12 @@ NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Flo
 | `i8`   | 1.1 gso/s, __overflow__ | 0.5 gso/s, __overflow__ | 0.5 gso/s, __overflow__ |    14.8 gso/s, 0% err |
 
 A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
-They lower execution graphs through XLA or vendored BLAS libraries like Intel MKL and Nvidia cuBLAS.
+They lower execution graphs through [XLA](https://openxla.org/) or vendored BLAS libraries like [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) and Nvidia [cuBLAS](https://developer.nvidia.com/cublas).
 So here's the same comparison on a throughput-oriented workload — matrix multiplication:
 
-> Matrix multiplication (2048 × 2048) × (2048 × 2048), single-threaded, same machine.
-> JAX/XLA numbers divided by 16 cores (XLA ignores thread restrictions).
-> NumKong uses `dots_packed` (pre-packed GEMM). Same format: __gso/s, mean relative error__.
+> Matrix multiplication (2048 × 2048) × (2048 × 2048) on Intel Sapphire Rapids, single-threaded.
+> gso/s = Giga Scalar Operations per Second, same format.
+> NumPy 2.4, PyTorch 2.10, JAX 0.9, same versions.
 
 | Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |              NumKong |
 | :----- | ----------------------: | -----------------------: | -----------------------: | -------------------: |
@@ -81,24 +81,24 @@ NumKong spans 16 numeric types — from exotic GPU-only 6-bit floats to 64-bit c
 │          Operations          │   Datatypes    │         Backends          │ Ecosystems │
 ├──────────────────────────────┼────────────────┼───────────────────────────┼────────────┤
 │ Vector-Vector                │ <a href="#numeric-types">Bits &amp; Ints</a>    │ <a href="#compile-time-and-run-time-dispatch">x86</a>                       │ Core       │
-│ <a href="include/README.md#dot-products">dot</a> · <a href="include/README.md#dense-distances">angular</a> · <a href="include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="include/README.md#the-c-abi">C 99</a>       │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dot-products">dot</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dense-distances">angular</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#the-c-abi">C 99</a>       │
 │ hamming · kld · jsd · …      │ i4 · i8        │ Sierra Forest · Skylake   │            │
 │                              │                │ Ice Lake · Genoa · Turin  │ Primary    │
-│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="include/README.md#the-c-layer">C++ 23</a>     │
-│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="python/README.md">Python 3</a>   │
-│ <a href="include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="rust/README.md">Rust</a>       │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#the-c-layer">C++ 23</a>     │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/python/README.md">Python 3</a>   │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/rust/README.md">Rust</a>       │
 │                              │                │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                       │            │
 │ Quadratic                    │ <a href="#float16--bfloat16-half-precision">Half &amp; Classic</a> │ NEON · NEONHalf · NEONFhm │ Additional │
-│ <a href="include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="swift/README.md">Swift</a> · <a href="javascript/README.md">JS</a> │
-│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="golang/README.md">Go</a>         │
-│ <a href="include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
-│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="CONTRIBUTING.md">Tools</a>      │
-│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="test/README.md">Tests</a>      │
-│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="bench/README.md">Benchmarks</a> │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/swift/README.md">Swift</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/javascript/README.md">JS</a> │
+│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/golang/README.md">Go</a>         │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
+│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/CONTRIBUTING.md">Tools</a>      │
+│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/test/README.md">Tests</a>      │
+│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/bench/README.md">Benchmarks</a> │
 │ Bespoke                      │                │ RVV · RVVHalf             │ <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
-│ <a href="include/numkong/each/README.md">fma</a> · blend · <a href="include/numkong/trigonometry/README.md">sin</a> · <a href="include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
-│ <a href="include/numkong/reduce/README.md">reduce_moments</a> · <a href="include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
-│ <a href="include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/each/README.md">fma</a> · blend · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/trigonometry/README.md">sin</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/reduce/README.md">reduce_moments</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
+│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
 │                              │                │ V128Relaxed               │            │
 └──────────────────────────────┴────────────────┴───────────────────────────┴────────────┘
 </code></pre>
@@ -150,7 +150,7 @@ The register renaming unit maps the same `zmm0` in iteration N and iteration N+1
 __Unrolling actively hurts at NumKong's scale.__
 Every unrolled copy is a distinct instruction in the binary.
 With 1,500+ kernel endpoints across 30+ backends, even 2x unrolling would inflate the `.text` section by megabytes — directly impacting install size for Python wheels, NPM packages, and Rust crates.
-Larger loop bodies also increase instruction-cache and micro-op-cache pressure; Agner Fog also recommends:
+Larger loop bodies also increase instruction-cache and micro-op-cache pressure; [Agner Fog](https://www.agner.org/optimize/) also recommends:
 
 > _"avoid loop unrolling where possible in order to economize the use of the micro-op cache"_.
 
@@ -173,20 +173,20 @@ GCC handles single-precision `float` competently, but struggles with `_Float16` 
 | Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
 | Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
 
-NumKong's `f16` kernels are faster than GCC's `f32` output — not because of unrolling, but because they use F16C conversion instructions, widening FMA pipelines, and compensated accumulation that no compiler will synthesize from a plain `for` loop.
-The same story repeats for `bf16`, `e4m3`, `i8`, and `i4`: these types require algorithmic transformations — lookup tables, algebraic domain shifts, asymmetric VNNI tricks — that live beyond the reach of auto-vectorization.
+NumKong's `f16` kernels are faster than GCC's `f32` output — not because of unrolling, but because they use [F16C](https://en.wikipedia.org/wiki/F16C) conversion instructions, widening FMA pipelines, and compensated accumulation that no compiler will synthesize from a plain `for` loop.
+The same story repeats for `bf16`, `e4m3`, `i8`, and `i4`: these types require algorithmic transformations — lookup tables, algebraic domain shifts, asymmetric [VNNI](https://en.wikipedia.org/wiki/AVX-512#VNNI) tricks — that live beyond the reach of auto-vectorization.
 
 ### Parallelism & Multi-Threading
 
 BLAS libraries traditionally manage their own thread pools.
-[OpenBLAS](https://github.com/OpenMathLib/OpenBLAS/blob/develop/USAGE.md) spawns threads controlled by `OPENBLAS_NUM_THREADS`, [Intel MKL](https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-linux/2025-1/techniques-to-set-the-number-of-threads.html) forks its own OpenMP runtime via `MKL_NUM_THREADS`, and [Apple Accelerate](https://developer.apple.com/documentation/accelerate/blas) delegates to GCD.
+[OpenBLAS](https://github.com/OpenMathLib/OpenBLAS/blob/develop/USAGE.md) spawns threads controlled by `OPENBLAS_NUM_THREADS`, [Intel MKL](https://www.intel.com/content/www/us/en/docs/onemkl/developer-guide-linux/2025-1/techniques-to-set-the-number-of-threads.html) forks its own OpenMP runtime via `MKL_NUM_THREADS`, and [Apple Accelerate](https://developer.apple.com/documentation/accelerate/blas) delegates to [GCD](https://developer.apple.com/documentation/dispatch) (Grand Central Dispatch).
 This works in isolation — but the moment your application adds its own parallelism (joblib, std::thread, Tokio, GCD, OpenMP), you get __thread oversubscription__: MKL spawns 8 threads inside each of your 8 joblib workers, producing 64 threads on 8 cores, thrashing caches and stalling on context switches.
 The Python ecosystem has built [entire libraries](https://github.com/joblib/threadpoolctl) just to work around this problem, and [scikit-learn's documentation](https://scikit-learn.org/stable/computing/parallelism.html) devotes a full page to managing the interaction between joblib parallelism and BLAS thread pools.
 
 NumKong takes a different position: __the numerics layer should not own threads__.
 Modern hardware makes the "spawn N threads and split evenly" model increasingly untenable:
 
-- __Server-grade CPUs__ have hundreds of cores split across sockets, chiplets, and tiles, resulting in dozens of physical NUMA domains with vastly different memory access latencies.
+- __Server-grade CPUs__ have hundreds of cores split across sockets, chiplets, and tiles, resulting in dozens of physical [NUMA](https://en.wikipedia.org/wiki/Non-uniform_memory_access) domains with vastly different memory access latencies.
   A thread pool that ignores NUMA topology will spend more time on remote memory stalls than on arithmetic.
 - __Consumer-grade CPUs__ pack heterogeneous Quality-of-Service core types on the same die — Intel P-cores and E-cores run at different frequencies and sometimes support different ISA extensions.
   A naive work-split gives equal chunks to fast and slow cores, and the whole task stalls waiting for the slowest partition.
@@ -196,7 +196,7 @@ Modern hardware makes the "spawn N threads and split evenly" model increasingly 
 Instead, NumKong exposes __row-range parameters__ that let the caller partition work across any threading model.
 For GEMM-shaped `dots_packed`, this is straightforward — pass a slice of A's rows and the full packed B to compute the corresponding slice of C.
 For SYRK-shaped `dots_symmetric`, explicit `start_row` / `end_row` parameters control which rows of the symmetric output matrix a given thread computes.
-The GIL is released around every kernel call, making NumKong compatible with `concurrent.futures`, `multiprocessing`, or any other parallelism model:
+The [GIL](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) (Global Interpreter Lock) is released around every kernel call, making NumKong compatible with `concurrent.futures`, `multiprocessing`, or any other parallelism model:
 
 ```python
 import concurrent.futures, numkong as nk, numpy as np
@@ -218,7 +218,7 @@ For users who want a ready-made low-latency thread pool without the oversubscrip
 ### Memory Allocation & Management
 
 BLAS libraries typically allocate internal buffers during GEMM — [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS) packs matrices into L2/L3-sized panels via per-thread buffer pools backed by `mmap` or `shmget`.
-This hidden allocation has caused real problems: [14 lock/unlock pairs per small GEMM call](https://github.com/xianyi/OpenBLAS/issues/478) throttling 12-thread scaling to 2x, [silently incorrect results](https://github.com/xianyi/OpenBLAS/issues/1844) from thread-unsafe allocation in `np.dot`, and [deadlocks after `fork()`](https://github.com/numpy/numpy/issues/30092) due to mutex state not being reset in child processes.
+This hidden allocation has caused real problems: [14 lock/unlock pairs per small GEMM call](https://github.com/OpenMathLib/OpenBLAS/issues/478) throttling 12-thread scaling to 2x, [silently incorrect results](https://github.com/OpenMathLib/OpenBLAS/issues/1844) from thread-unsafe allocation in `np.dot`, and [deadlocks after `fork()`](https://github.com/numpy/numpy/issues/30092) due to mutex state not being reset in child processes.
 The [BLASFEO](https://github.com/giaf/blasfeo) library was created specifically for embedded model-predictive control where `malloc` during computation is unacceptable.
 
 NumKong __never allocates memory__.
@@ -348,7 +348,7 @@ The first call to `nk_capabilities()` initializes the dispatch table; all subseq
 ### Float64 & Float32: IEEE Precision
 
 __Float64__ — NumKong deviates from most BLAS-like libraries by leveraging __compensated summation__ that tracks numerical errors separately.
-On serial paths, we use __Neumaier's algorithm__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
+On serial paths, we use __[Neumaier's algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
 On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005), maintaining separate error compensators for both multiplication and accumulation via `TwoProd` and `TwoSum` operations.
 The accuracy gains are visible in the [benchmark tables above](#latency-throughput--numerical-stability-together-in-a-tiny-package) — compensated Float64 is ideal for scientific computing where numerical stability matters more than raw speed.
 

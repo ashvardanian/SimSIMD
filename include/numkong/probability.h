@@ -60,7 +60,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */

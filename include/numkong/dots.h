@@ -151,7 +151,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - uops.info: https://uops.info/
  *  - Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
