@@ -150,7 +150,6 @@ impl f16 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for f16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
@@ -283,7 +282,6 @@ impl bf16 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for bf16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
@@ -412,7 +410,6 @@ impl e4m3 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for e4m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
@@ -554,7 +551,6 @@ impl e5m2 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for e5m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
@@ -690,7 +686,6 @@ impl e2m3 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for e2m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
@@ -831,7 +826,6 @@ impl e3m2 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
-#[cfg(feature = "std")]
 impl core::fmt::Display for e3m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
