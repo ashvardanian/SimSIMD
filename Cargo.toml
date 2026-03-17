@@ -11,12 +11,12 @@ description = "Portable mixed-precision BLAS-like vector math library for x86 an
 documentation = "https://docs.rs/numkong" 
 edition = "2021" 
 homepage = "https://ashvardanian.com/posts/numkong-faster-scipy" 
-include = ["rust/**", "c/**", "include/**", "build.rs"] 
+include = ["rust/**", "c/**", "include/**/*.h", "build.rs"] 
 keywords = ["simd", "search", "linear-algebra", "vector"] 
-license = "Apache-2.0"
-name = "numkong"
-readme = "rust/README.md"
-repository = "https://github.com/ashvardanian/NumKong"
+license = "Apache-2.0" 
+name = "numkong" 
+readme = "rust/README.md" 
+repository = "https://github.com/ashvardanian/NumKong" 
 rust-version = "1.64" # Introduced Core C FFI in stable Rust
 version = "7.0.0" 
 
