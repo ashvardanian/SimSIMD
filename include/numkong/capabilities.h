@@ -94,9 +94,9 @@
 
 #include "numkong/types.h" // `nk_u64_t`, `NK_DEFINED_LINUX_`
 
-#define NK_VERSION_MAJOR 6
-#define NK_VERSION_MINOR 5
-#define NK_VERSION_PATCH 12
+#define NK_VERSION_MAJOR 7
+#define NK_VERSION_MINOR 0
+#define NK_VERSION_PATCH 0
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.

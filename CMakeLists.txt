@@ -62,7 +62,7 @@ endif ()
 #
 project(
     numkong
-    VERSION 6.5.15
+    VERSION 7.0.0
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/NumKong"
