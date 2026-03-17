@@ -162,8 +162,13 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t
     exponent_i32m2 = __riscv_vmax_vx_i32m2(exponent_i32m2, 0, vector_length);
     vuint32m2_t f16_exponent_u32m2 = __riscv_vreinterpret_v_i32m2_u32m2(
         __riscv_vmin_vx_i32m2(exponent_i32m2, 31, vector_length));
-    // Round mantissa: add 0x1000 (half of truncated bits) then shift
+    // Round mantissa: add 0x1000 (half of truncated bits) then shift.
+    // If rounding overflows the mantissa (bit 23 set), carry into exponent.
     vuint32m2_t rounded_mantissa_u32m2 = __riscv_vadd_vx_u32m2(mantissa_u32m2, 0x1000, vector_length);
+    vbool16_t mantissa_overflow_b16 = __riscv_vmsne_vx_u32m2_b16(
+        __riscv_vand_vx_u32m2(rounded_mantissa_u32m2, 0x800000, vector_length), 0, vector_length);
+    f16_exponent_u32m2 = __riscv_vadd_vx_u32m2_mu(mantissa_overflow_b16, f16_exponent_u32m2, f16_exponent_u32m2, 1,
+                                                  vector_length);
     vuint32m2_t f16_mantissa_u32m2 = __riscv_vsrl_vx_u32m2(rounded_mantissa_u32m2, 13, vector_length);
     f16_mantissa_u32m2 = __riscv_vand_vx_u32m2(f16_mantissa_u32m2, 0x3FF, vector_length);
     // Combine: sign | (exponent << 10) | mantissa
