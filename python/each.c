@@ -601,7 +601,7 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     // nk.add(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
     // → kernel computes int16, then casts int16→float64 into output buffer
     else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
-        cast_staging = PyMem_Malloc(total_elements * element_size);
+        cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
             goto cleanup;
@@ -731,7 +731,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     // nk.add(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
     // → kernel computes int32, then casts int32→float64 into output buffer
     else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
-        cast_staging = PyMem_Malloc(total_elements * element_size);
+        cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
             goto cleanup;
@@ -903,7 +903,7 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     // nk.multiply(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
     // → kernel computes int16, then casts int16→float64 into output buffer
     else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
-        cast_staging = PyMem_Malloc(total_elements * element_size);
+        cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
             goto cleanup;
@@ -1039,7 +1039,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     // nk.multiply(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
     // → kernel computes int32, then casts int32→float64 into output buffer
     else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
-        cast_staging = PyMem_Malloc(total_elements * element_size);
+        cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
             goto cleanup;

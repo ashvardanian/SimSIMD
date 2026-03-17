@@ -244,7 +244,7 @@ Tensor *Tensor_new(nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape) {
     }
     size_t const total_bytes = total_items * item_size;
 
-    Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, total_bytes);
+    Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, total_bytes + NK_TENSOR_PADDING_);
     if (!tensor) {
         PyErr_NoMemory();
         return NULL;
@@ -438,7 +438,7 @@ char *ensure_contiguous_buffer(char const *src_data, nk_dtype_t src_dtype, nk_dt
     }
 
     // Single allocation, delegate
-    char *output = PyMem_Malloc(total_elements * dest_element_size);
+    char *output = PyMem_Malloc(total_elements * dest_element_size + NK_TENSOR_PADDING_);
     if (!output) {
         PyErr_NoMemory();
         return NULL;

@@ -15,6 +15,20 @@
 
 #include "numkong.h"
 
+/**
+ *  Extra bytes appended to every SIMD-facing heap allocation (promoted buffers,
+ *  cast-staging buffers, Tensor inline storage). MSVC versions before 19.30
+ *  can mis-compile AVX-512 masked stores (`_mm256_mask_storeu_epi32` and friends),
+ *  emitting a full-width store that writes past the logical buffer end. Adding
+ *  one ZMM register (64 bytes) of padding absorbs any such spill. On GCC/Clang
+ *  the masked instructions are correct, so zero padding suffices.
+ */
+#if defined(_MSC_VER)
+#define NK_TENSOR_PADDING_ 64
+#else
+#define NK_TENSOR_PADDING_ 0
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
