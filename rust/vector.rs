@@ -939,6 +939,7 @@ impl<'a, T: FloatConvertible> Iterator for DimIterator<'a, T> {
 }
 
 impl<'a, T: FloatConvertible> ExactSizeIterator for DimIterator<'a, T> {}
+impl<'a, T: FloatConvertible> core::iter::FusedIterator for DimIterator<'a, T> {}
 
 impl<'a, T: FloatConvertible> DoubleEndedIterator for DimIterator<'a, T> {
     #[inline]
@@ -958,6 +959,164 @@ impl<'a, T: FloatConvertible> DoubleEndedIterator for DimIterator<'a, T> {
 }
 
 // endregion: Iterators
+
+// region: IntoIterator
+
+impl<'a, T: FloatConvertible, A: Allocator> IntoIterator for &'a Vector<T, A> {
+    type Item = T::DimScalar;
+    type IntoIter = DimIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<'a, T: FloatConvertible> IntoIterator for &'a VectorView<'a, T> {
+    type Item = T::DimScalar;
+    type IntoIter = DimIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<'a, T: FloatConvertible> IntoIterator for &'a VectorSpan<'a, T> {
+    type Item = T::DimScalar;
+    type IntoIter = DimIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+// endregion: IntoIterator
+
+// region: AsRef
+
+impl<T: StorageElement, A: Allocator> AsRef<[T]> for Vector<T, A> {
+    fn as_ref(&self) -> &[T] { self.as_slice() }
+}
+
+// endregion: AsRef
+
+// region: PartialEq
+
+impl<T: FloatConvertible, A: Allocator> PartialEq for Vector<T, A>
+where
+    T::DimScalar: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.dims == other.dims && self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl<T: FloatConvertible, A: Allocator> PartialEq<[T::DimScalar]> for Vector<T, A>
+where
+    T::DimScalar: PartialEq,
+{
+    fn eq(&self, other: &[T::DimScalar]) -> bool {
+        self.dims == other.len() && self.iter().zip(other.iter()).all(|(a, b)| a == *b)
+    }
+}
+
+impl<'a, T: FloatConvertible> PartialEq for VectorView<'a, T>
+where
+    T::DimScalar: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.dims == other.dims && self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl<'a, T: FloatConvertible> PartialEq for VectorSpan<'a, T>
+where
+    T::DimScalar: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.dims == other.dims && self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+// endregion: PartialEq
+
+// region: Debug and Display
+
+/// Write a truncated, debug-formatted list from an iterator.
+fn fmt_debug_list<I: Iterator>(
+    f: &mut core::fmt::Formatter<'_>,
+    name: &str,
+    dims: usize,
+    iter: I,
+    limit: usize,
+) -> core::fmt::Result
+where
+    I::Item: core::fmt::Debug,
+{
+    write!(f, "{}(dims={}, [", name, dims)?;
+    for (i, val) in iter.enumerate() {
+        if i >= limit {
+            write!(f, ", ...")?;
+            break;
+        }
+        if i > 0 {
+            write!(f, ", ")?;
+        }
+        write!(f, "{:?}", val)?;
+    }
+    write!(f, "])")
+}
+
+/// Write a truncated, display-formatted list from an iterator.
+fn fmt_display_list<I: Iterator>(
+    f: &mut core::fmt::Formatter<'_>,
+    iter: I,
+    limit: usize,
+) -> core::fmt::Result
+where
+    I::Item: core::fmt::Display,
+{
+    write!(f, "[")?;
+    for (i, val) in iter.enumerate() {
+        if i >= limit {
+            write!(f, ", ...")?;
+            break;
+        }
+        if i > 0 {
+            write!(f, ", ")?;
+        }
+        write!(f, "{}", val)?;
+    }
+    write!(f, "]")
+}
+
+impl<T: FloatConvertible, A: Allocator> core::fmt::Debug for Vector<T, A>
+where
+    T::DimScalar: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt_debug_list(f, "Vector", self.dims, self.iter(), 8)
+    }
+}
+
+impl<'a, T: FloatConvertible> core::fmt::Debug for VectorView<'a, T>
+where
+    T::DimScalar: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt_debug_list(f, "VectorView", self.dims, self.iter(), 8)
+    }
+}
+
+impl<'a, T: FloatConvertible> core::fmt::Debug for VectorSpan<'a, T>
+where
+    T::DimScalar: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt_debug_list(f, "VectorSpan", self.dims, self.iter(), 8)
+    }
+}
+
+impl<T: FloatConvertible, A: Allocator> core::fmt::Display for Vector<T, A>
+where
+    T::DimScalar: core::fmt::Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt_display_list(f, self.iter(), 20)
+    }
+}
+
+// endregion: Debug and Display
 
 // region: Tests
 

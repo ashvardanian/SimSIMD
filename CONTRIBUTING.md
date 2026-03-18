@@ -285,6 +285,8 @@ cargo +stable install cargo-msrv
 cargo msrv find --ignore-lockfile
 ```
 
+Please avoid the temptation of using macros in this Rust code.
+
 ## JavaScript
 
 See [javascript/README.md](javascript/README.md) for JavaScript/TypeScript development, WASM support, and API documentation.

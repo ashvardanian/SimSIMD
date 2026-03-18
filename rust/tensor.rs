@@ -1396,6 +1396,7 @@ impl<'a, T, const MAX_RANK: usize> Iterator for AxisIterator<'a, T, MAX_RANK> {
 }
 
 impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIterator<'a, T, MAX_RANK> {}
+impl<'a, T, const MAX_RANK: usize> core::iter::FusedIterator for AxisIterator<'a, T, MAX_RANK> {}
 
 /// Mutable iterator over sub-tensor spans along a given axis.
 ///
@@ -1454,6 +1455,7 @@ impl<'a, T, const MAX_RANK: usize> Iterator for AxisIteratorMut<'a, T, MAX_RANK>
 }
 
 impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for AxisIteratorMut<'a, T, MAX_RANK> {}
+impl<'a, T, const MAX_RANK: usize> core::iter::FusedIterator for AxisIteratorMut<'a, T, MAX_RANK> {}
 
 impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     /// Iterate along the given axis, yielding sub-tensor views with rank-1.
@@ -1752,6 +1754,30 @@ impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
 }
 
 // endregion: AxisIterator
+
+// region: Debug
+
+impl<T: core::fmt::Debug, A: Allocator, const MAX_RANK: usize> core::fmt::Debug
+    for Tensor<T, A, MAX_RANK>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Tensor(shape={:?}, [", &self.shape[..self.ndim])?;
+        let slice = self.as_slice();
+        for (i, val) in slice.iter().enumerate() {
+            if i >= 8 {
+                write!(f, ", ...")?;
+                break;
+            }
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{:?}", val)?;
+        }
+        write!(f, "])")
+    }
+}
+
+// endregion: Debug
 
 // region: Tensor View and Slice Methods
 
