@@ -20,6 +20,7 @@ use crate::cast::{cast, CastDtype};
 use crate::each::{EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum};
 use crate::reduce::{ReduceMinMax, ReduceMoments};
 use crate::spatial::{Dot, Roots};
+use crate::types::{DimMut, DimRef, FloatConvertible, NumberLike};
 use crate::vector::VecIndex;
 
 // region: Constants and Allocator
@@ -1860,91 +1861,378 @@ impl<T: core::fmt::Debug, A: Allocator, const MAX_RANK: usize> core::fmt::Debug
 
 // endregion: Debug
 
-// region: FlatIter
+// region: TensorViewIterator
 
 /// Lazy element iterator over possibly non-contiguous tensor data.
 ///
-/// Walks elements in row-major order using incremental index advancement.
+/// Yields `(position, DimRef<'a, T>)` pairs in row-major order at the logical-scalar
+/// level. For sub-byte types, the innermost dimension is expanded by `dimensions_per_value`.
+/// Use [`.dims()`](TensorViewIterator::dims) when only the dimension proxies are needed.
+///
 /// Cost per `next()` is O(1) amortized (O(ndim) only on carry propagation).
-pub struct FlatIter<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+pub struct TensorViewIterator<'a, T: FloatConvertible, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
     data: *const T,
     shape: [usize; MAX_RANK],
     strides: [isize; MAX_RANK],
     ndim: usize,
+    dpv: usize,
     indices: [usize; MAX_RANK],
     remaining: usize,
     _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T, const MAX_RANK: usize> Iterator for FlatIter<'a, T, MAX_RANK> {
-    type Item = &'a T;
+/// Backward-compatible alias for [`TensorViewIterator`].
+pub type TensorIterator<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> =
+    TensorViewIterator<'a, T, MAX_RANK>;
 
-    fn next(&mut self) -> Option<&'a T> {
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> Iterator
+    for TensorViewIterator<'a, T, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimRef<'a, T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
         if self.remaining == 0 {
             return None;
         }
+        let pos = self.indices;
+
+        // Compute byte offset: outer dims use strides directly,
+        // innermost logical index splits into storage_inner / sub_index.
         let mut offset = 0isize;
-        for d in 0..self.ndim {
-            offset += self.indices[d] as isize * self.strides[d];
-        }
-        let elem = unsafe { &*((self.data as *const u8).offset(offset) as *const T) };
-        self.remaining -= 1;
-        for d in (0..self.ndim).rev() {
-            self.indices[d] += 1;
-            if self.indices[d] < self.shape[d] {
-                break;
+        if self.ndim > 0 {
+            for d in 0..self.ndim - 1 {
+                offset += self.indices[d] as isize * self.strides[d];
             }
-            self.indices[d] = 0;
+            let inner_logical = self.indices[self.ndim - 1];
+            let storage_inner = inner_logical / self.dpv;
+            offset += storage_inner as isize * self.strides[self.ndim - 1];
+            let sub_index = inner_logical % self.dpv;
+            let ptr = unsafe { (self.data as *const u8).offset(offset) as *const T };
+            let scalar = unsafe { *ptr }.unpack().as_ref()[sub_index];
+
+            // Advance indices
+            self.remaining -= 1;
+            for d in (0..self.ndim).rev() {
+                self.indices[d] += 1;
+                if self.indices[d] < self.shape[d] {
+                    break;
+                }
+                self.indices[d] = 0;
+            }
+            Some((pos, DimRef::new(scalar)))
+        } else {
+            // Scalar tensor (ndim == 0)
+            self.remaining -= 1;
+            let ptr = self.data;
+            let scalar = unsafe { *ptr }.unpack().as_ref()[0];
+            Some((pos, DimRef::new(scalar)))
         }
-        Some(elem)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) { (self.remaining, Some(self.remaining)) }
 }
 
-impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for FlatIter<'a, T, MAX_RANK> {}
-impl<'a, T, const MAX_RANK: usize> core::iter::FusedIterator for FlatIter<'a, T, MAX_RANK> {}
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> ExactSizeIterator
+    for TensorViewIterator<'a, T, MAX_RANK>
+{
+}
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> core::iter::FusedIterator
+    for TensorViewIterator<'a, T, MAX_RANK>
+{
+}
 
-impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
-    /// Returns a lazy iterator over all elements in row-major order.
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorViewIterator<'a, T, MAX_RANK> {
+    /// Adapt this iterator to yield only dimension proxies, discarding positions.
+    pub fn dims(self) -> TensorViewDims<'a, T, MAX_RANK> { TensorViewDims { inner: self } }
+}
+
+/// Dimension-only adapter over [`TensorViewIterator`], yielding [`DimRef`] without positions.
+///
+/// Created by [`TensorViewIterator::dims()`].
+pub struct TensorViewDims<'a, T: FloatConvertible, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    inner: TensorViewIterator<'a, T, MAX_RANK>,
+}
+
+/// Backward-compatible alias for [`TensorViewDims`].
+pub type TensorDims<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> =
+    TensorViewDims<'a, T, MAX_RANK>;
+/// Backward-compatible alias for [`TensorViewDims`].
+pub type TensorValues<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> =
+    TensorViewDims<'a, T, MAX_RANK>;
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> Iterator for TensorViewDims<'a, T, MAX_RANK> {
+    type Item = DimRef<'a, T>;
+
+    #[inline]
+    fn next(&mut self) -> Option<DimRef<'a, T>> { self.inner.next().map(|(_, v)| v) }
+
+    fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> ExactSizeIterator
+    for TensorViewDims<'a, T, MAX_RANK>
+{
+}
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> core::iter::FusedIterator
+    for TensorViewDims<'a, T, MAX_RANK>
+{
+}
+
+// endregion: TensorViewIterator
+
+// region: TensorSpanIterator
+
+/// Mutable element iterator over possibly non-contiguous tensor data.
+///
+/// Yields `(position, DimMut<'a, T>)` pairs in row-major order at the logical-scalar
+/// level. For sub-byte types, each proxy performs a read-modify-write on drop.
+pub struct TensorSpanIterator<'a, T: FloatConvertible, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    data: *mut T,
+    shape: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
+    ndim: usize,
+    dpv: usize,
+    indices: [usize; MAX_RANK],
+    remaining: usize,
+    _marker: PhantomData<&'a mut T>,
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> Iterator
+    for TensorSpanIterator<'a, T, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimMut<'a, T>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        let pos = self.indices;
+
+        let mut offset = 0isize;
+        if self.ndim > 0 {
+            for d in 0..self.ndim - 1 {
+                offset += self.indices[d] as isize * self.strides[d];
+            }
+            let inner_logical = self.indices[self.ndim - 1];
+            let storage_inner = inner_logical / self.dpv;
+            offset += storage_inner as isize * self.strides[self.ndim - 1];
+            let sub_index = inner_logical % self.dpv;
+            let ptr = unsafe { (self.data as *mut u8).offset(offset) as *mut T };
+            let scalar = unsafe { *ptr }.unpack().as_ref()[sub_index];
+
+            self.remaining -= 1;
+            for d in (0..self.ndim).rev() {
+                self.indices[d] += 1;
+                if self.indices[d] < self.shape[d] {
+                    break;
+                }
+                self.indices[d] = 0;
+            }
+            Some((pos, unsafe { DimMut::new(ptr, sub_index, scalar) }))
+        } else {
+            self.remaining -= 1;
+            let ptr = self.data;
+            let scalar = unsafe { *ptr }.unpack().as_ref()[0];
+            Some((pos, unsafe { DimMut::new(ptr, 0, scalar) }))
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) { (self.remaining, Some(self.remaining)) }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> ExactSizeIterator
+    for TensorSpanIterator<'a, T, MAX_RANK>
+{
+}
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> core::iter::FusedIterator
+    for TensorSpanIterator<'a, T, MAX_RANK>
+{
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorSpanIterator<'a, T, MAX_RANK> {
+    /// Adapt this iterator to yield only mutable dimension proxies, discarding positions.
+    pub fn dims(self) -> TensorSpanDims<'a, T, MAX_RANK> { TensorSpanDims { inner: self } }
+}
+
+/// Mutable dimension-only adapter over [`TensorSpanIterator`], yielding [`DimMut`] without positions.
+pub struct TensorSpanDims<'a, T: FloatConvertible, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    inner: TensorSpanIterator<'a, T, MAX_RANK>,
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> Iterator for TensorSpanDims<'a, T, MAX_RANK> {
+    type Item = DimMut<'a, T>;
+
+    #[inline]
+    fn next(&mut self) -> Option<DimMut<'a, T>> { self.inner.next().map(|(_, v)| v) }
+
+    fn size_hint(&self) -> (usize, Option<usize>) { self.inner.size_hint() }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> ExactSizeIterator
+    for TensorSpanDims<'a, T, MAX_RANK>
+{
+}
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> core::iter::FusedIterator
+    for TensorSpanDims<'a, T, MAX_RANK>
+{
+}
+
+// endregion: TensorSpanIterator
+
+// region: Tensor iter() / iter_mut() methods
+
+/// Helper to compute the logical shape for iteration, expanding the innermost
+/// dimension by `dimensions_per_value()` for sub-byte types.
+fn logical_shape<T: FloatConvertible, const MAX_RANK: usize>(
+    shape: &[usize; MAX_RANK],
+    ndim: usize,
+) -> ([usize; MAX_RANK], usize) {
+    let dpv = T::dimensions_per_value();
+    let mut logical = *shape;
+    let mut total = 1usize;
+    if ndim > 0 && dpv > 1 {
+        logical[ndim - 1] *= dpv;
+    }
+    for d in 0..ndim {
+        total *= logical[d];
+    }
+    (logical, total)
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Returns a lazy iterator over all logical scalars in row-major order.
     ///
-    /// Works correctly for both contiguous and non-contiguous (strided) views.
-    pub fn flat_iter(&self) -> FlatIter<'a, T, MAX_RANK> {
-        FlatIter {
+    /// Yields `(position, DimRef)` pairs. Use `.iter().dims()` for just dimensions.
+    /// For sub-byte types, the innermost dimension is expanded.
+    pub fn iter(&self) -> TensorViewIterator<'a, T, MAX_RANK> {
+        let dpv = T::dimensions_per_value();
+        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        TensorViewIterator {
             data: self.data,
-            shape: self.shape,
+            shape: logical,
             strides: self.strides,
             ndim: self.ndim,
+            dpv,
             indices: [0; MAX_RANK],
-            remaining: self.len,
+            remaining: total,
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
-    /// Returns a lazy iterator over all elements in row-major order.
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Returns a lazy iterator over all logical scalars in row-major order.
     ///
-    /// Works correctly for both contiguous and non-contiguous (strided) views.
-    pub fn flat_iter(&self) -> FlatIter<'a, T, MAX_RANK> {
-        FlatIter {
+    /// Yields `(position, DimRef)` pairs. Use `.iter().dims()` for just dimensions.
+    /// For sub-byte types, the innermost dimension is expanded.
+    pub fn iter(&self) -> TensorViewIterator<'_, T, MAX_RANK> {
+        let dpv = T::dimensions_per_value();
+        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        TensorViewIterator {
             data: self.data,
-            shape: self.shape,
+            shape: logical,
             strides: self.strides,
             ndim: self.ndim,
+            dpv,
             indices: [0; MAX_RANK],
-            remaining: self.len,
+            remaining: total,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns a mutable iterator over all logical scalars in row-major order.
+    ///
+    /// Yields `(position, DimMut)` pairs. Use `.iter_mut().dims()` for just dimensions.
+    pub fn iter_mut(&mut self) -> TensorSpanIterator<'_, T, MAX_RANK> {
+        let dpv = T::dimensions_per_value();
+        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        TensorSpanIterator {
+            data: self.data,
+            shape: logical,
+            strides: self.strides,
+            ndim: self.ndim,
+            dpv,
+            indices: [0; MAX_RANK],
+            remaining: total,
             _marker: PhantomData,
         }
     }
 }
 
-impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
-    /// Returns a lazy iterator over all elements in row-major order.
-    pub fn flat_iter(&self) -> FlatIter<'_, T, MAX_RANK> { self.view().flat_iter() }
+impl<T: FloatConvertible, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
+    /// Returns a lazy iterator over all logical scalars in row-major order.
+    ///
+    /// Yields `(position, DimRef)` pairs. Use `.iter().dims()` for just dimensions.
+    pub fn iter(&self) -> TensorViewIterator<'_, T, MAX_RANK> { self.view().iter() }
+
+    /// Returns a mutable iterator over all logical scalars in row-major order.
+    ///
+    /// Yields `(position, DimMut)` pairs. Use `.iter_mut().dims()` for just dimensions.
+    pub fn iter_mut(&mut self) -> TensorSpanIterator<'_, T, MAX_RANK> {
+        let dpv = T::dimensions_per_value();
+        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        TensorSpanIterator {
+            data: self.data.as_ptr(),
+            shape: logical,
+            strides: self.strides,
+            ndim: self.ndim,
+            dpv,
+            indices: [0; MAX_RANK],
+            remaining: total,
+            _marker: PhantomData,
+        }
+    }
 }
 
-// endregion: FlatIter
+// endregion: Tensor iter() / iter_mut() methods
+
+// region: IntoIterator (immutable)
+
+impl<'a, T: FloatConvertible, A: Allocator, const MAX_RANK: usize> IntoIterator
+    for &'a Tensor<T, A, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimRef<'a, T>);
+    type IntoIter = TensorViewIterator<'a, T, MAX_RANK>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> IntoIterator
+    for &'a TensorView<'a, T, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimRef<'a, T>);
+    type IntoIter = TensorViewIterator<'a, T, MAX_RANK>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> IntoIterator
+    for &'a TensorSpan<'a, T, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimRef<'a, T>);
+    type IntoIter = TensorViewIterator<'a, T, MAX_RANK>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+// endregion: IntoIterator (immutable)
+
+// region: IntoIterator (mutable)
+
+impl<'a, T: FloatConvertible, A: Allocator, const MAX_RANK: usize> IntoIterator
+    for &'a mut Tensor<T, A, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimMut<'a, T>);
+    type IntoIter = TensorSpanIterator<'a, T, MAX_RANK>;
+    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+}
+
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> IntoIterator
+    for &'a mut TensorSpan<'a, T, MAX_RANK>
+{
+    type Item = ([usize; MAX_RANK], DimMut<'a, T>);
+    type IntoIter = TensorSpanIterator<'a, T, MAX_RANK>;
+    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+}
+
+// endregion: IntoIterator (mutable)
 
 // region: PartialEq
 
@@ -1956,19 +2244,33 @@ impl<T: PartialEq, A: Allocator, const MAX_RANK: usize> PartialEq for Tensor<T, 
     }
 }
 
-impl<'a, T: PartialEq, const MAX_RANK: usize> PartialEq for TensorView<'a, T, MAX_RANK> {
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> PartialEq for TensorView<'a, T, MAX_RANK>
+where
+    T::DimScalar: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.ndim == other.ndim
             && self.shape[..self.ndim] == other.shape[..other.ndim]
-            && self.flat_iter().zip(other.flat_iter()).all(|(a, b)| a == b)
+            && self
+                .iter()
+                .dims()
+                .zip(other.iter().dims())
+                .all(|(a, b)| *a == *b)
     }
 }
 
-impl<'a, T: PartialEq, const MAX_RANK: usize> PartialEq for TensorSpan<'a, T, MAX_RANK> {
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> PartialEq for TensorSpan<'a, T, MAX_RANK>
+where
+    T::DimScalar: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.ndim == other.ndim
             && self.shape[..self.ndim] == other.shape[..other.ndim]
-            && self.flat_iter().zip(other.flat_iter()).all(|(a, b)| a == b)
+            && self
+                .iter()
+                .dims()
+                .zip(other.iter().dims())
+                .all(|(a, b)| *a == *b)
     }
 }
 
@@ -1997,7 +2299,10 @@ impl<T: crate::types::NumberLike, A: Allocator, const MAX_RANK: usize> Tensor<T,
     }
 }
 
-impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
+where
+    T::DimScalar: crate::types::NumberLike,
+{
     /// Check if all elements are within tolerance of `other`.
     ///
     /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
@@ -2006,13 +2311,17 @@ impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorView<'a, T, M
         self.ndim == other.ndim
             && self.shape[..self.ndim] == other.shape[..other.ndim]
             && self
-                .flat_iter()
-                .zip(other.flat_iter())
-                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+                .iter()
+                .dims()
+                .zip(other.iter().dims())
+                .all(|(a, b)| crate::types::is_close((*a).to_f64(), (*b).to_f64(), atol, rtol))
     }
 }
 
-impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK>
+where
+    T::DimScalar: crate::types::NumberLike,
+{
     /// Check if all elements are within tolerance of `other`.
     ///
     /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
@@ -2021,9 +2330,10 @@ impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorSpan<'a, T, M
         self.ndim == other.ndim
             && self.shape[..self.ndim] == other.shape[..other.ndim]
             && self
-                .flat_iter()
-                .zip(other.flat_iter())
-                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+                .iter()
+                .dims()
+                .zip(other.iter().dims())
+                .all(|(a, b)| crate::types::is_close((*a).to_f64(), (*b).to_f64(), atol, rtol))
     }
 }
 
@@ -5360,6 +5670,49 @@ mod tests {
         let a = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
         let b = Tensor::<f32>::try_full(&[2, 3], 1.0 + 1e-7).unwrap();
         assert!(a.view().allclose(&b.view(), 1e-6, 0.0));
+    }
+
+    #[test]
+    fn tensor_view_iter_logical_scalars() {
+        use crate::types::i4x2;
+        // Shape [3] in storage → 3 i4x2 values → 6 logical scalars
+        let mut t = Tensor::<i4x2>::try_zeros(&[3]).unwrap();
+        // Set nibbles: storage[0] has dims 0,1; storage[1] has dims 2,3; etc.
+        let slice = t.as_mut_slice();
+        slice[0] = i4x2::pack([1, 2]);
+        slice[1] = i4x2::pack([3, 4]);
+        slice[2] = i4x2::pack([5, 6]);
+
+        let vals: Vec<i8> = t.iter().map(|(_, v)| *v).collect();
+        assert_eq!(vals, vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn tensor_span_iter_mut_f32() {
+        let mut t = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+        for (_, mut val) in &mut t {
+            *val += 10.0;
+        }
+        for (_, v) in t.iter() {
+            assert!((*v - 11.0).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn tensor_span_iter_mut_i4x2() {
+        use crate::types::i4x2;
+        let mut t = Tensor::<i4x2>::try_zeros(&[3]).unwrap();
+        for (pos, mut val) in &mut t {
+            *val = pos[0] as i8;
+        }
+        let vals: Vec<i8> = t.iter().map(|(_, v)| *v).collect();
+        assert_eq!(vals, vec![0, 1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn tensor_iterator_alias_compat() {
+        let t = Tensor::<f32>::try_full(&[2], 1.0).unwrap();
+        let _it: TensorIterator<'_, f32> = t.iter();
     }
 }
 

@@ -2256,6 +2256,146 @@ impl FloatConvertible for u1x8 {
 
 // endregion: FloatConvertible Trait
 
+// region: Dimension Proxies
+
+/// Immutable proxy for a single logical dimension within a packed storage value.
+///
+/// For normal types this is equivalent to a `T::DimScalar` copy.
+/// For sub-byte types it represents one unpacked dimension from a packed value.
+/// The lifetime ensures the proxy does not outlive the container it came from.
+pub struct DimRef<'a, T: FloatConvertible> {
+    value: T::DimScalar,
+    _marker: core::marker::PhantomData<&'a T>,
+}
+
+impl<'a, T: FloatConvertible> DimRef<'a, T> {
+    /// Create a new immutable dimension proxy.
+    #[inline]
+    pub fn new(value: T::DimScalar) -> Self {
+        Self {
+            value,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: FloatConvertible> Copy for DimRef<'_, T> {}
+
+impl<T: FloatConvertible> Clone for DimRef<'_, T> {
+    #[inline]
+    fn clone(&self) -> Self { *self }
+}
+
+impl<T: FloatConvertible> core::ops::Deref for DimRef<'_, T> {
+    type Target = T::DimScalar;
+    #[inline]
+    fn deref(&self) -> &T::DimScalar { &self.value }
+}
+
+impl<T: FloatConvertible> PartialEq for DimRef<'_, T>
+where
+    T::DimScalar: PartialEq,
+{
+    #[inline]
+    fn eq(&self, other: &Self) -> bool { self.value == other.value }
+}
+
+impl<T: FloatConvertible> PartialOrd for DimRef<'_, T>
+where
+    T::DimScalar: PartialOrd,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl<T: FloatConvertible> core::fmt::Debug for DimRef<'_, T>
+where
+    T::DimScalar: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+}
+
+impl<T: FloatConvertible> core::fmt::Display for DimRef<'_, T>
+where
+    T::DimScalar: core::fmt::Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+}
+
+/// Mutable proxy for a single logical dimension within a packed storage value.
+///
+/// On [`Drop`], performs a read-modify-write: reads the current storage value,
+/// overwrites the sub-dimension at `sub_index`, and writes back.
+///
+/// For normal types (`dimensions_per_value() == 1`), this is equivalent to `&mut T`.
+/// For sub-byte types, this enables modifying individual nibbles/bits.
+///
+/// # Aliasing
+///
+/// In a standard `for` loop each proxy is dropped before the next is created.
+/// Holding multiple proxies to sub-dimensions of the same storage value
+/// simultaneously is safe but uses last-writer-wins semantics.
+pub struct DimMut<'a, T: FloatConvertible> {
+    ptr: *mut T,
+    sub_index: usize,
+    value: T::DimScalar,
+    _marker: core::marker::PhantomData<&'a mut T>,
+}
+
+impl<'a, T: FloatConvertible> DimMut<'a, T> {
+    /// Create a new mutable dimension proxy.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be valid for reads and writes for the duration of `'a`.
+    #[inline]
+    pub unsafe fn new(ptr: *mut T, sub_index: usize, value: T::DimScalar) -> Self {
+        Self {
+            ptr,
+            sub_index,
+            value,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: FloatConvertible> core::ops::Deref for DimMut<'_, T> {
+    type Target = T::DimScalar;
+    #[inline]
+    fn deref(&self) -> &T::DimScalar { &self.value }
+}
+
+impl<T: FloatConvertible> core::ops::DerefMut for DimMut<'_, T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut T::DimScalar { &mut self.value }
+}
+
+impl<T: FloatConvertible> Drop for DimMut<'_, T> {
+    fn drop(&mut self) {
+        let mut unpacked = unsafe { *self.ptr }.unpack();
+        unpacked.as_mut()[self.sub_index] = self.value;
+        unsafe { self.ptr.write(T::pack(unpacked)) };
+    }
+}
+
+impl<T: FloatConvertible> core::fmt::Debug for DimMut<'_, T>
+where
+    T::DimScalar: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+}
+
+impl<T: FloatConvertible> core::fmt::Display for DimMut<'_, T>
+where
+    T::DimScalar: core::fmt::Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+}
+
+// endregion: Dimension Proxies
+
 // region: TestableType Trait (test-only)
 
 #[cfg(test)]

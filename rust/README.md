@@ -327,6 +327,22 @@ let val = t.view().get(&[1, 2]).unwrap(); // row 1, col 2 → 5.0
 let idx = col1.try_argmin_all().unwrap(); // index of the minimum in the second column
 ```
 
+Iteration works at the logical-dimension level.
+For sub-byte types like `i4x2` (2 nibbles per byte), iterating a 3-element vector yields 6 dimensions.
+Immutable iterators (`iter()`) yield `DimRef<T>`, which dereferences to `T::DimScalar`.
+Mutable iterators (`iter_mut()`) yield `DimMut<T>`, which writes back on drop — the only way to mutate individual nibbles or bits.
+
+```rust
+use numkong::{Vector, i4x2};
+
+let mut nibbles = Vector::<i4x2>::try_zeros(4).unwrap();
+for (i, mut dim) in nibbles.iter_mut().enumerate() {
+    *dim = i as i8;
+}
+assert_eq!(nibbles.try_get(0_usize).unwrap(), 0);
+assert_eq!(nibbles.try_get(3_usize).unwrap(), 3);
+```
+
 The main layout rules are:
 
 - General slicing and transposition are supported by views.
@@ -509,6 +525,62 @@ let scaled = [[0.0_f32, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0]];
 let result = f32::umeyama(&source, &scaled).unwrap();
 assert!(result.rmsd < 1e-6);
 assert!((result.scale - 2.0).abs() < 0.01);
+```
+
+## Tolerance Comparison
+
+Exact floating-point equality is rarely what you want after arithmetic.
+`allclose()` checks every element pair with the formula:
+
+$$$
+|a - b| \leq \text{atol} + \text{rtol} \cdot |b|
+$$$
+
+Available on `Vector`, `VectorView`, `VectorSpan`, `Tensor`, `TensorView`, and `TensorSpan`.
+Shape mismatch returns `false`.
+The scalar helper `is_close` is re-exported at crate root.
+
+```rust
+use numkong::{is_close, Vector, Tensor};
+
+// Scalar check
+assert!(is_close(1.0, 1.0 + 1e-8, 1e-6, 0.0));
+
+// Vector tolerance check
+let a = Vector::<f32>::try_full(3, 1.0).unwrap();
+let b = Vector::<f32>::try_full(3, 1.0 + 1e-7).unwrap();
+assert!(a.allclose(&b, 1e-6, 0.0));
+
+// Tensor tolerance check
+let ta = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+let tb = Tensor::<f32>::try_full(&[2, 3], 1.0 + 1e-7).unwrap();
+assert!(ta.allclose(&tb, 1e-6, 0.0));
+```
+
+## Type Casting
+
+The `cast` function performs bulk conversion between contiguous slices.
+Any pair of types that implement `CastDtype` (all `NumberLike` scalars) can be converted.
+
+```rust
+use numkong::{cast, f16, bf16};
+
+let src: Vec<f32> = vec![1.0, 2.0, 3.0];
+let mut dst: Vec<f16> = vec![f16::from(0.0_f32); 3];
+cast(&src, &mut dst);
+assert!((dst[0].to_f32() - 1.0).abs() < 0.01);
+```
+
+`Tensor`, `TensorView`, and `TensorSpan` expose casting via the `CastOps` trait.
+`try_cast_dtype()` allocates a new tensor; `try_cast_dtype_into()` writes into a pre-allocated `TensorSpan`.
+Strided and non-contiguous views are supported: the implementation scans strides from the innermost dimension outward to find the longest contiguous tail, then walks the outer dimensions and casts each contiguous block in a single kernel call.
+
+```rust
+use numkong::{Tensor, f16};
+
+let src = Tensor::<f32>::try_full(&[4, 4], 1.0).unwrap();
+let mut dst = Tensor::<f16>::try_zeros(&[4, 4]).unwrap();
+src.view().try_cast_dtype_into(&mut dst.span()).unwrap();
 ```
 
 ## Parallelism and ForkUnion

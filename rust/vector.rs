@@ -16,7 +16,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::tensor::{Allocator, Global, TensorError, SIMD_ALIGNMENT};
-use crate::types::{FloatConvertible, NumberLike, StorageElement};
+use crate::types::{DimMut, DimRef, FloatConvertible, NumberLike, StorageElement};
 
 // region: VecIndex — Signed Indexing
 
@@ -483,12 +483,26 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
         unsafe { core::slice::from_raw_parts_mut(self.data.as_ptr(), self.values) }
     }
 
-    /// Returns an iterator over the logical dimension values, yielding `DimScalar`.
-    pub fn iter(&self) -> DimIterator<'_, T>
+    /// Returns an iterator over the logical dimension values, yielding [`DimRef`] proxies.
+    pub fn iter(&self) -> VectorViewIterator<'_, T>
     where
         T: FloatConvertible,
     {
         self.view().iter()
+    }
+
+    /// Returns a mutable iterator over the logical dimension values, yielding [`DimMut`] proxies.
+    pub fn iter_mut(&mut self) -> VectorSpanIterator<'_, T>
+    where
+        T: FloatConvertible,
+    {
+        VectorSpanIterator {
+            data: self.data.as_ptr(),
+            stride_bytes: core::mem::size_of::<T>() as isize,
+            front: 0,
+            back: self.dims,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -756,12 +770,12 @@ impl<'a, T: StorageElement> VectorView<'a, T> {
         })
     }
 
-    /// Returns an iterator over logical dimension values, yielding `DimScalar`.
-    pub fn iter(&self) -> DimIterator<'a, T>
+    /// Returns an iterator over logical dimension values, yielding [`DimRef`] proxies.
+    pub fn iter(&self) -> VectorViewIterator<'a, T>
     where
         T: FloatConvertible,
     {
-        DimIterator {
+        VectorViewIterator {
             data: self.data,
             stride_bytes: self.stride_bytes,
             front: 0,
@@ -929,12 +943,26 @@ impl<'a, T: StorageElement> VectorSpan<'a, T> {
         }
     }
 
-    /// Returns an iterator over logical dimension values, yielding `DimScalar`.
-    pub fn iter(&self) -> DimIterator<'_, T>
+    /// Returns an iterator over logical dimension values, yielding [`DimRef`] proxies.
+    pub fn iter(&self) -> VectorViewIterator<'_, T>
     where
         T: FloatConvertible,
     {
-        DimIterator {
+        VectorViewIterator {
+            data: self.data,
+            stride_bytes: self.stride_bytes,
+            front: 0,
+            back: self.dims,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Returns a mutable iterator over logical dimension values, yielding [`DimMut`] proxies.
+    pub fn iter_mut(&mut self) -> VectorSpanIterator<'_, T>
+    where
+        T: FloatConvertible,
+    {
+        VectorSpanIterator {
             data: self.data,
             stride_bytes: self.stride_bytes,
             front: 0,
@@ -976,12 +1004,12 @@ impl<'a, I: VecIndex, T: StorageElement> core::ops::IndexMut<I> for VectorSpan<'
 
 // region: Iterators
 
-/// Stride-aware iterator over logical dimensions, yielding `DimScalar` values.
+/// Stride-aware immutable iterator over logical dimensions, yielding [`DimRef`] proxies.
 ///
-/// For normal types (`dimensions_per_value=1`), yields one `T::DimScalar` per storage value.
+/// For normal types (`dimensions_per_value=1`), yields one proxy per storage value.
 /// For sub-byte types, unpacks each storage value and yields sub-dimensions individually.
-/// Implements `ExactSizeIterator` and `DoubleEndedIterator`.
-pub struct DimIterator<'a, T: FloatConvertible> {
+/// Implements `ExactSizeIterator`, `FusedIterator`, and `DoubleEndedIterator`.
+pub struct VectorViewIterator<'a, T: FloatConvertible> {
     data: *const T,
     stride_bytes: isize,
     front: usize,
@@ -989,11 +1017,14 @@ pub struct DimIterator<'a, T: FloatConvertible> {
     _marker: PhantomData<&'a T>,
 }
 
-impl<'a, T: FloatConvertible> Iterator for DimIterator<'a, T> {
-    type Item = T::DimScalar;
+/// Backward-compatible alias for [`VectorViewIterator`].
+pub type VectorIterator<'a, T> = VectorViewIterator<'a, T>;
+
+impl<'a, T: FloatConvertible> Iterator for VectorViewIterator<'a, T> {
+    type Item = DimRef<'a, T>;
 
     #[inline]
-    fn next(&mut self) -> Option<T::DimScalar> {
+    fn next(&mut self) -> Option<DimRef<'a, T>> {
         if self.front >= self.back {
             return None;
         }
@@ -1006,7 +1037,7 @@ impl<'a, T: FloatConvertible> Iterator for DimIterator<'a, T> {
         };
         let scalar = unsafe { *ptr }.unpack().as_ref()[sub_index];
         self.front += 1;
-        Some(scalar)
+        Some(DimRef::new(scalar))
     }
 
     #[inline]
@@ -1016,12 +1047,12 @@ impl<'a, T: FloatConvertible> Iterator for DimIterator<'a, T> {
     }
 }
 
-impl<'a, T: FloatConvertible> ExactSizeIterator for DimIterator<'a, T> {}
-impl<'a, T: FloatConvertible> core::iter::FusedIterator for DimIterator<'a, T> {}
+impl<'a, T: FloatConvertible> ExactSizeIterator for VectorViewIterator<'a, T> {}
+impl<'a, T: FloatConvertible> core::iter::FusedIterator for VectorViewIterator<'a, T> {}
 
-impl<'a, T: FloatConvertible> DoubleEndedIterator for DimIterator<'a, T> {
+impl<'a, T: FloatConvertible> DoubleEndedIterator for VectorViewIterator<'a, T> {
     #[inline]
-    fn next_back(&mut self) -> Option<T::DimScalar> {
+    fn next_back(&mut self) -> Option<DimRef<'a, T>> {
         if self.front >= self.back {
             return None;
         }
@@ -1032,33 +1063,109 @@ impl<'a, T: FloatConvertible> DoubleEndedIterator for DimIterator<'a, T> {
         let ptr = unsafe {
             (self.data as *const u8).offset(self.stride_bytes * value_index as isize) as *const T
         };
-        Some(unsafe { *ptr }.unpack().as_ref()[sub_index])
+        Some(DimRef::new(unsafe { *ptr }.unpack().as_ref()[sub_index]))
+    }
+}
+
+/// Stride-aware mutable iterator over logical dimensions, yielding [`DimMut`] proxies.
+///
+/// For normal types (`dimensions_per_value=1`), yields one proxy per storage value.
+/// For sub-byte types, each proxy performs a read-modify-write on drop.
+/// Implements `ExactSizeIterator`, `FusedIterator`, and `DoubleEndedIterator`.
+pub struct VectorSpanIterator<'a, T: FloatConvertible> {
+    data: *mut T,
+    stride_bytes: isize,
+    front: usize,
+    back: usize,
+    _marker: PhantomData<&'a mut T>,
+}
+
+impl<'a, T: FloatConvertible> Iterator for VectorSpanIterator<'a, T> {
+    type Item = DimMut<'a, T>;
+
+    #[inline]
+    fn next(&mut self) -> Option<DimMut<'a, T>> {
+        if self.front >= self.back {
+            return None;
+        }
+        let dims_per_value = T::dimensions_per_value();
+        let value_index = self.front / dims_per_value;
+        let sub_index = self.front % dims_per_value;
+        let ptr = unsafe {
+            (self.data as *mut u8).offset(self.stride_bytes * value_index as isize) as *mut T
+        };
+        let scalar = unsafe { *ptr }.unpack().as_ref()[sub_index];
+        self.front += 1;
+        Some(unsafe { DimMut::new(ptr, sub_index, scalar) })
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let n = self.back - self.front;
+        (n, Some(n))
+    }
+}
+
+impl<'a, T: FloatConvertible> ExactSizeIterator for VectorSpanIterator<'a, T> {}
+impl<'a, T: FloatConvertible> core::iter::FusedIterator for VectorSpanIterator<'a, T> {}
+
+impl<'a, T: FloatConvertible> DoubleEndedIterator for VectorSpanIterator<'a, T> {
+    #[inline]
+    fn next_back(&mut self) -> Option<DimMut<'a, T>> {
+        if self.front >= self.back {
+            return None;
+        }
+        self.back -= 1;
+        let dims_per_value = T::dimensions_per_value();
+        let value_index = self.back / dims_per_value;
+        let sub_index = self.back % dims_per_value;
+        let ptr = unsafe {
+            (self.data as *mut u8).offset(self.stride_bytes * value_index as isize) as *mut T
+        };
+        let scalar = unsafe { *ptr }.unpack().as_ref()[sub_index];
+        Some(unsafe { DimMut::new(ptr, sub_index, scalar) })
     }
 }
 
 // endregion: Iterators
 
-// region: IntoIterator
+// region: IntoIterator (immutable)
 
 impl<'a, T: FloatConvertible, A: Allocator> IntoIterator for &'a Vector<T, A> {
-    type Item = T::DimScalar;
-    type IntoIter = DimIterator<'a, T>;
+    type Item = DimRef<'a, T>;
+    type IntoIter = VectorViewIterator<'a, T>;
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
 impl<'a, T: FloatConvertible> IntoIterator for &'a VectorView<'a, T> {
-    type Item = T::DimScalar;
-    type IntoIter = DimIterator<'a, T>;
+    type Item = DimRef<'a, T>;
+    type IntoIter = VectorViewIterator<'a, T>;
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
 impl<'a, T: FloatConvertible> IntoIterator for &'a VectorSpan<'a, T> {
-    type Item = T::DimScalar;
-    type IntoIter = DimIterator<'a, T>;
+    type Item = DimRef<'a, T>;
+    type IntoIter = VectorViewIterator<'a, T>;
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-// endregion: IntoIterator
+// endregion: IntoIterator (immutable)
+
+// region: IntoIterator (mutable)
+
+impl<'a, T: FloatConvertible, A: Allocator> IntoIterator for &'a mut Vector<T, A> {
+    type Item = DimMut<'a, T>;
+    type IntoIter = VectorSpanIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+}
+
+impl<'a, T: FloatConvertible> IntoIterator for &'a mut VectorSpan<'a, T> {
+    type Item = DimMut<'a, T>;
+    type IntoIter = VectorSpanIterator<'a, T>;
+    fn into_iter(self) -> Self::IntoIter { self.iter_mut() }
+}
+
+// endregion: IntoIterator (mutable)
 
 // region: AsRef
 
@@ -1084,7 +1191,7 @@ where
     T::DimScalar: PartialEq,
 {
     fn eq(&self, other: &[T::DimScalar]) -> bool {
-        self.dims == other.len() && self.iter().zip(other.iter()).all(|(a, b)| a == *b)
+        self.dims == other.len() && self.iter().zip(other.iter()).all(|(a, b)| *a == *b)
     }
 }
 
@@ -1356,11 +1463,11 @@ mod tests {
     #[test]
     fn vector_iter() {
         let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
-        let vals: Vec<f32> = v.iter().collect();
+        let vals: Vec<f32> = v.iter().map(|x| *x).collect();
         assert_eq!(vals, vec![1.0, 2.0, 3.0]);
 
         // Double-ended
-        let rev_vals: Vec<f32> = v.iter().rev().collect();
+        let rev_vals: Vec<f32> = v.iter().rev().map(|x| *x).collect();
         assert_eq!(rev_vals, vec![3.0, 2.0, 1.0]);
     }
 
@@ -1372,7 +1479,7 @@ mod tests {
         // Every other element
         let strided = view.try_strided(0, 5, 2).unwrap();
         assert_eq!(strided.size(), 3);
-        let vals: Vec<f32> = strided.iter().collect();
+        let vals: Vec<f32> = strided.iter().map(|x| *x).collect();
         assert_eq!(vals, vec![1.0, 3.0, 5.0]);
     }
 
@@ -1424,6 +1531,73 @@ mod tests {
         let v = Vector::<f32>::try_full(3, 1.0).unwrap();
         let s = format!("{:.2}", v);
         assert_eq!(s, "[1.00, 1.00, 1.00]");
+    }
+
+    #[test]
+    fn vector_span_iter_mut_f32() {
+        let mut v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
+        for mut val in &mut v {
+            *val += 10.0;
+        }
+        let vals: Vec<f32> = v.iter().map(|x| *x).collect();
+        assert_eq!(vals, vec![11.0, 12.0, 13.0]);
+    }
+
+    #[test]
+    fn vector_span_iter_mut_i4x2() {
+        let mut v = Vector::<i4x2>::try_zeros(4).unwrap();
+        {
+            let mut span = v.span();
+            for (i, mut val) in span.iter_mut().enumerate() {
+                *val = (i + 1) as i8;
+            }
+        }
+        assert_eq!(v.try_get(0_usize).unwrap(), 1);
+        assert_eq!(v.try_get(1_usize).unwrap(), 2);
+        assert_eq!(v.try_get(2_usize).unwrap(), 3);
+        assert_eq!(v.try_get(3_usize).unwrap(), 4);
+    }
+
+    #[test]
+    fn vector_span_iter_mut_u1x8() {
+        let mut v = Vector::<u1x8>::try_zeros(8).unwrap();
+        for (i, mut val) in v.iter_mut().enumerate() {
+            if i % 2 == 0 {
+                *val = 1;
+            }
+        }
+        // Even indices should be 1, odd should be 0
+        assert_eq!(v.try_get(0_usize).unwrap(), 1);
+        assert_eq!(v.try_get(1_usize).unwrap(), 0);
+        assert_eq!(v.try_get(2_usize).unwrap(), 1);
+        assert_eq!(v.try_get(3_usize).unwrap(), 0);
+    }
+
+    #[test]
+    fn vector_span_iter_double_ended() {
+        let mut v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
+        let mut span = v.span();
+        let mut it = span.iter_mut();
+        // Take from front
+        let mut first = it.next().unwrap();
+        *first = 10.0;
+        drop(first);
+        // Take from back
+        let mut last = it.next_back().unwrap();
+        *last = 30.0;
+        drop(last);
+        drop(it);
+        drop(span);
+        assert_eq!(v.try_get(0_usize).unwrap(), 10.0);
+        assert_eq!(v.try_get(1_usize).unwrap(), 2.0);
+        assert_eq!(v.try_get(2_usize).unwrap(), 30.0);
+    }
+
+    #[test]
+    fn vector_iterator_alias_compat() {
+        // VectorIterator type alias should still work
+        let v = Vector::<f32>::try_from_scalars(&[1.0]).unwrap();
+        let _it: VectorIterator<'_, f32> = v.iter();
     }
 }
 

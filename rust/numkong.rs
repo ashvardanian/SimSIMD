@@ -126,8 +126,8 @@ pub mod vector;
 
 // Re-export scalar types at crate root
 pub use types::{
-    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, is_close, u1x8, u4x2,
-    FloatConvertible, FloatLike, NumberLike, StorageElement,
+    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, is_close, u1x8, u4x2, DimMut,
+    DimRef, FloatConvertible, FloatLike, NumberLike, StorageElement,
 };
 
 // Re-export spatial traits
@@ -166,10 +166,11 @@ pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FlatIter, FmaOps, Global, Matrix,
+    Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global, Matrix,
     MatrixSpan, MatrixView, MinMaxOps, MomentsOps, ScaleOps, ShapeDescriptor, SliceRange, SumOps,
-    Tensor, TensorError, TensorMut, TensorRef, TensorSpan, TensorView, TrigAtanOps, TrigCosOps,
-    TrigSinOps, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Tensor, TensorDims, TensorError, TensorIterator, TensorMut, TensorRef, TensorSpan,
+    TensorSpanDims, TensorSpanIterator, TensorView, TensorViewDims, TensorViewIterator,
+    TrigAtanOps, TrigCosOps, TrigSinOps, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // Re-export matrix types
@@ -179,7 +180,10 @@ pub use matrix::{
 };
 
 // Re-export vector types
-pub use vector::{DimIterator, VecIndex, Vector, VectorSpan, VectorView};
+pub use vector::{
+    VecIndex, Vector, VectorIterator, VectorSpan, VectorSpanIterator, VectorView,
+    VectorViewIterator,
+};
 
 // Re-export maxsim types
 pub use maxsim::{MaxSim, MaxSimPackedMatrix};
