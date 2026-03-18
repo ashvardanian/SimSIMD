@@ -89,7 +89,7 @@ pub(crate) fn f64_round_compat(x: f64) -> f64 {
 /// let bits = half.0;
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct f16(pub u16);
 
 impl f16 {
@@ -150,9 +150,15 @@ impl f16 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for f16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "f16({}, 0x{:04x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for f16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:04x}]", self.to_f32(), self.0)
     }
 }
 
@@ -213,7 +219,7 @@ impl core::cmp::PartialOrd for f16 {
 /// let float = brain.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct bf16(pub u16);
 
 impl bf16 {
@@ -282,9 +288,15 @@ impl bf16 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for bf16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "bf16({}, 0x{:04x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for bf16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:04x}]", self.to_f32(), self.0)
     }
 }
 
@@ -345,7 +357,7 @@ impl core::cmp::PartialOrd for bf16 {
 /// let float = fp8.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct e4m3(pub u8);
 
 impl e4m3 {
@@ -410,9 +422,15 @@ impl e4m3 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for e4m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "e4m3({}, 0x{:02x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for e4m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
     }
 }
 
@@ -473,7 +491,7 @@ impl core::cmp::PartialOrd for e4m3 {
 /// let float = fp8.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct e5m2(pub u8);
 
 impl e5m2 {
@@ -551,9 +569,15 @@ impl e5m2 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for e5m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "e5m2({}, 0x{:02x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for e5m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
     }
 }
 
@@ -614,7 +638,7 @@ impl core::cmp::PartialOrd for e5m2 {
 /// let float = fp6.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct e2m3(pub u8);
 
 impl e2m3 {
@@ -686,9 +710,15 @@ impl e2m3 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for e2m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "e2m3({}, 0x{:02x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for e2m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
     }
 }
 
@@ -748,7 +778,7 @@ impl core::cmp::PartialOrd for e2m3 {
 /// let float = fp6.to_f32();
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct e3m2(pub u8);
 
 impl e3m2 {
@@ -826,9 +856,15 @@ impl e3m2 {
     pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
 }
 
+impl core::fmt::Debug for e3m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "e3m2({}, 0x{:02x})", self.to_f32(), self.0)
+    }
+}
+
 impl core::fmt::Display for e3m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.to_f32())
+        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
     }
 }
 
@@ -936,8 +972,20 @@ impl From<e3m2> for f32 {
 /// Layout: 8 bits packed into one byte, LSB = dimension 0.
 /// Used for Hamming distance and Jaccard similarity via popcount.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct u1x8(pub u8);
+
+impl core::fmt::Debug for u1x8 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "u1x8(0b{:08b}, 0x{:02x})", self.0, self.0)
+    }
+}
+
+impl core::fmt::Display for u1x8 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "0b{:08b} [0x{:02x}]", self.0, self.0)
+    }
+}
 
 impl u1x8 {
     /// Create from raw packed bits.
@@ -1009,8 +1057,22 @@ impl From<u1x8> for (bool, bool, bool, bool, bool, bool, bool, bool) {
 /// Layout: low nibble = first element, high nibble = second element.
 /// Range per element: [0, 15]. Elements zero-extended to u8 for arithmetic.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct u4x2(pub u8);
+
+impl core::fmt::Debug for u4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let (lo, hi) = self.to_u8s();
+        write!(f, "u4x2({}, {}, 0x{:02x})", lo, hi, self.0)
+    }
+}
+
+impl core::fmt::Display for u4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let (lo, hi) = self.to_u8s();
+        write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+    }
+}
 
 impl u4x2 {
     /// Create from raw packed byte.
@@ -1053,8 +1115,22 @@ impl From<u4x2> for (u8, u8) {
 /// Layout: low nibble = first element, high nibble = second element (two's complement).
 /// Range per element: [−8, +7]. Elements sign-extended to i8 for arithmetic.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct i4x2(pub u8);
+
+impl core::fmt::Debug for i4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let (lo, hi) = self.to_i8s();
+        write!(f, "i4x2({}, {}, 0x{:02x})", lo, hi, self.0)
+    }
+}
+
+impl core::fmt::Display for i4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let (lo, hi) = self.to_i8s();
+        write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+    }
+}
 
 impl i4x2 {
     /// Create from raw packed byte.
