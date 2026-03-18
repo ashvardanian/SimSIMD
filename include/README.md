@@ -167,6 +167,20 @@ For example, `f32_t::dot_result_t` is wider than `f32_t`.
 The higher-level templates use `result_type_ = typename in_type_::dot_result_t` and similar defaults.
 The fast typed overloads are constrained so that overriding the result type away from the native policy can disable the specialized path and fall back to the more generic one.
 
+When `__cpp_lib_format >= 202110L` for the C++23 `<format>` header support, all NumKong scalar types provide `std::formatter` specializations with similar format specs to the traditional `float`.
+For the BFloat16 type, the output for `nk::f16_t::from_f32(3.14f)` will look like:
+
+| Format spec | Output example       | Description                            |
+| ----------- | -------------------- | -------------------------------------- |
+| `{}`        | `3.140625`           | Clean float value                      |
+| `{:#}`      | `3.140625 [0x4248]`  | Annotated with hex bits                |
+| `{:.2f}`    | `3.14`               | Precision forwarded to float formatter |
+| `{:x}`      | `4248`               | Raw hex bits                           |
+| `{:#x}`     | `0x4248`             | Hex with prefix                        |
+| `{:X}`      | `4248`               | Uppercase hex                          |
+| `{:b}`      | `0100001001001000`   | Binary bits                            |
+| `{:#b}`     | `0b0100001001001000` | Binary with prefix                     |
+
 ## Dot Products
 
 Dot products are one of the broadest parts of the native SDK.
