@@ -244,11 +244,15 @@ impl<T, A: Allocator, const MAX_RANK: usize> Drop for Tensor<T, A, MAX_RANK> {
     }
 }
 
-impl<T: Clone, A: Allocator + Clone, const MAX_RANK: usize> Clone for Tensor<T, A, MAX_RANK> {
-    fn clone(&self) -> Self {
+impl<T: Clone, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
+    /// Try to clone this tensor, returning an error on allocation failure.
+    pub fn try_clone(&self) -> Result<Self, TensorError> {
         Self::try_from_slice_in(self.as_slice(), self.shape(), self.alloc.clone())
-            .expect("clone allocation failed")
     }
+}
+
+impl<T: Clone, A: Allocator + Clone, const MAX_RANK: usize> Clone for Tensor<T, A, MAX_RANK> {
+    fn clone(&self) -> Self { self.try_clone().expect("tensor clone allocation failed") }
 }
 
 // Generic allocator-aware methods
@@ -1778,6 +1782,183 @@ impl<T: core::fmt::Debug, A: Allocator, const MAX_RANK: usize> core::fmt::Debug
 }
 
 // endregion: Debug
+
+// region: FlatIter
+
+/// Lazy element iterator over possibly non-contiguous tensor data.
+///
+/// Walks elements in row-major order using incremental index advancement.
+/// Cost per `next()` is O(1) amortized (O(ndim) only on carry propagation).
+pub struct FlatIter<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
+    data: *const T,
+    shape: [usize; MAX_RANK],
+    strides: [isize; MAX_RANK],
+    ndim: usize,
+    indices: [usize; MAX_RANK],
+    remaining: usize,
+    _marker: PhantomData<&'a T>,
+}
+
+impl<'a, T, const MAX_RANK: usize> Iterator for FlatIter<'a, T, MAX_RANK> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        if self.remaining == 0 {
+            return None;
+        }
+        let mut offset = 0isize;
+        for d in 0..self.ndim {
+            offset += self.indices[d] as isize * self.strides[d];
+        }
+        let elem = unsafe { &*((self.data as *const u8).offset(offset) as *const T) };
+        self.remaining -= 1;
+        for d in (0..self.ndim).rev() {
+            self.indices[d] += 1;
+            if self.indices[d] < self.shape[d] {
+                break;
+            }
+            self.indices[d] = 0;
+        }
+        Some(elem)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) { (self.remaining, Some(self.remaining)) }
+}
+
+impl<'a, T, const MAX_RANK: usize> ExactSizeIterator for FlatIter<'a, T, MAX_RANK> {}
+impl<'a, T, const MAX_RANK: usize> core::iter::FusedIterator for FlatIter<'a, T, MAX_RANK> {}
+
+impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Returns a lazy iterator over all elements in row-major order.
+    ///
+    /// Works correctly for both contiguous and non-contiguous (strided) views.
+    pub fn flat_iter(&self) -> FlatIter<'a, T, MAX_RANK> {
+        FlatIter {
+            data: self.data,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            indices: [0; MAX_RANK],
+            remaining: self.len,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Returns a lazy iterator over all elements in row-major order.
+    ///
+    /// Works correctly for both contiguous and non-contiguous (strided) views.
+    pub fn flat_iter(&self) -> FlatIter<'a, T, MAX_RANK> {
+        FlatIter {
+            data: self.data,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            indices: [0; MAX_RANK],
+            remaining: self.len,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
+    /// Returns a lazy iterator over all elements in row-major order.
+    pub fn flat_iter(&self) -> FlatIter<'_, T, MAX_RANK> { self.view().flat_iter() }
+}
+
+// endregion: FlatIter
+
+// region: PartialEq
+
+impl<T: PartialEq, A: Allocator, const MAX_RANK: usize> PartialEq for Tensor<T, A, MAX_RANK> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self.as_slice() == other.as_slice()
+    }
+}
+
+impl<'a, T: PartialEq, const MAX_RANK: usize> PartialEq for TensorView<'a, T, MAX_RANK> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self.flat_iter().zip(other.flat_iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl<'a, T: PartialEq, const MAX_RANK: usize> PartialEq for TensorSpan<'a, T, MAX_RANK> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self.flat_iter().zip(other.flat_iter()).all(|(a, b)| a == b)
+    }
+}
+
+// endregion: PartialEq
+
+// region: Tolerance Equality
+
+impl<T: crate::types::NumberLike, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if shapes differ.
+    pub fn allclose<OA: Allocator>(
+        &self,
+        other: &Tensor<T, OA, MAX_RANK>,
+        atol: f64,
+        rtol: f64,
+    ) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self
+                .as_slice()
+                .iter()
+                .zip(other.as_slice().iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if shapes differ.
+    pub fn allclose(&self, other: &Self, atol: f64, rtol: f64) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self
+                .flat_iter()
+                .zip(other.flat_iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+impl<'a, T: crate::types::NumberLike, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if shapes differ.
+    pub fn allclose(&self, other: &Self, atol: f64, rtol: f64) -> bool {
+        self.ndim == other.ndim
+            && self.shape[..self.ndim] == other.shape[..other.ndim]
+            && self
+                .flat_iter()
+                .zip(other.flat_iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+// endregion: Tolerance Equality
+
+// region: AsRef
+
+impl<T, A: Allocator, const MAX_RANK: usize> AsRef<[T]> for Tensor<T, A, MAX_RANK> {
+    fn as_ref(&self) -> &[T] { self.as_slice() }
+}
+
+// endregion: AsRef
 
 // region: Tensor View and Slice Methods
 
@@ -5074,6 +5255,34 @@ mod tests {
         let sum_v = MomentsOps::try_sum_all(&v).unwrap();
         assert!((sum_t as f32 - 24.0).abs() < 0.01);
         assert!((sum_v as f32 - 24.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn tensor_allclose_matching() {
+        let a = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+        let b = Tensor::<f32>::try_full(&[2, 3], 1.0 + 1e-7).unwrap();
+        assert!(a.allclose(&b, 1e-6, 0.0));
+    }
+
+    #[test]
+    fn tensor_allclose_mismatching() {
+        let a = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+        let b = Tensor::<f32>::try_full(&[2, 3], 2.0).unwrap();
+        assert!(!a.allclose(&b, 1e-6, 0.0));
+    }
+
+    #[test]
+    fn tensor_allclose_different_shapes() {
+        let a = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+        let b = Tensor::<f32>::try_full(&[3, 2], 1.0).unwrap();
+        assert!(!a.allclose(&b, 1e-6, 1e-6));
+    }
+
+    #[test]
+    fn tensor_view_allclose() {
+        let a = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+        let b = Tensor::<f32>::try_full(&[2, 3], 1.0 + 1e-7).unwrap();
+        assert!(a.view().allclose(&b.view(), 1e-6, 0.0));
     }
 }
 

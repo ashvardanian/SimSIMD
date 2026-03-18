@@ -564,6 +564,51 @@ impl<I: VecIndex, T: StorageElement, A: Allocator> core::ops::IndexMut<I> for Ve
     }
 }
 
+impl<T: StorageElement + Clone, A: Allocator + Clone> Vector<T, A> {
+    /// Try to clone this vector, returning an error on allocation failure.
+    pub fn try_clone(&self) -> Result<Self, TensorError> {
+        if self.values == 0 {
+            return Ok(Self {
+                data: NonNull::dangling(),
+                dims: 0,
+                values: 0,
+                alloc: self.alloc.clone(),
+            });
+        }
+        let size = self.values * core::mem::size_of::<T>();
+        let layout = alloc::alloc::Layout::from_size_align(size, SIMD_ALIGNMENT)
+            .map_err(|_| TensorError::AllocationFailed)?;
+        let ptr = self
+            .alloc
+            .allocate(layout)
+            .ok_or(TensorError::AllocationFailed)?;
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.data.as_ptr() as *const u8, ptr.as_ptr(), size);
+        }
+        Ok(Self {
+            data: unsafe { NonNull::new_unchecked(ptr.as_ptr() as *mut T) },
+            dims: self.dims,
+            values: self.values,
+            alloc: self.alloc.clone(),
+        })
+    }
+}
+
+impl<T: StorageElement + Clone, A: Allocator + Clone> Clone for Vector<T, A> {
+    fn clone(&self) -> Self { self.try_clone().expect("vector clone allocation failed") }
+}
+
+impl<T: StorageElement> Default for Vector<T, Global> {
+    fn default() -> Self {
+        Self {
+            data: NonNull::dangling(),
+            dims: 0,
+            values: 0,
+            alloc: Global,
+        }
+    }
+}
+
 // endregion: Vector
 
 // region: VectorView
@@ -1030,6 +1075,61 @@ where
 
 // endregion: PartialEq
 
+// region: Tolerance Equality
+
+impl<T: FloatConvertible, A: Allocator> Vector<T, A>
+where
+    T::DimScalar: NumberLike,
+{
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if dimensions differ.
+    pub fn allclose<OA: Allocator>(&self, other: &Vector<T, OA>, atol: f64, rtol: f64) -> bool {
+        self.dims == other.dims
+            && self
+                .iter()
+                .zip(other.iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+impl<'a, T: FloatConvertible> VectorView<'a, T>
+where
+    T::DimScalar: NumberLike,
+{
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if dimensions differ.
+    pub fn allclose(&self, other: &Self, atol: f64, rtol: f64) -> bool {
+        self.dims == other.dims
+            && self
+                .iter()
+                .zip(other.iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+impl<'a, T: FloatConvertible> VectorSpan<'a, T>
+where
+    T::DimScalar: NumberLike,
+{
+    /// Check if all elements are within tolerance of `other`.
+    ///
+    /// Uses the formula `|a - b| <= atol + rtol * |b|` per element.
+    /// Returns `false` if dimensions differ.
+    pub fn allclose(&self, other: &Self, atol: f64, rtol: f64) -> bool {
+        self.dims == other.dims
+            && self
+                .iter()
+                .zip(other.iter())
+                .all(|(a, b)| crate::types::is_close(a.to_f64(), b.to_f64(), atol, rtol))
+    }
+}
+
+// endregion: Tolerance Equality
+
 // region: Debug and Display
 
 /// Write a truncated, debug-formatted list from an iterator.
@@ -1066,6 +1166,7 @@ fn fmt_display_list<I: Iterator>(
 where
     I::Item: core::fmt::Display,
 {
+    let prec = f.precision();
     write!(f, "[")?;
     for (i, val) in iter.enumerate() {
         if i >= limit {
@@ -1075,7 +1176,11 @@ where
         if i > 0 {
             write!(f, ", ")?;
         }
-        write!(f, "{}", val)?;
+        if let Some(p) = prec {
+            write!(f, "{:.p$}", val)?;
+        } else {
+            write!(f, "{}", val)?;
+        }
     }
     write!(f, "]")
 }
@@ -1258,6 +1363,34 @@ mod tests {
     fn index_out_of_bounds() {
         let v = Vector::<f32>::try_zeros(3).unwrap();
         let _ = v[3_usize];
+    }
+
+    #[test]
+    fn vector_allclose_matching() {
+        let a = Vector::<f32>::try_full(4, 1.0).unwrap();
+        let b = Vector::<f32>::try_full(4, 1.0 + 1e-7).unwrap();
+        assert!(a.allclose(&b, 1e-6, 0.0));
+    }
+
+    #[test]
+    fn vector_allclose_mismatching() {
+        let a = Vector::<f32>::try_full(4, 1.0).unwrap();
+        let b = Vector::<f32>::try_full(4, 2.0).unwrap();
+        assert!(!a.allclose(&b, 1e-6, 0.0));
+    }
+
+    #[test]
+    fn vector_allclose_different_dims() {
+        let a = Vector::<f32>::try_full(3, 1.0).unwrap();
+        let b = Vector::<f32>::try_full(4, 1.0).unwrap();
+        assert!(!a.allclose(&b, 1e-6, 1e-6));
+    }
+
+    #[test]
+    fn display_precision_forwarding() {
+        let v = Vector::<f32>::try_full(3, 1.0).unwrap();
+        let s = format!("{:.2}", v);
+        assert_eq!(s, "[1.00, 1.00, 1.00]");
     }
 }
 

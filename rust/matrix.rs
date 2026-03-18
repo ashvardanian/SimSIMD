@@ -2473,36 +2473,44 @@ impl<T: Dots, A: Allocator> Drop for PackedMatrix<T, A> {
     }
 }
 
-impl<T: Dots, A: Allocator + Clone> Clone for PackedMatrix<T, A> {
-    fn clone(&self) -> Self {
+impl<T: Dots, A: Allocator + Clone> PackedMatrix<T, A> {
+    /// Try to clone this packed matrix, returning an error on allocation failure.
+    pub fn try_clone(&self) -> Result<Self, TensorError> {
         if self.size == 0 {
-            return Self {
+            return Ok(Self {
                 data: NonNull::dangling(),
                 size: 0,
                 width: self.width,
                 depth: self.depth,
                 alloc: self.alloc.clone(),
                 _marker: PhantomData,
-            };
+            });
         }
 
         let layout = alloc::alloc::Layout::from_size_align(self.size, SIMD_ALIGNMENT)
-            .expect("invalid layout");
+            .map_err(|_| TensorError::AllocationFailed)?;
         let ptr = self
             .alloc
             .allocate(layout)
-            .expect("clone allocation failed");
+            .ok_or(TensorError::AllocationFailed)?;
         unsafe {
             core::ptr::copy_nonoverlapping(self.data.as_ptr(), ptr.as_ptr(), self.size);
         }
-        Self {
+        Ok(Self {
             data: ptr,
             size: self.size,
             width: self.width,
             depth: self.depth,
             alloc: self.alloc.clone(),
             _marker: PhantomData,
-        }
+        })
+    }
+}
+
+impl<T: Dots, A: Allocator + Clone> Clone for PackedMatrix<T, A> {
+    fn clone(&self) -> Self {
+        self.try_clone()
+            .expect("PackedMatrix clone allocation failed")
     }
 }
 

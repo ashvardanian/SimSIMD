@@ -248,36 +248,44 @@ impl<T: MaxSim, A: Allocator> Drop for MaxSimPackedMatrix<T, A> {
     }
 }
 
-impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
-    fn clone(&self) -> Self {
+impl<T: MaxSim, A: Allocator + Clone> MaxSimPackedMatrix<T, A> {
+    /// Try to clone this packed matrix, returning an error on allocation failure.
+    pub fn try_clone(&self) -> Result<Self, TensorError> {
         if self.size == 0 {
-            return Self {
+            return Ok(Self {
                 data: NonNull::dangling(),
                 size: 0,
                 vector_count: self.vector_count,
                 depth: self.depth,
                 alloc: self.alloc.clone(),
                 _marker: PhantomData,
-            };
+            });
         }
 
         let layout = alloc::alloc::Layout::from_size_align(self.size, SIMD_ALIGNMENT)
-            .expect("invalid layout");
+            .map_err(|_| TensorError::AllocationFailed)?;
         let ptr = self
             .alloc
             .allocate(layout)
-            .expect("clone allocation failed");
+            .ok_or(TensorError::AllocationFailed)?;
         unsafe {
             core::ptr::copy_nonoverlapping(self.data.as_ptr(), ptr.as_ptr(), self.size);
         }
-        Self {
+        Ok(Self {
             data: ptr,
             size: self.size,
             vector_count: self.vector_count,
             depth: self.depth,
             alloc: self.alloc.clone(),
             _marker: PhantomData,
-        }
+        })
+    }
+}
+
+impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
+    fn clone(&self) -> Self {
+        self.try_clone()
+            .expect("MaxSimPackedMatrix clone allocation failed")
     }
 }
 

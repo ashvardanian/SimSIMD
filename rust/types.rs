@@ -65,6 +65,13 @@ pub(crate) fn f64_round_compat(x: f64) -> f64 {
     }
 }
 
+/// Check whether two values are within tolerance: `|a - b| <= atol + rtol * |b|`.
+#[inline]
+pub fn is_close(a: f64, b: f64, atol: f64, rtol: f64) -> bool {
+    let diff = if a > b { a - b } else { b - a };
+    diff <= atol + rtol * (if b >= 0.0 { b } else { -b })
+}
+
 // region: f16 Type
 
 /// Half-precision (16-bit) IEEE 754 floating-point number.
@@ -158,7 +165,30 @@ impl core::fmt::Debug for f16 {
 
 impl core::fmt::Display for f16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:04x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:04x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for f16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for f16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for f16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -296,7 +326,30 @@ impl core::fmt::Debug for bf16 {
 
 impl core::fmt::Display for bf16 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:04x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:04x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for bf16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for bf16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for bf16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -430,7 +483,30 @@ impl core::fmt::Debug for e4m3 {
 
 impl core::fmt::Display for e4m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:02x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for e4m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for e4m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for e4m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -577,7 +653,30 @@ impl core::fmt::Debug for e5m2 {
 
 impl core::fmt::Display for e5m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:02x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for e5m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for e5m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for e5m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -718,7 +817,30 @@ impl core::fmt::Debug for e2m3 {
 
 impl core::fmt::Display for e2m3 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:02x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for e2m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for e2m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for e2m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -864,7 +986,30 @@ impl core::fmt::Debug for e3m2 {
 
 impl core::fmt::Display for e3m2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} [0x{:02x}]", self.to_f32(), self.0)
+        if f.alternate() {
+            core::fmt::Display::fmt(&self.to_f32(), f)?;
+            write!(f, " [0x{:02x}]", self.0)
+        } else {
+            core::fmt::Display::fmt(&self.to_f32(), f)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for e3m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for e3m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for e3m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -983,7 +1128,29 @@ impl core::fmt::Debug for u1x8 {
 
 impl core::fmt::Display for u1x8 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "0b{:08b} [0x{:02x}]", self.0, self.0)
+        if f.alternate() {
+            write!(f, "0b{:08b} [0x{:02x}]", self.0, self.0)
+        } else {
+            write!(f, "0b{:08b}", self.0)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for u1x8 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for u1x8 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for u1x8 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -1070,7 +1237,29 @@ impl core::fmt::Debug for u4x2 {
 impl core::fmt::Display for u4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let (lo, hi) = self.to_u8s();
-        write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+        if f.alternate() {
+            write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+        } else {
+            write!(f, "({}, {})", lo, hi)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for u4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for u4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for u4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -1128,7 +1317,29 @@ impl core::fmt::Debug for i4x2 {
 impl core::fmt::Display for i4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let (lo, hi) = self.to_i8s();
-        write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+        if f.alternate() {
+            write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+        } else {
+            write!(f, "({}, {})", lo, hi)
+        }
+    }
+}
+
+impl core::fmt::LowerHex for i4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::UpperHex for i4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl core::fmt::Binary for i4x2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Binary::fmt(&self.0, f)
     }
 }
 
@@ -1757,6 +1968,24 @@ impl<T: ComplexComponent> core::ops::Neg for complex<T> {
         Self {
             re: -self.re,
             im: -self.im,
+        }
+    }
+}
+
+impl<T: NumberLike> core::fmt::Display for complex<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let re = self.re.to_f32();
+        let im = self.im.to_f32();
+        if let Some(prec) = f.precision() {
+            if im < 0.0 {
+                write!(f, "{:.prec$} - {:.prec$}i", re, -im)
+            } else {
+                write!(f, "{:.prec$} + {:.prec$}i", re, im)
+            }
+        } else if im < 0.0 {
+            write!(f, "{} - {}i", re, -im)
+        } else {
+            write!(f, "{} + {}i", re, im)
         }
     }
 }
@@ -2419,5 +2648,34 @@ mod tests {
                 "bf16 mismatch at bits 0x{bits:04X}: half={half_val}, numkong={nk_val}"
             );
         }
+    }
+
+    #[test]
+    fn is_close_exact() {
+        assert!(is_close(1.0, 1.0, 0.0, 0.0));
+        assert!(is_close(0.0, 0.0, 0.0, 0.0));
+        assert!(is_close(-5.0, -5.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn is_close_within_atol() {
+        assert!(is_close(1.0, 1.0 + 1e-7, 1e-6, 0.0));
+        assert!(!is_close(1.0, 1.0 + 1e-5, 1e-6, 0.0));
+    }
+
+    #[test]
+    fn is_close_within_rtol() {
+        assert!(is_close(100.0, 100.01, 0.0, 1e-3));
+        assert!(!is_close(100.0, 100.2, 0.0, 1e-3));
+    }
+
+    #[test]
+    fn is_close_nan_inf() {
+        // NaN is never close to anything (including itself).
+        assert!(!is_close(f64::NAN, f64::NAN, 1e-6, 1e-6));
+        assert!(!is_close(f64::NAN, 0.0, 1e-6, 1e-6));
+        // INF - INF = NaN, so same-sign infinities are not "close" either.
+        assert!(!is_close(f64::INFINITY, f64::INFINITY, 0.0, 0.0));
+        assert!(!is_close(f64::INFINITY, f64::NEG_INFINITY, 0.0, 0.0));
     }
 }
