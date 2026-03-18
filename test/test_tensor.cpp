@@ -181,7 +181,7 @@ void test_move_semantics() {
     nk::vector<nk::f32_t> v2 = std::move(v1);
     assert(v2.size() == 100 && "move ctor size mismatch");
     assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
-    assert(v1.size() == 0 && "moved-from vector not empty");
+    assert(v1.size() == 0 && "moved-from vector not empty"); // NOLINT(bugprone-use-after-move)
 
     nk::vector<nk::f32_t> v3;
     v3 = std::move(v2);

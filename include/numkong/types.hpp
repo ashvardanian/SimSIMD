@@ -5600,4 +5600,104 @@ concept packed_matrix_like = requires(packed_type_ const &p) {
 
 } // namespace ashvardanian::numkong
 
+#if __has_include(<format>)
+#include <format>
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 202110L
+
+template <>
+struct std::formatter<ashvardanian::numkong::f16_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::f16_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:04x}]", v.to_f32(), v.to_bits());
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::bf16_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::bf16_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:04x}]", v.to_f32(), v.to_bits());
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::e4m3_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::e4m3_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:02x}]", v.to_f32(), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::e5m2_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::e5m2_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:02x}]", v.to_f32(), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::e2m3_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::e2m3_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:02x}]", v.to_f32(), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::e3m2_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::e3m2_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{} [0x{:02x}]", v.to_f32(), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::i4x2_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::i4x2_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "({}, {}) [0x{:02x}]", static_cast<int>(v.low().raw()),
+                              static_cast<int>(v.high().raw()), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::u4x2_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::u4x2_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "({}, {}) [0x{:02x}]", static_cast<unsigned>(v.low().raw()),
+                              static_cast<unsigned>(v.high().raw()), static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::u1x8_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::u1x8_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "0b{:08b} [0x{:02x}]", static_cast<unsigned>(v.raw_),
+                              static_cast<unsigned>(v.raw_));
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::f16c_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::f16c_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "({} [0x{:04x}], {} [0x{:04x}])", v.real().to_f32(), v.real().to_bits(),
+                              v.imag().to_f32(), v.imag().to_bits());
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::bf16c_t> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+    std::format_context::iterator format(ashvardanian::numkong::bf16c_t v, std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "({} [0x{:04x}], {} [0x{:04x}])", v.real().to_f32(), v.real().to_bits(),
+                              v.imag().to_f32(), v.imag().to_bits());
+    }
+};
+
+#endif // __cpp_lib_format
+#endif // __has_include(<format>)
+
 #endif // NK_TYPES_HPP
