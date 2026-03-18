@@ -126,6 +126,14 @@ export class VectorView extends VectorBase {
     super(buffer, byteOffset, length, dtype);
   }
 
+  toString(): string {
+    return `VectorView(${this.length}, ${dtypeToString(this.dtype)})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+
   /** @brief Create a VectorView from any TypedArray, inferring or accepting dtype. */
   static from(arr: TypedArray, dtype?: DType): VectorView {
     const d = dtype ?? inferDtype(arr);
@@ -157,6 +165,14 @@ export class Vector extends VectorBase {
     } else {
       super(lengthOrBuffer, 0, dtypeOrLength as number, dtype!);
     }
+  }
+
+  toString(): string {
+    return `Vector(${this.length}, ${dtypeToString(this.dtype)})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
   }
 
   /** @brief Create an owning Vector by copying data from a TypedArray. */
@@ -254,6 +270,14 @@ export class Matrix extends MatrixBase {
     }
   }
 
+  toString(): string {
+    return `Matrix(${this.rows}\u00d7${this.cols}, ${dtypeToString(this.dtype)})`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
+
   static fromTypedArray(array: TypedArray, rows: number, cols: number, dtype?: DType): Matrix {
     const d = dtype ?? inferDtype(array);
     const buf = (array.buffer as ArrayBuffer).slice(array.byteOffset, array.byteOffset + array.byteLength);
@@ -302,6 +326,14 @@ export class PackedMatrix {
 
   dispose(): void { this._disposed = true; }
   get disposed(): boolean { return this._disposed; }
+
+  toString(): string {
+    return `PackedMatrix(${this.width}\u00d7${this.depth}, ${dtypeToString(this.dtype)}, ${this.byteLength} bytes)`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
 }
 
 /** @brief Kernel family identifiers for output dtype resolution. */
@@ -389,6 +421,22 @@ export class Float16Array extends Uint16Array {
     }
     this[index] = conversionFunctions.castF32ToF16(value);
   }
+
+  toString(): string {
+    if (!conversionFunctions) return `Float16Array(${this.length})`;
+    const limit = Math.min(this.length, 20);
+    const parts: string[] = [];
+    for (let i = 0; i < limit; i++) {
+      const f = conversionFunctions.castF16ToF32(this[i]);
+      parts.push(`${f} [0x${this[i].toString(16).padStart(4, '0')}]`);
+    }
+    const suffix = this.length > 20 ? ', ...' : '';
+    return `Float16Array(${this.length}) [${parts.join(', ')}${suffix}]`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
 }
 
 /**
@@ -443,6 +491,22 @@ export class BFloat16Array extends Uint16Array {
     }
     this[index] = conversionFunctions.castF32ToBF16(value);
   }
+
+  toString(): string {
+    if (!conversionFunctions) return `BFloat16Array(${this.length})`;
+    const limit = Math.min(this.length, 20);
+    const parts: string[] = [];
+    for (let i = 0; i < limit; i++) {
+      const f = conversionFunctions.castBF16ToF32(this[i]);
+      parts.push(`${f} [0x${this[i].toString(16).padStart(4, '0')}]`);
+    }
+    const suffix = this.length > 20 ? ', ...' : '';
+    return `BFloat16Array(${this.length}) [${parts.join(', ')}${suffix}]`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
 }
 
 /**
@@ -496,6 +560,22 @@ export class E4M3Array extends Uint8Array {
     }
     this[index] = conversionFunctions.castF32ToE4M3(value);
   }
+
+  toString(): string {
+    if (!conversionFunctions) return `E4M3Array(${this.length})`;
+    const limit = Math.min(this.length, 20);
+    const parts: string[] = [];
+    for (let i = 0; i < limit; i++) {
+      const f = conversionFunctions.castE4M3ToF32(this[i]);
+      parts.push(`${f} [0x${this[i].toString(16).padStart(2, '0')}]`);
+    }
+    const suffix = this.length > 20 ? ', ...' : '';
+    return `E4M3Array(${this.length}) [${parts.join(', ')}${suffix}]`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
+  }
 }
 
 /**
@@ -548,6 +628,22 @@ export class E5M2Array extends Uint8Array {
       throw new Error('Conversion functions not initialized');
     }
     this[index] = conversionFunctions.castF32ToE5M2(value);
+  }
+
+  toString(): string {
+    if (!conversionFunctions) return `E5M2Array(${this.length})`;
+    const limit = Math.min(this.length, 20);
+    const parts: string[] = [];
+    for (let i = 0; i < limit; i++) {
+      const f = conversionFunctions.castE5M2ToF32(this[i]);
+      parts.push(`${f} [0x${this[i].toString(16).padStart(2, '0')}]`);
+    }
+    const suffix = this.length > 20 ? ', ...' : '';
+    return `E5M2Array(${this.length}) [${parts.join(', ')}${suffix}]`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
   }
 }
 
@@ -635,6 +731,20 @@ export class BinaryArray extends Uint8Array {
       }
     }
     return binary;
+  }
+
+  toString(): string {
+    const limit = Math.min(this.length, 20);
+    const parts: string[] = [];
+    for (let i = 0; i < limit; i++) {
+      parts.push(`0b${this[i].toString(2).padStart(8, '0')}`);
+    }
+    const suffix = this.length > 20 ? ', ...' : '';
+    return `BinaryArray(${this._bitLength}) [${parts.join(', ')}${suffix}]`;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return this.toString();
   }
 }
 
