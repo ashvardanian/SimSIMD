@@ -535,3 +535,56 @@ assert_eq!(gram.shape(), &[4096, 4096]);
 ```
 
 Rayon or a manual thread pool can still work if the rest of your application already depends on them.
+
+## Addressing External Memory
+
+Views wrap raw pointers without ownership, owned containers accept custom allocators, and the scalar trait API works on any `&[T]` regardless of how the memory was allocated.
+
+`VectorView::from_raw_parts` and `TensorView::from_raw_parts` wrap device-accessible or externally allocated memory.
+The mutable counterparts `VectorSpan::from_raw_parts` and `TensorSpan::from_raw_parts` work the same way with `*mut T`.
+
+```rust
+use numkong::{VectorView, TensorView};
+
+let embeddings_ptr: *const f32 = /* from CUDA, mmap, or FFI */;
+let embeddings = unsafe {
+    VectorView::from_raw_parts(embeddings_ptr, 1024, std::mem::size_of::<f32>() as isize)
+};
+
+let shape = [32, 64];
+let strides = [64 * 4, 4]; // row-major f32
+let matrix = unsafe { TensorView::<f32>::from_raw_parts(embeddings_ptr, &shape, &strides) };
+```
+
+Owned containers accept any allocator.
+A CUDA unified memory allocator looks like this:
+
+```rust
+use std::alloc::{Allocator, AllocError, Layout};
+use std::ptr::NonNull;
+use numkong::Vector;
+
+struct CudaAllocator;
+
+unsafe impl Allocator for CudaAllocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let raw = unsafe { cuda_malloc_managed(layout.size()) };
+        let base = NonNull::new(raw).ok_or(AllocError)?;
+        Ok(NonNull::slice_from_raw_parts(base, layout.size()))
+    }
+    unsafe fn deallocate(&self, block: NonNull<u8>, _layout: Layout) {
+        cuda_free(block.as_ptr());
+    }
+}
+
+let queries = Vector::<f32, CudaAllocator>::try_zeros_in(1024, CudaAllocator).unwrap();
+```
+
+The trait-based scalar API works on any `&[T]` — `Vec`, mmap, arena, or pinned buffer:
+
+```rust
+use numkong::Dot;
+
+let weights: &[f32] = /* any contiguous slice */;
+let similarity = f32::dot(weights, weights).unwrap();
+```

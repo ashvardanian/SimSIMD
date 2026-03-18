@@ -835,6 +835,44 @@ pub struct TensorView<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
 }
 
 impl<'a, T, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+    /// Create a view from a raw pointer, shape, and byte strides.
+    ///
+    /// # Safety
+    /// - `data` must be valid for reads over the region described by `shape` and `strides_bytes`.
+    /// - The pointed-to memory must outlive `'a`.
+    /// - `shape.len()` must be `<= MAX_RANK`.
+    /// - `shape.len()` must equal `strides_bytes.len()`.
+    ///
+    /// # Panics
+    /// Panics if `shape.len() > MAX_RANK` or `shape.len() != strides_bytes.len()`.
+    pub unsafe fn from_raw_parts(data: *const T, shape: &[usize], strides_bytes: &[isize]) -> Self {
+        assert!(
+            shape.len() <= MAX_RANK,
+            "ndim {} exceeds MAX_RANK {}",
+            shape.len(),
+            MAX_RANK
+        );
+        assert_eq!(
+            shape.len(),
+            strides_bytes.len(),
+            "shape and strides must have the same length"
+        );
+        let ndim = shape.len();
+        let len = shape.iter().copied().product::<usize>();
+        let mut s = [0usize; MAX_RANK];
+        let mut st = [0isize; MAX_RANK];
+        s[..ndim].copy_from_slice(shape);
+        st[..ndim].copy_from_slice(strides_bytes);
+        Self {
+            data,
+            len,
+            shape: s,
+            strides: st,
+            ndim,
+            _marker: PhantomData,
+        }
+    }
+
     /// Returns the shape of the view.
     pub fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
 
@@ -1035,6 +1073,45 @@ pub struct TensorSpan<'a, T, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
 }
 
 impl<'a, T, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK> {
+    /// Create a mutable view from a raw pointer, shape, and byte strides.
+    ///
+    /// # Safety
+    /// - `data` must be valid for reads and writes over the region described by `shape` and `strides_bytes`.
+    /// - The pointed-to memory must outlive `'a`.
+    /// - `shape.len()` must be `<= MAX_RANK`.
+    /// - `shape.len()` must equal `strides_bytes.len()`.
+    /// - No other references to the memory may exist for the duration of `'a`.
+    ///
+    /// # Panics
+    /// Panics if `shape.len() > MAX_RANK` or `shape.len() != strides_bytes.len()`.
+    pub unsafe fn from_raw_parts(data: *mut T, shape: &[usize], strides_bytes: &[isize]) -> Self {
+        assert!(
+            shape.len() <= MAX_RANK,
+            "ndim {} exceeds MAX_RANK {}",
+            shape.len(),
+            MAX_RANK
+        );
+        assert_eq!(
+            shape.len(),
+            strides_bytes.len(),
+            "shape and strides must have the same length"
+        );
+        let ndim = shape.len();
+        let len = shape.iter().copied().product::<usize>();
+        let mut s = [0usize; MAX_RANK];
+        let mut st = [0isize; MAX_RANK];
+        s[..ndim].copy_from_slice(shape);
+        st[..ndim].copy_from_slice(strides_bytes);
+        Self {
+            data,
+            len,
+            shape: s,
+            strides: st,
+            ndim,
+            _marker: PhantomData,
+        }
+    }
+
     /// Returns the shape of the view.
     pub fn shape(&self) -> &[usize] { &self.shape[..self.ndim] }
 

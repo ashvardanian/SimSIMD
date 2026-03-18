@@ -630,6 +630,22 @@ impl<'a, T: StorageElement> Clone for VectorView<'a, T> {
 impl<'a, T: StorageElement> Copy for VectorView<'a, T> {}
 
 impl<'a, T: StorageElement> VectorView<'a, T> {
+    /// Create a view from a raw pointer, dimension count, and byte stride.
+    ///
+    /// # Safety
+    /// - `data` must be valid for reads of `dims` elements at the given stride.
+    /// - The pointed-to memory must outlive `'a`.
+    /// - `stride_bytes` must be non-zero for non-empty views.
+    #[inline]
+    pub unsafe fn from_raw_parts(data: *const T, dims: usize, stride_bytes: isize) -> Self {
+        Self {
+            data,
+            dims,
+            stride_bytes,
+            _marker: PhantomData,
+        }
+    }
+
     /// Number of logical dimensions.
     #[inline]
     pub fn dims(&self) -> usize { self.dims }
@@ -786,6 +802,23 @@ unsafe impl<'a, T: StorageElement + Send> Send for VectorSpan<'a, T> {}
 unsafe impl<'a, T: StorageElement + Sync> Sync for VectorSpan<'a, T> {}
 
 impl<'a, T: StorageElement> VectorSpan<'a, T> {
+    /// Create a mutable view from a raw pointer, dimension count, and byte stride.
+    ///
+    /// # Safety
+    /// - `data` must be valid for reads and writes of `dims` elements at the given stride.
+    /// - The pointed-to memory must outlive `'a`.
+    /// - `stride_bytes` must be non-zero for non-empty views.
+    /// - No other references to the memory may exist for the duration of `'a`.
+    #[inline]
+    pub unsafe fn from_raw_parts(data: *mut T, dims: usize, stride_bytes: isize) -> Self {
+        Self {
+            data,
+            dims,
+            stride_bytes,
+            _marker: PhantomData,
+        }
+    }
+
     /// Number of logical dimensions.
     #[inline]
     pub fn dims(&self) -> usize { self.dims }
