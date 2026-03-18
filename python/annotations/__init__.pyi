@@ -186,6 +186,11 @@ class Tensor(memoryview):
         """Whether the tensor is C-contiguous in memory."""
         ...
 
+    @property
+    def data_ptr(self) -> int:
+        """Integer address of the underlying data buffer."""
+        ...
+
     def sum(
         self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
     ) -> float | int | Tensor:
@@ -558,6 +563,16 @@ def sparse_dot(
 # endregion Sparse Similarity
 
 # region Tensor Constructors
+_DtypeLike: TypeAlias = _IntegralType | _FloatType | _ComplexType
+
+def from_pointer(
+    address: int,
+    shape: int | tuple[int, ...],
+    dtype: _DtypeLike,
+    *,
+    strides: tuple[int, ...] | None = None,
+    owner: Any = None,
+) -> Tensor: ...
 def empty(
     shape: int | tuple[int, ...],
     /,

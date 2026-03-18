@@ -620,3 +620,64 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
 
 OpenMP and other native schedulers still matter in lower layers.
 For Python, the intended user-facing story is external partitioning around the GIL-free kernels you actually use.
+
+## Addressing External Memory
+
+NumKong implements the Python buffer protocol for zero-copy interop with NumPy, PyTorch, and other buffer-aware libraries.
+Two additional primitives cover pointer-level workflows: `data_ptr` reads the integer address out of any `Tensor`, and `from_pointer()` wraps any integer address back into one.
+
+`data_ptr` returns the raw address, suitable for passing into ctypes, CUDA, or any FFI boundary.
+`from_pointer(address, shape, dtype, *, strides=None, owner=None)` creates a non-owning `Tensor` view.
+The optional `owner` keeps the source object alive for the lifetime of the view.
+
+```python
+import numpy as np
+import numkong as nk
+
+# Round-trip through an integer address
+matrix = nk.zeros((3, 4), dtype='float32')
+address = matrix.data_ptr
+matrix_view = nk.from_pointer(address, (3, 4), 'float32', owner=matrix)
+
+# Wrap a NumPy array with zero copies
+embeddings = np.random.randn(1024).astype(np.float32)
+embeddings_view = nk.from_pointer(embeddings.ctypes.data, (1024,), 'float32', owner=embeddings)
+nk.dot(embeddings, embeddings_view)  # same underlying data
+```
+
+PyTorch tensors already implement the buffer protocol, so most functions accept them directly.
+For explicit pointer-level control, or to go the other direction, the same primitives apply:
+
+```python
+import torch
+
+query = torch.randn(512)
+nk.dot(query, query)  # buffer protocol, zero copy
+
+# Explicit pointer wrap
+query_view = nk.from_pointer(query.data_ptr(), tuple(query.shape), 'float32', owner=query)
+
+# NumKong → PyTorch: 1D via buffer protocol, N-D via numpy bridge
+flat = torch.frombuffer(memoryview(nk_tensor), dtype=torch.float32)
+shaped = torch.as_tensor(np.asarray(nk_tensor))
+```
+
+CUDA unified memory, pinned buffers, and mmap'd files all work the same way — any CPU-accessible pointer is valid.
+
+```python
+import ctypes, mmap
+
+# CUDA unified memory (ensure CPU accessibility first)
+cudart = ctypes.CDLL("libcudart.so")
+unified_ptr = ctypes.c_void_p()
+cudart.cudaMallocManaged(ctypes.byref(unified_ptr), 4096, 1)
+cudart.cudaDeviceSynchronize()
+unified = nk.from_pointer(unified_ptr.value, (1024,), 'float32')
+
+# Memory-mapped file
+with open("data.bin", "r+b") as f:
+    mapping = mmap.mmap(f.fileno(), 0)
+    mapped = nk.from_pointer(ctypes.addressof(
+        ctypes.c_char.from_buffer(mapping)),
+        (1024,), 'float32', owner=mapping)
+```

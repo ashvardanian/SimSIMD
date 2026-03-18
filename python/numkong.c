@@ -1101,6 +1101,7 @@ static PyMethodDef nk_methods[] = {
     {"vincenty", (PyCFunction)api_vincenty, METH_FASTCALL | METH_KEYWORDS, doc_vincenty},
 
     // Tensor constructors
+    {"from_pointer", (PyCFunction)api_from_pointer, METH_FASTCALL | METH_KEYWORDS, doc_from_pointer},
     {"empty", (PyCFunction)api_empty, METH_FASTCALL | METH_KEYWORDS, doc_empty},
     {"zeros", (PyCFunction)api_zeros, METH_FASTCALL | METH_KEYWORDS, doc_zeros},
     {"ones", (PyCFunction)api_ones, METH_FASTCALL | METH_KEYWORDS, doc_ones},

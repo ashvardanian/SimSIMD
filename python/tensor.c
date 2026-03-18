@@ -834,6 +834,39 @@ static PyObject *Tensor_get_is_contiguous(PyObject *self, void *closure) {
     return PyBool_FromLong(tensor_is_c_contig(tensor, item_size));
 }
 
+static PyObject *Tensor_get_data_ptr(PyObject *self, void *closure) {
+    nk_unused_(closure);
+    return PyLong_FromVoidPtr(((Tensor *)self)->data);
+}
+
+static Tensor *Tensor_view_object(PyObject *owner, char *data_ptr, nk_dtype_t dtype, size_t rank,
+                                  Py_ssize_t const *shape, Py_ssize_t const *strides) {
+    if (rank > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_TENSOR_MAX_RANK);
+        return NULL;
+    }
+
+    Tensor *view = PyObject_NewVar(Tensor, &TensorType, 0);
+    if (!view) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    view->dtype = dtype;
+    view->rank = rank;
+
+    for (size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) {
+        view->shape[i] = (i < rank) ? shape[i] : 0;
+        view->strides[i] = (i < rank) ? strides[i] : 0;
+    }
+
+    view->parent = owner;
+    Py_INCREF(owner);
+    view->data = data_ptr;
+
+    return view;
+}
+
 static PyGetSetDef Tensor_getset[] = {
     {"shape", Tensor_get_shape, NULL, "Shape of the array", NULL},
     {"dtype", Tensor_get_dtype, NULL, "Data type of the array", NULL},
@@ -845,6 +878,7 @@ static PyGetSetDef Tensor_getset[] = {
     {"T", Tensor_get_T, NULL, "Transposed view of the array", NULL},
     {"__array_interface__", Tensor_get_array_interface, NULL, "NumPy array interface", NULL},
     {"is_contiguous", Tensor_get_is_contiguous, NULL, "Whether the tensor is C-contiguous", NULL},
+    {"data_ptr", Tensor_get_data_ptr, NULL, "Integer address of the data buffer", NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
@@ -2154,6 +2188,96 @@ static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
     }
     *rank = (size_t)ndim;
     return 1;
+}
+
+char const doc_from_pointer[] =                                                          //
+    "Create a zero-copy Tensor view from a raw memory address.\n\n"                      //
+    "Parameters:\n"                                                                      //
+    "    address: Integer memory address of the data buffer.\n"                          //
+    "    shape: Shape of the array (int or tuple of ints).\n"                            //
+    "    dtype: Data type string (e.g. 'float32', 'bf16').\n"                            //
+    "    strides: Optional byte strides (default: C-contiguous).\n"                      //
+    "    owner: Optional Python object to prevent garbage collection of the source.\n\n" //
+    "Returns:\n"                                                                         //
+    "    Tensor: Non-owning view into the given memory.";
+
+PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    nk_unused_(self);
+    PyObject *address_obj = NULL, *shape_obj = NULL, *dtype_obj = NULL;
+    PyObject *strides_obj = NULL, *owner_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+
+    // Positional: address, shape, dtype. Keyword-only: strides, owner.
+    if (nargs < 3 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "from_pointer(address, shape, dtype, *, strides=None, owner=None)");
+        return NULL;
+    }
+
+    address_obj = args[0];
+    shape_obj = args[1];
+    dtype_obj = args[2];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        PyObject *val = args[nargs + i];
+        if (PyUnicode_CompareWithASCIIString(key, "strides") == 0) strides_obj = val;
+        else if (PyUnicode_CompareWithASCIIString(key, "owner") == 0) owner_obj = val;
+        else {
+            PyErr_Format(PyExc_TypeError, "from_pointer() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+
+    // Parse address
+    void *data = PyLong_AsVoidPtr(address_obj);
+    if (!data && PyErr_Occurred()) return NULL;
+    if (!data) {
+        PyErr_SetString(PyExc_ValueError, "address must be a non-zero integer pointer");
+        return NULL;
+    }
+
+    // Parse shape
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+
+    // Parse dtype
+    char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
+    if (!dtype_str) return NULL;
+    nk_dtype_t dtype = python_string_to_dtype(dtype_str);
+    if (dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", dtype_str);
+        return NULL;
+    }
+
+    // Compute or parse strides
+    Py_ssize_t strides[NK_TENSOR_MAX_RANK];
+    if (strides_obj && strides_obj != Py_None) {
+        if (!PyTuple_Check(strides_obj)) {
+            PyErr_SetString(PyExc_TypeError, "strides must be a tuple of ints");
+            return NULL;
+        }
+        if ((size_t)PyTuple_Size(strides_obj) != rank) {
+            PyErr_SetString(PyExc_ValueError, "strides length must match shape length");
+            return NULL;
+        }
+        for (size_t i = 0; i < rank; i++) {
+            PyObject *s = PyTuple_GetItem(strides_obj, (Py_ssize_t)i);
+            if (!PyLong_Check(s)) {
+                PyErr_SetString(PyExc_TypeError, "strides must be integers");
+                return NULL;
+            }
+            strides[i] = PyLong_AsSsize_t(s);
+            if (strides[i] == -1 && PyErr_Occurred()) return NULL;
+        }
+    }
+    else { compute_contiguous_strides(rank, shape, bytes_per_dtype(dtype), strides); }
+
+    // Use a sentinel owner if none provided — we need a non-NULL parent
+    // so Tensor_dealloc doesn't try to free the inline data
+    if (!owner_obj || owner_obj == Py_None) owner_obj = Py_None;
+
+    return (PyObject *)Tensor_view_object(owner_obj, (char *)data, dtype, rank, shape, strides);
 }
 
 char const doc_empty[] =                                       //
