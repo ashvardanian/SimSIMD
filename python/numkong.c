@@ -508,13 +508,17 @@ nk_dtype_t python_arg_to_dtype(PyObject *obj) {
         if (type == &NkFloat8E5M2Scalar_Type) return nk_e5m2_k;
         if (type == &NkFloat6E2M3Scalar_Type) return nk_e2m3_k;
         if (type == &NkFloat6E3M2Scalar_Type) return nk_e3m2_k;
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype type: %s", type->tp_name);
         return nk_dtype_unknown_k;
     }
     if (PyUnicode_Check(obj)) {
         Py_ssize_t s_len = 0;
         char const *s = PyUnicode_AsUTF8AndSize(obj, &s_len);
-        return s ? python_string_to_dtype(s, s_len) : nk_dtype_unknown_k;
+        nk_dtype_t dtype = s ? python_string_to_dtype(s, s_len) : nk_dtype_unknown_k;
+        if (dtype == nk_dtype_unknown_k) PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", s ? s : "");
+        return dtype;
     }
+    PyErr_Format(PyExc_TypeError, "Expected a string or type for 'dtype', got %s", Py_TYPE(obj)->tp_name);
     return nk_dtype_unknown_k;
 }
 

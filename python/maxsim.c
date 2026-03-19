@@ -105,10 +105,7 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
     if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
     nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (dtype == nk_dtype_unknown_k) return NULL;
 
     nk_dots_packed_size_punned_t size_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
@@ -186,10 +183,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     if (nargs >= 2) dtype_obj = args[1];
 
     nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_bf16_k;
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (target_dtype == nk_dtype_unknown_k) return NULL;
 
     if (target_dtype != nk_bf16_k && target_dtype != nk_f16_k && target_dtype != nk_f32_k) {
         PyErr_Format(PyExc_ValueError, "maxsim_pack() only supports 'bf16', 'f16', 'f32'; got '%s'",
@@ -416,10 +410,7 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     if (nargs >= 3) dtype_obj = args[2];
 
     nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_bf16_k;
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (target_dtype == nk_dtype_unknown_k) return NULL;
     if (target_dtype != nk_bf16_k && target_dtype != nk_f16_k && target_dtype != nk_f32_k) {
         PyErr_Format(PyExc_ValueError, "maxsim() only supports 'bf16', 'f16', 'f32'; got '%s'",
                      dtype_to_python_string(target_dtype));

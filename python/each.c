@@ -89,10 +89,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert inputs to buffers
@@ -258,10 +255,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
@@ -419,10 +413,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`.
@@ -542,10 +533,7 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
     if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        goto cleanup;
-    }
+    if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_scale_punned_t scale_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
@@ -662,10 +650,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     }
 
     if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        goto cleanup;
-    }
+    if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_sum_punned_t sum_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
@@ -836,10 +821,7 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
     if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        goto cleanup;
-    }
+    if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_scale_punned_t scale_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
@@ -956,10 +938,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     }
 
     if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        goto cleanup;
-    }
+    if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_fma_punned_t fma_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
@@ -1189,10 +1168,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`

@@ -69,19 +69,13 @@ static PyObject *implement_dense_metric( //
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
         out_dtype = python_arg_to_dtype(out_dtype_obj);
-        if (out_dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
-            return NULL;
-        }
+        if (out_dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
@@ -292,10 +286,7 @@ static PyObject *implement_curved_metric( //
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `c_obj`.
@@ -422,10 +413,7 @@ static PyObject *implement_geospatial_metric( //
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert input objects to buffers
@@ -860,10 +848,7 @@ cleanup:
 
 static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject *dtype_obj) {
     nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
-    if (!dtype) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported type");
-        return NULL;
-    }
+    if (!dtype) return NULL;
 
     nk_kernel_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
@@ -963,19 +948,13 @@ PyObject *api_cdist( //
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
         out_dtype = python_arg_to_dtype(out_dtype_obj);
-        if (out_dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
-            return NULL;
-        }
+        if (out_dtype == nk_dtype_unknown_k) return NULL;
     }
 
     return implement_cdist(a_obj, b_obj, out_obj, metric_kind, dtype, out_dtype);

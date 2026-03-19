@@ -1757,10 +1757,7 @@ PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
 
     // Parse target dtype from argument
     nk_dtype_t target_dtype = python_arg_to_dtype(dtype_arg);
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (target_dtype == nk_dtype_unknown_k) return NULL;
 
     // Same dtype -> return copy
     if (target_dtype == tensor->dtype) return Tensor_copy(self, NULL);
@@ -2224,7 +2221,6 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
         dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyBuffer_Release(&buf);
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
         if ((Py_ssize_t)bytes_per_dtype(dtype) != buf.itemsize) {
@@ -2376,10 +2372,7 @@ PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t con
 
     // Parse dtype
     nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (dtype == nk_dtype_unknown_k) return NULL;
 
     // Compute or parse strides
     Py_ssize_t strides[NK_TENSOR_MAX_RANK];
@@ -2448,10 +2441,7 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     return (PyObject *)Tensor_new(dtype, rank, shape);
@@ -2494,10 +2484,7 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2547,10 +2534,7 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2615,10 +2599,7 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2680,10 +2661,7 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2749,10 +2727,7 @@ PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const n
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Py_ssize_t shape[2] = {n, n};
@@ -2826,10 +2801,7 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            return NULL;
-        }
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);

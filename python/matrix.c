@@ -111,10 +111,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
     nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
-    if (dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (dtype == nk_dtype_unknown_k) return NULL;
 
     nk_dots_packed_size_punned_t size_fn = NULL;
     nk_capability_t cap = nk_cap_serial_k;
@@ -529,10 +526,7 @@ static PyObject *api_symmetric_common( //
 
     if (dtype_obj) {
         dtype = python_arg_to_dtype(dtype_obj);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-            goto cleanup;
-        }
+        if (dtype == nk_dtype_unknown_k) goto cleanup;
     }
 
     nk_dots_symmetric_punned_t kernel = NULL;
@@ -637,10 +631,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     if (nargs >= 2) dtype_obj = args[1];
 
     nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : default_dtype;
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
-        return NULL;
-    }
+    if (target_dtype == nk_dtype_unknown_k) return NULL;
 
     Py_buffer b_buffer;
     nk_buffer_backing_t b_backing;
