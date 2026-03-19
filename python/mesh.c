@@ -228,7 +228,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     // Check data types and get kernel
-    nk_dtype_t dtype = python_string_to_dtype(a_buffer.format);
+    nk_dtype_t dtype = python_string_to_dtype(a_buffer.format, (Py_ssize_t)strlen(a_buffer.format));
     if (dtype != nk_f32_k && dtype != nk_f64_k) {
         PyErr_SetString(PyExc_TypeError, "Point clouds must be float32 or float64");
         goto cleanup;

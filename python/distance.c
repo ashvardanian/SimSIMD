@@ -947,12 +947,13 @@ PyObject *api_cdist( //
 
     // Convert `metric_obj` to `metric_str` and to `metric_kind`
     if (metric_obj) {
-        metric_str = PyUnicode_AsUTF8(metric_obj);
+        Py_ssize_t metric_len = 0;
+        metric_str = PyUnicode_AsUTF8AndSize(metric_obj, &metric_len);
         if (!metric_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
             return NULL;
         }
-        metric_kind = python_string_to_metric_kind(metric_str);
+        metric_kind = python_string_to_metric_kind(metric_str, metric_len);
         if (metric_kind == nk_kernel_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;

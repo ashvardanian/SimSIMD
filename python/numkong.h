@@ -137,7 +137,7 @@ char const *dtype_to_python_string(nk_dtype_t dtype);
  *  @see https://docs.python.org/3/library/struct.html#format-characters
  *  @see https://numpy.org/doc/stable/reference/arrays.interface.html
  */
-nk_dtype_t python_string_to_dtype(char const *name);
+nk_dtype_t python_string_to_dtype(char const *name, Py_ssize_t len);
 
 /**
  *  @brief Convert a Python object (type object or string) to logical dtype.
@@ -159,9 +159,10 @@ nk_dtype_t dtype_from_buffer(Py_buffer const *buffer);
 /**
  *  @brief Convert metric name string to kernel kind.
  *  @param[in] name Metric name (e.g., "l2", "dot", "angular").
+ *  @param[in] len Length of the name string.
  *  @return Kernel kind, or nk_kernel_unknown_k if not recognized.
  */
-nk_kernel_kind_t python_string_to_metric_kind(char const *name);
+nk_kernel_kind_t python_string_to_metric_kind(char const *name, Py_ssize_t len);
 
 /**
  *  @brief Check if a dtype is complex.
@@ -177,6 +178,16 @@ int is_complex(nk_dtype_t dtype);
  *  @return 1 if equal, 0 otherwise.
  */
 int same_string(char const *a, char const *b);
+
+/**
+ *  @brief Check string equality with known lengths (memcmp-based).
+ *  @param[in] input Input string.
+ *  @param[in] input_len Length of input string.
+ *  @param[in] literal Literal string to compare against.
+ *  @param[in] literal_len Length of literal string.
+ *  @return 1 if equal, 0 otherwise.
+ */
+int same_string_n(char const *input, Py_ssize_t input_len, char const *literal, Py_ssize_t literal_len);
 
 /**
  *  @brief Cast a distance value to target dtype and store it.
