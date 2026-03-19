@@ -4919,6 +4919,16 @@ struct sub_byte_ref<u4x2_t> {
 };
 
 /**
+ *  @brief The mutable reference type for one logical dimension of a value.
+ *
+ *  For normal types (1 dim per value): a plain `value_type_ &`.
+ *  For sub-byte packed types: a `sub_byte_ref<value_type_>` proxy.
+ */
+template <typename value_type_>
+using value_ref =
+    std::conditional_t<dimensions_per_value<value_type_>() == 1, value_type_ &, sub_byte_ref<value_type_>>;
+
+/**
  *  @brief Packed 8-bit bit-vector (8 booleans in one byte).
  *
  *  Layout: 8 bits packed into one byte, LSB = dimension 0.

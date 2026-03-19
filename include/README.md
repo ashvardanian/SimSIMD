@@ -379,6 +379,41 @@ nk::f64_t dot {};
 nk::dot(view.row(0), view.row(1), md.extent(1), &dot);
 ```
 
+## Iterators and Enumeration
+
+NumKong containers expose random-access iterators for element and row traversal.
+
+- __`dim_iterator`__ — random-access iterator over element values, used by `vector`, `vector_view`, and `vector_span`.
+  Supports all standard iterator operations plus `index()` to retrieve the current position.
+- __`axis_iterator`__ — random-access iterator over sub-views (rows), used by `tensor_view` and `tensor_span`.
+  Also exposes `index()`.
+- __`enumerate()`__ — free function returning a lightweight view that yields `{index, value}` pairs from any container with `begin()`/`end()`/`size()`.
+
+```cpp
+#include <numkong/numkong.hpp>
+
+namespace nk = ashvardanian::numkong;
+
+nk::vector<nk::f16_t> v(128);
+for (auto [i, val] : nk::enumerate(v))
+    std::printf("[%zu] = %f\n", i, val.to_f32());
+
+// index() on raw iterators
+for (auto it = v.begin(); it != v.end(); ++it)
+    std::printf("[%zu] = %f\n", it.index(), (*it).to_f32());
+```
+
+Since `tensor.hpp` includes `vector.hpp`, `enumerate()` works on tensor row views too.
+
+Tensors also support range-for over all logical scalar elements, yielding `(position, value)` pairs.
+For sub-byte types each dimension is a logical scalar. Use `.dims()` to iterate values without positions.
+
+```cpp
+for (auto [pos, val] : matrix)          { /* pos is std::array<size_t, R> */ }
+for (auto [pos, ref] : matrix.span())   { ref = nk::f32_t{1}; }
+for (auto val : matrix.dims())          { /* scalar only, no position */ }
+```
+
 ## Packed Matrix Kernels for GEMM-Like Workloads
 
 This is the most distinctive native subsystem outside the raw vector kernels.
@@ -585,3 +620,24 @@ cmake -B build -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
 NumKong does not use OpenMP and does not create a hidden thread pool.
 Standard pthreads are linked via CMake's `Threads` package.
 Parallelism is host-controlled: partition work across row ranges and dispatch through ForkUnion, `std::thread`, or any external scheduler.
+
+## Addressing External Memory
+
+Every kernel takes plain pointers, so any CPU-accessible memory works: mmap, pinned buffers, CUDA unified memory, custom arenas.
+C++ views wrap any pointer without ownership.
+Owning containers accept any C++ Allocator.
+
+```cpp
+template <typename T>
+struct cuda_allocator {
+    using value_type = T;
+    T *allocate(std::size_t n) { T *p;
+        cudaMallocManaged(&p, n * sizeof(T), cudaMemAttachGlobal); 
+        return p; }
+    void deallocate(T *p, std::size_t) noexcept { cudaFree(p); }
+};
+
+nk_dot_f32(cuda_managed_ptr, cuda_managed_ptr, 1024, &dot);         // C ABI, any pointer
+auto view = nk::tensor_view<nk::f32_t>(mmap_ptr, rows, cols);       // non-owning view
+auto v = nk::vector<float, cuda_allocator<float>>::try_zeros(1024); // allocator-aware owning
+```

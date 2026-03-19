@@ -251,8 +251,53 @@ class dim_iterator {
     constexpr bool operator>(dim_iterator const &other) const noexcept { return index_ > other.index_; }
     constexpr bool operator>=(dim_iterator const &other) const noexcept { return index_ >= other.index_; }
 
+    constexpr size_type index() const noexcept { return index_; }
+
     friend constexpr dim_iterator operator+(difference_type n, dim_iterator const &it) noexcept { return it + n; }
 };
+
+/** Lightweight view yielding (index, value) pairs from a container's iterator. */
+template <typename container_type_>
+struct enumerate_view_ {
+    container_type_ &container_;
+
+    struct iterator_ {
+        using inner_iterator = decltype(std::declval<container_type_ &>().begin());
+        using difference_type = std::ptrdiff_t;
+        using iterator_category = std::input_iterator_tag;
+
+        inner_iterator it_;
+        std::size_t index_;
+
+        constexpr auto operator*() const noexcept { return std::pair<std::size_t, decltype(*it_)> {index_, *it_}; }
+        constexpr iterator_ &operator++() noexcept {
+            ++it_;
+            ++index_;
+            return *this;
+        }
+        constexpr iterator_ operator++(int) noexcept {
+            auto t = *this;
+            ++*this;
+            return t;
+        }
+        constexpr bool operator==(iterator_ const &o) const noexcept { return it_ == o.it_; }
+        constexpr bool operator!=(iterator_ const &o) const noexcept { return it_ != o.it_; }
+    };
+
+    constexpr iterator_ begin() noexcept { return {container_.begin(), 0}; }
+    constexpr iterator_ end() noexcept { return {container_.end(), container_.size()}; }
+};
+
+/** Returns a view yielding (index, value) pairs over a vector, view, or span. */
+template <typename container_type_>
+constexpr enumerate_view_<container_type_> enumerate(container_type_ &c) noexcept {
+    return {c};
+}
+
+template <typename container_type_>
+constexpr enumerate_view_<container_type_ const> enumerate(container_type_ const &c) noexcept {
+    return {c};
+}
 
 #pragma endregion - Dim Iterator
 
