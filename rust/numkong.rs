@@ -166,11 +166,12 @@ pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global, Matrix,
-    MatrixSpan, MatrixView, MinMaxOps, MomentsOps, ScaleOps, ShapeDescriptor, SliceRange, SumOps,
-    Tensor, TensorDims, TensorError, TensorIterator, TensorMut, TensorRef, TensorSpan,
-    TensorSpanDims, TensorSpanIterator, TensorView, TensorViewDims, TensorViewIterator,
-    TrigAtanOps, TrigCosOps, TrigSinOps, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    AllCloseOps, Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global,
+    Matrix, MatrixSpan, MatrixView, MinMaxOps, MinMaxResult, MomentsOps, RangeStep, ScaleOps,
+    ShapeDescriptor, SliceArg, SliceRange, SliceSpec, SumOps, Tensor, TensorDims, TensorError,
+    TensorIterator, TensorMut, TensorRef, TensorSpan, TensorSpanDims, TensorSpanIterator,
+    TensorView, TensorViewDims, TensorViewIterator, TrigAtanOps, TrigCosOps, TrigSinOps,
+    DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // Re-export matrix types
@@ -181,7 +182,7 @@ pub use matrix::{
 
 // Re-export vector types
 pub use vector::{
-    VecIndex, Vector, VectorIterator, VectorSpan, VectorSpanIterator, VectorView,
+    Vector, VectorIndex, VectorIterator, VectorSpan, VectorSpanIterator, VectorView,
     VectorViewIterator,
 };
 

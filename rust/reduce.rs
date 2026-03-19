@@ -325,9 +325,9 @@ extern "C" {
 /// The output types may be wider than the input to avoid overflow.
 pub trait ReduceMoments: StorageElement {
     /// Type for the sum output.
-    type SumOutput;
+    type SumOutput: StorageElement;
     /// Type for the sum-of-squares output.
-    type SumSqOutput;
+    type SumSqOutput: StorageElement;
     /// Compute `(sum, sum_of_squares)` for raw pointer input with the given stride in bytes.
     ///
     /// # Safety
@@ -620,7 +620,7 @@ impl ReduceMoments for u1x8 {
 /// The output value type matches the logical reduced scalar type.
 pub trait ReduceMinMax: StorageElement {
     /// Output type for the min/max values — matches the C layer's native type.
-    type Output;
+    type Output: StorageElement;
     /// Whether `NK_SIZE_MAX` indicates that the reduction produced no value.
     const NONE_ON_SENTINEL: bool;
     /// Returns `Some((min_value, min_index, max_value, max_index))` for raw pointer input with the

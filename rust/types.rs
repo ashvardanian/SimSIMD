@@ -1745,6 +1745,11 @@ impl NumberLike for u64 {
     fn to_f64(self) -> f64 { self as f64 }
 }
 
+impl StorageElement for usize {
+    fn zero() -> Self { 0 }
+    fn one() -> Self { 1 }
+}
+
 impl StorageElement for i4x2 {
     fn zero() -> Self { i4x2::from((0i8, 0i8)) }
     fn one() -> Self { i4x2::from((1i8, 1i8)) }

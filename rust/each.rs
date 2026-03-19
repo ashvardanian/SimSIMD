@@ -9,7 +9,7 @@
 //! - [`EachFMA`]: Fused multiply-add (a * alpha + b * beta)
 //! - [`Trigonometry`]: Blanket trait combining `EachSin + EachCos + EachATan`
 
-use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c};
+use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -552,7 +552,7 @@ where
 // region: EachSin
 
 /// Computes **element-wise sine** of a vector.
-pub trait EachSin: Sized {
+pub trait EachSin: Sized + StorageElement {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
@@ -597,7 +597,7 @@ impl EachSin for f16 {
 // region: EachCos
 
 /// Computes **element-wise cosine** of a vector.
-pub trait EachCos: Sized {
+pub trait EachCos: Sized + StorageElement {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
@@ -642,7 +642,7 @@ impl EachCos for f16 {
 // region: EachATan
 
 /// Computes **element-wise arctangent** of a vector.
-pub trait EachATan: Sized {
+pub trait EachATan: Sized + StorageElement {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
@@ -694,7 +694,7 @@ impl EachATan for f16 {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
-pub trait EachScale: Sized {
+pub trait EachScale: Sized + StorageElement {
     type Scalar;
     fn each_scale(
         a: &[Self],
@@ -1012,7 +1012,7 @@ impl EachScale for bf16c {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
-pub trait EachSum: Sized {
+pub trait EachSum: Sized + StorageElement {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()>;
 }
 
@@ -1276,7 +1276,7 @@ impl EachSum for bf16c {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
-pub trait EachBlend: Sized {
+pub trait EachBlend: Sized + StorageElement {
     type Scalar;
     fn each_blend(
         a: &[Self],
@@ -1793,7 +1793,7 @@ impl EachBlend for bf16c {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
-pub trait EachFMA: Sized {
+pub trait EachFMA: Sized + StorageElement {
     type Scalar;
     fn each_fma(
         a: &[Self],

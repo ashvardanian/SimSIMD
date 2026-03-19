@@ -5,7 +5,7 @@
 //! - [`CastDtype`]: Trait marking types eligible for bulk casting
 //! - [`cast`]: Bulk-converts a slice from one scalar format to another
 
-use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c};
+use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -71,7 +71,7 @@ mod private {
 /// Trait for types that can participate in cast operations.
 ///
 /// This trait is sealed - users cannot implement it for their own types.
-pub trait CastDtype: private::Sealed {
+pub trait CastDtype: private::Sealed + StorageElement {
     #[doc(hidden)]
     fn dtype_code() -> u32;
 }

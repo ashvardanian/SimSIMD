@@ -5,7 +5,7 @@
 //! - [`Vector`]: Owning, non-resizable, SIMD-aligned vector
 //! - [`VectorView`]: Immutable, strided, non-owning view
 //! - [`VectorSpan`]: Mutable, strided, non-owning view
-//! - [`VecIndex`]: Signed indexing trait (negative indices wrap from end)
+//! - [`VectorIndex`]: Signed indexing trait (negative indices wrap from end)
 //!
 //! All types use [`StorageElement`] as their element bound, with sub-byte types
 //! (i4x2, u4x2, u1x8) supported via `try_get`/`try_set` and iterators.
@@ -15,17 +15,17 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::tensor::{Allocator, Global, TensorError, SIMD_ALIGNMENT};
+use crate::tensor::{Allocator, Global, Tensor, TensorError, SIMD_ALIGNMENT};
 use crate::types::{DimMut, DimRef, FloatConvertible, NumberLike, StorageElement};
 
-// region: VecIndex — Signed Indexing
+// region: VectorIndex — Signed Indexing
 
 mod private {
     pub trait Sealed {}
 }
 
 /// Trait for vector index types. Supports signed integers (negative = from end).
-pub trait VecIndex: private::Sealed + Copy {
+pub trait VectorIndex: private::Sealed + Copy {
     /// Resolve this index to a `usize` offset, or `None` if out of bounds.
     fn resolve(self, len: usize) -> Option<usize>;
 }
@@ -33,7 +33,7 @@ pub trait VecIndex: private::Sealed + Copy {
 macro_rules! impl_vec_index_unsigned {
     ($($t:ty),*) => {$(
         impl private::Sealed for $t {}
-        impl VecIndex for $t {
+        impl VectorIndex for $t {
             #[inline]
             fn resolve(self, len: usize) -> Option<usize> {
                 let idx = self as usize;
@@ -46,7 +46,7 @@ macro_rules! impl_vec_index_unsigned {
 macro_rules! impl_vec_index_signed {
     ($($t:ty),*) => {$(
         impl private::Sealed for $t {}
-        impl VecIndex for $t {
+        impl VectorIndex for $t {
             #[inline]
             fn resolve(self, len: usize) -> Option<usize> {
                 let idx = if self >= 0 {
@@ -65,7 +65,7 @@ macro_rules! impl_vec_index_signed {
 impl_vec_index_unsigned!(usize, u8, u16, u32, u64);
 impl_vec_index_signed!(isize, i8, i16, i32, i64);
 
-// endregion: VecIndex
+// endregion: VectorIndex
 
 // region: Sub-byte Proxy Types
 
@@ -262,6 +262,22 @@ fn dims_to_values<T: StorageElement>(dims: usize) -> usize {
 }
 
 impl<T: StorageElement, A: Allocator> Vector<T, A> {
+    /// Construct a vector from raw parts, taking ownership of the allocation.
+    ///
+    /// # Safety
+    /// - `data` must point to a valid allocation of `values * size_of::<T>()` bytes
+    ///   obtained from `alloc`, aligned to [`SIMD_ALIGNMENT`].
+    /// - `dims` and `values` must be consistent (`values == ceil(dims / dimensions_per_value())`).
+    /// - The caller must not free the memory (this vector takes ownership).
+    pub unsafe fn from_raw_parts(data: NonNull<T>, dims: usize, values: usize, alloc: A) -> Self {
+        Self {
+            data,
+            dims,
+            values,
+            alloc,
+        }
+    }
+
     /// Try to create a zero-initialized vector with the given number of dimensions.
     pub fn try_zeros_in(dims: usize, alloc: A) -> Result<Self, TensorError> {
         let values = dims_to_values::<T>(dims);
@@ -422,7 +438,7 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
     /// Returns the native `DimScalar` type (e.g., `f64` for `Vector<f64>`, `i8` for `Vector<i4x2>`).
     /// For sub-byte types, unpacks the appropriate sub-dimension from the packed storage value.
     #[inline]
-    pub fn try_get<I: VecIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
+    pub fn try_get<I: VectorIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
     where
         T: FloatConvertible,
     {
@@ -445,7 +461,7 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
     /// Accepts the native `DimScalar` type. For sub-byte types, reads the current packed value,
     /// updates the targeted sub-dimension, and writes back the modified packed value.
     #[inline]
-    pub fn try_set<I: VecIndex>(&mut self, idx: I, val: T::DimScalar) -> Result<(), TensorError>
+    pub fn try_set<I: VectorIndex>(&mut self, idx: I, val: T::DimScalar) -> Result<(), TensorError>
     where
         T: FloatConvertible,
     {
@@ -506,6 +522,29 @@ impl<T: StorageElement, A: Allocator> Vector<T, A> {
     }
 }
 
+impl<T: StorageElement, A: Allocator> Vector<T, A> {
+    /// Convert this vector into a 1D tensor, transferring ownership without copying.
+    pub fn try_into_tensor<const MAX_RANK: usize>(
+        self,
+    ) -> Result<Tensor<T, A, MAX_RANK>, TensorError> {
+        if MAX_RANK == 0 {
+            return Err(TensorError::TooManyRanks { got: 1 });
+        }
+        let mut shape = [0usize; MAX_RANK];
+        shape[0] = self.dims;
+        let mut strides = [0isize; MAX_RANK];
+        strides[0] = core::mem::size_of::<T>() as isize;
+        let alloc_bytes = self.values * core::mem::size_of::<T>();
+        let data = self.data;
+        // SAFETY: we read the allocator out before forget, transferring ownership
+        let alloc = unsafe { core::ptr::read(&self.alloc) };
+        core::mem::forget(self);
+        // SAFETY: data/alloc_bytes match the original allocation
+        let tensor = unsafe { Tensor::from_raw_parts(data, alloc_bytes, shape, strides, 1, alloc) };
+        Ok(tensor)
+    }
+}
+
 impl<T: StorageElement> Vector<T, Global> {
     /// Create a zero-initialized vector with the global allocator.
     pub fn try_zeros(dims: usize) -> Result<Self, TensorError> { Self::try_zeros_in(dims, Global) }
@@ -550,7 +589,7 @@ impl<T: StorageElement> Vector<T, Global> {
 }
 
 // Index for normal types (dimensions_per_value == 1)
-impl<I: VecIndex, T: StorageElement, A: Allocator> core::ops::Index<I> for Vector<T, A> {
+impl<I: VectorIndex, T: StorageElement, A: Allocator> core::ops::Index<I> for Vector<T, A> {
     type Output = T;
 
     #[inline]
@@ -565,7 +604,7 @@ impl<I: VecIndex, T: StorageElement, A: Allocator> core::ops::Index<I> for Vecto
     }
 }
 
-impl<I: VecIndex, T: StorageElement, A: Allocator> core::ops::IndexMut<I> for Vector<T, A> {
+impl<I: VectorIndex, T: StorageElement, A: Allocator> core::ops::IndexMut<I> for Vector<T, A> {
     #[inline]
     fn index_mut(&mut self, idx: I) -> &mut T {
         let i = idx.resolve(self.dims).expect("vector index out of bounds");
@@ -699,7 +738,7 @@ impl<'a, T: StorageElement> VectorView<'a, T> {
     /// Returns the native `DimScalar` type. For sub-byte types, uses value_index
     /// for stride-based pointer walks to avoid buffer overread.
     #[inline]
-    pub fn try_get<I: VecIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
+    pub fn try_get<I: VectorIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
     where
         T: FloatConvertible,
     {
@@ -785,7 +824,7 @@ impl<'a, T: StorageElement> VectorView<'a, T> {
     }
 }
 
-impl<'a, I: VecIndex, T: StorageElement> core::ops::Index<I> for VectorView<'a, T> {
+impl<'a, I: VectorIndex, T: StorageElement> core::ops::Index<I> for VectorView<'a, T> {
     type Output = T;
 
     #[inline]
@@ -873,7 +912,7 @@ impl<'a, T: StorageElement> VectorSpan<'a, T> {
 
     /// Try to get element at index.
     #[inline]
-    pub fn try_get<I: VecIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
+    pub fn try_get<I: VectorIndex>(&self, idx: I) -> Result<T::DimScalar, TensorError>
     where
         T: FloatConvertible,
     {
@@ -885,7 +924,7 @@ impl<'a, T: StorageElement> VectorSpan<'a, T> {
     /// Accepts the native `DimScalar` type. For sub-byte types, uses value_index
     /// for stride-based pointer walks to avoid buffer overwrite.
     #[inline]
-    pub fn try_set<I: VecIndex>(&mut self, idx: I, val: T::DimScalar) -> Result<(), TensorError>
+    pub fn try_set<I: VectorIndex>(&mut self, idx: I, val: T::DimScalar) -> Result<(), TensorError>
     where
         T: FloatConvertible,
     {
@@ -972,7 +1011,7 @@ impl<'a, T: StorageElement> VectorSpan<'a, T> {
     }
 }
 
-impl<'a, I: VecIndex, T: StorageElement> core::ops::Index<I> for VectorSpan<'a, T> {
+impl<'a, I: VectorIndex, T: StorageElement> core::ops::Index<I> for VectorSpan<'a, T> {
     type Output = T;
 
     #[inline]
@@ -987,7 +1026,7 @@ impl<'a, I: VecIndex, T: StorageElement> core::ops::Index<I> for VectorSpan<'a, 
     }
 }
 
-impl<'a, I: VecIndex, T: StorageElement> core::ops::IndexMut<I> for VectorSpan<'a, T> {
+impl<'a, I: VectorIndex, T: StorageElement> core::ops::IndexMut<I> for VectorSpan<'a, T> {
     #[inline]
     fn index_mut(&mut self, idx: I) -> &mut T {
         let i = idx.resolve(self.dims).expect("span index out of bounds");

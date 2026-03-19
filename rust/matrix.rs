@@ -17,7 +17,7 @@ use core::ptr::NonNull;
 use crate::tensor::{
     Allocator, Global, ShapeDescriptor, Tensor, TensorError, TensorRef, TensorView, SIMD_ALIGNMENT,
 };
-use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -912,9 +912,9 @@ extern "C" {
 ///
 /// B is pre-packed into a backend-specific layout for optimal memory access.
 /// All strides are in bytes.
-pub trait Dots: Sized + Clone {
+pub trait Dots: Sized + Clone + StorageElement {
     /// Accumulator type for the multiplication.
-    type Accumulator: Clone + Default;
+    type Accumulator: Clone + Default + StorageElement;
 
     /// Returns the size in bytes needed for the packed B matrix buffer.
     fn dots_packed_size(width: usize, depth: usize) -> usize;
@@ -1559,7 +1559,7 @@ impl Dots for u4x2 {
     type Accumulator = u32;
 
     fn dots_packed_size(width: usize, depth: usize) -> usize {
-        unsafe { nk_dots_packed_size_u4(width, depth * 2) }
+        unsafe { nk_dots_packed_size_u4(width, depth) }
     }
 
     unsafe fn dots_pack(
@@ -1569,7 +1569,7 @@ impl Dots for u4x2 {
         b_stride: usize,
         packed: *mut u8,
     ) {
-        nk_dots_pack_u4(b as *const u8, width, depth * 2, b_stride, packed)
+        nk_dots_pack_u4(b as *const u8, width, depth, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1588,7 +1588,7 @@ impl Dots for u4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -1607,7 +1607,7 @@ impl Dots for u4x2 {
         nk_dots_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -1621,7 +1621,7 @@ impl Dots for i4x2 {
     type Accumulator = i32;
 
     fn dots_packed_size(width: usize, depth: usize) -> usize {
-        unsafe { nk_dots_packed_size_i4(width, depth * 2) }
+        unsafe { nk_dots_packed_size_i4(width, depth) }
     }
 
     unsafe fn dots_pack(
@@ -1631,7 +1631,7 @@ impl Dots for i4x2 {
         b_stride: usize,
         packed: *mut u8,
     ) {
-        nk_dots_pack_i4(b as *const u8, width, depth * 2, b_stride, packed)
+        nk_dots_pack_i4(b as *const u8, width, depth, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1650,7 +1650,7 @@ impl Dots for i4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -1669,7 +1669,7 @@ impl Dots for i4x2 {
         nk_dots_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -1683,7 +1683,7 @@ impl Dots for u1x8 {
     type Accumulator = u32;
 
     fn dots_packed_size(width: usize, depth: usize) -> usize {
-        unsafe { nk_dots_packed_size_u1(width, depth * 8) }
+        unsafe { nk_dots_packed_size_u1(width, depth) }
     }
 
     unsafe fn dots_pack(
@@ -1693,7 +1693,7 @@ impl Dots for u1x8 {
         b_stride: usize,
         packed: *mut u8,
     ) {
-        nk_dots_pack_u1(b as *const u8, width, depth * 8, b_stride, packed)
+        nk_dots_pack_u1(b as *const u8, width, depth, b_stride, packed)
     }
 
     unsafe fn dots_packed(
@@ -1712,7 +1712,7 @@ impl Dots for u1x8 {
             c,
             height,
             width,
-            depth * 8,
+            depth,
             a_stride,
             c_stride,
         )
@@ -1731,7 +1731,7 @@ impl Dots for u1x8 {
         nk_dots_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            depth * 8,
+            depth,
             stride,
             result,
             result_stride,
@@ -1803,7 +1803,7 @@ impl Hammings for u1x8 {
             result,
             height,
             width,
-            depth * 8,
+            depth,
             v_stride,
             r_stride,
         )
@@ -1822,7 +1822,7 @@ impl Hammings for u1x8 {
         nk_hammings_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            depth * 8,
+            depth,
             stride,
             result,
             result_stride,
@@ -1844,7 +1844,7 @@ impl Hammings for u1x8 {
 /// Packing is inherited from the `Dots` supertrait.
 pub trait Jaccards: Dots {
     /// Result type for Jaccard distances.
-    type JaccardResult: Clone + Default;
+    type JaccardResult: Clone + Default + StorageElement;
 
     /// Computes Jaccard distances between values matrix rows and packed query rows.
     ///
@@ -1899,7 +1899,7 @@ impl Jaccards for u1x8 {
             result,
             height,
             width,
-            depth * 8,
+            depth,
             v_stride,
             r_stride,
         )
@@ -1918,7 +1918,7 @@ impl Jaccards for u1x8 {
         nk_jaccards_symmetric_u1(
             vectors as *const u8,
             n_vectors,
-            depth * 8,
+            depth,
             stride,
             result,
             result_stride,
@@ -1940,7 +1940,7 @@ impl Jaccards for u1x8 {
 /// Packing reuses `Dots::dots_pack` for optimal memory layout.
 pub trait Angulars: Dots {
     /// Result type for angular distances.
-    type SpatialResult: Clone + Default;
+    type SpatialResult: Clone + Default + StorageElement;
 
     /// Computes angular distances between A rows and packed B columns.
     ///
@@ -1984,7 +1984,7 @@ pub trait Angulars: Dots {
 /// Packing reuses `Dots::dots_pack` for optimal memory layout.
 pub trait Euclideans: Dots {
     /// Result type for euclidean distances.
-    type SpatialResult: Clone + Default;
+    type SpatialResult: Clone + Default + StorageElement;
 
     /// Computes euclidean distances between A rows and packed B columns.
     ///
@@ -2254,7 +2254,7 @@ impl Angulars for u4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -2272,7 +2272,7 @@ impl Angulars for u4x2 {
         nk_angulars_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -2299,7 +2299,7 @@ impl Euclideans for u4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -2317,7 +2317,7 @@ impl Euclideans for u4x2 {
         nk_euclideans_symmetric_u4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -2344,7 +2344,7 @@ impl Angulars for i4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -2362,7 +2362,7 @@ impl Angulars for i4x2 {
         nk_angulars_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -2389,7 +2389,7 @@ impl Euclideans for i4x2 {
             c,
             height,
             width,
-            depth * 2,
+            depth,
             a_stride,
             c_stride,
         )
@@ -2407,7 +2407,7 @@ impl Euclideans for i4x2 {
         nk_euclideans_symmetric_i4(
             vectors as *const u8,
             n_vectors,
-            depth * 2,
+            depth,
             stride,
             result,
             result_stride,
@@ -2686,10 +2686,7 @@ impl<T: Dots> PackedMatrix<T, Global> {
 
 // region: Tensor GEMM
 
-impl<T: Dots, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK>
-where
-    T::Accumulator: Clone + Default,
-{
+impl<T: Dots, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Dot-product multiply: C = self × packed_bᵀ
     ///
     /// self must be 2D (m × k) with contiguous rows.
@@ -4035,18 +4032,25 @@ mod tests {
     const DIMS: &[(usize, usize, usize)] =
         &[(1, 1, 1), (1, 8, 3), (3, 1, 7), (7, 5, 3), (33, 17, 65)];
 
+    /// Round `k` up to the nearest multiple of `T::dimensions_per_value()`.
+    fn align_depth<T: StorageElement>(k: usize) -> usize {
+        let dims_per_value = T::dimensions_per_value();
+        (k + dims_per_value - 1) / dims_per_value * dims_per_value
+    }
+
     fn check_dots_packed<T: TestableType + Dots>()
     where
         T::Accumulator: Clone + Default + Copy + FloatLike,
     {
         init_thread();
         for &(m, n, k) in DIMS {
+            let k = align_depth::<T>(k);
             let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
-            let expected = T::dimensions_per_value() as f64 * k as f64;
+            let expected = k as f64;
             let tol = T::atol() + T::rtol() * expected.abs();
             for (i, &v) in c.as_slice().iter().enumerate() {
                 assert!(
@@ -4064,12 +4068,13 @@ mod tests {
     {
         init_thread();
         for &(m, n, k) in DIMS {
+            let k = align_depth::<T>(k);
             let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
             let b_t = Tensor::<T>::try_full(&[k, n], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack_transposed(&b_t).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
-            let expected = T::dimensions_per_value() as f64 * k as f64;
+            let expected = k as f64;
             let tol = T::atol() + T::rtol() * expected.abs();
             for (i, &v) in c.as_slice().iter().enumerate() {
                 assert!(
@@ -4088,6 +4093,7 @@ mod tests {
         init_thread();
         let tol = T::atol();
         for &(m, n, k) in DIMS {
+            let k = align_depth::<T>(k);
             let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
@@ -4110,6 +4116,7 @@ mod tests {
         init_thread();
         let tol = T::atol();
         for &(m, n, k) in DIMS {
+            let k = align_depth::<T>(k);
             let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
             let b = Tensor::<T>::try_full(&[n, k], T::one()).unwrap();
             let b_packed = PackedMatrix::try_pack(&b).unwrap();
@@ -4216,8 +4223,6 @@ mod tests {
         check_dots_packed_transposed::<e3m2>();
         check_dots_packed_transposed::<i8>();
         check_dots_packed_transposed::<u8>();
-        check_dots_packed_transposed::<i4x2>();
-        check_dots_packed_transposed::<u4x2>();
     }
 
     #[test]
@@ -4267,6 +4272,7 @@ mod tests {
     {
         init_thread();
         for &(num_vectors, _num_targets, depth) in DIMS {
+            let depth = align_depth::<T>(depth);
             let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_dots_symmetric().unwrap();
             assert_eq!(
@@ -4274,7 +4280,7 @@ mod tests {
                 &[num_vectors, num_vectors],
                 "shape @ ({num_vectors},{depth})"
             );
-            let expected = T::dimensions_per_value() as f64 * depth as f64;
+            let expected = depth as f64;
             let tolerance = T::atol() + T::rtol() * expected.abs();
             for i in 0..num_vectors {
                 for j in i..num_vectors {
@@ -4296,6 +4302,7 @@ mod tests {
         init_thread();
         let tolerance = T::atol();
         for &(num_vectors, _num_targets, depth) in DIMS {
+            let depth = align_depth::<T>(depth);
             let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_angulars_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
@@ -4319,6 +4326,7 @@ mod tests {
         init_thread();
         let tolerance = T::atol();
         for &(num_vectors, _num_targets, depth) in DIMS {
+            let depth = align_depth::<T>(depth);
             let vectors = Tensor::<T>::try_full(&[num_vectors, depth], T::one()).unwrap();
             let gram_matrix = vectors.view().try_euclideans_symmetric().unwrap();
             assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
@@ -4386,8 +4394,8 @@ mod tests {
     #[test]
     fn binary_packed_u1() {
         init_thread();
-        let a = Tensor::<u1x8>::try_full(&[4, 8], u1x8(0xFF)).unwrap();
-        let b = Tensor::<u1x8>::try_full(&[16, 8], u1x8(0xFF)).unwrap();
+        let a = Tensor::<u1x8>::try_full(&[4, 64], u1x8(0xFF)).unwrap();
+        let b = Tensor::<u1x8>::try_full(&[16, 64], u1x8(0xFF)).unwrap();
         let b_packed = PackedMatrix::try_pack(&b).unwrap();
         let c = a.dots_packed(&b_packed);
         assert_eq!(c.shape(), &[4, 16]);
@@ -4403,7 +4411,7 @@ mod tests {
     #[test]
     fn binary_symmetric_u1() {
         init_thread();
-        let a = Tensor::<u1x8>::try_full(&[4, 8], u1x8(0xFF)).unwrap();
+        let a = Tensor::<u1x8>::try_full(&[4, 64], u1x8(0xFF)).unwrap();
         let gram = a.view().try_dots_symmetric().unwrap();
         assert_eq!(gram.shape(), &[4, 4]);
         assert_eq!(gram.as_slice()[0], 64);

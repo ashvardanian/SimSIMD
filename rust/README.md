@@ -306,26 +306,34 @@ That does _not_ mean callers must align their source buffers manually.
 It means owned outputs and packed payloads are allocated in a SIMD-friendly way when the crate owns them.
 
 ```rust
-use numkong::{SliceRange, Tensor};
+use numkong::{RangeStep, SliceRange, Tensor};
 
 let t = Tensor::<f32>::try_from_slice(&[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[3, 3]).unwrap();
-assert_eq!(t.shape(), &[3, 3]);
-assert_eq!(t.row(1), Some(&[3.0, 4.0, 5.0][..]));
 
-// Transpose
-let view = t.view().transpose();
-assert_eq!(view.shape(), &[3, 3]);
+let col = t.slice((.., 1_usize)).unwrap();                  // t[:, 1]  — column 1
+let rows = t.slice((0..2_usize, ..)).unwrap();              // t[0:2, :] — first two rows
+let tail = t.slice((-2_isize.., ..)).unwrap();              // t[-2:, :] — last two rows
+let neg = t.slice((.., -2..-1_isize)).unwrap();             // t[:, -2:-1]
+let step = t.slice((.., RangeStep::new(0, 3, 2))).unwrap(); // t[:, ::2]
 
-// Column slicing — produces a strided view
-let col1 = t.view().slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
-assert_eq!(col1.shape(), &[3]);
-
-// Scalar element access
-let val = t.view().get(&[1, 2]).unwrap(); // row 1, col 2 → 5.0
-
-// Reduction on a sliced view
-let idx = col1.try_argmin_all().unwrap(); // index of the minimum in the second column
+// Explicit &[SliceRange] syntax also works
+let col = t.slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
 ```
+
+Tuple elements implement `SliceArg` — each monomorphized with zero runtime dispatch:
+
+| Rust syntax                     | Meaning                                |
+| ------------------------------- | -------------------------------------- |
+| `..`                            | all                                    |
+| `0_usize` / `-1_isize`          | single index (negative wraps from end) |
+| `1..4_usize` / `-3..-1_isize`   | half-open range                        |
+| `..3_usize` / `..-1_isize`      | from start                             |
+| `1_usize..` / `-2_isize..`      | to end                                 |
+| `0..=2_usize` / `-3..=-1_isize` | inclusive range                        |
+| `RangeStep::new(0, 6, 2)`       | stepped (no Rust literal)              |
+
+Integer literals default to `i32` — use `_usize` / `_isize` suffixes.
+Negative `isize` values wrap from the dimension end, like Python.
 
 Iteration works at the logical-dimension level.
 For sub-byte types like `i4x2` (2 nibbles per byte), iterating a 3-element vector yields 6 dimensions.
@@ -343,6 +351,18 @@ assert_eq!(nibbles.try_get(0_usize).unwrap(), 0);
 assert_eq!(nibbles.try_get(3_usize).unwrap(), 3);
 ```
 
+Vectors and tensors can be converted between each other without copying:
+
+```rust
+use numkong::{Vector, Tensor};
+
+let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
+let t: Tensor<f32, _, 8> = v.try_into_tensor().unwrap();
+assert_eq!(t.shape(), &[3]);
+let v2 = t.try_into_vector().unwrap();
+assert_eq!(v2.dims(), 3);
+```
+
 The main layout rules are:
 
 - General slicing and transposition are supported by views.
@@ -351,6 +371,11 @@ The main layout rules are:
 - A tensor can be non-contiguous overall and still have contiguous rows.
 - Some reductions have SIMD kernels for strided lanes.
 - Some backends still fall back depending on alignment and dtype.
+
+Sub-byte types (`i4x2`, `u4x2`, `u1x8`) use logical shapes.
+A shape of `[8]` for `i4x2` means 8 nibbles (stored in 4 bytes), not 8 bytes.
+The innermost dimension must be divisible by `dimensions_per_value()` (2 for nibble types, 8 for bit types).
+Transpose and reshape are not supported for sub-byte types — they return `SubByteUnsupported`.
 
 ## Elementwise Operations
 
@@ -367,6 +392,17 @@ let blended = a.view().try_blend_tensor(&b.view(), 0.25, 0.75).unwrap();
 let sines = blended.sin().unwrap();
 
 assert_eq!(sines.shape(), &[2, 2]);
+```
+
+Compound assignment operators work in-place:
+
+```rust
+use numkong::Tensor;
+
+let mut t = Tensor::<f32>::try_full(&[4], 1.0).unwrap();
+t += 10.0;
+t -= 0.5;
+t *= 2.0;
 ```
 
 ## Trigonometry
@@ -405,8 +441,7 @@ It is that the API makes the widened outputs part of the type story.
 
 ## Min/Max Reductions
 
-Min/max reductions are a separate family because they stress layout differently.
-They also expose the unusual strength of NumKong's reduction backends: some strided lanes still hit SIMD kernels.
+Min/max reductions return a `MinMaxResult` with both the value and its flat index:
 
 ```rust
 use numkong::Tensor;
@@ -417,7 +452,7 @@ let t = Tensor::<f32>::try_from_slice(&[
     4.0, -1.0, 6.0,
 ], &[3, 3]).unwrap();
 
-let second_column = t.view().slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
+let second_column = t.slice((.., 1_usize)).unwrap();  // t[:, 1]
 let idx = second_column.try_argmin_all().unwrap();
 
 assert_eq!(idx, 2);
@@ -537,6 +572,7 @@ $$$
 $$$
 
 Available on `Vector`, `VectorView`, `VectorSpan`, `Tensor`, `TensorView`, and `TensorSpan`.
+For tensors, `allclose` is provided by the `AllCloseOps` trait — import it if calling on a `TensorRef` implementor.
 Shape mismatch returns `false`.
 The scalar helper `is_close` is re-exported at crate root.
 
