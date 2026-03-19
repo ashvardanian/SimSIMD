@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 # region Forward Declarations and Shared Types
 
 # Scalar dtype literals used throughout the API.
-_IntegralType = Literal[
+_IntegralTypeName = Literal[
     "uint1",
     # Sub-byte integers
     "int4",
@@ -28,7 +28,7 @@ _IntegralType = Literal[
     "uint32",
     "uint64",
 ]
-_FloatType = Literal[
+_FloatTypeName = Literal[
     "f32",
     "float32",
     "f16",
@@ -46,13 +46,13 @@ _FloatType = Literal[
     "e3m2",  #! FP6 E3M2 format
     "float6_e3m2",  #! FP6 E3M2 format (long-form)
 ]
-_ComplexType = Literal[
+_ComplexTypeName = Literal[
     "complex32",  #! Not supported by NumPy
     "bcomplex32",  #! Not supported by NumPy
     "complex64",
     "complex128",
 ]
-_MetricType = Literal[
+_MetricName = Literal[
     "euclidean",
     "sqeuclidean",
     "inner",
@@ -199,7 +199,7 @@ class Tensor(memoryview):
     Supports NumPy-like properties and buffer protocol for interoperability.
     """
 
-    def __new__(cls, array_like: _BufferType, /, *, dtype: str | None = None) -> Tensor:
+    def __new__(cls, array_like: _BufferType, /, *, dtype: str | _MiniFloatType | None = None) -> Tensor:
         """Construct a Tensor by copying data from a buffer-protocol object."""
         ...
 
@@ -209,7 +209,7 @@ class Tensor(memoryview):
         ...
 
     @property
-    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
+    def dtype(self) -> _IntegralTypeName | _FloatTypeName | _ComplexTypeName:
         """Data type of the tensor elements (e.g., 'float64')."""
         ...
 
@@ -361,7 +361,7 @@ class PackedMatrix:
         ...
 
     @property
-    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
+    def dtype(self) -> _IntegralTypeName | _FloatTypeName | _ComplexTypeName:
         """Data type of the packed matrix (like 'bf16' or 'i8')."""
         ...
 
@@ -376,7 +376,7 @@ class PackedMatrix:
         width: int,
         depth: int,
         /,
-        dtype: _IntegralType | _FloatType | _ComplexType = "bf16",
+        dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "bf16",
     ) -> int:
         """Return packed buffer size in bytes for given dimensions and dtype."""
         ...
@@ -399,7 +399,7 @@ class MaxSimPackedMatrix:
         ...
 
     @property
-    def dtype(self) -> _IntegralType | _FloatType | _ComplexType:
+    def dtype(self) -> _IntegralTypeName | _FloatTypeName | _ComplexTypeName:
         """Data type of the packed vectors."""
         ...
 
@@ -409,7 +409,7 @@ class MaxSimPackedMatrix:
         ...
 
     @classmethod
-    def packed_size(cls, vector_count: int, depth: int, /, dtype: _FloatType = "bf16") -> int:
+    def packed_size(cls, vector_count: int, depth: int, /, dtype: _FloatTypeName | _MiniFloatType = "bf16") -> int:
         """Return packed buffer size in bytes for given dimensions and dtype."""
         ...
 
@@ -427,14 +427,14 @@ def enable_capability(capability: str, /) -> None: ...
 def disable_capability(capability: str, /) -> None: ...
 
 # Kernel pointer accessors.
-def pointer_to_euclidean(dtype: _IntegralType | _FloatType, /) -> int: ...
-def pointer_to_sqeuclidean(dtype: _IntegralType | _FloatType, /) -> int: ...
-def pointer_to_angular(dtype: _IntegralType | _FloatType, /) -> int: ...
-def pointer_to_inner(dtype: _FloatType | _ComplexType, /) -> int: ...
-def pointer_to_dot(dtype: _FloatType | _ComplexType, /) -> int: ...
-def pointer_to_vdot(dtype: _FloatType | _ComplexType, /) -> int: ...
-def pointer_to_jensenshannon(dtype: _FloatType, /) -> int: ...
-def pointer_to_kullbackleibler(dtype: _FloatType, /) -> int: ...
+def pointer_to_euclidean(dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_sqeuclidean(dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_angular(dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_inner(dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_dot(dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_vdot(dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_jensenshannon(dtype: _FloatTypeName | _MiniFloatType, /) -> int: ...
+def pointer_to_kullbackleibler(dtype: _FloatTypeName | _MiniFloatType, /) -> int: ...
 
 # endregion Capabilities
 
@@ -446,12 +446,12 @@ def cdist(
     a: _BufferType,
     b: _BufferType,
     /,
-    metric: _MetricType = "euclidean",
+    metric: _MetricName = "euclidean",
     *,
     threads: int = 1,
-    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
-    out_dtype: _FloatType | _ComplexType | None = None,
+    out_dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
 ) -> float | complex | Tensor | None: ...
 
 # endregion Pairwise Distances
@@ -465,10 +465,10 @@ def inner(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | _ComplexType | None = None,
+    dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType | _ComplexType | None = None,
+    out_dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
 ) -> float | complex | Tensor | None: ...
 
 # Dot product, similar to: `numpy.dot`.
@@ -477,10 +477,10 @@ def dot(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | _ComplexType | None = None,
+    dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType | _ComplexType = None,
+    out_dtype: _FloatTypeName | _ComplexTypeName | _MiniFloatType = None,
 ) -> float | complex | Tensor | None: ...
 
 # Vector-vector dot product for complex conjugates, similar to: `numpy.vdot`.
@@ -489,10 +489,10 @@ def vdot(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _ComplexType | None = None,
+    dtype: _ComplexTypeName | _MiniFloatType | None = None,
     *,
     out: float | complex | Tensor | None = None,
-    out_dtype: _ComplexType | None = None,
+    out_dtype: _ComplexTypeName | _MiniFloatType | None = None,
 ) -> complex | Tensor | None: ...
 
 # endregion Vector Dot Products
@@ -507,10 +507,10 @@ def sqeuclidean(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _IntegralType | _FloatType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # Vector-vector angular distance (also known as cosine distance), similar to: `scipy.spatial.distance.cosine`.
@@ -519,10 +519,10 @@ def angular(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _IntegralType | _FloatType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # Vector-vector Euclidean distance, similar to: `scipy.spatial.distance.euclidean`.
@@ -531,10 +531,10 @@ def euclidean(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _IntegralType | _FloatType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType | None = None,
+    out_dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> float | Tensor | None: ...
 
 # endregion Spatial Distance Metrics
@@ -548,10 +548,10 @@ def hamming(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _IntegralType | None = None,
+    dtype: _IntegralTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # Vector-vector Jaccard distance, similar to: `scipy.spatial.distance.jaccard`.
@@ -560,10 +560,10 @@ def jaccard(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _IntegralType | None = None,
+    dtype: _IntegralTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # endregion Binary Similarity
@@ -577,19 +577,19 @@ def jensenshannon(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 def jsd(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
@@ -598,19 +598,19 @@ def kullbackleibler(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 def kld(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
-    out_dtype: _FloatType = None,
+    out_dtype: _FloatTypeName | _MiniFloatType = None,
 ) -> float | Tensor | None: ...
 
 # endregion Probability Distances
@@ -625,7 +625,7 @@ def bilinear(
     b: _BufferType,
     metric_tensor: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> float: ...
 
 # Vector-vector Mahalanobis distance, similar to: `scipy.spatial.distance.mahalanobis`.
@@ -635,7 +635,7 @@ def mahalanobis(
     b: _BufferType,
     inverse_covariance: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> float: ...
 
 # endregion Curved Space Metrics
@@ -648,7 +648,7 @@ def haversine(
     b_lats: _BufferType,
     b_lons: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
 ) -> float | Tensor | None: ...
@@ -658,7 +658,7 @@ def vincenty(
     b_lats: _BufferType,
     b_lons: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
 ) -> float | Tensor | None: ...
@@ -682,7 +682,7 @@ def sparse_dot(
 # endregion Sparse Similarity
 
 # region Tensor Constructors
-_DtypeLike: TypeAlias = _IntegralType | _FloatType | _ComplexType
+_DtypeLike: TypeAlias = _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType
 
 def from_pointer(
     address: int,
@@ -696,26 +696,26 @@ def empty(
     shape: int | tuple[int, ...],
     /,
     *,
-    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
 ) -> Tensor: ...
 def zeros(
     shape: int | tuple[int, ...],
     /,
     *,
-    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
 ) -> Tensor: ...
 def ones(
     shape: int | tuple[int, ...],
     /,
     *,
-    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
 ) -> Tensor: ...
 def full(
     shape: int | tuple[int, ...],
     fill_value: int | float,
     /,
     *,
-    dtype: _IntegralType | _FloatType | _ComplexType = "float32",
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
 ) -> Tensor: ...
 
 # endregion Tensor Constructors
@@ -753,7 +753,7 @@ def fma(
     b: _BufferType,
     c: _BufferType,
     /,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     *,
     alpha: float = 1,
     beta: float = 1,
@@ -765,7 +765,7 @@ def blend(
     a: _BufferType,
     b: _BufferType,
     /,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     *,
     alpha: float = 1,
     beta: float = 1,
@@ -780,7 +780,7 @@ def blend(
 def sin(
     a: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
 ) -> Tensor | None: ...
@@ -789,7 +789,7 @@ def sin(
 def cos(
     a: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
 ) -> Tensor | None: ...
@@ -798,7 +798,7 @@ def cos(
 def atan(
     a: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
     *,
     out: _BufferType | None = None,
 ) -> Tensor | None: ...
@@ -811,7 +811,7 @@ def atan(
 def scale(
     a: _BufferType,
     /,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     *,
     alpha: float = 1,
     beta: float = 0,
@@ -825,9 +825,9 @@ def add(
     /,
     *,
     out: _BufferType | None = None,
-    a_dtype: _FloatType | _IntegralType | None = None,
-    b_dtype: _FloatType | _IntegralType | None = None,
-    out_dtype: _FloatType | _IntegralType | None = None,
+    a_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
+    b_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
+    out_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> Tensor | None: ...
 
 # Element-wise multiply (NumPy-compatible with broadcasting).
@@ -837,9 +837,9 @@ def multiply(
     /,
     *,
     out: _BufferType | None = None,
-    a_dtype: _FloatType | _IntegralType | None = None,
-    b_dtype: _FloatType | _IntegralType | None = None,
-    out_dtype: _FloatType | _IntegralType | None = None,
+    a_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
+    b_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
+    out_dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> Tensor | None: ...
 
 # endregion Elementwise Arithmetic
@@ -849,7 +849,7 @@ def dots_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
     start_row: int | None = None,
     end_row: int | None = None,
@@ -858,7 +858,7 @@ def hammings_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: _IntegralType | None = None,
+    dtype: _IntegralTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
     start_row: int | None = None,
     end_row: int | None = None,
@@ -867,7 +867,7 @@ def jaccards_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: _IntegralType | None = None,
+    dtype: _IntegralTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
     start_row: int | None = None,
     end_row: int | None = None,
@@ -876,7 +876,7 @@ def angulars_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
     start_row: int | None = None,
     end_row: int | None = None,
@@ -885,7 +885,7 @@ def euclideans_symmetric(
     vectors: _BufferType,
     /,
     *,
-    dtype: _FloatType | _IntegralType | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
     out: _BufferType | None = None,
     start_row: int | None = None,
     end_row: int | None = None,
@@ -899,7 +899,7 @@ def euclideans_symmetric(
 def dots_pack(
     b: _BufferType,
     /,
-    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
 ) -> PackedMatrix: ...
 
 # Dot-product matrix multiplication with a pre-packed B matrix.
@@ -917,7 +917,7 @@ def dots_packed(
 def hammings_pack(
     b: _BufferType,
     /,
-    dtype: _IntegralType | _FloatType | _ComplexType | None = None,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType | None = None,
 ) -> PackedMatrix: ...
 
 # Hamming distance computation with a pre-packed B matrix.
@@ -967,9 +967,9 @@ def euclideans_packed(
 # endregion Packed Matrix Operations
 
 # region MaxSim
-def maxsim_pack(b: _BufferType, /, dtype: _FloatType | None = None) -> MaxSimPackedMatrix: ...
+def maxsim_pack(b: _BufferType, /, dtype: _FloatTypeName | _MiniFloatType | None = None) -> MaxSimPackedMatrix: ...
 def maxsim_packed(queries: MaxSimPackedMatrix, documents: MaxSimPackedMatrix, /) -> float: ...
-def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: _FloatType | None = None) -> float: ...
+def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: _FloatTypeName | _MiniFloatType | None = None) -> float: ...
 
 # endregion MaxSim
 
@@ -1002,19 +1002,19 @@ def kabsch(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> MeshAlignmentResult: ...
 def umeyama(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> MeshAlignmentResult: ...
 def rmsd(
     source: _BufferType,
     target: _BufferType,
     /,
-    dtype: _FloatType | None = None,
+    dtype: _FloatTypeName | _MiniFloatType | None = None,
 ) -> float: ...
 
 # endregion Mesh Alignment

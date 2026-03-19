@@ -110,11 +110,9 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     nk_size_t depth = (nk_size_t)PyLong_AsSize_t(depth_obj);
     if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
-    char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
-    if (!dtype_str) return NULL;
-    nk_dtype_t dtype = python_string_to_dtype(dtype_str);
+    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
     if (dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unknown dtype: '%s'", dtype_str);
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         return NULL;
     }
 
@@ -123,7 +121,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, (nk_kernel_punned_t *)&size_fn,
                           &cap);
     if (!size_fn || !cap) {
-        PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_str);
+        PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_to_python_string(dtype));
         return NULL;
     }
 
@@ -530,9 +528,7 @@ static PyObject *api_symmetric_common( //
     }
 
     if (dtype_obj) {
-        char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str) goto cleanup;
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             goto cleanup;
@@ -603,14 +599,16 @@ char const doc_dots_pack[] =                                                    
     "Returns:\n"                                                                     //
     "    PackedMatrix: Opaque packed matrix accepted by dots_packed(),\n"            //
     "        angulars_packed(), euclideans_packed(), and Tensor @ PackedMatrix.\n\n" //
+    "Example:\n"                                                                     //
+    "    >>> b_packed = nk.dots_pack(b, dtype=nk.bfloat16)\n"                        //
+    "    >>> distances = nk.dots_packed(a, b_packed)  # shape: (100, 200)\n\n"       //
     "Signature:\n"                                                                   //
     "    >>> def dots_pack(b, /, dtype='bf16') -> PackedMatrix: ...";
 
-static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
-                                 char const *default_dtype) {
+static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, nk_dtype_t default_dtype) {
 
     PyObject *b_obj = NULL;
-    char const *dtype_str = default_dtype;
+    PyObject *dtype_obj = NULL;
 
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
     Py_ssize_t total = nargs + nkw;
@@ -629,29 +627,18 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
                 PyErr_SetString(PyExc_TypeError, "got multiple values for argument 'dtype'");
                 return NULL;
             }
-            PyObject *val = args[nargs + i];
-            if (!PyUnicode_Check(val)) {
-                PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-                return NULL;
-            }
-            dtype_str = PyUnicode_AsUTF8(val);
+            dtype_obj = args[nargs + i];
         }
         else {
             PyErr_Format(PyExc_TypeError, "unexpected keyword argument '%s'", PyUnicode_AsUTF8(name));
             return NULL;
         }
     }
-    if (nargs >= 2) {
-        if (!PyUnicode_Check(args[1])) {
-            PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-            return NULL;
-        }
-        dtype_str = PyUnicode_AsUTF8(args[1]);
-    }
+    if (nargs >= 2) dtype_obj = args[1];
 
-    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : default_dtype;
     if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         return NULL;
     }
 
@@ -747,7 +734,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
 
 PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     nk_unused_(self);
-    return api_pack_common(args, nargs, kwnames, "bf16");
+    return api_pack_common(args, nargs, kwnames, nk_bf16_k);
 }
 
 char const doc_dots_packed[] =                                                             //
@@ -788,7 +775,7 @@ char const doc_hammings_pack[] =                                             //
 
 PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     nk_unused_(self);
-    return api_pack_common(args, nargs, kwnames, "uint1");
+    return api_pack_common(args, nargs, kwnames, nk_u1_k);
 }
 
 char const doc_hammings_packed[] =                                                         //
@@ -805,6 +792,8 @@ char const doc_hammings_packed[] =                                              
     "Returns:\n"                                                                           //
     "    Tensor: Hamming-distance matrix with shape (height, width).\n"                    //
     "    Returns out when provided.\n\n"                                                   //
+    "Note:\n"                                                                              //
+    "    Output dtype is uint32 (Hamming distances are unsigned integer counts).\n\n"      //
     "Signature:\n"                                                                         //
     "    >>> def hammings_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -827,6 +816,9 @@ char const doc_jaccards_packed[] =                                              
     "Returns:\n"                                                                           //
     "    Tensor: Jaccard-distance matrix with shape (height, width).\n"                    //
     "    Returns out when provided.\n\n"                                                   //
+    "Note:\n"                                                                              //
+    "    Jaccard distances reuse the Hamming packing format.\n"                            //
+    "    Use hammings_pack() to prepare the packed matrix.\n\n"                            //
     "Signature:\n"                                                                         //
     "    >>> def jaccards_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -849,6 +841,9 @@ char const doc_angulars_packed[] =                                              
     "Returns:\n"                                                                           //
     "    Tensor: Angular-distance matrix with shape (height, width).\n"                    //
     "    Returns out when provided.\n\n"                                                   //
+    "Note:\n"                                                                              //
+    "    Use dots_pack() to prepare the packed matrix — angular\n"                         //
+    "    distances reuse the dot-product packing layout.\n\n"                              //
     "Signature:\n"                                                                         //
     "    >>> def angulars_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -871,6 +866,9 @@ char const doc_euclideans_packed[] =                                            
     "Returns:\n"                                                                           //
     "    Tensor: Euclidean-distance matrix with shape (height, width).\n"                  //
     "    Returns out when provided.\n\n"                                                   //
+    "Note:\n"                                                                              //
+    "    Use dots_pack() to prepare the packed matrix — Euclidean\n"                       //
+    "    distances reuse the dot-product packing layout.\n\n"                              //
     "Signature:\n"                                                                         //
     "    >>> def euclideans_packed(a, b, /, *, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -894,6 +892,8 @@ char const doc_dots_symmetric[] =                                               
     "Returns:\n"                                                                                      //
     "    Tensor: Symmetric dot-product matrix with shape (count, count).\n"                           //
     "    Returns out when provided.\n\n"                                                              //
+    "Example:\n"                                                                                      //
+    "    >>> gram = nk.dots_symmetric(vectors)  # shape: (N, N)\n\n"                                  //
     "Signature:\n"                                                                                    //
     "    >>> def dots_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -919,6 +919,8 @@ char const doc_hammings_symmetric[] =                                           
     "Returns:\n"                                                                                          //
     "    Tensor: Symmetric Hamming-distance matrix with shape (count, count).\n"                          //
     "    Returns out when provided.\n\n"                                                                  //
+    "Example:\n"                                                                                          //
+    "    >>> gram = nk.hammings_symmetric(vectors)  # shape: (N, N)\n\n"                                  //
     "Signature:\n"                                                                                        //
     "    >>> def hammings_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -944,6 +946,8 @@ char const doc_jaccards_symmetric[] =                                           
     "Returns:\n"                                                                                          //
     "    Tensor: Symmetric Jaccard-distance matrix with shape (count, count).\n"                          //
     "    Returns out when provided.\n\n"                                                                  //
+    "Example:\n"                                                                                          //
+    "    >>> gram = nk.jaccards_symmetric(vectors)  # shape: (N, N)\n\n"                                  //
     "Signature:\n"                                                                                        //
     "    >>> def jaccards_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -968,6 +972,8 @@ char const doc_angulars_symmetric[] =                                           
     "Returns:\n"                                                                                          //
     "    Tensor: Symmetric angular-distance matrix with shape (count, count).\n"                          //
     "    Returns out when provided.\n\n"                                                                  //
+    "Example:\n"                                                                                          //
+    "    >>> gram = nk.angulars_symmetric(vectors)  # shape: (N, N)\n\n"                                  //
     "Signature:\n"                                                                                        //
     "    >>> def angulars_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: ...";
 
@@ -992,6 +998,8 @@ char const doc_euclideans_symmetric[] =                                         
     "Returns:\n"                                                                                            //
     "    Tensor: Symmetric Euclidean-distance matrix with shape (count, count).\n"                          //
     "    Returns out when provided.\n\n"                                                                    //
+    "Example:\n"                                                                                            //
+    "    >>> gram = nk.euclideans_symmetric(vectors)  # shape: (N, N)\n\n"                                  //
     "Signature:\n"                                                                                          //
     "    >>> def euclideans_symmetric(vectors, /, *, dtype=None, out=None, start_row=None, end_row=None) -> Tensor: " "...";
 

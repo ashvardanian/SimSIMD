@@ -1755,15 +1755,10 @@ char const doc_method_astype[] =                                                
 PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
     Tensor *tensor = (Tensor *)self;
 
-    // Parse target dtype from string argument
-    char const *dtype_str = PyUnicode_AsUTF8(dtype_arg);
-    if (!dtype_str) {
-        PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-        return NULL;
-    }
-    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    // Parse target dtype from argument
+    nk_dtype_t target_dtype = python_arg_to_dtype(dtype_arg);
     if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", dtype_str);
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         return NULL;
     }
 
@@ -2212,8 +2207,8 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     nk_unused_(type);
     static char const *kwlist[] = {"", "dtype", NULL};
     PyObject *source = NULL;
-    char const *dtype_str = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$s", (char **)kwlist, &source, &dtype_str)) return NULL;
+    PyObject *dtype_obj = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$O", (char **)kwlist, &source, &dtype_obj)) return NULL;
 
     Py_buffer buf;
     nk_buffer_backing_t backing;
@@ -2225,17 +2220,17 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     }
 
     nk_dtype_t dtype;
-    if (dtype_str) {
-        dtype = python_string_to_dtype(dtype_str);
+    if (dtype_obj) {
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyBuffer_Release(&buf);
-            PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
         if ((Py_ssize_t)bytes_per_dtype(dtype) != buf.itemsize) {
             PyBuffer_Release(&buf);
-            PyErr_Format(PyExc_ValueError, "dtype '%s' has itemsize %zu but buffer has itemsize %zd", dtype_str,
-                         bytes_per_dtype(dtype), buf.itemsize);
+            PyErr_Format(PyExc_ValueError, "dtype has itemsize %zu but buffer has itemsize %zd", bytes_per_dtype(dtype),
+                         buf.itemsize);
             return NULL;
         }
     }
@@ -2380,11 +2375,9 @@ PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t con
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 
     // Parse dtype
-    char const *dtype_str = PyUnicode_AsUTF8(dtype_obj);
-    if (!dtype_str) return NULL;
-    nk_dtype_t dtype = python_string_to_dtype(dtype_str);
+    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
     if (dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", dtype_str);
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         return NULL;
     }
 
@@ -2454,11 +2447,9 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2502,11 +2493,9 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2557,11 +2546,9 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2627,11 +2614,9 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2694,11 +2679,9 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2765,11 +2748,9 @@ PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const n
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }
@@ -2844,11 +2825,9 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             return NULL;
         }
     }

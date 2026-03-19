@@ -127,7 +127,7 @@ nk.sqeuclidean(queries, database[:100], out=out)  # writes in-place, returns Non
 
 # Explicit input dtype for raw byte buffers
 raw = np.frombuffer(some_bytes, dtype=np.uint16)
-nk.dot(raw, raw, dtype="bfloat16")  # reinterpret uint16 as bf16
+nk.dot(raw, raw, dtype=nk.bfloat16)  # reinterpret uint16 as bf16
 
 # Output dtype override
 nk.euclidean(queries[0], database[0], out_dtype="float32")  # accumulate in f64, downcast result
@@ -135,6 +135,12 @@ nk.euclidean(queries[0], database[0], out_dtype="float32")  # accumulate in f64,
 
 When `out=` is provided, the function writes results in-place and returns `None`.
 The `out` array must be pre-allocated with the correct shape and a supported dtype.
+For custom float types (`bfloat16`, `float16`, `float8_e4m3`, `float8_e5m2`, `float6_e2m3`, `float6_e3m2`), type objects are preferred over strings — they are faster to dispatch and provide IDE autocomplete:
+
+```python
+nk.dot(a, b, dtype=nk.bfloat16) # works faster
+nk.dot(a, b, dtype="bfloat16")  # works a bit slower
+```
 
 ## Set Similarity
 

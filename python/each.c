@@ -42,7 +42,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
     PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
+
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
@@ -86,14 +86,9 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -154,7 +149,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
             kernel_kind,                                                                       //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -218,7 +213,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
+
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
@@ -260,14 +255,9 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -325,7 +315,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
             kernel_kind,                                                                       //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -386,7 +376,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
+
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, out_buffer;
@@ -426,14 +416,9 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -488,7 +473,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
             kernel_kind,                                                                       //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -556,11 +541,7 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
-    if (out_dtype_obj) {
-        char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!dtype_str) goto cleanup;
-        dtype = python_string_to_dtype(dtype_str);
-    }
+    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -680,11 +661,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
         }
     }
 
-    if (out_dtype_obj) {
-        char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!dtype_str) goto cleanup;
-        dtype = python_string_to_dtype(dtype_str);
-    }
+    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -858,11 +835,7 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
     nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
-    if (out_dtype_obj) {
-        char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!dtype_str) goto cleanup;
-        dtype = python_string_to_dtype(dtype_str);
-    }
+    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -982,11 +955,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
         }
     }
 
-    if (out_dtype_obj) {
-        char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!dtype_str) goto cleanup;
-        dtype = python_string_to_dtype(dtype_str);
-    }
+    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -1179,7 +1148,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
     PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
+
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, out_buffer;
@@ -1217,14 +1186,9 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -1264,7 +1228,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
             "Unsupported kernel '%c' and dtype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
             kernel_kind,                                                                       //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 

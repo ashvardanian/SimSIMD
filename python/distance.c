@@ -26,7 +26,6 @@ static PyObject *implement_dense_metric( //
     PyObject *out_dtype_obj = NULL; // Optional object, "out_dtype" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL, *out_dtype_str = NULL;
     nk_dtype_t dtype = nk_dtype_unknown_k, out_dtype = nk_dtype_unknown_k;
     Py_buffer a_buffer, b_buffer, out_buffer;
     MatrixOrVectorView a_parsed, b_parsed, out_parsed;
@@ -67,28 +66,18 @@ static PyObject *implement_dense_metric( //
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
     }
 
-    // Convert `out_dtype_obj` to `out_dtype_str` and to `out_dtype`
+    // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
-        out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!out_dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
-            return NULL;
-        }
-        out_dtype = python_string_to_dtype(out_dtype_str);
+        out_dtype = python_arg_to_dtype(out_dtype_obj);
         if (out_dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;
@@ -174,7 +163,7 @@ static PyObject *implement_dense_metric( //
             metric_kind,                                                                       //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
             b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -261,7 +250,6 @@ static PyObject *implement_curved_metric( //
     PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
     nk_dtype_t dtype = nk_dtype_unknown_k;
     Py_buffer a_buffer, b_buffer, c_buffer;
     MatrixOrVectorView a_parsed, b_parsed, c_parsed;
@@ -301,14 +289,9 @@ static PyObject *implement_curved_metric( //
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -361,7 +344,7 @@ static PyObject *implement_curved_metric( //
             a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
             b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
             c_buffer.format ? c_buffer.format : "nil", dtype_to_python_string(c_parsed.dtype), //
-            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
+            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -393,7 +376,6 @@ static PyObject *implement_geospatial_metric( //
     PyObject *out_obj = NULL;    // Optional object, "out" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
     nk_dtype_t dtype = nk_dtype_unknown_k;
     Py_buffer a_lats_buffer, a_lons_buffer, b_lats_buffer, b_lons_buffer, out_buffer;
     MatrixOrVectorView a_lats_parsed, a_lons_parsed, b_lats_parsed, b_lons_parsed, out_parsed;
@@ -437,14 +419,9 @@ static PyObject *implement_geospatial_metric( //
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
@@ -882,14 +859,8 @@ cleanup:
 }
 
 static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject *dtype_obj) {
-    char const *dtype_name = PyUnicode_AsUTF8(dtype_obj);
-    if (!dtype_name) {
-        PyErr_SetString(PyExc_TypeError, "Data-type name must be a string");
-        return NULL;
-    }
-
-    nk_dtype_t dtype = python_string_to_dtype(dtype_name);
-    if (!dtype) { // Check the actual variable here instead of dtype_name.
+    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    if (!dtype) {
         PyErr_SetString(PyExc_ValueError, "Unsupported type");
         return NULL;
     }
@@ -933,7 +904,6 @@ PyObject *api_cdist( //
     PyObject *out_dtype_obj = NULL; // Optional string, "out_dtype" keyword-only
 
     // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL, *out_dtype_str = NULL;
     nk_dtype_t dtype = nk_dtype_unknown_k, out_dtype = nk_dtype_unknown_k;
 
     /** Same default as in SciPy:
@@ -989,28 +959,18 @@ PyObject *api_cdist( //
         }
     }
 
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_dtype(dtype_str);
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
     }
 
-    // Convert `out_dtype_obj` to `out_dtype_str` and to `out_dtype`
+    // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
-        out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
-        if (!out_dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
-            return NULL;
-        }
-        out_dtype = python_string_to_dtype(out_dtype_str);
+        out_dtype = python_arg_to_dtype(out_dtype_obj);
         if (out_dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;

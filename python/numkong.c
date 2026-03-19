@@ -415,6 +415,24 @@ nk_dtype_t python_string_to_dtype(char const *name) {
     else return nk_dtype_unknown_k;
 }
 
+nk_dtype_t python_arg_to_dtype(PyObject *obj) {
+    if (PyType_Check(obj)) {
+        PyTypeObject *type = (PyTypeObject *)obj;
+        if (type == &NkBFloat16Scalar_Type) return nk_bf16_k;
+        if (type == &NkFloat16Scalar_Type) return nk_f16_k;
+        if (type == &NkFloat8E4M3Scalar_Type) return nk_e4m3_k;
+        if (type == &NkFloat8E5M2Scalar_Type) return nk_e5m2_k;
+        if (type == &NkFloat6E2M3Scalar_Type) return nk_e2m3_k;
+        if (type == &NkFloat6E3M2Scalar_Type) return nk_e3m2_k;
+        return nk_dtype_unknown_k;
+    }
+    if (PyUnicode_Check(obj)) {
+        char const *s = PyUnicode_AsUTF8(obj);
+        return s ? python_string_to_dtype(s) : nk_dtype_unknown_k;
+    }
+    return nk_dtype_unknown_k;
+}
+
 nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
     if (same_string(name, "euclidean")) return nk_kernel_euclidean_k;
     else if (same_string(name, "sqeuclidean")) return nk_kernel_sqeuclidean_k;

@@ -140,6 +140,17 @@ char const *dtype_to_python_string(nk_dtype_t dtype);
 nk_dtype_t python_string_to_dtype(char const *name);
 
 /**
+ *  @brief Convert a Python object (type object or string) to logical dtype.
+ *
+ *  Accepts NumKong scalar type objects (e.g., nk.bfloat16) for O(1) pointer
+ *  comparison, or falls back to string parsing via python_string_to_dtype().
+ *
+ *  @param[in] obj Python type object or string.
+ *  @return Logical dtype, or nk_dtype_unknown_k if not recognized.
+ */
+nk_dtype_t python_arg_to_dtype(PyObject *obj);
+
+/**
  *  @brief Resolve dtype from a Py_buffer, preferring the Tensor's dtype
  *  over the PEP 3118 format string (which may be a placeholder for exotic types).
  */
