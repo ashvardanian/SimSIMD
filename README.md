@@ -49,27 +49,30 @@ For `f32`, widening to Float64 gives __5–10× lower error__.
 For smaller types and especially integers, the gap is even more dramatic.
 And all of that fits into one of the smallest binaries in the industry:
 
-| Package                |   Size | Parallelism & Memory                                | Available For                       |
-| :--------------------- | -----: | :-------------------------------------------------- | :---------------------------------- |
-| PyTorch + MKL + oneDNN | 705 MB | Vector & Tile SIMD, OpenMP Threads, Internal Allocs | Python, C++, Java                   |
-| JAX + jaxlib           | 357 MB | Vector SIMD, XLA Threads, Internal Allocs           | Python                              |
-| NumPy + OpenBLAS       |  30 MB | Vector SIMD, Built-in Threads, Internal Allocs      | Python                              |
-| mathjs                 |   9 MB | No SIMD, No Threads, Countless Allocs               | JS                                  |
-| NumKong                |   5 MB | Vector & Tile SIMD, Your Threads, Your Allocs       | C, C++, Rust, Python, Go, JS, Swift |
+| Package          |   Size | Parallelism & Memory                              | Available For     |
+| :--------------- | -----: | :------------------------------------------------ | :---------------- |
+| PyTorch + MKL    | 705 MB | Vector & Tile SIMD, OpenMP Threads, Hidden Allocs | Python, C++, Java |
+| JAX + jaxlib     | 357 MB | Vector SIMD, XLA Threads, Hidden Allocs           | Python            |
+| NumPy + OpenBLAS |  30 MB | Vector SIMD, Built-in Threads, Hidden Allocs      | Python            |
+| mathjs           |   9 MB | No SIMD, No Threads, Countless Allocs             | JS                |
+| NumKong          |   5 MB | Vector & Tile SIMD, Your Threads, Your Allocs     | 7 languages       |
 
-But kernels and precision are only part of the story — the larger investment is test coverage: every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions, enforcing triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above, cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
+But kernels and precision are only part of the story — the larger investment is test coverage.
+Every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions.
+Tests enforce triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above.
+Results are cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
 A broader throughput comparison is maintained in [NumWars](https://github.com/ashvardanian/NumWars).
 
 ## Quick Start
 
-| Language   | Install                          | Compatible with                  | Guide                                        |
-| :--------- | :------------------------------- | :------------------------------- | :------------------------------------------- |
-| C / C++    | CMake, headers, or prebuilt      | Linux, macOS, Windows, Android   | [include/README.md](include/README.md)       |
-| Python     | `pip install`                    | Linux, macOS, Windows            | [python/README.md](python/README.md)         |
-| Rust       | `cargo add`                      | Linux, macOS, Windows            | [rust/README.md](rust/README.md)             |
-| JavaScript | `npm install` or `import` remote | Node.js, Bun, Deno & any browser | [javascript/README.md](javascript/README.md) |
-| Swift      | Swift Package Manager            | macOS, iOS, tvOS, watchOS        | [swift/README.md](swift/README.md)           |
-| Go         | `go get`                         | Linux, macOS, Windows via cGo    | [golang/README.md](golang/README.md)         |
+| Language | Install                    | Compatible with                | Guide                                        |
+| :------- | :------------------------- | :----------------------------- | :------------------------------------------- |
+| C / C++  | CMake, headers, & prebuilt | Linux, macOS, Windows, Android | [include/README.md](include/README.md)       |
+| Python   | `pip install`              | Linux, macOS, Windows          | [python/README.md](python/README.md)         |
+| Rust     | `cargo add`                | Linux, macOS, Windows          | [rust/README.md](rust/README.md)             |
+| JS       | `npm install` & `import`   | Node.js, Bun, Deno & browsers  | [javascript/README.md](javascript/README.md) |
+| Swift    | Swift Package Manager      | macOS, iOS, tvOS, watchOS      | [swift/README.md](swift/README.md)           |
+| Go       | `go get`                   | Linux, macOS, Windows via cGo  | [golang/README.md](golang/README.md)         |
 
 ## What's Inside
 
@@ -81,24 +84,24 @@ NumKong spans 16 numeric types — from exotic GPU-only 6-bit floats to 64-bit c
 │          Operations          │   Datatypes    │         Backends          │ Ecosystems │
 ├──────────────────────────────┼────────────────┼───────────────────────────┼────────────┤
 │ Vector-Vector                │ <a href="#numeric-types">Bits &amp; Ints</a>    │ <a href="#compile-time-and-run-time-dispatch">x86</a>                       │ Core       │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dot-products">dot</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dense-distances">angular</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#the-c-abi">C 99</a>       │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dot-products">dot</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dense-distances">angular</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#the-c-abi">C 99</a>       │
 │ hamming · kld · jsd · …      │ i4 · i8        │ Sierra Forest · Skylake   │            │
 │                              │                │ Ice Lake · Genoa · Turin  │ Primary    │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#the-c-layer">C++ 23</a>     │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/python/README.md">Python 3</a>   │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/rust/README.md">Rust</a>       │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#the-c-layer">C++ 23</a>     │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="https://github.com/ashvardanian/NumKong/blob/main/python/README.md">Python 3</a>   │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="https://github.com/ashvardanian/NumKong/blob/main/rust/README.md">Rust</a>       │
 │                              │                │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                       │            │
 │ Quadratic                    │ <a href="#float16--bfloat16-half-precision">Half &amp; Classic</a> │ NEON · NEONHalf · NEONFhm │ Additional │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/swift/README.md">Swift</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/javascript/README.md">JS</a> │
-│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/golang/README.md">Go</a>         │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
-│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/CONTRIBUTING.md">Tools</a>      │
-│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/test/README.md">Tests</a>      │
-│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/bench/README.md">Benchmarks</a> │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="https://github.com/ashvardanian/NumKong/blob/main/swift/README.md">Swift</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/javascript/README.md">JS</a> │
+│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="https://github.com/ashvardanian/NumKong/blob/main/golang/README.md">Go</a>         │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
+│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="https://github.com/ashvardanian/NumKong/blob/main/CONTRIBUTING.md">Tools</a>      │
+│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="https://github.com/ashvardanian/NumKong/blob/main/test/README.md">Tests</a>      │
+│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="https://github.com/ashvardanian/NumKong/blob/main/bench/README.md">Benchmarks</a> │
 │ Bespoke                      │                │ RVV · RVVHalf             │ <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/each/README.md">fma</a> · blend · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/trigonometry/README.md">sin</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/reduce/README.md">reduce_moments</a> · <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
-│ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="https://github.com/ashvardanian/SimSIMD/blob/main/CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/each/README.md">fma</a> · blend · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/trigonometry/README.md">sin</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/reduce/README.md">reduce_moments</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
+│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="https://github.com/ashvardanian/NumKong/blob/main/CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
 │                              │                │ V128Relaxed               │            │
 └──────────────────────────────┴────────────────┴───────────────────────────┴────────────┘
 </code></pre>
@@ -109,8 +112,6 @@ The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls thr
 Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
 
 ## Design Decisions
-
-In general there are a few principles that NumKong follows:
 
 - Avoid loop unrolling and scalar tails.
 - Don't manage threads and be compatible with any parallelism models.
@@ -241,7 +242,7 @@ NumKong's `nk_dots_pack_*` family performs five transformations beyond simple re
 import numkong as nk, numpy as np
 
 right_matrix = np.random.randn(1000, 768).astype(np.float16)
-right_packed = nk.dots_pack(right_matrix, dtype="float16")                        # pack once
+right_packed = nk.dots_pack(right_matrix, dtype=nk.float16)                        # pack once
 for query_batch in stream: results = nk.dots_packed(query_batch, right_packed)    # reuse many times
 ```
 
@@ -400,14 +401,14 @@ On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float
 
 ### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
 
-| Format                    |  Bits |  Range | NumKong Promotion Strategy                  | Support in GPUs           |
-| ------------------------- | ----: | -----: | ------------------------------------------- | ------------------------- |
-| E5M2FN                    |     8 | ±57344 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
-| E4M3FN                    |     8 |   ±448 | BFloat16 → Float32                          | H100, B200, MI300, MI325  |
-| E3M2FN                    | 6 → 8 |    ±28 | BFloat16 & Float16 → Float32, Int16 → Int32 | only block-scaled support |
-| E2M3FN                    | 6 → 8 |   ±7.5 | BFloat16 & Float16 → Float32, Int8 → Int32  | only block-scaled support |
-| Block-scaled NVFP4        |     4 |     ±6 | —                                           | B200                      |
-| Block-scaled MXFP4 / E2M1 |     4 |     ±6 | —                                           | B200, MI325               |
+| Format                    |  Bits |  Range | NumKong Promotion Rules                         | Support in GPUs   |
+| ------------------------- | ----: | -----: | ----------------------------------------------- | ----------------- |
+| E5M2FN                    |     8 | ±57344 | BFloat16 → Float32                              | H100+, MI300+     |
+| E4M3FN                    |     8 |   ±448 | BFloat16 → Float32                              | H100+, MI300+     |
+| E3M2FN                    | 6 → 8 |    ±28 | BFloat16 & Float16 → Float32,<br/>Int16 → Int32 | only block-scaled |
+| E2M3FN                    | 6 → 8 |   ±7.5 | BFloat16 & Float16 → Float32,<br/>Int8 → Int32  | only block-scaled |
+| Block-scaled NVFP4        |     4 |     ±6 | —                                               | B200+             |
+| Block-scaled MXFP4 / E2M1 |     4 |     ±6 | —                                               | B200+, MI325+     |
 
 > __Block scaling.__
 > NumKong does not implement block-scaled variants (MXFP4, NVFP4, or block-scaled E3M2/E2M3).
@@ -434,16 +435,16 @@ E4M3 scaled by 16 reaches 7,680 — too large for Int8, barely fitting Int16 wit
 E5M2's range (±57,344) makes the scaled product exceed Int32 entirely.
 Without the integer path, E5M2 falls back to Float32 accumulation — where its [2-bit mantissa (only 4 values per binade)](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/) creates a [catastrophic cancellation risk](https://www.ac.uma.es/arith2024/papers/Fused%20FP8%204-Way%20Dot%20Product%20with%20Scaling%20and%20FP32%20Accumulation.pdf) that E2M3's integer path avoids completely:
 
-|         |  _i_ = 0 | _i_ = 1 |  _i_ = 2 |   _i_ = 3 |  _i_ = 4 |  _i_ = 5 |  _i_ = 6 |  _i_ = 7 |
-| ------- | -------: | ------: | -------: | --------: | -------: | -------: | -------: | -------: |
-| _aᵢ_    |  0.00122 |   20480 | −0.00122 |       1.5 | −0.00586 |    −3072 |     −640 |  0.00146 |
-| _bᵢ_    |      −40 |     320 |    −1280 |  −7.63e⁻⁵ |        0 | 0.000427 |    10240 | −4.58e⁻⁵ |
-| _aᵢ·bᵢ_ | −0.04883 | 6553600 |   1.5625 | −0.000114 |        0 |  −1.3125 | −6553600 |      ≈ 0 |
+|         |  _i_ = 0 | _i_ = 1 |  _i_ = 2 |   _i_ = 3 |  _i_ = 4 |  _i_ = 5 |  _i_ = 6 |
+| ------- | -------: | ------: | -------: | --------: | -------: | -------: | -------: |
+| _aᵢ_    |  0.00122 |   20480 | −0.00122 |       1.5 |    −3072 |     −640 |  0.00146 |
+| _bᵢ_    |      −40 |     320 |    −1280 |  −7.63e⁻⁵ | 0.000427 |    10240 | −4.58e⁻⁵ |
+| _aᵢ·bᵢ_ | −0.04883 | 6553600 |   1.5625 | −0.000114 |  −1.3125 | −6553600 |      ≈ 0 |
 
 > __Why Float32 accumulation fails here.__
-> The accurate sum of these 8 products is ≈ 0.201.
-> After two `vfmaq_f32` calls, the 4 accumulator lanes hold pairwise products: lanes 1 and 2 carry values around ±6.5 M.
-> At that magnitude the Float32 ULP is 0.5 — so the small meaningful terms (−0.049, 1.563, −1.313, −0.0001) are all below one ULP and get absorbed during pairwise reduction.
+> The accurate sum of these 7 products is ≈ 0.201.
+> A `vfmaq_f32` call accumulates 4 lanes at a time; the first batch already carries values around ±6.5 M.
+> At that magnitude the Float32 ULP is 0.5 — so the small meaningful terms (−0.049, 1.563, −1.313, −0.0001) are all below one ULP and get absorbed during lane reduction.
 > The large terms then cancel exactly to zero, and the information is gone.
 > Final Float32 result: __0.0__ instead of __0.201__.
 
