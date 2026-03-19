@@ -838,11 +838,12 @@ static struct {
     {NULL, 0},
 };
 
-char const doc_enable_capability[] =            //
-    "Enable a specific SIMD kernel family.\n\n" //
-    "Parameters:\n"                             //
-    "    capability : str\n"                    //
-    "        Name of the SIMD feature to enable (for example, 'haswell').";
+char const doc_enable_capability[] =                                                         //
+    "Enable a specific SIMD kernel family.\n\n"                                              //
+    "Parameters:\n"                                                                          //
+    "    capability (str): Name of the SIMD feature to enable (for example, 'haswell').\n\n" //
+    "Signature:\n"                                                                           //
+    "    >>> def enable_capability(capability): ...";
 
 static int refresh_runtime_dispatch_after_capability_change(void) {
     if (!nk_configure_thread(static_capabilities)) {
@@ -876,11 +877,12 @@ PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     return NULL;
 }
 
-char const doc_disable_capability[] =            //
-    "Disable a specific SIMD kernel family.\n\n" //
-    "Parameters:\n"                              //
-    "    capability : str\n"                     //
-    "        Name of the SIMD feature to disable (for example, 'haswell').";
+char const doc_disable_capability[] =                                                         //
+    "Disable a specific SIMD kernel family.\n\n"                                              //
+    "Parameters:\n"                                                                           //
+    "    capability (str): Name of the SIMD feature to disable (for example, 'haswell').\n\n" //
+    "Signature:\n"                                                                            //
+    "    >>> def disable_capability(capability): ...";
 
 PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) {
     char const *cap_name = PyUnicode_AsUTF8(cap_name_obj);
