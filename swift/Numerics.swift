@@ -248,12 +248,12 @@ public struct E3M2: Equatable, Hashable, Sendable {
 // MARK: - CustomStringConvertible Conformance
 
 private func _hexPad(_ value: UInt16, width: Int) -> String {
-    let s = String(value, radix: 16, lowercase: true)
+    let s = String(value, radix: 16, uppercase: false)
     return String(repeating: "0", count: max(0, width - s.count)) + s
 }
 
 private func _hexPad(_ value: UInt8, width: Int) -> String {
-    let s = String(value, radix: 16, lowercase: true)
+    let s = String(value, radix: 16, uppercase: false)
     return String(repeating: "0", count: max(0, width - s.count)) + s
 }
 
