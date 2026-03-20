@@ -15,7 +15,7 @@
  *
  *  Fused helpers minimize data passes:
  *
- *  - `nk_bicentroid_*_rvv_`: both centroids in a single pass (used by RMSD)
+ *  - RMSD: fully fused single-pass (centroids + squared diffs), no separate helper
  *  - `nk_centroid_and_cross_covariance_*_rvv_`: centroids + H in one pass (Kabsch)
  *  - `nk_centroid_and_cross_covariance_and_variance_*_rvv_`: + variance (Umeyama)
  *
@@ -87,104 +87,6 @@ NK_INTERNAL void nk_accumulate_product_f64m1_rvv_(vfloat64m1_t *sum_f64m1, vfloa
     vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
     *compensation_f64m1 = __riscv_vfadd_vv_f64m1_tu(*compensation_f64m1, *compensation_f64m1, total_error_f64m1,
                                                     vector_length);
-}
-
-/**
- *  @brief Compute centroids of two f32 point clouds in a single pass.
- *
- *  Reads both clouds simultaneously, accumulating 6 sums (3 per cloud) in f64.
- *  Reduces RMSD from 3 passes to 2 (bicentroid + SSD).
- *  Uses per-lane `vfwadd_wv` accumulation with deferred `vfredusum` after the loop.
- */
-NK_INTERNAL void nk_bicentroid_f32_rvv_(               //
-    nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
-    nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,    //
-    nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    nk_f32_t const *a_ptr = a, *b_ptr = b;
-    nk_size_t remaining = n;
-    for (nk_size_t vector_length; remaining > 0;
-         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
-        vector_length = __riscv_vsetvl_e32m1(remaining);
-        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
-        sum_a_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_x_f64m2, sum_a_x_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0), vector_length);
-        sum_a_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_y_f64m2, sum_a_y_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1), vector_length);
-        sum_a_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_z_f64m2, sum_a_z_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2), vector_length);
-        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
-        sum_b_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_x_f64m2, sum_b_x_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0), vector_length);
-        sum_b_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_y_f64m2, sum_b_y_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1), vector_length);
-        sum_b_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_z_f64m2, sum_b_z_f64m2,
-                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2), vector_length);
-    }
-    vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    *ca_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, vlmax)) * inv_n;
-    *ca_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, vlmax)) * inv_n;
-    *ca_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, vlmax)) * inv_n;
-    *cb_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, vlmax)) * inv_n;
-    *cb_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, vlmax)) * inv_n;
-    *cb_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, vlmax)) * inv_n;
-}
-
-/**
- *  @brief Compute centroids of two f64 point clouds in a single pass.
- *  Uses per-lane `vfadd_vv` accumulation with deferred `vfredusum` after the loop.
- */
-NK_INTERNAL void nk_bicentroid_f64_rvv_(               //
-    nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, //
-    nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,    //
-    nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
-    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    nk_f64_t const *a_ptr = a, *b_ptr = b;
-    nk_size_t remaining = n;
-    for (nk_size_t vector_length; remaining > 0;
-         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
-        vector_length = __riscv_vsetvl_e64m1(remaining);
-        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_a_x_f64m1, &compensation_a_x_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0), vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_a_y_f64m1, &compensation_a_y_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1), vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_a_z_f64m1, &compensation_a_z_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2), vector_length);
-        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_b_x_f64m1, &compensation_b_x_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0), vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_b_y_f64m1, &compensation_b_y_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1), vector_length);
-        nk_accumulate_sum_f64m1_rvv_(&sum_b_z_f64m1, &compensation_b_z_f64m1,
-                                     __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2), vector_length);
-    }
-    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    *ca_x = nk_dot_stable_sum_f64m1_rvv_(sum_a_x_f64m1, compensation_a_x_f64m1) * inv_n;
-    *ca_y = nk_dot_stable_sum_f64m1_rvv_(sum_a_y_f64m1, compensation_a_y_f64m1) * inv_n;
-    *ca_z = nk_dot_stable_sum_f64m1_rvv_(sum_a_z_f64m1, compensation_a_z_f64m1) * inv_n;
-    *cb_x = nk_dot_stable_sum_f64m1_rvv_(sum_b_x_f64m1, compensation_b_x_f64m1) * inv_n;
-    *cb_y = nk_dot_stable_sum_f64m1_rvv_(sum_b_y_f64m1, compensation_b_y_f64m1) * inv_n;
-    *cb_z = nk_dot_stable_sum_f64m1_rvv_(sum_b_z_f64m1, compensation_b_z_f64m1) * inv_n;
 }
 
 /**
@@ -747,30 +649,151 @@ NK_INTERNAL void nk_rotation_from_svd_f64_rvv_( //
 
 NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result) {
-    nk_f64_t identity[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-    if (rotation)
-        for (int j = 0; j < 9; ++j) rotation[j] = identity[j];
+    if (rotation) {
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
+        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+        rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
+    }
     if (scale) *scale = 1.0f;
-    nk_f64_t ca_x, ca_y, ca_z, cb_x, cb_y, cb_z;
-    nk_bicentroid_f32_rvv_(a, b, n, &ca_x, &ca_y, &ca_z, &cb_x, &cb_y, &cb_z);
+
+    // Fused single-pass: accumulate centroids and squared differences simultaneously.
+    // RMSD = √(E[(a−b)²] − (ā − b̄)²)
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t sum_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_f32_t const *a_ptr = a, *b_ptr = b;
+    nk_size_t remaining = n;
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e32m1(remaining);
+        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
+        vfloat32m1_t a_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0);
+        vfloat32m1_t a_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1);
+        vfloat32m1_t a_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2);
+        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
+        vfloat32m1_t b_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0);
+        vfloat32m1_t b_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1);
+        vfloat32m1_t b_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2);
+        // Accumulate centroids in f64.
+        sum_a_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_x_f64m2, sum_a_x_f64m2, a_x_f32m1, vector_length);
+        sum_a_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_y_f64m2, sum_a_y_f64m2, a_y_f32m1, vector_length);
+        sum_a_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_z_f64m2, sum_a_z_f64m2, a_z_f32m1, vector_length);
+        sum_b_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_x_f64m2, sum_b_x_f64m2, b_x_f32m1, vector_length);
+        sum_b_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_y_f64m2, sum_b_y_f64m2, b_y_f32m1, vector_length);
+        sum_b_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_z_f64m2, sum_b_z_f64m2, b_z_f32m1, vector_length);
+        // Accumulate (a−b)² per component. Widen a,b to f64 before subtracting to avoid f32
+        // cancellation in the single-pass formula RMSD = √(E[(a−b)²] − (ā − b̄)²).
+        vfloat64m2_t a_x_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(a_x_f32m1, vector_length);
+        vfloat64m2_t b_x_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(b_x_f32m1, vector_length);
+        vfloat64m2_t a_y_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(a_y_f32m1, vector_length);
+        vfloat64m2_t b_y_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(b_y_f32m1, vector_length);
+        vfloat64m2_t a_z_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(a_z_f32m1, vector_length);
+        vfloat64m2_t b_z_f64m2 = __riscv_vfwcvt_f_f_v_f64m2(b_z_f32m1, vector_length);
+        vfloat64m2_t delta_x_f64m2 = __riscv_vfsub_vv_f64m2(a_x_f64m2, b_x_f64m2, vector_length);
+        vfloat64m2_t delta_y_f64m2 = __riscv_vfsub_vv_f64m2(a_y_f64m2, b_y_f64m2, vector_length);
+        vfloat64m2_t delta_z_f64m2 = __riscv_vfsub_vv_f64m2(a_z_f64m2, b_z_f64m2, vector_length);
+        sum_squared_f64m2 = __riscv_vfmacc_vv_f64m2_tu(sum_squared_f64m2, delta_x_f64m2, delta_x_f64m2, vector_length);
+        sum_squared_f64m2 = __riscv_vfmacc_vv_f64m2_tu(sum_squared_f64m2, delta_y_f64m2, delta_y_f64m2, vector_length);
+        sum_squared_f64m2 = __riscv_vfmacc_vv_f64m2_tu(sum_squared_f64m2, delta_z_f64m2, delta_z_f64m2, vector_length);
+    }
+    vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
+    nk_f64_t ca_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
+    nk_f64_t ca_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
+    nk_f64_t ca_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
+    nk_f64_t cb_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
+    nk_f64_t cb_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
+    nk_f64_t cb_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, vlmax)) *
+                    inv_n;
     if (a_centroid) a_centroid[0] = (nk_f32_t)ca_x, a_centroid[1] = (nk_f32_t)ca_y, a_centroid[2] = (nk_f32_t)ca_z;
     if (b_centroid) b_centroid[0] = (nk_f32_t)cb_x, b_centroid[1] = (nk_f32_t)cb_y, b_centroid[2] = (nk_f32_t)cb_z;
-    nk_f64_t ssd = nk_transformed_ssd_f32_rvv_(a, b, n, identity, 1.0, ca_x, ca_y, ca_z, cb_x, cb_y, cb_z);
-    *result = nk_f64_sqrt_rvv(ssd / (nk_f64_t)n);
+
+    nk_f64_t sum_squared = __riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_squared_f64m2, zero_f64m1, vlmax));
+    nk_f64_t mean_diff_x = ca_x - cb_x, mean_diff_y = ca_y - cb_y, mean_diff_z = ca_z - cb_z;
+    nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
+    *result = nk_f64_sqrt_rvv(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_rmsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result) {
-    nk_f64_t identity[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-    if (rotation)
-        for (int j = 0; j < 9; ++j) rotation[j] = identity[j];
+    if (rotation) {
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
+        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+        rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
+    }
     if (scale) *scale = 1.0;
-    nk_f64_t ca_x, ca_y, ca_z, cb_x, cb_y, cb_z;
-    nk_bicentroid_f64_rvv_(a, b, n, &ca_x, &ca_y, &ca_z, &cb_x, &cb_y, &cb_z);
+
+    // Fused single-pass: accumulate centroids and squared differences simultaneously.
+    // RMSD = √(E[(a−b)²] − (ā − b̄)²)
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t sum_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    nk_f64_t const *a_ptr = a, *b_ptr = b;
+    nk_size_t remaining = n;
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e64m1(remaining);
+        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
+        vfloat64m1_t a_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0);
+        vfloat64m1_t a_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1);
+        vfloat64m1_t a_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2);
+        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
+        vfloat64m1_t b_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0);
+        vfloat64m1_t b_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1);
+        vfloat64m1_t b_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2);
+        // Accumulate centroids with Kahan compensation.
+        nk_accumulate_sum_f64m1_rvv_(&sum_a_x_f64m1, &compensation_a_x_f64m1, a_x_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_a_y_f64m1, &compensation_a_y_f64m1, a_y_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_a_z_f64m1, &compensation_a_z_f64m1, a_z_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_b_x_f64m1, &compensation_b_x_f64m1, b_x_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_b_y_f64m1, &compensation_b_y_f64m1, b_y_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_b_z_f64m1, &compensation_b_z_f64m1, b_z_f64m1, vector_length);
+        // Accumulate (a-b)^2 per component.
+        vfloat64m1_t delta_x_f64m1 = __riscv_vfsub_vv_f64m1(a_x_f64m1, b_x_f64m1, vector_length);
+        vfloat64m1_t delta_y_f64m1 = __riscv_vfsub_vv_f64m1(a_y_f64m1, b_y_f64m1, vector_length);
+        vfloat64m1_t delta_z_f64m1 = __riscv_vfsub_vv_f64m1(a_z_f64m1, b_z_f64m1, vector_length);
+        vfloat64m1_t dist_sq_f64m1 = __riscv_vfmul_vv_f64m1(delta_x_f64m1, delta_x_f64m1, vector_length);
+        dist_sq_f64m1 = __riscv_vfmacc_vv_f64m1(dist_sq_f64m1, delta_y_f64m1, delta_y_f64m1, vector_length);
+        dist_sq_f64m1 = __riscv_vfmacc_vv_f64m1(dist_sq_f64m1, delta_z_f64m1, delta_z_f64m1, vector_length);
+        nk_accumulate_sum_f64m1_rvv_(&sum_squared_f64m1, &compensation_squared_f64m1, dist_sq_f64m1, vector_length);
+    }
+    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
+    nk_f64_t ca_x = nk_dot_stable_sum_f64m1_rvv_(sum_a_x_f64m1, compensation_a_x_f64m1) * inv_n;
+    nk_f64_t ca_y = nk_dot_stable_sum_f64m1_rvv_(sum_a_y_f64m1, compensation_a_y_f64m1) * inv_n;
+    nk_f64_t ca_z = nk_dot_stable_sum_f64m1_rvv_(sum_a_z_f64m1, compensation_a_z_f64m1) * inv_n;
+    nk_f64_t cb_x = nk_dot_stable_sum_f64m1_rvv_(sum_b_x_f64m1, compensation_b_x_f64m1) * inv_n;
+    nk_f64_t cb_y = nk_dot_stable_sum_f64m1_rvv_(sum_b_y_f64m1, compensation_b_y_f64m1) * inv_n;
+    nk_f64_t cb_z = nk_dot_stable_sum_f64m1_rvv_(sum_b_z_f64m1, compensation_b_z_f64m1) * inv_n;
     if (a_centroid) a_centroid[0] = ca_x, a_centroid[1] = ca_y, a_centroid[2] = ca_z;
     if (b_centroid) b_centroid[0] = cb_x, b_centroid[1] = cb_y, b_centroid[2] = cb_z;
-    nk_f64_t ssd = nk_transformed_ssd_f64_rvv_(a, b, n, identity, 1.0, ca_x, ca_y, ca_z, cb_x, cb_y, cb_z);
-    *result = nk_f64_sqrt_rvv(ssd / (nk_f64_t)n);
+
+    nk_f64_t sum_squared = nk_dot_stable_sum_f64m1_rvv_(sum_squared_f64m1, compensation_squared_f64m1);
+    nk_f64_t mean_diff_x = ca_x - cb_x, mean_diff_y = ca_y - cb_y, mean_diff_z = ca_z - cb_z;
+    nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
+    *result = nk_f64_sqrt_rvv(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
