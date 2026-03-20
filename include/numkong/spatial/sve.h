@@ -93,15 +93,25 @@ NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate, svfloat64_t x) NK
 
 NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t i = 0;
-    nk_size_t const vector_length = svcntd();
     svfloat64_t dist_sq_f64x = svdupq_n_f64(0.0, 0.0);
-    for (; i < n; i += vector_length) {
+    for (; i < n; i += svcntw()) {
         svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
-        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
-        svfloat64_t a_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(predicate_f32x, a + i));
-        svfloat64_t b_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(predicate_f32x, b + i));
-        svfloat64_t diff_f64x = svsub_f64_x(predicate_f64x, a_f64x, b_f64x);
-        dist_sq_f64x = svmla_f64_x(predicate_f64x, dist_sq_f64x, diff_f64x, diff_f64x);
+        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
+        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
+        nk_size_t remaining = n - i < svcntw() ? n - i : svcntw();
+
+        // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_f32x);
+        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_f32x);
+        svfloat64_t diff_even_f64x = svsub_f64_x(pred_even_f64x, a_even_f64x, b_even_f64x);
+        dist_sq_f64x = svmla_f64_x(pred_even_f64x, dist_sq_f64x, diff_even_f64x, diff_even_f64x);
+
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1));
+        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1));
+        svfloat64_t diff_odd_f64x = svsub_f64_x(pred_odd_f64x, a_odd_f64x, b_odd_f64x);
+        dist_sq_f64x = svmla_f64_x(pred_odd_f64x, dist_sq_f64x, diff_odd_f64x, diff_odd_f64x);
     }
     nk_f64_t dist_sq_f64 = svaddv_f64(svptrue_b64(), dist_sq_f64x);
     *result = dist_sq_f64;
@@ -114,18 +124,29 @@ NK_PUBLIC void nk_euclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_siz
 
 NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t i = 0;
-    nk_size_t const vector_length = svcntd();
     svfloat64_t ab_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t a2_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t b2_f64x = svdupq_n_f64(0.0, 0.0);
-    for (; i < n; i += vector_length) {
+    for (; i < n; i += svcntw()) {
         svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
-        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
-        svfloat64_t a_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(predicate_f32x, a + i));
-        svfloat64_t b_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(predicate_f32x, b + i));
-        ab_f64x = svmla_f64_x(predicate_f64x, ab_f64x, a_f64x, b_f64x);
-        a2_f64x = svmla_f64_x(predicate_f64x, a2_f64x, a_f64x, a_f64x);
-        b2_f64x = svmla_f64_x(predicate_f64x, b2_f64x, b_f64x, b_f64x);
+        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
+        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
+        nk_size_t remaining = n - i < svcntw() ? n - i : svcntw();
+
+        // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_f32x);
+        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_f32x);
+        ab_f64x = svmla_f64_x(pred_even_f64x, ab_f64x, a_even_f64x, b_even_f64x);
+        a2_f64x = svmla_f64_x(pred_even_f64x, a2_f64x, a_even_f64x, a_even_f64x);
+        b2_f64x = svmla_f64_x(pred_even_f64x, b2_f64x, b_even_f64x, b_even_f64x);
+
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1));
+        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1));
+        ab_f64x = svmla_f64_x(pred_odd_f64x, ab_f64x, a_odd_f64x, b_odd_f64x);
+        a2_f64x = svmla_f64_x(pred_odd_f64x, a2_f64x, a_odd_f64x, a_odd_f64x);
+        b2_f64x = svmla_f64_x(pred_odd_f64x, b2_f64x, b_odd_f64x, b_odd_f64x);
     }
 
     nk_f64_t ab_f64 = svaddv_f64(svptrue_b64(), ab_f64x);
