@@ -2576,11 +2576,12 @@ impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
 
     /// Pack Bᵀ where B is (k × n) row-major (standard GEMM layout) using a custom allocator.
     ///
-    /// Internally transposes then packs.
+    /// Materializes the transpose into a contiguous buffer, then packs normally.
     /// Result computes: C = A × B
     ///
     /// Returns `Err` if:
     /// - b is not 2D
+    /// - b is a sub-byte type (transpose unsupported)
     /// - allocation fails
     pub fn try_pack_transposed_in<BA: Allocator, const MAX_RANK: usize>(
         b: &Tensor<T, BA, MAX_RANK>,
@@ -2592,46 +2593,10 @@ impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
                 got: b.ndim(),
             });
         }
-        let (depth, width) = (b.shape()[0], b.shape()[1]);
-        let size = T::dots_packed_size(width, depth);
-
-        let data = if size == 0 {
-            NonNull::dangling()
-        } else {
-            // Allocate with SIMD alignment
-            let layout = alloc::alloc::Layout::from_size_align(size, SIMD_ALIGNMENT)
-                .map_err(|_| TensorError::AllocationFailed)?;
-            let ptr = alloc
-                .allocate(layout)
-                .ok_or(TensorError::AllocationFailed)?;
-            // Zero the memory
-            unsafe {
-                core::ptr::write_bytes(ptr.as_ptr(), 0, size);
-            }
-            ptr
-        };
-
-        if size > 0 {
-            // Pack with transposed view: column stride becomes row stride
-            unsafe {
-                T::dots_pack(
-                    b.as_ptr(),
-                    width,
-                    depth,
-                    core::mem::size_of::<T>(),
-                    data.as_ptr(),
-                );
-            }
-        }
-
-        Ok(Self {
-            data,
-            size,
-            width,
-            depth,
-            alloc,
-            _marker: PhantomData,
-        })
+        // Transpose returns a strided view (no copy), then to_owned materializes it.
+        // For sub-byte types, transpose() returns SubByteUnsupported.
+        let transposed = b.transpose()?.to_owned()?;
+        Self::try_pack_in(&transposed, alloc)
     }
 
     /// Returns a reference to the allocator.
@@ -4070,11 +4035,11 @@ mod tests {
         for &(m, n, k) in DIMS {
             let k = align_depth::<T>(k);
             let a = Tensor::<T>::try_full(&[m, k], T::one()).unwrap();
-            let b_t = Tensor::<T>::try_full(&[k, n], T::one()).unwrap();
+            let b_t = Tensor::<T>::try_full(&[k, n], T::from_f32(2.0)).unwrap();
             let b_packed = PackedMatrix::try_pack_transposed(&b_t).unwrap();
             let c = a.dots_packed(&b_packed);
             assert_eq!(c.shape(), &[m, n], "shape @ ({m},{n},{k})");
-            let expected = k as f64;
+            let expected = k as f64 * 2.0;
             let tol = T::atol() + T::rtol() * expected.abs();
             for (i, &v) in c.as_slice().iter().enumerate() {
                 assert!(
