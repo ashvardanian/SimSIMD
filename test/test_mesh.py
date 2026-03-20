@@ -116,4 +116,4 @@ def test_rmsd_self_zero(capability):
     point_cloud = nk.ones((4, 3), dtype="float64")
     result = nk.rmsd(point_cloud, point_cloud)
     rmsd_val = float(result.rmsd)
-    assert_allclose(rmsd_val, 0.0, atol=1e-4)
+    assert_allclose(rmsd_val, 0.0)

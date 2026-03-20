@@ -289,10 +289,7 @@ def test_dots_pack_and_packed(dtype, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "numpy_dtype",
-    [np.float16, np.float32, np.float64],
-)
+@pytest.mark.parametrize("numpy_dtype", ["float16", "float32", "float64"])
 def test_dots_pack_infers_dtype(numpy_dtype):
     """dots_pack() without explicit dtype should infer from the input array."""
     height, width, depth = 4, 8, 32
@@ -303,8 +300,7 @@ def test_dots_pack_infers_dtype(numpy_dtype):
     result = np.asarray(nk.dots_packed(a, packed))
 
     expected = a.astype(np.float64) @ b.astype(np.float64).T
-    atol = {np.float16: 0.5, np.float32: 1e-3, np.float64: 1e-6}[numpy_dtype]
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=0.1)
+    assert_allclose(result, expected)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

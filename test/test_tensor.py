@@ -44,6 +44,7 @@ from test_base import (
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
     to_array,
+    tolerances_for_dtype,
 )
 
 try:
@@ -265,15 +266,15 @@ def test_distances_tensor_indexing():
 
     row_last = result[-1]
     assert row_last.shape == (7,)
-    assert_allclose(np.asarray(row_last), expected[-1], rtol=1e-6)
+    assert_allclose(np.asarray(row_last), expected[-1])
 
     val = result[2, 3]
     assert isinstance(val, float)
-    assert_allclose(val, expected[2, 3], rtol=1e-6)
+    assert_allclose(val, expected[2, 3])
 
     val_neg = result[-1, -1]
     assert isinstance(val_neg, float)
-    assert_allclose(val_neg, expected[-1, -1], rtol=1e-6)
+    assert_allclose(val_neg, expected[-1, -1])
 
     with pytest.raises(IndexError):
         _ = result[10]
@@ -292,7 +293,7 @@ def test_distances_tensor_iteration():
     for i, row in enumerate(result):
         count += 1
         assert row.shape == (7,)
-        assert_allclose(np.asarray(row), expected[i], rtol=1e-6)
+        assert_allclose(np.asarray(row), expected[i])
     assert count == 5
 
     a = np.random.rand(3, 128).astype(np.float64)
@@ -304,7 +305,7 @@ def test_distances_tensor_iteration():
     assert len(items) == 3
     for i, item in enumerate(items):
         assert isinstance(item, float)
-        assert_allclose(item, expected_1d[i], rtol=1e-6)
+        assert_allclose(item, expected_1d[i])
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -389,7 +390,7 @@ def test_distances_tensor_transpose():
     assert t.shape == (7, 5)
     result_arr = np.asarray(result)
     t_arr = np.asarray(t)
-    assert_allclose(result_arr.T, t_arr, rtol=1e-10)
+    assert_allclose(result_arr.T, t_arr)
 
     a1d = np.random.rand(10, 128).astype(np.float64)
     b1d = np.random.rand(10, 128).astype(np.float64)
@@ -498,19 +499,19 @@ def test_distances_tensor_slicing():
 
     sliced = result[2:5]
     assert sliced.shape == (3, 8)
-    assert_allclose(np.asarray(sliced), expected[2:5], rtol=1e-10)
+    assert_allclose(np.asarray(sliced), expected[2:5])
 
     step_sliced = result[::2]
     assert step_sliced.shape == (5, 8)
-    assert_allclose(np.asarray(step_sliced), expected[::2], rtol=1e-10)
+    assert_allclose(np.asarray(step_sliced), expected[::2])
 
     rev_sliced = result[::-1]
     assert rev_sliced.shape == (10, 8)
-    assert_allclose(np.asarray(rev_sliced), expected[::-1], rtol=1e-10)
+    assert_allclose(np.asarray(rev_sliced), expected[::-1])
 
     end_sliced = result[-3:]
     assert end_sliced.shape == (3, 8)
-    assert_allclose(np.asarray(end_sliced), expected[-3:], rtol=1e-10)
+    assert_allclose(np.asarray(end_sliced), expected[-3:])
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -692,61 +693,53 @@ def test_ndarray_hash(dtype, shape):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "dtype",
-    [
-        pytest.param("float64", id="f64"),
-        pytest.param("float32", id="f32"),
-        pytest.param("int8", id="i8"),
-        pytest.param("int32", id="i32"),
-    ],
-)
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
 @pytest.mark.parametrize(
     "shape",
     [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10"), pytest.param((4, 5, 5), id="3d-4x5x5")],
 )
-def test_ndarray_sum_method(dtype, shape):
-    if dtype.startswith("float"):
-        np_arr = np.random.randn(*shape).astype(dtype)
-    else:
-        dtype_info = np.iinfo(np.dtype(dtype))
-        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+def test_ndarray_sum_float(dtype, shape):
+    np_arr = np.random.randn(*shape).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
-
     expected = np_arr.sum()
     result = nk_arr.sum()
-
-    if dtype.startswith("float"):
-        assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
-    else:
-        assert result == expected
+    atol, rtol = tolerances_for_dtype(dtype)
+    assert_allclose(result, expected, rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
 @pytest.mark.parametrize(
-    "dtype",
-    [
-        pytest.param("float64", id="f64"),
-        pytest.param("float32", id="f32"),
-        pytest.param("int8", id="i8"),
-        pytest.param("int32", id="i32"),
-    ],
+    "shape",
+    [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10"), pytest.param((4, 5, 5), id="3d-4x5x5")],
 )
-@pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
-def test_ndarray_min_max_methods(dtype, shape):
-    if dtype.startswith("float"):
-        np_arr = np.random.randn(*shape).astype(dtype)
-    else:
-        dtype_info = np.iinfo(np.dtype(dtype))
-        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+def test_ndarray_sum_integer(dtype, shape):
+    dtype_info = np.iinfo(np.dtype(dtype))
+    np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
     nk_arr = make_nk(np_arr, dtype)
+    assert nk_arr.sum() == np_arr.sum()
 
-    if dtype.startswith("float"):
-        assert_allclose(nk_arr.min(), np_arr.min(), rtol=1e-5)
-        assert_allclose(nk_arr.max(), np_arr.max(), rtol=1e-5)
-    else:
-        assert nk_arr.min() == np_arr.min()
-        assert nk_arr.max() == np_arr.max()
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+@pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
+def test_ndarray_min_max_float(dtype, shape):
+    np_arr = np.random.randn(*shape).astype(dtype)
+    nk_arr = make_nk(np_arr, dtype)
+    atol, rtol = tolerances_for_dtype(dtype)
+    assert_allclose(nk_arr.min(), np_arr.min(), rtol=rtol, atol=atol)
+    assert_allclose(nk_arr.max(), np_arr.max(), rtol=rtol, atol=atol)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
+def test_ndarray_min_max_integer(dtype, shape):
+    dtype_info = np.iinfo(np.dtype(dtype))
+    np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+    nk_arr = make_nk(np_arr, dtype)
+    assert nk_arr.min() == np_arr.min()
+    assert nk_arr.max() == np_arr.max()
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -767,104 +760,89 @@ def test_ndarray_argmin_argmax_methods(dtype, shape):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("int32", id="i32")]
-)
-def test_ndarray_add_operator(dtype):
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+def test_ndarray_add_float(dtype):
     shape = (20,)
-    if dtype.startswith("float"):
-        np_a = np.random.randn(*shape).astype(dtype)
-        np_b = np.random.randn(*shape).astype(dtype)
-    else:
-        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
-        np_b = np.random.randint(-50, 50, size=shape, dtype=dtype)
+    np_a = np.random.randn(*shape).astype(dtype)
+    np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
     nk_b = make_nk(np_b, dtype)
-
-    expected = np_a + np_b
-    result = nk_a + nk_b
-    result_np = np.asarray(result)
-
-    if dtype.startswith("float"):
-        assert_allclose(result_np, expected, rtol=1e-5)
-    else:
-        np.testing.assert_array_equal(result_np, expected)
+    result_np = np.asarray(nk_a + nk_b)
+    assert_allclose(result_np, np_a + np_b)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("int32", id="i32")]
-)
-def test_ndarray_subtract_operator(dtype):
+def test_ndarray_add_integer():
     shape = (20,)
-    if dtype.startswith("float"):
-        np_a = np.random.randn(*shape).astype(dtype)
-        np_b = np.random.randn(*shape).astype(dtype)
-    else:
-        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
-        np_b = np.random.randint(-50, 50, size=shape, dtype=dtype)
-    nk_a = make_nk(np_a, dtype)
-    nk_b = make_nk(np_b, dtype)
-
-    expected = np_a - np_b
-    result = nk_a - nk_b
-    result_np = np.asarray(result)
-
-    if dtype.startswith("float"):
-        assert_allclose(result_np, expected, rtol=1e-5)
-    else:
-        np.testing.assert_array_equal(result_np, expected)
+    np_a = np.random.randint(-50, 50, size=shape, dtype="int32")
+    np_b = np.random.randint(-50, 50, size=shape, dtype="int32")
+    nk_a = make_nk(np_a, "int32")
+    nk_b = make_nk(np_b, "int32")
+    np.testing.assert_array_equal(np.asarray(nk_a + nk_b), np_a + np_b)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("int32", id="i32")]
-)
-def test_ndarray_multiply_operator(dtype):
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+def test_ndarray_subtract_float(dtype):
     shape = (20,)
-    if dtype.startswith("float"):
-        np_a = np.random.randn(*shape).astype(dtype)
-        np_b = np.random.randn(*shape).astype(dtype)
-    else:
-        np_a = np.random.randint(-10, 10, size=shape, dtype=dtype)
-        np_b = np.random.randint(-10, 10, size=shape, dtype=dtype)
+    np_a = np.random.randn(*shape).astype(dtype)
+    np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
     nk_b = make_nk(np_b, dtype)
-
-    expected = np_a * np_b
-    result = nk_a * nk_b
-    result_np = np.asarray(result)
-
-    if dtype.startswith("float"):
-        assert_allclose(result_np, expected, rtol=1e-4)
-    else:
-        np.testing.assert_array_equal(result_np, expected)
+    result_np = np.asarray(nk_a - nk_b)
+    assert_allclose(result_np, np_a - np_b)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize(
-    "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("int32", id="i32")]
-)
-def test_ndarray_unary_operators(dtype):
+def test_ndarray_subtract_integer():
     shape = (20,)
-    if dtype.startswith("float"):
-        np_a = np.random.randn(*shape).astype(dtype)
-    else:
-        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
+    np_a = np.random.randint(-50, 50, size=shape, dtype="int32")
+    np_b = np.random.randint(-50, 50, size=shape, dtype="int32")
+    nk_a = make_nk(np_a, "int32")
+    nk_b = make_nk(np_b, "int32")
+    np.testing.assert_array_equal(np.asarray(nk_a - nk_b), np_a - np_b)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+def test_ndarray_multiply_float(dtype):
+    shape = (20,)
+    np_a = np.random.randn(*shape).astype(dtype)
+    np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
+    nk_b = make_nk(np_b, dtype)
+    result_np = np.asarray(nk_a * nk_b)
+    assert_allclose(result_np, np_a * np_b)
 
-    expected_neg = -np_a
-    result_neg = -nk_a
-    result_neg_np = np.asarray(result_neg)
 
-    if dtype.startswith("float"):
-        assert_allclose(result_neg_np, expected_neg, rtol=1e-5)
-    else:
-        np.testing.assert_array_equal(result_neg_np, expected_neg)
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_ndarray_multiply_integer():
+    shape = (20,)
+    np_a = np.random.randint(-10, 10, size=shape, dtype="int32")
+    np_b = np.random.randint(-10, 10, size=shape, dtype="int32")
+    nk_a = make_nk(np_a, "int32")
+    nk_b = make_nk(np_b, "int32")
+    np.testing.assert_array_equal(np.asarray(nk_a * nk_b), np_a * np_b)
 
-    result_pos = +nk_a
-    result_pos_np = np.asarray(result_pos)
-    np.testing.assert_array_equal(result_pos_np, np_a)
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
+def test_ndarray_unary_float(dtype):
+    shape = (20,)
+    np_a = np.random.randn(*shape).astype(dtype)
+    nk_a = make_nk(np_a, dtype)
+    result_neg_np = np.asarray(-nk_a)
+    assert_allclose(result_neg_np, -np_a)
+    np.testing.assert_array_equal(np.asarray(+nk_a), np_a)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_ndarray_unary_integer():
+    shape = (20,)
+    np_a = np.random.randint(-50, 50, size=shape, dtype="int32")
+    nk_a = make_nk(np_a, "int32")
+    np.testing.assert_array_equal(np.asarray(-nk_a), -np_a)
+    np.testing.assert_array_equal(np.asarray(+nk_a), np_a)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -876,9 +854,10 @@ def test_reduction_on_strided_array(dtype):
     np_strided = np_arr[::2]
     nk_strided = nk_arr[::2]
 
-    assert_allclose(nk_strided.sum(), np_strided.sum(), rtol=1e-4, atol=1e-4)
-    assert_allclose(nk_strided.min(), np_strided.min(), rtol=1e-5)
-    assert_allclose(nk_strided.max(), np_strided.max(), rtol=1e-5)
+    atol, rtol = tolerances_for_dtype(dtype)
+    assert_allclose(nk_strided.sum(), np_strided.sum(), rtol=rtol, atol=atol)
+    assert_allclose(nk_strided.min(), np_strided.min(), rtol=rtol, atol=atol)
+    assert_allclose(nk_strided.max(), np_strided.max(), rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -890,9 +869,10 @@ def test_reduction_on_transposed_array(dtype):
     np_t = np_arr.T
     nk_t = nk_arr.T
 
-    assert_allclose(nk_t.sum(), np_t.sum(), rtol=1e-4, atol=1e-4)
-    assert_allclose(nk_t.min(), np_t.min(), rtol=1e-5)
-    assert_allclose(nk_t.max(), np_t.max(), rtol=1e-5)
+    atol, rtol = tolerances_for_dtype(dtype)
+    assert_allclose(nk_t.sum(), np_t.sum(), rtol=rtol, atol=atol)
+    assert_allclose(nk_t.min(), np_t.min(), rtol=rtol, atol=atol)
+    assert_allclose(nk_t.max(), np_t.max(), rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -904,9 +884,10 @@ def test_reduction_on_subview(dtype):
     np_sub = np_arr[5:15, 5:15]
     nk_sub = nk_arr[5:15, 5:15]
 
-    assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=1e-4, atol=1e-4)
-    assert_allclose(nk_sub.min(), np_sub.min(), rtol=1e-5)
-    assert_allclose(nk_sub.max(), np_sub.max(), rtol=1e-5)
+    atol, rtol = tolerances_for_dtype(dtype)
+    assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=rtol, atol=atol)
+    assert_allclose(nk_sub.min(), np_sub.min(), rtol=rtol, atol=atol)
+    assert_allclose(nk_sub.max(), np_sub.max(), rtol=rtol, atol=atol)
     assert nk_sub.argmin() == np_sub.argmin()
     assert nk_sub.argmax() == np_sub.argmax()
 
@@ -1162,7 +1143,7 @@ def test_dots_packed_row_range():
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=0, end_row=50)
     nk.dots_packed(left_matrix, right_packed, out=output, start_row=50, end_row=100)
 
-    assert np.allclose(np.array(output), reference, atol=1e-5), "Row-range split differs from full computation"
+    assert_allclose(np.array(output), reference, err_msg="Row-range split differs from full computation")
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1181,9 +1162,7 @@ def test_dots_symmetric_row_range():
     output = nk.zeros((count, count), dtype="float64")
     nk.dots_symmetric(vectors, out=output, start_row=0, end_row=count)
 
-    assert np.allclose(np.array(output)[mask], reference[mask], atol=1e-5), (
-        "Full-range dots_symmetric differs from default"
-    )
+    assert_allclose(np.array(output)[mask], reference[mask], err_msg="Full-range dots_symmetric differs from default")
 
 
 def _skip_unless_free_threaded():
@@ -1275,9 +1254,9 @@ def test_gil_free_dots_packed_threading():
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
         list(pool.map(compute_slice, range(num_threads)))
 
-    assert np.allclose(
-        np.array(output), np.array(reference), atol=1e-5
-    ), "Multi-threaded dots_packed result differs from single-threaded"
+    assert_allclose(
+        np.array(output), np.array(reference), err_msg="Multi-threaded dots_packed result differs from single-threaded"
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1311,6 +1290,6 @@ def test_gil_free_dots_symmetric_threading():
     # Only the upper triangle is guaranteed initialized by the symmetric kernel
     result = np.array(output)
     mask = np.triu(np.ones((count, count), dtype=bool))
-    assert np.allclose(
-        result[mask], reference[mask], atol=1e-5
-    ), "Multi-threaded dots_symmetric upper triangle differs from single-threaded"
+    assert_allclose(
+        result[mask], reference[mask], err_msg="Multi-threaded dots_symmetric upper triangle differs from single-threaded"
+    )
