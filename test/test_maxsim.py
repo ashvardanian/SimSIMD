@@ -23,7 +23,9 @@ import numkong as nk
 from test_base import (
     assert_allclose,
     create_stats,
+    downcast_f32_to_dtype,
     keep_one_capability,
+    make_nk,
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
@@ -58,11 +60,8 @@ def baseline_maxsim(queries, documents):
 
 def _make_matrix(rows, cols, dtype):
     """Create a test matrix in the target dtype."""
-    if dtype == "bfloat16":
-        # NumPy has no bf16; create f16 array and reinterpret via nk.Tensor
-        arr = np.random.randn(rows, cols).astype(np.float16)
-        return nk.Tensor(arr, dtype="bf16")
-    return np.random.randn(rows, cols).astype(dtype)
+    raw, _ = downcast_f32_to_dtype(np.random.randn(rows, cols).astype(np.float32), dtype)
+    return make_nk(raw, dtype)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
