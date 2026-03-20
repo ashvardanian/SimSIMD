@@ -192,6 +192,25 @@ void reduce_minmax(in_type_ const *data, std::size_t count, std::size_t stride_b
     if (max_index) *max_index = static_cast<std::size_t>(max_offset);
 }
 
+/** @brief Compute sum and sum-of-squares over a vector view. */
+template <numeric_dtype in_type_, numeric_dtype sum_type_ = typename in_type_::reduce_moments_sum_t,
+          numeric_dtype sumsq_type_ = typename in_type_::reduce_moments_sumsq_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void reduce_moments(vector_view<in_type_> input, sum_type_ *sum, sumsq_type_ *sumsq) noexcept {
+    reduce_moments<in_type_, sum_type_, sumsq_type_, allow_simd_>(
+        input.data(), input.size(), static_cast<std::size_t>(input.stride_bytes()), sum, sumsq);
+}
+
+/** @brief Find minimum and maximum elements with their indices over a vector view. */
+template <numeric_dtype in_type_, numeric_dtype minmax_type_ = typename in_type_::reduce_minmax_value_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void reduce_minmax(vector_view<in_type_> input, minmax_type_ *min_value, std::size_t *min_index,
+                   minmax_type_ *max_value, std::size_t *max_index) noexcept {
+    reduce_minmax<in_type_, minmax_type_, allow_simd_>(input.data(), input.size(),
+                                                       static_cast<std::size_t>(input.stride_bytes()), min_value,
+                                                       min_index, max_value, max_index);
+}
+
 } // namespace ashvardanian::numkong
 
 #include "numkong/tensor.hpp"
@@ -481,6 +500,58 @@ std::size_t argmin(tensor_view<value_type_, max_rank_> input) noexcept {
 /** @brief Index of the maximum element (flat). */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 std::size_t argmax(tensor_view<value_type_, max_rank_> input) noexcept {
+    return minmax(input).max_index;
+}
+
+/** @brief Compute Σxᵢ and Σxᵢ² over a vector view. */
+template <numeric_dtype value_type_>
+moments_result<typename value_type_::reduce_moments_sum_t, typename value_type_::reduce_moments_sumsq_t> moments(
+    vector_view<value_type_> input) noexcept {
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+    moments_result<sum_t, sumsq_t> result {};
+    if (input.size() == 0) return result;
+    reduce_moments<value_type_>(input, &result.sum, &result.sumsq);
+    return result;
+}
+
+/** @brief Find min and max values with their indices over a vector view. */
+template <numeric_dtype value_type_>
+minmax_result<typename value_type_::reduce_minmax_value_t> minmax(vector_view<value_type_> input) noexcept {
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+    minmax_result<minmax_t> result {};
+    if (input.size() == 0) return result;
+    reduce_minmax<value_type_>(input, &result.min_value, &result.min_index, &result.max_value, &result.max_index);
+    return result;
+}
+
+/** @brief Σ of all elements in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_moments_sum_t sum(vector_view<value_type_> input) noexcept {
+    return moments(input).sum;
+}
+
+/** @brief Find the minimum element value in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_minmax_value_t min(vector_view<value_type_> input) noexcept {
+    return minmax(input).min_value;
+}
+
+/** @brief Find the maximum element value in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_minmax_value_t max(vector_view<value_type_> input) noexcept {
+    return minmax(input).max_value;
+}
+
+/** @brief Index of the minimum element in a vector view. */
+template <numeric_dtype value_type_>
+std::size_t argmin(vector_view<value_type_> input) noexcept {
+    return minmax(input).min_index;
+}
+
+/** @brief Index of the maximum element in a vector view. */
+template <numeric_dtype value_type_>
+std::size_t argmax(vector_view<value_type_> input) noexcept {
     return minmax(input).max_index;
 }
 
