@@ -582,7 +582,12 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     unsigned supports_smef64 = 0, supports_smehalf = 0, supports_smebf16 = 0;
     unsigned supports_smelut2 = 0, supports_smefa64 = 0;
     if (supports_sme) {
-        __asm__ __volatile__("mrs %0, ID_AA64SMFR0_EL1" : "=r"(id_aa64smfr0_el1));
+        // MRS x0, ID_AA64SMFR0_EL1 (S3_0_C0_C4_5) — encoded as raw .inst because some
+        // assemblers (Clang 21 in Android NDK r29) reject the symbolic register name.
+        // Encoding: 0xD53804A0 = MRS x0, op0=3, op1=0, CRn=0, CRm=4, op2=5, Rt=0.
+        register unsigned long __smfr0 __asm__("x0");
+        __asm__ __volatile__(".inst 0xD53804A0" : "=r"(__smfr0));
+        id_aa64smfr0_el1 = __smfr0;
         unsigned sme_version = (id_aa64smfr0_el1 >> 56) & 0xF;
         supports_sme2 = sme_version >= 1;
         supports_sme2p1 = sme_version >= 2;
