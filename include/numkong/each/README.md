@@ -220,7 +220,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_fma_i8_serial`      |                4.49 gb/s |                2.63 gb/s |                2.98 gb/s |
 | `nk_each_fma_i8_haswell`     |                7.36 gb/s |                6.84 gb/s |                7.15 gb/s |
 | `nk_each_fma_i8_skylake`     |                11.2 gb/s |                9.45 gb/s |                10.1 gb/s |
-| `nk_each_fma_i8_sapphire`    |                32.2 gb/s |                21.2 gb/s |                18.7 gb/s |
 | __u8__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_u8_serial`      |                17.0 gb/s |                13.7 gb/s |                12.5 gb/s |
 | `nk_each_sum_u8_haswell`     |                42.6 gb/s |                15.7 gb/s |                15.4 gb/s |
@@ -235,7 +234,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_fma_u8_serial`      |                3.19 gb/s |                3.92 gb/s |                4.54 gb/s |
 | `nk_each_fma_u8_haswell`     |                6.98 gb/s |                6.29 gb/s |                7.62 gb/s |
 | `nk_each_fma_u8_skylake`     |                9.66 gb/s |                9.21 gb/s |                10.3 gb/s |
-| `nk_each_fma_u8_sapphire`    |                25.3 gb/s |                21.2 gb/s |                19.0 gb/s |
 | __i16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_i16_serial`     |                12.0 gb/s |                11.6 gb/s |                14.2 gb/s |
 | `nk_each_sum_i16_haswell`    |                26.1 gb/s |                16.2 gb/s |                16.8 gb/s |
@@ -395,7 +393,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_blend_i8_serial`      |                2.29 gb/s |                2.32 gb/s |                2.24 gb/s |
 | `nk_each_blend_i8_neonhalf`    |                8.83 gb/s |                9.48 gb/s |                8.68 gb/s |
 | `nk_each_fma_i8_serial`        |                2.02 gb/s |                1.97 gb/s |                1.77 gb/s |
-| `nk_each_fma_i8_neonhalf`      |                7.27 gb/s |                6.97 gb/s |                4.79 gb/s |
 | __u8__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_u8_serial`        |                4.46 gb/s |                4.49 gb/s |                4.09 gb/s |
 | `nk_each_sum_u8_neonhalf`      |                35.0 gb/s |                38.1 gb/s |                20.2 gb/s |
@@ -404,7 +401,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_blend_u8_serial`      |                2.59 gb/s |                2.53 gb/s |                2.48 gb/s |
 | `nk_each_blend_u8_neonhalf`    |                9.21 gb/s |                8.53 gb/s |                8.00 gb/s |
 | `nk_each_fma_u8_serial`        |                2.17 gb/s |                2.16 gb/s |                1.86 gb/s |
-| `nk_each_fma_u8_neonhalf`      |                7.29 gb/s |                7.11 gb/s |                4.72 gb/s |
 | __i16__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_i16_serial`       |                20.2 gb/s |                24.3 gb/s |                11.1 gb/s |
 | `nk_each_sum_i16_neon`         |                31.4 gb/s |                36.8 gb/s |                36.7 gb/s |
