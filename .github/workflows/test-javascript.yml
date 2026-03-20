@@ -202,6 +202,13 @@ jobs:
           npm install --ignore-scripts
           npm run build-js
 
+      - name: Build browser bundle
+        run: |
+          cp build-wasm/numkong.js build-wasm/numkong-emscripten.js
+          npx esbuild javascript/dist/esm/numkong-browser.js \
+            --bundle --format=esm --platform=browser --target=es2022 \
+            --outfile=build-wasm/numkong-bundle.js
+
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
 

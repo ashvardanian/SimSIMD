@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NumKong WASM Browser Bundle Tests</title>
+  <style>
+    body {
+      font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    .summary {
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .summary.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .summary.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .test {
+      padding: 8px 12px;
+      margin: 5px 0;
+      border-left: 3px solid;
+      background: #f8f9fa;
+    }
+
+    .test.pass {
+      border-color: #28a745;
+    }
+
+    .test.fail {
+      border-color: #dc3545;
+    }
+
+    .error {
+      color: #dc3545;
+      font-family: "Courier New", monospace;
+      font-size: 14px;
+      margin-left: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>NumKong WASM Bundle Test Suite</h1>
+  <div id="results" class="loading">
+    Loading bundled WASM module and running tests...
+  </div>
+
+  <script type="module">
+    // Import from the self-contained bundle (no manual init needed).
+    // In the release tarball this is numkong.js; in the dev tree it lives
+    // at build-wasm/numkong-bundle.js so it doesn't shadow the Emscripten glue.
+    import * as numkong from "../build-wasm/numkong-bundle.js";
+
+    const results = [];
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, pass: true });
+        console.log("\u2713", name);
+      } catch (e) {
+        results.push({ name, pass: false, error: e.message });
+        console.error("\u2717", name, e);
+      }
+    }
+
+    function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
+      if (!(Math.abs(actual - expected) <= tolerance)) {
+        throw new Error(
+          `Expected ${actual} to be almost equal to ${expected} (tolerance: ${tolerance})`,
+        );
+      }
+    }
+
+    // Basic distance tests
+    test("dot product", () => {
+      const a = new Float32Array([1.0, 2.0, 3.0]);
+      const b = new Float32Array([4.0, 5.0, 6.0]);
+      assertAlmostEqual(numkong.dot(a, b), 32.0, 0.01);
+    });
+
+    test("inner product (alias)", () => {
+      const a = new Float32Array([1.0, 0.0, 0.0]);
+      assertAlmostEqual(numkong.inner(a, a), 1.0, 0.01);
+    });
+
+    test("euclidean distance", () => {
+      const a = new Float32Array([0.0, 0.0, 0.0]);
+      const b = new Float32Array([3.0, 4.0, 0.0]);
+      assertAlmostEqual(numkong.euclidean(a, b), 5.0, 0.01);
+      assertAlmostEqual(numkong.sqeuclidean(a, b), 25.0, 0.01);
+    });
+
+    test("angular distance", () => {
+      const a = new Float32Array([1.0, 0.0, 0.0]);
+      const b = new Float32Array([0.0, 1.0, 0.0]);
+      assertAlmostEqual(numkong.angular(a, b), 1.0, 0.01);
+    });
+
+    test("self-distance is zero", () => {
+      const v = new Float32Array([1.0, 2.0, 3.0]);
+      assertAlmostEqual(numkong.sqeuclidean(v, v), 0.0, 0.01);
+      assertAlmostEqual(numkong.angular(v, v), 0.0, 0.01);
+    });
+
+    test("f64 support", () => {
+      const a = new Float64Array([1.0, 2.0, 3.0]);
+      const b = new Float64Array([4.0, 5.0, 6.0]);
+      assertAlmostEqual(numkong.dot(a, b), 32.0, 0.01);
+    });
+
+    test("u8 hamming distance", () => {
+      const a = new Uint8Array([1, 2, 3]);
+      assertAlmostEqual(numkong.hamming(a, a), 0.0, 0.01);
+    });
+
+    test("capability detection", () => {
+      const caps = numkong.getCapabilities();
+      if (typeof caps !== "bigint") throw new Error("should return bigint");
+      if (!numkong.hasCapability(1n << 0n))
+        throw new Error("SERIAL should be present");
+    });
+
+    // Larger dimension tests
+    for (const dim of [16, 128, 1536]) {
+      test(`dot f32 x ${dim}`, () => {
+        const a = Float32Array.from({ length: dim }, () => Math.random());
+        const b = Float32Array.from({ length: dim }, () => Math.random());
+        const result = numkong.dot(a, b);
+        if (typeof result !== "number" || !isFinite(result))
+          throw new Error("invalid result");
+        // Determinism check
+        if (Math.abs(result - numkong.dot(a, b)) > 1e-6)
+          throw new Error("non-deterministic");
+      });
+    }
+
+    // Display results
+    const passed = results.filter((r) => r.pass).length;
+    const total = results.length;
+    const allPassed = passed === total;
+    const summaryClass = allPassed ? "pass" : "fail";
+    const summaryText = allPassed
+      ? `\u2713 All ${total} tests passed`
+      : `\u2717 ${passed}/${total} tests passed`;
+
+    document.getElementById("results").innerHTML = `
+        <div class="summary ${summaryClass}">${summaryText}</div>
+        ${results
+        .map((r) => {
+          const icon = r.pass ? "\u2713" : "\u2717";
+          const cls = r.pass ? "pass" : "fail";
+          const err = r.error
+            ? `<div class="error">Error: ${r.error}</div>`
+            : "";
+          return `<div class="test ${cls}">${icon} ${r.name}${err}</div>`;
+        })
+        .join("")}
+      `;
+
+    window.testResults = results;
+    window.testsPassed = allPassed;
+  </script>
+</body>
+
+</html>
