@@ -5674,7 +5674,7 @@ struct scalar_format_spec_t {
     }
 };
 
-/** Write zero-padded hex to an output iterator. `width` is 2 or 4. Each branch uses a literal format string. */
+/** Write zero-padded hex to an output iterator. `width` is 1, 2, or 4. Each branch uses a literal format string. */
 inline std::format_context::iterator format_hex_(std::format_context::iterator out, unsigned bits, unsigned width,
                                                  bool prefix, bool upper) {
     if (width == 4) {
@@ -5683,18 +5683,28 @@ inline std::format_context::iterator format_hex_(std::format_context::iterator o
         if (upper) return std::format_to(out, "{:04X}", bits);
         return std::format_to(out, "{:04x}", bits);
     }
+    if (width == 1) {
+        if (prefix && upper) return std::format_to(out, "0X{:01X}", bits);
+        if (prefix) return std::format_to(out, "0x{:01x}", bits);
+        if (upper) return std::format_to(out, "{:01X}", bits);
+        return std::format_to(out, "{:01x}", bits);
+    }
     if (prefix && upper) return std::format_to(out, "0X{:02X}", bits);
     if (prefix) return std::format_to(out, "0x{:02x}", bits);
     if (upper) return std::format_to(out, "{:02X}", bits);
     return std::format_to(out, "{:02x}", bits);
 }
 
-/** Write zero-padded binary to an output iterator. `width` is 8 or 16. */
+/** Write zero-padded binary to an output iterator. `width` is 4, 8, or 16. */
 inline std::format_context::iterator format_bin_(std::format_context::iterator out, unsigned bits, unsigned width,
                                                  bool prefix) {
     if (width == 16) {
         if (prefix) return std::format_to(out, "0b{:016b}", bits);
         return std::format_to(out, "{:016b}", bits);
+    }
+    if (width == 4) {
+        if (prefix) return std::format_to(out, "0b{:04b}", bits);
+        return std::format_to(out, "{:04b}", bits);
     }
     if (prefix) return std::format_to(out, "0b{:08b}", bits);
     return std::format_to(out, "{:08b}", bits);
@@ -5704,6 +5714,7 @@ inline std::format_context::iterator format_bin_(std::format_context::iterator o
 inline std::format_context::iterator format_hex_suffix_(std::format_context::iterator out, unsigned bits,
                                                         unsigned width) {
     if (width == 4) return std::format_to(out, " [0x{:04x}]", bits);
+    if (width == 1) return std::format_to(out, " [0x{:01x}]", bits);
     return std::format_to(out, " [0x{:02x}]", bits);
 }
 
@@ -5823,6 +5834,71 @@ struct std::formatter<ashvardanian::numkong::u1x8_t> {
             return out;
         }
         }
+    }
+};
+
+/**
+ *  @brief Formatter for a single signed nibble (-8..7). Supports `{}`, `{:#}`, `{:x}`, `{:b}`.
+ *  Float-precision specs (e.g. `{:.2f}`) are not meaningful and ignored.
+ */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::i4x2_t>> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::i4x2_t> v,
+                                         std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.get()) & 0x0Fu;
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 1, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 4, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "{}", static_cast<int>(v.get()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 1);
+            return out;
+        }
+        }
+    }
+};
+
+/**
+ *  @brief Formatter for a single unsigned nibble (0..15). Supports `{}`, `{:#}`, `{:x}`, `{:b}`.
+ *  Float-precision specs (e.g. `{:.2f}`) are not meaningful and ignored.
+ */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u4x2_t>> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u4x2_t> v,
+                                         std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.get());
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 1, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 4, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "{}", static_cast<unsigned>(v.get()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 1);
+            return out;
+        }
+        }
+    }
+};
+
+/** @brief Formatter for a single bit. Only `{}` is supported — hex and binary are not meaningful. */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u1x8_t>> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u1x8_t> v,
+                                         std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{}", v.get() ? 1u : 0u);
     }
 };
 
