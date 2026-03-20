@@ -137,17 +137,17 @@ PyTypeObject MaxSimPackedMatrixType = {
     .tp_repr = MaxSimPackedMatrix_repr,
 };
 
-char const doc_maxsim_pack[] =                                              //
-    "maxsim_pack(b, /, dtype='bf16') -> MaxSimPackedMatrix\n\n"             //
-    "Pack a 2D matrix for MaxSim late-interaction scoring.\n\n"             //
-    "Parameters:\n"                                                         //
-    "    b (array_like): Source matrix with shape (vector_count, depth).\n" //
-    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"          //
-    "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                   //
-    "Returns:\n"                                                            //
-    "    MaxSimPackedMatrix: Opaque packed matrix for maxsim_packed().\n\n" //
-    "Signature:\n"                                                          //
-    "    >>> def maxsim_pack(b, /, dtype='bf16') -> MaxSimPackedMatrix: ...";
+char const doc_maxsim_pack[] =                                                  //
+    "maxsim_pack(b, /, dtype=None) -> MaxSimPackedMatrix\n\n"                   //
+    "Pack a 2D matrix for MaxSim late-interaction scoring.\n\n"                 //
+    "Parameters:\n"                                                             //
+    "    b (array_like): Source matrix with shape (vector_count, depth).\n"     //
+    "    dtype (str, optional): Packing dtype. Default: inferred from input.\n" //
+    "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                       //
+    "Returns:\n"                                                                //
+    "    MaxSimPackedMatrix: Opaque packed matrix for maxsim_packed().\n\n"     //
+    "Signature:\n"                                                              //
+    "    >>> def maxsim_pack(b, /, dtype=None) -> MaxSimPackedMatrix: ...";
 
 PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     nk_unused_(self);
@@ -159,7 +159,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     Py_ssize_t total = nargs + nkw;
 
     if (nargs < 1 || total > 2) {
-        PyErr_SetString(PyExc_TypeError, "maxsim_pack() requires 1-2 arguments: b, dtype='bf16'");
+        PyErr_SetString(PyExc_TypeError, "maxsim_pack() requires 1-2 arguments: b, dtype=None");
         return NULL;
     }
 
@@ -182,12 +182,11 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     }
     if (nargs >= 2) dtype_obj = args[1];
 
-    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_bf16_k;
-    if (target_dtype == nk_dtype_unknown_k) return NULL;
+    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_dtype_unknown_k;
+    if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
 
-    if (target_dtype != nk_bf16_k && target_dtype != nk_f16_k && target_dtype != nk_f32_k) {
-        PyErr_Format(PyExc_ValueError, "maxsim_pack() only supports 'bf16', 'f16', 'f32'; got '%s'",
-                     dtype_to_python_string(target_dtype));
+    if (target_dtype != nk_dtype_unknown_k && nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", dtype_to_python_string(target_dtype));
         return NULL;
     }
 
@@ -209,6 +208,16 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", b_buffer.format);
         PyBuffer_Release(&b_buffer);
         return NULL;
+    }
+    // Auto-infer target dtype from input when no explicit dtype was provided
+    if (target_dtype == nk_dtype_unknown_k) {
+        target_dtype = src_dtype;
+        if (nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
+            PyBuffer_Release(&b_buffer);
+            PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s' inferred from input",
+                         dtype_to_python_string(target_dtype));
+            return NULL;
+        }
     }
 
     if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
@@ -363,17 +372,17 @@ PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t na
 }
 
 char const doc_maxsim[] =                                                               //
-    "maxsim(queries, documents, /, dtype='bf16') -> float\n\n"                          //
+    "maxsim(queries, documents, /, dtype=None) -> float\n\n"                            //
     "Convenience MaxSim: pack both matrices and compute in one call.\n\n"               //
     "Parameters:\n"                                                                     //
     "    queries (array_like): Query matrix with shape (query_count, depth).\n"         //
     "    documents (array_like): Document matrix with shape (document_count, depth).\n" //
-    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"                      //
+    "    dtype (str, optional): Packing dtype. Default: inferred from input.\n"         //
     "        Supported values: 'bf16', 'f16', 'f32'.\n\n"                               //
     "Returns:\n"                                                                        //
     "    float: Sum of per-query minimum angular distances.\n\n"                        //
     "Signature:\n"                                                                      //
-    "    >>> def maxsim(queries, documents, /, dtype='bf16') -> float: ...";
+    "    >>> def maxsim(queries, documents, /, dtype=None) -> float: ...";
 
 PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     nk_unused_(self);
@@ -409,11 +418,10 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
     if (nargs >= 3) dtype_obj = args[2];
 
-    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_bf16_k;
-    if (target_dtype == nk_dtype_unknown_k) return NULL;
-    if (target_dtype != nk_bf16_k && target_dtype != nk_f16_k && target_dtype != nk_f32_k) {
-        PyErr_Format(PyExc_ValueError, "maxsim() only supports 'bf16', 'f16', 'f32'; got '%s'",
-                     dtype_to_python_string(target_dtype));
+    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_dtype_unknown_k;
+    if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
+    if (target_dtype != nk_dtype_unknown_k && nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", dtype_to_python_string(target_dtype));
         return NULL;
     }
 
@@ -450,6 +458,16 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
         if (documents_dtype == nk_dtype_unknown_k) {
             PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", documents_buffer.format);
             goto cleanup;
+        }
+
+        // Auto-infer target dtype from queries when no explicit dtype was provided
+        if (target_dtype == nk_dtype_unknown_k) {
+            target_dtype = queries_dtype;
+            if (nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
+                PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s' inferred from input",
+                             dtype_to_python_string(target_dtype));
+                goto cleanup;
+            }
         }
 
         if (queries_dtype != target_dtype) {
