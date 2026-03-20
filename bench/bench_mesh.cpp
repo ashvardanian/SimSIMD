@@ -109,6 +109,12 @@ void bench_mesh() {
     run_mesh<f64_k>("rmsd_f64_skylake", nk_rmsd_f64_skylake);
     run_mesh<f64_k>("kabsch_f64_skylake", nk_kabsch_f64_skylake);
     run_mesh<f64_k>("umeyama_f64_skylake", nk_umeyama_f64_skylake);
+    run_mesh<f16_k>("rmsd_f16_skylake", nk_rmsd_f16_skylake);
+    run_mesh<bf16_k>("rmsd_bf16_skylake", nk_rmsd_bf16_skylake);
+    run_mesh<f16_k>("kabsch_f16_skylake", nk_kabsch_f16_skylake);
+    run_mesh<bf16_k>("kabsch_bf16_skylake", nk_kabsch_bf16_skylake);
+    run_mesh<f16_k>("umeyama_f16_skylake", nk_umeyama_f16_skylake);
+    run_mesh<bf16_k>("umeyama_bf16_skylake", nk_umeyama_bf16_skylake);
 #endif
 
 #if NK_TARGET_RVV

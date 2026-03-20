@@ -142,17 +142,23 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_rmsd_f32_haswell`     |        447 mp/s, 0.3 ulp |        484 mp/s, 0.3 ulp |        350 mp/s, 0.4 ulp |
 | `nk_kabsch_f32_haswell`   |        101 mp/s, 0.7 ulp |        192 mp/s, 0.9 ulp |        213 mp/s, 1.3 ulp |
 | `nk_umeyama_f32_haswell`  |       97.4 mp/s, 0.3 ulp |        155 mp/s, 0.4 ulp |        207 mp/s, 0.8 ulp |
-| `nk_rmsd_f32_skylake`     |        936 mp/s, 0.3 ulp |        970 mp/s, 0.3 ulp |        426 mp/s, 0.3 ulp |
-| `nk_kabsch_f32_skylake`   |        122 mp/s, 0.7 ulp |        258 mp/s, 0.7 ulp |        290 mp/s, 0.9 ulp |
-| `nk_umeyama_f32_skylake`  |        133 mp/s, 0.2 ulp |        231 mp/s, 0.3 ulp |        285 mp/s, 0.5 ulp |
+| `nk_rmsd_f32_skylake`     |      1,000 mp/s, 0.7 ulp |        974 mp/s, 1.2 ulp |        786 mp/s, 2.4 ulp |
+| `nk_kabsch_f32_skylake`   |       97.5 mp/s, 0.7 ulp |        232 mp/s, 0.7 ulp |        332 mp/s, 0.9 ulp |
+| `nk_umeyama_f32_skylake`  |       92.5 mp/s, 0.2 ulp |        227 mp/s, 0.2 ulp |        325 mp/s, 0.3 ulp |
 | __bf16__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_rmsd_bf16_haswell`    |        511 mp/s, 0.3 ulp |        481 mp/s, 3.5 ulp |       497 mp/s, 12.8 ulp |
 | `nk_kabsch_bf16_haswell`  |       52.4 mp/s, 0.7 ulp |       65.3 mp/s, 0.9 ulp |       74.8 mp/s, 1.3 ulp |
 | `nk_umeyama_bf16_haswell` |       51.5 mp/s, 0.2 ulp |       69.2 mp/s, 0.4 ulp |       74.6 mp/s, 0.8 ulp |
+| `nk_rmsd_bf16_skylake`    |      1,765 mp/s, 0.3 ulp |      1,945 mp/s, 0.5 ulp |      2,056 mp/s, 6.0 ulp |
+| `nk_kabsch_bf16_skylake`  |        132 mp/s, 0.7 ulp |        370 mp/s, 0.8 ulp |        689 mp/s, 0.9 ulp |
+| `nk_umeyama_bf16_skylake` |        130 mp/s, 0.2 ulp |        366 mp/s, 0.3 ulp |        689 mp/s, 0.5 ulp |
 | __f16__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_rmsd_f16_haswell`     |        415 mp/s, 0.3 ulp |        497 mp/s, 0.7 ulp |        458 mp/s, 2.5 ulp |
 | `nk_kabsch_f16_haswell`   |        151 mp/s, 0.7 ulp |        222 mp/s, 0.9 ulp |        221 mp/s, 1.4 ulp |
 | `nk_umeyama_f16_haswell`  |        186 mp/s, 0.2 ulp |        232 mp/s, 0.5 ulp |        222 mp/s, 0.9 ulp |
+| `nk_rmsd_f16_skylake`     |      1,813 mp/s, 0.3 ulp |      1,982 mp/s, 0.4 ulp |      2,049 mp/s, 1.8 ulp |
+| `nk_kabsch_f16_skylake`   |        367 mp/s, 0.7 ulp |        695 mp/s, 0.7 ulp |        903 mp/s, 0.9 ulp |
+| `nk_umeyama_f16_skylake`  |        341 mp/s, 0.2 ulp |        686 mp/s, 0.2 ulp |        882 mp/s, 0.4 ulp |
 
 #### WASM
 

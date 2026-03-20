@@ -202,6 +202,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
