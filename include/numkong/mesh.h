@@ -406,9 +406,10 @@ NK_PUBLIC void nk_umeyama_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, 
 #endif // NK_TARGET_V128RELAXED
 
 /**
- *  @brief  Returns the output dtype for RMSD.
+ *  @brief  Returns the metric output dtype for mesh alignment operations.
+ *  Matches the C++ `mesh_metric_t` alias in types.hpp.
  */
-NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_mesh_metric_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f64_k;
@@ -419,25 +420,13 @@ NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
 }
 
 /**
- *  @brief  Returns the output dtype for Kabsch alignment.
+ *  @brief  Returns the transform output dtype for mesh alignment operations.
+ *  Matches the C++ `mesh_transform_t` alias in types.hpp.
  */
-NK_INTERNAL nk_dtype_t nk_kabsch_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_mesh_transform_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f64_k;
-    case nk_f16_k: return nk_f32_k;
-    case nk_bf16_k: return nk_f32_k;
-    default: return nk_dtype_unknown_k;
-    }
-}
-
-/**
- *  @brief  Returns the output dtype for Umeyama alignment.
- */
-NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     default: return nk_dtype_unknown_k;
