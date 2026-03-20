@@ -583,11 +583,11 @@ cleanup:
 }
 
 char const doc_dots_pack[] =                                                         //
-    "dots_pack(b, /, dtype='bf16') -> PackedMatrix\n\n"                              //
+    "dots_pack(b, /, dtype=None) -> PackedMatrix\n\n"                                //
     "Pack a 2D matrix for repeated dot-product style cross operations.\n\n"          //
     "Parameters:\n"                                                                  //
     "    b (array_like): Source matrix with shape (width, depth).\n"                 //
-    "    dtype (str, optional): Packing dtype. Default: 'bf16'.\n"                   //
+    "    dtype (str, optional): Packing dtype. Default: inferred from input.\n"      //
     "        Supported values: 'bf16', 'f16', 'f32', 'f64', 'i8', 'u8',\n"           //
     "        'e4m3', 'e5m2', 'e3m2', 'e2m3', 'i4', 'u4', 'u1'.\n\n"                  //
     "Returns:\n"                                                                     //
@@ -597,7 +597,7 @@ char const doc_dots_pack[] =                                                    
     "    >>> b_packed = nk.dots_pack(b, dtype=nk.bfloat16)\n"                        //
     "    >>> distances = nk.dots_packed(a, b_packed)  # shape: (100, 200)\n\n"       //
     "Signature:\n"                                                                   //
-    "    >>> def dots_pack(b, /, dtype='bf16') -> PackedMatrix: ...";
+    "    >>> def dots_pack(b, /, dtype=None) -> PackedMatrix: ...";
 
 static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, nk_dtype_t default_dtype) {
 
@@ -631,7 +631,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     if (nargs >= 2) dtype_obj = args[1];
 
     nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : default_dtype;
-    if (target_dtype == nk_dtype_unknown_k) return NULL;
+    if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
 
     Py_buffer b_buffer;
     nk_buffer_backing_t b_backing;
@@ -652,6 +652,8 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
         PyBuffer_Release(&b_buffer);
         return NULL;
     }
+    // Auto-infer target dtype from input when no explicit dtype was provided
+    if (target_dtype == nk_dtype_unknown_k) target_dtype = src_dtype;
     if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
         PyBuffer_Release(&b_buffer);
         PyErr_SetString(PyExc_ValueError, "packing does not support negative strides");
@@ -725,7 +727,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
 
 PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     nk_unused_(self);
-    return api_pack_common(args, nargs, kwnames, nk_bf16_k);
+    return api_pack_common(args, nargs, kwnames, nk_dtype_unknown_k);
 }
 
 char const doc_dots_packed[] =                                                             //
