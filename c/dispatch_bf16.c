@@ -213,6 +213,9 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_bf16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_bf16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_bf16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_bf16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif

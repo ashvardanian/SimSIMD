@@ -1,7 +1,7 @@
 # NumKong for Swift
 
-Apple Silicon is the most power-efficient high-throughput CPU-GPU combination shipping today, and it dominates on-device AI workloads across phones, tablets, and laptops.
-NumKong brings hardware-accelerated vector math to Swift without pulling in a full tensor framework.
+Apple Silicon is a power-efficient, high-throughput CPU-GPU combination widely used for on-device AI workloads across phones, tablets, and laptops.
+NumKong provides hardware-accelerated vector math for Swift without pulling in a full tensor framework.
 It gives you collection-based dense metrics, binary set distances, owning tensors, explicit matrix views, reusable packed matrices, symmetric all-pairs kernels, MaxSim late-interaction scoring, geospatial distance helpers, and storage wrappers for low-precision formats that Swift does not model natively.
 
 Swift users usually want one of two things.
@@ -59,7 +59,7 @@ Add NumKong to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ashvardanian/NumKong.git", from: "6.5.15")
+    .package(url: "https://github.com/ashvardanian/NumKong.git", from: "7.0")
 ]
 ```
 

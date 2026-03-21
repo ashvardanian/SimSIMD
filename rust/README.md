@@ -1,7 +1,7 @@
 # NumKong for Rust
 
 NumKong's Rust crate keeps most of the native kernel surface while expressing it in Rust-native terms.
-Rust is the cleanest place to use NumKong when you want static typing, explicit ownership, and strong container APIs without giving up mixed precision.
+Rust is a natural fit for NumKong when you want static typing, explicit ownership, and strong container APIs without giving up mixed precision.
 Traits cover scalar metric families.
 `Tensor`, `Vector`, and packed matrix types cover the higher-level workflows.
 Custom allocators, low-precision storage wrappers, and explicit row-contiguity checks stay visible instead of being hidden behind a dynamic runtime.
@@ -24,8 +24,8 @@ fn main() {
 
 ## Highlights
 
-This is the most complete high-level SDK after Python.
-It is the best fit if you want most of the native breadth without dropping into a manual FFI layer.
+This is the most fully featured high-level SDK after Python.
+It is a good fit if you want most of the native breadth without dropping into a manual FFI layer.
 
 __Trait-first scalar API.__
 `Type::operation(&a, &b)` stays compact and predictable.
@@ -61,14 +61,14 @@ Minimal:
 
 ```toml
 [dependencies]
-numkong = "6.5.15"
+numkong = "7"
 ```
 
 With host-side parallel helpers:
 
 ```toml
 [dependencies]
-numkong = { version = "6.5.15", features = ["parallel", "std"] }
+numkong = { version = "7", features = ["parallel", "std"] }
 ```
 
 ## Compilation and Backend Selection
@@ -76,7 +76,7 @@ numkong = { version = "6.5.15", features = ["parallel", "std"] }
 The crate uses the `cc` build system to compile the C backend with `NK_DYNAMIC_DISPATCH=1` automatically.
 All supported backends for the target architecture are compiled into a single binary and selected at runtime.
 
-The two Cargo features are `std`, which enables standard library support, and `parallel`, which adds host-side orchestration via Fork Union and implies `std`.
+The two Cargo features are `std`, which enables standard library support, and `parallel`, which adds host-side orchestration via ForkUnion and implies `std`.
 
 Backend selection follows the target architecture.
 ARM gets NEON, SVE, and SME, with SME available on Linux, FreeBSD, and macOS.
@@ -306,25 +306,61 @@ That does _not_ mean callers must align their source buffers manually.
 It means owned outputs and packed payloads are allocated in a SIMD-friendly way when the crate owns them.
 
 ```rust
-use numkong::{SliceRange, Tensor};
+use numkong::{RangeStep, SliceRange, Tensor};
 
 let t = Tensor::<f32>::try_from_slice(&[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], &[3, 3]).unwrap();
-assert_eq!(t.shape(), &[3, 3]);
-assert_eq!(t.row(1), Some(&[3.0, 4.0, 5.0][..]));
 
-// Transpose
-let view = t.view().transpose();
-assert_eq!(view.shape(), &[3, 3]);
+let col = t.slice((.., 1_usize)).unwrap();                  // t[:, 1]  — column 1
+let rows = t.slice((0..2_usize, ..)).unwrap();              // t[0:2, :] — first two rows
+let tail = t.slice((-2_isize.., ..)).unwrap();              // t[-2:, :] — last two rows
+let neg = t.slice((.., -2..-1_isize)).unwrap();             // t[:, -2:-1]
+let step = t.slice((.., RangeStep::new(0, 3, 2))).unwrap(); // t[:, ::2]
 
-// Column slicing — produces a strided view
-let col1 = t.view().slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
-assert_eq!(col1.shape(), &[3]);
+// Explicit &[SliceRange] syntax also works
+let col = t.slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
+```
 
-// Scalar element access
-let val = t.view().get(&[1, 2]).unwrap(); // row 1, col 2 → 5.0
+Tuple elements implement `SliceArg` — each monomorphized with zero runtime dispatch:
 
-// Reduction on a sliced view
-let idx = col1.try_argmin_all().unwrap(); // index of the minimum in the second column
+| Rust syntax                     | Meaning                                |
+| ------------------------------- | -------------------------------------- |
+| `..`                            | all                                    |
+| `0_usize` / `-1_isize`          | single index (negative wraps from end) |
+| `1..4_usize` / `-3..-1_isize`   | half-open range                        |
+| `..3_usize` / `..-1_isize`      | from start                             |
+| `1_usize..` / `-2_isize..`      | to end                                 |
+| `0..=2_usize` / `-3..=-1_isize` | inclusive range                        |
+| `RangeStep::new(0, 6, 2)`       | stepped (no Rust literal)              |
+
+Integer literals default to `i32` — use `_usize` / `_isize` suffixes.
+Negative `isize` values wrap from the dimension end, like Python.
+
+Iteration works at the logical-dimension level.
+For sub-byte types like `i4x2` (2 nibbles per byte), iterating a 3-element vector yields 6 dimensions.
+Immutable iterators (`iter()`) yield `DimRef<T>`, which dereferences to `T::DimScalar`.
+Mutable iterators (`iter_mut()`) yield `DimMut<T>`, which writes back on drop — the only way to mutate individual nibbles or bits.
+
+```rust
+use numkong::{Vector, i4x2};
+
+let mut nibbles = Vector::<i4x2>::try_zeros(4).unwrap();
+for (i, mut dim) in nibbles.iter_mut().enumerate() {
+    *dim = i as i8;
+}
+assert_eq!(nibbles.try_get(0_usize).unwrap(), 0);
+assert_eq!(nibbles.try_get(3_usize).unwrap(), 3);
+```
+
+Vectors and tensors can be converted between each other without copying:
+
+```rust
+use numkong::{Vector, Tensor};
+
+let v = Vector::<f32>::try_from_scalars(&[1.0, 2.0, 3.0]).unwrap();
+let t: Tensor<f32, _, 8> = v.try_into_tensor().unwrap();
+assert_eq!(t.shape(), &[3]);
+let v2 = t.try_into_vector().unwrap();
+assert_eq!(v2.dims(), 3);
 ```
 
 The main layout rules are:
@@ -335,6 +371,11 @@ The main layout rules are:
 - A tensor can be non-contiguous overall and still have contiguous rows.
 - Some reductions have SIMD kernels for strided lanes.
 - Some backends still fall back depending on alignment and dtype.
+
+Sub-byte types (`i4x2`, `u4x2`, `u1x8`) use logical shapes.
+A shape of `[8]` for `i4x2` means 8 nibbles (stored in 4 bytes), not 8 bytes.
+The innermost dimension must be divisible by `dimensions_per_value()` (2 for nibble types, 8 for bit types).
+Transpose and reshape are not supported for sub-byte types — they return `SubByteUnsupported`.
 
 ## Elementwise Operations
 
@@ -351,6 +392,17 @@ let blended = a.view().try_blend_tensor(&b.view(), 0.25, 0.75).unwrap();
 let sines = blended.sin().unwrap();
 
 assert_eq!(sines.shape(), &[2, 2]);
+```
+
+Compound assignment operators work in-place:
+
+```rust
+use numkong::Tensor;
+
+let mut t = Tensor::<f32>::try_full(&[4], 1.0).unwrap();
+t += 10.0;
+t -= 0.5;
+t *= 2.0;
 ```
 
 ## Trigonometry
@@ -389,8 +441,7 @@ It is that the API makes the widened outputs part of the type story.
 
 ## Min/Max Reductions
 
-Min/max reductions are a separate family because they stress layout differently.
-They also expose the unusual strength of NumKong's reduction backends: some strided lanes still hit SIMD kernels.
+Min/max reductions return a `MinMaxResult` with both the value and its flat index:
 
 ```rust
 use numkong::Tensor;
@@ -401,7 +452,7 @@ let t = Tensor::<f32>::try_from_slice(&[
     4.0, -1.0, 6.0,
 ], &[3, 3]).unwrap();
 
-let second_column = t.view().slice(&[SliceRange::full(), SliceRange::index(1)]).unwrap();
+let second_column = t.slice((.., 1_usize)).unwrap();  // t[:, 1]
 let idx = second_column.try_argmin_all().unwrap();
 
 assert_eq!(idx, 2);
@@ -511,10 +562,67 @@ assert!(result.rmsd < 1e-6);
 assert!((result.scale - 2.0).abs() < 0.01);
 ```
 
-## Parallelism and Fork Union
+## Tolerance Comparison
+
+Exact floating-point equality is rarely what you want after arithmetic.
+`allclose()` checks every element pair with the formula:
+
+$$
+|a - b| \leq \text{atol} + \text{rtol} \cdot |b|
+$$
+
+Available on `Vector`, `VectorView`, `VectorSpan`, `Tensor`, `TensorView`, and `TensorSpan`.
+For tensors, `allclose` is provided by the `AllCloseOps` trait — import it if calling on a `TensorRef` implementor.
+Shape mismatch returns `false`.
+The scalar helper `is_close` is re-exported at crate root.
+
+```rust
+use numkong::{is_close, Vector, Tensor};
+
+// Scalar check
+assert!(is_close(1.0, 1.0 + 1e-8, 1e-6, 0.0));
+
+// Vector tolerance check
+let a = Vector::<f32>::try_full(3, 1.0).unwrap();
+let b = Vector::<f32>::try_full(3, 1.0 + 1e-7).unwrap();
+assert!(a.allclose(&b, 1e-6, 0.0));
+
+// Tensor tolerance check
+let ta = Tensor::<f32>::try_full(&[2, 3], 1.0).unwrap();
+let tb = Tensor::<f32>::try_full(&[2, 3], 1.0 + 1e-7).unwrap();
+assert!(ta.allclose(&tb, 1e-6, 0.0));
+```
+
+## Type Casting
+
+The `cast` function performs bulk conversion between contiguous slices.
+Any pair of types that implement `CastDtype` (all `NumberLike` scalars) can be converted.
+
+```rust
+use numkong::{cast, f16, bf16};
+
+let src: Vec<f32> = vec![1.0, 2.0, 3.0];
+let mut dst: Vec<f16> = vec![f16::from(0.0_f32); 3];
+cast(&src, &mut dst);
+assert!((dst[0].to_f32() - 1.0).abs() < 0.01);
+```
+
+`Tensor`, `TensorView`, and `TensorSpan` expose casting via the `CastOps` trait.
+`try_cast_dtype()` allocates a new tensor; `try_cast_dtype_into()` writes into a pre-allocated `TensorSpan`.
+Strided and non-contiguous views are supported: the implementation scans strides from the innermost dimension outward to find the longest contiguous tail, then walks the outer dimensions and casts each contiguous block in a single kernel call.
+
+```rust
+use numkong::{Tensor, f16};
+
+let src = Tensor::<f32>::try_full(&[4, 4], 1.0).unwrap();
+let mut dst = Tensor::<f16>::try_zeros(&[4, 4]).unwrap();
+src.view().try_cast_dtype_into(&mut dst.span()).unwrap();
+```
+
+## Parallelism and ForkUnion
 
 NumKong does not own a thread pool.
-The `parallel` feature adds host-side orchestration helpers via [Fork Union](https://github.com/ashvardanian/ForkUnion), not a hidden scheduler.
+The `parallel` feature adds host-side orchestration helpers via [ForkUnion](https://github.com/ashvardanian/ForkUnion), not a hidden scheduler.
 
 ```rust
 use numkong::{PackedMatrix, Tensor};
@@ -535,3 +643,56 @@ assert_eq!(gram.shape(), &[4096, 4096]);
 ```
 
 Rayon or a manual thread pool can still work if the rest of your application already depends on them.
+
+## Addressing External Memory
+
+Views wrap raw pointers without ownership, owned containers accept custom allocators, and the scalar trait API works on any `&[T]` regardless of how the memory was allocated.
+
+`VectorView::from_raw_parts` and `TensorView::from_raw_parts` wrap device-accessible or externally allocated memory.
+The mutable counterparts `VectorSpan::from_raw_parts` and `TensorSpan::from_raw_parts` work the same way with `*mut T`.
+
+```rust
+use numkong::{VectorView, TensorView};
+
+let embeddings_ptr: *const f32 = /* from CUDA, mmap, or FFI */;
+let embeddings = unsafe {
+    VectorView::from_raw_parts(embeddings_ptr, 1024, std::mem::size_of::<f32>() as isize)
+};
+
+let shape = [32, 64];
+let strides = [64 * 4, 4]; // row-major f32
+let matrix = unsafe { TensorView::<f32>::from_raw_parts(embeddings_ptr, &shape, &strides) };
+```
+
+Owned containers accept any allocator.
+A CUDA unified memory allocator looks like this:
+
+```rust
+use std::alloc::{Allocator, AllocError, Layout};
+use std::ptr::NonNull;
+use numkong::Vector;
+
+struct CudaAllocator;
+
+unsafe impl Allocator for CudaAllocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let raw = unsafe { cuda_malloc_managed(layout.size()) };
+        let base = NonNull::new(raw).ok_or(AllocError)?;
+        Ok(NonNull::slice_from_raw_parts(base, layout.size()))
+    }
+    unsafe fn deallocate(&self, block: NonNull<u8>, _layout: Layout) {
+        cuda_free(block.as_ptr());
+    }
+}
+
+let queries = Vector::<f32, CudaAllocator>::try_zeros_in(1024, CudaAllocator).unwrap();
+```
+
+The trait-based scalar API works on any `&[T]` — `Vec`, mmap, arena, or pinned buffer:
+
+```rust
+use numkong::Dot;
+
+let weights: &[f32] = /* any contiguous slice */;
+let similarity = f32::dot(weights, weights).unwrap();
+```

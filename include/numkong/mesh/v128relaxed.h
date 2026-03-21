@@ -120,68 +120,6 @@ NK_INTERNAL void nk_accumulate_square_f64x2_v128relaxed_(v128_t *sum_f64x2, v128
     *compensation_f64x2 = wasm_f64x2_add(*compensation_f64x2, wasm_f64x2_add(sum_error_f64x2, product_error_f64x2));
 }
 
-NK_INTERNAL void nk_bicentroid_f32_v128relaxed_(       //
-    nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
-    nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,    //
-    nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z) {  //
-    v128_t zero_f64x2 = wasm_f64x2_splat(0.0);
-    v128_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
-    v128_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
-    v128_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
-    v128_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
-    v128_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
-    v128_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
-    nk_size_t index = 0;
-
-    for (; index + 4 <= n; index += 4) {
-        v128_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
-        nk_deinterleave_f32x4_v128relaxed_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_deinterleave_f32x4_v128relaxed_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
-
-        v128_t a_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_x_f32x4);
-        v128_t a_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_x_f32x4, a_x_f32x4, 2, 3, 0, 1));
-        v128_t a_y_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_y_f32x4);
-        v128_t a_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_y_f32x4, a_y_f32x4, 2, 3, 0, 1));
-        v128_t a_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_z_f32x4);
-        v128_t a_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_z_f32x4, a_z_f32x4, 2, 3, 0, 1));
-        v128_t b_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_x_f32x4);
-        v128_t b_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_x_f32x4, b_x_f32x4, 2, 3, 0, 1));
-        v128_t b_y_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_y_f32x4);
-        v128_t b_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_y_f32x4, b_y_f32x4, 2, 3, 0, 1));
-        v128_t b_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_z_f32x4);
-        v128_t b_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_z_f32x4, b_z_f32x4, 2, 3, 0, 1));
-
-        sum_a_x_lower_f64x2 = wasm_f64x2_add(sum_a_x_lower_f64x2, a_x_lower_f64x2),
-        sum_a_x_upper_f64x2 = wasm_f64x2_add(sum_a_x_upper_f64x2, a_x_upper_f64x2);
-        sum_a_y_lower_f64x2 = wasm_f64x2_add(sum_a_y_lower_f64x2, a_y_lower_f64x2),
-        sum_a_y_upper_f64x2 = wasm_f64x2_add(sum_a_y_upper_f64x2, a_y_upper_f64x2);
-        sum_a_z_lower_f64x2 = wasm_f64x2_add(sum_a_z_lower_f64x2, a_z_lower_f64x2),
-        sum_a_z_upper_f64x2 = wasm_f64x2_add(sum_a_z_upper_f64x2, a_z_upper_f64x2);
-        sum_b_x_lower_f64x2 = wasm_f64x2_add(sum_b_x_lower_f64x2, b_x_lower_f64x2),
-        sum_b_x_upper_f64x2 = wasm_f64x2_add(sum_b_x_upper_f64x2, b_x_upper_f64x2);
-        sum_b_y_lower_f64x2 = wasm_f64x2_add(sum_b_y_lower_f64x2, b_y_lower_f64x2),
-        sum_b_y_upper_f64x2 = wasm_f64x2_add(sum_b_y_upper_f64x2, b_y_upper_f64x2);
-        sum_b_z_lower_f64x2 = wasm_f64x2_add(sum_b_z_lower_f64x2, b_z_lower_f64x2),
-        sum_b_z_upper_f64x2 = wasm_f64x2_add(sum_b_z_upper_f64x2, b_z_upper_f64x2);
-    }
-
-    nk_f64_t sum_a_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
-    nk_f64_t sum_a_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
-    nk_f64_t sum_a_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
-    nk_f64_t sum_b_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
-    nk_f64_t sum_b_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
-    nk_f64_t sum_b_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
-
-    for (; index < n; ++index) {
-        sum_a_x += a[index * 3 + 0], sum_a_y += a[index * 3 + 1], sum_a_z += a[index * 3 + 2];
-        sum_b_x += b[index * 3 + 0], sum_b_y += b[index * 3 + 1], sum_b_z += b[index * 3 + 2];
-    }
-
-    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    *ca_x = sum_a_x * inv_n, *ca_y = sum_a_y * inv_n, *ca_z = sum_a_z * inv_n;
-    *cb_x = sum_b_x * inv_n, *cb_y = sum_b_y * inv_n, *cb_z = sum_b_z * inv_n;
-}
-
 NK_INTERNAL void nk_centroid_and_cross_covariance_f32_v128relaxed_( //
     nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,              //
     nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,                 //
@@ -301,13 +239,28 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_v128relaxed_(
     nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z,                              //
     nk_f64_t h[9], nk_f64_t *variance_a) {
     v128_t zero_f64x2 = wasm_f64x2_splat(0.0);
+    v128_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
+    v128_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
+    v128_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
+    v128_t cross_00_lower_f64x2 = zero_f64x2, cross_00_upper_f64x2 = zero_f64x2;
+    v128_t cross_01_lower_f64x2 = zero_f64x2, cross_01_upper_f64x2 = zero_f64x2;
+    v128_t cross_02_lower_f64x2 = zero_f64x2, cross_02_upper_f64x2 = zero_f64x2;
+    v128_t cross_10_lower_f64x2 = zero_f64x2, cross_10_upper_f64x2 = zero_f64x2;
+    v128_t cross_11_lower_f64x2 = zero_f64x2, cross_11_upper_f64x2 = zero_f64x2;
+    v128_t cross_12_lower_f64x2 = zero_f64x2, cross_12_upper_f64x2 = zero_f64x2;
+    v128_t cross_20_lower_f64x2 = zero_f64x2, cross_20_upper_f64x2 = zero_f64x2;
+    v128_t cross_21_lower_f64x2 = zero_f64x2, cross_21_upper_f64x2 = zero_f64x2;
+    v128_t cross_22_lower_f64x2 = zero_f64x2, cross_22_upper_f64x2 = zero_f64x2;
     v128_t sum_norm_squared_lower_f64x2 = zero_f64x2, sum_norm_squared_upper_f64x2 = zero_f64x2;
-    nk_centroid_and_cross_covariance_f32_v128relaxed_(a, b, n, ca_x, ca_y, ca_z, cb_x, cb_y, cb_z, h);
-
     nk_size_t index = 0;
+
     for (; index + 4 <= n; index += 4) {
-        v128_t a_x_f32x4, a_y_f32x4, a_z_f32x4;
+        v128_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
         nk_deinterleave_f32x4_v128relaxed_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_deinterleave_f32x4_v128relaxed_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
         v128_t a_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_x_f32x4);
         v128_t a_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_x_f32x4, a_x_f32x4, 2, 3, 0, 1));
@@ -315,25 +268,96 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_v128relaxed_(
         v128_t a_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_y_f32x4, a_y_f32x4, 2, 3, 0, 1));
         v128_t a_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_z_f32x4);
         v128_t a_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_z_f32x4, a_z_f32x4, 2, 3, 0, 1));
+        v128_t b_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_x_f32x4);
+        v128_t b_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_x_f32x4, b_x_f32x4, 2, 3, 0, 1));
+        v128_t b_y_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_y_f32x4);
+        v128_t b_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_y_f32x4, b_y_f32x4, 2, 3, 0, 1));
+        v128_t b_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_z_f32x4);
+        v128_t b_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_z_f32x4, b_z_f32x4, 2, 3, 0, 1));
 
+        sum_a_x_lower_f64x2 = wasm_f64x2_add(sum_a_x_lower_f64x2, a_x_lower_f64x2),
+        sum_a_x_upper_f64x2 = wasm_f64x2_add(sum_a_x_upper_f64x2, a_x_upper_f64x2);
+        sum_a_y_lower_f64x2 = wasm_f64x2_add(sum_a_y_lower_f64x2, a_y_lower_f64x2),
+        sum_a_y_upper_f64x2 = wasm_f64x2_add(sum_a_y_upper_f64x2, a_y_upper_f64x2);
+        sum_a_z_lower_f64x2 = wasm_f64x2_add(sum_a_z_lower_f64x2, a_z_lower_f64x2),
+        sum_a_z_upper_f64x2 = wasm_f64x2_add(sum_a_z_upper_f64x2, a_z_upper_f64x2);
+        sum_b_x_lower_f64x2 = wasm_f64x2_add(sum_b_x_lower_f64x2, b_x_lower_f64x2),
+        sum_b_x_upper_f64x2 = wasm_f64x2_add(sum_b_x_upper_f64x2, b_x_upper_f64x2);
+        sum_b_y_lower_f64x2 = wasm_f64x2_add(sum_b_y_lower_f64x2, b_y_lower_f64x2),
+        sum_b_y_upper_f64x2 = wasm_f64x2_add(sum_b_y_upper_f64x2, b_y_upper_f64x2);
+        sum_b_z_lower_f64x2 = wasm_f64x2_add(sum_b_z_lower_f64x2, b_z_lower_f64x2),
+        sum_b_z_upper_f64x2 = wasm_f64x2_add(sum_b_z_upper_f64x2, b_z_upper_f64x2);
+
+        cross_00_lower_f64x2 = wasm_f64x2_relaxed_madd(a_x_lower_f64x2, b_x_lower_f64x2, cross_00_lower_f64x2),
+        cross_00_upper_f64x2 = wasm_f64x2_relaxed_madd(a_x_upper_f64x2, b_x_upper_f64x2, cross_00_upper_f64x2);
+        cross_01_lower_f64x2 = wasm_f64x2_relaxed_madd(a_x_lower_f64x2, b_y_lower_f64x2, cross_01_lower_f64x2),
+        cross_01_upper_f64x2 = wasm_f64x2_relaxed_madd(a_x_upper_f64x2, b_y_upper_f64x2, cross_01_upper_f64x2);
+        cross_02_lower_f64x2 = wasm_f64x2_relaxed_madd(a_x_lower_f64x2, b_z_lower_f64x2, cross_02_lower_f64x2),
+        cross_02_upper_f64x2 = wasm_f64x2_relaxed_madd(a_x_upper_f64x2, b_z_upper_f64x2, cross_02_upper_f64x2);
+        cross_10_lower_f64x2 = wasm_f64x2_relaxed_madd(a_y_lower_f64x2, b_x_lower_f64x2, cross_10_lower_f64x2),
+        cross_10_upper_f64x2 = wasm_f64x2_relaxed_madd(a_y_upper_f64x2, b_x_upper_f64x2, cross_10_upper_f64x2);
+        cross_11_lower_f64x2 = wasm_f64x2_relaxed_madd(a_y_lower_f64x2, b_y_lower_f64x2, cross_11_lower_f64x2),
+        cross_11_upper_f64x2 = wasm_f64x2_relaxed_madd(a_y_upper_f64x2, b_y_upper_f64x2, cross_11_upper_f64x2);
+        cross_12_lower_f64x2 = wasm_f64x2_relaxed_madd(a_y_lower_f64x2, b_z_lower_f64x2, cross_12_lower_f64x2),
+        cross_12_upper_f64x2 = wasm_f64x2_relaxed_madd(a_y_upper_f64x2, b_z_upper_f64x2, cross_12_upper_f64x2);
+        cross_20_lower_f64x2 = wasm_f64x2_relaxed_madd(a_z_lower_f64x2, b_x_lower_f64x2, cross_20_lower_f64x2),
+        cross_20_upper_f64x2 = wasm_f64x2_relaxed_madd(a_z_upper_f64x2, b_x_upper_f64x2, cross_20_upper_f64x2);
+        cross_21_lower_f64x2 = wasm_f64x2_relaxed_madd(a_z_lower_f64x2, b_y_lower_f64x2, cross_21_lower_f64x2),
+        cross_21_upper_f64x2 = wasm_f64x2_relaxed_madd(a_z_upper_f64x2, b_y_upper_f64x2, cross_21_upper_f64x2);
+        cross_22_lower_f64x2 = wasm_f64x2_relaxed_madd(a_z_lower_f64x2, b_z_lower_f64x2, cross_22_lower_f64x2),
+        cross_22_upper_f64x2 = wasm_f64x2_relaxed_madd(a_z_upper_f64x2, b_z_upper_f64x2, cross_22_upper_f64x2);
+
+        // Variance: accumulate ||a||^2.
         v128_t norm_squared_lower_f64x2 = wasm_f64x2_relaxed_madd(a_y_lower_f64x2, a_y_lower_f64x2,
                                                                   wasm_f64x2_mul(a_x_lower_f64x2, a_x_lower_f64x2));
         v128_t norm_squared_upper_f64x2 = wasm_f64x2_relaxed_madd(a_y_upper_f64x2, a_y_upper_f64x2,
                                                                   wasm_f64x2_mul(a_x_upper_f64x2, a_x_upper_f64x2));
         norm_squared_lower_f64x2 = wasm_f64x2_relaxed_madd(a_z_lower_f64x2, a_z_lower_f64x2, norm_squared_lower_f64x2);
         norm_squared_upper_f64x2 = wasm_f64x2_relaxed_madd(a_z_upper_f64x2, a_z_upper_f64x2, norm_squared_upper_f64x2);
-        sum_norm_squared_lower_f64x2 = wasm_f64x2_add(sum_norm_squared_lower_f64x2, norm_squared_lower_f64x2),
+        sum_norm_squared_lower_f64x2 = wasm_f64x2_add(sum_norm_squared_lower_f64x2, norm_squared_lower_f64x2);
         sum_norm_squared_upper_f64x2 = wasm_f64x2_add(sum_norm_squared_upper_f64x2, norm_squared_upper_f64x2);
     }
 
+    nk_f64_t sum_a_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
+    nk_f64_t sum_a_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
+    nk_f64_t sum_a_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
+    nk_f64_t sum_b_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
+    nk_f64_t sum_b_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
+    nk_f64_t sum_b_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
+    nk_f64_t cross_00 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_00_lower_f64x2, cross_00_upper_f64x2));
+    nk_f64_t cross_01 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_01_lower_f64x2, cross_01_upper_f64x2));
+    nk_f64_t cross_02 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_02_lower_f64x2, cross_02_upper_f64x2));
+    nk_f64_t cross_10 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_10_lower_f64x2, cross_10_upper_f64x2));
+    nk_f64_t cross_11 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_11_lower_f64x2, cross_11_upper_f64x2));
+    nk_f64_t cross_12 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_12_lower_f64x2, cross_12_upper_f64x2));
+    nk_f64_t cross_20 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_20_lower_f64x2, cross_20_upper_f64x2));
+    nk_f64_t cross_21 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_21_lower_f64x2, cross_21_upper_f64x2));
+    nk_f64_t cross_22 = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(cross_22_lower_f64x2, cross_22_upper_f64x2));
     nk_f64_t sum_norm_squared = nk_hsum_f64x2_v128relaxed_(
         wasm_f64x2_add(sum_norm_squared_lower_f64x2, sum_norm_squared_upper_f64x2));
+
     for (; index < n; ++index) {
         nk_f64_t a_x = a[index * 3 + 0], a_y = a[index * 3 + 1], a_z = a[index * 3 + 2];
+        nk_f64_t b_x = b[index * 3 + 0], b_y = b[index * 3 + 1], b_z = b[index * 3 + 2];
+        sum_a_x += a_x, sum_a_y += a_y, sum_a_z += a_z;
+        sum_b_x += b_x, sum_b_y += b_y, sum_b_z += b_z;
+        cross_00 += a_x * b_x, cross_01 += a_x * b_y, cross_02 += a_x * b_z;
+        cross_10 += a_y * b_x, cross_11 += a_y * b_y, cross_12 += a_y * b_z;
+        cross_20 += a_z * b_x, cross_21 += a_z * b_y, cross_22 += a_z * b_z;
         sum_norm_squared += a_x * a_x + a_y * a_y + a_z * a_z;
     }
 
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
+    *ca_x = sum_a_x * inv_n, *ca_y = sum_a_y * inv_n, *ca_z = sum_a_z * inv_n;
+    *cb_x = sum_b_x * inv_n, *cb_y = sum_b_y * inv_n, *cb_z = sum_b_z * inv_n;
+
+    nk_f64_t n_f64 = (nk_f64_t)n;
+    h[0] = cross_00 - n_f64 * (*ca_x) * (*cb_x), h[1] = cross_01 - n_f64 * (*ca_x) * (*cb_y),
+    h[2] = cross_02 - n_f64 * (*ca_x) * (*cb_z);
+    h[3] = cross_10 - n_f64 * (*ca_y) * (*cb_x), h[4] = cross_11 - n_f64 * (*ca_y) * (*cb_y),
+    h[5] = cross_12 - n_f64 * (*ca_y) * (*cb_z);
+    h[6] = cross_20 - n_f64 * (*ca_z) * (*cb_x), h[7] = cross_21 - n_f64 * (*ca_z) * (*cb_y),
+    h[8] = cross_22 - n_f64 * (*ca_z) * (*cb_z);
     *variance_a = sum_norm_squared * inv_n - ((*ca_x) * (*ca_x) + (*ca_y) * (*ca_y) + (*ca_z) * (*ca_z));
 }
 
@@ -534,27 +558,113 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_v128relaxed_(nk_f64_t const *a, nk_f
 
 NK_PUBLIC void nk_rmsd_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                        nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result) {
-    // RMSD uses identity rotation and scale=1.0.
     if (rotation) {
         rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
         rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
     }
     if (scale) *scale = 1.0f;
-    nk_f64_t centroid_a_x, centroid_a_y, centroid_a_z, centroid_b_x, centroid_b_y, centroid_b_z;
-    nk_f64_t identity[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-    nk_bicentroid_f32_v128relaxed_(a, b, n, &centroid_a_x, &centroid_a_y, &centroid_a_z, &centroid_b_x, &centroid_b_y,
-                                   &centroid_b_z);
+
+    // Fused single-pass: accumulate centroids and squared differences simultaneously.
+    // RMSD = √(E[(a−b)²] − (ā − b̄)²)
+    v128_t zero_f64x2 = wasm_f64x2_splat(0.0);
+    v128_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
+    v128_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
+    v128_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
+    v128_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
+    v128_t sum_sq_x_lower_f64x2 = zero_f64x2, sum_sq_x_upper_f64x2 = zero_f64x2;
+    v128_t sum_sq_y_lower_f64x2 = zero_f64x2, sum_sq_y_upper_f64x2 = zero_f64x2;
+    v128_t sum_sq_z_lower_f64x2 = zero_f64x2, sum_sq_z_upper_f64x2 = zero_f64x2;
+    nk_size_t index = 0;
+
+    for (; index + 4 <= n; index += 4) {
+        v128_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+        nk_deinterleave_f32x4_v128relaxed_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_deinterleave_f32x4_v128relaxed_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+
+        // Promote lower and upper halves to f64. Deltas computed in f64 to avoid
+        // f32 cancellation in the single-pass formula RMSD = √(E[(a−b)²] − (ā − b̄)²).
+        v128_t a_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_x_f32x4);
+        v128_t a_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_x_f32x4, a_x_f32x4, 2, 3, 0, 1));
+        v128_t a_y_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_y_f32x4);
+        v128_t a_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_y_f32x4, a_y_f32x4, 2, 3, 0, 1));
+        v128_t a_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(a_z_f32x4);
+        v128_t a_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(a_z_f32x4, a_z_f32x4, 2, 3, 0, 1));
+        v128_t b_x_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_x_f32x4);
+        v128_t b_x_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_x_f32x4, b_x_f32x4, 2, 3, 0, 1));
+        v128_t b_y_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_y_f32x4);
+        v128_t b_y_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_y_f32x4, b_y_f32x4, 2, 3, 0, 1));
+        v128_t b_z_lower_f64x2 = wasm_f64x2_promote_low_f32x4(b_z_f32x4);
+        v128_t b_z_upper_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(b_z_f32x4, b_z_f32x4, 2, 3, 0, 1));
+
+        // Accumulate centroids.
+        sum_a_x_lower_f64x2 = wasm_f64x2_add(sum_a_x_lower_f64x2, a_x_lower_f64x2);
+        sum_a_x_upper_f64x2 = wasm_f64x2_add(sum_a_x_upper_f64x2, a_x_upper_f64x2);
+        sum_a_y_lower_f64x2 = wasm_f64x2_add(sum_a_y_lower_f64x2, a_y_lower_f64x2);
+        sum_a_y_upper_f64x2 = wasm_f64x2_add(sum_a_y_upper_f64x2, a_y_upper_f64x2);
+        sum_a_z_lower_f64x2 = wasm_f64x2_add(sum_a_z_lower_f64x2, a_z_lower_f64x2);
+        sum_a_z_upper_f64x2 = wasm_f64x2_add(sum_a_z_upper_f64x2, a_z_upper_f64x2);
+        sum_b_x_lower_f64x2 = wasm_f64x2_add(sum_b_x_lower_f64x2, b_x_lower_f64x2);
+        sum_b_x_upper_f64x2 = wasm_f64x2_add(sum_b_x_upper_f64x2, b_x_upper_f64x2);
+        sum_b_y_lower_f64x2 = wasm_f64x2_add(sum_b_y_lower_f64x2, b_y_lower_f64x2);
+        sum_b_y_upper_f64x2 = wasm_f64x2_add(sum_b_y_upper_f64x2, b_y_upper_f64x2);
+        sum_b_z_lower_f64x2 = wasm_f64x2_add(sum_b_z_lower_f64x2, b_z_lower_f64x2);
+        sum_b_z_upper_f64x2 = wasm_f64x2_add(sum_b_z_upper_f64x2, b_z_upper_f64x2);
+
+        // Accumulate squared differences in f64 — deltas computed in f64 for precision.
+        v128_t dx_lower_f64x2 = wasm_f64x2_sub(a_x_lower_f64x2, b_x_lower_f64x2);
+        v128_t dx_upper_f64x2 = wasm_f64x2_sub(a_x_upper_f64x2, b_x_upper_f64x2);
+        v128_t dy_lower_f64x2 = wasm_f64x2_sub(a_y_lower_f64x2, b_y_lower_f64x2);
+        v128_t dy_upper_f64x2 = wasm_f64x2_sub(a_y_upper_f64x2, b_y_upper_f64x2);
+        v128_t dz_lower_f64x2 = wasm_f64x2_sub(a_z_lower_f64x2, b_z_lower_f64x2);
+        v128_t dz_upper_f64x2 = wasm_f64x2_sub(a_z_upper_f64x2, b_z_upper_f64x2);
+
+        sum_sq_x_lower_f64x2 = wasm_f64x2_relaxed_madd(dx_lower_f64x2, dx_lower_f64x2, sum_sq_x_lower_f64x2);
+        sum_sq_x_upper_f64x2 = wasm_f64x2_relaxed_madd(dx_upper_f64x2, dx_upper_f64x2, sum_sq_x_upper_f64x2);
+        sum_sq_y_lower_f64x2 = wasm_f64x2_relaxed_madd(dy_lower_f64x2, dy_lower_f64x2, sum_sq_y_lower_f64x2);
+        sum_sq_y_upper_f64x2 = wasm_f64x2_relaxed_madd(dy_upper_f64x2, dy_upper_f64x2, sum_sq_y_upper_f64x2);
+        sum_sq_z_lower_f64x2 = wasm_f64x2_relaxed_madd(dz_lower_f64x2, dz_lower_f64x2, sum_sq_z_lower_f64x2);
+        sum_sq_z_upper_f64x2 = wasm_f64x2_relaxed_madd(dz_upper_f64x2, dz_upper_f64x2, sum_sq_z_upper_f64x2);
+    }
+
+    nk_f64_t sum_a_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
+    nk_f64_t sum_a_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
+    nk_f64_t sum_a_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
+    nk_f64_t sum_b_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
+    nk_f64_t sum_b_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
+    nk_f64_t sum_b_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
+    nk_f64_t sum_sq_x = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_sq_x_lower_f64x2, sum_sq_x_upper_f64x2));
+    nk_f64_t sum_sq_y = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_sq_y_lower_f64x2, sum_sq_y_upper_f64x2));
+    nk_f64_t sum_sq_z = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_sq_z_lower_f64x2, sum_sq_z_upper_f64x2));
+
+    // Scalar tail.
+    for (; index < n; ++index) {
+        nk_f64_t ax = a[index * 3 + 0], ay = a[index * 3 + 1], az = a[index * 3 + 2];
+        nk_f64_t bx = b[index * 3 + 0], by = b[index * 3 + 1], bz = b[index * 3 + 2];
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        nk_f64_t dx = ax - bx, dy = ay - by, dz = az - bz;
+        sum_sq_x += dx * dx, sum_sq_y += dy * dy, sum_sq_z += dz * dz;
+    }
+
+    nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
+    nk_f64_t centroid_a_x = sum_a_x * inv_n, centroid_a_y = sum_a_y * inv_n, centroid_a_z = sum_a_z * inv_n;
+    nk_f64_t centroid_b_x = sum_b_x * inv_n, centroid_b_y = sum_b_y * inv_n, centroid_b_z = sum_b_z * inv_n;
     if (a_centroid)
         a_centroid[0] = (nk_f32_t)centroid_a_x, a_centroid[1] = (nk_f32_t)centroid_a_y,
         a_centroid[2] = (nk_f32_t)centroid_a_z;
     if (b_centroid)
         b_centroid[0] = (nk_f32_t)centroid_b_x, b_centroid[1] = (nk_f32_t)centroid_b_y,
         b_centroid[2] = (nk_f32_t)centroid_b_z;
-    *result = nk_f64_sqrt_v128relaxed(nk_transformed_ssd_f32_v128relaxed_(a, b, n, identity, 1.0, centroid_a_x,
-                                                                          centroid_a_y, centroid_a_z, centroid_b_x,
-                                                                          centroid_b_y, centroid_b_z) /
-                                      (nk_f64_t)n);
+
+    nk_f64_t sum_squared = sum_sq_x + sum_sq_y + sum_sq_z;
+    nk_f64_t mean_diff_x = centroid_a_x - centroid_b_x;
+    nk_f64_t mean_diff_y = centroid_a_y - centroid_b_y;
+    nk_f64_t mean_diff_z = centroid_a_z - centroid_b_z;
+    nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
+    *result = nk_f64_sqrt_v128relaxed(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_rmsd_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,

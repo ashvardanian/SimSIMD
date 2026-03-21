@@ -1,6 +1,6 @@
 # NumKong for JavaScript
 
-NumKong's JavaScript package brings low-latency vector kernels to Node and Bun-style runtimes, targeting the space between handwritten loops over `TypedArray`s and much heavier tensor frameworks.
+NumKong's JavaScript package provides vector kernels for Node and Bun-style runtimes, targeting the space between handwritten loops over `TypedArray`s and larger tensor frameworks.
 It keeps the JS surface intentionally compact: dense distances, dot products, binary metrics, probability divergences, packed GEMM-like matrix multiplication, symmetric Gram matrices, dtype-tagged low-precision storage, typed views, and runtime capability inspection.
 
 ## Quickstart
@@ -56,32 +56,40 @@ If you build from source, the package uses `node-gyp-build` on install and TypeS
 
 ## Browser and WASM
 
-NumKong ships pre-built WASM binaries attached to each [GitHub Release](https://github.com/ashvardanian/NumKong/releases).
-Download `numkong.js` and `numkong.wasm` and serve them from the same directory.
+The npm package includes a pre-built WASM bundle under `wasm/`.
+The simplest way to use it in a browser is via a CDN — no build step required:
 
 ```html
 <script type="module">
-  import * as numkong from "./numkong-wasm.js";
+  import { dot, euclidean } from 'https://cdn.jsdelivr.net/npm/numkong@7/wasm/numkong.js';
+
+  const query = new Float32Array([1.0, 2.0, 3.0]);
+  const doc = new Float32Array([4.0, 5.0, 6.0]);
+  console.log(dot(query, doc));          // 32 — SIMD-accelerated, client-side
+  console.log(euclidean(query, doc));    // 5.196...
+</script>
+```
+
+For self-hosted WASM, download the binaries from a [GitHub Release](https://github.com/ashvardanian/NumKong/releases) and serve them from the same directory:
+
+```html
+<script type="module">
+  import * as numkong from "./numkong-emscripten.js";
   import NumKongModule from "./numkong.js";
 
   const wasm = await NumKongModule();
   numkong.initWasm(wasm);
 
-  // Same API as the native addon
   const a = new Float32Array([1, 2, 3]);
   const b = new Float32Array([4, 5, 6]);
   console.log(numkong.dot(a, b));
 </script>
 ```
 
-For Node.js WASM usage without the native addon:
+Or import the subpath from a bundler or Node.js (without the native addon):
 
 ```js
-import * as numkong from "numkong/wasm";
-import NumKongModule from "./numkong.js";
-
-const wasm = await NumKongModule();
-numkong.initWasm(wasm);
+import { dot } from "numkong/wasm";
 ```
 
 ## Dot Products
@@ -131,7 +139,7 @@ console.log(hamming(a, b));
 console.log(jaccard(a, b));
 ```
 
-That is a better model for sign-quantized embeddings and semantic hashes than looping over JS booleans.
+This is a natural model for sign-quantized embeddings and semantic hashes.
 
 ## Probability Metrics
 
@@ -145,7 +153,7 @@ console.log(kullbackleibler(p, q));
 console.log(jensenshannon(p, q));
 ```
 
-These are direct divergence kernels, not scalar JS loops hidden behind a helper.
+These call the underlying SIMD divergence kernels directly.
 
 ## DType Tags and Low-Precision Arrays
 
@@ -237,10 +245,10 @@ It loads the compiled addon through `node-gyp-build`.
 
 The repository also ships WASM wrappers.
 Those are useful for portable or sandboxed environments.
-They should not be described as feature-complete replacements for the native-heavy SDKs.
+They are not feature-complete replacements for the native SDKs.
 
 Practical guidance:
 
-- Use the native addon for the lowest host-call latency.
+- Use the native addon for lower host-call latency.
 - Use the WASM path when portability matters more than absolute latency.
 - Keep your expectations scoped to the vector and matrix-oriented API that this binding actually exports.

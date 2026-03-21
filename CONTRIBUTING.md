@@ -1,10 +1,6 @@
 # Contributing
 
-To keep the quality of the code high, we have a set of [guidelines](https://github.com/unum-cloud).
-
-- [What's the procedure?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#organizing-software-development)
-- [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
-- [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
+To keep the quality of the code high, we follow the [coding style and conventions](https://github.com/ashvardanian/ashvardanian/blob/master/CONTRIBUTING.md) shared across multiple projects — covering Git history, C++ and Python formatting, dependency management, and documentation.
 
 ## Directory Tree
 
@@ -288,6 +284,8 @@ To automatically detect the Minimum Supported Rust Version — MSRV:
 cargo +stable install cargo-msrv
 cargo msrv find --ignore-lockfile
 ```
+
+Please avoid the temptation of using macros in this Rust code.
 
 ## JavaScript
 

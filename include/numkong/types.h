@@ -68,6 +68,9 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define NK_PUBLIC   __attribute__((unused)) inline static
 #define NK_INTERNAL __attribute__((always_inline)) inline static
+#elif defined(_MSC_VER)
+#define NK_PUBLIC   inline static
+#define NK_INTERNAL __forceinline static
 #else
 #define NK_PUBLIC   inline static
 #define NK_INTERNAL inline static

@@ -9,6 +9,7 @@ on:
 
 env:
   PYTHONUTF8: 1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build_wheels_linux_x86:
@@ -87,7 +88,7 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       matrix:
         python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
@@ -117,7 +118,7 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       matrix:
         python-version: ["310", "311", "312", "313", "313t", "314", "314t"]

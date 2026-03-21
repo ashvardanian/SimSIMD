@@ -71,8 +71,8 @@ NK_PUBLIC void nk_sqeuclidean_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t c
 
         svfloat32_t a_minus_b_low_f32x = svsub_f32_x(predicate_low_f32x, a_low_f32x, b_low_f32x);
         svfloat32_t a_minus_b_high_f32x = svsub_f32_x(predicate_high_f32x, a_high_f32x, b_high_f32x);
-        d2_low_f32x = svmla_f32_x(predicate_bf16x, d2_low_f32x, a_minus_b_low_f32x, a_minus_b_low_f32x);
-        d2_high_f32x = svmla_f32_x(predicate_bf16x, d2_high_f32x, a_minus_b_high_f32x, a_minus_b_high_f32x);
+        d2_low_f32x = svmla_f32_m(predicate_low_f32x, d2_low_f32x, a_minus_b_low_f32x, a_minus_b_low_f32x);
+        d2_high_f32x = svmla_f32_m(predicate_high_f32x, d2_high_f32x, a_minus_b_high_f32x, a_minus_b_high_f32x);
         i += svcnth();
     } while (i < n);
     nk_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_f32x) + svaddv_f32(svptrue_b32(), d2_high_f32x);

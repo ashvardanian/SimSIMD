@@ -4,21 +4,21 @@ NumKong implements ColBERT-style late-interaction scoring: the MaxSim score sums
 
 MaxSim score:
 
-```math
+$$
 \text{MaxSim}(Q, D) = \sum_{i=0}^{m-1} \min_{j=0}^{n-1} \text{angular}(q_i, d_j)
-```
+$$
 
 Coarse screening finds the best document via i8 dot products as a proxy for argmin angular:
 
-```math
+$$
 j^* = \arg\max_j \text{dot}_{\text{i8}}(q_i, d_j)
-```
+$$
 
 Full-precision refinement:
 
-```math
+$$
 \text{angular}(q_i, d_{j^*}) = 1 - \frac{\text{dot}(q_i, d_{j^*})}{\|q_i\| \cdot \|d_{j^*}\|}
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -46,7 +46,7 @@ def maxsim(queries: np.ndarray, documents: np.ndarray) -> float:
 
 ## Optimizations
 
-### Dual Pre-Packing Advantage
+### Dual Pre-Packing
 
 `nk_maxsim_packed_bf16_sme`, `nk_maxsim_packed_f32_sme` benefit from having _both_ query and document matrices pre-packed into identical contiguous formats, unlike the `nk_dots_packed_*` family where only B is pre-packed and A is accessed with arbitrary stride.
 In the dots GEMM, one ZA tile must be reserved for A-side staging (loading unpacked A rows into the tile array), leaving 3 ZA tiles for accumulation.

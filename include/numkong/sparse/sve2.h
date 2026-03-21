@@ -312,10 +312,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
     nk_size_t a_length, nk_size_t b_length,               //
     nk_f64_t *product) {
 
-    // A single SVE lane is 128 bits wide, so one lane fits 4 values.
     nk_size_t const register_size = svcntw();
     nk_size_t const vector_length_f64 = svcntd();
-    nk_size_t const lanes_count = register_size / 4;
     nk_size_t a_idx = 0, b_idx = 0;
     svbool_t const predicate_all_f32x = svptrue_b32();
     svbool_t const predicate_all_f64x = svptrue_b64();
@@ -371,29 +369,27 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
             continue;
         }
 
-        // Load weights and mask by intersection
-        svfloat32_t a_weights_f32x = svsel_f32(a_overlap_mask_u32x, svld1_f32(a_progress_u32x, a_weights + a_idx),
-                                               svdup_f32(0.f));
-        svfloat32_t b_weights_f32x = svld1_f32(b_progress_u32x, b_weights + b_idx);
-        svbool_t predicate_low_f64x = svwhilelt_b64_u64(a_idx, a_length);
-        svbool_t predicate_high_f64x = svwhilelt_b64_u64(a_idx + vector_length_f64, a_length);
-        svfloat64_t a_low_f64x = svcvt_f64_f32_x(predicate_low_f64x, a_weights_f32x);
-        svfloat64_t a_high_f64x = svcvtlt_f64_f32_x(predicate_high_f64x, a_weights_f32x);
+        // Compute b overlap mask (symmetric histogram: which b elements match something in a)
+        svuint32_t b_hist_lower_u32x = svhistcnt_u32_z(b_progress_u32x, b_u32x, a_u32x);
+        svuint32_t b_hist_upper_u32x = svrev_u32(svhistcnt_u32_z(predicate_all_f32x, b_rev_u32x, a_rev_u32x));
+        svuint32_t b_hist_u32x = svorr_u32_x(b_progress_u32x, b_hist_lower_u32x, b_hist_upper_u32x);
+        svbool_t b_overlap_mask_u32x = svand_b_z(predicate_all_f32x, b_progress_u32x,
+                                                 svcmpne_n_u32(b_progress_u32x, b_hist_u32x, 0));
 
-        // For each position in a that matches something in b, we need the corresponding b weight.
-        // Use lane-by-lane matching for dot product.
-        for (nk_size_t i = 0; i < lanes_count; i++) {
-            // Check which elements of a match the current rotation of b
-            svbool_t equal_lane_u32x = svcmpeq_u32(a_progress_u32x, a_u32x, b_u32x);
-            svfloat32_t b_equal_weights_f32x = svsel_f32(equal_lane_u32x, b_weights_f32x, svdup_f32(0.f));
-            svfloat64_t b_low_f64x = svcvt_f64_f32_x(predicate_low_f64x, b_equal_weights_f32x);
-            svfloat64_t b_high_f64x = svcvtlt_f64_f32_x(predicate_high_f64x, b_equal_weights_f32x);
-            product_f64x = svmla_f64_x(predicate_low_f64x, product_f64x, a_low_f64x, b_low_f64x);
-            product_f64x = svmla_f64_x(predicate_high_f64x, product_f64x, a_high_f64x, b_high_f64x);
-            // Rotate b vectors
-            b_u32x = svext_u32(b_u32x, b_u32x, 4);
-            b_weights_f32x = svext_f32(b_weights_f32x, b_weights_f32x, 4);
-        }
+        // Compact matching weights — both arrays are sorted, so svcompact
+        // preserves relative order and aligns corresponding intersection pairs.
+        svfloat32_t a_matched_f32x = svcompact_f32(a_overlap_mask_u32x, svld1_f32(a_progress_u32x, a_weights + a_idx));
+        svfloat32_t b_matched_f32x = svcompact_f32(b_overlap_mask_u32x, svld1_f32(b_progress_u32x, b_weights + b_idx));
+
+        // Widen to f64 and accumulate. svcvt_f64_f32 converts even-indexed f32
+        // elements; svcvtlt_f64_f32 converts odd-indexed f32 elements.
+        nk_size_t match_count = svcntp_b32(a_progress_u32x, a_overlap_mask_u32x);
+        svbool_t pred_even_f64x = svwhilelt_b64_u64((nk_u64_t)0, (match_count + 1) / 2);
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64((nk_u64_t)0, match_count / 2);
+        product_f64x = svmla_f64_x(pred_even_f64x, product_f64x, svcvt_f64_f32_x(pred_even_f64x, a_matched_f32x),
+                                   svcvt_f64_f32_x(pred_even_f64x, b_matched_f32x));
+        product_f64x = svmla_f64_x(pred_odd_f64x, product_f64x, svcvtlt_f64_f32_x(pred_odd_f64x, a_matched_f32x),
+                                   svcvtlt_f64_f32_x(pred_odd_f64x, b_matched_f32x));
 
         // Advance
         a_idx += a_step;

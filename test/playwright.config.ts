@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: '.',
-    testMatch: 'test-browser-runner.mjs',
+    testMatch: ['test-browser-runner.mjs', 'test-browser-bundle-runner.mjs'],
     timeout: 120000,
     use: {
         baseURL: 'http://localhost:8888',

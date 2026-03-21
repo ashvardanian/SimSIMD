@@ -10,9 +10,24 @@
 
 #include "test.hpp"
 
+#include "numkong/cast.hpp"
 #include "numkong/dot.hpp"
 #include "numkong/spatial.hpp"
 #include "numkong/curved.hpp"
+
+#if __has_include(<format>)
+#include <format>
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 202110L
+#define NK_TEST_FORMAT_ 1
+#endif
+#endif
+#ifndef NK_TEST_FORMAT_
+#define NK_TEST_FORMAT_ 0
+#endif
+
+#if NK_TEST_FORMAT_
+void test_format_scalars();
+#endif
 
 // Explicit instantiations for tensor types — forces full compilation of all APIs
 template class nk::tensor<nk::f32_t>;
@@ -181,7 +196,7 @@ void test_move_semantics() {
     nk::vector<nk::f32_t> v2 = std::move(v1);
     assert(v2.size() == 100 && "move ctor size mismatch");
     assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
-    assert(v1.size() == 0 && "moved-from vector not empty");
+    assert(v1.size() == 0 && "moved-from vector not empty"); // NOLINT(bugprone-use-after-move)
 
     nk::vector<nk::f32_t> v3;
     v3 = std::move(v2);
@@ -499,6 +514,11 @@ void test_vector_types() {
 
     test_custom_allocator();
     std::printf("  custom allocator:             OK\n");
+
+#if NK_TEST_FORMAT_
+    test_format_scalars();
+    std::printf("  std::format scalars+refs:     OK\n");
+#endif
 }
 
 /**
@@ -681,6 +701,96 @@ void test_custom_allocator_try_fns() {
     { auto r = nk::try_sum<nk::f32_t, 8, sum_alloc_t>(av, 0); }
 }
 
+template <typename value_type_>
+void test_vector_reductions_for_type() {
+    auto v = make_vector<value_type_>(32);
+    std::mt19937 generator(42);
+    fill_random(generator, v);
+    auto view = nk::vector_view<value_type_>(v.values_data(), static_cast<std::size_t>(v.size()));
+
+    { [[maybe_unused]] auto r = nk::moments(view); }
+    { [[maybe_unused]] auto r = nk::minmax(view); }
+    { [[maybe_unused]] auto r = nk::sum(view); }
+    { [[maybe_unused]] auto r = nk::min(view); }
+    { [[maybe_unused]] auto r = nk::max(view); }
+    { [[maybe_unused]] auto r = nk::argmin(view); }
+    { [[maybe_unused]] auto r = nk::argmax(view); }
+}
+
+void test_vector_reductions_correctness() {
+    nk::f32_t data[] = {nk::f32_t(1), nk::f32_t(2), nk::f32_t(3), nk::f32_t(4), nk::f32_t(5)};
+    auto view = nk::vector_view<nk::f32_t>(data, std::size_t {5});
+
+    auto m = nk::moments(view);
+    assert(m.sum.raw_ == 15.0 && "vector moments sum");
+    assert(m.sumsq.raw_ == 55.0 && "vector moments sumsq");
+
+    auto mm = nk::minmax(view);
+    assert(mm.min_value.raw_ == 1.0f && "vector min");
+    assert(mm.max_value.raw_ == 5.0f && "vector max");
+    assert(mm.min_index == 0 && "vector argmin");
+    assert(mm.max_index == 4 && "vector argmax");
+}
+
+template <typename from_type_, typename to_type_>
+void test_cast_for_types() {
+    auto src = make_vector<from_type_>(64);
+    auto dst = make_vector<to_type_>(64);
+    std::mt19937 generator(42);
+    fill_random(generator, src);
+
+    auto src_view = nk::vector_view<from_type_>(src.values_data(), static_cast<std::size_t>(src.size()));
+    auto dst_span = nk::vector_span<to_type_>(dst.values_data(), static_cast<std::size_t>(dst.size()));
+
+    // Pointer-level API
+    nk::cast<from_type_, to_type_>(src.values_data(), src.size(), dst.values_data());
+    // Vector view/span API
+    nk::cast<from_type_, to_type_>(src_view, dst_span);
+}
+
+#if NK_TEST_FORMAT_
+void test_format_scalars() {
+    // Float scalar formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:#}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:.2f}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:x}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:b}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::bf16_t(2.5f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e4m3_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e5m2_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e2m3_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e3m2_t(1.0f)); }
+
+    // Packed type formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::i4x2_t {}); }
+    { [[maybe_unused]] auto s = std::format("{:x}", nk::u4x2_t {}); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::u1x8_t {}); }
+
+    // Complex type formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::f16c_t(nk::f16_t(1), nk::f16_t(2))); }
+    { [[maybe_unused]] auto s = std::format("{:#}", nk::bf16c_t(nk::bf16_t(1), nk::bf16_t(2))); }
+
+    // Sub-byte ref formatters
+    nk_i4x2_t packed_i = 0x53;
+    nk::sub_byte_ref<nk::i4x2_t> iref(&packed_i, 0);
+    assert(std::format("{}", iref) == "3" && "i4 sub_byte_ref default format");
+    assert(std::format("{:x}", iref) == "3" && "i4 sub_byte_ref hex format");
+    assert(std::format("{:b}", iref) == "0011" && "i4 sub_byte_ref binary format");
+    assert(std::format("{:#}", iref) == "3 [0x3]" && "i4 sub_byte_ref annotated format");
+
+    nk_u4x2_t packed_u = 0xA7;
+    nk::sub_byte_ref<nk::u4x2_t> uref(&packed_u, 1);
+    assert(std::format("{}", uref) == "10" && "u4 sub_byte_ref default format");
+    assert(std::format("{:x}", uref) == "a" && "u4 sub_byte_ref hex format");
+    assert(std::format("{:b}", uref) == "1010" && "u4 sub_byte_ref binary format");
+
+    nk_u1x8_t packed_b = 0x05;
+    nk::sub_byte_ref<nk::u1x8_t> bref(&packed_b, 0);
+    assert(std::format("{}", bref) == "1" && "u1 sub_byte_ref format");
+}
+#endif // NK_TEST_FORMAT_
+
 void test_tensor_ops() {
     std::printf("Testing tensor op instantiations...\n");
 
@@ -748,4 +858,27 @@ void test_tensor_ops() {
 
     test_custom_allocator_try_fns();
     std::printf("  custom allocator try_fns:     OK\n");
+
+    // Vector-level reductions
+    test_vector_reductions_for_type<nk::f32_t>();
+    test_vector_reductions_for_type<nk::f64_t>();
+    test_vector_reductions_for_type<nk::f16_t>();
+    test_vector_reductions_for_type<nk::bf16_t>();
+    test_vector_reductions_for_type<nk::i8_t>();
+    test_vector_reductions_for_type<nk::u8_t>();
+    std::printf("  vector reductions (6 types):  OK\n");
+
+    test_vector_reductions_correctness();
+    std::printf("  vector reductions correct:    OK\n");
+
+    // Cast wrapper
+    test_cast_for_types<nk::f32_t, nk::f16_t>();
+    test_cast_for_types<nk::f16_t, nk::f32_t>();
+    test_cast_for_types<nk::f32_t, nk::bf16_t>();
+    test_cast_for_types<nk::bf16_t, nk::f32_t>();
+    test_cast_for_types<nk::f32_t, nk::e4m3_t>();
+    test_cast_for_types<nk::e4m3_t, nk::f32_t>();
+    test_cast_for_types<nk::i8_t, nk::i32_t>();
+    test_cast_for_types<nk::f64_t, nk::f32_t>();
+    std::printf("  cast wrapper (8 pairs):       OK\n");
 }

@@ -69,9 +69,54 @@ jobs:
           retention-days: 1
           overwrite: true
 
+  build_wasm:
+    name: Build WASM Bundle
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Update Git Submodules
+        run: git submodule update --init --recursive
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+      - name: Set Up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Build WASM
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          cmake -B build_wasm \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNK_BUILD_SHARED=ON
+          cmake --build build_wasm --config Release
+      - name: Build JavaScript and Assemble WASM Bundle
+        run: |
+          npm install --ignore-scripts
+          npm run build-js
+          mkdir -p wasm
+          cp build_wasm/numkong.js wasm/numkong-emscripten.js
+          npx esbuild javascript/dist/esm/numkong-browser.js \
+            --bundle --format=esm --platform=browser --target=es2022 \
+            --outfile=wasm/numkong.js
+          cp build_wasm/numkong.wasm wasm/
+          cp javascript/dist/esm/numkong-browser.d.ts wasm/numkong.d.ts
+      - name: Upload WASM Bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: wasm-bundle
+          path: wasm
+          retention-days: 1
+          overwrite: true
+
   publish_javascript_npm:
     name: Publish JavaScript to NPM
-    needs: build_javascript
+    needs: [build_javascript, build_wasm]
     runs-on: ubuntu-24.04
     environment:
       name: npm-numkong
@@ -97,6 +142,11 @@ jobs:
           pattern: prebuilds-*
           path: prebuilds
           merge-multiple: true
+      - name: Download WASM Bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: wasm-bundle
+          path: wasm
       - name: Verify File Hard Links (Optional)
         run: find . -type f -links +1
       - name: Install Node.js Dependencies

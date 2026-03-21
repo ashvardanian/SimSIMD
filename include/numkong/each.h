@@ -78,7 +78,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */
@@ -696,12 +696,6 @@ NK_PUBLIC void nk_each_blend_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_
 /** @copydoc nk_each_blend_u8 */
 NK_PUBLIC void nk_each_blend_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_each_fma_i8 */
-NK_PUBLIC void nk_each_fma_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_each_fma_u8 */
-NK_PUBLIC void nk_each_fma_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
@@ -1026,12 +1020,6 @@ NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_
 NK_PUBLIC void nk_each_blend_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                          nk_f32_t const *beta, nk_u8_t *result);
 
-/** @copydoc nk_each_fma_i8 */
-NK_PUBLIC void nk_each_fma_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_each_fma_u8 */
-NK_PUBLIC void nk_each_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
@@ -1763,14 +1751,10 @@ NK_PUBLIC void nk_each_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t co
 
 NK_PUBLIC void nk_each_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, nk_f32_t const *alpha,
                               nk_f32_t const *beta, nk_i8_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_SKYLAKE
+#if NK_TARGET_SKYLAKE
     nk_each_fma_i8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_fma_i8_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_fma_i8_neonhalf(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_RVV
     nk_each_fma_i8_rvv(a, b, c, n, alpha, beta, r);
 #else
@@ -1780,14 +1764,10 @@ NK_PUBLIC void nk_each_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const 
 
 NK_PUBLIC void nk_each_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
                               nk_f32_t const *beta, nk_u8_t *r) {
-#if NK_TARGET_SAPPHIRE
-    nk_each_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_SKYLAKE
+#if NK_TARGET_SKYLAKE
     nk_each_fma_u8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_fma_u8_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_fma_u8_neonhalf(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_RVV
     nk_each_fma_u8_rvv(a, b, c, n, alpha, beta, r);
 #else

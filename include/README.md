@@ -25,7 +25,7 @@ int main(void) {
 
 ## Highlights
 
-This is the most complete SDK in the project.
+This is the primary SDK in the project.
 It is the right layer if you want exact control over dtypes, allocators, packed buffers, dispatch, and host-side partitioning.
 
 __Full kernel surface.__
@@ -167,6 +167,20 @@ For example, `f32_t::dot_result_t` is wider than `f32_t`.
 The higher-level templates use `result_type_ = typename in_type_::dot_result_t` and similar defaults.
 The fast typed overloads are constrained so that overriding the result type away from the native policy can disable the specialized path and fall back to the more generic one.
 
+When `__cpp_lib_format >= 202110L` for the C++23 `<format>` header support, all NumKong scalar types provide `std::formatter` specializations with similar format specs to the traditional `float`.
+For the BFloat16 type, the output for `nk::f16_t::from_f32(3.14f)` will look like:
+
+| Format spec | Output example       | Description                            |
+| ----------- | -------------------- | -------------------------------------- |
+| `{}`        | `3.140625`           | Clean float value                      |
+| `{:#}`      | `3.140625 [0x4248]`  | Annotated with hex bits                |
+| `{:.2f}`    | `3.14`               | Precision forwarded to float formatter |
+| `{:x}`      | `4248`               | Raw hex bits                           |
+| `{:#x}`     | `0x4248`             | Hex with prefix                        |
+| `{:X}`      | `4248`               | Uppercase hex                          |
+| `{:b}`      | `0100001001001000`   | Binary bits                            |
+| `{:#b}`     | `0b0100001001001000` | Binary with prefix                     |
+
 ## Dot Products
 
 Dot products are one of the broadest parts of the native SDK.
@@ -243,7 +257,7 @@ nk_jsd_f32(q, p, 3, &js_reverse);
 assert(js_forward == js_reverse && "JSD is symmetric");
 ```
 
-These paths are especially valuable once you move below `f64`.
+These paths are useful once you move below `f64`.
 Naive implementations are usually dominated by repeated scalar transcendental calls and weak accumulation policy.
 
 ## Geospatial Metrics
@@ -365,9 +379,44 @@ nk::f64_t dot {};
 nk::dot(view.row(0), view.row(1), md.extent(1), &dot);
 ```
 
+## Iterators and Enumeration
+
+NumKong containers expose random-access iterators for element and row traversal.
+
+- __`dim_iterator`__ — random-access iterator over element values, used by `vector`, `vector_view`, and `vector_span`.
+  Supports all standard iterator operations plus `index()` to retrieve the current position.
+- __`axis_iterator`__ — random-access iterator over sub-views (rows), used by `tensor_view` and `tensor_span`.
+  Also exposes `index()`.
+- __`enumerate()`__ — free function returning a lightweight view that yields `{index, value}` pairs from any container with `begin()`/`end()`/`size()`.
+
+```cpp
+#include <numkong/numkong.hpp>
+
+namespace nk = ashvardanian::numkong;
+
+nk::vector<nk::f16_t> v(128);
+for (auto [i, val] : nk::enumerate(v))
+    std::printf("[%zu] = %f\n", i, val.to_f32());
+
+// index() on raw iterators
+for (auto it = v.begin(); it != v.end(); ++it)
+    std::printf("[%zu] = %f\n", it.index(), (*it).to_f32());
+```
+
+Since `tensor.hpp` includes `vector.hpp`, `enumerate()` works on tensor row views too.
+
+Tensors also support range-for over all logical scalar elements, yielding `(position, value)` pairs.
+For sub-byte types each dimension is a logical scalar. Use `.dims()` to iterate values without positions.
+
+```cpp
+for (auto [pos, val] : matrix)          { /* pos is std::array<size_t, R> */ }
+for (auto [pos, ref] : matrix.span())   { ref = nk::f32_t{1}; }
+for (auto val : matrix.dims())          { /* scalar only, no position */ }
+```
+
 ## Packed Matrix Kernels for GEMM-Like Workloads
 
-This is the most distinctive native subsystem outside the raw vector kernels.
+This is a separate native subsystem from the raw vector kernels.
 It is the right tool when the right-hand side is reused many times.
 
 ```cpp
@@ -414,7 +463,7 @@ This is SYRK-like in the sense that the output is square and symmetric.
 The important difference from packed GEMM-style work is the partitioning model.
 You typically split by output row windows, not by distinct left batches against a shared packed right-hand side.
 
-The arithmetic advantage is direct and honest.
+The arithmetic advantage is straightforward.
 The symmetric kernels avoid recomputing both `(i, j)` and `(j, i)` pairs.
 That cuts the pair count almost in half before any micro-kernel details matter.
 
@@ -491,7 +540,7 @@ if (caps & nk_cap_sapphireamx_k) { /* AMX available */ }
 For exact register-level details, see `capabilities.h`.
 The C++ wrappers can also call directly into named backends if you want to pin a path for testing or benchmarking.
 
-## Parallelism and Fork Union
+## Parallelism and ForkUnion
 
 NumKong does not manage its own threads.
 That is deliberate.
@@ -521,7 +570,7 @@ fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
 });
 ```
 
-We recommend [Fork Union](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
+We recommend [ForkUnion](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
 OpenMP is still a reasonable fit if the rest of your application already uses it.
 Manual thread pools and task systems also work well because the kernels have explicit row-range interfaces.
 
@@ -570,4 +619,25 @@ cmake -B build -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
 
 NumKong does not use OpenMP and does not create a hidden thread pool.
 Standard pthreads are linked via CMake's `Threads` package.
-Parallelism is host-controlled: partition work across row ranges and dispatch through Fork Union, `std::thread`, or any external scheduler.
+Parallelism is host-controlled: partition work across row ranges and dispatch through ForkUnion, `std::thread`, or any external scheduler.
+
+## Addressing External Memory
+
+Every kernel takes plain pointers, so any CPU-accessible memory works: mmap, pinned buffers, CUDA unified memory, custom arenas.
+C++ views wrap any pointer without ownership.
+Owning containers accept any C++ Allocator.
+
+```cpp
+template <typename T>
+struct cuda_allocator {
+    using value_type = T;
+    T *allocate(std::size_t n) { T *p;
+        cudaMallocManaged(&p, n * sizeof(T), cudaMemAttachGlobal); 
+        return p; }
+    void deallocate(T *p, std::size_t) noexcept { cudaFree(p); }
+};
+
+nk_dot_f32(cuda_managed_ptr, cuda_managed_ptr, 1024, &dot);         // C ABI, any pointer
+auto view = nk::tensor_view<nk::f32_t>(mmap_ptr, rows, cols);       // non-owning view
+auto v = nk::vector<float, cuda_allocator<float>>::try_zeros(1024); // allocator-aware owning
+```

@@ -274,20 +274,27 @@ char const *dtype_to_python_string(nk_dtype_t dtype) {
 
 nk_dtype_t dtype_from_buffer(Py_buffer const *buffer) {
     if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) return ((Tensor *)buffer->obj)->dtype;
-    return buffer->format ? python_string_to_dtype(buffer->format) : nk_dtype_unknown_k;
+    return buffer->format ? python_string_to_dtype(buffer->format, (Py_ssize_t)strlen(buffer->format))
+                          : nk_dtype_unknown_k;
 }
 
 int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
+
+int same_string_n(char const *input, Py_ssize_t input_len, char const *literal, Py_ssize_t literal_len) {
+    return input_len == literal_len && memcmp(input, literal, (size_t)input_len) == 0;
+}
 
 int is_complex(nk_dtype_t dtype) {
     nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->is_complex : 0;
 }
 
-nk_dtype_t python_string_to_dtype(char const *name) {
-    // Fast path: single-character PEP 3118 format strings from buffer protocol.
-    // This avoids the full strcmp chain for the most common case.
-    if (name[0] != '\0' && name[1] == '\0') {
+/** @brief Convenience macro: compare input of known length against a string literal. */
+#define same_literal_(input, len, literal) same_string_n((input), (len), (literal), (Py_ssize_t)(sizeof(literal) - 1))
+
+nk_dtype_t python_string_to_dtype(char const *name, Py_ssize_t len) {
+    switch (len) {
+    case 1:
         switch (name[0]) {
         // Floating-point
         case 'f': return nk_f32_k;
@@ -305,7 +312,6 @@ nk_dtype_t python_string_to_dtype(char const *name) {
         // Unsigned integers
         case 'B': return nk_u8_k;
         case 'H': return nk_u16_k;
-
 #if SIZEOF_LONG == 4
         case 'l': return nk_i32_k;
         case 'q': return nk_i64_k;
@@ -317,117 +323,243 @@ nk_dtype_t python_string_to_dtype(char const *name) {
         case 'I': return nk_u32_k;
         case 'L': return nk_u64_k;
 #endif
-        default: return nk_dtype_unknown_k;
         }
+        break;
+
+    case 2:
+        // Floating-point: "f2" → f16, "f4" → f32, "f8" → f64
+        if (same_literal_(name, len, "f2")) return nk_f16_k;
+        if (same_literal_(name, len, "f4")) return nk_f32_k;
+        if (same_literal_(name, len, "f8")) return nk_f64_k;
+        // Signed integers
+        if (same_literal_(name, len, "i1")) return nk_i8_k;
+        if (same_literal_(name, len, "i2")) return nk_i16_k;
+#if SIZEOF_LONG == 4
+        if (same_literal_(name, len, "i4")) return nk_i32_k;
+        if (same_literal_(name, len, "i8")) return nk_i64_k;
+#else
+        if (same_literal_(name, len, "i4")) return nk_i32_k;
+        if (same_literal_(name, len, "i8")) return nk_i64_k;
+#endif
+        // Unsigned integers
+        if (same_literal_(name, len, "u1")) return nk_u8_k;
+        if (same_literal_(name, len, "u2")) return nk_u16_k;
+#if SIZEOF_LONG == 4
+        if (same_literal_(name, len, "u4")) return nk_u32_k;
+        if (same_literal_(name, len, "u8")) return nk_u64_k;
+#else
+        if (same_literal_(name, len, "u4")) return nk_u32_k;
+        if (same_literal_(name, len, "u8")) return nk_u64_k;
+#endif
+        // Complex: "Zf" → f32c, "Zd" → f64c, "Ze" → f16c
+        if (same_literal_(name, len, "Zf")) return nk_f32c_k;
+        if (same_literal_(name, len, "Zd")) return nk_f64c_k;
+        if (same_literal_(name, len, "Ze")) return nk_f16c_k;
+        // Complex shorthand: "F2" → f16c, "F4" → f32c, "F8" → f64c
+        if (same_literal_(name, len, "F2")) return nk_f16c_k;
+        if (same_literal_(name, len, "F4")) return nk_f32c_k;
+        if (same_literal_(name, len, "F8")) return nk_f64c_k;
+        // Buffer protocol shorthand
+        if (same_literal_(name, len, "<f")) return nk_f32_k;
+        if (same_literal_(name, len, "<e")) return nk_f16_k;
+        if (same_literal_(name, len, "<d")) return nk_f64_k;
+        if (same_literal_(name, len, "<F")) return nk_f32c_k;
+        if (same_literal_(name, len, "<D")) return nk_f64c_k;
+        if (same_literal_(name, len, "<E")) return nk_f16c_k;
+        if (same_literal_(name, len, "<b")) return nk_i8_k;
+        if (same_literal_(name, len, "<B")) return nk_u8_k;
+        if (same_literal_(name, len, "<h")) return nk_i16_k;
+        if (same_literal_(name, len, "<H")) return nk_u16_k;
+#if SIZEOF_LONG == 4
+        if (same_literal_(name, len, "<l")) return nk_i32_k;
+        if (same_literal_(name, len, "<q")) return nk_i64_k;
+        if (same_literal_(name, len, "<L")) return nk_u32_k;
+        if (same_literal_(name, len, "<Q")) return nk_u64_k;
+#else
+        if (same_literal_(name, len, "<i")) return nk_i32_k;
+        if (same_literal_(name, len, "<l")) return nk_i64_k;
+        if (same_literal_(name, len, "<I")) return nk_u32_k;
+        if (same_literal_(name, len, "<L")) return nk_u64_k;
+#endif
+        break;
+
+    case 3:
+        // Floating-point: "f16", "f32", "f64"
+        if (same_literal_(name, len, "f16")) return nk_f16_k;
+        if (same_literal_(name, len, "f32")) return nk_f32_k;
+        if (same_literal_(name, len, "f64")) return nk_f64_k;
+        // NumPy array interface typestr: "<f2", "<f4", "<f8"
+        if (same_literal_(name, len, "<f2")) return nk_f16_k;
+        if (same_literal_(name, len, "<f4")) return nk_f32_k;
+        if (same_literal_(name, len, "<f8")) return nk_f64_k;
+        // Complex typestr: "<F2", "<F4", "<F8"
+        if (same_literal_(name, len, "<F2")) return nk_f16c_k;
+        if (same_literal_(name, len, "<F4")) return nk_f32c_k;
+        if (same_literal_(name, len, "<F8")) return nk_f64c_k;
+        // Signed integers: "<i1", "<i2", "|i1", "|i2"
+        if (same_literal_(name, len, "<i1")) return nk_i8_k;
+        if (same_literal_(name, len, "|i1")) return nk_i8_k;
+        if (same_literal_(name, len, "<i2")) return nk_i16_k;
+        if (same_literal_(name, len, "|i2")) return nk_i16_k;
+#if SIZEOF_LONG == 4
+        if (same_literal_(name, len, "<i4")) return nk_i32_k;
+        if (same_literal_(name, len, "|i4")) return nk_i32_k;
+        if (same_literal_(name, len, "<i8")) return nk_i64_k;
+        if (same_literal_(name, len, "|i8")) return nk_i64_k;
+#else
+        if (same_literal_(name, len, "<i4")) return nk_i32_k;
+        if (same_literal_(name, len, "|i4")) return nk_i32_k;
+        if (same_literal_(name, len, "<i8")) return nk_i64_k;
+        if (same_literal_(name, len, "|i8")) return nk_i64_k;
+#endif
+        // Unsigned integers: "<u1", "<u2", "|u1", "|u2"
+        if (same_literal_(name, len, "<u1")) return nk_u8_k;
+        if (same_literal_(name, len, "|u1")) return nk_u8_k;
+        if (same_literal_(name, len, "<u2")) return nk_u16_k;
+        if (same_literal_(name, len, "|u2")) return nk_u16_k;
+#if SIZEOF_LONG == 4
+        if (same_literal_(name, len, "<u4")) return nk_u32_k;
+        if (same_literal_(name, len, "|u4")) return nk_u32_k;
+        if (same_literal_(name, len, "<u8")) return nk_u64_k;
+        if (same_literal_(name, len, "|u8")) return nk_u64_k;
+#else
+        if (same_literal_(name, len, "<u4")) return nk_u32_k;
+        if (same_literal_(name, len, "|u4")) return nk_u32_k;
+        if (same_literal_(name, len, "<u8")) return nk_u64_k;
+        if (same_literal_(name, len, "|u8")) return nk_u64_k;
+#endif
+        break;
+
+    case 4:
+        // Floating-point: "bf16", "e4m3", "e5m2", "e2m3", "e3m2", "int4"
+        if (same_literal_(name, len, "bf16")) return nk_bf16_k;
+        if (same_literal_(name, len, "e4m3")) return nk_e4m3_k;
+        if (same_literal_(name, len, "e5m2")) return nk_e5m2_k;
+        if (same_literal_(name, len, "e2m3")) return nk_e2m3_k;
+        if (same_literal_(name, len, "e3m2")) return nk_e3m2_k;
+        // Sub-byte integers
+        if (same_literal_(name, len, "int4")) return nk_i4_k;
+        if (same_literal_(name, len, "int8")) return nk_i8_k;
+        // Buffer protocol: "<c8" → f32c, "<c8" is 3 chars actually... no
+        // Complex: "<c8"=3 already handled above
+        break;
+
+    case 5:
+        if (same_literal_(name, len, "int16")) return nk_i16_k;
+        if (same_literal_(name, len, "int32")) return nk_i32_k;
+        if (same_literal_(name, len, "int64")) return nk_i64_k;
+        if (same_literal_(name, len, "uint1")) return nk_u1_k;
+        if (same_literal_(name, len, "uint4")) return nk_u4_k;
+        if (same_literal_(name, len, "uint8")) return nk_u8_k;
+        if (same_literal_(name, len, "bf16c")) return nk_bf16c_k;
+        break;
+
+    case 6:
+        if (same_literal_(name, len, "uint16")) return nk_u16_k;
+        if (same_literal_(name, len, "uint32")) return nk_u32_k;
+        if (same_literal_(name, len, "uint64")) return nk_u64_k;
+        break;
+
+    case 7:
+        if (same_literal_(name, len, "float16")) return nk_f16_k;
+        if (same_literal_(name, len, "float32")) return nk_f32_k;
+        if (same_literal_(name, len, "float64")) return nk_f64_k;
+        break;
+
+    case 8:
+        if (same_literal_(name, len, "bfloat16")) return nk_bf16_k;
+        break;
+
+    case 9:
+        if (same_literal_(name, len, "complex32")) return nk_f16c_k;
+        if (same_literal_(name, len, "complex64")) return nk_f32c_k;
+        if (same_literal_(name, len, "bfloat16c")) return nk_bf16c_k;
+        break;
+
+    case 10:
+        if (same_literal_(name, len, "complex128")) return nk_f64c_k;
+        if (same_literal_(name, len, "bcomplex32")) return nk_bf16c_k;
+        break;
+
+    case 11:
+        if (same_literal_(name, len, "float8_e4m3")) return nk_e4m3_k;
+        if (same_literal_(name, len, "float8_e5m2")) return nk_e5m2_k;
+        if (same_literal_(name, len, "float6_e2m3")) return nk_e2m3_k;
+        if (same_literal_(name, len, "float6_e3m2")) return nk_e3m2_k;
+        break;
+
+    case 13:
+        if (same_literal_(name, len, "float8_e4m3fn")) return nk_e4m3_k;
+        if (same_literal_(name, len, "float6_e2m3fn")) return nk_e2m3_k;
+        if (same_literal_(name, len, "float6_e3m2fn")) return nk_e3m2_k;
+        break;
+
+    default: break;
     }
-    // Floating-point numbers:
-    if (same_string(name, "float32") || same_string(name, "f32") || same_string(name, "f4") ||
-        same_string(name, "<f4") || same_string(name, "f") || same_string(name, "<f"))
-        return nk_f32_k;
-    else if (same_string(name, "float16") || same_string(name, "f16") || same_string(name, "f2") ||
-             same_string(name, "<f2") || same_string(name, "e") || same_string(name, "<e"))
-        return nk_f16_k;
-    else if (same_string(name, "float64") || same_string(name, "f64") || same_string(name, "f8") ||
-             same_string(name, "<f8") || same_string(name, "d") || same_string(name, "<d"))
-        return nk_f64_k;
-    else if (same_string(name, "bfloat16") || same_string(name, "bf16")) return nk_bf16_k;
-
-    // FP8 formats (ML-focused 8-bit floats):
-    // Only E4M3FN and E5M2 — fnuz/b11fnuz have different bias/NaN/zero encoding and are NOT compatible.
-    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3") || same_string(name, "float8_e4m3fn"))
-        return nk_e4m3_k;
-    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2")) return nk_e5m2_k;
-
-    // FP6 formats (MX-focused 6-bit floats):
-    else if (same_string(name, "e2m3") || same_string(name, "float6_e2m3") || same_string(name, "float6_e2m3fn"))
-        return nk_e2m3_k;
-    else if (same_string(name, "e3m2") || same_string(name, "float6_e3m2") || same_string(name, "float6_e3m2fn"))
-        return nk_e3m2_k;
-
-    // Sub-byte integers:
-    else if (same_string(name, "int4")) return nk_i4_k;
-    else if (same_string(name, "uint4")) return nk_u4_k;
-
-    // Complex numbers:
-    else if (same_string(name, "complex64") || same_string(name, "F4") || same_string(name, "<F4") ||
-             same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F"))
-        return nk_f32c_k;
-    else if (same_string(name, "complex128") || same_string(name, "F8") || same_string(name, "<F8") ||
-             same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D"))
-        return nk_f64c_k;
-    else if (same_string(name, "complex32") || same_string(name, "F2") || same_string(name, "<F2") ||
-             same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E"))
-        return nk_f16c_k;
-    else if (same_string(name, "bcomplex32") || same_string(name, "bfloat16c") || same_string(name, "bf16c"))
-        return nk_bf16c_k;
-
-    // Boolean values:
-    else if (same_string(name, "uint1") || same_string(name, "?")) return nk_u1_k;
-
-    // Signed integers:
-    else if (same_string(name, "int8") || same_string(name, "i1") || same_string(name, "|i1") ||
-             same_string(name, "<i1") || same_string(name, "b") || same_string(name, "<b"))
-        return nk_i8_k;
-    else if (same_string(name, "int16") || same_string(name, "i2") || same_string(name, "|i2") ||
-             same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
-        return nk_i16_k;
-
-#if SIZEOF_LONG == 4
-    else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
-             same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
-        return nk_i32_k;
-    else if (same_string(name, "int64") || same_string(name, "i8") || same_string(name, "|i8") ||
-             same_string(name, "<i8") || same_string(name, "q") || same_string(name, "<q"))
-        return nk_i64_k;
-#else
-    else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
-             same_string(name, "<i4") || same_string(name, "i") || same_string(name, "<i"))
-        return nk_i32_k;
-    else if (same_string(name, "int64") || same_string(name, "i8") || same_string(name, "|i8") ||
-             same_string(name, "<i8") || same_string(name, "l") || same_string(name, "<l"))
-        return nk_i64_k;
-#endif
-
-    // Unsigned integers:
-    else if (same_string(name, "uint8") || same_string(name, "u1") || same_string(name, "|u1") ||
-             same_string(name, "<u1") || same_string(name, "B") || same_string(name, "<B"))
-        return nk_u8_k;
-    else if (same_string(name, "uint16") || same_string(name, "u2") || same_string(name, "|u2") ||
-             same_string(name, "<u2") || same_string(name, "H") || same_string(name, "<H"))
-        return nk_u16_k;
-
-#if SIZEOF_LONG == 4
-    else if (same_string(name, "uint32") || same_string(name, "u4") || same_string(name, "|u4") ||
-             same_string(name, "<u4") || same_string(name, "L") || same_string(name, "<L"))
-        return nk_u32_k;
-    else if (same_string(name, "uint64") || same_string(name, "u8") || same_string(name, "|u8") ||
-             same_string(name, "<u8") || same_string(name, "Q") || same_string(name, "<Q"))
-        return nk_u64_k;
-#else
-    else if (same_string(name, "uint32") || same_string(name, "u4") || same_string(name, "|u4") ||
-             same_string(name, "<u4") || same_string(name, "I") || same_string(name, "<I"))
-        return nk_u32_k;
-    else if (same_string(name, "uint64") || same_string(name, "u8") || same_string(name, "|u8") ||
-             same_string(name, "<u8") || same_string(name, "L") || same_string(name, "<L"))
-        return nk_u64_k;
-#endif
-
-    else return nk_dtype_unknown_k;
+    return nk_dtype_unknown_k;
 }
 
-nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
-    if (same_string(name, "euclidean")) return nk_kernel_euclidean_k;
-    else if (same_string(name, "sqeuclidean")) return nk_kernel_sqeuclidean_k;
-    else if (same_string(name, "dot") || same_string(name, "inner")) return nk_kernel_dot_k;
-    else if (same_string(name, "vdot")) return nk_kernel_vdot_k;
-    else if (same_string(name, "angular")) return nk_kernel_angular_k;
-    else if (same_string(name, "jaccard")) return nk_kernel_jaccard_k;
-    else if (same_string(name, "kullbackleibler") || same_string(name, "kld")) return nk_kernel_kld_k;
-    else if (same_string(name, "jensenshannon") || same_string(name, "jsd")) return nk_kernel_jsd_k;
-    else if (same_string(name, "hamming")) return nk_kernel_hamming_k;
-    else if (same_string(name, "bilinear")) return nk_kernel_bilinear_k;
-    else if (same_string(name, "mahalanobis")) return nk_kernel_mahalanobis_k;
-    else return nk_kernel_unknown_k;
+nk_dtype_t python_arg_to_dtype(PyObject *obj) {
+    if (PyType_Check(obj)) {
+        PyTypeObject *type = (PyTypeObject *)obj;
+        if (type == &NkBFloat16Scalar_Type) return nk_bf16_k;
+        if (type == &NkFloat16Scalar_Type) return nk_f16_k;
+        if (type == &NkFloat8E4M3Scalar_Type) return nk_e4m3_k;
+        if (type == &NkFloat8E5M2Scalar_Type) return nk_e5m2_k;
+        if (type == &NkFloat6E2M3Scalar_Type) return nk_e2m3_k;
+        if (type == &NkFloat6E3M2Scalar_Type) return nk_e3m2_k;
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype type: %s", type->tp_name);
+        return nk_dtype_unknown_k;
+    }
+    if (PyUnicode_Check(obj)) {
+        Py_ssize_t s_len = 0;
+        char const *s = PyUnicode_AsUTF8AndSize(obj, &s_len);
+        nk_dtype_t dtype = s ? python_string_to_dtype(s, s_len) : nk_dtype_unknown_k;
+        if (dtype == nk_dtype_unknown_k) PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", s ? s : "");
+        return dtype;
+    }
+    PyErr_Format(PyExc_TypeError, "Expected a string or type for 'dtype', got %s", Py_TYPE(obj)->tp_name);
+    return nk_dtype_unknown_k;
+}
+
+nk_kernel_kind_t python_string_to_metric_kind(char const *name, Py_ssize_t len) {
+    switch (len) {
+    case 3:
+        if (same_literal_(name, len, "dot")) return nk_kernel_dot_k;
+        if (same_literal_(name, len, "jsd")) return nk_kernel_jsd_k;
+        if (same_literal_(name, len, "kld")) return nk_kernel_kld_k;
+        if (same_literal_(name, len, "fma")) return nk_kernel_each_fma_k;
+        break;
+    case 4:
+        if (same_literal_(name, len, "vdot")) return nk_kernel_vdot_k;
+        break;
+    case 5:
+        if (same_literal_(name, len, "inner")) return nk_kernel_dot_k;
+        if (same_literal_(name, len, "blend")) return nk_kernel_each_blend_k;
+        break;
+    case 7:
+        if (same_literal_(name, len, "angular")) return nk_kernel_angular_k;
+        if (same_literal_(name, len, "hamming")) return nk_kernel_hamming_k;
+        if (same_literal_(name, len, "jaccard")) return nk_kernel_jaccard_k;
+        break;
+    case 8:
+        if (same_literal_(name, len, "bilinear")) return nk_kernel_bilinear_k;
+        break;
+    case 9:
+        if (same_literal_(name, len, "euclidean")) return nk_kernel_euclidean_k;
+        break;
+    case 11:
+        if (same_literal_(name, len, "mahalanobis")) return nk_kernel_mahalanobis_k;
+        if (same_literal_(name, len, "sqeuclidean")) return nk_kernel_sqeuclidean_k;
+        break;
+    case 13:
+        if (same_literal_(name, len, "jensenshannon")) return nk_kernel_jsd_k;
+        break;
+    case 15:
+        if (same_literal_(name, len, "kullbackleibler")) return nk_kernel_kld_k;
+        break;
+    }
+    return nk_kernel_unknown_k;
 }
 
 int cast_distance(nk_f64_t distance, nk_dtype_t target_dtype, void *target_ptr, size_t offset) {
@@ -664,8 +796,9 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
     if (dtype_attr) {
         PyObject *name_attr = PyObject_GetAttrString(dtype_attr, "name");
         if (name_attr) {
-            char const *name_str = PyUnicode_AsUTF8(name_attr);
-            if (name_str) dtype = python_string_to_dtype(name_str);
+            Py_ssize_t name_len = 0;
+            char const *name_str = PyUnicode_AsUTF8AndSize(name_attr, &name_len);
+            if (name_str) dtype = python_string_to_dtype(name_str, name_len);
             Py_DECREF(name_attr);
         }
         else { PyErr_Clear(); }
@@ -676,8 +809,9 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
     if (dtype == nk_dtype_unknown_k) {
         PyObject *typestr_obj = PyDict_GetItemString(iface, "typestr");
         if (typestr_obj) {
-            char const *typestr = PyUnicode_AsUTF8(typestr_obj);
-            if (typestr) dtype = python_string_to_dtype(typestr);
+            Py_ssize_t typestr_len = 0;
+            char const *typestr = PyUnicode_AsUTF8AndSize(typestr_obj, &typestr_len);
+            if (typestr) dtype = python_string_to_dtype(typestr, typestr_len);
         }
     }
     if (dtype == nk_dtype_unknown_k) {
@@ -838,11 +972,12 @@ static struct {
     {NULL, 0},
 };
 
-char const doc_enable_capability[] =            //
-    "Enable a specific SIMD kernel family.\n\n" //
-    "Parameters:\n"                             //
-    "    capability : str\n"                    //
-    "        Name of the SIMD feature to enable (for example, 'haswell').";
+char const doc_enable_capability[] =                                                         //
+    "Enable a specific SIMD kernel family.\n\n"                                              //
+    "Parameters:\n"                                                                          //
+    "    capability (str): Name of the SIMD feature to enable (for example, 'haswell').\n\n" //
+    "Signature:\n"                                                                           //
+    "    >>> def enable_capability(capability): ...";
 
 static int refresh_runtime_dispatch_after_capability_change(void) {
     if (!nk_configure_thread(static_capabilities)) {
@@ -876,11 +1011,12 @@ PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     return NULL;
 }
 
-char const doc_disable_capability[] =            //
-    "Disable a specific SIMD kernel family.\n\n" //
-    "Parameters:\n"                              //
-    "    capability : str\n"                     //
-    "        Name of the SIMD feature to disable (for example, 'haswell').";
+char const doc_disable_capability[] =                                                         //
+    "Disable a specific SIMD kernel family.\n\n"                                              //
+    "Parameters:\n"                                                                           //
+    "    capability (str): Name of the SIMD feature to disable (for example, 'haswell').\n\n" //
+    "Signature:\n"                                                                            //
+    "    >>> def disable_capability(capability): ...";
 
 PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) {
     char const *cap_name = PyUnicode_AsUTF8(cap_name_obj);
@@ -1101,6 +1237,7 @@ static PyMethodDef nk_methods[] = {
     {"vincenty", (PyCFunction)api_vincenty, METH_FASTCALL | METH_KEYWORDS, doc_vincenty},
 
     // Tensor constructors
+    {"from_pointer", (PyCFunction)api_from_pointer, METH_FASTCALL | METH_KEYWORDS, doc_from_pointer},
     {"empty", (PyCFunction)api_empty, METH_FASTCALL | METH_KEYWORDS, doc_empty},
     {"zeros", (PyCFunction)api_zeros, METH_FASTCALL | METH_KEYWORDS, doc_zeros},
     {"ones", (PyCFunction)api_ones, METH_FASTCALL | METH_KEYWORDS, doc_ones},

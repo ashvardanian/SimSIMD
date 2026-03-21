@@ -123,7 +123,7 @@
  *
  *  @section references References
  *
- *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm Intrinsics Reference: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - Muła et al. "Faster Population Counts": https://arxiv.org/pdf/1611.07612
  *  - Muła SSE POPCOUNT experiments: https://github.com/WojciechMula/sse-popcount

@@ -72,7 +72,7 @@
  *  @section references References
  *
  *  - uops.info: https://uops.info/
- *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm Intrinsics Reference: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - vp2intersect experiments: https://github.com/mozonaut/vp2intersect
  *  - Diez-Canas "Faster-Than-Native Alternatives for x86 VP2INTERSECT Instructions":

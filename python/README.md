@@ -1,6 +1,6 @@
 # NumKong for Python
 
-NumKong for Python is the broadest high-level SDK in the project.
+NumKong for Python is the main high-level SDK in the project.
 It targets the gap between `numpy` and low-level native kernels: you keep buffer-protocol interoperability and shape-aware outputs, but you stop giving up mixed precision, widened accumulators, packed reuse, and backend-specific optimizations every time you leave `float64`.
 It combines NumPy-friendly buffers with native mixed-precision kernels, zero-copy tensor views, packed and symmetric matrix operations, sparse helpers, geometric mesh alignment, and MaxSim.
 The API feels NumPy-shaped with familiar scalar, batched, and all-pairs entrypoints, while `Tensor` keeps shape, dtype, and strides visible through a memoryview-backed container.
@@ -112,7 +112,7 @@ NumKong's API makes the widening policy part of the kernel contract.
 ### Output Control: `out=`, `dtype=`, and `out_dtype=`
 
 Most distance and dot-product entrypoints accept `out=`, `dtype=`, and `out_dtype=` keyword arguments.
-Passing them is highly recommended to avoid dynamic memory allocations for temporary objects!
+Passing them avoids dynamic memory allocations for temporary objects.
 
 ```python
 import numpy as np
@@ -127,7 +127,7 @@ nk.sqeuclidean(queries, database[:100], out=out)  # writes in-place, returns Non
 
 # Explicit input dtype for raw byte buffers
 raw = np.frombuffer(some_bytes, dtype=np.uint16)
-nk.dot(raw, raw, dtype="bfloat16")  # reinterpret uint16 as bf16
+nk.dot(raw, raw, dtype=nk.bfloat16)  # reinterpret uint16 as bf16
 
 # Output dtype override
 nk.euclidean(queries[0], database[0], out_dtype="float32")  # accumulate in f64, downcast result
@@ -135,6 +135,12 @@ nk.euclidean(queries[0], database[0], out_dtype="float32")  # accumulate in f64,
 
 When `out=` is provided, the function writes results in-place and returns `None`.
 The `out` array must be pre-allocated with the correct shape and a supported dtype.
+For custom float types (`bfloat16`, `float16`, `float8_e4m3`, `float8_e5m2`, `float6_e2m3`, `float6_e3m2`), type objects are preferred over strings — they are faster to dispatch and provide IDE autocomplete:
+
+```python
+nk.dot(a, b, dtype=nk.bfloat16) # works faster
+nk.dot(a, b, dtype="bfloat16")  # works a bit slower
+```
 
 ## Set Similarity
 
@@ -386,8 +392,7 @@ assert np.asarray(fused).shape == (8,)
 ## Moments Reductions
 
 Moments reductions return `(sum, sum_of_squares)`.
-The important selling point is not just speed.
-It is that NumKong does not force you into same-storage accumulation.
+The key property is that NumKong does not force you into same-storage accumulation.
 
 ```python
 import numpy as np
@@ -408,8 +413,8 @@ Same-width accumulation is a bad default for low-precision storage.
 
 ## Min/Max Reductions
 
-Min/max reductions deserve a separate section because they expose an unusual backend strength.
-NumKong accelerates several strided reduction cases that users do not normally expect to be fast.
+Min/max reductions are in a separate section because they cover strided reduction cases.
+NumKong provides SIMD-accelerated strided reductions that are not common in other libraries.
 
 ```python
 import numpy as np
@@ -480,7 +485,7 @@ Important runtime rules from the current implementation:
 - `out`, when provided, must be C-contiguous with the expected dtype
 - `start_row` and `end_row` split the left operand rows
 
-The arithmetic advantages are honest and mechanical:
+The arithmetic advantages are:
 
 - one-time packing of `B`
 - one-time internal layout conversion and depth padding
@@ -516,7 +521,7 @@ It avoids duplicate `(i, j)` and `(j, i)` evaluations.
 It is naturally partitioned by row windows of one square output.
 
 `angulars_symmetric` and `euclideans_symmetric` also benefit from reuse of dot-product-derived work inside the symmetric sweep.
-That is the honest reason these APIs are more attractive than a naive nested Python loop over `angular(a[i], a[j])`.
+That is why these APIs are faster than a nested Python loop over `angular(a[i], a[j])`.
 
 ## Geometric Mesh Alignment
 
@@ -620,3 +625,64 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
 
 OpenMP and other native schedulers still matter in lower layers.
 For Python, the intended user-facing story is external partitioning around the GIL-free kernels you actually use.
+
+## Addressing External Memory
+
+NumKong implements the Python buffer protocol for zero-copy interop with NumPy, PyTorch, and other buffer-aware libraries.
+Two additional primitives cover pointer-level workflows: `data_ptr` reads the integer address out of any `Tensor`, and `from_pointer()` wraps any integer address back into one.
+
+`data_ptr` returns the raw address, suitable for passing into ctypes, CUDA, or any FFI boundary.
+`from_pointer(address, shape, dtype, *, strides=None, owner=None)` creates a non-owning `Tensor` view.
+The optional `owner` keeps the source object alive for the lifetime of the view.
+
+```python
+import numpy as np
+import numkong as nk
+
+# Round-trip through an integer address
+matrix = nk.zeros((3, 4), dtype='float32')
+address = matrix.data_ptr
+matrix_view = nk.from_pointer(address, (3, 4), 'float32', owner=matrix)
+
+# Wrap a NumPy array with zero copies
+embeddings = np.random.randn(1024).astype(np.float32)
+embeddings_view = nk.from_pointer(embeddings.ctypes.data, (1024,), 'float32', owner=embeddings)
+nk.dot(embeddings, embeddings_view)  # same underlying data
+```
+
+PyTorch tensors already implement the buffer protocol, so most functions accept them directly.
+For explicit pointer-level control, or to go the other direction, the same primitives apply:
+
+```python
+import torch
+
+query = torch.randn(512)
+nk.dot(query, query)  # buffer protocol, zero copy
+
+# Explicit pointer wrap
+query_view = nk.from_pointer(query.data_ptr(), tuple(query.shape), 'float32', owner=query)
+
+# NumKong → PyTorch: 1D via buffer protocol, N-D via numpy bridge
+flat = torch.frombuffer(memoryview(nk_tensor), dtype=torch.float32)
+shaped = torch.as_tensor(np.asarray(nk_tensor))
+```
+
+CUDA unified memory, pinned buffers, and mmap'd files all work the same way — any CPU-accessible pointer is valid.
+
+```python
+import ctypes, mmap
+
+# CUDA unified memory (ensure CPU accessibility first)
+cudart = ctypes.CDLL("libcudart.so")
+unified_ptr = ctypes.c_void_p()
+cudart.cudaMallocManaged(ctypes.byref(unified_ptr), 4096, 1)
+cudart.cudaDeviceSynchronize()
+unified = nk.from_pointer(unified_ptr.value, (1024,), 'float32')
+
+# Memory-mapped file
+with open("data.bin", "r+b") as f:
+    mapping = mmap.mmap(f.fileno(), 0)
+    mapped = nk.from_pointer(ctypes.addressof(
+        ctypes.c_char.from_buffer(mapping)),
+        (1024,), 'float32', owner=mapping)
+```

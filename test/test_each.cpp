@@ -236,11 +236,9 @@ void test_each() {
     check("each_scale_u8_neonhalf", test_scale<u8_t>, nk_each_scale_u8_neonhalf);
     check("each_sum_u8_neonhalf", test_sum<u8_t>, nk_each_sum_u8_neonhalf);
     check("each_blend_u8_neonhalf", test_blend<u8_t>, nk_each_blend_u8_neonhalf);
-    check("each_fma_u8_neonhalf", test_fma<u8_t>, nk_each_fma_u8_neonhalf);
     check("each_scale_i8_neonhalf", test_scale<i8_t>, nk_each_scale_i8_neonhalf);
     check("each_sum_i8_neonhalf", test_sum<i8_t>, nk_each_sum_i8_neonhalf);
     check("each_blend_i8_neonhalf", test_blend<i8_t>, nk_each_blend_i8_neonhalf);
-    check("each_fma_i8_neonhalf", test_fma<i8_t>, nk_each_fma_i8_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
@@ -333,10 +331,8 @@ void test_each() {
     check("each_sum_f16_sapphire", test_sum<f16_t>, nk_each_sum_f16_sapphire);
     check("each_scale_u8_sapphire", test_scale<u8_t>, nk_each_scale_u8_sapphire);
     check("each_blend_u8_sapphire", test_blend<u8_t>, nk_each_blend_u8_sapphire);
-    check("each_fma_u8_sapphire", test_fma<u8_t>, nk_each_fma_u8_sapphire);
     check("each_scale_i8_sapphire", test_scale<i8_t>, nk_each_scale_i8_sapphire);
     check("each_blend_i8_sapphire", test_blend<i8_t>, nk_each_blend_i8_sapphire);
-    check("each_fma_i8_sapphire", test_fma<i8_t>, nk_each_fma_i8_sapphire);
     check("each_sum_e4m3_sapphire", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 

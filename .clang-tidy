@@ -1,0 +1,30 @@
+# Conservative clang-tidy configuration for a SIMD-heavy C99/C++23 library.
+# Intrinsics-heavy code triggers many false positives in certain checkers,
+# so we keep the enabled set narrow and focused on real bugs.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-casting-through-void,
+  -bugprone-macro-parentheses,
+  misc-redundant-expression,
+  misc-unused-using-decls,
+  performance-*,
+  -performance-avoid-endl,
+  readability-duplicate-include,
+  readability-misleading-indentation,
+  readability-redundant-preprocessor,
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: 'include/numkong/.*'
+
+FormatStyle: file
+
+CheckOptions:
+  - key: bugprone-assert-side-effect.AssertMacros
+    value: 'assert,NK_ASSERT'

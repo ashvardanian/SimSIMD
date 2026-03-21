@@ -62,9 +62,9 @@ NK_PUBLIC nk_dtype_t nk_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t in
     case nk_kernel_vincenty_k: return nk_vincenty_output_dtype(input);
     case nk_kernel_kld_k:
     case nk_kernel_jsd_k: return nk_probability_output_dtype(input);
-    case nk_kernel_rmsd_k: return nk_rmsd_output_dtype(input);
-    case nk_kernel_kabsch_k: return nk_kabsch_output_dtype(input);
-    case nk_kernel_umeyama_k: return nk_umeyama_output_dtype(input);
+    case nk_kernel_rmsd_k:
+    case nk_kernel_kabsch_k:
+    case nk_kernel_umeyama_k: return nk_mesh_metric_dtype(input);
     case nk_kernel_sparse_dot_k: return nk_sparse_dot_output_dtype(input);
     case nk_kernel_maxsim_packed_k: return nk_maxsim_output_dtype(input);
     default: return nk_dtype_unknown_k;

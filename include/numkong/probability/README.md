@@ -5,17 +5,21 @@ These are used in variational inference, topic modeling, and distribution compar
 
 Kullback-Leibler divergence from $P$ to $Q$:
 
-```math
+$$
 \text{KLD}(P \| Q) = \sum_{i=0}^{n-1} P(i) \log_2 \frac{P(i)}{Q(i)}
-```
+$$
 
 Jensen-Shannon distance is the square root of the symmetrized KLD through a mixture:
 
-$$\text{JSD}(P, Q) = \frac{1}{2} \text{KLD}(P \| M) + \frac{1}{2} \text{KLD}(Q \| M)$$
+$$
+\text{JSD}(P, Q) = \frac{1}{2} \text{KLD}(P \| M) + \frac{1}{2} \text{KLD}(Q \| M)
+$$
 
 where $M = \frac{P + Q}{2}$, yielding the distance:
 
-$$d_{JS}(P, Q) = \sqrt{\text{JSD}(P, Q)}$$
+$$
+d_{JS}(P, Q) = \sqrt{\text{JSD}(P, Q)}
+$$
 
 Unlike the raw divergence, $d_{JS}$ is a true metric satisfying the triangle inequality.
 
@@ -35,9 +39,9 @@ def jsd(p: np.ndarray, q: np.ndarray) -> float:
 
 ## Use Cases
 
-__Kullback-Leibler divergence__ is the workhorse of variational inference (ELBO objective), knowledge distillation between neural networks, information gain in decision trees, and measuring fit between a model and observed data.
+__Kullback-Leibler divergence__ is widely used in variational inference (ELBO objective), knowledge distillation between neural networks, information gain in decision trees, and measuring fit between a model and observed data.
 
-__Jensen-Shannon distance__ sees primary use in microbiome community comparison (enterotyping), where its metric property enables clustering with standard algorithms. It also appears in distribution drift detection, topic model evaluation, and as the theoretical foundation of the original GAN objective — though in practice GAN training uses proxy losses rather than computing JSD directly.
+__Jensen-Shannon distance__ is commonly used in microbiome community comparison (enterotyping), where its metric property enables clustering with standard algorithms. It also appears in distribution drift detection, topic model evaluation, and as the theoretical foundation of the original GAN objective — though in practice GAN training uses proxy losses rather than computing JSD directly.
 
 ## Input & Output Types
 

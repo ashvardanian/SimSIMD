@@ -209,14 +209,34 @@ select = "*-macos*_arm64"
 # be executed directly as shell commands, so we must use `python -m pytest`.
 # Also, `ml_dtypes` has no Pyodide wheel, so we skip it.
 [[tool.cibuildwheel.overrides]]
-select = "*-pyodide*"
 before-build = ["rm -rf {project}/build"]
+select = "*-pyodide*"
 test-command = """
     python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
     python -c "import numkong; print(numkong.get_capabilities())" &&
     PYTHONMALLOC=debug python -m pytest {project}/test/ -s -x -Wd
 """
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = [
+  "E712", # == True/False: intentional for testing scalar __bool__ return values
+  "E731", # lambda assignments: clearer for one-liner baselines
+  "B905", # zip-without-strict: not safety-critical in test code
+  "SIM105", # contextlib.suppress: explicit try/except is clearer here
+  "B028", # stacklevel in warnings.warn: not important in test code
+  "RUF002", # ambiguous unicode in docstrings: intentional math symbols
+  "RUF003", # ambiguous unicode in comments: intentional math symbols
+  "RUF043", # pytest.raises regex patterns: the metacharacters are intentional
+]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"test/*" = ["E501", "F811"]
 
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file

@@ -87,7 +87,7 @@ For symmetric GEMM: `N * (N + 1) * K` per call.
 ### Running
 
 ```sh
-npm run bench:native                            # Node.js native addon, fastest
+npm run bench:native                            # Node.js native addon
 npm run bench:emscripten                        # Emscripten WASM with SIMD
 npm run bench:wasi                              # WASI portable execution
 npm run bench:browser                           # Chromium via Playwright

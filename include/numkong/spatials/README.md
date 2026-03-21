@@ -4,15 +4,15 @@ NumKong implements batched distance matrix computation via pre-packed dot produc
 
 Angular distance from pre-packed dot products:
 
-```math
+$$
 D_{ij} = 1 - \frac{C_{ij}}{\sqrt{\|A_i\|^2 \cdot \|B_j\|^2}}
-```
+$$
 
 Euclidean distance from pre-packed dot products:
 
-```math
+$$
 D_{ij} = \sqrt{\|A_i\|^2 + \|B_j\|^2 - 2 C_{ij}}
-```
+$$
 
 Reformulating as Python pseudocode:
 

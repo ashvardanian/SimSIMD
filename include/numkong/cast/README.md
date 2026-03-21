@@ -6,17 +6,17 @@ All conversions use round-to-nearest-even (RNE) for narrowing and exact widening
 
 BFloat16 relates to Float32 by truncation with rounding:
 
-```math
+$$
 \text{bf16} \approx \text{f32} \gg 16
-```
+$$
 
 With RNE tie-breaking to preserve the least significant bit of the truncated result.
 
 Float16 range and precision:
 
-```math
+$$
 \text{f16} \in [-65504, 65504], \quad \text{min positive normal} = 2^{-14}
-```
+$$
 
 Reformulating as Python pseudocode:
 

@@ -116,6 +116,9 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+# Generate compile_commands.json for clang-tidy and other tooling
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # MSVC does not set `CMAKE_SYSTEM_PROCESSOR` correctly
 # Use `CMAKE_C_COMPILER_ARCHITECTURE_ID` instead
 if (MSVC)
@@ -140,6 +143,9 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm64|ARM64")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
     set(NK_IS_64BIT_RISCV_ TRUE)
     message(STATUS "NumKong Platform: RISC-V 64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm|^ARM|armv7")
+    set(NK_IS_32BIT_ARM_ TRUE)
+    message(STATUS "NumKong Platform: ARM32 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
 else ()
     message(WARNING "Unknown CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 endif ()
@@ -207,7 +213,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 # Define the header-only library
-file(GLOB NK_SOURCES include/numkong/*.h)
+file(GLOB NK_SOURCES include/numkong/*.h include/numkong/*.hpp)
 add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
@@ -555,6 +561,13 @@ if (NK_BUILD_SHARED)
             target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
         endif ()
 
+        # MSVC ARM64 cross-compilation: <intrin.h> pulls in <winnt.h> which
+        # requires _ARM64_ to be defined. The Visual Studio generator doesn't
+        # always propagate this for pure-C targets.
+        if (MSVC AND NK_IS_64BIT_ARM_)
+            target_compile_definitions(nk_shared PRIVATE _ARM64_)
+        endif ()
+
         # Enable link-time optimization for Release builds.
         include(CheckIPOSupported)
         check_ipo_supported(RESULT NK_IPO_SUPPORTED_)
@@ -692,6 +705,20 @@ if (NK_BUILD_SHARED)
                     nk_shared PRIVATE NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
                 )
             endif ()
+
+        elseif (NK_IS_32BIT_ARM_)
+            # ARM32 — serial-only (the NEON kernels target AArch64 intrinsics)
+            target_compile_definitions(
+                nk_shared
+                PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                        NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
+                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
+                        NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                        NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
+                        NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+                        NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_NEON=0
+                        NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+            )
         endif ()
     endif ()
 

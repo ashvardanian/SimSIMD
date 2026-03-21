@@ -8,6 +8,7 @@
         "node-gyp-build.d.ts",
         "numkong.ts",
         "numkong-wasm.ts",
+        "numkong-browser.ts",
         "types.ts"
     ],
     "compilerOptions": {
