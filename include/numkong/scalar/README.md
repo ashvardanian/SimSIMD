@@ -6,21 +6,21 @@ Ordering functions (`nk_f16_order`, `nk_bf16_order`, `nk_e4m3_order`) convert fl
 
 Reciprocal square root:
 
-```math
+$$
 \text{rsqrt}(x) = \frac{1}{\sqrt{x}}
-```
+$$
 
 Fused multiply-add:
 
-```math
+$$
 \text{fma}(a, b, c) = a \cdot b + c
-```
+$$
 
 Saturating addition:
 
-```math
+$$
 \text{sat\_add}(a, b) = \text{clamp}(a + b, \text{T\_MIN}, \text{T\_MAX})
-```
+$$
 
 Reformulating as Python pseudocode:
 

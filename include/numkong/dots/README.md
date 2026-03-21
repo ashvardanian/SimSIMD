@@ -4,15 +4,15 @@ NumKong implements batched GEMM computing C = A × Bᵀ (packed) and C = A × A�
 
 Packed dot product computes the full cross-product matrix:
 
-```math
+$$
 C_{ij} = \sum_{k} A_{ik} \cdot B_{jk}^T
-```
+$$
 
 Symmetric dot product uses the same matrix for both operands:
 
-```math
+$$
 C_{ij} = \sum_{k} A_{ik} \cdot A_{jk}
-```
+$$
 
 Reformulating as Python pseudocode:
 

@@ -25,7 +25,7 @@ int main(void) {
 
 ## Highlights
 
-This is the most complete SDK in the project.
+This is the primary SDK in the project.
 It is the right layer if you want exact control over dtypes, allocators, packed buffers, dispatch, and host-side partitioning.
 
 __Full kernel surface.__
@@ -257,7 +257,7 @@ nk_jsd_f32(q, p, 3, &js_reverse);
 assert(js_forward == js_reverse && "JSD is symmetric");
 ```
 
-These paths are especially valuable once you move below `f64`.
+These paths are useful once you move below `f64`.
 Naive implementations are usually dominated by repeated scalar transcendental calls and weak accumulation policy.
 
 ## Geospatial Metrics
@@ -416,7 +416,7 @@ for (auto val : matrix.dims())          { /* scalar only, no position */ }
 
 ## Packed Matrix Kernels for GEMM-Like Workloads
 
-This is the most distinctive native subsystem outside the raw vector kernels.
+This is a separate native subsystem from the raw vector kernels.
 It is the right tool when the right-hand side is reused many times.
 
 ```cpp
@@ -463,7 +463,7 @@ This is SYRK-like in the sense that the output is square and symmetric.
 The important difference from packed GEMM-style work is the partitioning model.
 You typically split by output row windows, not by distinct left batches against a shared packed right-hand side.
 
-The arithmetic advantage is direct and honest.
+The arithmetic advantage is straightforward.
 The symmetric kernels avoid recomputing both `(i, j)` and `(j, i)` pairs.
 That cuts the pair count almost in half before any micro-kernel details matter.
 

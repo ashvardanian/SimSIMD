@@ -5,17 +5,17 @@ Both operate on arrays of latitude/longitude pairs in radians and produce distan
 
 The Haversine formula computes the great-circle distance between two points:
 
-```math
+$$
 \text{haversine}(\phi_1, \lambda_1, \phi_2, \lambda_2) = 2R \arcsin\sqrt{\sin^2\frac{\phi_2 - \phi_1}{2} + \cos\phi_1 \cos\phi_2 \sin^2\frac{\lambda_2 - \lambda_1}{2}}
-```
+$$
 
 where $R$ is Earth's mean radius and $(\phi, \lambda)$ are latitude and longitude in radians.
 
 Vincenty's formula solves the inverse geodesic problem on an oblate spheroid, iteratively refining the reduced latitude difference until convergence:
 
-```math
+$$
 \text{vincenty}(\phi_1, \lambda_1, \phi_2, \lambda_2) = b \cdot A \cdot (\sigma - \Delta\sigma)
-```
+$$
 
 where $a$ and $b$ are the equatorial and polar semi-axes of the WGS-84 ellipsoid, $\sigma$ is the angular separation, and $\Delta\sigma$ is the correction term computed through iterative convergence.
 

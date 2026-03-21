@@ -1,15 +1,16 @@
 # NumKong: Mixed Precision for All
 
-NumKong (previously SimSIMD) delivers mixed-precision numerics that are often faster _and_ more accurate than standard [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms) libraries — in a 5 MB binary, across C, C++, Rust, Python, Go, JavaScript, and Swift.
-Over 2'000 hand-tuned kernels leveraging [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) instructions on x86, Arm, RISC-V, and WASM power [Unum](https://www.unum.cloud/)'s open-source [USearch](https://github.com/unum-cloud/usearch) search engine and the DBMS & AI products built on it.
+NumKong (previously SimSIMD) is a portable mixed-precision math library with over 2000 kernels for x86, Arm, RISC-V, and WASM.
+It covers numeric types from 6-bit floats to 64-bit complex numbers, hardened against in-house 118-bit extended-precision baselines.
+Built alongside the [USearch](https://github.com/unum-cloud/usearch) vector-search engine, it provides wider accumulators to avoid the overflow and precision loss typical of naive same-type arithmetic.
 
 ![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 
-## Latency, Throughput, & Numerical Stability Together in a Tiny Package
+## Latency, Throughput, & Numerical Stability
 
 Most libraries return dot products in the __same type as the input__ — Float16 × Float16 → Float16, Int8 × Int8 → Int8.
-That's a recipe for silent data corruption: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
-NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results never overflow, and it's still faster.
+This leads to quiet overflow: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
+NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results stay in range.
 
 > Single 2048-d dot product on Intel [Sapphire Rapids](https://en.wikipedia.org/wiki/Sapphire_Rapids), single-threaded.
 > Each cell shows __gso/s, mean relative error__ vs higher-precision reference.
@@ -44,23 +45,21 @@ So here's the same comparison on a throughput-oriented workload — matrix multi
 | `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |    398 gso/s, 0% err |
 | `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |   1279 gso/s, 0% err |
 
-For `f64`, NumKong's compensated "Dot2" summation is __10–50× more accurate__ than naive Float64 accumulation, depending on vector length.
-For `f32`, widening to Float64 gives __5–10× lower error__.
-For smaller types and especially integers, the gap is even more dramatic.
-And all of that fits into one of the smallest binaries in the industry:
+For `f64`, compensated "Dot2" summation reduces error by 10–50× compared to naive Float64 accumulation, depending on vector length.
+For `f32`, widening to Float64 gives 5–10× lower error.
+The library ships as a relatively small binary:
 
 | Package          |   Size | Parallelism & Memory                              | Available For     |
 | :--------------- | -----: | :------------------------------------------------ | :---------------- |
 | PyTorch + MKL    | 705 MB | Vector & Tile SIMD, OpenMP Threads, Hidden Allocs | Python, C++, Java |
 | JAX + jaxlib     | 357 MB | Vector SIMD, XLA Threads, Hidden Allocs           | Python            |
 | NumPy + OpenBLAS |  30 MB | Vector SIMD, Built-in Threads, Hidden Allocs      | Python            |
-| mathjs           |   9 MB | No SIMD, No Threads, Countless Allocs             | JS                |
+| mathjs           |   9 MB | No SIMD, No Threads, Many Allocs                  | JS                |
 | NumKong          |   5 MB | Vector & Tile SIMD, Your Threads, Your Allocs     | 7 languages       |
 
-But kernels and precision are only part of the story — the larger investment is test coverage.
 Every kernel is validated against 118-bit extended-precision baselines with per-type ULP budgets across log-normal, uniform, and Cauchy input distributions.
-Tests enforce triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for every ISA variant in the table above.
-Results are cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate to catch regressions that no single reference can.
+Tests check triangle inequality, Cauchy-Schwarz bounds, NaN propagation, overflow detection, and probability-simplex constraints for each ISA variant.
+Results are cross-validated against OpenBLAS, Intel MKL, and Apple Accelerate.
 A broader throughput comparison is maintained in [NumWars](https://github.com/ashvardanian/NumWars).
 
 ## Quick Start
@@ -76,7 +75,7 @@ A broader throughput comparison is maintained in [NumWars](https://github.com/as
 
 ## What's Inside
 
-NumKong spans 16 numeric types — from exotic GPU-only 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
+NumKong covers 16 numeric types — from 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
 
 <div align="center">
 <pre><code>
@@ -141,14 +140,14 @@ float boring_dot_product_f32(float const *a, float const *b, size_t n) {
 }
 ```
 
-This kind of unrolling has been historically the most commonly requested optimization for NumKong, and it's intentionally avoided.
+This kind of unrolling has been a common request for NumKong, but the library avoids it by design.
 
 __Modern CPUs already "unroll" in hardware.__
 Out-of-order engines with reorder buffers of 320–630 entries (Zen 4: 320, Golden Cove: 512, Apple Firestorm: ~630) can keep a dozen of loop iterations in-flight simultaneously.
 The physical register file is much larger than the ISA-visible architectural registers — Skylake has ~180 physical integer registers behind 16 architectural GPRs, and ~168 physical vector registers behind 32 architectural ZMMs.
 The register renaming unit maps the same `zmm0` in iteration N and iteration N+1 to different physical registers, extracting cross-iteration parallelism automatically — exactly the benefit that source-level unrolling was historically supposed to provide.
 
-__Unrolling actively hurts at NumKong's scale.__
+__Unrolling works against NumKong's goals.__
 Every unrolled copy is a distinct instruction in the binary.
 With 1,500+ kernel endpoints across 30+ backends, even 2x unrolling would inflate the `.text` section by megabytes — directly impacting install size for Python wheels, NPM packages, and Rust crates.
 Larger loop bodies also increase instruction-cache and micro-op-cache pressure; [Agner Fog](https://www.agner.org/optimize/) also recommends:
@@ -163,9 +162,9 @@ The leftover elements after the last full SIMD chunk run through a scalar loop t
 NumKong often uses masked loads instead (`_mm512_maskz_loadu_ps` on AVX-512, predicated `svld1_f32` on SVE), processing every element through the same arithmetic path regardless of alignment.
 It's not exactly orthogonal to loop-unrolling, but makes a different kernel layout more compatible.
 
-__The real performance gap is elsewhere.__
+__The gains come from elsewhere.__
 On Intel Sapphire Rapids, NumKong was benchmarked against auto-vectorized code compiled with GCC 12.
-GCC handles single-precision `float` competently, but struggles with `_Float16` and other mixed-precision paths:
+GCC handles single-precision `float` well, but struggles with `_Float16` and other mixed-precision paths:
 
 | Kind                      | GCC 12 `f32` | GCC 12 `f16` | NumKong `f16` | `f16` improvement |
 | :------------------------ | -----------: | -----------: | ------------: | ----------------: |
@@ -174,7 +173,7 @@ GCC handles single-precision `float` competently, but struggles with `_Float16` 
 | Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
 | Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
 
-NumKong's `f16` kernels are faster than GCC's `f32` output — not because of unrolling, but because they use [F16C](https://en.wikipedia.org/wiki/F16C) conversion instructions, widening FMA pipelines, and compensated accumulation that no compiler will synthesize from a plain `for` loop.
+NumKong's `f16` kernels are faster than GCC's `f32` output — not because of unrolling, but because they use [F16C](https://en.wikipedia.org/wiki/F16C) conversion instructions, widening FMA pipelines, and compensated accumulation that compilers do not synthesize from a plain `for` loop.
 The same story repeats for `bf16`, `e4m3`, `i8`, and `i4`: these types require algorithmic transformations — lookup tables, algebraic domain shifts, asymmetric [VNNI](https://en.wikipedia.org/wiki/AVX-512#VNNI) tricks — that live beyond the reach of auto-vectorization.
 
 ### Parallelism & Multi-Threading
@@ -249,7 +248,7 @@ for query_batch in stream: results = nk.dots_packed(query_batch, right_packed)  
 ### Why Not Just GEMM? The Evolution of Matrix Multiplication APIs
 
 The classic BLAS GEMM computes $C = \alpha A B + \beta C$ for Float32/Float64 matrices.
-It's a powerful primitive, but the workloads that dominate modern compute — LLM inference, vector search, quantum simulation — expose three ways in which the traditional GEMM interface falls short.
+It covers many use cases, but LLM inference, vector search, and quantum simulation expose three ways in which the traditional interface falls short.
 
 __Frozen weights justify separating packing from computation.__
 During LLM inference, a very large share of GEMM calls use a static weight matrix — weights don't change after loading.
@@ -276,15 +275,15 @@ NumKong implements several GEMM-shaped operations where the "epilogue" is too co
 - __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's typed `nk_bilinear_*` kernels stream through rows of $C$ with nested compensated dot products, never allocating beyond registers.
   For complex-valued quantum states, where the intermediate would be a 2N-element complex vector, the savings double.
 - __MaxSim scoring__ for [ColBERT-style late-interaction retrieval](https://github.com/stanford-futuredata/ColBERT) computes $\sum_i \min_j \text{angular}(q_i, d_j)$ — a sum-of-min-distances across token pairs.
-  A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's typed `nk_maxsim_packed_*` kernels fuse a coarse Int8-quantized screening with full-precision angular refinement on winning pairs only, __packing both query and document matrices__ to enable all 4 SME tiles as accumulators (+33% throughput vs `dots_packed`).
-  [PLAID](https://ar5iv.labs.arxiv.org/html/2205.09707) and [maxsim-cpu](https://www.mixedbread.com/blog/maxsim-cpu) have independently shown that dedicated MaxSim kernels outperform the GEMM decomposition by 5–10x.
+  A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's typed `nk_maxsim_packed_*` kernels fuse a coarse Int8-quantized screening with full-precision angular refinement on winning pairs only, packing both query and document matrices to use all 4 SME tiles as accumulators.
+  [PLAID](https://ar5iv.labs.arxiv.org/html/2205.09707) and [maxsim-cpu](https://www.mixedbread.com/blog/maxsim-cpu) have independently shown that dedicated MaxSim kernels can outperform the GEMM decomposition by 5–10x.
 
 NumKong treats these as first-class operations — `dots_packed`, `euclideans_packed`, `angulars_packed`, typed `nk_bilinear_*` kernels, and typed `nk_maxsim_packed_*` kernels — rather than decomposing everything into GEMM + postprocessing.
 
 ### Precision by Design: Saturation, Rounding, & Float6 Over Float8
 
-Floating-point arithmetic on computers [is not associative](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html): $(a + b) + c \neq a + (b + c)$ in general, and the standard advice — "upcast to wider types" — often isn't enough, and always costs performance.
-NumKong makes opinionated, operation-specific decisions about where to spend precision and where to economize, rather than applying one IEEE rule uniformly.
+Floating-point arithmetic on computers [is not associative](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html): $(a + b) + c \neq a + (b + c)$ in general, and upcasting to wider types is not always sufficient.
+NumKong makes operation-specific decisions about where to spend precision and where to economize, rather than applying one rule uniformly.
 
 __Saturation depends on the operation.__
 A reduction over a 4 GB array of `i8` values contains ~4 billion elements — but [Int32 wrapping overflow](https://cedardb.com/blog/overflow_handling/) occurs after just ~17 million Int8 summands ($127 \times 16.9\text{M} > 2^{31}$).
@@ -295,7 +294,7 @@ x86 provides no saturating 32-bit SIMD add ([only byte/word variants](https://ww
 __Square roots & special math ops are platform-specific.__
 Angular distance requires $1/\sqrt{\|a\|^2 \cdot \|b\|^2}$ — but the cost of computing this normalization varies dramatically across hardware.
 x86 `VSQRTPS` takes [~12 cycles](https://uops.info/html-lat/SKX/VSQRTPS_XMM_XMM-Measurements.html), followed by `VDIVPS` at ~11 cycles — totalling ~23 cycles for a precise `1/sqrt(x)`.
-The `VRSQRT14PS` alternative starts with a [14-bit estimate in ~4 cycles](https://www.intel.com/content/www/us/en/developer/articles/code-sample/reference-implementations-for-ia-approximation-instructions-vrcp14-vrsqrt14-vrcp28-vrsqrt28-vexp2.html), then one Newton-Raphson iteration ($y = y \cdot (1.5 - 0.5 x y^2)$, ~4 more cycles) reaches full Float32 precision — a __~3x speedup__.
+The `VRSQRT14PS` alternative starts with a [14-bit estimate in ~4 cycles](https://www.intel.com/content/www/us/en/developer/articles/code-sample/reference-implementations-for-ia-approximation-instructions-vrcp14-vrsqrt14-vrcp28-vrsqrt28-vexp2.html), then one Newton-Raphson iteration ($y = y \cdot (1.5 - 0.5 x y^2)$, ~4 more cycles) reaches full Float32 precision — roughly 3x faster.
 ARM's `FRSQRTE` provides only [~8 bits](https://github.com/DLTcollab/sse2neon/issues/526), requiring __two__ Newton-Raphson iterations to match.
 NumKong selects the iteration count per platform so the final ULP bound is consistent across ISAs, rather than exposing different precision to different users.
 
@@ -348,10 +347,10 @@ The first call to `nk_capabilities()` initializes the dispatch table; all subseq
 
 ### Float64 & Float32: IEEE Precision
 
-__Float64__ — NumKong deviates from most BLAS-like libraries by leveraging __compensated summation__ that tracks numerical errors separately.
+__Float64__ — NumKong uses __compensated summation__ that tracks numerical errors separately.
 On serial paths, we use __[Neumaier's algorithm](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)__ (1974), an improvement over Kahan-Babuška that correctly handles cases where added terms are larger than the running sum, achieving $O(1)$ error growth instead of $O(n)$.
 On SIMD paths with FMA support, we implement the __Dot2 algorithm__ (Ogita-Rump-Oishi, 2005), maintaining separate error compensators for both multiplication and accumulation via `TwoProd` and `TwoSum` operations.
-The accuracy gains are visible in the [benchmark tables above](#latency-throughput--numerical-stability-together-in-a-tiny-package) — compensated Float64 is ideal for scientific computing where numerical stability matters more than raw speed.
+The accuracy differences are visible in the [benchmark tables above](#latency-throughput--numerical-stability) — compensated Float64 suits scientific computing where numerical stability matters more than raw speed.
 
 __Float32__ — SIMD implementations load Float32 values, upcast to Float64 for full-precision multiplication and accumulation, then downcast only during finalization.
 This avoids catastrophic cancellation at minimal cost since modern CPUs have dedicated Float64 vector units operating at nearly the same throughput as Float32.
@@ -369,7 +368,7 @@ e = (sum - t) + product;  // Compensator term
 
 ### BFloat16 & Float16: Half Precision
 
-__BFloat16__ — not an IEEE 754 standard type, but the __universal recommendation__ for AI workloads.
+__BFloat16__ — not an IEEE 754 standard type, but widely adopted for AI workloads.
 BFloat16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, prioritizing __dynamic range over precision__ (±3.4×10³⁸ with coarser granularity).
 On old CPUs, upcasting BFloat16 to Float32 requires just an unpack and left-shift by 16 bits (essentially free); on newer CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
 NumKong's Float8 types (E4M3/E5M2) upcast to BFloat16 before using DPBF16PS, creating a three-tier precision hierarchy: Float8 for storage, BFloat16 for compute, Float32 for accumulation.
@@ -451,7 +450,7 @@ Without the integer path, E5M2 falls back to Float32 accumulation — where its 
 ### Int8 & Int4: Integer Types
 
 Both signed and unsigned 8-bit and 4-bit integers are supported with __Int32 accumulation__ to prevent overflow.
-The most sophisticated optimization is the __VNNI algebraic transform__: on Ice Lake+ with AVX-512 VNNI, the native __DPBUSD__ instruction is asymmetric (unsigned × signed → signed), yet NumKong exploits it for both Int8×Int8 and UInt8×UInt8.
+A notable optimization is the __VNNI algebraic transform__: on Ice Lake+ with AVX-512 VNNI, the native __DPBUSD__ instruction is asymmetric (unsigned × signed → signed), but NumKong uses it for both Int8×Int8 and UInt8×UInt8.
 For __signed Int8×Int8__, we convert the signed operand to unsigned via XOR with `0x80`, compute `DPBUSD(a⊕0x80, b) = (a+128)×b`, then subtract a correction term `128×sum(b)` to recover the true result.
 For __unsigned UInt8×UInt8__, we XOR the second operand to make it signed, compute `DPBUSD(a, b⊕0x80) = a×(b-128)`, then add correction `128×sum(a)` via the fast SAD instruction.
 
@@ -481,7 +480,7 @@ Complex types are essential in quantum simulation (state vectors, density matric
 The `dot` operation computes the unconjugated dot product $\sum a_k b_k$, while `vdot` computes the conjugated inner product $\sum \bar{a}_k b_k$ standard in physics and signal processing.
 
 For complex dot products, NumKong defers sign flips until after the accumulation loop: instead of using separate FMA and FMS (fused multiply-subtract) instructions for the real component, we compute $a_r b_r + a_i b_i$ treating all products as positive, then apply a single bitwise XOR with `0x80000000` to flip the sign bits.
-This eliminates execution port contention, allowing dual FMA units to run at full capacity.
+This avoids execution port contention between FMA and FMS, letting dual FMA units stay occupied.
 
 ```c
 for (...) { // Complex multiply optimization: XOR sign flip after the loop

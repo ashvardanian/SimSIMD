@@ -1,6 +1,6 @@
 # NumKong for Python
 
-NumKong for Python is the broadest high-level SDK in the project.
+NumKong for Python is the main high-level SDK in the project.
 It targets the gap between `numpy` and low-level native kernels: you keep buffer-protocol interoperability and shape-aware outputs, but you stop giving up mixed precision, widened accumulators, packed reuse, and backend-specific optimizations every time you leave `float64`.
 It combines NumPy-friendly buffers with native mixed-precision kernels, zero-copy tensor views, packed and symmetric matrix operations, sparse helpers, geometric mesh alignment, and MaxSim.
 The API feels NumPy-shaped with familiar scalar, batched, and all-pairs entrypoints, while `Tensor` keeps shape, dtype, and strides visible through a memoryview-backed container.
@@ -112,7 +112,7 @@ NumKong's API makes the widening policy part of the kernel contract.
 ### Output Control: `out=`, `dtype=`, and `out_dtype=`
 
 Most distance and dot-product entrypoints accept `out=`, `dtype=`, and `out_dtype=` keyword arguments.
-Passing them is highly recommended to avoid dynamic memory allocations for temporary objects!
+Passing them avoids dynamic memory allocations for temporary objects.
 
 ```python
 import numpy as np
@@ -392,8 +392,7 @@ assert np.asarray(fused).shape == (8,)
 ## Moments Reductions
 
 Moments reductions return `(sum, sum_of_squares)`.
-The important selling point is not just speed.
-It is that NumKong does not force you into same-storage accumulation.
+The key property is that NumKong does not force you into same-storage accumulation.
 
 ```python
 import numpy as np
@@ -414,8 +413,8 @@ Same-width accumulation is a bad default for low-precision storage.
 
 ## Min/Max Reductions
 
-Min/max reductions deserve a separate section because they expose an unusual backend strength.
-NumKong accelerates several strided reduction cases that users do not normally expect to be fast.
+Min/max reductions are in a separate section because they cover strided reduction cases.
+NumKong provides SIMD-accelerated strided reductions that are not common in other libraries.
 
 ```python
 import numpy as np
@@ -486,7 +485,7 @@ Important runtime rules from the current implementation:
 - `out`, when provided, must be C-contiguous with the expected dtype
 - `start_row` and `end_row` split the left operand rows
 
-The arithmetic advantages are honest and mechanical:
+The arithmetic advantages are:
 
 - one-time packing of `B`
 - one-time internal layout conversion and depth padding
@@ -522,7 +521,7 @@ It avoids duplicate `(i, j)` and `(j, i)` evaluations.
 It is naturally partitioned by row windows of one square output.
 
 `angulars_symmetric` and `euclideans_symmetric` also benefit from reuse of dot-product-derived work inside the symmetric sweep.
-That is the honest reason these APIs are more attractive than a naive nested Python loop over `angular(a[i], a[j])`.
+That is why these APIs are faster than a nested Python loop over `angular(a[i], a[j])`.
 
 ## Geometric Mesh Alignment
 

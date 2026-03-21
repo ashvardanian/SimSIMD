@@ -1,24 +1,24 @@
 # Vector-Vector Dot Products in NumKong
 
-NumKong implements dot products for every numeric type supported by the library, as the most important building block of higher-level functionality for vectors and higher rank tensors.
+NumKong implements dot products for every numeric type supported by the library, as a core building block of higher-level functionality for vectors and higher rank tensors.
 
 Dot product for real numbers and integers is defined as:
 
-```math
+$$
 \text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
-```
+$$
 
 For complex numbers, the dot product expands via the distributive property of complex multiplication:
 
-```math
+$$
 \text{dot}(a, b) = \sum_{i=0}^{n-1} (a_{i,re} \cdot b_{i,re} - a_{i,im} \cdot b_{i,im}) + j \sum_{i=0}^{n-1} (a_{i,re} \cdot b_{i,im} + a_{i,im} \cdot b_{i,re})
-```
+$$
 
 The conjugate dot product negates the imaginary part of $b$:
 
-```math
+$$
 \text{vdot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot \bar{b_i} = \sum_{i=0}^{n-1} (a_{i,re} \cdot b_{i,re} + a_{i,im} \cdot b_{i,im}) + j \sum_{i=0}^{n-1} (a_{i,im} \cdot b_{i,re} - a_{i,re} \cdot b_{i,im})
-```
+$$
 
 Where $\bar{b_i}$ is the complex conjugate of $b_i$.
 Reformulating as Python pseudocode for interleaved real/imaginary scalar arrays:
@@ -99,7 +99,7 @@ For UInt8 × UInt8, $b$ is XORed with `0x80` to shift into signed range, same as
 
 ### Widening Fusion Through BFloat16 on x86
 
-`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa` convert FP8 values to BF16, then accumulate via `VDPBF16PS` — repurposing Genoa's BF16 dot-product hardware for types it was never designed for.
+`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa` convert FP8 values to BF16, then accumulate via `VDPBF16PS`, reusing Genoa's BF16 dot-product instruction for FP8 types.
 Each `VDPBF16PS` fuses two BF16 multiply-adds per 32-bit lane at 6-cycle throughput.
 `nk_dot_bf16c_genoa` uses the same instruction for complex BF16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
 

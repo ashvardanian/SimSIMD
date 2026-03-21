@@ -1,25 +1,25 @@
 # Spatial Distances in NumKong
 
 NumKong implements spatial distance functions for dense vectors: squared Euclidean distance, Euclidean distance, and angular (cosine) distance.
-These are the most widely used metrics in nearest-neighbor search, clustering, and dimensionality reduction, covering every numeric type supported by the library.
+These metrics are commonly used in nearest-neighbor search, clustering, and dimensionality reduction, and are implemented for every numeric type supported by the library.
 
 Squared Euclidean distance measures the sum of squared element-wise differences:
 
-```math
+$$
 \text{sqeuclidean}(a, b) = \sum_{i=0}^{n-1} (a_i - b_i)^2
-```
+$$
 
 Euclidean distance is the square root of the squared Euclidean distance:
 
-```math
+$$
 \text{euclidean}(a, b) = \sqrt{\sum_{i=0}^{n-1} (a_i - b_i)^2}
-```
+$$
 
 Angular distance (cosine distance) measures the angle between two vectors:
 
-```math
+$$
 \text{angular}(a, b) = 1 - \frac{\sum_{i=0}^{n-1} a_i \cdot b_i}{\sqrt{\sum_{i=0}^{n-1} a_i^2} \cdot \sqrt{\sum_{i=0}^{n-1} b_i^2}}
-```
+$$
 
 Reformulating as Python pseudocode:
 

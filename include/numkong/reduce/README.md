@@ -7,15 +7,15 @@ Used internally by packing routines for norm precomputation and by distance kern
 
 Moments:
 
-```math
+$$
 \text{sum} = \sum a_i, \quad \text{sumsq} = \sum a_i^2
-```
+$$
 
 Min-max:
 
-```math
+$$
 \text{min} = \min_i a_i, \quad \text{argmin} = \arg\min_i a_i
-```
+$$
 
 Reformulating as Python pseudocode:
 

@@ -1,7 +1,7 @@
 # NumKong for Rust
 
 NumKong's Rust crate keeps most of the native kernel surface while expressing it in Rust-native terms.
-Rust is the cleanest place to use NumKong when you want static typing, explicit ownership, and strong container APIs without giving up mixed precision.
+Rust is a natural fit for NumKong when you want static typing, explicit ownership, and strong container APIs without giving up mixed precision.
 Traits cover scalar metric families.
 `Tensor`, `Vector`, and packed matrix types cover the higher-level workflows.
 Custom allocators, low-precision storage wrappers, and explicit row-contiguity checks stay visible instead of being hidden behind a dynamic runtime.
@@ -24,8 +24,8 @@ fn main() {
 
 ## Highlights
 
-This is the most complete high-level SDK after Python.
-It is the best fit if you want most of the native breadth without dropping into a manual FFI layer.
+This is the most fully featured high-level SDK after Python.
+It is a good fit if you want most of the native breadth without dropping into a manual FFI layer.
 
 __Trait-first scalar API.__
 `Type::operation(&a, &b)` stays compact and predictable.
@@ -567,9 +567,9 @@ assert!((result.scale - 2.0).abs() < 0.01);
 Exact floating-point equality is rarely what you want after arithmetic.
 `allclose()` checks every element pair with the formula:
 
-$$$
+$$
 |a - b| \leq \text{atol} + \text{rtol} \cdot |b|
-$$$
+$$
 
 Available on `Vector`, `VectorView`, `VectorSpan`, `Tensor`, `TensorView`, and `TensorSpan`.
 For tensors, `allclose` is provided by the `AllCloseOps` trait — import it if calling on a `TensorRef` implementor.

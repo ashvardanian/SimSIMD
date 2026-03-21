@@ -7,15 +7,15 @@ The separate index/weight stream design makes these primitives composable into b
 
 Set intersection:
 
-```math
+$$
 |A \cap B| = |\{i : i \in A \land i \in B\}|
-```
+$$
 
 Sparse dot product:
 
-```math
+$$
 \text{dot}(a, b) = \sum_{i \in A \cap B} w_a(i) \cdot w_b(i)
-```
+$$
 
 Reformulating as Python pseudocode:
 

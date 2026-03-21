@@ -6,21 +6,21 @@ The implementations derive from SLEEF (SIMD Library for Evaluating Elementary Fu
 
 Sine:
 
-```math
+$$
 \text{sin}: \mathbb{R} \to [-1, 1]
-```
+$$
 
 Cosine:
 
-```math
+$$
 \text{cos}: \mathbb{R} \to [-1, 1]
-```
+$$
 
 Arc tangent:
 
-```math
+$$
 \text{atan}: \mathbb{R} \to \left(-\frac{\pi}{2}, \frac{\pi}{2}\right)
-```
+$$
 
 Reformulating as Python pseudocode:
 

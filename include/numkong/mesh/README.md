@@ -6,33 +6,33 @@ Used in structural biology (protein alignment), robotics (point cloud registrati
 
 Centroid:
 
-```math
+$$
 \bar{a} = \frac{1}{n}\sum a_i
-```
+$$
 
 Cross-covariance matrix:
 
-```math
+$$
 H = \sum (a_i - \bar{a})(b_i - \bar{b})^T
-```
+$$
 
 SVD-based rotation:
 
-```math
+$$
 H = U \Sigma V^T, \quad R = V U^T
-```
+$$
 
 Umeyama scale factor:
 
-```math
+$$
 s = \frac{\text{tr}(\Sigma)}{n \cdot \sigma_a^2}
-```
+$$
 
 RMSD after alignment:
 
-```math
+$$
 \text{RMSD} = \sqrt{\frac{1}{n}\sum \|s \cdot R(a_i - \bar{a}) - (b_i - \bar{b})\|^2}
-```
+$$
 
 Reformulating as Python pseudocode:
 

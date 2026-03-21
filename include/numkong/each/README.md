@@ -6,27 +6,27 @@ Mixed-precision workflows use narrower input types (Float16, BFloat16, Float8) w
 
 Sum (addition):
 
-```math
+$$
 \text{result}_i = a_i + b_i
-```
+$$
 
 Scale:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i + \beta
-```
+$$
 
 Blend:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i + \beta \cdot b_i
-```
+$$
 
 Fused multiply-add:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i \cdot b_i + \beta \cdot c_i
-```
+$$
 
 Reformulating as Python pseudocode:
 

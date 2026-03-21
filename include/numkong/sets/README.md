@@ -4,17 +4,17 @@ NumKong implements batched M×N Hamming and Jaccard distance matrices for binary
 
 Hamming distance from batched dot products:
 
-```math
+$$
 D_{ij} = \|A_i\|_1 + \|B_j\|_1 - 2 \cdot \text{dot}(A_i, B_j)
-```
+$$
 
 Where dot = popcount(AND), measuring intersection size.
 
 Jaccard distance from batched dot products:
 
-```math
+$$
 D_{ij} = 1 - \frac{\text{dot}(A_i, B_j)}{\|A_i\|_1 + \|B_j\|_1 - \text{dot}(A_i, B_j)}
-```
+$$
 
 Reformulating as Python pseudocode:
 
