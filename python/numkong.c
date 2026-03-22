@@ -924,6 +924,30 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
     return 1;
 }
 
+int parse_tensor_nd(PyObject *obj, Py_buffer *buffer, TensorView *view, nk_buffer_backing_t *backing,
+                    nk_dtype_t dtype_hint) {
+    if (!nk_get_buffer(obj, buffer, PyBUF_STRIDES | PyBUF_FORMAT, backing)) return 0;
+    if ((size_t)buffer->ndim > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "rank %d exceeds maximum %d", buffer->ndim, NK_TENSOR_MAX_RANK);
+        PyBuffer_Release(buffer);
+        return 0;
+    }
+    view->data = buffer->buf;
+    if (dtype_hint != nk_dtype_unknown_k) { view->dtype = dtype_hint; }
+    else {
+        view->dtype = dtype_from_buffer(buffer);
+        if (view->dtype == nk_dtype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
+            PyBuffer_Release(buffer);
+            return 0;
+        }
+    }
+    view->rank = (size_t)buffer->ndim;
+    view->shape = buffer->shape;
+    view->strides = buffer->strides;
+    return 1;
+}
+
 static struct {
     char const *name;
     nk_capability_t flag;

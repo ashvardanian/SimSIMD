@@ -18,6 +18,4 @@ jobs:
       - name: Set Up Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Publish Rust Crate to Registry
-        uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

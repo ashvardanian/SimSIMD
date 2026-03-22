@@ -722,25 +722,41 @@ def full(
 
 # region Reductions
 
-def moments(a: _BufferType, /) -> tuple[float, float]: ...
-def minmax(a: _BufferType, /) -> tuple[float, int, float, int] | None: ...
+def moments(
+    a: _BufferType, /, *, dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None
+) -> tuple[float, float]: ...
+def minmax(
+    a: _BufferType, /, *, dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None
+) -> tuple[float, int, float, int] | None: ...
 def sum(
-    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    keepdims: bool = False, out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | Tensor: ...
 def norm(
-    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    keepdims: bool = False, out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | Tensor: ...
 def min(
-    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    keepdims: bool = False, out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...
 def max(
-    a: _BufferType, /, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    keepdims: bool = False, out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...
 def argmin(
-    a: _BufferType, /, axis: int | None = None, *, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> int | None | Tensor: ...
 def argmax(
-    a: _BufferType, /, axis: int | None = None, *, out: Tensor | None = None
+    a: _BufferType, /, axis: int | None = None, *,
+    out: Tensor | None = None,
+    dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> int | None | Tensor: ...
 
 # endregion Reductions
