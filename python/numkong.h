@@ -284,6 +284,22 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
                  nk_dtype_t dtype_hint);
 
 /**
+ *  @brief Build a TensorView from any buffer-protocol object.
+ *
+ *  N-dimensional sibling of parse_tensor (which is limited to 1D/2D).
+ *  Caller must call PyBuffer_Release(buffer) when done with the view.
+ *
+ *  @param[in]  obj    Python object exposing buffer protocol or __array_interface__.
+ *  @param[out] buffer Output Py_buffer (caller must release with PyBuffer_Release).
+ *  @param[out] view   Output TensorView with borrowed pointers into buffer.
+ *  @param[out] backing Backing storage for shape/strides (used by __array_interface__ fallback).
+ *  @param[in]  dtype_hint Override dtype; nk_dtype_unknown_k to infer from buffer format.
+ *  @return 1 on success, 0 on failure (Python exception set).
+ */
+int parse_tensor_nd(PyObject *obj, Py_buffer *buffer, TensorView *view, nk_buffer_backing_t *backing,
+                    nk_dtype_t dtype_hint);
+
+/**
  *  @brief Check if a Python object is a numeric scalar.
  *  @param[in] obj Python object.
  *  @return 1 if int or float, 0 otherwise.
