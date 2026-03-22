@@ -1556,7 +1556,7 @@ impl NumberLike for e5m2 {
     fn has_nan() -> bool { true }
     fn has_subnormals() -> bool { true }
     fn max_value() -> f32 { 57344.0 }
-    fn min_positive() -> f32 { 0.00006103515625 }
+    fn min_positive() -> f32 { 6.103_515_6e-5 }
 }
 
 impl StorageElement for e2m3 {
@@ -2242,16 +2242,16 @@ impl FloatConvertible for u1x8 {
     #[inline(always)]
     fn unpack(self) -> [u8; 8] {
         let mut out = [0u8; 8];
-        for i in 0..8 {
-            out[i] = (self.0 >> i) & 1;
+        for (i, slot) in out.iter_mut().enumerate() {
+            *slot = (self.0 >> i) & 1;
         }
         out
     }
     #[inline(always)]
     fn pack(dims: [u8; 8]) -> Self {
         let mut byte = 0u8;
-        for i in 0..8 {
-            if dims[i] != 0 {
+        for (i, &dim) in dims.iter().enumerate() {
+            if dim != 0 {
                 byte |= 1 << i;
             }
         }

@@ -102,6 +102,7 @@
 //! Additional traits: `VDot`, `Roots`, `SparseIntersect`, `SparseDot`.
 //!
 #![allow(non_camel_case_types)]
+#![allow(clippy::too_many_arguments)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
 // Domain modules
@@ -168,7 +169,7 @@ pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 pub use tensor::{
     AllCloseOps, Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global,
     Matrix, MatrixSpan, MatrixView, MinMaxOps, MinMaxResult, MomentsOps, RangeStep, ScaleOps,
-    ShapeDescriptor, SliceArg, SliceRange, SliceSpec, SumOps, Tensor, TensorDims, TensorError,
+    SliceArg, SliceRange, SliceSpec, SumOps, Tensor, TensorDims, TensorError,
     TensorIterator, TensorMut, TensorRef, TensorSpan, TensorSpanDims, TensorSpanIterator,
     TensorView, TensorViewDims, TensorViewIterator, TrigAtanOps, TrigCosOps, TrigSinOps,
     DEFAULT_MAX_RANK, SIMD_ALIGNMENT,

@@ -85,52 +85,21 @@ unsafe impl Allocator for Global {
 
 // region: Error Types
 
-/// Fixed-size shape descriptor for error messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ShapeDescriptor {
-    dims: [usize; DEFAULT_MAX_RANK],
-    ndim: usize,
-}
-
-impl ShapeDescriptor {
-    /// Create from a slice (truncates if > DEFAULT_MAX_RANK).
-    pub fn from_slice(shape: &[usize]) -> Self {
-        let mut dims = [0usize; DEFAULT_MAX_RANK];
-        let ndim = shape.len().min(DEFAULT_MAX_RANK);
-        dims[..ndim].copy_from_slice(&shape[..ndim]);
-        Self { dims, ndim }
-    }
-
-    /// Return as a slice.
-    pub fn as_slice(&self) -> &[usize] { &self.dims[..self.ndim] }
-}
-
-impl core::fmt::Display for ShapeDescriptor {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "[")?;
-        for (i, &d) in self.as_slice().iter().enumerate() {
-            if i > 0 {
-                write!(f, ", ")?;
-            }
-            write!(f, "{}", d)?;
-        }
-        write!(f, "]")
-    }
-}
-
 /// Error type for Tensor operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TensorError {
     /// Memory allocation failed.
     AllocationFailed,
-    /// Shape mismatch between arrays.
+    /// Shape mismatch: axis `axis` has size `expected` on one side and `got` on the other.
     ShapeMismatch {
-        expected: ShapeDescriptor,
-        got: ShapeDescriptor,
+        axis: usize,
+        expected: usize,
+        got: usize,
     },
     /// Invalid shape specification.
     InvalidShape {
-        shape: ShapeDescriptor,
+        axis: usize,
+        size: usize,
         reason: &'static str,
     },
     /// Operation requires contiguous rows but array has non-contiguous rows.
@@ -152,11 +121,19 @@ impl core::fmt::Display for TensorError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TensorError::AllocationFailed => write!(f, "memory allocation failed"),
-            TensorError::ShapeMismatch { expected, got } => {
-                write!(f, "shape mismatch: expected {}, got {}", expected, got)
+            TensorError::ShapeMismatch {
+                axis,
+                expected,
+                got,
+            } => {
+                write!(f, "shape mismatch on axis {axis}: expected {expected}, got {got}")
             }
-            TensorError::InvalidShape { shape, reason } => {
-                write!(f, "invalid shape {}: {}", shape, reason)
+            TensorError::InvalidShape {
+                axis,
+                size,
+                reason,
+            } => {
+                write!(f, "invalid shape: axis {axis} has size {size}: {reason}")
             }
             TensorError::NonContiguousRows => {
                 write!(f, "operation requires contiguous rows")
@@ -292,17 +269,21 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
         }
 
         let total: usize = shape.iter().product();
-        if total == 0 && !shape.is_empty() && shape.iter().any(|&d| d == 0) {
-            return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
-                reason: "zero-sized dimension",
-            });
+        if total == 0 && !shape.is_empty() {
+            if let Some(i) = shape.iter().position(|&d| d == 0) {
+                return Err(TensorError::InvalidShape {
+                    axis: i,
+                    size: 0,
+                    reason: "zero-sized dimension",
+                });
+            }
         }
 
         let dims_per_value = T::dimensions_per_value();
         if dims_per_value > 1 && !shape.is_empty() && shape[shape.len() - 1] % dims_per_value != 0 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: shape.len() - 1,
+                size: shape[shape.len() - 1],
                 reason: "innermost dimension must be divisible by dimensions_per_value()",
             });
         }
@@ -328,7 +309,7 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
             unsafe {
                 let ptr = ptr.as_ptr() as *mut T;
                 for i in 0..storage_count {
-                    core::ptr::write(ptr.add(i), value.clone());
+                    core::ptr::write(ptr.add(i), value);
                 }
                 NonNull::new_unchecked(ptr)
             }
@@ -382,17 +363,21 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
         }
 
         let total: usize = shape.iter().product();
-        if total == 0 && !shape.is_empty() && shape.iter().any(|&d| d == 0) {
-            return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
-                reason: "zero-sized dimension",
-            });
+        if total == 0 && !shape.is_empty() {
+            if let Some(i) = shape.iter().position(|&d| d == 0) {
+                return Err(TensorError::InvalidShape {
+                    axis: i,
+                    size: 0,
+                    reason: "zero-sized dimension",
+                });
+            }
         }
 
         let dims_per_value = T::dimensions_per_value();
         if dims_per_value > 1 && !shape.is_empty() && shape[shape.len() - 1] % dims_per_value != 0 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: shape.len() - 1,
+                size: shape[shape.len() - 1],
                 reason: "innermost dimension must be divisible by dimensions_per_value()",
             });
         }
@@ -446,7 +431,8 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
         let dims_per_value = T::dimensions_per_value();
         if dims_per_value > 1 && !shape.is_empty() && shape[shape.len() - 1] % dims_per_value != 0 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: shape.len() - 1,
+                size: shape[shape.len() - 1],
                 reason: "innermost dimension must be divisible by dimensions_per_value()",
             });
         }
@@ -457,8 +443,9 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
         };
         if data.len() != expected_storage {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(shape),
-                got: ShapeDescriptor::from_slice(&[data.len()]),
+                axis: 0,
+                expected: expected_storage,
+                got: data.len(),
             });
         }
 
@@ -477,8 +464,8 @@ impl<T: StorageElement, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RA
             // Clone all storage elements
             unsafe {
                 let ptr = ptr.as_ptr() as *mut T;
-                for i in 0..expected_storage {
-                    core::ptr::write(ptr.add(i), data[i].clone());
+                for (i, item) in data[..expected_storage].iter().enumerate() {
+                    core::ptr::write(ptr.add(i), *item);
                 }
                 NonNull::new_unchecked(ptr)
             }
@@ -1100,10 +1087,8 @@ impl SliceArg for RangeStep {
         }
         if self.step == 0 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor {
-                    dims: [0; 8],
-                    ndim: 0,
-                },
+                axis: 0,
+                size: 0,
                 reason: "step cannot be zero",
             });
         }
@@ -1121,6 +1106,9 @@ impl SliceArg for RangeStep {
     }
 }
 
+type LayoutResult<const MAX_RANK: usize> =
+    Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError>;
+
 /// Computes the full slice layout from shape, strides, and ndim.
 ///
 /// Implemented for `&[SliceRange]` / `&[SliceRange; N]` (backward compat, runtime
@@ -1132,7 +1120,7 @@ pub trait SliceSpec {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError>;
+    ) -> LayoutResult<MAX_RANK>;
 }
 
 impl SliceSpec for &[SliceRange] {
@@ -1141,7 +1129,7 @@ impl SliceSpec for &[SliceRange] {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         slice_layout_(shape, strides, ndim, self)
     }
 }
@@ -1152,7 +1140,7 @@ impl<const N: usize> SliceSpec for &[SliceRange; N] {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         slice_layout_(shape, strides, ndim, self.as_slice())
     }
 }
@@ -1163,7 +1151,7 @@ impl<A0: SliceArg> SliceSpec for (A0,) {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 1 {
             return Err(TensorError::DimensionMismatch {
                 expected: 1,
@@ -1186,7 +1174,7 @@ impl<A0: SliceArg, A1: SliceArg> SliceSpec for (A0, A1) {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 2 {
             return Err(TensorError::DimensionMismatch {
                 expected: 2,
@@ -1211,7 +1199,7 @@ impl<A0: SliceArg, A1: SliceArg, A2: SliceArg> SliceSpec for (A0, A1, A2) {
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 3 {
             return Err(TensorError::DimensionMismatch {
                 expected: 3,
@@ -1238,7 +1226,7 @@ impl<A0: SliceArg, A1: SliceArg, A2: SliceArg, A3: SliceArg> SliceSpec for (A0, 
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 4 {
             return Err(TensorError::DimensionMismatch {
                 expected: 4,
@@ -1269,7 +1257,7 @@ impl<A0: SliceArg, A1: SliceArg, A2: SliceArg, A3: SliceArg, A4: SliceArg> Slice
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 5 {
             return Err(TensorError::DimensionMismatch {
                 expected: 5,
@@ -1302,7 +1290,7 @@ impl<A0: SliceArg, A1: SliceArg, A2: SliceArg, A3: SliceArg, A4: SliceArg, A5: S
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 6 {
             return Err(TensorError::DimensionMismatch {
                 expected: 6,
@@ -1344,7 +1332,7 @@ impl<
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 7 {
             return Err(TensorError::DimensionMismatch {
                 expected: 7,
@@ -1389,7 +1377,7 @@ impl<
         shape: &[usize; MAX_RANK],
         strides: &[isize; MAX_RANK],
         ndim: usize,
-    ) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+    ) -> LayoutResult<MAX_RANK> {
         if ndim != 8 {
             return Err(TensorError::DimensionMismatch {
                 expected: 8,
@@ -1819,7 +1807,7 @@ impl<'a, T: Clone + StorageElement, const MAX_RANK: usize> TensorView<'a, T, MAX
             Tensor::try_from_slice(slice, self.shape())
         } else {
             // For non-contiguous views, we need to copy element by element
-            let mut result = Tensor::try_full(self.shape(), unsafe { (*self.data).clone() })?;
+            let mut result = Tensor::try_full(self.shape(), unsafe { *self.data })?;
             self.copy_to_contiguous(result.as_mut_slice());
             Ok(result)
         }
@@ -1860,21 +1848,20 @@ impl<'a, T: Clone + StorageElement, const MAX_RANK: usize> TensorView<'a, T, MAX
                     let elem_ptr = unsafe {
                         (row_ptr as *const u8).offset(c as isize * col_stride) as *const T
                     };
-                    dest[dest_idx] = unsafe { (*elem_ptr).clone() };
+                    dest[dest_idx] = unsafe { *elem_ptr };
                     dest_idx += 1;
                 }
             }
         } else {
             // General N-dimensional case: iterate in row-major order
             let mut indices = [0usize; MAX_RANK];
-            for dest_idx in 0..self.numel() {
-                // Compute pointer offset
+            for dest_slot in dest[..self.numel()].iter_mut() {
                 let mut offset = 0isize;
-                for d in 0..self.ndim {
-                    offset += indices[d] as isize * self.strides[d];
+                for (index_val, stride_val) in indices[..self.ndim].iter().zip(self.strides[..self.ndim].iter()) {
+                    offset += *index_val as isize * stride_val;
                 }
                 let elem_ptr = unsafe { (self.data as *const u8).offset(offset) as *const T };
-                dest[dest_idx] = unsafe { (*elem_ptr).clone() };
+                *dest_slot = unsafe { *elem_ptr };
 
                 // Increment indices (row-major order)
                 for d in (0..self.ndim).rev() {
@@ -2867,14 +2854,14 @@ impl<'a, T: FloatConvertible, const MAX_RANK: usize> core::iter::FusedIterator
 ///
 /// Shape is already logical (sub-byte types store logical dimensions in shape),
 /// so this simply copies the shape and computes the product.
-fn logical_shape<T: FloatConvertible, const MAX_RANK: usize>(
+fn logical_shape<const MAX_RANK: usize>(
     shape: &[usize; MAX_RANK],
     ndim: usize,
 ) -> ([usize; MAX_RANK], usize) {
     let logical = *shape;
     let mut total = 1usize;
-    for d in 0..ndim {
-        total *= logical[d];
+    for &dim in &logical[..ndim] {
+        total *= dim;
     }
     (logical, total)
 }
@@ -2886,7 +2873,7 @@ impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
     /// For sub-byte types, the innermost dimension is expanded.
     pub fn iter(&self) -> TensorViewIterator<'a, T, MAX_RANK> {
         let dims_per_value = T::dimensions_per_value();
-        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        let (logical, total) = logical_shape::<MAX_RANK>(&self.shape, self.ndim);
         TensorViewIterator {
             data: self.data,
             shape: logical,
@@ -2907,7 +2894,7 @@ impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK>
     /// For sub-byte types, the innermost dimension is expanded.
     pub fn iter(&self) -> TensorViewIterator<'_, T, MAX_RANK> {
         let dims_per_value = T::dimensions_per_value();
-        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        let (logical, total) = logical_shape::<MAX_RANK>(&self.shape, self.ndim);
         TensorViewIterator {
             data: self.data,
             shape: logical,
@@ -2925,7 +2912,7 @@ impl<'a, T: FloatConvertible, const MAX_RANK: usize> TensorSpan<'a, T, MAX_RANK>
     /// Yields `(position, DimMut)` pairs. Use `.iter_mut().dims()` for just dimensions.
     pub fn iter_mut(&mut self) -> TensorSpanIterator<'_, T, MAX_RANK> {
         let dims_per_value = T::dimensions_per_value();
-        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        let (logical, total) = logical_shape::<MAX_RANK>(&self.shape, self.ndim);
         TensorSpanIterator {
             data: self.data,
             shape: logical,
@@ -2950,7 +2937,7 @@ impl<T: FloatConvertible, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_
     /// Yields `(position, DimMut)` pairs. Use `.iter_mut().dims()` for just dimensions.
     pub fn iter_mut(&mut self) -> TensorSpanIterator<'_, T, MAX_RANK> {
         let dims_per_value = T::dimensions_per_value();
-        let (logical, total) = logical_shape::<T, MAX_RANK>(&self.shape, self.ndim);
+        let (logical, total) = logical_shape::<MAX_RANK>(&self.shape, self.ndim);
         TensorSpanIterator {
             data: self.data.as_ptr(),
             shape: logical,
@@ -3923,10 +3910,22 @@ fn validate_same_shape(lhs: &[usize], rhs: &[usize]) -> Result<(), TensorError> 
     if lhs == rhs {
         return Ok(());
     }
-    Err(TensorError::ShapeMismatch {
-        expected: ShapeDescriptor::from_slice(lhs),
-        got: ShapeDescriptor::from_slice(rhs),
-    })
+    if lhs.len() != rhs.len() {
+        return Err(TensorError::DimensionMismatch {
+            expected: lhs.len(),
+            got: rhs.len(),
+        });
+    }
+    for (i, (&l, &r)) in lhs.iter().zip(rhs).enumerate() {
+        if l != r {
+            return Err(TensorError::ShapeMismatch {
+                axis: i,
+                expected: l,
+                got: r,
+            });
+        }
+    }
+    Ok(())
 }
 
 #[inline]
@@ -3991,8 +3990,9 @@ fn reshape_layout<T, const R: usize>(
     let new_len: usize = new_shape.iter().product();
     if new_len != len {
         return Err(TensorError::ShapeMismatch {
-            expected: ShapeDescriptor::from_slice(new_shape),
-            got: ShapeDescriptor::from_slice(&shape[..ndim]),
+            axis: 0,
+            expected: new_len,
+            got: len,
         });
     }
     // Check contiguous
@@ -4077,7 +4077,7 @@ fn slice_layout_<const MAX_RANK: usize>(
     strides: &[isize; MAX_RANK],
     ndim: usize,
     ranges: &[SliceRange],
-) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+) -> LayoutResult<MAX_RANK> {
     if ranges.len() != ndim {
         return Err(TensorError::DimensionMismatch {
             expected: ndim,
@@ -4130,7 +4130,8 @@ fn slice_layout_<const MAX_RANK: usize>(
                 }
                 if step == 0 {
                     return Err(TensorError::InvalidShape {
-                        shape: ShapeDescriptor::from_slice(&shape[..ndim]),
+                        axis: dim,
+                        size: 0,
                         reason: "step cannot be zero",
                     });
                 }
@@ -4161,7 +4162,7 @@ fn slice_leading_layout_<I: VectorIndex, const MAX_RANK: usize>(
     strides: &[isize; MAX_RANK],
     ndim: usize,
     index: I,
-) -> Result<([usize; MAX_RANK], [isize; MAX_RANK], usize, isize, usize), TensorError> {
+) -> LayoutResult<MAX_RANK> {
     if ndim == 0 {
         return Err(TensorError::IndexOutOfBounds { index: 0, size: 0 });
     }
@@ -4169,10 +4170,8 @@ fn slice_leading_layout_<I: VectorIndex, const MAX_RANK: usize>(
     let leading = resolve_index_for_size_(index, shape[0])?;
     let mut new_shape = [0usize; MAX_RANK];
     let mut new_strides = [0isize; MAX_RANK];
-    for dim in 1..ndim {
-        new_shape[dim - 1] = shape[dim];
-        new_strides[dim - 1] = strides[dim];
-    }
+    new_shape[..ndim - 1].copy_from_slice(&shape[1..ndim]);
+    new_strides[..ndim - 1].copy_from_slice(&strides[1..ndim]);
     let new_ndim = ndim - 1;
     let offset = leading as isize * strides[0];
     let new_len = if new_ndim == 0 {
@@ -5630,14 +5629,23 @@ impl<T: Clone + Dot, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         }
         if self.numel() != other.numel() {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(self.shape()),
-                got: ShapeDescriptor::from_slice(other.shape()),
+                axis: 0,
+                expected: self.numel(),
+                got: other.numel(),
             });
         }
         // Dot::dot returns Option, unwrap since we verified lengths match
         Ok(T::dot(self.as_slice(), other.as_slice()).expect("dot product failed"))
     }
 }
+
+type MomentsAxisResult<T, const MAX_RANK: usize> = Result<
+    (
+        Tensor<<T as ReduceMoments>::SumOutput, Global, MAX_RANK>,
+        Tensor<<T as ReduceMoments>::SumSqOutput, Global, MAX_RANK>,
+    ),
+    TensorError,
+>;
 
 impl<'a, T: Clone + ReduceMoments, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
 where
@@ -5654,13 +5662,7 @@ where
         &self,
         axis: I,
         keep_dims: bool,
-    ) -> Result<
-        (
-            Tensor<T::SumOutput, Global, MAX_RANK>,
-            Tensor<T::SumSqOutput, Global, MAX_RANK>,
-        ),
-        TensorError,
-    > {
+    ) -> MomentsAxisResult<T, MAX_RANK> {
         let axis = normalize_axis(axis, self.ndim)?;
         let output_shape = reduced_shape(self.shape(), axis, keep_dims);
         let mut sums = Tensor::<T::SumOutput, Global, MAX_RANK>::try_full(
@@ -5746,7 +5748,7 @@ where
             .iter_mut()
             .zip(sumsqs.as_slice().iter())
         {
-            *target = Roots::sqrt(SumSqToF64::to_f64(value.clone()));
+            *target = Roots::sqrt(SumSqToF64::to_f64(*value));
         }
         Ok(norms)
     }
@@ -5774,11 +5776,19 @@ where
             .iter_mut()
             .zip(scratch_sumsq.as_slice().iter())
         {
-            *target = Roots::sqrt(SumSqToF64::to_f64(value.clone()));
+            *target = Roots::sqrt(SumSqToF64::to_f64(*value));
         }
         Ok(())
     }
 }
+
+type MinMaxAxisResult<T, const MAX_RANK: usize> = Result<
+    MinMaxResult<
+        Tensor<<T as ReduceMinMax>::Output, Global, MAX_RANK>,
+        Tensor<usize, Global, MAX_RANK>,
+    >,
+    TensorError,
+>;
 
 impl<'a, T: Clone + ReduceMinMax, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
 where
@@ -5789,7 +5799,8 @@ where
             reduce_minmax_recursive::<T>(self.data, self.shape(), &self.strides[..self.ndim], 0)
         }
         .ok_or(TensorError::InvalidShape {
-            shape: ShapeDescriptor::from_slice(self.shape()),
+            axis: 0,
+            size: self.numel(),
             reason: "min/max reduction undefined for empty or NaN-only input",
         })
     }
@@ -5798,10 +5809,7 @@ where
         &self,
         axis: I,
         keep_dims: bool,
-    ) -> Result<
-        MinMaxResult<Tensor<T::Output, Global, MAX_RANK>, Tensor<usize, Global, MAX_RANK>>,
-        TensorError,
-    > {
+    ) -> MinMaxAxisResult<T, MAX_RANK> {
         let axis = normalize_axis(axis, self.ndim)?;
         let output_shape = reduced_shape(self.shape(), axis, keep_dims);
         let mut min_values =
@@ -5875,7 +5883,8 @@ where
 
         if invalid_lane {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(self.shape()),
+                axis,
+                size: self.shape()[axis],
                 reason: "min/max reduction undefined for empty or NaN-only lanes",
             });
         }
@@ -5946,13 +5955,7 @@ where
         &self,
         axis: I,
         keep_dims: bool,
-    ) -> Result<
-        (
-            Tensor<T::SumOutput, Global, MAX_RANK>,
-            Tensor<T::SumSqOutput, Global, MAX_RANK>,
-        ),
-        TensorError,
-    > {
+    ) -> MomentsAxisResult<T, MAX_RANK> {
         self.view().try_moments_axis(axis, keep_dims)
     }
 
@@ -6027,10 +6030,7 @@ where
         &self,
         axis: I,
         keep_dims: bool,
-    ) -> Result<
-        MinMaxResult<Tensor<T::Output, Global, MAX_RANK>, Tensor<usize, Global, MAX_RANK>>,
-        TensorError,
-    > {
+    ) -> MinMaxAxisResult<T, MAX_RANK> {
         self.view().try_minmax_axis(axis, keep_dims)
     }
 

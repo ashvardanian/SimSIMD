@@ -15,7 +15,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::tensor::{
-    Allocator, Global, ShapeDescriptor, Tensor, TensorError, TensorRef, TensorView, SIMD_ALIGNMENT,
+    Allocator, Global, Tensor, TensorError, TensorRef, TensorView, SIMD_ALIGNMENT,
 };
 use crate::types::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2, StorageElement};
 
@@ -2680,8 +2680,9 @@ impl<T: Dots, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_RANK
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
 
@@ -2730,14 +2731,16 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -2808,14 +2811,16 @@ where
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3037,8 +3042,9 @@ impl<T: Angulars, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
         let mut c = Tensor::try_full_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
@@ -3087,14 +3093,16 @@ impl<T: Angulars, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3135,8 +3143,9 @@ impl<T: Euclideans, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MA
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
         let mut c = Tensor::try_full_in(&[m, n], T::SpatialResult::default(), self.alloc.clone())?;
@@ -3185,14 +3194,16 @@ impl<T: Euclideans, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> 
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3245,14 +3256,16 @@ where
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3398,14 +3411,16 @@ where
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3544,8 +3559,9 @@ impl<T: Hammings, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
         let mut c = Tensor::try_full_in(&[m, n], u32::default(), self.alloc.clone())?;
@@ -3594,14 +3610,16 @@ impl<T: Hammings, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3642,8 +3660,9 @@ impl<T: Jaccards, A: Allocator + Clone, const MAX_RANK: usize> Tensor<T, A, MAX_
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
         let mut c = Tensor::try_full_in(&[m, n], T::JaccardResult::default(), self.alloc.clone())?;
@@ -3692,14 +3711,16 @@ impl<T: Jaccards, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
         let (n, packed_k) = packed_b.dims();
         if k != packed_k {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
-                got: ShapeDescriptor::from_slice(&[m, k]),
+                axis: 1,
+                expected: packed_k,
+                got: k,
             });
         }
-        if c.shape() != &[m, n] {
+        if c.shape() != [m, n] {
             return Err(TensorError::ShapeMismatch {
-                expected: ShapeDescriptor::from_slice(&[m, n]),
-                got: ShapeDescriptor::from_slice(c.shape()),
+                axis: if c.shape()[0] != m { 0 } else { 1 },
+                expected: if c.shape()[0] != m { m } else { n },
+                got: if c.shape()[0] != m { c.shape()[0] } else { c.shape()[1] },
             });
         }
         if !c.has_contiguous_rows() {
@@ -3749,7 +3770,8 @@ where
         let shape = self.shape();
         if shape.len() != 2 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: 0,
+                size: shape.len(),
                 reason: "try_dots_symmetric requires 2D tensor",
             });
         }
@@ -3789,7 +3811,8 @@ impl<'a, T: Angulars, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         let shape = self.shape();
         if shape.len() != 2 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: 0,
+                size: shape.len(),
                 reason: "try_angulars_symmetric requires 2D tensor",
             });
         }
@@ -3824,7 +3847,8 @@ impl<'a, T: Euclideans, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         let shape = self.shape();
         if shape.len() != 2 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: 0,
+                size: shape.len(),
                 reason: "try_euclideans_symmetric requires 2D tensor",
             });
         }
@@ -3857,7 +3881,8 @@ impl<'a, T: Hammings, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         let shape = self.shape();
         if shape.len() != 2 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: 0,
+                size: shape.len(),
                 reason: "try_hammings_symmetric requires 2D tensor",
             });
         }
@@ -3889,7 +3914,8 @@ impl<'a, T: Jaccards, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
         let shape = self.shape();
         if shape.len() != 2 {
             return Err(TensorError::InvalidShape {
-                shape: ShapeDescriptor::from_slice(shape),
+                axis: 0,
+                size: shape.len(),
                 reason: "try_jaccards_symmetric requires 2D tensor",
             });
         }

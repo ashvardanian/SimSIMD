@@ -24,7 +24,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::tensor::{Allocator, Global, ShapeDescriptor, TensorError, TensorView, SIMD_ALIGNMENT};
+use crate::tensor::{Allocator, Global, TensorError, TensorView, SIMD_ALIGNMENT};
 use crate::types::{bf16, f16, StorageElement};
 
 // region: FFI
@@ -419,7 +419,8 @@ fn validate_maxsim_view<T, const MAX_RANK: usize>(
     let row_stride_bytes = vectors.stride_bytes(0);
     if row_stride_bytes < 0 {
         return Err(TensorError::InvalidShape {
-            shape: ShapeDescriptor::from_slice(vectors.shape()),
+            axis: 0,
+            size: row_stride_bytes as usize,
             reason: "MaxSim requires non-negative row strides",
         });
     }
