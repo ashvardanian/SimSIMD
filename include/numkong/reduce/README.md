@@ -385,7 +385,6 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_reduce_moments_bf16_serial`    |         1.09 gb/s, 0 ulp |         1.10 gb/s, 0 ulp |         1.11 gb/s, 0 ulp |
 | `nk_reduce_minmax_bf16_serial`     |         1.56 gb/s, 0 ulp |         1.69 gb/s, 0 ulp |         1.75 gb/s, 0 ulp |
 | `nk_reduce_moments_bf16_neonbfdot` |         18.6 gb/s, 0 ulp |       20.3 gb/s, 0.4 ulp |       21.0 gb/s, 0.3 ulp |
-| `nk_reduce_minmax_bf16_neonbfdot`  |         13.7 gb/s, 0 ulp |         14.5 gb/s, 0 ulp |         15.4 gb/s, 0 ulp |
 | __f16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_f16_serial`     |         1.10 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |
 | `nk_reduce_minmax_f16_serial`      |         1.17 gb/s, 0 ulp |         1.26 gb/s, 0 ulp |         1.33 gb/s, 0 ulp |
@@ -394,12 +393,10 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_reduce_moments_e5m2_serial`    |        0.531 gb/s, 0 ulp |        0.534 gb/s, 0 ulp |        0.536 gb/s, 0 ulp |
 | `nk_reduce_minmax_e5m2_serial`     |        0.803 gb/s, 0 ulp |        0.887 gb/s, 0 ulp |        0.880 gb/s, 0 ulp |
 | `nk_reduce_moments_e5m2_neonfhm`   |         7.95 gb/s, 0 ulp |         5.31 gb/s, 0 ulp |         4.07 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_neonfhm`    |         14.0 gb/s, 0 ulp |         16.8 gb/s, 0 ulp |         17.1 gb/s, 0 ulp |
 | __e4m3__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_e4m3_serial`    |        0.382 gb/s, 0 ulp |        0.386 gb/s, 0 ulp |        0.387 gb/s, 0 ulp |
 | `nk_reduce_minmax_e4m3_serial`     |        0.823 gb/s, 0 ulp |        0.884 gb/s, 0 ulp |        0.918 gb/s, 0 ulp |
 | `nk_reduce_moments_e4m3_neonfhm`   |         2.90 gb/s, 0 ulp |         2.98 gb/s, 0 ulp |         2.89 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_neonfhm`    |         14.0 gb/s, 0 ulp |         16.7 gb/s, 0 ulp |         17.8 gb/s, 0 ulp |
 | __e3m2__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_e3m2_serial`    |        0.537 gb/s, 0 ulp |        0.532 gb/s, 0 ulp |        0.539 gb/s, 0 ulp |
 | `nk_reduce_minmax_e3m2_serial`     |        0.506 gb/s, 0 ulp |        0.500 gb/s, 0 ulp |        0.503 gb/s, 0 ulp |

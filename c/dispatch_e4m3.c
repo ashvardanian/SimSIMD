@@ -55,7 +55,6 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
     if (v & nk_cap_neonfhm_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;

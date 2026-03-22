@@ -456,9 +456,6 @@ NK_PUBLIC void nk_reduce_moments_f16_neonhalf(nk_f16_t const *, nk_size_t, nk_si
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_bf16_neonbfdot(nk_bf16_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
-/** @copydoc nk_reduce_minmax_f64 */
-NK_PUBLIC void nk_reduce_minmax_bf16_neonbfdot(nk_bf16_t const *, nk_size_t, nk_size_t, nk_bf16_t *, nk_size_t *,
-                                               nk_bf16_t *, nk_size_t *);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
@@ -475,12 +472,6 @@ NK_PUBLIC void nk_reduce_moments_e2m3_neonsdot(nk_e2m3_t const *, nk_size_t, nk_
 NK_PUBLIC void nk_reduce_moments_e4m3_neonfhm(nk_e4m3_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_e5m2_neonfhm(nk_e5m2_t const *, nk_size_t, nk_size_t, nk_f32_t *, nk_f32_t *);
-/** @copydoc nk_reduce_minmax_f64 */
-NK_PUBLIC void nk_reduce_minmax_e4m3_neonfhm(nk_e4m3_t const *, nk_size_t, nk_size_t, nk_e4m3_t *, nk_size_t *,
-                                             nk_e4m3_t *, nk_size_t *);
-/** @copydoc nk_reduce_minmax_f64 */
-NK_PUBLIC void nk_reduce_minmax_e5m2_neonfhm(nk_e5m2_t const *, nk_size_t, nk_size_t, nk_e5m2_t *, nk_size_t *,
-                                             nk_e5m2_t *, nk_size_t *);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_HASWELL
@@ -1376,8 +1367,6 @@ NK_PUBLIC void nk_reduce_minmax_bf16(nk_bf16_t const *d, nk_size_t n, nk_size_t 
     nk_reduce_minmax_bf16_skylake(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_HASWELL
     nk_reduce_minmax_bf16_haswell(d, n, s, mn, mi, mx, xi);
-#elif NK_TARGET_NEONBFDOT
-    nk_reduce_minmax_bf16_neonbfdot(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_RVV
     nk_reduce_minmax_bf16_rvv(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_V128RELAXED
@@ -1413,8 +1402,6 @@ NK_PUBLIC void nk_reduce_minmax_e4m3(nk_e4m3_t const *d, nk_size_t n, nk_size_t 
     nk_reduce_minmax_e4m3_skylake(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_HASWELL
     nk_reduce_minmax_e4m3_haswell(d, n, s, mn, mi, mx, xi);
-#elif NK_TARGET_NEONFHM
-    nk_reduce_minmax_e4m3_neonfhm(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_NEON
     nk_reduce_minmax_e4m3_neon(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_RVV
@@ -1452,8 +1439,6 @@ NK_PUBLIC void nk_reduce_minmax_e5m2(nk_e5m2_t const *d, nk_size_t n, nk_size_t 
     nk_reduce_minmax_e5m2_skylake(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_HASWELL
     nk_reduce_minmax_e5m2_haswell(d, n, s, mn, mi, mx, xi);
-#elif NK_TARGET_NEONFHM
-    nk_reduce_minmax_e5m2_neonfhm(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_NEON
     nk_reduce_minmax_e5m2_neon(d, n, s, mn, mi, mx, xi);
 #elif NK_TARGET_RVV

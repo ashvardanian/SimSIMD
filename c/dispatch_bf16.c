@@ -94,7 +94,6 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_dots_packed_size_k:
             *m = (m_t)&nk_dots_packed_size_bf16_neonbfdot, *c = nk_cap_neonbfdot_k;
             return;
