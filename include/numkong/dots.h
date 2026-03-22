@@ -140,12 +140,12 @@
  *  Low-precision matmul relies on VPMADD* (AVX2), VNNI dot-products, and BF16 dot-products
  *  on AVX-512. Zen4 improves throughput by dual-issuing many integer ops on FP ports.
  *
- *      Intrinsic                     Instruction                       Haswell     Genoa
- *      _mm256_maddubs_epi16          VPMADDUBSW (YMM, YMM, YMM)         5c @ p0     3c @ p01
- *      _mm256_madd_epi16             VPMADDWD (YMM, YMM, YMM)           5c @ p0     3c @ p01
- *      _mm256_dpbusd_epi32           VPDPBUSD (YMM, K, YMM, YMM)        n/a         4c @ p01
- *      _mm256_dpwssds_epi32          VPDPWSSDS (YMM, K, YMM, YMM)       n/a         4c @ p01
- *      _mm256_dpbf16_ps              VDPBF16PS (YMM, YMM, YMM)          n/a         6c @ p01
+ *      Intrinsic             Instruction                   Haswell   Genoa
+ *      _mm256_maddubs_epi16  VPMADDUBSW (YMM, YMM, YMM)    5cy @ p0  3cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)      5cy @ p0  3cy @ p01
+ *      _mm256_dpbusd_epi32   VPDPBUSD (YMM, K, YMM, YMM)   n/a       4cy @ p01
+ *      _mm256_dpwssds_epi32  VPDPWSSDS (YMM, K, YMM, YMM)  n/a       4cy @ p01
+ *      _mm256_dpbf16_ps      VDPBF16PS (YMM, YMM, YMM)     n/a       6cy @ p01
  *
  *  AMX tile ops (TDPBF16PS/TDPBUSD/TDPBSSD) are not covered by the uops.info 2022 dataset.
  *

@@ -8,12 +8,12 @@
  *
  *  @section set_icelake_instructions Key AVX-512 Set Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_popcnt_epi64         VPOPCNTQ (ZMM, ZMM)             3cy         1/cy        p5
- *      _mm512_and_si512            VPANDQ (ZMM, ZMM, ZMM)          1cy         0.33/cy     p05
- *      _mm512_or_si512             VPORQ (ZMM, ZMM, ZMM)           1cy         0.33/cy     p05
- *      _mm512_xor_si512            VPXORQ (ZMM, ZMM, ZMM)          1cy         0.33/cy     p05
- *      _mm512_maskz_loadu_epi8     VMOVDQU8 (ZMM, mem, k1)         7cy         0.5/cy      p23
+ *      Intrinsic                Instruction              Ice Lake
+ *      _mm512_popcnt_epi64      VPOPCNTQ (ZMM, ZMM)      3cy @ p5
+ *      _mm512_and_si512         VPANDQ (ZMM, ZMM, ZMM)   1cy @ p05
+ *      _mm512_or_si512          VPORQ (ZMM, ZMM, ZMM)    1cy @ p05
+ *      _mm512_xor_si512         VPXORQ (ZMM, ZMM, ZMM)   1cy @ p05
+ *      _mm512_maskz_loadu_epi8  VMOVDQU8 (ZMM, mem, k1)  7cy @ p23
  *
  *  Ice Lake has native VPOPCNTQ instruction via AVX-512 VPOPCNTDQ extension, enabling
  *  efficient 64-bit element-wise popcount. We process 512 bits per iteration.
@@ -438,7 +438,7 @@ NK_INTERNAL void nk_jaccard_u1x512_finalize_icelake( //
     result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
-/** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (IceLake). */
+/** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (Icelake). */
 NK_INTERNAL void nk_hamming_u32x4_from_dot_icelake_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
                                                     nk_b128_vec_t *results) {
     __m128i dots_i32x4 = dots.xmm;
@@ -447,7 +447,7 @@ NK_INTERNAL void nk_hamming_u32x4_from_dot_icelake_(nk_b128_vec_t dots, nk_u32_t
     results->xmm = _mm_sub_epi32(_mm_add_epi32(query_i32x4, target_i32x4), _mm_slli_epi32(dots_i32x4, 1));
 }
 
-/** @brief Jaccard from_dot: computes 1 - dot / (pop_a + pop_b - dot) for 4 pairs (IceLake). */
+/** @brief Jaccard from_dot: computes 1 - dot / (pop_a + pop_b - dot) for 4 pairs (Icelake). */
 NK_INTERNAL void nk_jaccard_f32x4_from_dot_icelake_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
                                                     nk_b128_vec_t *results) {
     __m128 dot_f32x4 = _mm_cvtepi32_ps(dots.xmm);

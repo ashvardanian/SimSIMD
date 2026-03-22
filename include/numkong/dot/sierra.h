@@ -8,9 +8,9 @@
  *
  *  @section dot_sierra_instructions AVX-VNNI-INT8 Instructions
  *
- *      Intrinsic                   Instruction
- *      _mm256_dpbssd_epi32         VPDPBSSD (YMM, YMM, YMM)   i8 x i8 -> i32
- *      _mm256_dpbuud_epi32         VPDPBUUD (YMM, YMM, YMM)   u8 x u8 -> u32
+ *      Intrinsic            Instruction
+ *      _mm256_dpbssd_epi32  VPDPBSSD (YMM, YMM, YMM)  i8 × i8 → i32
+ *      _mm256_dpbuud_epi32  VPDPBUUD (YMM, YMM, YMM)  u8 × u8 → u32
  *
  *  Sierra Forest CPUs support AVX-VNNI-INT8, adding native signed*signed and
  *  unsigned*unsigned 8-bit dot products. This eliminates the algebraic sign

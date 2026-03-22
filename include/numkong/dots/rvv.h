@@ -1524,7 +1524,7 @@ NK_PUBLIC void nk_dots_pack_i8_rvv(nk_i8_t const *b, nk_size_t column_count, nk_
  *
  *  Vectorizes over the depth dimension (k). For each (row, column) pair:
  *    - Load i8 values from A and pre-packed i8 values from B
- *    - Widening multiply: i8 x i8 -> i16 via `vwmul`
+ *    - Widening multiply: i8 × i8 → i16 via `vwmul`
  *    - Widen-accumulate: i32 += i16 via `vwadd_wv`
  *    - Horizontal reduce via `vredsum`
  *
@@ -1641,7 +1641,7 @@ NK_PUBLIC void nk_dots_packed_i8_rvv(nk_i8_t const *a, void const *b_packed, nk_
  *  @brief  Symmetric i8 GEMM: C = A * A^T, upper triangle + mirror.
  *
  *  Uses integer i8 arithmetic with i32 accumulation.
- *  Both inputs are i8, widened via i8 x i8 -> i16 -> i32 accumulation.
+ *  Both inputs are i8, widened via i8 × i8 → i16 → i32 accumulation.
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
@@ -1736,7 +1736,7 @@ NK_PUBLIC void nk_dots_pack_u8_rvv(nk_u8_t const *b, nk_size_t column_count, nk_
  *
  *  Vectorizes over the depth dimension (k). For each (row, column) pair:
  *    - Load u8 values from A and pre-packed u8 values from B
- *    - Widening multiply: u8 x u8 -> u16 via `vwmulu`
+ *    - Widening multiply: u8 × u8 → u16 via `vwmulu`
  *    - Widen-accumulate: u32 += u16 via `vwaddu_wv`
  *    - Horizontal reduce via `vredsum`
  *
@@ -1853,7 +1853,7 @@ NK_PUBLIC void nk_dots_packed_u8_rvv(nk_u8_t const *a, void const *b_packed, nk_
  *  @brief  Symmetric u8 GEMM: C = A * A^T, upper triangle + mirror.
  *
  *  Uses unsigned integer u8 arithmetic with u32 accumulation.
- *  Both inputs are u8, widened via u8 x u8 -> u16 -> u32 accumulation.
+ *  Both inputs are u8, widened via u8 × u8 → u16 → u32 accumulation.
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
@@ -1892,7 +1892,7 @@ NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t n_vect
 #pragma region Quarter Precision E4M3
 
 /**
- *  @brief  E4M3 magnitude LUT: 7-bit magnitude -> f32 bit pattern (u32).
+ *  @brief  E4M3 magnitude LUT: 7-bit magnitude → f32 bit pattern (u32).
  *          nk_e4m3_magnitude_lut_rvv_[i] = float_to_bits(e4m3_to_f32(i)) for i=0..127.
  *          E4M3FN: 4 exponent bits (bias=7), 3 mantissa bits, no infinity,
  *          NaN = magnitude 0x7F only.
@@ -1985,7 +1985,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_rvv(nk_e4m3_t const *b, nk_size_t column_count,
  *    - Load raw e4m3 bytes from A, convert on-the-fly via 128-entry f32 LUT gather:
  *      extract 7-bit magnitude, zero-extend to u32, compute byte offsets (x4),
  *      gather f32 bit patterns, inject sign bit from bit 7 (<<24), reinterpret as f32
- *    - Widening FMA: f32xf32 -> f64 via `vfwmacc_vv_f64m4`
+ *    - Widening FMA: f32xf32 → f64 via `vfwmacc_vv_f64m4`
  *
  *  Register tile: process 2 rows per iteration (rows_per_tile=2, u32m2 gather + f64m4 accumulator is register-heavy).
  */
@@ -2059,7 +2059,7 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
                 vfloat32m2_t a_vector_1_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
                     __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vector_length));
 
-                // Widening FMA: f32xf32 -> f64
+                // Widening FMA: f32xf32 → f64
                 accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
                                                                   vector_length);
                 accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
@@ -2166,7 +2166,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_
                 vfloat32m2_t val_j_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
                     __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vector_length));
 
-                // Widening FMA: f32xf32 -> f64
+                // Widening FMA: f32xf32 → f64
                 accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, val_i_f32m2, val_j_f32m2,
                                                                 vector_length);
             }
@@ -2183,7 +2183,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_
 #pragma region Quarter Precision E5M2
 
 /**
- *  @brief  E5M2 magnitude LUT: 7-bit magnitude -> f32 bit pattern (u32).
+ *  @brief  E5M2 magnitude LUT: 7-bit magnitude → f32 bit pattern (u32).
  *          nk_e5m2_magnitude_lut_rvv_[i] = float_to_bits(e5m2_to_f32(i)) for i=0..127.
  *          E5M2: 5 exponent bits (bias=15), 2 mantissa bits, has infinity (0x7C) and
  *          NaN (magnitudes 0x7D..0x7F).
@@ -2276,7 +2276,7 @@ NK_PUBLIC void nk_dots_pack_e5m2_rvv(nk_e5m2_t const *b, nk_size_t column_count,
  *    - Load raw e5m2 bytes from A, convert on-the-fly via 128-entry f32 LUT gather:
  *      extract 7-bit magnitude, zero-extend to u32, compute byte offsets (x4),
  *      gather f32 bit patterns, inject sign bit from bit 7 (<<24), reinterpret as f32
- *    - Widening FMA: f32xf32 -> f64 via `vfwmacc_vv_f64m4`
+ *    - Widening FMA: f32xf32 → f64 via `vfwmacc_vv_f64m4`
  *
  *  Register tile: process 2 rows per iteration (rows_per_tile=2, u32m2 gather + f64m4 accumulator is register-heavy).
  */
@@ -2350,7 +2350,7 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
                 vfloat32m2_t a_vector_1_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
                     __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vector_length));
 
-                // Widening FMA: f32xf32 -> f64
+                // Widening FMA: f32xf32 → f64
                 accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
                                                                   vector_length);
                 accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
@@ -2457,7 +2457,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
                 vfloat32m2_t val_j_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
                     __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vector_length));
 
-                // Widening FMA: f32xf32 -> f64
+                // Widening FMA: f32xf32 → f64
                 accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, val_i_f32m2, val_j_f32m2,
                                                                 vector_length);
             }

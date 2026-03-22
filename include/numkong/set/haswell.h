@@ -8,12 +8,12 @@
  *
  *  @section set_haswell_instructions Key POPCNT/AVX2 Set Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm_popcnt_u64              POPCNT (R64, R64)               3cy         1/cy        p1
- *      _mm256_and_si256            VPAND (YMM, YMM, YMM)           1cy         0.33/cy     p015
- *      _mm256_or_si256             VPOR (YMM, YMM, YMM)            1cy         0.33/cy     p015
- *      _mm256_xor_si256            VPXOR (YMM, YMM, YMM)           1cy         0.33/cy     p015
- *      _mm256_extracti128_si256    VEXTRACTI128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *      Intrinsic                 Instruction                  Haswell     Genoa
+ *      _mm_popcnt_u64            POPCNT (R64, R64)            3cy @ p1    1cy @ p0123
+ *      _mm256_and_si256          VPAND (YMM, YMM, YMM)        1cy @ p015  1cy @ p0123
+ *      _mm256_or_si256           VPOR (YMM, YMM, YMM)         1cy @ p015  1cy @ p0123
+ *      _mm256_xor_si256          VPXOR (YMM, YMM, YMM)        1cy @ p015  1cy @ p0123
+ *      _mm256_extracti128_si256  VEXTRACTI128 (XMM, YMM, I8)  3cy @ p5    1cy @ p0123
  *
  *  Haswell lacks SIMD popcount; we extract 64-bit words and use scalar POPCNT. The p1 port
  *  bottleneck limits throughput to 1 popcount/cycle. For Hamming distance, XOR + POPCNT;

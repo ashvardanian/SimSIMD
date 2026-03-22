@@ -9,20 +9,19 @@
  *
  *  @section trigonometry_neon_instructions ARM NEON Instructions
  *
- *      Intrinsic         Instruction                   Latency     Throughput
- *                                                                  A76     M4+/V1+/Oryon
- *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
- *      vfmsq_f32         FMLS (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
- *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
- *      vaddq_f32         FADD (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
- *      vsubq_f32         FSUB (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
- *      vcvtnq_s32_f32    FCVTNS (V.4S, V.4S)           3cy         2/cy    2/cy
- *      vcvtq_f32_s32     SCVTF (V.4S, V.4S)            3cy         2/cy    2/cy
- *      vbslq_f32         BSL (V.16B, V.16B, V.16B)     2cy         2/cy    4/cy
- *      vrecpeq_f32       FRECPE (V.4S, V.4S)           2cy         2/cy    2/cy
- *      vrecpsq_f32       FRECPS (V.4S, V.4S, V.4S)     4cy         2/cy    4/cy
- *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
- *      vdivq_f64         FDIV (V.2D, V.2D, V.2D)       15cy        0.5/cy  0.5/cy
+ *      Intrinsic       Instruction                A76        M5
+ *      vfmaq_f32       FMLA (V.4S, V.4S, V.4S)    4cy @ 2p   3cy @ 4p
+ *      vfmsq_f32       FMLS (V.4S, V.4S, V.4S)    4cy @ 2p   3cy @ 4p
+ *      vmulq_f32       FMUL (V.4S, V.4S, V.4S)    3cy @ 2p   3cy @ 4p
+ *      vaddq_f32       FADD (V.4S, V.4S, V.4S)    3cy @ 2p   2cy @ 4p
+ *      vsubq_f32       FSUB (V.4S, V.4S, V.4S)    3cy @ 2p   2cy @ 4p
+ *      vcvtnq_s32_f32  FCVTNS (V.4S, V.4S)        3cy @ 2p   3cy @ 4p
+ *      vcvtq_f32_s32   SCVTF (V.4S, V.4S)         3cy @ 2p   3cy @ 4p
+ *      vbslq_f32       BSL (V.16B, V.16B, V.16B)  1cy @ 2p   2cy @ 4p
+ *      vrecpeq_f32     FRECPE (V.4S, V.4S)        2cy @ 2p   3cy @ 1p
+ *      vrecpsq_f32     FRECPS (V.4S, V.4S, V.4S)  4cy @ 2p   3cy @ 2p
+ *      vfmaq_f64       FMLA (V.2D, V.2D, V.2D)    4cy @ 2p   3cy @ 4p
+ *      vdivq_f64       FDIV (V.2D, V.2D, V.2D)    12cy @ 1p  7cy @ 1p
  *
  *  Polynomial approximations for sin/cos/atan are FMA-dominated. On 4-pipe cores (Apple M4+,
  *  Graviton3+, Oryon), FMA throughput is 4/cy with 4cy latency.

@@ -6,11 +6,11 @@
  *
  *  @section ice_cast_instructions AVX-512 VBMI2 Instructions
  *
- *      Intrinsic                   Instruction                     Ice         Genoa
- *      _mm512_permutex2var_epi16   VPERMI2W (ZMM, ZMM, ZMM)        3cy @ p5    2cy @ p12
- *      _mm512_test_epi16_mask      VPTESTMW (k, ZMM, ZMM)          3cy @ p5    2cy @ p01
- *      _mm512_mask_mov_epi16       VMOVDQU16 (ZMM{k}, ZMM)         1cy @ p05   1cy @ p05
- *      _mm512_cvtepi16_epi8        VPMOVWB (YMM, ZMM)              3cy @ p5    2cy @ p12
+ *      Intrinsic                  Instruction               Icelake    Genoa
+ *      _mm512_permutex2var_epi16  VPERMI2W (ZMM, ZMM, ZMM)  3cy @ p5   2cy @ p12
+ *      _mm512_test_epi16_mask     VPTESTMW (k, ZMM, ZMM)    3cy @ p5   2cy @ p01
+ *      _mm512_mask_mov_epi16      VMOVDQU16 (ZMM{k}, ZMM)   1cy @ p05  1cy @ p05
+ *      _mm512_cvtepi16_epi8       VPMOVWB (YMM, ZMM)        3cy @ p5   2cy @ p12
  *
  *  Ice Lake's AVX-512 VBMI2 enables efficient 128-entry LUT lookups via dual VPERMI2W operations.
  *  FP8-to-BF16/F16 conversions use 4 ZMM LUT registers with VPTESTMW for range selection, achieving

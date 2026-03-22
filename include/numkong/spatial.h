@@ -77,10 +77,10 @@
  *
  *  Relevant instructions and caveats:
  *
- *      Intrinsic                   Instruction        Notes
- *      _mm_rsqrt_ps                VRSQRTPS           fast approx; refine with NR
- *      _mm_maskz_rsqrt14_pd        VRSQRT14PD         higher-precision approx; MSVC masked-only
- *      _mm_sqrt_ps/_mm_sqrt_pd     VSQRTPS/VSQRTPD    higher latency, sqrt/div unit
+ *      Intrinsic                Instruction      Notes
+ *      _mm_rsqrt_ps             VRSQRTPS         fast approx; refine with NR
+ *      _mm_maskz_rsqrt14_pd     VRSQRT14PD       higher-precision approx; MSVC masked-only
+ *      _mm_sqrt_ps/_mm_sqrt_pd  VSQRTPS/VSQRTPD  higher latency, sqrt/div unit
  *
  *  Latency/port notes (rule of thumb):
  *  - On Intel client cores, sqrt/rsqrt execute on the divide/sqrt unit (often
@@ -96,15 +96,15 @@
  *  AVX-512 VNNI replaces that with VPDPWSSD. BF16 uses VDPBF16PS where available to avoid
  *  convert+FMA sequences; if the ISA lacks it, we fall back to f32 FMA in the AVX2/serial:
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p01    3c @ p01
- *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, K, ZMM, ZMM)     5c @ p05    4c @ p01
- *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, K, ZMM, ZMM)    n/a         6c @ p01
- *      _mm_rsqrt_ps            VRSQRTPS (XMM, XMM)             5c @ p0     4c @ p01
- *      _mm_maskz_rsqrt14_pd    VRSQRT14PD (XMM, K, XMM)        4c @ p0     5c @ p01
- *      _mm_sqrt_ps             VSQRTPS (XMM, XMM)              12c @ p0    15c @ p01
+ *      Intrinsic             Instruction                   Icelake    Genoa
+ *      _mm256_fmadd_ps       VFMADD231PS (YMM, YMM, YMM)   4cy @ p01  4cy @ p01
+ *      _mm256_fmadd_pd       VFMADD231PD (YMM, YMM, YMM)   4cy @ p01  4cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)      5cy @ p01  3cy @ p01
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, K, ZMM, ZMM)   5cy @ p05  4cy @ p01
+ *      _mm512_dpbf16_ps      VDPBF16PS (ZMM, K, ZMM, ZMM)  n/a        6cy @ p01
+ *      _mm_rsqrt_ps          VRSQRTPS (XMM, XMM)           5cy @ p0   4cy @ p01
+ *      _mm_maskz_rsqrt14_pd  VRSQRT14PD (XMM, K, XMM)      4cy @ p0   5cy @ p01
+ *      _mm_sqrt_ps           VSQRTPS (XMM, XMM)            12cy @ p0  15cy @ p01
  *
  *  @section arm_instructions Relevant Arm Instructions
  *
@@ -115,14 +115,14 @@
  *  instructions skipping `vbfmlal` and `vbfmlalt` alternatives to limit shuffle overhead
  *  and code complexity.
  *
- *      Intrinsic               Instruction         M1 Firestorm
- *      vfmaq_f32               FMLA.S (vec)        4c / 4c
- *      vfmaq_f64               FMLA.D (vec)        4c / 4c
- *      vdotq_s32               SDOT.B (vec)        3c / 4c
- *      vbfdotq_f32             BFDOT (vec)         n/a
- *      vrsqrteq_f32            FRSQRTE.S (vec)     3c / 1c
- *      vrsqrtsq_f32            FRSQRTS.S (vec)     4c / 4c
- *      vsqrtq_f32              FSQRT.S (vec)       10c / 0.5c
+ *      Intrinsic     Instruction      M1 Firestorm
+ *      vfmaq_f32     FMLA.S (vec)     4c / 4c
+ *      vfmaq_f64     FMLA.D (vec)     4c / 4c
+ *      vdotq_s32     SDOT.B (vec)     3c / 4c
+ *      vbfdotq_f32   BFDOT (vec)      n/a
+ *      vrsqrteq_f32  FRSQRTE.S (vec)  3c / 1c
+ *      vrsqrtsq_f32  FRSQRTS.S (vec)  4c / 4c
+ *      vsqrtq_f32    FSQRT.S (vec)    10c / 0.5c
  *
  *  @section references References
  *

@@ -10,13 +10,12 @@
  *
  *  Point cloud operations use these ARM NEON instructions:
  *
- *      Intrinsic         Instruction                   Latency     Throughput
- *                                                                  A76     M4+/V1+/Oryon
- *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
- *      vmulq_n_f32       FMUL (V.4S, V.4S, V.S[0])     3cy         2/cy    4/cy
- *      vsubq_f32         FSUB (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
- *      vaddvq_f32        FADDP+FADDP (reduce)          5cy         1/cy    1/cy
- *      vld3q_f32         LD3 ({Vt.4S, Vt2.4S, Vt3.4S}) 6cy         1/cy    1/cy
+ *      Intrinsic    Instruction                    A76       M5
+ *      vfmaq_f32    FMLA (V.4S, V.4S, V.4S)        4cy @ 2p  3cy @ 4p
+ *      vmulq_n_f32  FMUL (V.4S, V.4S, V.S[0])      3cy @ 2p  3cy @ 4p
+ *      vsubq_f32    FSUB (V.4S, V.4S, V.4S)        3cy @ 2p  2cy @ 4p
+ *      vaddvq_f32   FADDP+FADDP (reduce)           5cy @ 1p  8cy @ 1p
+ *      vld3q_f32    LD3 ({Vt.4S, Vt2.4S, Vt3.4S})  4cy @ 1p  4cy @ 1p
  *
  *  LD3 provides hardware stride-3 deinterleaving for XYZ point data. The 6cy latency and
  *  1/cy throughput make it the memory bottleneck regardless of core microarchitecture.

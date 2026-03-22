@@ -8,13 +8,14 @@
  *
  *  @section geospatial_haswell_instructions Key AVX2 Geospatial Instructions
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm256_sqrt_ps          VSQRTPS (YMM, YMM)              12c @ p0    15c @ p01
- *      _mm256_sqrt_pd          VSQRTPD (YMM, YMM)              13c @ p0    21c @ p01
- *      _mm256_div_ps           VDIVPS (YMM, YMM, YMM)          11c @ p0    11c @ p01
- *      _mm256_div_pd           VDIVPD (YMM, YMM, YMM)          13c @ p0    13c @ p01
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      Intrinsic        Instruction                  Icelake    Genoa
+ *      _mm256_sqrt_ps   VSQRTPS (YMM, YMM)           12cy @ p0  15cy @ p01
+ *      _mm256_sqrt_pd   VSQRTPD (YMM, YMM)           13cy @ p0  21cy @ p01
+ *      _mm256_div_ps    VDIVPS (YMM, YMM, YMM)       11cy @ p0  11cy @ p01
+ *      _mm256_div_pd    VDIVPD (YMM, YMM, YMM)       13cy @ p0  13cy @ p01
+ *      _mm256_fmadd_ps  VFMADD231PS (YMM, YMM, YMM)  4cy @ p01  4cy @ p01
+ *      _mm256_fmadd_pd  VFMADD231PD (YMM, YMM, YMM)  4cy @ p01  4cy @ p01
+ *      _mm256_cmp_ps    VCMPPS (YMM, YMM, YMM, I8)   3cy @ p01  3cy @ p01
  */
 #ifndef NK_GEOSPATIAL_HASWELL_H
 #define NK_GEOSPATIAL_HASWELL_H

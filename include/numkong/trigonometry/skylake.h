@@ -9,12 +9,12 @@
  *
  *  @section skylake_trig_instructions Key AVX-512 Trigonometry Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
- *      _mm512_mul_ps               VMULPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p05
- *      _mm512_and_ps               VANDPS (ZMM, ZMM, ZMM)          1cy         0.33/cy     p015
- *      _mm512_cmp_ps_mask          VCMPPS (K, ZMM, ZMM, I8)        3cy         1/cy        p01
- *      _mm512_roundscale_ps        VRNDSCALEPS (ZMM, ZMM, I8)      8cy         0.5/cy      p01
+ *      Intrinsic             Instruction                  Skylake-X      Genoa
+ *      _mm512_fmadd_ps       VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p05      4cy @ p01
+ *      _mm512_mul_ps         VMULPS (ZMM, ZMM, ZMM)       4cy @ p05      3cy @ p01
+ *      _mm512_and_ps         VANDPS (ZMM, ZMM, ZMM)       1cy @ p05      1cy @ p0123
+ *      _mm512_cmp_ps_mask    VCMPPS (K, ZMM, ZMM, I8)     4cy @ p5       5cy @ p01
+ *      _mm512_roundscale_ps  VRNDSCALEPS (ZMM, ZMM, I8)   8cy @ p05+p05  3cy @ p23
  *
  *  Trigonometric functions use polynomial approximations evaluated via Horner's method with FMA chains.
  *  AVX-512 mask registers enable branchless range reduction and sign handling without blend overhead.

@@ -8,23 +8,23 @@
  *
  *  @section set_sve_instructions ARM SVE Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      svld1_u8                    LD1B (Z.B, P/Z, [Xn])           4-6cy       2/cy
- *      svld1_u32                   LD1W (Z.S, P/Z, [Xn])           4-6cy       2/cy
- *      sveor_u8_m                  EOR (Z.B, P/M, Z.B, Z.B)        1cy         2/cy
- *      svand_u8_m                  AND (Z.B, P/M, Z.B, Z.B)        1cy         2/cy
- *      svorr_u8_m                  ORR (Z.B, P/M, Z.B, Z.B)        1cy         2/cy
- *      svcnt_u8_x                  CNT (Z.B, P/M, Z.B)             2cy         2/cy
- *      svadd_u8_z                  ADD (Z.B, P/M, Z.B, Z.B)        1cy         2/cy
- *      svaddv_u8                   UADDV (D, P, Z.B)               6cy         1/cy
- *      svcmpeq_u32                 CMPEQ (P.S, P/Z, Z.S, Z.S)      2cy         1/cy
- *      svcntp_b32                  CNTP (Xd, P, P.S)               2cy         1/cy
- *      svdup_n_u8                  DUP (Z.B, #imm)                 1cy         2/cy
- *      svwhilelt_b8                WHILELT (P.B, Xn, Xm)           2cy         1/cy
- *      svwhilelt_b32               WHILELT (P.S, Xn, Xm)           2cy         1/cy
- *      svptrue_b8                  PTRUE (P.B, pattern)            1cy         2/cy
- *      svcntb                      CNTB (Xd)                       1cy         2/cy
- *      svcntw                      CNTW (Xd)                       1cy         2/cy
+ *      Intrinsic      Instruction                 V1
+ *      svld1_u8       LD1B (Z.B, P/Z, [Xn])       4-6cy @ 2p
+ *      svld1_u32      LD1W (Z.S, P/Z, [Xn])       4-6cy @ 2p
+ *      sveor_u8_m     EOR (Z.B, P/M, Z.B, Z.B)    1cy @ 2p
+ *      svand_u8_m     AND (Z.B, P/M, Z.B, Z.B)    1cy @ 2p
+ *      svorr_u8_m     ORR (Z.B, P/M, Z.B, Z.B)    1cy @ 2p
+ *      svcnt_u8_x     CNT (Z.B, P/M, Z.B)         2cy @ 2p
+ *      svadd_u8_z     ADD (Z.B, P/M, Z.B, Z.B)    1cy @ 2p
+ *      svaddv_u8      UADDV (D, P, Z.B)           6cy @ 1p
+ *      svcmpeq_u32    CMPEQ (P.S, P/Z, Z.S, Z.S)  2cy @ 1p
+ *      svcntp_b32     CNTP (Xd, P, P.S)           2cy @ 1p
+ *      svdup_n_u8     DUP (Z.B, #imm)             1cy @ 2p
+ *      svwhilelt_b8   WHILELT (P.B, Xn, Xm)       2cy @ 1p
+ *      svwhilelt_b32  WHILELT (P.S, Xn, Xm)       2cy @ 1p
+ *      svptrue_b8     PTRUE (P.B, pattern)        1cy @ 2p
+ *      svcntb         CNTB (Xd)                   1cy @ 2p
+ *      svcntw         CNTW (Xd)                   1cy @ 2p
  */
 #ifndef NK_SET_SVE_H
 #define NK_SET_SVE_H

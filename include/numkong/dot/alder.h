@@ -8,10 +8,10 @@
  *
  *  @section dot_alder_instructions AVX-VNNI Instructions Performance
  *
- *      Intrinsic                   Instruction                     Alder Lake  Raptor Lake
- *      _mm256_dpbusd_epi32         VPDPBUSD (YMM, YMM, YMM)        4cy @ p05   4cy @ p05
- *      _mm256_madd_epi16           VPMADDWD (YMM, YMM, YMM)        4cy @ p05   4cy @ p05
- *      _mm256_sad_epu8             VPSADBW (YMM, YMM, YMM)         3cy @ p5    3cy @ p5
+ *      Intrinsic            Instruction               Alder Lake  Raptor Lake
+ *      _mm256_dpbusd_epi32  VPDPBUSD (YMM, YMM, YMM)  4cy @ p05   4cy @ p05
+ *      _mm256_madd_epi16    VPMADDWD (YMM, YMM, YMM)  4cy @ p05   4cy @ p05
+ *      _mm256_sad_epu8      VPSADBW (YMM, YMM, YMM)   3cy @ p5    3cy @ p5
  *
  *  Alder Lake and Raptor Lake support AVX-VNNI (256-bit VNNI)
  *  for accelerated integer dot products. This is the 256-bit variant of AVX-512 VNNI found on Ice Lake.

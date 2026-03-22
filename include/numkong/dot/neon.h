@@ -10,15 +10,16 @@
  *
  *  Key NEON instructions for dot products:
  *
- *      Intrinsic         Instruction                   Latency     Throughput
- *                                                                  A76     M4+/V1+/Oryon
- *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
- *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
- *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
- *      vaddvq_f32        FADDP+FADDP (reduce)          5cy         1/cy    1/cy
- *      vaddvq_f64        FADDP (V.2D to scalar)        3cy         1/cy    1/cy
- *      vcvt_f64_f32      FCVTL (V.2D, V.2S)            3cy         2/cy    2/cy
- *      vld2_f32          LD2 ({Vt.2S, Vt2.2S}, [Xn])   4cy         1/cy    1/cy
+ *      Intrinsic     Instruction                  A76       M5
+ *      vfmaq_f32     FMLA (V.4S, V.4S, V.4S)      4cy @ 2p  3cy @ 4p
+ *      vfmaq_f64     FMLA (V.2D, V.2D, V.2D)      4cy @ 2p  4cy @ 4p
+ *      vfmsq_f64     FMLS (V.2D, V.2D, V.2D)      4cy @ 2p  4cy @ 4p
+ *      vmulq_f32     FMUL (V.4S, V.4S, V.4S)      3cy @ 2p  3cy @ 4p
+ *      vmulq_f64     FMUL (V.2D, V.2D, V.2D)      3cy @ 2p  3cy @ 4p
+ *      vaddvq_f32    FADDP+FADDP (reduce)         5cy @ 1p  8cy @ 1p
+ *      vaddvq_f64    FADDP (V.2D to scalar)       3cy @ 1p  3cy @ 1p
+ *      vcvt_f64_f32  FCVTL (V.2D, V.2S)           3cy @ 2p  3cy @ 2p
+ *      vld2_f32      LD2 ({Vt.2S, Vt2.2S}, [Xn])  4cy @ 1p  4cy @ 1p
  *
  *  FMA throughput doubles on cores with 4 SIMD pipes (Apple M4+, Graviton3+, Oryon), but
  *  horizontal reductions remain at 1/cy on all cores and become the main bottleneck.

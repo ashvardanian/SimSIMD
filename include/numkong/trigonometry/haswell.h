@@ -9,12 +9,12 @@
  *
  *  @section haswell_trig_instructions Key AVX2 Trigonometry Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_mul_ps/pd            VMULPS/PD (YMM, YMM, YMM)       5cy         0.5/cy      p01
- *      _mm256_blendv_ps/pd         VBLENDVPS/PD (YMM, YMM, YMM)    2cy         1/cy        p015
- *      _mm256_round_ps/pd          VROUNDPS/PD (YMM, YMM, I8)      6cy         1/cy        p01
- *      _mm256_div_ps               VDIVPS (YMM, YMM, YMM)          13cy        5/cy        p0
+ *      Intrinsic            Instruction                   Haswell     Genoa
+ *      _mm256_fmadd_ps/pd   VFMADD (YMM, YMM, YMM)        5cy @ p01   4cy @ p01
+ *      _mm256_mul_ps/pd     VMULPS/PD (YMM, YMM, YMM)     5cy @ p01   3cy @ p01
+ *      _mm256_blendv_ps/pd  VBLENDVPS/PD (YMM, YMM, YMM)  2cy @ p015  1cy @ p01
+ *      _mm256_round_ps/pd   VROUNDPS/PD (YMM, YMM, I8)    6cy @ p01   3cy @ p23
+ *      _mm256_div_ps        VDIVPS (YMM, YMM, YMM)        13cy @ p0   11cy @ p01
  *
  *  Polynomial evaluation uses Horner's method with FMA for sin/cos/atan approximation. For large
  *  arrays, out-of-order execution across loop iterations hides FMA latency better than Estrin's

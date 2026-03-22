@@ -6,12 +6,12 @@
  *
  *  @section haswell_cast_instructions Key F16C/AVX2 Conversion Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_cvtph_ps             VCVTPH2PS (YMM, XMM)            5cy         1/cy        p01
- *      _mm256_cvtps_ph             VCVTPS2PH (XMM, YMM, I8)        4cy         1/cy        p01+p5
- *      _mm256_cvtepi16_epi32       VPMOVSXWD (YMM, XMM)            3cy         1/cy        p5
- *      _mm256_slli_epi32           VPSLLD (YMM, YMM, I8)           1cy         0.5/cy      p01
- *      _mm256_blendv_ps            VBLENDVPS (YMM, YMM, YMM, YMM)  2cy         1/cy        p015
+ *      Intrinsic              Instruction                     Haswell     Genoa
+ *      _mm256_cvtph_ps        VCVTPH2PS (YMM, XMM)            5cy @ p01   4cy @ p12+p23
+ *      _mm256_cvtps_ph        VCVTPS2PH (XMM, YMM, I8)        5cy @ p01   4cy @ p12+p23
+ *      _mm256_cvtepi16_epi32  VPMOVSXWD (YMM, XMM)            1cy @ p5    2cy @ p12
+ *      _mm256_slli_epi32      VPSLLD (YMM, YMM, I8)           1cy @ p0    1cy @ p23
+ *      _mm256_blendv_ps       VBLENDVPS (YMM, YMM, YMM, YMM)  2cy @ p015  1cy @ p01
  *
  *  F16C provides hardware F16<->F32 conversion. BF16 lacks hardware support and is emulated via
  *  bit manipulation (shift upper 16 bits). FP8 formats (E4M3/E5M2) use lookup tables for subnormal

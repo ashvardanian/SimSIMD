@@ -84,14 +84,14 @@
  *  rounding (notably 3x faster on Genoa than Ice Lake). VFPCLASS detects NaN/Inf inputs for special
  *  case handling. Division appears in tangent's final step but isn't on the critical path.
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm512_roundscale_ps    VRNDSCALEPS (ZMM, ZMM, I8)      8c @ p0     3c @ p23
- *      _mm512_roundscale_pd    VRNDSCALEPD (ZMM, ZMM, I8)      8c @ p0     3c @ p23
- *      _mm512_fpclass_ps_mask  VFPCLASSPS (K, ZMM, I8)         3c @ p5     5c @ p01
- *      _mm512_fmadd_ps         VFMADD231PS (ZMM, ZMM, ZMM)     4c @ p0     4c @ p01
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_div_ps           VDIVPS (YMM, YMM, YMM)          ~14c @ p0   ~11c @ p01
- *      _mm256_div_pd           VDIVPD (YMM, YMM, YMM)          ~23c @ p0   ~13c @ p01
+ *      Intrinsic               Instruction                  Icelake      Genoa
+ *      _mm512_roundscale_ps    VRNDSCALEPS (ZMM, ZMM, I8)   8cy @ p0+p0  3cy @ p23
+ *      _mm512_roundscale_pd    VRNDSCALEPD (ZMM, ZMM, I8)   8cy @ p0+p0  3cy @ p23
+ *      _mm512_fpclass_ps_mask  VFPCLASSPS (K, ZMM, I8)      3cy @ p5     5cy @ p01
+ *      _mm512_fmadd_ps         VFMADD231PS (ZMM, ZMM, ZMM)  4cy @ p0     4cy @ p01
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)  4cy @ p01    4cy @ p01
+ *      _mm256_div_ps           VDIVPS (YMM, YMM, YMM)       ~11cy @ p0   ~11cy @ p01
+ *      _mm256_div_pd           VDIVPD (YMM, YMM, YMM)       ~13cy @ p0   ~13cy @ p01
  *
  *  @section arm_instructions Relevant ARM NEON/SVE Instructions
  *
@@ -99,10 +99,10 @@
  *  fast rounding for range reduction. The 4-cycle FMA latency with 4 inst/cycle throughput allows
  *  excellent pipelining when processing multiple elements.
  *
- *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
- *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vfmaq_f64               FMLA.D (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vrndaq_f32              FRINTA.S        2c @ V0123      2c @ V01        2c @ V01
+ *      Intrinsic   Instruction   M1 Firestorm  Graviton 3   Graviton 4
+ *      vfmaq_f32   FMLA.S (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vfmaq_f64   FMLA.D (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vrndaq_f32  FRINTA.S      2cy @ V0123   2cy @ V01    2cy @ V01
  *
  *  @section references References
  *

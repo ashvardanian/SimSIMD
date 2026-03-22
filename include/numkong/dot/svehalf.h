@@ -8,16 +8,16 @@
  *
  *  @section dot_svehalf_instructions ARM SVE+FP16 Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      svld1_f16                   LD1H (Z.H, P/Z, [Xn])           4-6cy       2/cy
- *      svld2_f16                   LD2H (Z.H, P/Z, [Xn])           6-8cy       1/cy
- *      svmla_f16_x                 FMLA (Z.H, P/M, Z.H, Z.H)       4cy         2/cy
- *      svmls_f16_x                 FMLS (Z.H, P/M, Z.H, Z.H)       4cy         2/cy
- *      svaddv_f16                  FADDV (H, P, Z.H)               6cy         1/cy
- *      svdup_f16                   DUP (Z.H, #imm)                 1cy         2/cy
- *      svwhilelt_b16               WHILELT (P.H, Xn, Xm)           2cy         1/cy
- *      svptrue_b16                 PTRUE (P.H, pattern)            1cy         2/cy
- *      svcnth                      CNTH (Xd)                       1cy         2/cy
+ *      Intrinsic      Instruction                V1
+ *      svld1_f16      LD1H (Z.H, P/Z, [Xn])      4-6cy @ 2p
+ *      svld2_f16      LD2H (Z.H, P/Z, [Xn])      6-8cy @ 1p
+ *      svmla_f16_x    FMLA (Z.H, P/M, Z.H, Z.H)  4cy @ 2p
+ *      svmls_f16_x    FMLS (Z.H, P/M, Z.H, Z.H)  4cy @ 2p
+ *      svaddv_f16     FADDV (H, P, Z.H)          6cy @ 1p
+ *      svdup_f16      DUP (Z.H, #imm)            1cy @ 2p
+ *      svwhilelt_b16  WHILELT (P.H, Xn, Xm)      2cy @ 1p
+ *      svptrue_b16    PTRUE (P.H, pattern)       1cy @ 2p
+ *      svcnth         CNTH (Xd)                  1cy @ 2p
  *
  *  SVE vector widths vary across implementations: Graviton3 uses 256-bit, while Graviton4/5
  *  and Apple M4+ use 128-bit. Code using svcntb() adapts automatically, but wider vectors

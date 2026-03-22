@@ -73,14 +73,14 @@
  *  BF16 dot products (VDPBF16PS) are Genoa-only, accumulating bf16 pairs directly to f32.
  *  Genoa shows 40% faster integer multiply-add (3c vs 5c) than Ice Lake.
  *
- *      Intrinsic               Instruction                     Haswell     Ice         Genoa
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
- *      _mm256_maddubs_epi16    VPMADDUBSW (YMM, YMM, YMM)      5c @ p0     5c @ p01    3c @ p01
- *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p0     5c @ p01    3c @ p01
- *      _mm256_dpbusd_epi32     VPDPBUSD (YMM, YMM, YMM)        N/A         5c @ p01    4c @ p01
- *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, ZMM, ZMM)        N/A         5c @ p0     4c @ p01
- *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, ZMM, ZMM)       N/A         N/A         6c @ p01
+ *      Intrinsic             Instruction                  Haswell    Icelake    Genoa
+ *      _mm256_fmadd_ps       VFMADD231PS (YMM, YMM, YMM)  5cy @ p01  4cy @ p01  4cy @ p01
+ *      _mm256_fmadd_pd       VFMADD231PD (YMM, YMM, YMM)  5cy @ p01  4cy @ p01  4cy @ p01
+ *      _mm256_maddubs_epi16  VPMADDUBSW (YMM, YMM, YMM)   5cy @ p0   5cy @ p01  3cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)     5cy @ p0   5cy @ p01  3cy @ p01
+ *      _mm256_dpbusd_epi32   VPDPBUSD (YMM, YMM, YMM)     n/a        5cy @ p01  4cy @ p01
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, ZMM, ZMM)     n/a        5cy @ p0   4cy @ p01
+ *      _mm512_dpbf16_ps      VDPBF16PS (ZMM, ZMM, ZMM)    n/a        n/a        6cy @ p01
  *
  *  @section arm_neon_instructions Relevant ARM NEON Instructions
  *
@@ -89,13 +89,13 @@
  *  provides native bf16 dot products on Graviton 3+. Complex dot products use LD2 for deinterleaved
  *  loads of real/imag pairs, though its L01+V throughput can bottleneck on memory-bound workloads.
  *
- *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
- *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vfmaq_f64               FMLA.D (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vdotq_s32               SDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
- *      vdotq_u32               UDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
- *      vbfdotq_f32             BFDOT (vec)     N/A             4c @ V0123      5c @ V0123
- *      vld2q_f32               LD2 (Q-form)    5c @ L01+V      8c @ L01+V      8c @ L01+V
+ *      Intrinsic    Instruction   M1 Firestorm  Graviton 3   Graviton 4
+ *      vfmaq_f32    FMLA.S (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vfmaq_f64    FMLA.D (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vdotq_s32    SDOT (vec)    3cy @ V0123   3cy @ V0123  3cy @ V0123
+ *      vdotq_u32    UDOT (vec)    3cy @ V0123   3cy @ V0123  3cy @ V0123
+ *      vbfdotq_f32  BFDOT (vec)   N/A           4cy @ V0123  5cy @ V0123
+ *      vld2q_f32    LD2 (Q-form)  5cy @ L01+V   8cy @ L01+V  8cy @ L01+V
  *
  *  @section arm_sve_instructions Relevant ARM SVE Instructions
  *
@@ -103,12 +103,12 @@
  *  scalar cleanup loops. FADDV performs horizontal reduction; notably 45% faster on Graviton 4
  *  (6c) than Graviton 3 (11c). SVE complex dot products use svld2 for structure loads.
  *
- *      Intrinsic               Instruction     Graviton 3      Graviton 4
- *      svmla_f32_x             FMLA (pred)     4c @ V0123      4c @ V0123
- *      svmls_f32_x             FMLS (pred)     4c @ V0123      4c @ V0123
- *      svwhilelt_b32           WHILELT         3c @ M0         3c @ M0
- *      svld2_f32               LD2 (SVE)       8c @ L01+V      8c @ L01+V
- *      svaddv_f32              FADDV           11c @ V0123     6c @ V0123
+ *      Intrinsic      Instruction  Graviton 3    Graviton 4
+ *      svmla_f32_x    FMLA (pred)  4cy @ V0123   4cy @ V0123
+ *      svmls_f32_x    FMLS (pred)  4cy @ V0123   4cy @ V0123
+ *      svwhilelt_b32  WHILELT      3cy @ M0      3cy @ M0
+ *      svld2_f32      LD2 (SVE)    8cy @ L01+V   8cy @ L01+V
+ *      svaddv_f32     FADDV        11cy @ V0123  6cy @ V0123
  *
  *  @section complex_instructions Complex Number Optimizations
  *

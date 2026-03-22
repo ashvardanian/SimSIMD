@@ -8,19 +8,19 @@
  *
  *  @section spatial_sve_instructions ARM SVE Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      svld1_f32                   LD1W (Z.S, P/Z, [Xn])           4-6cy       2/cy
- *      svsub_f32_x                 FSUB (Z.S, P/M, Z.S, Z.S)       3cy         2/cy
- *      svmla_f32_x                 FMLA (Z.S, P/M, Z.S, Z.S)       4cy         2/cy
- *      svaddv_f32                  FADDV (S, P, Z.S)               6cy         1/cy
- *      svdupq_n_f32                DUP (Z.S, #imm)                 1cy         2/cy
- *      svwhilelt_b32               WHILELT (P.S, Xn, Xm)           2cy         1/cy
- *      svptrue_b32                 PTRUE (P.S, pattern)            1cy         2/cy
- *      svcntw                      CNTW (Xd)                       1cy         2/cy
- *      svld1_f64                   LD1D (Z.D, P/Z, [Xn])           4-6cy       2/cy
- *      svsub_f64_x                 FSUB (Z.D, P/M, Z.D, Z.D)       3cy         2/cy
- *      svmla_f64_x                 FMLA (Z.D, P/M, Z.D, Z.D)       4cy         2/cy
- *      svaddv_f64                  FADDV (D, P, Z.D)               6cy         1/cy
+ *      Intrinsic      Instruction                V1
+ *      svld1_f32      LD1W (Z.S, P/Z, [Xn])      4-6cy @ 2p
+ *      svsub_f32_x    FSUB (Z.S, P/M, Z.S, Z.S)  3cy @ 2p
+ *      svmla_f32_x    FMLA (Z.S, P/M, Z.S, Z.S)  4cy @ 2p
+ *      svaddv_f32     FADDV (S, P, Z.S)          6cy @ 1p
+ *      svdupq_n_f32   DUP (Z.S, #imm)            1cy @ 2p
+ *      svwhilelt_b32  WHILELT (P.S, Xn, Xm)      2cy @ 1p
+ *      svptrue_b32    PTRUE (P.S, pattern)       1cy @ 2p
+ *      svcntw         CNTW (Xd)                  1cy @ 2p
+ *      svld1_f64      LD1D (Z.D, P/Z, [Xn])      4-6cy @ 2p
+ *      svsub_f64_x    FSUB (Z.D, P/M, Z.D, Z.D)  3cy @ 2p
+ *      svmla_f64_x    FMLA (Z.D, P/M, Z.D, Z.D)  4cy @ 2p
+ *      svaddv_f64     FADDV (D, P, Z.D)          6cy @ 1p
  *
  *  SVE vector widths vary across implementations: Graviton3 uses 256-bit, while Graviton4/5
  *  and Apple M4+ use 128-bit. Code using svcntb() adapts automatically, but wider vectors

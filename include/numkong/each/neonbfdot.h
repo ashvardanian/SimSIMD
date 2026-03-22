@@ -8,18 +8,17 @@
  *
  *  @section elementwise_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vld1_bf16                   LD1 (V.4H)                      4cy         2/cy        3/cy
- *      vst1_bf16                   ST1 (V.4H)                      2cy         2/cy        3/cy
- *      vcvt_f32_bf16               BFCVTN (V.4H, V.4S)             3cy         2/cy        4/cy
- *      vcvt_bf16_f32               BFCVT (V.4H, V.4S)              3cy         2/cy        4/cy
- *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
- *      vmulq_f32                   FMUL (V.4S, V.4S, V.4S)         3cy         2/cy        4/cy
- *      vmulq_n_f32                 FMUL (V.4S, V.4S, scalar)       3cy         2/cy        4/cy
- *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
- *      vfmaq_n_f32                 FMLA (V.4S, V.4S, scalar)       4cy         2/cy        4/cy
- *      vdupq_n_f32                 DUP (V.4S, scalar)              2cy         2/cy        4/cy
+ *      Intrinsic      Instruction                A76       M5
+ *      vld1_bf16      LD1 (V.4H)                 4cy @ 2p  4cy @ 3p
+ *      vst1_bf16      ST1 (V.4H)                 2cy @ 2p  2cy @ 3p
+ *      vcvt_f32_bf16  BFCVTN (V.4H, V.4S)        3cy @ 2p  3cy @ 4p
+ *      vcvt_bf16_f32  BFCVT (V.4H, V.4S)         3cy @ 2p  3cy @ 4p
+ *      vaddq_f32      FADD (V.4S, V.4S, V.4S)    3cy @ 2p  2cy @ 4p
+ *      vmulq_f32      FMUL (V.4S, V.4S, V.4S)    3cy @ 2p  3cy @ 4p
+ *      vmulq_n_f32    FMUL (V.4S, V.4S, scalar)  3cy @ 2p  3cy @ 4p
+ *      vfmaq_f32      FMLA (V.4S, V.4S, V.4S)    4cy @ 2p  3cy @ 4p
+ *      vfmaq_n_f32    FMLA (V.4S, V.4S, scalar)  4cy @ 2p  3cy @ 4p
+ *      vdupq_n_f32    DUP (V.4S, scalar)         2cy @ 2p  2cy @ 4p
  *
  *  The ARMv8.6-BF16 extension provides element-wise operations on BF16 data by converting to F32
  *  for arithmetic, then back to BF16 for storage. This preserves the dynamic range benefits of BF16

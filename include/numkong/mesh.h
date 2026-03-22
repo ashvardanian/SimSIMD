@@ -82,11 +82,11 @@
  *
  *  The SIMD kernels are dominated by FMA, permutes, and gathers:
  *
- *      Intrinsic                     Instruction        Notes
- *      _mm256_fmadd_ps/pd            VFMADD*            FMA on FP ports (Haswell/Skylake: ports 0/1)
- *      _mm256_i32gather_ps           VGATHERDPS         High-latency; memory-bound
- *      _mm512_permutex2var_ps/pd     VPERMT2*           Shuffle-heavy; can bottleneck on shuffle ports
- *      _mm512_reduce_add_ps/pd       (sequence)         Implemented via shuffles + adds
+ *      Intrinsic                  Instruction  Notes
+ *      _mm256_fmadd_ps/pd         VFMADD*      FMA on FP ports (Haswell/Skylake: ports 0/1)
+ *      _mm256_i32gather_ps        VGATHERDPS   High-latency; memory-bound
+ *      _mm512_permutex2var_ps/pd  VPERMT2*     Shuffle-heavy; can bottleneck on shuffle ports
+ *      _mm512_reduce_add_ps/pd    (sequence)   Implemented via shuffles + adds
  *
  *  Gather-heavy tails are intentionally isolated to keep the steady-state loop on contiguous loads.
  *

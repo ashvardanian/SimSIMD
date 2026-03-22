@@ -11,13 +11,12 @@
  *
  *  @section neon_curved_instructions Key NEON Instructions
  *
- *      Intrinsic         Instruction                   Latency     Throughput
- *                                                                  A76     M4+/V1+/Oryon
- *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
- *      vcvt_f64_f32      FCVTL (V.2D, V.2S)            3cy         2/cy    2/cy
- *      vaddvq_f64        FADDP (V.2D to scalar)        3cy         1/cy    1/cy
- *      vld1_f32          LD1 ({Vt.2S}, [Xn])           4cy         2/cy    2/cy
- *      vld2_f32          LD2 ({Vt.2S, Vt2.2S}, [Xn])   4cy         1/cy    1/cy
+ *      Intrinsic     Instruction                  A76       M5
+ *      vfmaq_f64     FMLA (V.2D, V.2D, V.2D)      4cy @ 2p  3cy @ 4p
+ *      vcvt_f64_f32  FCVTL (V.2D, V.2S)           3cy @ 2p  3cy @ 4p
+ *      vaddvq_f64    FADDP (V.2D to scalar)       3cy @ 1p  3cy @ 2p
+ *      vld1_f32      LD1 ({Vt.2S}, [Xn])          4cy @ 2p  4cy @ 3p
+ *      vld2_f32      LD2 ({Vt.2S, Vt2.2S}, [Xn])  4cy @ 1p  4cy @ 1p
  *
  *  For f32 bilinear and Mahalanobis, we upcast to f64 for accumulation to preserve
  *  precision and avoid catastrophic cancellation in large-magnitude sums.

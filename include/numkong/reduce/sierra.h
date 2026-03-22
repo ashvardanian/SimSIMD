@@ -7,8 +7,8 @@
  *  @sa include/numkong/reduce.h
  *
  *  Uses AVX-VNNI-INT8 (256-bit) for efficient widening dot-products on i8, u8, and e2m3:
- *  - `_mm256_dpbssd_epi32`: i8 x i8 -> i32 signed dot product (AVXVNNIINT8)
- *  - `_mm256_dpbuud_epi32`: u8 x u8 -> u32 unsigned dot product (AVXVNNIINT8)
+ *  - `_mm256_dpbssd_epi32`: i8 × i8 → i32 signed dot product (AVXVNNIINT8)
+ *  - `_mm256_dpbuud_epi32`: u8 × u8 → u32 unsigned dot product (AVXVNNIINT8)
  */
 #ifndef NK_REDUCE_SIERRA_H
 #define NK_REDUCE_SIERRA_H
@@ -109,7 +109,7 @@ NK_PUBLIC void nk_reduce_moments_i8_sierra(                       //
 }
 
 /**
- *  @section u8 moments via VPDPBUUD (unsigned u8 x u8 -> u32)
+ *  @section u8 moments via VPDPBUUD (unsigned u8 × u8 → u32)
  *
  *  Sierra's `_mm256_dpbuud_epi32` provides native u8×u8→u32 dot product, replacing
  *  Haswell's 8-instruction SAD+widen+MADD sequence with 3 instructions per 32 elements.

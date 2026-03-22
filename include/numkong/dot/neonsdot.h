@@ -8,14 +8,24 @@
  *
  *  @section dot_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vdotq_s32                   SDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
- *      vdotq_u32                   UDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
- *      vld1q_s8                    LD1 (V.16B)                     4cy         2/cy        3/cy
- *      vld1q_u8                    LD1 (V.16B)                     4cy         2/cy        3/cy
- *      vaddvq_s32                  ADDV (V.4S)                     4cy         1/cy        2/cy
- *      vaddvq_u32                  ADDV (V.4S)                     4cy         1/cy        2/cy
+ *      Intrinsic   Instruction                A76         M5
+ *      vdotq_s32   SDOT (V.4S, V.16B, V.16B)  3cy @ 2p    3cy @ 4p
+ *      vdotq_u32   UDOT (V.4S, V.16B, V.16B)  3cy @ 2p    3cy @ 4p
+ *      vld1q_s8    LD1 (V.16B)                4cy @ 2p    4cy @ 3p
+ *      vld1q_u8    LD1 (V.16B)                4cy @ 2p    4cy @ 3p
+ *      vaddvq_s32  ADDV (V.4S)                4cy @ 1p    5cy @ 1p
+ *      vaddvq_u32  ADDV (V.4S)                4cy @ 1p    5cy @ 1p
+ *
+ *  Extraction ops used for i4/u4 nibble unpacking and e2m3/e3m2 LUT conversion:
+ *
+ *      vshlq_n_s8  SHL (V.16B, #imm)           2cy @ 2p   2cy @ 4p
+ *      vshrq_n_s8  SSHR (V.16B, #imm)          2cy @ 2p   2cy @ 4p
+ *      vshrq_n_u8  USHR (V.16B, #imm)          2cy @ 2p   2cy @ 4p
+ *      vandq_u8    AND (V.16B, V.16B)          1cy @ 2p   2cy @ 4p
+ *      veorq_u8    EOR (V.16B, V.16B)          1cy @ 2p   2cy @ 4p
+ *      vqtbl2q_u8  TBL (V.16B, {2reg}, V.16B)  2cy @ 1p   2cy @ 4p
+ *      vqtbl4q_u8  TBL (V.16B, {4reg}, V.16B)  2cy @ 1p   4cy @ 2p+2p
+ *      vmlal_s16   SMLAL (V.4S, V.4H, V.4H)    3cy @ 1p   2cy @ 4p
  *
  *  The ARMv8.4-DotProd extension provides SDOT/UDOT instructions critical for int8 quantized ML
  *  inference. Each instruction computes four dot products of 4-element int8 vectors, accumulating

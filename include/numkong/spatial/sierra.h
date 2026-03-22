@@ -8,12 +8,12 @@
  *
  *  @section spatial_sierra_instructions AVXVNNIINT8 Instructions Performance
  *
- *      Intrinsic                   Instruction                     Sierra Forest
- *      _mm256_dpbssds_epi32        VPDPBSSDS (YMM, YMM, YMM)       4cy @ p05
- *      _mm256_dpbssd_epi32         VPDPBSSD (YMM, YMM, YMM)        4cy @ p05
- *      _mm256_dpbuud_epi32         VPDPBUUD (YMM, YMM, YMM)        4cy @ p05
- *      _mm_rsqrt_ps                VRSQRTPS (XMM, XMM)             5cy @ p0
- *      _mm_sqrt_ss                 VSQRTSS (XMM, XMM, XMM)        12cy @ p0
+ *      Intrinsic             Instruction                Sierra Forest
+ *      _mm256_dpbssds_epi32  VPDPBSSDS (YMM, YMM, YMM)  4cy @ p05
+ *      _mm256_dpbssd_epi32   VPDPBSSD (YMM, YMM, YMM)   4cy @ p05
+ *      _mm256_dpbuud_epi32   VPDPBUUD (YMM, YMM, YMM)   4cy @ p05
+ *      _mm_rsqrt_ps          VRSQRTPS (XMM, XMM)        5cy @ p0
+ *      _mm_sqrt_ss           VSQRTSS (XMM, XMM, XMM)    12cy @ p0
  *
  *  Sierra Forest (AVXVNNIINT8) provides native signed x signed and unsigned x unsigned
  *  dot products, eliminating the need for algebraic corrections required on Alder Lake.

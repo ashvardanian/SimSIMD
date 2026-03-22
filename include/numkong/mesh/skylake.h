@@ -8,11 +8,11 @@
  *
  *  @section skylake_mesh_instructions Key AVX-512 Mesh Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
- *      _mm512_permutexvar_ps       VPERMPS (ZMM, ZMM, ZMM)         3cy         1/cy        p5
- *      _mm512_permutex2var_ps      VPERMT2PS (ZMM, ZMM, ZMM)       3cy         1/cy        p5
- *      _mm512_extractf32x8_ps      VEXTRACTF32X8 (YMM, ZMM, I8)    3cy         1/cy        p5
+ *      Intrinsic               Instruction                   Skylake-X  Genoa
+ *      _mm512_fmadd_ps         VFMADD132PS (ZMM, ZMM, ZMM)   4cy @ p05  4cy @ p01
+ *      _mm512_permutexvar_ps   VPERMPS (ZMM, ZMM, ZMM)       3cy @ p5   4cy @ p12
+ *      _mm512_permutex2var_ps  VPERMT2PS (ZMM, ZMM, ZMM)     3cy @ p5   4cy @ p12
+ *      _mm512_extractf32x8_ps  VEXTRACTF32X8 (YMM, ZMM, I8)  3cy @ p5   1cy @ p0123
  *
  *  Point cloud operations use VPERMT2PS for stride-3 deinterleaving of xyz coordinates, avoiding
  *  expensive gather instructions. This achieves ~1.8x speedup over scalar deinterleaving. Dual FMA

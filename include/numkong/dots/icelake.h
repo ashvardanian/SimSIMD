@@ -8,11 +8,11 @@
  *
  *  @section ice_dots_instructions Relevant Instructions
  *
- *      Intrinsic                   Instruction                     Ice         Genoa
- *      _mm512_dpbusd_epi32         VPDPBUSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
- *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
- *      _mm512_cvtepi8_epi32        VPMOVSXBD (ZMM, XMM)            3cy @ p5    3cy @ p12
- *      _mm512_loadu_si512          VMOVDQU64 (ZMM, M512)           7cy @ p23   7cy @ p23
+ *      Intrinsic             Instruction               Icelake    Genoa
+ *      _mm512_dpbusd_epi32   VPDPBUSD (ZMM, ZMM, ZMM)  5cy @ p0   4cy @ p01
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, ZMM, ZMM)  5cy @ p0   4cy @ p01
+ *      _mm512_cvtepi8_epi32  VPMOVSXBD (ZMM, XMM)      3cy @ p5   3cy @ p12
+ *      _mm512_loadu_si512    VMOVDQU64 (ZMM, M512)     7cy @ p23  7cy @ p23
  *
  *  Ice Lake's VNNI instructions accelerate int8 GEMM by computing 4-element dot products per lane.
  *  VPDPBUSD/VPDPWSSD bottleneck on port 0, limiting throughput to 1/cy. AMD Genoa achieves 0.5/cy

@@ -8,20 +8,19 @@
  *
  *  @section elementwise_neon_instructions ARM NEON Instructions
  *
- *      Intrinsic         Instruction                   Latency     Throughput
- *                                                                  A76     M4+/V1+/Oryon
- *      vld1q_f32         LD1 (V.4S)                    4cy         2/cy    2/cy
- *      vst1q_f32         ST1 (V.4S)                    2cy         2/cy    2/cy
- *      vaddq_f32         FADD (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
- *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
- *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
- *      vaddq_f64         FADD (V.2D, V.2D, V.2D)       2cy         2/cy    4/cy
- *      vmulq_f64         FMUL (V.2D, V.2D, V.2D)       3cy         2/cy    4/cy
- *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
- *      vqaddq_s16        SQADD (V.8H, V.8H, V.8H)      2cy         2/cy    4/cy
- *      vcvtq_f32_s32     SCVTF (V.4S, V.4S)            3cy         2/cy    2/cy
- *      vcvtnq_s32_f32    FCVTNS (V.4S, V.4S)           3cy         2/cy    2/cy
- *      vqmovn_s32        SQXTN (V.4H, V.4S)            3cy         2/cy    2/cy
+ *      Intrinsic       Instruction               A76       M5
+ *      vld1q_f32       LD1 (V.4S)                4cy @ 2p  4cy @ 3p
+ *      vst1q_f32       ST1 (V.4S)                2cy @ 2p  2cy @ 3p
+ *      vaddq_f32       FADD (V.4S, V.4S, V.4S)   3cy @ 2p  2cy @ 4p
+ *      vmulq_f32       FMUL (V.4S, V.4S, V.4S)   3cy @ 2p  3cy @ 4p
+ *      vfmaq_f32       FMLA (V.4S, V.4S, V.4S)   4cy @ 2p  3cy @ 4p
+ *      vaddq_f64       FADD (V.2D, V.2D, V.2D)   3cy @ 2p  2cy @ 4p
+ *      vmulq_f64       FMUL (V.2D, V.2D, V.2D)   3cy @ 2p  3cy @ 4p
+ *      vfmaq_f64       FMLA (V.2D, V.2D, V.2D)   4cy @ 2p  3cy @ 4p
+ *      vqaddq_s16      SQADD (V.8H, V.8H, V.8H)  2cy @ 2p  3cy @ 2p
+ *      vcvtq_f32_s32   SCVTF (V.4S, V.4S)        3cy @ 2p  3cy @ 4p
+ *      vcvtnq_s32_f32  FCVTNS (V.4S, V.4S)       3cy @ 2p  3cy @ 4p
+ *      vqmovn_s32      SQXTN (V.4H, V.4S)        3cy @ 2p  3cy @ 4p
  *
  *  Elementwise operations are throughput-bound rather than latency-bound. FP arithmetic
  *  throughput doubles on 4-pipe cores (Apple M4+, Graviton3+, Oryon) from 2/cy to 4/cy.

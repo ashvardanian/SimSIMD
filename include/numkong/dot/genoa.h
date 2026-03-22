@@ -8,10 +8,10 @@
  *
  *  @section dot_genoa_instructions Key AVX-512 BF16 Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_dpbf16_ps            VDPBF16PS (ZMM, ZMM, ZMM)       4cy         0.5/cy      p01
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p01
- *      _mm512_add_ps               VADDPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p01
+ *      Intrinsic         Instruction                  Genoa      Alder Lake
+ *      _mm512_dpbf16_ps  VDPBF16PS (ZMM, ZMM, ZMM)    6cy @ p01  8cy @ p0+p0+p5+p5
+ *      _mm512_fmadd_ps   VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p01  4cy @ p0
+ *      _mm512_add_ps     VADDPS (ZMM, ZMM, ZMM)       4cy @ p01  3cy @ p05
  *
  *  AMD Genoa introduces native AVX-512 BF16 support with VDPBF16PS, which computes two BF16 dot products
  *  per 32-bit lane (32 BF16 multiplies accumulated into 16 FP32 values per instruction). This provides

@@ -55,13 +55,13 @@
  *  Saturating integer adds (VPADDSW/VPADDUSW) provide overflow protection for i16/u16 sums without
  *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and blend (alpha*a+beta*b).
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm512_cvtph_ps         VCVTPH2PS (ZMM, YMM)            7c @ p0+p5  6c @ p12+p23
- *      _mm512_cvtps_ph         VCVTPS2PH (YMM, ZMM, I8)        7c @ p0+p5  7c @ p12+p23
- *      _mm256_adds_epi16       VPADDSW (YMM, YMM, YMM)         1c @ p01    N/A
- *      _mm256_adds_epu16       VPADDUSW (YMM, YMM, YMM)        1c @ p01    N/A
- *      _mm512_fpclass_ps_mask  VFPCLASSPS (K, ZMM, I8)         3c @ p5     5c @ p01
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      Intrinsic               Instruction                  Icelake      Genoa
+ *      _mm512_cvtph_ps         VCVTPH2PS (ZMM, YMM)         7cy @ p0+p5  6cy @ p12+p23
+ *      _mm512_cvtps_ph         VCVTPS2PH (YMM, ZMM, I8)     7cy @ p0+p5  7cy @ p12+p23
+ *      _mm256_adds_epi16       VPADDSW (YMM, YMM, YMM)      1cy @ p01    n/a
+ *      _mm256_adds_epu16       VPADDUSW (YMM, YMM, YMM)     1cy @ p01    n/a
+ *      _mm512_fpclass_ps_mask  VFPCLASSPS (K, ZMM, I8)      3cy @ p5     5cy @ p01
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)  4cy @ p01    4cy @ p01
  *
  *  @section arm_instructions Relevant ARM NEON/SVE Instructions
  *
@@ -69,12 +69,12 @@
  *  vector throughput (8 elements per 128-bit register vs 4 for f32). Saturating adds (SQADD/UQADD)
  *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/blend/fma.
  *
- *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
- *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vqaddq_s16              SQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
- *      vqaddq_u16              UQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
- *      vcvtq_f32_s32           SCVTF (vec)     3c @ V0123      3c @ V01        3c @ V01
- *      vcvtnq_s32_f32          FCVTNS (vec)    3c @ V0123      3c @ V01        3c @ V01
+ *      Intrinsic       Instruction   M1 Firestorm  Graviton 3   Graviton 4
+ *      vfmaq_f32       FMLA.S (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vqaddq_s16      SQADD (vec)   3cy @ V0123   2cy @ V0123  2cy @ V0123
+ *      vqaddq_u16      UQADD (vec)   3cy @ V0123   2cy @ V0123  2cy @ V0123
+ *      vcvtq_f32_s32   SCVTF (vec)   3cy @ V0123   3cy @ V01    3cy @ V01
+ *      vcvtnq_s32_f32  FCVTNS (vec)  3cy @ V0123   3cy @ V01    3cy @ V01
  *
  *  @section references References
  *

@@ -9,15 +9,15 @@
  *  Uses AVX-512 VNNI (VPDPBUSD) for coarse i8 screening. The coarse argmax kernel and reduce helper
  *  are shared with genoa.h — genoa.h imports them from this file for its bf16 compute path.
  *
- *  VPDPBUSD computes 4 groups of (u8 x i8) -> i32 per 128-bit lane, processing 64 i8 pairs
+ *  VPDPBUSD computes 4 groups of (u8 × i8) → i32 per 128-bit lane, processing 64 i8 pairs
  *  per ZMM register operation. Bias correction via XOR with 0x80 converts signed queries
  *  to unsigned, then subtracts 128 * sum(document_i8) after the depth loop.
  *
- *  4x4 register tiling: 4 queries x 4 documents = 16 ZMM accumulators per depth loop.
+ *  4x4 register tiling: 4 queries × 4 documents = 16 ZMM accumulators per depth loop.
  *  Each document load is amortized across 4 VPDPBUSDs, and each query load across 4 documents.
  *
- *      Intrinsic                   Instruction     Icelake         Genoa (Zen4)
- *      _mm512_dpbusd_epi32         VPDPBUSD        5cy @ p0        4cy @ p01 (512-bit)
+ *      Intrinsic            Instruction  Icelake   Genoa
+ *      _mm512_dpbusd_epi32  VPDPBUSD     5cy @ p0  4cy @ p01
  */
 #ifndef NK_MAXSIM_ICELAKE_H
 #define NK_MAXSIM_ICELAKE_H
@@ -117,7 +117,7 @@ NK_PUBLIC void nk_maxsim_pack_f16_icelake( //
 NK_INTERNAL __m128i nk_maxsim_reduce_i32x16x4_icelake_(         //
     __m512i accumulator_a_i32x16, __m512i accumulator_b_i32x16, //
     __m512i accumulator_c_i32x16, __m512i accumulator_d_i32x16) {
-    // Step 1: 16 -> 8 (extract high 256-bit half and add to low half)
+    // Step 1: 16 → 8 (extract high 256-bit half and add to low half)
     __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(accumulator_a_i32x16),
                                            _mm512_extracti32x8_epi32(accumulator_a_i32x16, 1));
     __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(accumulator_b_i32x16),
@@ -126,12 +126,12 @@ NK_INTERNAL __m128i nk_maxsim_reduce_i32x16x4_icelake_(         //
                                            _mm512_extracti32x8_epi32(accumulator_c_i32x16, 1));
     __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(accumulator_d_i32x16),
                                            _mm512_extracti32x8_epi32(accumulator_d_i32x16, 1));
-    // Step 2: 8 -> 4 (extract high 128-bit half and add to low half)
+    // Step 2: 8 → 4 (extract high 128-bit half and add to low half)
     __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
     __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
     __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
     __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
-    // Step 3: 4x4 transpose + reduce -> [sum_a, sum_b, sum_c, sum_d]
+    // Step 3: 4x4 transpose + reduce → [sum_a, sum_b, sum_c, sum_d]
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
@@ -258,7 +258,7 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_icelake_(        //
             query_2_coarse_dots_i32x4 = _mm_sub_epi32(query_2_coarse_dots_i32x4, bias_correction_i32x4);
             query_3_coarse_dots_i32x4 = _mm_sub_epi32(query_3_coarse_dots_i32x4, bias_correction_i32x4);
 
-            // 4x4 transpose: [query][doc] -> [doc][query] for vectorized argmax
+            // 4x4 transpose: [query][doc] → [doc][query] for vectorized argmax
             __m128i transpose_queries_01_low_i32x4 = _mm_unpacklo_epi32(query_0_coarse_dots_i32x4,
                                                                         query_1_coarse_dots_i32x4);
             __m128i transpose_queries_23_low_i32x4 = _mm_unpacklo_epi32(query_2_coarse_dots_i32x4,
