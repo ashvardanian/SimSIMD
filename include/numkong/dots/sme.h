@@ -620,7 +620,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
         svbool_t const row_predicate_f16x = svwhilelt_b16_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         // Fast path: 3 column tiles at a time
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
@@ -865,7 +866,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
         svbool_t const row_predicate_f16x = svwhilelt_b16_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -1348,7 +1350,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
         svbool_t const row_predicate_i8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -1906,7 +1909,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
         svbool_t const row_predicate_f16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -2399,7 +2403,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
         svbool_t const row_predicate_f16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -2945,7 +2950,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
         svbool_t const row_predicate_i8x = svwhilelt_b8_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -3478,7 +3484,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
         svbool_t const row_predicate_f16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -3952,7 +3959,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
         svbool_t const row_predicate_i8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -4775,7 +4783,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
         svbool_t const row_predicate_i8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);
@@ -5082,7 +5091,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
         svbool_t const row_predicate_i8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_f32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
             svzero_mask_za(nk_sme_zero_za32_tiles_123_);

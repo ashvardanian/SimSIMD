@@ -431,7 +431,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                                                                                    : (n_vectors - row_tile_start);
         svbool_t const row_predicate_f64x = svwhilelt_b64_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         // Fast path: 7 column tiles at a time
         for (; column_tile_index + 7 <= column_tile_count; column_tile_index += 7) {
@@ -830,7 +831,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
                                                                                       : (n_vectors - row_tile_start);
         svbool_t const row_predicate_f64x = svwhilelt_b64_u64(0u, rows_clamped);
 
-        for (nk_size_t column_tile_index = 0; column_tile_index < column_tile_count; column_tile_index++) {
+        // Upper triangle: start from this row tile's column
+        for (nk_size_t column_tile_index = row_tile_start / tile_dimension; column_tile_index < column_tile_count;
+             column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
             nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                     ? tile_dimension
