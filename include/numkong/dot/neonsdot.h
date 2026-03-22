@@ -206,7 +206,6 @@ NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_siz
     //
     n = nk_size_round_up_to_multiple_(n, 2);
     nk_size_t n_bytes = n / 2;
-    uint8x16_t const nibble_mask_u8x16 = vdupq_n_u8(0x0F);
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     uint8x16_t a_i4x32, b_i4x32;
 
@@ -230,18 +229,12 @@ nk_dot_i4_neonsdot_cycle:
         a += 16, b += 16, n_bytes -= 16;
     }
 
-    // Extract low and high nibbles as unsigned [0,15]
-    uint8x16_t a_lo_u8x16 = vandq_u8(a_i4x32, nibble_mask_u8x16);
-    uint8x16_t a_hi_u8x16 = vshrq_n_u8(a_i4x32, 4);
-    uint8x16_t b_lo_u8x16 = vandq_u8(b_i4x32, nibble_mask_u8x16);
-    uint8x16_t b_hi_u8x16 = vshrq_n_u8(b_i4x32, 4);
-
-    // Sign-extend 4-bit to 8-bit: shift left 4, arithmetic shift right 4
-    // This converts unsigned [0,15] to signed [-8,7]
-    int8x16_t a_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_lo_u8x16), 4), 4);
-    int8x16_t a_hi_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_hi_u8x16), 4), 4);
-    int8x16_t b_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_lo_u8x16), 4), 4);
-    int8x16_t b_hi_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_hi_u8x16), 4), 4);
+    // Sign-extend low nibbles: SHL 4 discards high nibble, arithmetic SHR 4 sign-extends
+    int8x16_t a_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_i4x32), 4), 4);
+    int8x16_t b_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_i4x32), 4), 4);
+    // Sign-extend high nibbles: arithmetic SHR 4 directly sign-extends
+    int8x16_t a_hi_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(a_i4x32), 4);
+    int8x16_t b_hi_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(b_i4x32), 4);
 
     // SDOT for signed dot product - no correction needed!
     sum_i32x4 = vdotq_s32(sum_i32x4, a_lo_i8x16, b_lo_i8x16);
@@ -311,19 +304,13 @@ NK_INTERNAL void nk_dot_i4x32_update_neonsdot(nk_dot_i4x32_state_neonsdot_t *sta
                                               nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    uint8x16_t const nibble_mask_u8x16 = vdupq_n_u8(0x0F);
 
-    // Extract nibbles as unsigned first
-    uint8x16_t a_low_u8x16 = vandq_u8(a_i4x32.u8x16, nibble_mask_u8x16);
-    uint8x16_t a_high_u8x16 = vshrq_n_u8(a_i4x32.u8x16, 4);
-    uint8x16_t b_low_u8x16 = vandq_u8(b_i4x32.u8x16, nibble_mask_u8x16);
-    uint8x16_t b_high_u8x16 = vshrq_n_u8(b_i4x32.u8x16, 4);
-
-    // Sign-extend 4-bit to 8-bit: shift left 4, arithmetic shift right 4
-    int8x16_t a_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_low_u8x16), 4), 4);
-    int8x16_t a_high_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_high_u8x16), 4), 4);
-    int8x16_t b_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_low_u8x16), 4), 4);
-    int8x16_t b_high_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_high_u8x16), 4), 4);
+    // Sign-extend low nibbles: SHL 4 discards high nibble, arithmetic SHR 4 sign-extends (2 ops each)
+    int8x16_t a_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_i4x32.u8x16), 4), 4);
+    int8x16_t b_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_i4x32.u8x16), 4), 4);
+    // Sign-extend high nibbles: arithmetic SHR 4 directly sign-extends (1 op each)
+    int8x16_t a_high_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(a_i4x32.u8x16), 4);
+    int8x16_t b_high_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(b_i4x32.u8x16), 4);
 
     // SDOT for signed dot product - no correction needed!
     int32x4_t product_sum_i32x4 = state->product_sum_i32x4;
