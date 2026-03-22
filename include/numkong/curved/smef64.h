@@ -225,14 +225,14 @@ __arm_locally_streaming static void nk_bilinear_f64_smef64_streaming_(nk_f64_t c
             predicate_f64x = svwhilelt_b64(j, n);
         }
 
-        nk_f64_t cb[4] = {
-            svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x),
-            svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x),
-            svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x),
-            svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x),
-        };
-        nk_f64_t av[4] = {a0, a1, a2, a3};
-        for (int r = 0; r < 4; ++r) nk_f64_dot2_(&outer_sum, &outer_comp, av[r], cb[r]);
+        nk_f64_dot2_(&outer_sum, &outer_comp, a0,
+                     svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a1,
+                     svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a2,
+                     svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a3,
+                     svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x));
     }
 
     // 1-row tail
@@ -297,14 +297,14 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_streami
             predicate_f64x = svwhilelt_b64(j, n);
         }
 
-        nk_f64_t cb[4] = {
-            svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x),
-            svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x),
-            svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x),
-            svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x),
-        };
-        nk_f64_t dv[4] = {d0, d1, d2, d3};
-        for (int r = 0; r < 4; ++r) nk_f64_dot2_(&outer_sum, &outer_comp, dv[r], cb[r]);
+        nk_f64_dot2_(&outer_sum, &outer_comp, d0,
+                     svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d1,
+                     svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d2,
+                     svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d3,
+                     svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x));
     }
 
     // 1-row tail
