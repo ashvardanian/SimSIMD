@@ -25,7 +25,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::tensor::{Allocator, Global, ShapeDescriptor, TensorError, TensorView, SIMD_ALIGNMENT};
-use crate::types::{bf16, f16};
+use crate::types::{bf16, f16, StorageElement};
 
 // region: FFI
 
@@ -88,7 +88,7 @@ extern "C" {
 // region: MaxSim trait
 
 /// Trait abstracting MaxSim pack/score operations per scalar type.
-pub trait MaxSim: Sized + Clone {
+pub trait MaxSim: StorageElement + Clone {
     /// Score type returned by MaxSim scoring.
     type Score: Clone + Default;
 

@@ -6,7 +6,7 @@
 //! - [`Jaccard`]: Jaccard distance (1 - intersection/union)
 //! - [`BinarySimilarity`]: Blanket trait combining `Hamming + Jaccard`
 
-use crate::types::u1x8;
+use crate::types::{u1x8, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -26,7 +26,7 @@ extern "C" {
 /// Range: \[0, n\]. Returns `None` if lengths differ.
 ///
 /// Implemented for: `u1x8`, `u8`.
-pub trait Hamming: Sized {
+pub trait Hamming: StorageElement {
     type Output;
     fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
@@ -74,7 +74,7 @@ impl Hamming for u8 {
 /// Range: \[0, 1\]. Returns `None` if lengths differ.
 ///
 /// Implemented for: `u1x8`, `u16`, `u32`.
-pub trait Jaccard: Sized {
+pub trait Jaccard: StorageElement {
     type Output;
     fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }

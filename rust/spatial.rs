@@ -9,7 +9,9 @@
 //! - [`Roots`]: Scalar square root and reciprocal square root
 //! - [`SpatialSimilarity`]: Blanket trait combining `Dot + Angular + Euclidean`
 
-use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2};
+use crate::types::{
+    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2, StorageElement,
+};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -135,7 +137,7 @@ impl Roots for f16 {
 /// let result = f32::dot(&a, &b).unwrap();
 /// assert!((result - 32.0).abs() < 1e-5);
 /// ```
-pub trait Dot: Sized {
+pub trait Dot: StorageElement {
     type Output;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
@@ -445,7 +447,7 @@ impl Dot for f64c {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
-pub trait Angular: Sized {
+pub trait Angular: StorageElement {
     type Output;
     fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
@@ -667,7 +669,7 @@ impl Angular for u4x2 {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
-pub trait Euclidean: Sized {
+pub trait Euclidean: StorageElement {
     type SqEuclideanOutput;
     type EuclideanOutput;
 
