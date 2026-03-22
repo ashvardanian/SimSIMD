@@ -355,6 +355,10 @@ endif ()
 # See cmake/nk_x86_isa_probes.cmake for details and probe definitions.
 include(cmake/nk_x86_isa_probes.cmake)
 
+# Arm ISA runtime probes — detect host CPU capabilities at configure time.
+# See cmake/nk_arm_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_arm_isa_probes.cmake)
+
 # Build benchmarks
 if (NK_BUILD_BENCH)
     # Fetch external dependencies
@@ -426,6 +430,10 @@ if (NK_BUILD_BENCH)
     if (nk_x86_isa_defs_)
         target_compile_definitions(nk_bench PRIVATE ${nk_x86_isa_defs_})
     endif ()
+
+    if (nk_arm_isa_defs_)
+        target_compile_definitions(nk_bench PRIVATE ${nk_arm_isa_defs_})
+    endif ()
 endif ()
 
 # Dtype-specific dispatch sources (for parallel compilation)
@@ -482,6 +490,10 @@ if (NK_BUILD_TEST)
 
     if (nk_x86_isa_defs_)
         target_compile_definitions(nk_test PRIVATE ${nk_x86_isa_defs_})
+    endif ()
+
+    if (nk_arm_isa_defs_)
+        target_compile_definitions(nk_test PRIVATE ${nk_arm_isa_defs_})
     endif ()
 
     add_test(NAME nk_test COMMAND nk_test)
