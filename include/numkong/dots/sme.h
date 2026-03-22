@@ -70,7 +70,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme")
@@ -121,9 +121,9 @@ enum {
 #pragma region Half Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t n, nk_size_t k) {
-    nk_size_t const expansion = 2;               // FMOPA f16 → f32: 2 f16 pairs per f32 output
-    nk_size_t const tile_dimension = svcntsw();  // ZA32 tile dim: 16
-    nk_size_t const vector_elements = svcntsh(); // f16 elements per SVE vector: 32
+    nk_size_t const expansion = 2;                    // FMOPA f16 → f32: 2 f16 pairs per f32 output
+    nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
+    nk_size_t const vector_elements = nk_sme_cnth_(); // f16 elements per SVE vector: 32
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
 
@@ -139,9 +139,9 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
     nk_f16_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
 
-    nk_size_t const expansion = 2;               // FMOPA f16 → f32: 2 f16 pairs per f32 output
-    nk_size_t const tile_dimension = svcntsw();  // ZA32 tile dim: 16
-    nk_size_t const vector_elements = svcntsh(); // f16 per SVE vector: 32 = tile_dimension * expansion
+    nk_size_t const expansion = 2;                    // FMOPA f16 → f32: 2 f16 pairs per f32 output
+    nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
+    nk_size_t const vector_elements = nk_sme_cnth_(); // f16 per SVE vector: 32 = tile_dimension * expansion
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_f16_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -153,7 +153,7 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -200,8 +200,8 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
     nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 2;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsh();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cnth_();
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_bf16_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -213,7 +213,7 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -1087,9 +1087,9 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t n_
 #pragma region Signed 8-bit Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t n, nk_size_t k) {
-    nk_size_t const expansion = 4;               // SMOPA i8→i32: 4 i8 pairs per i32 output
-    nk_size_t const tile_dimension = svcntsw();  // ZA32 tile dim: 16
-    nk_size_t const vector_elements = svcntsb(); // i8 elements per SVE vector: 64
+    nk_size_t const expansion = 4;                    // SMOPA i8→i32: 4 i8 pairs per i32 output
+    nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
+    nk_size_t const vector_elements = nk_sme_cntb_(); // i8 elements per SVE vector: 64
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
 
@@ -1104,8 +1104,8 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
     nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 4;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb(); // 64 = tile_dimension * expansion
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_(); // 64 = tile_dimension * expansion
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_i8_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -1117,7 +1117,7 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_i32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -1586,7 +1586,7 @@ static nk_u16_t const nk_e4m3_subnorm_f16_lut_[8] = {
  *  @return 32 `f16` values as `svfloat16_t`: from lower 32 bytes
  */
 NK_PUBLIC svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x,
-                                             svuint16_t subnorm_lut_u16x) NK_STREAMING_COMPATIBLE_ {
+                                             svuint16_t subnorm_lut_u16x) NK_STREAMING_ {
     svuint16_t vals_u16x = svunpklo_u16(bytes_u8x); // 1: UUNPKLO
 
     svuint16_t sign_u16x = svlsl_n_u16_x(predicate_f16x, svand_n_u16_x(predicate_f16x, vals_u16x, 0x80),
@@ -1627,7 +1627,7 @@ NK_PUBLIC svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t 
  *  @param bytes_u8x Pre-loaded 64 bytes (svuint8_t from svld1_u8)
  *  @return 32 F16 values as svfloat16_t (from lower 32 bytes)
  */
-NK_PUBLIC svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_ {
     // E5M2 and F16 share the same exponent bias (15), sign position, exponent width,
     // and mantissa field alignment. The conversion f16 = byte << 8 is exact for ALL
     // 256 values including subnormals, infinity, and NaN.
@@ -1803,8 +1803,8 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 2;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsh();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cnth_();
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_e4m3_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -1816,7 +1816,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -2296,8 +2296,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sme(nk_size_t n, nk_size_t k) { ret
 NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 2;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsh();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cnth_();
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_e5m2_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -2309,7 +2309,7 @@ NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t 
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -2643,7 +2643,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_
  *  @param raw_bytes_u8x Pre-loaded e2m3 bytes as `svuint8_t`
  *  @return              Signed `i8` values as `svint8_t`
  */
-NK_PUBLIC svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_i8x, svuint8_t raw_bytes_u8x) NK_STREAMING_ {
     // 32-entry magnitude LUT, replicated for SVE TBL (handles SVL > 256 bits)
     static NK_ALIGN64 nk_u8_t const lut_data[64] = {
         0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
@@ -2836,8 +2836,8 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
     nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 4;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb(); // 64 = tile_dimension * expansion
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_(); // 64 = tile_dimension * expansion
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_e2m3_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -2849,7 +2849,7 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_i32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -3196,7 +3196,7 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_
  *  @param bytes_u8x      Pre-loaded bytes (svuint8_t from svld1_u8)
  *  @return               F16 values as svfloat16_t (from lower half of bytes via unpack)
  */
-NK_PUBLIC svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_f16x, svuint8_t bytes_u8x) NK_STREAMING_ {
     static NK_ALIGN64 nk_u8_t const magnitude_hi_lut[64] = {
         0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
         0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
@@ -3373,8 +3373,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_sme(nk_size_t n, nk_size_t k) { ret
 NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 2;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsh();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cnth_();
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_e3m2_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -3386,7 +3386,7 @@ NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t 
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -3713,8 +3713,8 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
     nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const expansion = 4;
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_u8_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -3726,7 +3726,7 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_u32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_u32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -4169,8 +4169,8 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t n_vect
 #pragma region Nibble Unsigned Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u4_sme(nk_size_t n, nk_size_t k) {
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -4185,8 +4185,8 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
     nk_u4x2_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
 
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const vector_pair_stride = 2 * vector_elements;
     nk_size_t const b_stride_bytes = b_stride / sizeof(nk_u4x2_t);
     nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
@@ -4199,7 +4199,7 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_u32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_u32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -4454,8 +4454,8 @@ NK_PUBLIC void nk_dots_packed_u4_sme(                      //
 #pragma region Nibble Signed Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_i4_sme(nk_size_t n, nk_size_t k) {
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -4470,8 +4470,8 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
     nk_i4x2_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
 
-    nk_size_t const tile_dimension = svcntsw();
-    nk_size_t const vector_elements = svcntsb();
+    nk_size_t const tile_dimension = nk_sme_cntw_();
+    nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const vector_pair_stride = 2 * vector_elements;
     nk_size_t const b_stride_bytes = b_stride / sizeof(nk_i4x2_t);
     nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
@@ -4484,7 +4484,7 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_i32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 

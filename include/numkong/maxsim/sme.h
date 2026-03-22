@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme")
@@ -529,8 +529,8 @@ NK_PUBLIC void nk_maxsim_pack_f16_sme(                                          
  */
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sme(nk_size_t n, nk_size_t k) { //
     nk_size_t const expansion = 4;                                            // i8->i32 SMOPA
-    nk_size_t const tile_dimension = svcntsw();                               // 16 for SVL=512
-    nk_size_t const vector_elements = svcntsb();                              // 64 for SVL=512
+    nk_size_t const tile_dimension = nk_sme_cntw_();                          // 16 for SVL=512
+    nk_size_t const vector_elements = nk_sme_cntb_();                         // 64 for SVL=512
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
     nk_size_t const original_stride = nk_size_round_up_to_multiple_(k * sizeof(nk_f32_t), 64);
@@ -545,9 +545,9 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sme(nk_size_t n, nk_size_t k) { //
 NK_PUBLIC void nk_maxsim_pack_f32_sme(                                                   //
     nk_f32_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) { //
 
-    nk_size_t const expansion = 4;               // i8->i32 SMOPA
-    nk_size_t const tile_dimension = svcntsw();  // 16 for SVL=512
-    nk_size_t const vector_elements = svcntsb(); // 64 for SVL=512
+    nk_size_t const expansion = 4;                    // i8->i32 SMOPA
+    nk_size_t const tile_dimension = nk_sme_cntw_();  // 16 for SVL=512
+    nk_size_t const vector_elements = nk_sme_cntb_(); // 64 for SVL=512
     nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
@@ -561,7 +561,7 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
     header->depth_tile_count = (nk_u32_t)depth_step_count;
     header->columns = (nk_u32_t)n;
     header->depth = (nk_u32_t)k;
-    header->svl_bytes = (nk_u32_t)(svcntsw() * sizeof(nk_f32_t));
+    header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_size_t const tiles_size = total_vectors * vector_elements;
     nk_size_t const norms_offset = sizeof(nk_maxsim_sme_packed_header_t) + tiles_size;
@@ -628,8 +628,8 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
  *  Streaming-compatible f32 dot product with f64 accumulation.
  *  Follows the svcntd()-stride + svcvt_f64_f32_x pattern from nk_dots_reduce_sumsq_f32_ssve_.
  */
-NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                                    //
-    nk_f32_t const *a, nk_f32_t const *b, nk_size_t count) NK_STREAMING_COMPATIBLE_ { //
+NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                         //
+    nk_f32_t const *a, nk_f32_t const *b, nk_size_t count) NK_STREAMING_ { //
     svfloat64_t accumulator_f64x = svdup_f64(0.0);
     for (nk_size_t i = 0; i < count; i += svcntd()) {
         svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);

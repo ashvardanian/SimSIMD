@@ -65,7 +65,7 @@ extern "C" {
  */
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme2,sve2"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme2"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme2")
@@ -93,8 +93,7 @@ typedef struct {
 
 /** Count total set bits across a byte vector using streaming SVE.
  *  Accumulates per-byte popcounts into u32 lanes via svdot; single horizontal reduction at end. */
-NK_PUBLIC nk_u32_t nk_sets_reduce_sumsq_u1_streaming_(nk_u1x8_t const *data,
-                                                      nk_size_t n_bytes) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u32_t nk_sets_reduce_sumsq_u1_streaming_(nk_u1x8_t const *data, nk_size_t n_bytes) NK_STREAMING_ {
     svuint32_t acc_u32x = svdup_u32(0);
     svuint8_t const ones_u8x = svdup_u8(1);
     for (nk_size_t offset = 0; offset < n_bytes; offset += svcntb()) {

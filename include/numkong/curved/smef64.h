@@ -61,7 +61,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve,sme-f64f64"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme+sme-f64f64")
@@ -72,7 +72,7 @@ extern "C" {
  *  Uses TwoProd (svneg+svnmls) and TwoSum error-free transformations.
  */
 NK_PUBLIC void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_t *sum, svfloat64_t *comp,
-                                           svfloat64_t a_f64x, svfloat64_t b_f64x) NK_STREAMING_COMPATIBLE_ {
+                                           svfloat64_t a_f64x, svfloat64_t b_f64x) NK_STREAMING_ {
     svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
     svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                  svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
