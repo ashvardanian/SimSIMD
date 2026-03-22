@@ -367,7 +367,8 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                                                                                       : (n_vectors - row_tile_start);
         svbool_t const row_predicate_u32x = svwhilelt_b32_u64(0u, rows_clamped);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dim;
 
         // Fast path: 3 column tiles using ZA1-ZA3 (ZA0 = staging)
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {
