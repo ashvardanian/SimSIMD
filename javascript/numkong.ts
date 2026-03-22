@@ -97,6 +97,7 @@ export const Capability = {
   SMEBF16: 1n << 31n,        // 2025+: ARM SME B16B16
   SMELUT2: 1n << 32n,        // 2025+: ARM SME LUTv2
   RVVBB: 1n << 33n,          // 2025+: RISC-V Zvbb
+  SMEBI32: 1n << 35n,        // 2025+: ARM SME BI32I32
 } as const;
 
 export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, outputDtype };

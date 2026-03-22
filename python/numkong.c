@@ -949,6 +949,7 @@ static struct {
     {"smef64", nk_cap_smef64_k},
     {"smehalf", nk_cap_smehalf_k},
     {"smebf16", nk_cap_smebf16_k},
+    {"smebi32", nk_cap_smebi32_k},
     {"smelut2", nk_cap_smelut2_k},
     {"smefa64", nk_cap_smefa64_k},
     // x86

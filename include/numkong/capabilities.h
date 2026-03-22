@@ -289,6 +289,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_smelut2_k     ((nk_capability_t)1 << 32)
 #define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 #define nk_cap_sierra_k      ((nk_capability_t)1 << 34)
+#define nk_cap_smebi32_k     ((nk_capability_t)1 << 35)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -510,7 +511,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #if defined(NK_DEFINED_APPLE_)
     size_t size = sizeof(unsigned);
     unsigned supports_neon = 0, supports_fp16 = 0, supports_fhm = 0, supports_bf16 = 0, supports_i8mm = 0;
-    unsigned supports_sme = 0, supports_sme2 = 0, supports_smef64 = 0, supports_smehalf = 0, supports_sme2p1 = 0;
+    unsigned supports_sme = 0, supports_sme2 = 0, supports_smef64 = 0, supports_smehalf = 0, supports_sme2p1 = 0,
+             supports_smebi32 = 0;
     if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0) supports_neon = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0) supports_fp16 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FHM", &supports_fhm, &size, NULL, 0) != 0) supports_fhm = 0;
@@ -521,6 +523,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     if (sysctlbyname("hw.optional.arm.FEAT_SME_F64F64", &supports_smef64, &size, NULL, 0) != 0) supports_smef64 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME_F16F16", &supports_smehalf, &size, NULL, 0) != 0) supports_smehalf = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME2p1", &supports_sme2p1, &size, NULL, 0) != 0) supports_sme2p1 = 0;
+    if (sysctlbyname("hw.optional.arm.SME_BI32I32", &supports_smebi32, &size, NULL, 0) != 0) supports_smebi32 = 0;
 
     return (nk_capability_t)((nk_cap_neon_k * (supports_neon)) |
                              (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
@@ -529,7 +532,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
                              (nk_cap_neonsdot_k * (supports_neon && supports_i8mm)) | (nk_cap_sme_k * (supports_sme)) |
                              (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_sme2p1_k * (supports_sme2p1)) |
                              (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
-                             (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_serial_k));
+                             (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_smebi32_k * (supports_smebi32)) |
+                             (nk_cap_serial_k));
 
 #elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
 
@@ -580,7 +584,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 
     unsigned supports_sme2 = 0, supports_sme2p1 = 0;
     unsigned supports_smef64 = 0, supports_smehalf = 0, supports_smebf16 = 0;
-    unsigned supports_smelut2 = 0, supports_smefa64 = 0;
+    unsigned supports_smebi32 = 0, supports_smelut2 = 0, supports_smefa64 = 0;
     if (supports_sme) {
         // MRS x0, ID_AA64SMFR0_EL1 (S3_0_C0_C4_5) — encoded as raw .inst because some
         // assemblers (Clang 21 in Android NDK r29) reject the symbolic register name.
@@ -594,22 +598,23 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
         supports_smef64 = (id_aa64smfr0_el1 >> 48) & 0x1;
         supports_smehalf = (id_aa64smfr0_el1 >> 42) & 0x1;
         supports_smebf16 = (id_aa64smfr0_el1 >> 44) & 0x1;
+        supports_smebi32 = (id_aa64smfr0_el1 >> 33) & 0x1;
         supports_smefa64 = (id_aa64smfr0_el1 >> 63) & 0x1;
     }
 
-    return (nk_capability_t)((nk_cap_neon_k * (supports_neon)) |
-                             (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
-                             (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
-                             (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
-                             (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) |
-                             (nk_cap_sve_k * (supports_sve)) | (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |
-                             (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |
-                             (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) |
-                             (nk_cap_sve2_k * (supports_sve2)) | (nk_cap_sve2p1_k * (supports_sve2p1)) |
-                             (nk_cap_sme_k * (supports_sme)) | (nk_cap_sme2_k * (supports_sme2)) |
-                             (nk_cap_sme2p1_k * (supports_sme2p1)) | (nk_cap_smef64_k * (supports_smef64)) |
-                             (nk_cap_smehalf_k * (supports_smehalf)) | (nk_cap_smebf16_k * (supports_smebf16)) |
-                             (nk_cap_smefa64_k * (supports_smefa64)) | (nk_cap_serial_k));
+    return (
+        nk_capability_t)((nk_cap_neon_k * (supports_neon)) | (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
+                         (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
+                         (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
+                         (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) |
+                         (nk_cap_sve_k * (supports_sve)) | (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |
+                         (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |
+                         (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) | (nk_cap_sve2_k * (supports_sve2)) |
+                         (nk_cap_sve2p1_k * (supports_sve2p1)) | (nk_cap_sme_k * (supports_sme)) |
+                         (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_sme2p1_k * (supports_sme2p1)) |
+                         (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
+                         (nk_cap_smebf16_k * (supports_smebf16)) | (nk_cap_smebi32_k * (supports_smebi32)) |
+                         (nk_cap_smefa64_k * (supports_smefa64)) | (nk_cap_serial_k));
 #elif defined(NK_DEFINED_WINDOWS_)
 
     unsigned supports_neon = 0, supports_dp = 0;

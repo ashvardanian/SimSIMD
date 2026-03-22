@@ -78,4 +78,5 @@ pub mod cap {
     pub const SMEHALF: u64 = 1 << 30; // 2025+: ARM SME F16F16
     pub const SMEBF16: u64 = 1 << 31; // 2025+: ARM SME B16B16
     pub const SMELUT2: u64 = 1 << 32; // 2025+: ARM SME LUTv2
+    pub const SMEBI32: u64 = 1 << 35; // 2025+: ARM SME BI32I32
 }
