@@ -185,6 +185,16 @@ void test_casts() {
     check("cast_f32_to_bf16_rvv", test_cast<f32_t, bf16_t>, nk_cast_rvv);
     check("cast_e4m3_to_f32_rvv", test_cast<e4m3_t, f32_t>, nk_cast_rvv);
     check("cast_e5m2_to_f32_rvv", test_cast<e5m2_t, f32_t>, nk_cast_rvv);
+    check("cast_e2m3_to_f32_rvv", test_cast<e2m3_t, f32_t>, nk_cast_rvv);
+    check("cast_e3m2_to_f32_rvv", test_cast<e3m2_t, f32_t>, nk_cast_rvv);
+    check("cast_e4m3_to_bf16_rvv", test_cast<e4m3_t, bf16_t>, nk_cast_rvv);
+    check("cast_e5m2_to_bf16_rvv", test_cast<e5m2_t, bf16_t>, nk_cast_rvv);
+    check("cast_e2m3_to_bf16_rvv", test_cast<e2m3_t, bf16_t>, nk_cast_rvv);
+    check("cast_e3m2_to_bf16_rvv", test_cast<e3m2_t, bf16_t>, nk_cast_rvv);
+    check("cast_e4m3_to_f16_rvv", test_cast<e4m3_t, f16_t>, nk_cast_rvv);
+    check("cast_e5m2_to_f16_rvv", test_cast<e5m2_t, f16_t>, nk_cast_rvv);
+    check("cast_e2m3_to_f16_rvv", test_cast<e2m3_t, f16_t>, nk_cast_rvv);
+    check("cast_e3m2_to_f16_rvv", test_cast<e3m2_t, f16_t>, nk_cast_rvv);
 #endif
 
     // Serial always runs - baseline test

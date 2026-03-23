@@ -368,10 +368,10 @@ e = (sum - t) + product;  // Compensator term
 
 ### BFloat16 & Float16: Half Precision
 
-__BFloat16__ — not an IEEE 754 standard type, but widely adopted for AI workloads.
-BFloat16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, prioritizing __dynamic range over precision__ (±3.4×10³⁸ with coarser granularity).
-On old CPUs, upcasting BFloat16 to Float32 requires just an unpack and left-shift by 16 bits (essentially free); on newer CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
-NumKong's Float8 types (E4M3/E5M2) upcast to BFloat16 before using DPBF16PS, creating a three-tier precision hierarchy: Float8 for storage, BFloat16 for compute, Float32 for accumulation.
+__BFloat16__ — not an IEEE 754 standard type, but the __universal recommendation__ for AI workloads.
+BF16 shares Float32's 8-bit exponent but truncates the mantissa to 7 bits, prioritizing __dynamic range over precision__ (±3.4×10³⁸ with coarser granularity).
+On old CPUs, upcasting BF16 to F32 requires just an unpack and left-shift by 16 bits (essentially free); on newer CPUs, both Arm and x86 provide widening mixed-precision dot products via __DPBF16PS__ (AVX-512 on Genoa/Sapphire Rapids) and __BFDOT__ (NEON on ARMv8.6-A Graviton 3+).
+NumKong's Float8 types (E4M3/E5M2) upcast via integer-add to BF16, then use DPBF16PS, creating a three-tier precision hierarchy: F8 for storage, BF16 for compute, F32 for accumulation.
 
 __Float16__ — IEEE 754 half-precision with 1 sign bit, 5 exponent bits (bias=15), and 10 mantissa bits, giving a range of ±65504.
 Float16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it better suited for values near zero and gradients during training.
@@ -421,8 +421,8 @@ On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float
 
 __8-bit floats (E4M3 & E5M2)__ follow the [OCP FP8 standard](https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1).
 E4M3FN (no infinities, NaN only) is preferred for __training__ where precision near zero matters; E5M2FN (with infinities) provides wider dynamic range for __inference__.
-On x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BFloat16 via lookup tables, then use native __DPBF16PS__ for 2-per-lane dot products accumulating to Float32.
-On Arm Graviton 3+, the same BFloat16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
+On x86, E4M3/E5M2 values upcast to F32 via an integer-add trick, then to BF16 for native __DPBF16PS__ dot products on Genoa/Sapphire Rapids.
+On Arm, the same integer-add upcast feeds NEON __BFDOT__ on ARMv8.6-A Graviton 3+.
 
 __6-bit floats (E3M2 & E2M3)__ follow the [OCP MX v1.0 standard](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf).
 Their smaller range allows scaling to exact integers that fit in `i8`/`i16`, enabling integer `VPDPBUSD`/`SDOT` accumulation instead of the floating-point pipeline.

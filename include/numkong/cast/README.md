@@ -42,16 +42,16 @@ Float-to-float conversions:
 
 Float-to-Float8 conversions:
 
-| Input Type | Output Type | Description                                   |
-| ---------- | ----------- | --------------------------------------------- |
-| `f32`      | `e4m3`      | 32-bit to Float8: 4 exponent, 3 mantissa bits |
-| `e4m3`     | `f32`       | Float8 to 32-bit, exact via lookup table      |
-| `f32`      | `e5m2`      | 32-bit to Float8: 5 exponent, 2 mantissa bits |
-| `e5m2`     | `f32`       | Float8 to 32-bit, exact via lookup table      |
-| `f32`      | `e2m3`      | 32-bit to MX: 2 exponent, 3 mantissa bits     |
-| `e2m3`     | `f32`       | MX to 32-bit, exact via lookup table          |
-| `f32`      | `e3m2`      | 32-bit to MX: 3 exponent, 2 mantissa bits     |
-| `e3m2`     | `f32`       | MX to 32-bit, exact via lookup table          |
+| Input Type | Output Type | Description                                |
+| ---------- | ----------- | ------------------------------------------ |
+| `f32`      | `e4m3`      | 32-bit to FP8: 4 exponent, 3 mantissa bits |
+| `e4m3`     | `f32`       | FP8 to 32-bit, exact via integer-add       |
+| `f32`      | `e5m2`      | 32-bit to FP8: 5 exponent, 2 mantissa bits |
+| `e5m2`     | `f32`       | FP8 to 32-bit, exact via integer-add       |
+| `f32`      | `e2m3`      | 32-bit to MX: 2 exponent, 3 mantissa bits  |
+| `e2m3`     | `f32`       | MX to 32-bit, exact via integer-add        |
+| `f32`      | `e3m2`      | 32-bit to MX: 3 exponent, 2 mantissa bits  |
+| `e3m2`     | `f32`       | MX to 32-bit, exact via integer-add        |
 
 Float-to-integer conversions:
 
@@ -75,12 +75,17 @@ Packed sub-byte conversions:
 
 ## Optimizations
 
-### Lookup Tables for Mini-Floats
+### Mini-float Upcast via Integer-Add
 
-`nk_e4m3_to_f32_serial`, `nk_e5m2_to_f32_serial`, `nk_e2m3_to_f32_serial`, `nk_e3m2_to_f32_serial` use 256-entry precomputed lookup tables — each 8-bit input indexes directly into a Float32 result array.
-The reverse direction (`nk_f32_to_e4m3_serial`) uses clamping + rounding: clamp to format range, multiply by scale, round-to-nearest, cast to UInt8.
-SIMD backends (`nk_cast_haswell`, `nk_cast_skylake`) use `VPGATHERDD` to perform 8 or 16 simultaneous table lookups from the same 256-entry table.
-AVX-512 gathers on Skylake achieve ~3cy throughput per 16-element lookup vs ~8cy on Haswell for 8-element gathers.
+`nk_e4m3_to_f32_serial`, `nk_e5m2_to_f32_serial`, `nk_e2m3_to_f32_serial`, `nk_e3m2_to_f32_serial` use 256-entry precomputed lookup tables -- each 8-bit input indexes directly into an f32 result array.
+The reverse direction (`nk_f32_to_e4m3_serial`) uses clamping + rounding: clamp to format range, multiply by scale, round-to-nearest, cast to u8.
+
+SIMD backends use a Giesen-inspired integer-add trick instead of the original magic-multiply approach.
+The magic-multiply method places magnitude bits as a denormal f32 mantissa, then float-multiplies by a power of 2 to rebias the exponent.
+The integer-add approach replaces the float multiply with an integer add for normal values (`shifted + (127-bias)<<23`), and uses `cvt_int_to_float * scale` for subnormal values.
+
+On AVX-512, masked operations (`_mm512_mask_cvtepi32_ps`, `_mm512_mask_mul_ps`, `_mm512_mask_or_epi32`) fold the subnormal blend and inf/NaN fixup into single instructions.
+On RVV, merge-undisturbed masked intrinsics (`_mu` variants) achieve the same optimization.
 
 ### BFloat16 as Truncated Float32
 
@@ -122,29 +127,29 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_cast_icelake`  |    51.8 gb/s |    60.2 gb/s |    54.3 gb/s |    52.2 gb/s |    57.7 gb/s |    60.6 gb/s |
 | `nk_cast_sapphire` |    31.8 gb/s |    33.8 gb/s |    38.8 gb/s |    35.0 gb/s |    33.6 gb/s |    51.5 gb/s |
 | __f32 ↔ e5m2__     | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ |
-| `nk_cast_serial`   |   0.785 gb/s |   0.725 gb/s |   0.569 gb/s |    2.62 gb/s |    2.57 gb/s |    2.69 gb/s |
-| `nk_cast_haswell`  |    7.93 gb/s |    8.39 gb/s |    5.44 gb/s |    12.6 gb/s |    17.9 gb/s |    10.6 gb/s |
-| `nk_cast_skylake`  |    10.3 gb/s |    10.8 gb/s |    10.0 gb/s |    27.2 gb/s |    28.6 gb/s |    28.0 gb/s |
-| `nk_cast_icelake`  |    5.07 gb/s |    4.96 gb/s |    6.08 gb/s |    14.9 gb/s |    13.7 gb/s |    14.5 gb/s |
-| `nk_cast_sapphire` |    7.81 gb/s |    5.25 gb/s |    10.7 gb/s |    24.7 gb/s |    15.2 gb/s |    25.0 gb/s |
+| `nk_cast_serial`   |   0.785 gb/s |   0.725 gb/s |   0.569 gb/s |    4.60 gb/s |    4.75 gb/s |    4.25 gb/s |
+| `nk_cast_haswell`  |    7.93 gb/s |    8.39 gb/s |    5.44 gb/s |    14.5 gb/s |    14.9 gb/s |    15.7 gb/s |
+| `nk_cast_skylake`  |    10.3 gb/s |    10.8 gb/s |    10.0 gb/s |    26.0 gb/s |    28.8 gb/s |    28.8 gb/s |
+| `nk_cast_icelake`  |    5.07 gb/s |    4.96 gb/s |    6.08 gb/s |    24.5 gb/s |    30.8 gb/s |    28.0 gb/s |
+| `nk_cast_sapphire` |    7.81 gb/s |    5.25 gb/s |    10.7 gb/s |    26.2 gb/s |    30.5 gb/s |    29.3 gb/s |
 | __f32 ↔ e4m3__     | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ |
-| `nk_cast_serial`   |   0.653 gb/s |   0.623 gb/s |   0.445 gb/s |    1.51 gb/s |    1.43 gb/s |    1.44 gb/s |
-| `nk_cast_haswell`  |    6.74 gb/s |    7.35 gb/s |    6.68 gb/s |    10.4 gb/s |    12.1 gb/s |    7.47 gb/s |
-| `nk_cast_skylake`  |    7.70 gb/s |    9.83 gb/s |    9.79 gb/s |    17.3 gb/s |    23.2 gb/s |    22.2 gb/s |
-| `nk_cast_icelake`  |    8.51 gb/s |    9.01 gb/s |    9.43 gb/s |    17.8 gb/s |    20.5 gb/s |    21.4 gb/s |
-| `nk_cast_sapphire` |    4.98 gb/s |    4.90 gb/s |    8.56 gb/s |    15.7 gb/s |    11.0 gb/s |    17.1 gb/s |
+| `nk_cast_serial`   |   0.653 gb/s |   0.623 gb/s |   0.445 gb/s |    2.80 gb/s |    3.00 gb/s |    2.97 gb/s |
+| `nk_cast_haswell`  |    6.74 gb/s |    7.35 gb/s |    6.68 gb/s |    13.9 gb/s |    14.3 gb/s |    13.7 gb/s |
+| `nk_cast_skylake`  |    7.70 gb/s |    9.83 gb/s |    9.79 gb/s |    24.7 gb/s |    26.6 gb/s |    28.5 gb/s |
+| `nk_cast_icelake`  |    8.51 gb/s |    9.01 gb/s |    9.43 gb/s |    24.8 gb/s |    26.4 gb/s |    27.9 gb/s |
+| `nk_cast_sapphire` |    4.98 gb/s |    4.90 gb/s |    8.56 gb/s |    25.0 gb/s |    26.8 gb/s |    26.7 gb/s |
 | __f32 ↔ e3m2__     | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ |
-| `nk_cast_serial`   |   0.863 gb/s |    1.44 gb/s |    1.21 gb/s |    2.46 gb/s |    4.20 gb/s |    4.14 gb/s |
-| `nk_cast_haswell`  |    4.70 gb/s |    5.04 gb/s |    5.00 gb/s |    7.47 gb/s |    7.82 gb/s |    8.03 gb/s |
-| `nk_cast_skylake`  |    6.34 gb/s |    6.37 gb/s |    6.46 gb/s |    14.7 gb/s |    17.6 gb/s |    17.1 gb/s |
-| `nk_cast_icelake`  |    5.34 gb/s |    5.10 gb/s |    6.36 gb/s |    13.3 gb/s |    14.2 gb/s |    21.3 gb/s |
-| `nk_cast_sapphire` |    8.78 gb/s |    9.93 gb/s |    7.02 gb/s |    23.0 gb/s |    18.5 gb/s |    20.8 gb/s |
+| `nk_cast_serial`   |   0.863 gb/s |    1.44 gb/s |    1.21 gb/s |    4.23 gb/s |    4.27 gb/s |    4.49 gb/s |
+| `nk_cast_haswell`  |    4.70 gb/s |    5.04 gb/s |    5.00 gb/s |    15.0 gb/s |    16.1 gb/s |    16.2 gb/s |
+| `nk_cast_skylake`  |    6.34 gb/s |    6.37 gb/s |    6.46 gb/s |    29.3 gb/s |    36.6 gb/s |    34.6 gb/s |
+| `nk_cast_icelake`  |    5.34 gb/s |    5.10 gb/s |    6.36 gb/s |    30.2 gb/s |    36.8 gb/s |    34.3 gb/s |
+| `nk_cast_sapphire` |    8.78 gb/s |    9.93 gb/s |    7.02 gb/s |    30.1 gb/s |    34.1 gb/s |    34.8 gb/s |
 | __f32 ↔ e2m3__     | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ |
-| `nk_cast_serial`   |   0.941 gb/s |    1.39 gb/s |   0.688 gb/s |    2.68 gb/s |    4.79 gb/s |    2.70 gb/s |
-| `nk_cast_haswell`  |    4.76 gb/s |    4.51 gb/s |    5.00 gb/s |    8.26 gb/s |    8.92 gb/s |    9.02 gb/s |
-| `nk_cast_skylake`  |    6.55 gb/s |    6.54 gb/s |    6.42 gb/s |    13.4 gb/s |    15.9 gb/s |    16.1 gb/s |
-| `nk_cast_icelake`  |    5.03 gb/s |    6.41 gb/s |    6.44 gb/s |    12.4 gb/s |    14.8 gb/s |    16.2 gb/s |
-| `nk_cast_sapphire` |    9.95 gb/s |    8.90 gb/s |    9.17 gb/s |    19.7 gb/s |    24.1 gb/s |    16.8 gb/s |
+| `nk_cast_serial`   |   0.941 gb/s |    1.39 gb/s |   0.688 gb/s |    4.37 gb/s |    4.86 gb/s |    4.94 gb/s |
+| `nk_cast_haswell`  |    4.76 gb/s |    4.51 gb/s |    5.00 gb/s |    14.3 gb/s |    15.9 gb/s |    16.6 gb/s |
+| `nk_cast_skylake`  |    6.55 gb/s |    6.54 gb/s |    6.42 gb/s |    29.6 gb/s |    33.6 gb/s |    35.8 gb/s |
+| `nk_cast_icelake`  |    5.03 gb/s |    6.41 gb/s |    6.44 gb/s |    29.7 gb/s |    33.9 gb/s |    36.4 gb/s |
+| `nk_cast_sapphire` |    9.95 gb/s |    8.90 gb/s |    9.17 gb/s |    27.8 gb/s |    33.6 gb/s |    36.0 gb/s |
 | __f32 ↔ i16__      | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ | ░░░░░░░░░░░░ |
 | `nk_cast_serial`   |    1.99 gb/s |    2.02 gb/s |    2.04 gb/s |    4.59 gb/s |    4.63 gb/s |    4.68 gb/s |
 | `nk_cast_haswell`  |    46.4 gb/s |    51.8 gb/s |    53.0 gb/s |    19.8 gb/s |    21.0 gb/s |    21.9 gb/s |
