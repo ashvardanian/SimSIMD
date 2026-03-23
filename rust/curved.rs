@@ -2,10 +2,10 @@
 //!
 //! This module provides:
 //!
-//! - [`Bilinear`]: Bilinear form a^T * C * b with a metric tensor
-//! - [`Mahalanobis`]: Mahalanobis distance sqrt((a-b)^T * C * (a-b))
+//! - [`Bilinear`]: Bilinear form aᵀ × C × b with a metric tensor
+//! - [`Mahalanobis`]: Mahalanobis distance √((a−b)ᵀ × C × (a−b))
 
-use crate::types::{bf16, bf16c, f16, f16c, f32c, f64c};
+use crate::types::{bf16, bf16c, f16, f16c, f32c, f64c, StorageElement};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -29,7 +29,7 @@ extern "C" {
 ///
 /// Computes the bilinear form of two vectors `a` and `b` with respect to
 /// a symmetric matrix `C` (given in row-major order as a flat slice of length n²).
-pub trait Bilinear: Sized {
+pub trait Bilinear: StorageElement {
     /// Output type for results. `f32` widens to `f64`; f16/bf16 use f32.
     type Output;
 
@@ -225,7 +225,7 @@ impl Bilinear for bf16c {
 ///
 /// Computes the Mahalanobis distance between two vectors `a` and `b` with respect
 /// to an inverse covariance matrix `C` (given in row-major order as a flat slice of length n²).
-pub trait Mahalanobis: Sized {
+pub trait Mahalanobis: StorageElement {
     /// Output type for results. `f32` widens to `f64`; f16/bf16 use f32.
     type Output;
 

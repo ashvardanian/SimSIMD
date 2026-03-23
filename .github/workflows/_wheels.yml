@@ -9,6 +9,7 @@ on:
 
 env:
   PYTHONUTF8: 1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build_wheels_linux_x86:
@@ -87,7 +88,7 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       matrix:
         python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
@@ -117,7 +118,7 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       matrix:
         python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
@@ -176,7 +177,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
         with:
           vs-version: "17.10"
       - name: Install cibuildwheel
@@ -209,7 +210,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Install cibuildwheel
         run: |
           python -m pip install cibuildwheel
@@ -228,6 +229,9 @@ jobs:
 
   build_wheels_linux_riscv:
     name: Build Python Wheels (Linux RISC-V)
+    # Temporarily disabled until the official PyPA riscv64 images expose a
+    # packaged LLVM 23 toolchain, or until we switch to custom images.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -241,7 +245,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
       - name: Install cibuildwheel
         run: |
           python -m pip install cibuildwheel
@@ -251,6 +255,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading
           CIBW_PLATFORM: linux
           CIBW_ARCHS: riscv64
+          QEMU_CPU: max
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:

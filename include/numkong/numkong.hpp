@@ -37,6 +37,7 @@
 #define NK_NUMKONG_HPP
 
 #include "numkong/random.hpp"
+#include "numkong/cast.hpp"
 #include "numkong/dot.hpp"
 #include "numkong/spatial.hpp"
 #include "numkong/spatials.hpp"

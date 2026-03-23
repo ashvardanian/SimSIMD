@@ -28,8 +28,7 @@ let package = Package(
         .testTarget(
             name: "Bench",
             dependencies: ["NumKong", "CNumKong"],
-            path: "bench",
-            sources: ["Bench.swift"],
+            path: "bench/swift",
             cSettings: [
                 .define("NK_DYNAMIC_DISPATCH", to: "1"),
                 .define("NK_NATIVE_F16", to: "0"),

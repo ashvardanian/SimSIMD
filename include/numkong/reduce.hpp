@@ -9,6 +9,7 @@
 
 #include <cstddef>     // `std::byte`, `std::size_t`
 #include <cstdint>     // `std::uint32_t`
+#include <memory>      // `std::allocator_traits`
 #include <type_traits> // `std::is_same_v`
 
 #include "numkong/reduce.h"
@@ -113,67 +114,101 @@ void reduce_minmax(in_type_ const *data, std::size_t count, std::size_t stride_b
                    std::size_t *min_index, minmax_type_ *max_value, std::size_t *max_index) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
                           std::is_same_v<minmax_type_, typename in_type_::reduce_minmax_value_t>;
-    // `nk_size_t` may alias differently from `std::size_t` on some platforms,
-    // using `unsigned long long` instead of `unsigned long`.
     static_assert(sizeof(std::size_t) == sizeof(nk_size_t), "size_t and nk_size_t must have the same width");
-    auto *min_raw = reinterpret_cast<nk_size_t *>(min_index);
-    auto *max_raw = reinterpret_cast<nk_size_t *>(max_index);
+    nk_size_t min_offset = 0, max_offset = 0;
 
     // For types where minmax_type_ matches the C function output type directly,
     // dispatch to the C kernel and pass raw pointers through.
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_reduce_minmax_f64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_f64(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_reduce_minmax_f32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_f32(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_reduce_minmax_i8(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_i8(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                            &max_offset);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_reduce_minmax_u8(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u8(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                            &max_offset);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_reduce_minmax_i16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_i16(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_reduce_minmax_u16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u16(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_reduce_minmax_i32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_i32(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_reduce_minmax_u32(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u32(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_reduce_minmax_i64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_i64(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_reduce_minmax_u64(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u64(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
-        nk_reduce_minmax_e2m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_e2m3(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                              &max_offset);
     else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
-        nk_reduce_minmax_e3m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_e3m2(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                              &max_offset);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_reduce_minmax_f16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_f16(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                             &max_offset);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_reduce_minmax_bf16(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_bf16(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                              &max_offset);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
-        nk_reduce_minmax_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                              &max_offset);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
-        nk_reduce_minmax_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                              &max_offset);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
-        nk_reduce_minmax_i4(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_i4(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                            &max_offset);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
-        nk_reduce_minmax_u4(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u4(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                            &max_offset);
     else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_reduce_minmax_u1(&data->raw_, count, stride_bytes, &min_value->raw_, min_raw, &max_value->raw_, max_raw);
+        nk_reduce_minmax_u1(&data->raw_, count, stride_bytes, &min_value->raw_, &min_offset, &max_value->raw_,
+                            &max_offset);
     // Scalar fallback
     else {
         minmax_type_ best_min = finite_max<minmax_type_>();
         minmax_type_ best_max = finite_min<minmax_type_>();
-        std::size_t best_min_index = 0;
-        std::size_t best_max_index = 0;
         vector_view<in_type_> values(reinterpret_cast<char const *>(data), count, stride_bytes);
-        for (std::size_t i = 0; i < count; ++i) {
+        for (nk_size_t i = 0; i < count; ++i) {
             minmax_type_ v = minmax_type_(values[i]);
-            if (v < best_min) best_min = v, best_min_index = i;
-            if (v > best_max) best_max = v, best_max_index = i;
+            if (v < best_min) best_min = v, min_offset = i;
+            if (v > best_max) best_max = v, max_offset = i;
         }
-        *min_value = best_min, *min_index = best_min_index;
-        *max_value = best_max, *max_index = best_max_index;
+        *min_value = best_min, *max_value = best_max;
     }
+    if (min_index) *min_index = static_cast<std::size_t>(min_offset);
+    if (max_index) *max_index = static_cast<std::size_t>(max_offset);
+}
+
+/** @brief Compute sum and sum-of-squares over a vector view. */
+template <numeric_dtype in_type_, numeric_dtype sum_type_ = typename in_type_::reduce_moments_sum_t,
+          numeric_dtype sumsq_type_ = typename in_type_::reduce_moments_sumsq_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void reduce_moments(vector_view<in_type_> input, sum_type_ *sum, sumsq_type_ *sumsq) noexcept {
+    reduce_moments<in_type_, sum_type_, sumsq_type_, allow_simd_>(
+        input.data(), input.size(), static_cast<std::size_t>(input.stride_bytes()), sum, sumsq);
+}
+
+/** @brief Find minimum and maximum elements with their indices over a vector view. */
+template <numeric_dtype in_type_, numeric_dtype minmax_type_ = typename in_type_::reduce_minmax_value_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void reduce_minmax(vector_view<in_type_> input, minmax_type_ *min_value, std::size_t *min_index,
+                   minmax_type_ *max_value, std::size_t *max_index) noexcept {
+    reduce_minmax<in_type_, minmax_type_, allow_simd_>(input.data(), input.size(),
+                                                       static_cast<std::size_t>(input.stride_bytes()), min_value,
+                                                       min_index, max_value, max_index);
 }
 
 } // namespace ashvardanian::numkong
@@ -184,7 +219,7 @@ namespace ashvardanian::numkong {
 
 #pragma region - Tensor Reduction Helpers
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_rank1_moments_(tensor_view<value_type_, max_rank_> input, typename value_type_::reduce_moments_sum_t &sum,
                            typename value_type_::reduce_moments_sumsq_t &sumsq) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
@@ -206,7 +241,7 @@ bool reduce_rank1_moments_(tensor_view<value_type_, max_rank_> input, typename v
     return true;
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_rank1_minmax_(tensor_view<value_type_, max_rank_> input,
                           minmax_result<typename value_type_::reduce_minmax_value_t> &result) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
@@ -234,7 +269,7 @@ bool reduce_rank1_minmax_(tensor_view<value_type_, max_rank_> input,
     return true;
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool accumulate_moments_tensor_(tensor_view<value_type_, max_rank_> input,
                                 tensor_span<typename value_type_::reduce_moments_sum_t, max_rank_> sums,
                                 tensor_span<typename value_type_::reduce_moments_sumsq_t, max_rank_> sumsqs) noexcept {
@@ -260,7 +295,7 @@ bool accumulate_moments_tensor_(tensor_view<value_type_, max_rank_> input,
     return true;
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool update_minmax_tensor_(tensor_view<value_type_, max_rank_> input,
                            tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> mins,
                            tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> maxs) noexcept {
@@ -284,7 +319,7 @@ bool update_minmax_tensor_(tensor_view<value_type_, max_rank_> input,
     return true;
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_moments_axis_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
                           typename value_type_::reduce_moments_sum_t *sums,
                           typename value_type_::reduce_moments_sumsq_t *sumsqs) noexcept {
@@ -299,7 +334,7 @@ bool reduce_moments_axis_(tensor_view<value_type_, max_rank_> input, std::size_t
                                });
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_moments_axis_packed_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
                                  tensor_span<typename value_type_::reduce_moments_sum_t, max_rank_> sums,
                                  tensor_span<typename value_type_::reduce_moments_sumsq_t, max_rank_> sumsqs,
@@ -330,7 +365,7 @@ bool reduce_moments_axis_packed_(tensor_view<value_type_, max_rank_> input, std:
     return true;
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_minmax_axis_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
                          typename value_type_::reduce_minmax_value_t *mins, std::size_t *argmins,
                          typename value_type_::reduce_minmax_value_t *maxs, std::size_t *argmaxs) noexcept {
@@ -346,7 +381,7 @@ bool reduce_minmax_axis_(tensor_view<value_type_, max_rank_> input, std::size_t 
                                });
 }
 
-template <typename value_type_, std::size_t max_rank_>
+template <numeric_dtype value_type_, std::size_t max_rank_>
 bool reduce_minmax_axis_packed_(tensor_view<value_type_, max_rank_> input, std::size_t axis,
                                 tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> mins,
                                 tensor_span<typename value_type_::reduce_minmax_value_t, max_rank_> maxs,
@@ -380,7 +415,7 @@ bool reduce_minmax_axis_packed_(tensor_view<value_type_, max_rank_> input, std::
 #pragma region - Scalar Reductions
 
 /** @brief Compute Σxᵢ and Σxᵢ² in a single pass. Returns zeroed result for empty tensors. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 moments_result<typename value_type_::reduce_moments_sum_t, typename value_type_::reduce_moments_sumsq_t> moments(
     tensor_view<value_type_, max_rank_> input) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
@@ -405,7 +440,7 @@ moments_result<typename value_type_::reduce_moments_sum_t, typename value_type_:
 }
 
 /** @brief Find min and max values with their flat indices. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 minmax_result<typename value_type_::reduce_minmax_value_t> minmax(tensor_view<value_type_, max_rank_> input) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
     minmax_result<minmax_t> result {};
@@ -439,32 +474,84 @@ minmax_result<typename value_type_::reduce_minmax_value_t> minmax(tensor_view<va
 }
 
 /** @brief Σ of all elements. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 typename value_type_::reduce_moments_sum_t sum(tensor_view<value_type_, max_rank_> input) noexcept {
     return moments(input).sum;
 }
 
 /** @brief Find the minimum element value. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 typename value_type_::reduce_minmax_value_t min(tensor_view<value_type_, max_rank_> input) noexcept {
     return minmax(input).min_value;
 }
 
 /** @brief Find the maximum element value. */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 typename value_type_::reduce_minmax_value_t max(tensor_view<value_type_, max_rank_> input) noexcept {
     return minmax(input).max_value;
 }
 
 /** @brief Index of the minimum element (flat). */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 std::size_t argmin(tensor_view<value_type_, max_rank_> input) noexcept {
     return minmax(input).min_index;
 }
 
 /** @brief Index of the maximum element (flat). */
-template <typename value_type_, std::size_t max_rank_ = 8>
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
 std::size_t argmax(tensor_view<value_type_, max_rank_> input) noexcept {
+    return minmax(input).max_index;
+}
+
+/** @brief Compute Σxᵢ and Σxᵢ² over a vector view. */
+template <numeric_dtype value_type_>
+moments_result<typename value_type_::reduce_moments_sum_t, typename value_type_::reduce_moments_sumsq_t> moments(
+    vector_view<value_type_> input) noexcept {
+    using sum_t = typename value_type_::reduce_moments_sum_t;
+    using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
+    moments_result<sum_t, sumsq_t> result {};
+    if (input.size() == 0) return result;
+    reduce_moments<value_type_>(input, &result.sum, &result.sumsq);
+    return result;
+}
+
+/** @brief Find min and max values with their indices over a vector view. */
+template <numeric_dtype value_type_>
+minmax_result<typename value_type_::reduce_minmax_value_t> minmax(vector_view<value_type_> input) noexcept {
+    using minmax_t = typename value_type_::reduce_minmax_value_t;
+    minmax_result<minmax_t> result {};
+    if (input.size() == 0) return result;
+    reduce_minmax<value_type_>(input, &result.min_value, &result.min_index, &result.max_value, &result.max_index);
+    return result;
+}
+
+/** @brief Σ of all elements in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_moments_sum_t sum(vector_view<value_type_> input) noexcept {
+    return moments(input).sum;
+}
+
+/** @brief Find the minimum element value in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_minmax_value_t min(vector_view<value_type_> input) noexcept {
+    return minmax(input).min_value;
+}
+
+/** @brief Find the maximum element value in a vector view. */
+template <numeric_dtype value_type_>
+typename value_type_::reduce_minmax_value_t max(vector_view<value_type_> input) noexcept {
+    return minmax(input).max_value;
+}
+
+/** @brief Index of the minimum element in a vector view. */
+template <numeric_dtype value_type_>
+std::size_t argmin(vector_view<value_type_> input) noexcept {
+    return minmax(input).min_index;
+}
+
+/** @brief Index of the maximum element in a vector view. */
+template <numeric_dtype value_type_>
+std::size_t argmax(vector_view<value_type_> input) noexcept {
     return minmax(input).max_index;
 }
 
@@ -473,12 +560,12 @@ std::size_t argmax(tensor_view<value_type_, max_rank_> input) noexcept {
 #pragma region - Axis Reductions
 
 /** @brief Σ along a single axis. Returns empty tensor on failure. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<typename value_type_::reduce_moments_sum_t, aligned_allocator<typename value_type_::reduce_moments_sum_t>,
-       max_rank_>
-try_sum(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<typename value_type_::reduce_moments_sum_t>>
+tensor<typename value_type_::reduce_moments_sum_t, allocator_type_, max_rank_> try_sum(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
-    using sum_tensor_t = tensor<sum_t, aligned_allocator<sum_t>, max_rank_>;
+    using sum_tensor_t = tensor<sum_t, allocator_type_, max_rank_>;
 
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return sum_tensor_t {};
 
@@ -487,7 +574,8 @@ try_sum(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t
     if (sums.empty() || !shape_matches_(out_shape, sums.span())) return sum_tensor_t {};
     if constexpr (dimensions_per_value<value_type_>() > 1) {
         using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
-        using sumsq_tensor_t = tensor<sumsq_t, aligned_allocator<sumsq_t>, max_rank_>;
+        using sumsq_alloc_t = typename std::allocator_traits<allocator_type_>::template rebind_alloc<sumsq_t>;
+        using sumsq_tensor_t = tensor<sumsq_t, sumsq_alloc_t, max_rank_>;
         auto scratch = sumsq_tensor_t::try_zeros(out_shape.extents, out_shape.rank);
         if (scratch.empty() || !shape_matches_(reduced_shape_<sumsq_t>(input.shape(), axis, keep_dims), scratch.span()))
             return sum_tensor_t {};
@@ -498,17 +586,20 @@ try_sum(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t
 }
 
 /** @brief Moments along an axis (Σxᵢ and Σxᵢ² per slice). */
-template <typename value_type_, std::size_t max_rank_ = 8>
-moments_result<tensor<typename value_type_::reduce_moments_sum_t,
-                      aligned_allocator<typename value_type_::reduce_moments_sum_t>, max_rank_>,
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<typename value_type_::reduce_moments_sum_t>>
+moments_result<tensor<typename value_type_::reduce_moments_sum_t, allocator_type_, max_rank_>,
                tensor<typename value_type_::reduce_moments_sumsq_t,
-                      aligned_allocator<typename value_type_::reduce_moments_sumsq_t>, max_rank_>>
+                      typename std::allocator_traits<allocator_type_>::template rebind_alloc<
+                          typename value_type_::reduce_moments_sumsq_t>,
+                      max_rank_>>
 try_moments(tensor_view<value_type_, max_rank_> input, std::size_t axis,
             keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using sum_t = typename value_type_::reduce_moments_sum_t;
     using sumsq_t = typename value_type_::reduce_moments_sumsq_t;
-    using sum_tensor_t = tensor<sum_t, aligned_allocator<sum_t>, max_rank_>;
-    using sumsq_tensor_t = tensor<sumsq_t, aligned_allocator<sumsq_t>, max_rank_>;
+    using sum_tensor_t = tensor<sum_t, allocator_type_, max_rank_>;
+    using sumsq_alloc_t = typename std::allocator_traits<allocator_type_>::template rebind_alloc<sumsq_t>;
+    using sumsq_tensor_t = tensor<sumsq_t, sumsq_alloc_t, max_rank_>;
 
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input))
         return {sum_tensor_t {}, sumsq_tensor_t {}};
@@ -533,13 +624,12 @@ try_moments(tensor_view<value_type_, max_rank_> input, std::size_t axis,
 }
 
 /** @brief Min and max along an axis. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-minmax_result<tensor<typename value_type_::reduce_minmax_value_t,
-                     aligned_allocator<typename value_type_::reduce_minmax_value_t>, max_rank_>>
-try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
-           keep_dims_t keep_dims = collapse_dims_k) noexcept {
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
+minmax_result<tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_>> try_minmax(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
     using minmax_t = typename value_type_::reduce_minmax_value_t;
-    using out_tensor_t = tensor<minmax_t, aligned_allocator<minmax_t>, max_rank_>;
+    using out_tensor_t = tensor<minmax_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input))
         return {out_tensor_t {}, 0, out_tensor_t {}, 0};
 
@@ -560,10 +650,11 @@ try_minmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
 }
 
 /** @brief Argmin along an axis. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmin(
-    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
-    using out_tensor_t = tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<std::size_t>>
+tensor<std::size_t, allocator_type_, max_rank_> try_argmin(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                                           keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    using out_tensor_t = tensor<std::size_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
     if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
 
@@ -575,10 +666,11 @@ tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmin(
 }
 
 /** @brief Argmax along an axis. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmax(
-    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
-    using out_tensor_t = tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_>;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<std::size_t>>
+tensor<std::size_t, allocator_type_, max_rank_> try_argmax(tensor_view<value_type_, max_rank_> input, std::size_t axis,
+                                                           keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    using out_tensor_t = tensor<std::size_t, allocator_type_, max_rank_>;
     if (input.empty() || axis >= input.rank() || !tensor_layout_supported_(input)) return out_tensor_t {};
     if constexpr (dimensions_per_value<value_type_>() > 1) return out_tensor_t {};
 
@@ -590,19 +682,19 @@ tensor<std::size_t, aligned_allocator<std::size_t>, max_rank_> try_argmax(
 }
 
 /** @brief Min along an axis. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<typename value_type_::reduce_minmax_value_t, aligned_allocator<typename value_type_::reduce_minmax_value_t>,
-       max_rank_>
-try_min(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
-    return try_minmax<value_type_, max_rank_>(input, axis, keep_dims).min_value;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
+tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_> try_min(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    return try_minmax<value_type_, max_rank_, allocator_type_>(input, axis, keep_dims).min_value;
 }
 
 /** @brief Max along an axis. */
-template <typename value_type_, std::size_t max_rank_ = 8>
-tensor<typename value_type_::reduce_minmax_value_t, aligned_allocator<typename value_type_::reduce_minmax_value_t>,
-       max_rank_>
-try_max(tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
-    return try_minmax<value_type_, max_rank_>(input, axis, keep_dims).max_value;
+template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
+          typename allocator_type_ = aligned_allocator<typename value_type_::reduce_minmax_value_t>>
+tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_> try_max(
+    tensor_view<value_type_, max_rank_> input, std::size_t axis, keep_dims_t keep_dims = collapse_dims_k) noexcept {
+    return try_minmax<value_type_, max_rank_, allocator_type_>(input, axis, keep_dims).max_value;
 }
 
 #pragma endregion - Axis Reductions

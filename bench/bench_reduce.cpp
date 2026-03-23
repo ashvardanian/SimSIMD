@@ -146,7 +146,6 @@ void bench_reduce() {
 
 #if NK_TARGET_NEONBFDOT
     run_reduce_moments<bf16_k>("reduce_moments_bf16_neonbfdot", nk_reduce_moments_bf16_neonbfdot);
-    run_reduce_minmax<bf16_k>("reduce_minmax_bf16_neonbfdot", nk_reduce_minmax_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_NEONSDOT
@@ -158,8 +157,6 @@ void bench_reduce() {
 #if NK_TARGET_NEONFHM
     run_reduce_moments<e4m3_k>("reduce_moments_e4m3_neonfhm", nk_reduce_moments_e4m3_neonfhm);
     run_reduce_moments<e5m2_k>("reduce_moments_e5m2_neonfhm", nk_reduce_moments_e5m2_neonfhm);
-    run_reduce_minmax<e4m3_k>("reduce_minmax_e4m3_neonfhm", nk_reduce_minmax_e4m3_neonfhm);
-    run_reduce_minmax<e5m2_k>("reduce_minmax_e5m2_neonfhm", nk_reduce_minmax_e5m2_neonfhm);
 #endif
 
 #if NK_TARGET_HASWELL

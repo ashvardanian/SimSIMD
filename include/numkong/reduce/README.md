@@ -2,20 +2,20 @@
 
 NumKong implements single-pass horizontal reductions over dense vectors: statistical moments (sum + sum-of-squares) and extrema (min + max with argmin + argmax).
 Both reductions traverse the input once, producing scalar outputs with compensated arithmetic for numerical stability.
-The only module with full stride support -- `stride_bytes` controls the byte distance between consecutive logical elements, enabling column extraction from row-major matrices and strided array views without copying.
+The only module with full stride support — `stride_bytes` controls the byte distance between consecutive logical elements, enabling column extraction from row-major matrices and strided array views without copying.
 Used internally by packing routines for norm precomputation and by distance kernels for normalization.
 
 Moments:
 
-```math
+$$
 \text{sum} = \sum a_i, \quad \text{sumsq} = \sum a_i^2
-```
+$$
 
 Min-max:
 
-```math
+$$
 \text{min} = \min_i a_i, \quad \text{argmin} = \arg\min_i a_i
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -40,12 +40,12 @@ Float reductions:
 | `f16`      | `f32`       | 16-bit half precision, widened output |
 | `bf16`     | `f32`       | 16-bit brain float, widened output    |
 
-FP8 reductions:
+Mini-float reductions:
 
 | Input Type | Output Type | Description                                  |
 | ---------- | ----------- | -------------------------------------------- |
-| `e4m3`     | `f32`       | 8-bit FP8: 4 exponent, 3 mantissa bits       |
-| `e5m2`     | `f32`       | 8-bit FP8: 5 exponent, 2 mantissa bits       |
+| `e4m3`     | `f32`       | 8-bit Float8: 4 exponent, 3 mantissa bits    |
+| `e5m2`     | `f32`       | 8-bit Float8: 5 exponent, 2 mantissa bits    |
 | `e2m3`     | `f32`       | 8-bit MX format: 2 exponent, 3 mantissa bits |
 | `e3m2`     | `f32`       | 8-bit MX format: 3 exponent, 2 mantissa bits |
 
@@ -74,53 +74,53 @@ Sub-byte reductions:
 
 ### Strided Access Across Backends
 
-Reductions accept a `stride_bytes` parameter specifying the byte distance between consecutive logical elements -- the only NumKong module where loads far outnumber stores (N loads, 2-4 scalar stores), making arbitrary strides practical.
+Reductions accept a `stride_bytes` parameter specifying the byte distance between consecutive logical elements — the only NumKong module where loads far outnumber stores (N loads, 2-4 scalar stores), making arbitrary strides practical.
 Serial iterates with byte-pointer arithmetic: `ptr += stride_bytes` per element.
 NEON uses hardware de-interleaving loads (`vld2q_f32`, `vld3q_f32`, `vld4q_f32`) for small integer strides (2-4 elements apart), extracting column 0 from interleaved data in a single instruction.
-Haswell/Skylake use blend masks for small strides and `_mm256_i32gather_ps` / `_mm512_i32gather_pd` hardware gathers for larger strides -- 8cy per gather on Haswell, ~5cy on Skylake for 16-element gathers.
-RVV uses native strided loads (`__riscv_vlse32_v_f32m1`) that accept arbitrary byte strides directly in the load instruction -- no gather overhead, no stride-dependent branching.
+Haswell/Skylake use blend masks for small strides and `_mm256_i32gather_ps` / `_mm512_i32gather_pd` hardware gathers for larger strides — 8cy per gather on Haswell, ~5cy on Skylake for 16-element gathers.
+RVV uses native strided loads (`__riscv_vlse32_v_f32m1`) that accept arbitrary byte strides directly in the load instruction — no gather overhead, no stride-dependent branching.
 
 ### Kahan-Neumaier Compensated Summation
 
-`nk_reduce_moments_f32_serial`, `nk_reduce_moments_f32_haswell` use Neumaier's variant of Kahan summation -- maintaining a running compensation term that captures rounding errors.
+`nk_reduce_moments_f32_serial`, `nk_reduce_moments_f32_haswell` use Neumaier's variant of Kahan summation — maintaining a running compensation term that captures rounding errors.
 Standard pairwise summation accumulates $O(\sqrt{n})$ ULP error for n elements; Neumaier compensation bounds error to $O(1)$ ULP regardless of vector length.
 The serial path uses Neumaier's adaptive branch: `if (abs(sum) >= abs(val))` selects the larger summand first, minimizing relative error in the compensation term.
-SIMD backends (`nk_reduce_moments_f32_haswell`) carry 8 independent compensation lanes in a YMM register -- computing `round_error = tentative - sum; correction = (sum - (tentative - round_error)) + (val - round_error)` without branches, folding all lanes into a single scalar correction at the end.
+SIMD backends (`nk_reduce_moments_f32_haswell`) carry 8 independent compensation lanes in a YMM register — computing `round_error = tentative - sum; correction = (sum - (tentative - round_error)) + (val - round_error)` without branches, folding all lanes into a single scalar correction at the end.
 
 ### Fused Moments in a Single Pass
 
-`nk_reduce_moments_f32_haswell`, `nk_reduce_moments_f64_skylake` compute sum and sum-of-squares simultaneously -- one load feeds both a `VADDPS` (sum accumulator) and a `VFMADD231PS` (square accumulator).
+`nk_reduce_moments_f32_haswell`, `nk_reduce_moments_f64_skylake` compute sum and sum-of-squares simultaneously — one load feeds both a `VADDPS` (sum accumulator) and a `VFMADD231PS` (square accumulator).
 Two accumulators share the same loaded data, halving memory bandwidth compared to separate sum + norm passes.
 The squared-norm $\|a\|^2 = \sum a_i^2$ is a self-dot-product, reused by packing routines (`nk_dots_pack_f32_haswell`) to precompute per-vector norms during layout transformation.
-For f16/bf16/FP8 inputs, all backends widen to f32 before accumulation -- NEON FHM (`nk_reduce_moments_e4m3_neonfhm`) converts e4m3->f16 via lookup, then uses `vfmlalq_low_f16` to fuse the f16->f32 widening with the FMA into the f32 accumulator.
+For Float16/BFloat16/Float8 inputs, all backends widen to Float32 before accumulation — NEON FHM (`nk_reduce_moments_e4m3_neonfhm`) converts e4m3->f16 via lookup, then uses `vfmlalq_low_f16` to fuse the Float16 → Float32 widening with the FMA into the Float32 accumulator.
 
 ### Integer Saturation in Sum-of-Squares
 
-Integer moments accumulate sums in the widest available type: i8/u8/i16 inputs produce i64/u64 outputs.
-Sums use widening addition chains -- NEON uses pairwise widening (`vpaddlq_s16` -> u32 -> u64 stages); Haswell biases i8 inputs with 0x80 and uses unsigned SAD (`_mm256_sad_epu8`) for the sum, correcting by subtracting $128 \times \text{count}$ at the end.
-Sum-of-squares can overflow u64 when squaring large i32 values -- backends use explicit saturating multiply: checks if `abs(val) < 2^32` (square fits in u64), otherwise saturates to I64_MAX.
-Haswell emulates u64 saturating add via XOR-based unsigned comparison: flip sign bits to convert unsigned overflow detection into a signed comparison, then OR with the overflow mask to produce all-ones on saturation.
+Integer moments accumulate sums in the widest available type: Int8/UInt8/Int16 inputs produce Int64/UInt64 outputs.
+Sums use widening addition chains — NEON uses pairwise widening (`vpaddlq_s16` -> UInt32 -> UInt64 stages); Haswell biases Int8 inputs with 0x80 and uses unsigned SAD (`_mm256_sad_epu8`) for the sum, correcting by subtracting $128 \times \text{count}$ at the end.
+Sum-of-squares can overflow UInt64 when squaring large Int32 values — backends use explicit saturating multiply: checks if `abs(val) < 2^32` (square fits in UInt64), otherwise saturates to I64_MAX.
+Haswell emulates UInt64 saturating add via XOR-based unsigned comparison: flip sign bits to convert unsigned overflow detection into a signed comparison, then OR with the overflow mask to produce all-ones on saturation.
 
 ### Recursive Blocking for Counter Overflow
 
-All SIMD backends use loop iteration counters narrower than `nk_size_t` to save register pressure -- u8 for i8 minmax lanes, u16 for f32 moments lanes.
-When `count` exceeds the counter's range x lane count (e.g., Haswell f32: $256 \times 8 = 2048$ elements for u8 counters), the reduction splits recursively: process the left half, process the right half, combine results with saturating arithmetic.
-Block caps vary by backend and element width: Haswell i8 minmax uses u8 loop counters (cap = $256 \times 32 = 8192$); Skylake f32 moments uses u16 counters (cap = $65536 \times 16 = 1048576$).
-The recursive split is invisible to the caller -- the public API accepts arbitrary `count` values; internal dispatch chooses between single-pass and recursive based on the cap.
+All SIMD backends use loop iteration counters narrower than `nk_size_t` to save register pressure — UInt8 for Int8 minmax lanes, UInt16 for Float32 moments lanes.
+When `count` exceeds the counter's range x lane count (e.g., Haswell Float32: $256 \times 8 = 2048$ elements for UInt8 counters), the reduction splits recursively: process the left half, process the right half, combine results with saturating arithmetic.
+Block caps vary by backend and element width: Haswell Int8 minmax uses UInt8 loop counters (cap = $256 \times 32 = 8192$); Skylake Float32 moments uses UInt16 counters (cap = $65536 \times 16 = 1048576$).
+The recursive split is invisible to the caller — the public API accepts arbitrary `count` values; internal dispatch chooses between single-pass and recursive based on the cap.
 
 ### Index Tracking at Different Register Scales
 
-Argmin/argmax requires tracking both values and their positions -- but indices need wider storage than values (u64 for arbitrary-length vectors, vs u8/u16/f32 for data).
-Haswell i8 minmax tracks iteration counters in u8 lanes (same width as data) -- after the loop, the winning lane's counter is multiplied by the lane count and added to the lane index within the register to reconstruct the global position.
-RVV uses u64m2 registers (LMUL=2) for indices alongside f32m1 for values -- the wider index register holds one 64-bit position per f32 lane, enabling direct merge without post-loop reconstruction.
+Argmin/argmax requires tracking both values and their positions — but indices need wider storage than values (UInt64 for arbitrary-length vectors, vs UInt8/UInt16/Float32 for data).
+Haswell Int8 minmax tracks iteration counters in UInt8 lanes (same width as data) — after the loop, the winning lane's counter is multiplied by the lane count and added to the lane index within the register to reconstruct the global position.
+RVV uses u64m2 registers (LMUL=2) for indices alongside f32m1 for values — the wider index register holds one 64-bit position per Float32 lane, enabling direct merge without post-loop reconstruction.
 NEON uses same-width counters (u8x16 for i8x16 minmax), limiting block size to $256 \times 16 = 4096$ elements before recursive splitting.
 
 ### NaN-Aware Extrema Tracking
 
-`nk_reduce_minmax_f32_haswell`, `nk_reduce_minmax_f64_skylake` use IEEE ordered-quiet comparisons (`_CMP_LT_OQ`, `_CMP_GT_OQ`) -- returning false when either operand is NaN, so NaN inputs never replace the running extremum.
-Tail elements beyond the vector-aligned portion are masked by loading into a NaN-filled register via `_mm256_mask_loadu_ps(nan_vec, mask, ptr)` -- NaN tails cannot win any comparison, eliminating out-of-bounds artifacts.
+`nk_reduce_minmax_f32_haswell`, `nk_reduce_minmax_f64_skylake` use IEEE ordered-quiet comparisons (`_CMP_LT_OQ`, `_CMP_GT_OQ`) — returning false when either operand is NaN, so NaN inputs never replace the running extremum.
+Tail elements beyond the vector-aligned portion are masked by loading into a NaN-filled register via `_mm256_mask_loadu_ps(nan_vec, mask, ptr)` — NaN tails cannot win any comparison, eliminating out-of-bounds artifacts.
 If all inputs are NaN, the sentinels remain (min = F32_MAX, max = F32_MIN) and indices are set to NK_SIZE_MAX, signaling no valid extremum.
-The final horizontal reduction across lanes uses pairwise `VSHUFPS` + `VMINPS` chains -- 3 shuffles for a 256-bit register, $O(\log_2 w)$ for width $w$.
+The final horizontal reduction across lanes uses pairwise `VSHUFPS` + `VMINPS` chains — 3 shuffles for a 256-bit register, $O(\log_2 w)$ for width $w$.
 
 ## Performance
 
@@ -385,7 +385,6 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_reduce_moments_bf16_serial`    |         1.09 gb/s, 0 ulp |         1.10 gb/s, 0 ulp |         1.11 gb/s, 0 ulp |
 | `nk_reduce_minmax_bf16_serial`     |         1.56 gb/s, 0 ulp |         1.69 gb/s, 0 ulp |         1.75 gb/s, 0 ulp |
 | `nk_reduce_moments_bf16_neonbfdot` |         18.6 gb/s, 0 ulp |       20.3 gb/s, 0.4 ulp |       21.0 gb/s, 0.3 ulp |
-| `nk_reduce_minmax_bf16_neonbfdot`  |         13.7 gb/s, 0 ulp |         14.5 gb/s, 0 ulp |         15.4 gb/s, 0 ulp |
 | __f16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_f16_serial`     |         1.10 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |         1.09 gb/s, 0 ulp |
 | `nk_reduce_minmax_f16_serial`      |         1.17 gb/s, 0 ulp |         1.26 gb/s, 0 ulp |         1.33 gb/s, 0 ulp |
@@ -394,12 +393,10 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_reduce_moments_e5m2_serial`    |        0.531 gb/s, 0 ulp |        0.534 gb/s, 0 ulp |        0.536 gb/s, 0 ulp |
 | `nk_reduce_minmax_e5m2_serial`     |        0.803 gb/s, 0 ulp |        0.887 gb/s, 0 ulp |        0.880 gb/s, 0 ulp |
 | `nk_reduce_moments_e5m2_neonfhm`   |         7.95 gb/s, 0 ulp |         5.31 gb/s, 0 ulp |         4.07 gb/s, 0 ulp |
-| `nk_reduce_minmax_e5m2_neonfhm`    |         14.0 gb/s, 0 ulp |         16.8 gb/s, 0 ulp |         17.1 gb/s, 0 ulp |
 | __e4m3__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_e4m3_serial`    |        0.382 gb/s, 0 ulp |        0.386 gb/s, 0 ulp |        0.387 gb/s, 0 ulp |
 | `nk_reduce_minmax_e4m3_serial`     |        0.823 gb/s, 0 ulp |        0.884 gb/s, 0 ulp |        0.918 gb/s, 0 ulp |
 | `nk_reduce_moments_e4m3_neonfhm`   |         2.90 gb/s, 0 ulp |         2.98 gb/s, 0 ulp |         2.89 gb/s, 0 ulp |
-| `nk_reduce_minmax_e4m3_neonfhm`    |         14.0 gb/s, 0 ulp |         16.7 gb/s, 0 ulp |         17.8 gb/s, 0 ulp |
 | __e3m2__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_reduce_moments_e3m2_serial`    |        0.537 gb/s, 0 ulp |        0.532 gb/s, 0 ulp |        0.539 gb/s, 0 ulp |
 | `nk_reduce_minmax_e3m2_serial`     |        0.506 gb/s, 0 ulp |        0.500 gb/s, 0 ulp |        0.503 gb/s, 0 ulp |

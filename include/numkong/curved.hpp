@@ -29,7 +29,7 @@ namespace ashvardanian::numkong {
  *
  *  @note For weighted inner products, Mahalanobis distance, etc.
  */
-template <typename in_type_, typename result_type_ = typename in_type_::curved_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -75,7 +75,7 @@ void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::curved_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::curved_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -101,6 +101,42 @@ void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::s
         }
         *r = sum.sqrt();
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_,
+          std::size_t max_rank_c_>
+void bilinear(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b,
+              tensor_view<in_type_, max_rank_c_> c, std::size_t d, result_type_ *r) noexcept {
+    bilinear<in_type_, result_type_, allow_simd_>(a.data(), b.data(), c.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void bilinear(vector_view<in_type_> a, vector_view<in_type_> b, vector_view<in_type_> c, std::size_t d,
+              result_type_ *r) noexcept {
+    bilinear<in_type_, result_type_, allow_simd_>(a.data(), b.data(), c.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_,
+          std::size_t max_rank_c_>
+void mahalanobis(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b,
+                 tensor_view<in_type_, max_rank_c_> c, std::size_t d, result_type_ *r) noexcept {
+    mahalanobis<in_type_, result_type_, allow_simd_>(a.data(), b.data(), c.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::curved_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void mahalanobis(vector_view<in_type_> a, vector_view<in_type_> b, vector_view<in_type_> c, std::size_t d,
+                 result_type_ *r) noexcept {
+    mahalanobis<in_type_, result_type_, allow_simd_>(a.data(), b.data(), c.data(), d, r);
 }
 
 } // namespace ashvardanian::numkong

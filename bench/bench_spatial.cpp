@@ -70,12 +70,12 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SVE
-    run_dense<f32_k, f64_k>("angular_f32_sve", nk_angular_f32_sve);
-    run_dense<f32_k, f64_k>("sqeuclidean_f32_sve", nk_sqeuclidean_f32_sve);
-    run_dense<f32_k, f64_k>("euclidean_f32_sve", nk_euclidean_f32_sve);
     run_dense<f64_k, f64_k>("angular_f64_sve", nk_angular_f64_sve);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_sve", nk_sqeuclidean_f64_sve);
     run_dense<f64_k, f64_k>("euclidean_f64_sve", nk_euclidean_f64_sve);
+    run_dense<f32_k, f64_k>("angular_f32_sve", nk_angular_f32_sve);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_sve", nk_sqeuclidean_f32_sve);
+    run_dense<f32_k, f64_k>("euclidean_f32_sve", nk_euclidean_f32_sve);
 #endif
 
 #if NK_TARGET_SVEHALF
@@ -91,12 +91,30 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_HASWELL
-    run_dense<f16_k, f32_k>("angular_f16_haswell", nk_angular_f16_haswell);
-    run_dense<f16_k, f32_k>("sqeuclidean_f16_haswell", nk_sqeuclidean_f16_haswell);
-    run_dense<f16_k, f32_k>("euclidean_f16_haswell", nk_euclidean_f16_haswell);
+    run_dense<f64_k, f64_k>("angular_f64_haswell", nk_angular_f64_haswell);
+    run_dense<f64_k, f64_k>("sqeuclidean_f64_haswell", nk_sqeuclidean_f64_haswell);
+    run_dense<f64_k, f64_k>("euclidean_f64_haswell", nk_euclidean_f64_haswell);
+    run_dense<f32_k, f64_k>("angular_f32_haswell", nk_angular_f32_haswell);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_haswell", nk_sqeuclidean_f32_haswell);
+    run_dense<f32_k, f64_k>("euclidean_f32_haswell", nk_euclidean_f32_haswell);
     run_dense<bf16_k, f32_k>("angular_bf16_haswell", nk_angular_bf16_haswell);
     run_dense<bf16_k, f32_k>("sqeuclidean_bf16_haswell", nk_sqeuclidean_bf16_haswell);
     run_dense<bf16_k, f32_k>("euclidean_bf16_haswell", nk_euclidean_bf16_haswell);
+    run_dense<f16_k, f32_k>("angular_f16_haswell", nk_angular_f16_haswell);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_haswell", nk_sqeuclidean_f16_haswell);
+    run_dense<f16_k, f32_k>("euclidean_f16_haswell", nk_euclidean_f16_haswell);
+    run_dense<e5m2_k, f32_k>("angular_e5m2_haswell", nk_angular_e5m2_haswell);
+    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_haswell", nk_sqeuclidean_e5m2_haswell);
+    run_dense<e5m2_k, f32_k>("euclidean_e5m2_haswell", nk_euclidean_e5m2_haswell);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_haswell", nk_angular_e4m3_haswell);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_haswell", nk_sqeuclidean_e4m3_haswell);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_haswell", nk_euclidean_e4m3_haswell);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_haswell", nk_angular_e3m2_haswell);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_haswell", nk_sqeuclidean_e3m2_haswell);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_haswell", nk_euclidean_e3m2_haswell);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_haswell", nk_angular_e2m3_haswell);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_haswell", nk_sqeuclidean_e2m3_haswell);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_haswell", nk_euclidean_e2m3_haswell);
     run_dense<i8_k, f32_k>("angular_i8_haswell", nk_angular_i8_haswell);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_haswell", nk_sqeuclidean_i8_haswell);
     run_dense<i8_k, f32_k>("euclidean_i8_haswell", nk_euclidean_i8_haswell);
@@ -106,27 +124,36 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_dense<f32_k, f64_k>("angular_f32_skylake", nk_angular_f32_skylake);
-    run_dense<f32_k, f64_k>("sqeuclidean_f32_skylake", nk_sqeuclidean_f32_skylake);
-    run_dense<f32_k, f64_k>("euclidean_f32_skylake", nk_euclidean_f32_skylake);
     run_dense<f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_skylake", nk_sqeuclidean_f64_skylake);
     run_dense<f64_k, f64_k>("euclidean_f64_skylake", nk_euclidean_f64_skylake);
-    run_dense<e4m3_k, f32_k>("angular_e4m3_skylake", nk_angular_e4m3_skylake);
-    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_skylake", nk_sqeuclidean_e4m3_skylake);
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_skylake", nk_euclidean_e4m3_skylake);
+    run_dense<f32_k, f64_k>("angular_f32_skylake", nk_angular_f32_skylake);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_skylake", nk_sqeuclidean_f32_skylake);
+    run_dense<f32_k, f64_k>("euclidean_f32_skylake", nk_euclidean_f32_skylake);
+    run_dense<f16_k, f32_k>("angular_f16_skylake", nk_angular_f16_skylake);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_skylake", nk_sqeuclidean_f16_skylake);
+    run_dense<f16_k, f32_k>("euclidean_f16_skylake", nk_euclidean_f16_skylake);
     run_dense<e5m2_k, f32_k>("angular_e5m2_skylake", nk_angular_e5m2_skylake);
     run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_skylake", nk_sqeuclidean_e5m2_skylake);
     run_dense<e5m2_k, f32_k>("euclidean_e5m2_skylake", nk_euclidean_e5m2_skylake);
-    run_dense<e2m3_k, f32_k>("angular_e2m3_skylake", nk_angular_e2m3_skylake);
-    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_skylake", nk_sqeuclidean_e2m3_skylake);
-    run_dense<e2m3_k, f32_k>("euclidean_e2m3_skylake", nk_euclidean_e2m3_skylake);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_skylake", nk_angular_e4m3_skylake);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_skylake", nk_sqeuclidean_e4m3_skylake);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_skylake", nk_euclidean_e4m3_skylake);
     run_dense<e3m2_k, f32_k>("angular_e3m2_skylake", nk_angular_e3m2_skylake);
     run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_skylake", nk_sqeuclidean_e3m2_skylake);
     run_dense<e3m2_k, f32_k>("euclidean_e3m2_skylake", nk_euclidean_e3m2_skylake);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_skylake", nk_angular_e2m3_skylake);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_skylake", nk_sqeuclidean_e2m3_skylake);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_skylake", nk_euclidean_e2m3_skylake);
 #endif
 
 #if NK_TARGET_ALDER
+    run_dense<e3m2_k, f32_k>("angular_e3m2_alder", nk_angular_e3m2_alder);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_alder", nk_sqeuclidean_e3m2_alder);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_alder", nk_euclidean_e3m2_alder);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_alder", nk_angular_e2m3_alder);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_alder", nk_sqeuclidean_e2m3_alder);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_alder", nk_euclidean_e2m3_alder);
     run_dense<i8_k, f32_k>("angular_i8_alder", nk_angular_i8_alder);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_alder", nk_sqeuclidean_i8_alder);
     run_dense<i8_k, f32_k>("euclidean_i8_alder", nk_euclidean_i8_alder);
@@ -136,6 +163,9 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SIERRA
+    run_dense<e2m3_k, f32_k>("angular_e2m3_sierra", nk_angular_e2m3_sierra);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_sierra", nk_sqeuclidean_e2m3_sierra);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_sierra", nk_euclidean_e2m3_sierra);
     run_dense<i8_k, f32_k>("angular_i8_sierra", nk_angular_i8_sierra);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_sierra", nk_sqeuclidean_i8_sierra);
     run_dense<i8_k, f32_k>("euclidean_i8_sierra", nk_euclidean_i8_sierra);
@@ -163,78 +193,78 @@ void bench_spatial() {
     run_dense<bf16_k, f32_k>("angular_bf16_genoa", nk_angular_bf16_genoa);
     run_dense<bf16_k, f32_k>("sqeuclidean_bf16_genoa", nk_sqeuclidean_bf16_genoa);
     run_dense<bf16_k, f32_k>("euclidean_bf16_genoa", nk_euclidean_bf16_genoa);
-    run_dense<e4m3_k, f32_k>("angular_e4m3_genoa", nk_angular_e4m3_genoa);
-    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_genoa", nk_sqeuclidean_e4m3_genoa);
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
     run_dense<e5m2_k, f32_k>("angular_e5m2_genoa", nk_angular_e5m2_genoa);
     run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_genoa", nk_sqeuclidean_e5m2_genoa);
     run_dense<e5m2_k, f32_k>("euclidean_e5m2_genoa", nk_euclidean_e5m2_genoa);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_genoa", nk_angular_e4m3_genoa);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_genoa", nk_sqeuclidean_e4m3_genoa);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
     run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_sapphire", nk_sqeuclidean_e4m3_sapphire);
-    run_dense<e2m3_k, f32_k>("angular_e2m3_sapphire", nk_angular_e2m3_sapphire);
-    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_sapphire", nk_sqeuclidean_e2m3_sapphire);
-    run_dense<e2m3_k, f32_k>("euclidean_e2m3_sapphire", nk_euclidean_e2m3_sapphire);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
     run_dense<e3m2_k, f32_k>("angular_e3m2_sapphire", nk_angular_e3m2_sapphire);
     run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_sapphire", nk_sqeuclidean_e3m2_sapphire);
     run_dense<e3m2_k, f32_k>("euclidean_e3m2_sapphire", nk_euclidean_e3m2_sapphire);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_sapphire", nk_angular_e2m3_sapphire);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_sapphire", nk_sqeuclidean_e2m3_sapphire);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_sapphire", nk_euclidean_e2m3_sapphire);
 #endif
 
 #if NK_TARGET_RVV
-    run_dense<f32_k, f64_k>("sqeuclidean_f32_rvv", nk_sqeuclidean_f32_rvv);
+    run_dense<f64_k, f64_k>("angular_f64_rvv", nk_angular_f64_rvv);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_rvv", nk_sqeuclidean_f64_rvv);
     run_dense<f32_k, f64_k>("angular_f32_rvv", nk_angular_f32_rvv);
-    run_dense<f64_k, f64_k>("angular_f64_rvv", nk_angular_f64_rvv);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_rvv", nk_sqeuclidean_f32_rvv);
 #endif
 
 #if NK_TARGET_V128RELAXED
-    run_dense<f32_k, f64_k>("sqeuclidean_f32_v128relaxed", nk_sqeuclidean_f32_v128relaxed);
-    run_dense<f64_k, f64_k>("sqeuclidean_f64_v128relaxed", nk_sqeuclidean_f64_v128relaxed);
-    run_dense<f16_k, f32_k>("sqeuclidean_f16_v128relaxed", nk_sqeuclidean_f16_v128relaxed);
-    run_dense<bf16_k, f32_k>("sqeuclidean_bf16_v128relaxed", nk_sqeuclidean_bf16_v128relaxed);
-    run_dense<f32_k, f64_k>("euclidean_f32_v128relaxed", nk_euclidean_f32_v128relaxed);
-    run_dense<f64_k, f64_k>("euclidean_f64_v128relaxed", nk_euclidean_f64_v128relaxed);
-    run_dense<f16_k, f32_k>("euclidean_f16_v128relaxed", nk_euclidean_f16_v128relaxed);
-    run_dense<bf16_k, f32_k>("euclidean_bf16_v128relaxed", nk_euclidean_bf16_v128relaxed);
-    run_dense<f32_k, f64_k>("angular_f32_v128relaxed", nk_angular_f32_v128relaxed);
     run_dense<f64_k, f64_k>("angular_f64_v128relaxed", nk_angular_f64_v128relaxed);
-    run_dense<f16_k, f32_k>("angular_f16_v128relaxed", nk_angular_f16_v128relaxed);
+    run_dense<f64_k, f64_k>("sqeuclidean_f64_v128relaxed", nk_sqeuclidean_f64_v128relaxed);
+    run_dense<f64_k, f64_k>("euclidean_f64_v128relaxed", nk_euclidean_f64_v128relaxed);
+    run_dense<f32_k, f64_k>("angular_f32_v128relaxed", nk_angular_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_v128relaxed", nk_sqeuclidean_f32_v128relaxed);
+    run_dense<f32_k, f64_k>("euclidean_f32_v128relaxed", nk_euclidean_f32_v128relaxed);
     run_dense<bf16_k, f32_k>("angular_bf16_v128relaxed", nk_angular_bf16_v128relaxed);
-    run_dense<u8_k, u32_k>("sqeuclidean_u8_v128relaxed", nk_sqeuclidean_u8_v128relaxed);
-    run_dense<u8_k, f32_k>("euclidean_u8_v128relaxed", nk_euclidean_u8_v128relaxed);
-    run_dense<u8_k, f32_k>("angular_u8_v128relaxed", nk_angular_u8_v128relaxed);
+    run_dense<bf16_k, f32_k>("sqeuclidean_bf16_v128relaxed", nk_sqeuclidean_bf16_v128relaxed);
+    run_dense<bf16_k, f32_k>("euclidean_bf16_v128relaxed", nk_euclidean_bf16_v128relaxed);
+    run_dense<f16_k, f32_k>("angular_f16_v128relaxed", nk_angular_f16_v128relaxed);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_v128relaxed", nk_sqeuclidean_f16_v128relaxed);
+    run_dense<f16_k, f32_k>("euclidean_f16_v128relaxed", nk_euclidean_f16_v128relaxed);
+    run_dense<i8_k, f32_k>("angular_i8_v128relaxed", nk_angular_i8_v128relaxed);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_v128relaxed", nk_sqeuclidean_i8_v128relaxed);
     run_dense<i8_k, f32_k>("euclidean_i8_v128relaxed", nk_euclidean_i8_v128relaxed);
-    run_dense<i8_k, f32_k>("angular_i8_v128relaxed", nk_angular_i8_v128relaxed);
+    run_dense<u8_k, f32_k>("angular_u8_v128relaxed", nk_angular_u8_v128relaxed);
+    run_dense<u8_k, u32_k>("sqeuclidean_u8_v128relaxed", nk_sqeuclidean_u8_v128relaxed);
+    run_dense<u8_k, f32_k>("euclidean_u8_v128relaxed", nk_euclidean_u8_v128relaxed);
 #endif
 
     // Serial fallbacks
-    run_dense<bf16_k, f32_k>("angular_bf16_serial", nk_angular_bf16_serial);
-    run_dense<bf16_k, f32_k>("sqeuclidean_bf16_serial", nk_sqeuclidean_bf16_serial);
-    run_dense<bf16_k, f32_k>("euclidean_bf16_serial", nk_euclidean_bf16_serial);
-    run_dense<e4m3_k, f32_k>("angular_e4m3_serial", nk_angular_e4m3_serial);
-    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_serial", nk_sqeuclidean_e4m3_serial);
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_serial", nk_euclidean_e4m3_serial);
-    run_dense<e5m2_k, f32_k>("angular_e5m2_serial", nk_angular_e5m2_serial);
-    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_serial", nk_sqeuclidean_e5m2_serial);
-    run_dense<e5m2_k, f32_k>("euclidean_e5m2_serial", nk_euclidean_e5m2_serial);
-    run_dense<e2m3_k, f32_k>("angular_e2m3_serial", nk_angular_e2m3_serial);
-    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_serial", nk_sqeuclidean_e2m3_serial);
-    run_dense<e2m3_k, f32_k>("euclidean_e2m3_serial", nk_euclidean_e2m3_serial);
-    run_dense<e3m2_k, f32_k>("angular_e3m2_serial", nk_angular_e3m2_serial);
-    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_serial", nk_sqeuclidean_e3m2_serial);
-    run_dense<e3m2_k, f32_k>("euclidean_e3m2_serial", nk_euclidean_e3m2_serial);
-    run_dense<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
-    run_dense<f16_k, f32_k>("sqeuclidean_f16_serial", nk_sqeuclidean_f16_serial);
-    run_dense<f16_k, f32_k>("euclidean_f16_serial", nk_euclidean_f16_serial);
-    run_dense<f32_k, f64_k>("angular_f32_serial", nk_angular_f32_serial);
-    run_dense<f32_k, f64_k>("sqeuclidean_f32_serial", nk_sqeuclidean_f32_serial);
-    run_dense<f32_k, f64_k>("euclidean_f32_serial", nk_euclidean_f32_serial);
     run_dense<f64_k, f64_k>("angular_f64_serial", nk_angular_f64_serial);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_serial", nk_sqeuclidean_f64_serial);
     run_dense<f64_k, f64_k>("euclidean_f64_serial", nk_euclidean_f64_serial);
+    run_dense<f32_k, f64_k>("angular_f32_serial", nk_angular_f32_serial);
+    run_dense<f32_k, f64_k>("sqeuclidean_f32_serial", nk_sqeuclidean_f32_serial);
+    run_dense<f32_k, f64_k>("euclidean_f32_serial", nk_euclidean_f32_serial);
+    run_dense<bf16_k, f32_k>("angular_bf16_serial", nk_angular_bf16_serial);
+    run_dense<bf16_k, f32_k>("sqeuclidean_bf16_serial", nk_sqeuclidean_bf16_serial);
+    run_dense<bf16_k, f32_k>("euclidean_bf16_serial", nk_euclidean_bf16_serial);
+    run_dense<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_serial", nk_sqeuclidean_f16_serial);
+    run_dense<f16_k, f32_k>("euclidean_f16_serial", nk_euclidean_f16_serial);
+    run_dense<e5m2_k, f32_k>("angular_e5m2_serial", nk_angular_e5m2_serial);
+    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_serial", nk_sqeuclidean_e5m2_serial);
+    run_dense<e5m2_k, f32_k>("euclidean_e5m2_serial", nk_euclidean_e5m2_serial);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_serial", nk_angular_e4m3_serial);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_serial", nk_sqeuclidean_e4m3_serial);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_serial", nk_euclidean_e4m3_serial);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_serial", nk_angular_e3m2_serial);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_serial", nk_sqeuclidean_e3m2_serial);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_serial", nk_euclidean_e3m2_serial);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_serial", nk_angular_e2m3_serial);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_serial", nk_sqeuclidean_e2m3_serial);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_serial", nk_euclidean_e2m3_serial);
     run_dense<i8_k, f32_k>("angular_i8_serial", nk_angular_i8_serial);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_serial", nk_sqeuclidean_i8_serial);
     run_dense<i8_k, f32_k>("euclidean_i8_serial", nk_euclidean_i8_serial);

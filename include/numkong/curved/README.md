@@ -6,21 +6,21 @@ These operations are central to Gaussian process inference, metric learning, and
 
 The bilinear form for real vectors is:
 
-```math
+$$
 \text{bilinear}(a, b, C) = a^T C b = \sum_{i=0}^{n-1} \sum_{j=0}^{n-1} a_i \cdot c_{ij} \cdot b_j
-```
+$$
 
 The Mahalanobis distance is:
 
-```math
+$$
 \text{mahalanobis}(a, b, C) = \sqrt{(a - b)^T C (a - b)}
-```
+$$
 
 For complex vectors, the bilinear form uses the conjugate transpose:
 
-```math
+$$
 \text{bilinear}(a, b, C) = a^H C b = \sum_{i=0}^{n-1} \sum_{j=0}^{n-1} \bar{a_i} \cdot c_{ij} \cdot b_j
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -72,8 +72,8 @@ This nested structure gives $O(n)$ cache-friendly sequential access to the $n \t
 
 `nk_bilinear_f32_smef64`, `nk_bilinear_f64_smef64`, `nk_bilinear_f32c_smef64`, `nk_bilinear_f64c_smef64`, `nk_mahalanobis_f32_smef64`, `nk_mahalanobis_f64_smef64` use the Scalable Matrix Extension to compute the bilinear form as an outer-product accumulation.
 Each `FMOPA` instruction performs a rank-1 update $a_i \cdot b^T$ into the SME ZA tile array, and the matrix $C$ is streamed row-by-row and multiplied into the accumulator.
-This is fundamentally different from the row-major dot approach — it reformulates $a^T C b$ as a matrix-multiply problem where SME's 2D tile registers can exploit the matrix engine's throughput.
-For dimensions that align to the tile size, this approach achieves near-peak throughput; dimensions that do not align fall back to NEON for cleanup of the residual elements.
+This differs from the row-major dot approach — it reformulates $a^T C b$ as a matrix-multiply problem where SME's 2D tile registers use the matrix engine's throughput.
+For dimensions that align to the tile size, this approach has high throughput; dimensions that do not align fall back to NEON for cleanup of the residual elements.
 
 ### Complex Bilinear Decomposition
 
@@ -87,7 +87,7 @@ The following performance tables are produced by manually re-running `nk_test` a
 The input size is controlled by the `NK_CURVED_DIMENSIONS` environment variable.
 The metric tensor is a square matrix of side $N$, so each bilinear form $\mathbf{x}^\top M \mathbf{x}$ has $O(N^2)$ arithmetic complexity.
 Columns show matrix side length: 256², 1024², 4096².
-The throughput is measured in GSO/s as Giga scalar operations per second.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second.
 Accuracy is reported as mean ULP (units in last place) averaged over all test pairs — the average number of representable floating-point values between the computed result and the exact answer.
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.

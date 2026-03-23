@@ -8,14 +8,14 @@
  *
  *  @section dot_neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vfmlalq_low_f16             FMLAL (V.4S, V.8H, V.8H)        4cy         2/cy        4/cy
- *      vfmlalq_high_f16            FMLAL2 (V.4S, V.8H, V.8H)       4cy         2/cy        4/cy
- *      vfmlslq_low_f16             FMLSL (V.4S, V.8H, V.8H)        4cy         2/cy        4/cy
- *      vfmlslq_high_f16            FMLSL2 (V.4S, V.8H, V.8H)       4cy         2/cy        4/cy
- *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
- *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *      Intrinsic         Instruction                A76       M5
+ *      vfmlalq_low_f16   FMLAL (V.4S, V.8H, V.8H)   4cy @ 2p  4cy @ 4p
+ *      vfmlalq_high_f16  FMLAL2 (V.4S, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
+ *      vfmlslq_low_f16   FMLSL (V.4S, V.8H, V.8H)   4cy @ 2p  4cy @ 4p
+ *      vfmlslq_high_f16  FMLSL2 (V.4S, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
+ *      vld1q_f16         LD1 (V.8H)                 4cy @ 2p  4cy @ 3p
+ *      vaddvq_f32        FADDP+FADDP (V.4S)         4cy @ 1p  8cy @ 1p
+ *      vshll_n_u8        SHLL (V.8H, V.8B, #8)      2cy @ 2p  2cy @ 4p
  *
  *  The ARMv8.4-FHM extension (FEAT_FHM) provides FMLAL/FMLSL instructions that fuse FP16 to FP32
  *  widening with multiply-accumulate in a single operation. FMLAL executes as a single fused op
@@ -30,9 +30,7 @@
  *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
  *  `NK_INTERNAL` functions:
  *
- *  - nk_dot_f16x8 state with native FMLAL f16 dot-products,
- *  - nk_dot_e2m3x16 state for 6-bit float inputs via f16 upcasting,
- *  - nk_dot_e3m2x16 state for 6-bit float inputs via f16 upcasting.
+ *  - nk_dot_f16x8 state with native FMLAL f16 dot-products.
  *
  *  @code{c}
  *  nk_dot_f16x8_state_neonfhm_t state_first, state_second, state_third, state_fourth;

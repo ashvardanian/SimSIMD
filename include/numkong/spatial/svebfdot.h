@@ -8,19 +8,19 @@
  *
  *  @section spatial_svebfdot_instructions ARM SVE+BF16 Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      svld1_bf16                  LD1H (Z.H, P/Z, [Xn])           4-6cy       2/cy
- *      svld1_u16                   LD1H (Z.H, P/Z, [Xn])           4-6cy       2/cy
- *      svbfdot_f32                 BFDOT (Z.S, Z.H, Z.H)           4cy         2/cy
- *      svmla_f32_x                 FMLA (Z.S, P/M, Z.S, Z.S)       4cy         2/cy
- *      svsub_f32_x                 FSUB (Z.S, P/M, Z.S, Z.S)       3cy         2/cy
- *      svaddv_f32                  FADDV (S, P, Z.S)               6cy         1/cy
- *      svunpklo_u32                UUNPKLO (Z.S, Z.H)              2cy         2/cy
- *      svunpkhi_u32                UUNPKHI (Z.S, Z.H)              2cy         2/cy
- *      svlsl_n_u32_x               LSL (Z.S, P/M, Z.S, #imm)       2cy         2/cy
- *      svwhilelt_b16               WHILELT (P.H, Xn, Xm)           2cy         1/cy
- *      svwhilelt_b32               WHILELT (P.S, Xn, Xm)           2cy         1/cy
- *      svcnth                      CNTH (Xd)                       1cy         2/cy
+ *      Intrinsic      Instruction                V1
+ *      svld1_bf16     LD1H (Z.H, P/Z, [Xn])      4-6cy @ 2p
+ *      svld1_u16      LD1H (Z.H, P/Z, [Xn])      4-6cy @ 2p
+ *      svbfdot_f32    BFDOT (Z.S, Z.H, Z.H)      4cy @ 2p
+ *      svmla_f32_x    FMLA (Z.S, P/M, Z.S, Z.S)  4cy @ 2p
+ *      svsub_f32_x    FSUB (Z.S, P/M, Z.S, Z.S)  3cy @ 2p
+ *      svaddv_f32     FADDV (S, P, Z.S)          6cy @ 1p
+ *      svunpklo_u32   UUNPKLO (Z.S, Z.H)         2cy @ 2p
+ *      svunpkhi_u32   UUNPKHI (Z.S, Z.H)         2cy @ 2p
+ *      svlsl_n_u32_x  LSL (Z.S, P/M, Z.S, #imm)  2cy @ 2p
+ *      svwhilelt_b16  WHILELT (P.H, Xn, Xm)      2cy @ 1p
+ *      svwhilelt_b32  WHILELT (P.S, Xn, Xm)      2cy @ 1p
+ *      svcnth         CNTH (Xd)                  1cy @ 2p
  *
  *  SVE vector widths vary across implementations: Graviton3 uses 256-bit, while Graviton4/5
  *  and Apple M4+ use 128-bit. Code using svcntb() adapts automatically, but wider vectors
@@ -71,8 +71,8 @@ NK_PUBLIC void nk_sqeuclidean_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t c
 
         svfloat32_t a_minus_b_low_f32x = svsub_f32_x(predicate_low_f32x, a_low_f32x, b_low_f32x);
         svfloat32_t a_minus_b_high_f32x = svsub_f32_x(predicate_high_f32x, a_high_f32x, b_high_f32x);
-        d2_low_f32x = svmla_f32_x(predicate_bf16x, d2_low_f32x, a_minus_b_low_f32x, a_minus_b_low_f32x);
-        d2_high_f32x = svmla_f32_x(predicate_bf16x, d2_high_f32x, a_minus_b_high_f32x, a_minus_b_high_f32x);
+        d2_low_f32x = svmla_f32_m(predicate_low_f32x, d2_low_f32x, a_minus_b_low_f32x, a_minus_b_low_f32x);
+        d2_high_f32x = svmla_f32_m(predicate_high_f32x, d2_high_f32x, a_minus_b_high_f32x, a_minus_b_high_f32x);
         i += svcnth();
     } while (i < n);
     nk_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_f32x) + svaddv_f32(svptrue_b32(), d2_high_f32x);

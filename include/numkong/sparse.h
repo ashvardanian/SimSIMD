@@ -57,22 +57,22 @@
  *  The Ice Lake kernels are shuffle/compare heavy; their throughput is often gated by port 5.
  *  On Genoa, many integer ops dual-issue on FP ports, often improving throughput despite higher latency.
  *
- *      Intrinsic                       Instruction                      Ice           Genoa
- *      _mm512_shuffle_epi32            VPSHUFD (ZMM, ZMM, I8)           1c @ p5       1c @ p123
- *      _mm512_mask_cmpneq_epi32_mask   VPCMPD (K, ZMM, ZMM, I8)         3c @ p5       5c @ p01
- *      _mm512_alignr_epi32             VALIGND (ZMM, ZMM, ZMM, I8)      3c @ p5       6c @ p12
- *      _mm512_conflict_epi32           VPCONFLICTD (ZMM, ZMM)           26c @ p0/5    7c @ p01/12
- *      _mm256_maskz_compress_epi16     VPCOMPRESSW (YMM, K, YMM)        3-6c @ p5     4-8c @ p01/12
- *      _mm256_dpwssds_epi32            VPDPWSSDS (YMM, K, YMM, YMM)     4-5c @ p01    4c @ p01
- *      _mm256_dpbf16_ps                VDPBF16PS (YMM, YMM, YMM)        n/a           6c @ p01
+ *      Intrinsic                      Instruction                   Icelake           Genoa
+ *      _mm512_shuffle_epi32           VPSHUFD (ZMM, ZMM, I8)        1cy @ p5          1cy @ p123
+ *      _mm512_mask_cmpneq_epi32_mask  VPCMPD (K, ZMM, ZMM, I8)      3cy @ p5          5cy @ p01
+ *      _mm512_alignr_epi32            VALIGND (ZMM, ZMM, ZMM, I8)   3cy @ p5          6cy @ p12
+ *      _mm512_conflict_epi32          VPCONFLICTD (ZMM, ZMM)        26cy @ p0+p05+p5  7cy @ p01+p12
+ *      _mm256_maskz_compress_epi16    VPCOMPRESSW (YMM, K, YMM)     3-6cy @ p5+p5     4-8cy @ p01+p12
+ *      _mm256_dpwssds_epi32           VPDPWSSDS (YMM, K, YMM, YMM)  4-5cy @ p01       4cy @ p01
+ *      _mm256_dpbf16_ps               VDPBF16PS (YMM, YMM, YMM)     n/a               6cy @ p01
  *
  *  VP2INTERSECTD is unsupported on Ice Lake and not yet covered by uops.info for Zen5/Turin.
- *  Tiger Lake measures ~36-41c @ p5 for ZMM variants, which is why we always avoid it on Intel.
+ *  Tiger Lake measures ~36-41cy @ p5 for ZMM variants, which is why we always avoid it on Intel.
  *
  *  @section references References
  *
  *  - uops.info: https://uops.info/
- *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm Intrinsics Reference: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - vp2intersect experiments: https://github.com/mozonaut/vp2intersect
  *  - Diez-Canas "Faster-Than-Native Alternatives for x86 VP2INTERSECT Instructions":

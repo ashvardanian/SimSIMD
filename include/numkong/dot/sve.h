@@ -8,22 +8,22 @@
  *
  *  @section dot_sve_instructions ARM SVE Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      svld1_f32                   LD1W (Z.S, P/Z, [Xn])           4-6cy       2/cy
- *      svld2_f32                   LD2W (Z.S, P/Z, [Xn])           6-8cy       1/cy
- *      svmla_f32_x                 FMLA (Z.S, P/M, Z.S, Z.S)       4cy         2/cy
- *      svmls_f32_x                 FMLS (Z.S, P/M, Z.S, Z.S)       4cy         2/cy
- *      svaddv_f32                  FADDV (S, P, Z.S)               6cy         1/cy
- *      svdup_f32                   DUP (Z.S, #imm)                 1cy         2/cy
- *      svwhilelt_b32               WHILELT (P.S, Xn, Xm)           2cy         1/cy
- *      svptrue_b32                 PTRUE (P.S, pattern)            1cy         2/cy
- *      svcntw                      CNTW (Xd)                       1cy         2/cy
- *      svcntd                      CNTD (Xd)                       1cy         2/cy
- *      svld1_f64                   LD1D (Z.D, P/Z, [Xn])           4-6cy       2/cy
- *      svld2_f64                   LD2D (Z.D, P/Z, [Xn])           6-8cy       1/cy
- *      svmla_f64_x                 FMLA (Z.D, P/M, Z.D, Z.D)       4cy         2/cy
- *      svmls_f64_x                 FMLS (Z.D, P/M, Z.D, Z.D)       4cy         2/cy
- *      svaddv_f64                  FADDV (D, P, Z.D)               6cy         1/cy
+ *      Intrinsic      Instruction                V1
+ *      svld1_f32      LD1W (Z.S, P/Z, [Xn])      4-6cy @ 2p
+ *      svld2_f32      LD2W (Z.S, P/Z, [Xn])      6-8cy @ 1p
+ *      svmla_f32_x    FMLA (Z.S, P/M, Z.S, Z.S)  4cy @ 2p
+ *      svmls_f32_x    FMLS (Z.S, P/M, Z.S, Z.S)  4cy @ 2p
+ *      svaddv_f32     FADDV (S, P, Z.S)          6cy @ 1p
+ *      svdup_f32      DUP (Z.S, #imm)            1cy @ 2p
+ *      svwhilelt_b32  WHILELT (P.S, Xn, Xm)      2cy @ 1p
+ *      svptrue_b32    PTRUE (P.S, pattern)       1cy @ 2p
+ *      svcntw         CNTW (Xd)                  1cy @ 2p
+ *      svcntd         CNTD (Xd)                  1cy @ 2p
+ *      svld1_f64      LD1D (Z.D, P/Z, [Xn])      4-6cy @ 2p
+ *      svld2_f64      LD2D (Z.D, P/Z, [Xn])      6-8cy @ 1p
+ *      svmla_f64_x    FMLA (Z.D, P/M, Z.D, Z.D)  4cy @ 2p
+ *      svmls_f64_x    FMLS (Z.D, P/M, Z.D, Z.D)  4cy @ 2p
+ *      svaddv_f64     FADDV (D, P, Z.D)          6cy @ 1p
  *
  *  SVE vector widths vary across implementations: Graviton3 uses 256-bit, while Graviton4/5
  *  and Apple M4+ use 128-bit. Code using svcntb() adapts automatically, but wider vectors
@@ -92,15 +92,21 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64_sve_(svbool_t predicate, svfloat64_t 
 NK_PUBLIC void nk_dot_f32_sve(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                               nk_f64_t *result) {
     nk_size_t idx_scalars = 0;
-    nk_size_t const vector_length = svcntd();
     svfloat64_t ab_f64x = svdup_f64(0.);
-    for (; idx_scalars < count_scalars; idx_scalars += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(idx_scalars, count_scalars);
-        svfloat64_t a_f64x = svcvt_f64_f32_x(
-            predicate_f64x, svld1_f32(svwhilelt_b32_u64(idx_scalars, count_scalars), a_scalars + idx_scalars));
-        svfloat64_t b_f64x = svcvt_f64_f32_x(
-            predicate_f64x, svld1_f32(svwhilelt_b32_u64(idx_scalars, count_scalars), b_scalars + idx_scalars));
-        ab_f64x = svmla_f64_x(predicate_f64x, ab_f64x, a_f64x, b_f64x);
+    for (; idx_scalars < count_scalars; idx_scalars += svcntw()) {
+        svbool_t predicate_f32x = svwhilelt_b32_u64(idx_scalars, count_scalars);
+        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a_scalars + idx_scalars);
+        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b_scalars + idx_scalars);
+        nk_size_t remaining = count_scalars - idx_scalars < svcntw() ? count_scalars - idx_scalars : svcntw();
+
+        // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        ab_f64x = svmla_f64_m(pred_even_f64x, ab_f64x, svcvt_f64_f32_x(pred_even_f64x, a_f32x),
+                              svcvt_f64_f32_x(pred_even_f64x, b_f32x));
+
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        ab_f64x = svmla_f64_m(pred_odd_f64x, ab_f64x, svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1)),
+                              svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1)));
     }
     *result = svaddv_f64(svptrue_b64(), ab_f64x);
 }
@@ -108,22 +114,38 @@ NK_PUBLIC void nk_dot_f32_sve(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
 NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
                                nk_f64c_t *results) {
     nk_size_t idx_pairs = 0;
-    nk_size_t const vector_length = svcntd();
     svfloat64_t ab_real_f64x = svdup_f64(0.);
     svfloat64_t ab_imag_f64x = svdup_f64(0.);
-    for (; idx_pairs < count_pairs; idx_pairs += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(idx_pairs, count_pairs);
+    for (; idx_pairs < count_pairs; idx_pairs += svcntw()) {
         svbool_t predicate_f32x = svwhilelt_b32_u64(idx_pairs, count_pairs);
         svfloat32x2_t a_f32x2 = svld2_f32(predicate_f32x, (nk_f32_t const *)(a_pairs + idx_pairs));
         svfloat32x2_t b_f32x2 = svld2_f32(predicate_f32x, (nk_f32_t const *)(b_pairs + idx_pairs));
-        svfloat64_t a_real_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(a_f32x2, 0));
-        svfloat64_t a_imag_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(a_f32x2, 1));
-        svfloat64_t b_real_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(b_f32x2, 0));
-        svfloat64_t b_imag_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(b_f32x2, 1));
-        ab_real_f64x = svmla_f64_x(predicate_f64x, ab_real_f64x, a_real_f64x, b_real_f64x);
-        ab_real_f64x = svmls_f64_x(predicate_f64x, ab_real_f64x, a_imag_f64x, b_imag_f64x);
-        ab_imag_f64x = svmla_f64_x(predicate_f64x, ab_imag_f64x, a_real_f64x, b_imag_f64x);
-        ab_imag_f64x = svmla_f64_x(predicate_f64x, ab_imag_f64x, a_imag_f64x, b_real_f64x);
+        svfloat32_t a_real_f32x = svget2_f32(a_f32x2, 0);
+        svfloat32_t a_imag_f32x = svget2_f32(a_f32x2, 1);
+        svfloat32_t b_real_f32x = svget2_f32(b_f32x2, 0);
+        svfloat32_t b_imag_f32x = svget2_f32(b_f32x2, 1);
+        nk_size_t remaining = count_pairs - idx_pairs < svcntw() ? count_pairs - idx_pairs : svcntw();
+
+        // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svfloat64_t a_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_real_f32x);
+        svfloat64_t a_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_imag_f32x);
+        svfloat64_t b_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_real_f32x);
+        svfloat64_t b_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_imag_f32x);
+        ab_real_f64x = svmla_f64_m(pred_even_f64x, ab_real_f64x, a_real_even_f64x, b_real_even_f64x);
+        ab_real_f64x = svmls_f64_m(pred_even_f64x, ab_real_f64x, a_imag_even_f64x, b_imag_even_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_real_even_f64x, b_imag_even_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_imag_even_f64x, b_real_even_f64x);
+
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svfloat64_t a_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_real_f32x, a_real_f32x, 1));
+        svfloat64_t a_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_imag_f32x, a_imag_f32x, 1));
+        svfloat64_t b_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_real_f32x, b_real_f32x, 1));
+        svfloat64_t b_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_imag_f32x, b_imag_f32x, 1));
+        ab_real_f64x = svmla_f64_m(pred_odd_f64x, ab_real_f64x, a_real_odd_f64x, b_real_odd_f64x);
+        ab_real_f64x = svmls_f64_m(pred_odd_f64x, ab_real_f64x, a_imag_odd_f64x, b_imag_odd_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_odd_f64x, ab_imag_f64x, a_real_odd_f64x, b_imag_odd_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_odd_f64x, ab_imag_f64x, a_imag_odd_f64x, b_real_odd_f64x);
     }
     results->real = svaddv_f64(svptrue_b64(), ab_real_f64x);
     results->imag = svaddv_f64(svptrue_b64(), ab_imag_f64x);
@@ -132,22 +154,38 @@ NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
 NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
                                 nk_f64c_t *results) {
     nk_size_t idx_pairs = 0;
-    nk_size_t const vector_length = svcntd();
     svfloat64_t ab_real_f64x = svdup_f64(0.);
     svfloat64_t ab_imag_f64x = svdup_f64(0.);
-    for (; idx_pairs < count_pairs; idx_pairs += vector_length) {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(idx_pairs, count_pairs);
+    for (; idx_pairs < count_pairs; idx_pairs += svcntw()) {
         svbool_t predicate_f32x = svwhilelt_b32_u64(idx_pairs, count_pairs);
         svfloat32x2_t a_f32x2 = svld2_f32(predicate_f32x, (nk_f32_t const *)(a_pairs + idx_pairs));
         svfloat32x2_t b_f32x2 = svld2_f32(predicate_f32x, (nk_f32_t const *)(b_pairs + idx_pairs));
-        svfloat64_t a_real_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(a_f32x2, 0));
-        svfloat64_t a_imag_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(a_f32x2, 1));
-        svfloat64_t b_real_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(b_f32x2, 0));
-        svfloat64_t b_imag_f64x = svcvt_f64_f32_x(predicate_f64x, svget2_f32(b_f32x2, 1));
-        ab_real_f64x = svmla_f64_x(predicate_f64x, ab_real_f64x, a_real_f64x, b_real_f64x);
-        ab_real_f64x = svmla_f64_x(predicate_f64x, ab_real_f64x, a_imag_f64x, b_imag_f64x);
-        ab_imag_f64x = svmla_f64_x(predicate_f64x, ab_imag_f64x, a_real_f64x, b_imag_f64x);
-        ab_imag_f64x = svmls_f64_x(predicate_f64x, ab_imag_f64x, a_imag_f64x, b_real_f64x);
+        svfloat32_t a_real_f32x = svget2_f32(a_f32x2, 0);
+        svfloat32_t a_imag_f32x = svget2_f32(a_f32x2, 1);
+        svfloat32_t b_real_f32x = svget2_f32(b_f32x2, 0);
+        svfloat32_t b_imag_f32x = svget2_f32(b_f32x2, 1);
+        nk_size_t remaining = count_pairs - idx_pairs < svcntw() ? count_pairs - idx_pairs : svcntw();
+
+        // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svfloat64_t a_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_real_f32x);
+        svfloat64_t a_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_imag_f32x);
+        svfloat64_t b_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_real_f32x);
+        svfloat64_t b_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_imag_f32x);
+        ab_real_f64x = svmla_f64_m(pred_even_f64x, ab_real_f64x, a_real_even_f64x, b_real_even_f64x);
+        ab_real_f64x = svmla_f64_m(pred_even_f64x, ab_real_f64x, a_imag_even_f64x, b_imag_even_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_real_even_f64x, b_imag_even_f64x);
+        ab_imag_f64x = svmls_f64_m(pred_even_f64x, ab_imag_f64x, a_imag_even_f64x, b_real_even_f64x);
+
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svfloat64_t a_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_real_f32x, a_real_f32x, 1));
+        svfloat64_t a_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_imag_f32x, a_imag_f32x, 1));
+        svfloat64_t b_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_real_f32x, b_real_f32x, 1));
+        svfloat64_t b_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_imag_f32x, b_imag_f32x, 1));
+        ab_real_f64x = svmla_f64_m(pred_odd_f64x, ab_real_f64x, a_real_odd_f64x, b_real_odd_f64x);
+        ab_real_f64x = svmla_f64_m(pred_odd_f64x, ab_real_f64x, a_imag_odd_f64x, b_imag_odd_f64x);
+        ab_imag_f64x = svmla_f64_m(pred_odd_f64x, ab_imag_f64x, a_real_odd_f64x, b_imag_odd_f64x);
+        ab_imag_f64x = svmls_f64_m(pred_odd_f64x, ab_imag_f64x, a_imag_odd_f64x, b_real_odd_f64x);
     }
     results->real = svaddv_f64(svptrue_b64(), ab_real_f64x);
     results->imag = svaddv_f64(svptrue_b64(), ab_imag_f64x);

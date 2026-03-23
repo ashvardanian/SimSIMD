@@ -61,7 +61,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve,sme-f64f64"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme+sme-f64f64")
@@ -72,7 +72,7 @@ extern "C" {
  *  Uses TwoProd (svneg+svnmls) and TwoSum error-free transformations.
  */
 NK_PUBLIC void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_t *sum, svfloat64_t *comp,
-                                           svfloat64_t a_f64x, svfloat64_t b_f64x) NK_STREAMING_COMPATIBLE_ {
+                                           svfloat64_t a_f64x, svfloat64_t b_f64x) NK_STREAMING_ {
     svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
     svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                  svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
@@ -225,14 +225,14 @@ __arm_locally_streaming static void nk_bilinear_f64_smef64_streaming_(nk_f64_t c
             predicate_f64x = svwhilelt_b64(j, n);
         }
 
-        nk_f64_t cb[4] = {
-            svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x),
-            svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x),
-            svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x),
-            svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x),
-        };
-        nk_f64_t av[4] = {a0, a1, a2, a3};
-        for (int r = 0; r < 4; ++r) nk_f64_dot2_(&outer_sum, &outer_comp, av[r], cb[r]);
+        nk_f64_dot2_(&outer_sum, &outer_comp, a0,
+                     svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a1,
+                     svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a2,
+                     svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, a3,
+                     svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x));
     }
 
     // 1-row tail
@@ -297,14 +297,14 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_streami
             predicate_f64x = svwhilelt_b64(j, n);
         }
 
-        nk_f64_t cb[4] = {
-            svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x),
-            svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x),
-            svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x),
-            svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x),
-        };
-        nk_f64_t dv[4] = {d0, d1, d2, d3};
-        for (int r = 0; r < 4; ++r) nk_f64_dot2_(&outer_sum, &outer_comp, dv[r], cb[r]);
+        nk_f64_dot2_(&outer_sum, &outer_comp, d0,
+                     svaddv_f64(predicate_all_f64x, sum_0_f64x) + svaddv_f64(predicate_all_f64x, compensation_0_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d1,
+                     svaddv_f64(predicate_all_f64x, sum_1_f64x) + svaddv_f64(predicate_all_f64x, compensation_1_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d2,
+                     svaddv_f64(predicate_all_f64x, sum_2_f64x) + svaddv_f64(predicate_all_f64x, compensation_2_f64x));
+        nk_f64_dot2_(&outer_sum, &outer_comp, d3,
+                     svaddv_f64(predicate_all_f64x, sum_3_f64x) + svaddv_f64(predicate_all_f64x, compensation_3_f64x));
     }
 
     // 1-row tail

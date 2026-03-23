@@ -8,14 +8,14 @@
  *
  *  @section spatial_haswell_instructions Key AVX2 Spatial Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_mul_ps               VMULPS (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_add_ps               VADDPS (YMM, YMM, YMM)          3cy         1/cy        p01
- *      _mm256_sub_ps               VSUBPS (YMM, YMM, YMM)          3cy         1/cy        p01
- *      _mm_rsqrt_ps                VRSQRTPS (XMM, XMM)             5cy         1/cy        p0
- *      _mm_sqrt_ps                 VSQRTPS (XMM, XMM)              11cy        7cy         p0
- *      _mm256_sqrt_ps              VSQRTPS (YMM, YMM)              12cy        14cy        p0
+ *      Intrinsic        Instruction             Haswell    Genoa
+ *      _mm256_fmadd_ps  VFMADD (YMM, YMM, YMM)  5cy @ p01  4cy @ p01
+ *      _mm256_mul_ps    VMULPS (YMM, YMM, YMM)  5cy @ p01  3cy @ p01
+ *      _mm256_add_ps    VADDPS (YMM, YMM, YMM)  3cy @ p01  3cy @ p23
+ *      _mm256_sub_ps    VSUBPS (YMM, YMM, YMM)  3cy @ p01  3cy @ p23
+ *      _mm_rsqrt_ps     VRSQRTPS (XMM, XMM)     5cy @ p0   4cy @ p01
+ *      _mm_sqrt_ps      VSQRTPS (XMM, XMM)      11cy @ p0  15cy @ p01
+ *      _mm256_sqrt_ps   VSQRTPS (YMM, YMM)      19cy @ p0  15cy @ p01
  *
  *  For angular distance normalization, `_mm_rsqrt_ps` provides ~12-bit precision (1.5 x 2⁻¹² error).
  *  Newton-Raphson refinement doubles precision to ~22-24 bits, sufficient for f32. For f64 we use

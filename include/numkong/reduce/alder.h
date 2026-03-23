@@ -7,7 +7,7 @@
  *  @sa include/numkong/reduce.h
  *
  *  Uses AVX-VNNI (256-bit) for efficient widening dot-products:
- *  - `_mm256_dpwssd_epi32`: i16 x i16 -> i32 accumulation (AVXVNNI, used for i16 and e3m2)
+ *  - `_mm256_dpwssd_epi32`: i16 × i16 → i32 accumulation (AVXVNNI, used for i16 and e3m2)
  *  - `_mm256_sad_epu8` + `_mm256_madd_epi16`: pure AVX2 SAD/MADD (used for u8)
  *  - `_mm256_cvtepu16_epi32` + `_mm256_mullo_epi32`: pure AVX2 (used for u16)
  */
@@ -313,10 +313,10 @@ NK_PUBLIC void nk_reduce_moments_u16_alder(                        //
 /**
  *  @section e3m2 moments via integer VNNI (dpwssd)
  *
- *  Every e3m2 value x 16 is an exact integer in [-448, +448] (i16 range).
+ *  Every e3m2 value × 16 is an exact integer in [-448, +448] (i16 range).
  *  We use dual-VPSHUFB for the low byte + threshold compare for the high byte,
  *  then UNPACKLO/HI to form unsigned i16, apply sign via `_mm256_sign_epi16`,
- *  and accumulate with `_mm256_dpwssd_epi32` (signed i16 x signed i16 -> i32).
+ *  and accumulate with `_mm256_dpwssd_epi32` (signed i16 × signed i16 → i32).
  *  Final: sum = i32_sum / 16, sumsq = i32_sumsq / 256.
  */
 NK_INTERNAL void nk_reduce_moments_e3m2_alder_contiguous_( //
@@ -358,7 +358,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_alder_contiguous_( //
                                                      _mm256_or_si256(negate_lo_i16x16, ones_i16x16));
         __m256i signed_hi_i16x16 = _mm256_sign_epi16(unsigned_hi_i16x16,
                                                      _mm256_or_si256(negate_hi_i16x16, ones_i16x16));
-        // VNNI accumulation: dpwssd (signed i16 x signed i16 -> i32)
+        // VNNI accumulation: dpwssd (signed i16 × signed i16 → i32)
         sum_i32x8 = _mm256_dpwssd_avx_epi32(sum_i32x8, signed_lo_i16x16, ones_i16x16);
         sum_i32x8 = _mm256_dpwssd_avx_epi32(sum_i32x8, signed_hi_i16x16, ones_i16x16);
         sumsq_i32x8 = _mm256_dpwssd_avx_epi32(sumsq_i32x8, signed_lo_i16x16, signed_lo_i16x16);

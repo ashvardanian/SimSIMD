@@ -84,7 +84,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
  *  - Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
@@ -94,9 +94,9 @@
 
 #include "numkong/types.h" // `nk_u64_t`, `NK_DEFINED_LINUX_`
 
-#define NK_VERSION_MAJOR 6
-#define NK_VERSION_MINOR 5
-#define NK_VERSION_PATCH 12
+#define NK_VERSION_MAJOR 7
+#define NK_VERSION_MINOR 1
+#define NK_VERSION_PATCH 1
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -117,6 +117,9 @@
 // Detect POSIX extensions availability for signal handling.
 // POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
 // These are needed on Linux ARM for safely testing `mrs` instruction availability.
+#if defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
+#include <unistd.h> // `_POSIX_VERSION`
+#endif
 #if (defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)) && defined(_POSIX_VERSION)
 #include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
 #include <signal.h> // `sigaction`, `SIGILL`
@@ -286,6 +289,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_smelut2_k     ((nk_capability_t)1 << 32)
 #define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 #define nk_cap_sierra_k      ((nk_capability_t)1 << 34)
+#define nk_cap_smebi32_k     ((nk_capability_t)1 << 35)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -380,10 +384,10 @@ NK_PUBLIC int nk_configure_thread_x86_(nk_capability_t capabilities) {
 #endif
         // On Windows, AMX tile state is automatically enabled by the OS if hardware supports it.
         // On FreeBSD, no explicit request is needed either.
-        (void)capabilities;
+        nk_unused_(capabilities);
     }
 #else
-    (void)capabilities;
+    nk_unused_(capabilities);
 #endif
     return 1;
 }
@@ -467,13 +471,13 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
 #if NK_HAS_POSIX_EXTENSIONS_
 static sigjmp_buf nk_mrs_test_jump_buffer_;
 static void nk_mrs_test_sigill_handler_(int sig) {
-    (void)sig;
+    nk_unused_(sig);
     siglongjmp(nk_mrs_test_jump_buffer_, 1);
 }
 #endif
 
 NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
-    (void)capabilities;
+    nk_unused_(capabilities);
     return 1;
 }
 
@@ -481,7 +485,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #if defined(NK_DEFINED_APPLE_)
     size_t size = sizeof(unsigned);
     unsigned supports_neon = 0, supports_fp16 = 0, supports_fhm = 0, supports_bf16 = 0, supports_i8mm = 0;
-    unsigned supports_sme = 0, supports_sme2 = 0, supports_smef64 = 0, supports_smehalf = 0, supports_sme2p1 = 0;
+    unsigned supports_sme = 0, supports_sme2 = 0, supports_smef64 = 0, supports_smehalf = 0, supports_sme2p1 = 0,
+             supports_smebi32 = 0;
     if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0) supports_neon = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0) supports_fp16 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FHM", &supports_fhm, &size, NULL, 0) != 0) supports_fhm = 0;
@@ -492,6 +497,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     if (sysctlbyname("hw.optional.arm.FEAT_SME_F64F64", &supports_smef64, &size, NULL, 0) != 0) supports_smef64 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME_F16F16", &supports_smehalf, &size, NULL, 0) != 0) supports_smehalf = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME2p1", &supports_sme2p1, &size, NULL, 0) != 0) supports_sme2p1 = 0;
+    if (sysctlbyname("hw.optional.arm.SME_BI32I32", &supports_smebi32, &size, NULL, 0) != 0) supports_smebi32 = 0;
 
     return (nk_capability_t)((nk_cap_neon_k * (supports_neon)) |
                              (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
@@ -500,7 +506,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
                              (nk_cap_neonsdot_k * (supports_neon && supports_i8mm)) | (nk_cap_sme_k * (supports_sme)) |
                              (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_sme2p1_k * (supports_sme2p1)) |
                              (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
-                             (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_serial_k));
+                             (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_smebi32_k * (supports_smebi32)) |
+                             (nk_cap_serial_k));
 
 #elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
 
@@ -551,31 +558,37 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 
     unsigned supports_sme2 = 0, supports_sme2p1 = 0;
     unsigned supports_smef64 = 0, supports_smehalf = 0, supports_smebf16 = 0;
-    unsigned supports_smelut2 = 0, supports_smefa64 = 0;
+    unsigned supports_smebi32 = 0, supports_smelut2 = 0, supports_smefa64 = 0;
     if (supports_sme) {
-        __asm__ __volatile__("mrs %0, ID_AA64SMFR0_EL1" : "=r"(id_aa64smfr0_el1));
+        // MRS x0, ID_AA64SMFR0_EL1 (S3_0_C0_C4_5) — encoded as raw .inst because some
+        // assemblers (Clang 21 in Android NDK r29) reject the symbolic register name.
+        // Encoding: 0xD53804A0 = MRS x0, op0=3, op1=0, CRn=0, CRm=4, op2=5, Rt=0.
+        register unsigned long __smfr0 __asm__("x0");
+        __asm__ __volatile__(".inst 0xD53804A0" : "=r"(__smfr0));
+        id_aa64smfr0_el1 = __smfr0;
         unsigned sme_version = (id_aa64smfr0_el1 >> 56) & 0xF;
         supports_sme2 = sme_version >= 1;
         supports_sme2p1 = sme_version >= 2;
         supports_smef64 = (id_aa64smfr0_el1 >> 48) & 0x1;
         supports_smehalf = (id_aa64smfr0_el1 >> 42) & 0x1;
         supports_smebf16 = (id_aa64smfr0_el1 >> 44) & 0x1;
+        supports_smebi32 = (id_aa64smfr0_el1 >> 33) & 0x1;
         supports_smefa64 = (id_aa64smfr0_el1 >> 63) & 0x1;
     }
 
-    return (nk_capability_t)((nk_cap_neon_k * (supports_neon)) |
-                             (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
-                             (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
-                             (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
-                             (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) |
-                             (nk_cap_sve_k * (supports_sve)) | (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |
-                             (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |
-                             (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) |
-                             (nk_cap_sve2_k * (supports_sve2)) | (nk_cap_sve2p1_k * (supports_sve2p1)) |
-                             (nk_cap_sme_k * (supports_sme)) | (nk_cap_sme2_k * (supports_sme2)) |
-                             (nk_cap_sme2p1_k * (supports_sme2p1)) | (nk_cap_smef64_k * (supports_smef64)) |
-                             (nk_cap_smehalf_k * (supports_smehalf)) | (nk_cap_smebf16_k * (supports_smebf16)) |
-                             (nk_cap_smefa64_k * (supports_smefa64)) | (nk_cap_serial_k));
+    return (
+        nk_capability_t)((nk_cap_neon_k * (supports_neon)) | (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
+                         (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
+                         (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
+                         (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) |
+                         (nk_cap_sve_k * (supports_sve)) | (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |
+                         (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |
+                         (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) | (nk_cap_sve2_k * (supports_sve2)) |
+                         (nk_cap_sve2p1_k * (supports_sve2p1)) | (nk_cap_sme_k * (supports_sme)) |
+                         (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_sme2p1_k * (supports_sme2p1)) |
+                         (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
+                         (nk_cap_smebf16_k * (supports_smebf16)) | (nk_cap_smebi32_k * (supports_smebi32)) |
+                         (nk_cap_smefa64_k * (supports_smefa64)) | (nk_cap_serial_k));
 #elif defined(NK_DEFINED_WINDOWS_)
 
     unsigned supports_neon = 0, supports_dp = 0;
@@ -641,8 +654,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 
 #if NK_TARGET_WASM_
 
-#if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH
-// Emscripten dynamic dispatch: EM_JS probe defined in numkong.c.
+#if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH && !defined(NK_PYODIDE_SIDE_MODULE)
+// Standalone Emscripten dynamic dispatch: EM_JS probes defined in c/numkong.c.
 extern int nk_has_v128(void);
 extern int nk_has_relaxed(void);
 #elif defined(__wasi__) && NK_DEFINED_WASI_
@@ -652,14 +665,15 @@ __attribute__((__import_module__("env"), __import_name__("nk_has_relaxed"))) ext
 #endif
 
 NK_PUBLIC nk_capability_t nk_capabilities_v128relaxed_(void) {
-#if (defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH) || (defined(__wasi__) && NK_DEFINED_WASI_)
+#if ((defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH) || (defined(__wasi__) && NK_DEFINED_WASI_)) && \
+    !defined(NK_PYODIDE_SIDE_MODULE)
     // Hosted environment (Emscripten or WASI with NK_WASI_HOSTED): the host provides
     // runtime probes.  Compile-time flags only mean the *compiler* emitted relaxed-SIMD
     // opcodes, not that the current runtime can execute them.
     int has_relaxed = nk_has_relaxed();
     return has_relaxed ? (nk_cap_serial_k | nk_cap_v128relaxed_k) : nk_cap_serial_k;
 #elif defined(__wasm_relaxed_simd__) || defined(__wasm_simd128__)
-    // Standalone WASM or static Emscripten: if the compiler targeted relaxed SIMD,
+    // Static WASM or Pyodide side module: if the compiler targeted relaxed SIMD,
     // the runtime must support it (modules with relaxed opcodes fail validation otherwise).
     return nk_cap_serial_k | nk_cap_v128relaxed_k;
 #else
@@ -676,8 +690,8 @@ NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
 #if NK_TARGET_ARM_
     return nk_configure_thread_arm_(capabilities);
 #endif
-    (void)capabilities;
-    return 0;
+    nk_unused_(capabilities);
+    return 1; // success — no platform-specific thread configuration needed
 }
 
 NK_PUBLIC nk_capability_t nk_capabilities_(void) {
@@ -710,7 +724,7 @@ NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, n
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
-NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { (void)caps; }
+NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { nk_unused_(caps); }
 
 #endif
 

@@ -7,22 +7,22 @@ Hamming distance counts the number of positions where elements differ.
 For binary vectors packed as octets, this is the popcount of the XOR.
 For byte-level vectors, it counts the number of mismatched bytes:
 
-```math
+$$
 \text{hamming}(a, b) = \sum_{i=0}^{n-1} [a_i \neq b_i]
-```
+$$
 
 Jaccard distance measures the dissimilarity of two sets.
 For binary vectors, the intersection and union are computed via bitwise AND and OR with popcount:
 
-```math
+$$
 \text{jaccard}(a, b) = 1 - \frac{|A \cap B|}{|A \cup B|} = 1 - \frac{\text{popcount}(a \mathbin{\&} b)}{\text{popcount}(a \mathbin{|} b)}
-```
+$$
 
 For word-level vectors (MinHash signatures), Jaccard similarity is the fraction of matching elements:
 
-```math
+$$
 \text{jaccard}(a, b) = 1 - \frac{\sum_{i=0}^{n-1} [a_i = b_i]}{n}
-```
+$$
 
 Reformulating as Python pseudocode:
 

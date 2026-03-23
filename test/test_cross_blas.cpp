@@ -157,16 +157,16 @@ void dots_f32_with_blas(f32_t const *a, f32_t const *b, f64_t *c, nk_size_t m, n
 
 void dots_f64_with_blas(f64_t const *a, f64_t const *b, f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                         nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
                 1.0, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), 0.0, &c->raw_, static_cast<int>(n));
 }
 
 void dots_f32c_with_blas(f32c_t const *a, f32c_t const *b, f32c_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                          nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     nk_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
@@ -184,8 +184,8 @@ void dots_f32c_with_blas(f32c_t const *a, f32c_t const *b, f32c_t *c, nk_size_t 
 
 void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                          nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     nk_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
 #if NK_COMPARE_TO_ACCELERATE
     cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
@@ -203,8 +203,8 @@ void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t 
 
 void dots_symmetric_f32_with_blas(nk_f32_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f64_t *c,
                                   nk_size_t c_stride, nk_size_t row_start, nk_size_t row_count) {
-    (void)row_start;
-    (void)row_count;
+    nk_unused_(row_start);
+    nk_unused_(row_count);
     nk_size_t leading_dimension_c = c_stride / sizeof(nk_f64_t);
     // Reuse the first half of the f64 output buffer as a packed f32 staging matrix, zero it for ssyrk, then widen in
     // place backwards.
@@ -220,8 +220,8 @@ void dots_symmetric_f32_with_blas(nk_f32_t const *a, nk_size_t n, nk_size_t k, n
 
 void dots_symmetric_f64_with_blas(nk_f64_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f64_t *c,
                                   nk_size_t c_stride, nk_size_t row_start, nk_size_t row_count) {
-    (void)row_start;
-    (void)row_count;
+    nk_unused_(row_start);
+    nk_unused_(row_count);
     cblas_dsyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0, a,
                 static_cast<int>(a_stride / sizeof(nk_f64_t)), 0.0, c, static_cast<int>(c_stride / sizeof(nk_f64_t)));
 }
@@ -231,8 +231,8 @@ void dots_symmetric_f64_with_blas(nk_f64_t const *a, nk_size_t n, nk_size_t k, n
 #if NK_COMPARE_TO_MKL
 void dots_bf16_with_mkl(bf16_t const *a, bf16_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                         nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
                            static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), &b->raw_,
                            static_cast<MKL_INT>(k), 0.0f, &c->raw_, static_cast<MKL_INT>(n));
@@ -240,8 +240,8 @@ void dots_bf16_with_mkl(bf16_t const *a, bf16_t const *b, f32_t *c, nk_size_t m,
 
 void dots_f16_with_mkl(f16_t const *a, f16_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                        nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
                          static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(&a->raw_),
                          static_cast<MKL_INT>(k), reinterpret_cast<MKL_F16 const *>(&b->raw_), static_cast<MKL_INT>(k),
@@ -250,8 +250,8 @@ void dots_f16_with_mkl(f16_t const *a, f16_t const *b, f32_t *c, nk_size_t m, nk
 
 void dots_i16_with_mkl(i16_t const *a, i16_t const *b, i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                        nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
+    nk_unused_(a_stride);
+    nk_unused_(c_stride);
     MKL_INT32 c_offset = 0;
     cblas_gemm_s16s16s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, static_cast<MKL_INT>(m),
                          static_cast<MKL_INT>(n), static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), 0,

@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme2,sve2"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme2"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme2")
@@ -244,7 +244,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
         }
         for (nk_size_t r = rows_clamped; r < tile_dim; r++) a_tile_pops[r] = 0;
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dim;
 
         // Fast path: 3 column tiles using ZA1-ZA3 (ZA0 = staging)
         for (; column_tile_index + 3 <= column_tile_count; column_tile_index += 3) {

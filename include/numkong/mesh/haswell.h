@@ -8,12 +8,12 @@
  *
  *  @section haswell_mesh_instructions Key AVX2 Mesh Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_hadd_ps              VHADDPS (YMM, YMM, YMM)         7cy         0.5/cy      p01+p5
- *      _mm256_permute2f128_ps      VPERM2F128 (YMM, YMM, YMM, I8)  3cy         1/cy        p5
- *      _mm256_extractf128_ps       VEXTRACTF128 (XMM, YMM, I8)     3cy         1/cy        p5
- *      _mm256_i32gather_ps         VGATHERDPS (YMM, M, YMM, YMM)   12cy        5/cy        p0+p23
+ *      Intrinsic               Instruction                     Haswell         Genoa
+ *      _mm256_fmadd_ps         VFMADD (YMM, YMM, YMM)          5cy @ p01       4cy @ p01
+ *      _mm256_hadd_ps          VHADDPS (YMM, YMM, YMM)         7cy @ p1+p5     4cy @ p123+p23+p23
+ *      _mm256_permute2f128_ps  VPERM2F128 (YMM, YMM, YMM, I8)  3cy @ p5        2cy @ p12
+ *      _mm256_extractf128_ps   VEXTRACTF128 (XMM, YMM, I8)     3cy @ p5        1cy @ p0123
+ *      _mm256_i32gather_ps     VGATHERDPS (YMM, M, YMM, YMM)   22cy (34 uops)  19cy (17 uops)
  *
  *  Point cloud operations (centroid, covariance, Kabsch alignment) use gather instructions for
  *  stride-3 xyz deinterleaving. Multiple FMA accumulators hide the 5-cycle FMA latency. VHADDPS

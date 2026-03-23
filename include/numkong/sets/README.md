@@ -4,17 +4,17 @@ NumKong implements batched M×N Hamming and Jaccard distance matrices for binary
 
 Hamming distance from batched dot products:
 
-```math
+$$
 D_{ij} = \|A_i\|_1 + \|B_j\|_1 - 2 \cdot \text{dot}(A_i, B_j)
-```
+$$
 
 Where dot = popcount(AND), measuring intersection size.
 
 Jaccard distance from batched dot products:
 
-```math
+$$
 D_{ij} = 1 - \frac{\text{dot}(A_i, B_j)}{\|A_i\|_1 + \|B_j\|_1 - \text{dot}(A_i, B_j)}
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -52,9 +52,9 @@ def jaccards_packed(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 The L1 norm of a binary vector is its popcount: $|A| = \text{popcount}(a) = \|a\|_1$.
 By inclusion-exclusion, $|A \cup B| = |A| + |B| - |A \cap B|$.
 Hamming distance counts positions where exactly one bit is set: $D_H = |A| + |B| - 2|A \cap B| = \text{popcount}(a \oplus b)$.
-Finalizer `nk_hamming_u32x4_from_dot_serial_` computes `pop_a + pop_b - 2 * dot` in pure u32 arithmetic — no division, no float conversion, no sqrt.
+Finalizer `nk_hamming_u32x4_from_dot_serial_` computes `pop_a + pop_b - 2 * dot` in pure UInt32 arithmetic — no division, no float conversion, no sqrt.
 Jaccard distance: $D_J = 1 - \frac{|A \cap B|}{|A \cup B|} = 1 - \frac{\text{dot}}{\text{pop}_a + \text{pop}_b - \text{dot}}$.
-Finalizer `nk_jaccard_f32x4_from_dot_serial_` requires u32→f32 cast plus f32 division (~11cy latency on Haswell), making it ~3× more expensive per element than Hamming's integer subtraction chain.
+Finalizer `nk_jaccard_f32x4_from_dot_serial_` requires UInt32 → Float32 cast plus Float32 division (~11cy latency on Haswell), making it ~3× more expensive per element than Hamming's integer subtraction chain.
 Per-column popcount norms ($\|a\|_1$, $\|b\|_1$) are precomputed during packing and stored in packed buffer metadata, avoiding per-pair recomputation.
 
 ### SME Binary Outer-Product Accumulation
@@ -70,7 +70,7 @@ Streaming mode overhead (~50–100 cycles for `SMSTART`/`SMSTOP`) is amortized a
 The following performance tables are produced by manually re-running `nk_test` and `nk_bench` included internal tools to measure both accuracy and throughput at different input shapes.
 The input size is controlled by `NK_MATRIX_HEIGHT`, `NK_MATRIX_WIDTH`, and `NK_MATRIX_DEPTH` environment variables, all set to the same value for batched set operations over square matrices.
 Columns show throughput for 256³, 1024³, and 4096³ configurations.
-The throughput is measured in GSO/s as Giga scalar operations per second.
+The throughput is measured in GSO/s as Giga Scalar Operations per Second.
 Accuracy is reported where applicable as exact distance in the result representation; floating Jaccard rows are shown as mean ULP (units in last place).
 Each kernel runs for at least 20 seconds per configuration.
 Benchmark threads are pinned to specific cores; on machines with heterogeneous core types (e.g., Apple P/E cores), only the fastest cores are used.

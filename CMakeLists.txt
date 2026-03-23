@@ -62,7 +62,7 @@ endif ()
 #
 project(
     numkong
-    VERSION 6.5.15
+    VERSION 7.1.1
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/NumKong"
@@ -116,6 +116,9 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+# Generate compile_commands.json for clang-tidy and other tooling
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # MSVC does not set `CMAKE_SYSTEM_PROCESSOR` correctly
 # Use `CMAKE_C_COMPILER_ARCHITECTURE_ID` instead
 if (MSVC)
@@ -140,6 +143,9 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm64|ARM64")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
     set(NK_IS_64BIT_RISCV_ TRUE)
     message(STATUS "NumKong Platform: RISC-V 64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm|^ARM|armv7")
+    set(NK_IS_32BIT_ARM_ TRUE)
+    message(STATUS "NumKong Platform: ARM32 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
 else ()
     message(WARNING "Unknown CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 endif ()
@@ -207,7 +213,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 # Define the header-only library
-file(GLOB NK_SOURCES include/numkong/*.h)
+file(GLOB NK_SOURCES include/numkong/*.h include/numkong/*.hpp)
 add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
@@ -349,6 +355,10 @@ endif ()
 # See cmake/nk_x86_isa_probes.cmake for details and probe definitions.
 include(cmake/nk_x86_isa_probes.cmake)
 
+# Arm ISA runtime probes — detect host CPU capabilities at configure time.
+# See cmake/nk_arm_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_arm_isa_probes.cmake)
+
 # Build benchmarks
 if (NK_BUILD_BENCH)
     # Fetch external dependencies
@@ -367,11 +377,7 @@ if (NK_BUILD_BENCH)
     set(BENCHMARK_USE_BUNDLED_GTEST ON CACHE BOOL "" FORCE)
     set(HAVE_STD_REGEX ON CACHE BOOL "Force std::regex for Google Benchmark" FORCE)
 
-    FetchContent_Declare(
-        benchmark
-        GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG main
-    )
+    FetchContent_Declare(benchmark GIT_REPOSITORY https://github.com/google/benchmark.git GIT_TAG main)
     FetchContent_MakeAvailable(benchmark)
 
     # Remove the Google Benchmark's "built in debug warning"
@@ -423,6 +429,10 @@ if (NK_BUILD_BENCH)
 
     if (nk_x86_isa_defs_)
         target_compile_definitions(nk_bench PRIVATE ${nk_x86_isa_defs_})
+    endif ()
+
+    if (nk_arm_isa_defs_)
+        target_compile_definitions(nk_bench PRIVATE ${nk_arm_isa_defs_})
     endif ()
 endif ()
 
@@ -482,6 +492,10 @@ if (NK_BUILD_TEST)
         target_compile_definitions(nk_test PRIVATE ${nk_x86_isa_defs_})
     endif ()
 
+    if (nk_arm_isa_defs_)
+        target_compile_definitions(nk_test PRIVATE ${nk_arm_isa_defs_})
+    endif ()
+
     add_test(NAME nk_test COMMAND nk_test)
 endif ()
 
@@ -533,7 +547,7 @@ if (NK_BUILD_SHARED)
             "SHELL:-sEXPORT_ES6=1" # Generate ES6 module
             "SHELL:-sMODULARIZE=1" # Wrap in module factory
             "SHELL:-sEXPORT_NAME=NumKongModule" # Export name
-            "SHELL:-sEXPORTED_FUNCTIONS=['_malloc','_free','_nk_dot_f32','_nk_dot_f64','_nk_dot_f16','_nk_dot_bf16','_nk_dot_i8','_nk_dot_u8','_nk_angular_f32','_nk_angular_f64','_nk_angular_f16','_nk_angular_bf16','_nk_angular_i8','_nk_angular_u8','_nk_sqeuclidean_f32','_nk_sqeuclidean_f64','_nk_sqeuclidean_f16','_nk_sqeuclidean_bf16','_nk_sqeuclidean_i8','_nk_sqeuclidean_u8','_nk_euclidean_f32','_nk_euclidean_f64','_nk_euclidean_f16','_nk_euclidean_bf16','_nk_euclidean_i8','_nk_euclidean_u8','_nk_hamming_u1','_nk_hamming_u8','_nk_jaccard_u1','_nk_jaccard_u16','_nk_kld_f32','_nk_kld_f64','_nk_jsd_f32','_nk_jsd_f64','_nk_capabilities']"
+            "SHELL:-sEXPORTED_FUNCTIONS=['_malloc','_free','_nk_dot_f32','_nk_dot_f64','_nk_dot_f16','_nk_dot_bf16','_nk_dot_i8','_nk_dot_u8','_nk_angular_f32','_nk_angular_f64','_nk_angular_f16','_nk_angular_bf16','_nk_angular_i8','_nk_angular_u8','_nk_sqeuclidean_f32','_nk_sqeuclidean_f64','_nk_sqeuclidean_f16','_nk_sqeuclidean_bf16','_nk_sqeuclidean_i8','_nk_sqeuclidean_u8','_nk_euclidean_f32','_nk_euclidean_f64','_nk_euclidean_f16','_nk_euclidean_bf16','_nk_euclidean_i8','_nk_euclidean_u8','_nk_hamming_u1','_nk_hamming_u8','_nk_jaccard_u1','_nk_jaccard_u16','_nk_kld_f32','_nk_kld_f64','_nk_jsd_f32','_nk_jsd_f64','_nk_capabilities','_nk_dots_packed_size_f32','_nk_dots_packed_size_f64','_nk_dots_packed_size_f16','_nk_dots_packed_size_bf16','_nk_dots_packed_size_i8','_nk_dots_packed_size_u8','_nk_dots_pack_f32','_nk_dots_pack_f64','_nk_dots_pack_f16','_nk_dots_pack_bf16','_nk_dots_pack_i8','_nk_dots_pack_u8','_nk_dots_packed_f32','_nk_dots_packed_f64','_nk_dots_packed_f16','_nk_dots_packed_bf16','_nk_dots_packed_i8','_nk_dots_packed_u8','_nk_dots_symmetric_f32','_nk_dots_symmetric_f64','_nk_dots_symmetric_f16','_nk_dots_symmetric_bf16','_nk_dots_symmetric_i8','_nk_dots_symmetric_u8','_nk_angulars_packed_f32','_nk_angulars_packed_f64','_nk_angulars_packed_f16','_nk_angulars_packed_bf16','_nk_angulars_symmetric_f32','_nk_angulars_symmetric_f64','_nk_angulars_symmetric_f16','_nk_angulars_symmetric_bf16','_nk_euclideans_packed_f32','_nk_euclideans_packed_f64','_nk_euclideans_packed_f16','_nk_euclideans_packed_bf16','_nk_euclideans_symmetric_f32','_nk_euclideans_symmetric_f64','_nk_euclideans_symmetric_f16','_nk_euclideans_symmetric_bf16']"
             "SHELL:-sEXPORTED_RUNTIME_METHODS=['wasmMemory']" # Export memory object
             "SHELL:-sALLOW_MEMORY_GROWTH=1" # Dynamic memory
             "SHELL:-sENVIRONMENT=web,node" # Both browser and Node.js
@@ -557,6 +571,13 @@ if (NK_BUILD_SHARED)
         # Strip unwind tables from this pure-C library (saves ~78 KB).
         if (NOT MSVC)
             target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+        endif ()
+
+        # MSVC ARM64 cross-compilation: <intrin.h> pulls in <winnt.h> which
+        # requires _ARM64_ to be defined. The Visual Studio generator doesn't
+        # always propagate this for pure-C targets.
+        if (MSVC AND NK_IS_64BIT_ARM_)
+            target_compile_definitions(nk_shared PRIVATE _ARM64_)
         endif ()
 
         # Enable link-time optimization for Release builds.
@@ -696,6 +717,20 @@ if (NK_BUILD_SHARED)
                     nk_shared PRIVATE NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
                 )
             endif ()
+
+        elseif (NK_IS_32BIT_ARM_)
+            # ARM32 — serial-only (the NEON kernels target AArch64 intrinsics)
+            target_compile_definitions(
+                nk_shared
+                PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                        NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
+                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
+                        NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                        NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
+                        NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+                        NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_NEON=0
+                        NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+            )
         endif ()
     endif ()
 

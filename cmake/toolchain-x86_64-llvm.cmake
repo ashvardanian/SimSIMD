@@ -1,4 +1,4 @@
-# LLVM Clang toolchain for x86_64 builds.
+# x86_64 LLVM Clang toolchain for NumKong.
 #
 # Native x86_64 hosts use this as a pinned LLVM toolchain.
 # Apple Silicon hosts use it to target x86_64 macOS via `-arch x86_64`.

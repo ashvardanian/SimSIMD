@@ -8,12 +8,12 @@
  *
  *  @section haswell_elementwise_instructions Key AVX2 Elementwise Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_add_ps               VADDPS (YMM, YMM, YMM)          3cy         1/cy        p01
- *      _mm256_mul_ps               VMULPS (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_cvtepi32_ps          VCVTDQ2PS (YMM, YMM)            4cy         1/cy        p01
- *      _mm256_cvtepi8_epi32        VPMOVSXBD (YMM, XMM)            3cy         1/cy        p5
+ *      Intrinsic             Instruction             Haswell    Genoa
+ *      _mm256_fmadd_ps       VFMADD (YMM, YMM, YMM)  5cy @ p01  4cy @ p01
+ *      _mm256_add_ps         VADDPS (YMM, YMM, YMM)  3cy @ p01  3cy @ p23
+ *      _mm256_mul_ps         VMULPS (YMM, YMM, YMM)  5cy @ p01  3cy @ p01
+ *      _mm256_cvtepi32_ps    VCVTDQ2PS (YMM, YMM)    4cy @ p01  4cy @ p23
+ *      _mm256_cvtepi8_epi32  VPMOVSXBD (YMM, XMM)    1cy @ p5   2cy @ p12
  *
  *  Elementwise operations (sum, scale, blend, fma) are compute-bound on FMA throughput. For mixed-
  *  precision operations, type conversion chains (e.g., i8->i32->f32) add ~7-10 cycles overhead.

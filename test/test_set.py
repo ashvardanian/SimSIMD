@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test set distances: nk.jaccard, nk.hamming (dense binary).
 
 Covers dtypes: uint1 (packed uint8 bits), also verified via boolean view.
@@ -14,6 +13,7 @@ Matches C++ suite: test_set.cpp.
 
 import array
 import atexit
+
 import pytest
 
 try:
@@ -23,19 +23,19 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    scipy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    randomized_repetitions_count,
+    scipy_available,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 

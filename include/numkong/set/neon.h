@@ -10,13 +10,13 @@
  *
  *  Key NEON instructions for binary/bitwise operations (Cortex-A76 class):
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *      vcntq_u8                    CNT (V.16B, V.16B)              2cy         2/cy
- *      veorq_u8                    EOR (V.16B, V.16B, V.16B)       1cy         4/cy
- *      vandq_u8                    AND (V.16B, V.16B, V.16B)       1cy         4/cy
- *      vorrq_u8                    ORR (V.16B, V.16B, V.16B)       1cy         4/cy
- *      vpaddlq_u8                  UADDLP (V.8H, V.16B)            2cy         2/cy
- *      vaddvq_u32                  ADDV (S, V.4S)                  3cy         1/cy
+ *      Intrinsic   Instruction                A76       M5
+ *      vcntq_u8    CNT (V.16B, V.16B)         2cy @ 2p  2cy @ 4p
+ *      veorq_u8    EOR (V.16B, V.16B, V.16B)  1cy @ 2p  2cy @ 4p
+ *      vandq_u8    AND (V.16B, V.16B, V.16B)  1cy @ 2p  2cy @ 4p
+ *      vorrq_u8    ORR (V.16B, V.16B, V.16B)  1cy @ 2p  2cy @ 4p
+ *      vpaddlq_u8  UADDLP (V.8H, V.16B)       2cy @ 2p  2cy @ 4p
+ *      vaddvq_u32  ADDV (S, V.4S)             4cy @ 1p  5cy @ 1p
  *
  *  According to the available literature, the throughput for those basic integer ops is
  *  identical across most Apple, Qualcomm, and AWS Graviton chips. As long as we avoid widening

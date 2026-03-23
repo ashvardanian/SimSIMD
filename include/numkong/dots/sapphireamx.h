@@ -976,6 +976,7 @@ NK_PUBLIC void nk_dots_pack_bf16_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_bf16_sapphireamx(            //
     nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     // Parse packed B header
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
@@ -1502,6 +1503,7 @@ NK_PUBLIC void nk_dots_pack_i8_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_i8_sapphireamx(            //
     nk_i8_t const *a, void const *b_packed, nk_i32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     // Parse packed B header
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
@@ -2056,6 +2058,7 @@ NK_PUBLIC void nk_dots_pack_u8_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_u8_sapphireamx(            //
     nk_u8_t const *a, void const *b_packed, nk_u32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     // Parse packed B header
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
@@ -2521,6 +2524,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_e4m3_sapphireamx(            //
     nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const column_tiles_count = header->full_column_tiles;
@@ -2802,6 +2806,7 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_e5m2_sapphireamx(            //
     nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const column_tiles_count = header->full_column_tiles;
@@ -3316,6 +3321,7 @@ NK_PUBLIC void nk_dots_pack_e2m3_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_e2m3_sapphireamx(            //
     nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const column_tiles_count = header->full_column_tiles;
@@ -3688,6 +3694,7 @@ NK_PUBLIC void nk_dots_pack_e3m2_sapphireamx(                    //
 NK_PUBLIC void nk_dots_packed_e3m2_sapphireamx(            //
     nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
+    nk_unused_(cols_count);
 
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const column_tiles_count = header->full_column_tiles;

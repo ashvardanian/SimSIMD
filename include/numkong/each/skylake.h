@@ -8,13 +8,13 @@
  *
  *  @section skylake_elementwise_instructions Relevant Instructions
  *
- *      Intrinsic                   Instruction                     SKL         ICL         Genoa
- *      _mm512_add_ps               VADDPS (ZMM, ZMM, ZMM)          4cy @ p05   4cy @ p0    3cy @ p01
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy @ p05   4cy @ p0    4cy @ p01
- *      _mm512_mul_ps               VMULPS (ZMM, ZMM, ZMM)          4cy @ p05   4cy @ p0    3cy @ p01
- *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            5cy @ p05   7cy @ p0    5cy @ p01
- *      _mm512_maskz_loadu_ps       VMOVUPS (ZMM {K}, M512)         7cy @ p23   7cy @ p23   7cy @ p23
- *      _mm512_mask_storeu_ps       VMOVUPS (M512 {K}, ZMM)         4cy @ p4    4cy @ p4    4cy @ p4
+ *      Intrinsic              Instruction                  SKL        ICL        Genoa
+ *      _mm512_add_ps          VADDPS (ZMM, ZMM, ZMM)       4cy @ p05  4cy @ p0   3cy @ p01
+ *      _mm512_fmadd_ps        VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p05  4cy @ p0   4cy @ p01
+ *      _mm512_mul_ps          VMULPS (ZMM, ZMM, ZMM)       4cy @ p05  4cy @ p0   3cy @ p01
+ *      _mm512_cvtph_ps        VCVTPH2PS (ZMM, YMM)         5cy @ p05  7cy @ p0   5cy @ p01
+ *      _mm512_maskz_loadu_ps  VMOVUPS (ZMM {K}, M512)      7cy @ p23  7cy @ p23  7cy @ p23
+ *      _mm512_mask_storeu_ps  VMOVUPS (M512 {K}, ZMM)      4cy @ p4   4cy @ p4   4cy @ p4
  *
  *  Skylake-X server chips have dual 512-bit FMA units enabling 0.5cy throughput for arithmetic operations.
  *  AVX-512 masked loads and stores eliminate branch misprediction penalties for partial vector processing.

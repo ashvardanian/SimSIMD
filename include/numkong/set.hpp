@@ -27,7 +27,7 @@ namespace ashvardanian::numkong {
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::hamming_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void hamming(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -57,7 +57,7 @@ void hamming(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
  *  @tparam result_type_ Accumulator type, defaults to `in_type_::jaccard_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void jaccard(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -75,6 +75,38 @@ void jaccard(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
         if (union_count == 0) *r = result_type_();
         else *r = result_type_(1) - result_type_(intersection_count) / result_type_(union_count);
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void hamming(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+             result_type_ *r) noexcept {
+    hamming<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void hamming(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    hamming<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void jaccard(tensor_view<in_type_, max_rank_a_> a, tensor_view<in_type_, max_rank_b_> b, std::size_t d,
+             result_type_ *r) noexcept {
+    jaccard<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jaccard(vector_view<in_type_> a, vector_view<in_type_> b, std::size_t d, result_type_ *r) noexcept {
+    jaccard<in_type_, result_type_, allow_simd_>(a.data(), b.data(), d, r);
 }
 
 } // namespace ashvardanian::numkong

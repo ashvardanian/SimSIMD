@@ -68,6 +68,9 @@
 #if defined(__GNUC__) || defined(__clang__)
 #define NK_PUBLIC   __attribute__((unused)) inline static
 #define NK_INTERNAL __attribute__((always_inline)) inline static
+#elif defined(_MSC_VER)
+#define NK_PUBLIC   inline static
+#define NK_INTERNAL __forceinline static
 #else
 #define NK_PUBLIC   inline static
 #define NK_INTERNAL inline static
@@ -1376,6 +1379,39 @@ NK_INTERNAL int nk_f16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7C00; }
 
 /** @brief BF16: NaN when (raw & 0x7FFF) > 0x7F80. */
 NK_INTERNAL int nk_bf16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7F80; }
+
+/*  Safe SVE vector-length queries usable from non-streaming context.
+ *  On Apple M4 (and other SME-only-SVE cores), SVE instructions like CNTW/CNTH/CNTB
+ *  trap with SIGILL outside streaming mode. These helpers bracket the query with
+ *  SMSTART SM / SMSTOP SM so the calling function's ABI is unchanged.
+ *  Inside `__arm_locally_streaming` functions the plain `svcntXX()` intrinsics are fine.
+ */
+#if NK_TARGET_ARM_ && NK_TARGET_SME
+/** @brief Streaming SVL byte-element count (SVL/8) via SMSTART SM bracket. */
+NK_INTERNAL nk_size_t nk_sme_cntb_(void) {
+    nk_u64_t r;
+    __asm__ __volatile__("smstart sm\n\t" "cntb %0\n\t" "smstop sm" : "=r"(r));
+    return (nk_size_t)r;
+}
+/** @brief Streaming SVL half-element count (SVL/16) via SMSTART SM bracket. */
+NK_INTERNAL nk_size_t nk_sme_cnth_(void) {
+    nk_u64_t r;
+    __asm__ __volatile__("smstart sm\n\t" "cnth %0\n\t" "smstop sm" : "=r"(r));
+    return (nk_size_t)r;
+}
+/** @brief Streaming SVL word-element count (SVL/32) via SMSTART SM bracket. */
+NK_INTERNAL nk_size_t nk_sme_cntw_(void) {
+    nk_u64_t r;
+    __asm__ __volatile__("smstart sm\n\t" "cntw %0\n\t" "smstop sm" : "=r"(r));
+    return (nk_size_t)r;
+}
+/** @brief Streaming SVL double-element count (SVL/64) via SMSTART SM bracket. */
+NK_INTERNAL nk_size_t nk_sme_cntd_(void) {
+    nk_u64_t r;
+    __asm__ __volatile__("smstart sm\n\t" "cntd %0\n\t" "smstop sm" : "=r"(r));
+    return (nk_size_t)r;
+}
+#endif
 
 #ifdef __cplusplus
 } // extern "C"

@@ -244,7 +244,7 @@ Tensor *Tensor_new(nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape) {
     }
     size_t const total_bytes = total_items * item_size;
 
-    Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, total_bytes);
+    Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, total_bytes + NK_TENSOR_PADDING_);
     if (!tensor) {
         PyErr_NoMemory();
         return NULL;
@@ -397,7 +397,7 @@ static void linearize_cast_recursive(                                         //
 
 void linearize_cast_into(char const *src_data, nk_dtype_t src_dtype, char *dest_data, nk_dtype_t dest_dtype,
                          size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements) {
-    (void)total_elements;
+    nk_unused_(total_elements);
     size_t src_element_size = bytes_per_dtype(src_dtype);
     size_t dest_element_size = bytes_per_dtype(dest_dtype);
 
@@ -438,7 +438,7 @@ char *ensure_contiguous_buffer(char const *src_data, nk_dtype_t src_dtype, nk_dt
     }
 
     // Single allocation, delegate
-    char *output = PyMem_Malloc(total_elements * dest_element_size);
+    char *output = PyMem_Malloc(total_elements * dest_element_size + NK_TENSOR_PADDING_);
     if (!output) {
         PyErr_NoMemory();
         return NULL;
@@ -693,7 +693,7 @@ static PyNumberMethods Tensor_as_number = {
 };
 
 static PyObject *Tensor_get_shape(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     PyObject *shape_tuple = PyTuple_New(tensor->rank);
     if (!shape_tuple) return NULL;
@@ -704,19 +704,19 @@ static PyObject *Tensor_get_shape(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_dtype(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyUnicode_FromString(dtype_to_string(tensor->dtype));
 }
 
 static PyObject *Tensor_get_ndim(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyLong_FromSize_t(tensor->rank);
 }
 
 static PyObject *Tensor_get_size(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
@@ -724,7 +724,7 @@ static PyObject *Tensor_get_size(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_nbytes(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
@@ -732,7 +732,7 @@ static PyObject *Tensor_get_nbytes(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     PyObject *strides_tuple = PyTuple_New(tensor->rank);
     if (!strides_tuple) return NULL;
@@ -743,13 +743,13 @@ static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_itemsize(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     return PyLong_FromSize_t(bytes_per_dtype(tensor->dtype));
 }
 
 static PyObject *Tensor_get_T(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
 
     if (tensor->rank < 2) {
@@ -771,7 +771,7 @@ static PyObject *Tensor_get_T(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
 
     PyObject *dict = PyDict_New();
@@ -828,10 +828,43 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
 }
 
 static PyObject *Tensor_get_is_contiguous(PyObject *self, void *closure) {
-    (void)closure;
+    nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
     size_t item_size = bytes_per_dtype(tensor->dtype);
     return PyBool_FromLong(tensor_is_c_contig(tensor, item_size));
+}
+
+static PyObject *Tensor_get_data_ptr(PyObject *self, void *closure) {
+    nk_unused_(closure);
+    return PyLong_FromVoidPtr(((Tensor *)self)->data);
+}
+
+static Tensor *Tensor_view_object(PyObject *owner, char *data_ptr, nk_dtype_t dtype, size_t rank,
+                                  Py_ssize_t const *shape, Py_ssize_t const *strides) {
+    if (rank > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_TENSOR_MAX_RANK);
+        return NULL;
+    }
+
+    Tensor *view = PyObject_NewVar(Tensor, &TensorType, 0);
+    if (!view) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    view->dtype = dtype;
+    view->rank = rank;
+
+    for (size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) {
+        view->shape[i] = (i < rank) ? shape[i] : 0;
+        view->strides[i] = (i < rank) ? strides[i] : 0;
+    }
+
+    view->parent = owner;
+    Py_INCREF(owner);
+    view->data = data_ptr;
+
+    return view;
 }
 
 static PyGetSetDef Tensor_getset[] = {
@@ -845,11 +878,19 @@ static PyGetSetDef Tensor_getset[] = {
     {"T", Tensor_get_T, NULL, "Transposed view of the array", NULL},
     {"__array_interface__", Tensor_get_array_interface, NULL, "NumPy array interface", NULL},
     {"is_contiguous", Tensor_get_is_contiguous, NULL, "Whether the tensor is C-contiguous", NULL},
+    {"data_ptr", Tensor_get_data_ptr, NULL, "Integer address of the data buffer", NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
+char const doc_method_copy[] =                                   //
+    "Return a deep copy of the tensor.\n\n"                      //
+    "Returns:\n"                                                 //
+    "    Tensor: Independent copy with its own data buffer.\n\n" //
+    "Signature:\n"                                               //
+    "    >>> def copy(self, /): ...";
+
 PyObject *Tensor_copy(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     size_t total_elements = 1;
@@ -862,6 +903,15 @@ PyObject *Tensor_copy(PyObject *self, PyObject *args) {
                         tensor->strides, total_elements);
     return (PyObject *)result;
 }
+
+char const doc_method_reshape[] =                                                       //
+    "Return a tensor reshaped to the given dimensions.\n\n"                             //
+    "Parameters:\n"                                                                     //
+    "    *dims (int): New dimensions. Total element count must match the original.\n\n" //
+    "Returns:\n"                                                                        //
+    "    Tensor: Reshaped view (or copy if the layout requires it).\n\n"                //
+    "Signature:\n"                                                                      //
+    "    >>> def reshape(self, *dims): ...";
 
 PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     Tensor *tensor = (Tensor *)self;
@@ -943,8 +993,15 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs
     return (PyObject *)result;
 }
 
+char const doc_method_flatten[] =                                 //
+    "Return a flattened 1D view of the tensor.\n\n"               //
+    "Returns:\n"                                                  //
+    "    Tensor: 1D view if contiguous, otherwise a 1D copy.\n\n" //
+    "Signature:\n"                                                //
+    "    >>> def flatten(self, /): ...";
+
 PyObject *Tensor_flatten(PyObject *self, PyObject *args) {
-    (void)args;
+    nk_unused_(args);
     Tensor *tensor = (Tensor *)self;
 
     Py_ssize_t total_elements = 1;
@@ -968,6 +1025,15 @@ PyObject *Tensor_flatten(PyObject *self, PyObject *args) {
                         tensor->strides, (size_t)total_elements);
     return (PyObject *)result;
 }
+
+char const doc_method_squeeze[] =                                                           //
+    "Remove dimensions of size 1.\n\n"                                                      //
+    "Parameters:\n"                                                                         //
+    "    *axes (int, optional): Specific axes to squeeze. If omitted, all size-1 axes.\n\n" //
+    "Returns:\n"                                                                            //
+    "    Tensor: View with the specified size-1 dimensions removed.\n\n"                    //
+    "Signature:\n"                                                                          //
+    "    >>> def squeeze(self, /, *axes): ...";
 
 PyObject *Tensor_squeeze(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     Tensor *tensor = (Tensor *)self;
@@ -1213,26 +1279,19 @@ static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_ou
     return 0;
 }
 
-PyObject *Tensor_moments(PyObject *self, PyObject *args) {
-    (void)args;
-    Tensor *tensor = (Tensor *)self;
+char const doc_method_moments[] =                            //
+    "Compute sum and sum-of-squares of all elements.\n\n"    //
+    "Returns:\n"                                             //
+    "    tuple: (sum, sum_of_squares) for all elements.\n\n" //
+    "Signature:\n"                                           //
+    "    >>> def moments(self, /): ...";
 
-    TensorView view = {
-        .dtype = tensor->dtype,
-        .rank = tensor->rank,
-        .shape = tensor->shape,
-        .strides = tensor->strides,
-        .data = tensor->data,
-    };
-
+static PyObject *impl_moments_from_view(TensorView const *view) {
     nk_scalar_buffer_t sum_buf, sumsq_buf;
     nk_dtype_t sum_dtype, sumsq_dtype;
-    if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0) {
-        PyErr_Format(PyExc_NotImplementedError, "moments not supported for dtype '%s'",
-                     dtype_to_python_string(tensor->dtype));
-        return NULL;
-    }
-
+    if (impl_reduce_moments(view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
+        return PyErr_Format(PyExc_NotImplementedError, "moments not supported for dtype '%s'",
+                            dtype_to_python_string(view->dtype));
     PyObject *sum_obj = scalar_to_py_number(&sum_buf, sum_dtype);
     if (!sum_obj) return NULL;
     PyObject *sumsq_obj = scalar_to_py_number(&sumsq_buf, sumsq_dtype);
@@ -1246,29 +1305,28 @@ PyObject *Tensor_moments(PyObject *self, PyObject *args) {
     return tuple;
 }
 
-PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
-    (void)args;
-    Tensor *tensor = (Tensor *)self;
+PyObject *Tensor_moments(PyObject *self, PyObject *args) {
+    nk_unused_(args);
+    Tensor *t = (Tensor *)self;
+    TensorView view = {t->dtype, t->rank, t->shape, t->strides, t->data};
+    return impl_moments_from_view(&view);
+}
 
-    TensorView view = {
-        .dtype = tensor->dtype,
-        .rank = tensor->rank,
-        .shape = tensor->shape,
-        .strides = tensor->strides,
-        .data = tensor->data,
-    };
+char const doc_method_minmax[] =                                                                //
+    "Find minimum and maximum elements with their indices.\n\n"                                 //
+    "Returns:\n"                                                                                //
+    "    tuple: (min_val, min_index, max_val, max_index), or None if all elements are NaN.\n\n" //
+    "Signature:\n"                                                                              //
+    "    >>> def minmax(self, /): ...";
 
+static PyObject *impl_minmax_from_view(TensorView const *view) {
     nk_scalar_buffer_t min_buf, max_buf;
     nk_dtype_t min_dtype, max_dtype;
     size_t min_index = 0, max_index = 0;
-    if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_index, &max_buf, &max_dtype, &max_index) < 0) {
-        PyErr_Format(PyExc_NotImplementedError, "minmax not supported for dtype '%s'",
-                     dtype_to_python_string(tensor->dtype));
-        return NULL;
-    }
-
+    if (impl_reduce_minmax(view, &min_buf, &min_dtype, &min_index, &max_buf, &max_dtype, &max_index) < 0)
+        return PyErr_Format(PyExc_NotImplementedError, "minmax not supported for dtype '%s'",
+                            dtype_to_python_string(view->dtype));
     if (min_index == NK_SIZE_MAX) { Py_RETURN_NONE; }
-
     PyObject *min_obj = scalar_to_py_number(&min_buf, min_dtype);
     if (!min_obj) return NULL;
     PyObject *min_idx_obj = PyLong_FromSsize_t((Py_ssize_t)min_index);
@@ -1297,10 +1355,18 @@ PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
     return tuple;
 }
 
+PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
+    nk_unused_(args);
+    Tensor *t = (Tensor *)self;
+    TensorView view = {t->dtype, t->rank, t->shape, t->strides, t->data};
+    return impl_minmax_from_view(&view);
+}
+
 typedef struct {
-    Py_ssize_t axis; // 0..rank-1 after normalization, or -1 when axis=None (reduce all)
-    int keepdims;    // 0 or 1
-    Tensor *out;     // NULL or user-provided
+    Py_ssize_t axis;           // 0..rank-1 after normalization, or -1 when axis=None (reduce all)
+    int keepdims;              // 0 or 1
+    Tensor *out;               // NULL or user-provided
+    nk_dtype_t dtype_override; // nk_dtype_unknown_k means "use source dtype"
 } reduce_args_t;
 
 /** @brief Parse (axis=None, keepdims=False, out=None) from FASTCALL kwargs. */
@@ -1309,6 +1375,7 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
     parsed->axis = -1;
     parsed->keepdims = 0;
     parsed->out = NULL;
+    parsed->dtype_override = nk_dtype_unknown_k;
     int axis_set = 0;
 
     // axis is positional-or-keyword (position 0)
@@ -1348,6 +1415,12 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
                 if (!PyObject_TypeCheck(value, &TensorType))
                     return (PyErr_SetString(PyExc_TypeError, "out must be a Tensor"), -1);
                 parsed->out = (Tensor *)value;
+            }
+        }
+        else if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            if (value != Py_None) {
+                parsed->dtype_override = python_arg_to_dtype(value);
+                if (parsed->dtype_override == nk_dtype_unknown_k) return -1;
             }
         }
         else return (PyErr_Format(PyExc_TypeError, "unexpected keyword: %S", name), -1);
@@ -1423,11 +1496,10 @@ static void reduce_along_axis(char const *data, Py_ssize_t const *shape, Py_ssiz
 }
 
 /** @brief Dispatch axis reduction: build output, walk slices, return result. */
-static PyObject *reduce_axis_dispatch(Tensor *tensor, reduce_args_t const *parsed, nk_dtype_t out_dtype,
+static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t const *parsed, nk_dtype_t out_dtype,
                                       reduce_slice_fn_t on_slice) {
     Py_ssize_t out_shape[NK_TENSOR_MAX_RANK];
-    size_t out_rank = reduce_output_shape(tensor->shape, tensor->rank, (size_t)parsed->axis, parsed->keepdims,
-                                          out_shape);
+    size_t out_rank = reduce_output_shape(view->shape, view->rank, (size_t)parsed->axis, parsed->keepdims, out_shape);
     Tensor *result;
     if (parsed->out) {
         if (validate_reduce_out(parsed->out, out_shape, out_rank, out_dtype) < 0) return NULL;
@@ -1438,8 +1510,8 @@ static PyObject *reduce_axis_dispatch(Tensor *tensor, reduce_args_t const *parse
         if (!result) return NULL;
     }
     size_t out_index = 0;
-    reduce_along_axis(tensor->data, tensor->shape, tensor->strides, tensor->rank, 0, (size_t)parsed->axis,
-                      tensor->dtype, result->data, bytes_per_dtype(out_dtype), on_slice, &out_index);
+    reduce_along_axis(view->data, view->shape, view->strides, view->rank, 0, (size_t)parsed->axis, view->dtype,
+                      result->data, bytes_per_dtype(out_dtype), on_slice, &out_index);
     if (parsed->out) Py_INCREF((PyObject *)parsed->out);
     return (PyObject *)result;
 }
@@ -1487,124 +1559,197 @@ static void norm_slice(TensorView const *slice, nk_scalar_buffer_t *out) {
     out->f64 = nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype));
 }
 
+char const doc_method_sum[] =                                                                      //
+    "Return the sum of all elements, or per-slice sums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Scalar sum when axis is None.\n"                                                          //
+    "    Tensor of per-slice sums when axis is given.\n\n"                                         //
+    "Signature:\n"                                                                                 //
+    "    >>> def sum(self, /, axis=None, *, keepdims=False, out=None): ...";
+
 static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "sum not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         return scalar_to_py_number(&sum_buf, sum_dtype);
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_reduce_moments_sum_dtype(tensor->dtype), sum_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_reduce_moments_sum_dtype(view.dtype), sum_slice);
 }
+
+char const doc_method_norm[] =                                                                     //
+    "Return the L2 norm, or per-slice norms along an axis.\n\n"                                    //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Scalar L2 norm when axis is None.\n"                                                      //
+    "    Tensor of per-slice norms when axis is given.\n\n"                                        //
+    "Signature:\n"                                                                                 //
+    "    >>> def norm(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "norm not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         return PyFloat_FromDouble(nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_f64_k, norm_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_f64_k, norm_slice);
 }
+
+char const doc_method_min[] =                                                                      //
+    "Return the minimum element, or per-slice minimums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Scalar minimum when axis is None (None if all NaN).\n"                                    //
+    "    Tensor of per-slice minimums when axis is given.\n\n"                                     //
+    "Signature:\n"                                                                                 //
+    "    >>> def min(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "min not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return scalar_to_py_number(&min_buf, min_dtype);
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_reduce_minmax_value_dtype(tensor->dtype), min_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), min_slice);
 }
+
+char const doc_method_max[] =                                                                      //
+    "Return the maximum element, or per-slice maximums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Scalar maximum when axis is None (None if all NaN).\n"                                    //
+    "    Tensor of per-slice maximums when axis is given.\n\n"                                     //
+    "Signature:\n"                                                                                 //
+    "    >>> def max(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "max not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return scalar_to_py_number(&max_buf, max_dtype);
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_reduce_minmax_value_dtype(tensor->dtype), max_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), max_slice);
 }
+
+char const doc_method_argmin[] =                                                                   //
+    "Return the index of the minimum element, or per-slice indices along an axis.\n\n"             //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Integer index when axis is None.\n"                                                       //
+    "    Tensor of per-slice indices when axis is given.\n\n"                                      //
+    "Signature:\n"                                                                                 //
+    "    >>> def argmin(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmin not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)min_idx);
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_i64_k, argmin_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_i64_k, argmin_slice);
 }
+
+char const doc_method_argmax[] =                                                                   //
+    "Return the index of the maximum element, or per-slice indices along an axis.\n\n"             //
+    "Parameters:\n"                                                                                //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
+    "Returns:\n"                                                                                   //
+    "    Integer index when axis is None.\n"                                                       //
+    "    Tensor of per-slice indices when axis is given.\n\n"                                      //
+    "Signature:\n"                                                                                 //
+    "    >>> def argmax(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     Tensor *tensor = (Tensor *)self;
+    TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
-    if (parse_reduce_kwargs(args, nargs, kwnames, tensor->rank, &parsed) < 0) return NULL;
+    if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
     if (parsed.axis == -1) {
-        TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmax not supported for dtype '%s'",
-                                dtype_to_python_string(tensor->dtype));
+                                dtype_to_python_string(view.dtype));
         if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)max_idx);
     }
-    return reduce_axis_dispatch(tensor, &parsed, nk_i64_k, argmax_slice);
+    return reduce_axis_dispatch(&view, &parsed, nk_i64_k, argmax_slice);
 }
+
+char const doc_method_astype[] =                                                 //
+    "Cast the tensor to a different dtype.\n\n"                                  //
+    "Parameters:\n"                                                              //
+    "    dtype (str): Target data type (e.g. 'float32', 'bf16').\n\n"            //
+    "Returns:\n"                                                                 //
+    "    Tensor: New tensor with elements converted to the requested dtype.\n\n" //
+    "Signature:\n"                                                               //
+    "    >>> def astype(self, dtype, /): ...";
 
 PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
     Tensor *tensor = (Tensor *)self;
 
-    // Parse target dtype from string argument
-    char const *dtype_str = PyUnicode_AsUTF8(dtype_arg);
-    if (!dtype_str) {
-        PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-        return NULL;
-    }
-    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
-    if (target_dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", dtype_str);
-        return NULL;
-    }
+    // Parse target dtype from argument
+    nk_dtype_t target_dtype = python_arg_to_dtype(dtype_arg);
+    if (target_dtype == nk_dtype_unknown_k) return NULL;
 
     // Same dtype -> return copy
     if (target_dtype == tensor->dtype) return Tensor_copy(self, NULL);
@@ -1621,6 +1766,16 @@ PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
                         tensor->strides, (size_t)total);
     return (PyObject *)result;
 }
+
+char const doc_method___array__[] =                                                       //
+    "Convert to a NumPy array.\n\n"                                                       //
+    "Parameters:\n"                                                                       //
+    "    dtype (str, optional): Desired NumPy dtype. Default None (preserve original).\n" //
+    "    copy (bool, optional): If True, force a copy. Default None.\n\n"                 //
+    "Returns:\n"                                                                          //
+    "    numpy.ndarray: Array sharing data when possible.\n\n"                            //
+    "Signature:\n"                                                                        //
+    "    >>> def __array__(self, /, dtype=None, *, copy=None): ...";
 
 static PyObject *Tensor___array__(PyObject *self_obj, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     PyObject *dtype_arg = NULL;
@@ -1679,21 +1834,20 @@ static PyObject *Tensor___array__(PyObject *self_obj, PyObject *const *args, Py_
 }
 
 static PyMethodDef Tensor_methods[] = {
-    {"copy", Tensor_copy, METH_NOARGS, "Return a deep copy of the tensor"},
-    {"reshape", (PyCFunction)Tensor_reshape, METH_FASTCALL, "Return tensor reshaped to given dimensions"},
-    {"moments", Tensor_moments, METH_NOARGS, "Returns (sum, sum_of_squares) tuple"},
-    {"minmax", Tensor_minmax, METH_NOARGS, "Returns (min_val, min_idx, max_val, max_idx) tuple"},
-    {"sum", (PyCFunction)Tensor_sum, METH_FASTCALL | METH_KEYWORDS, "Return the sum of all elements."},
-    {"norm", (PyCFunction)Tensor_norm, METH_FASTCALL | METH_KEYWORDS, "Return the L2 norm."},
-    {"min", (PyCFunction)Tensor_min, METH_FASTCALL | METH_KEYWORDS, "Return the minimum element."},
-    {"max", (PyCFunction)Tensor_max, METH_FASTCALL | METH_KEYWORDS, "Return the maximum element."},
-    {"argmin", (PyCFunction)Tensor_argmin, METH_FASTCALL | METH_KEYWORDS, "Return the index of the minimum element."},
-    {"argmax", (PyCFunction)Tensor_argmax, METH_FASTCALL | METH_KEYWORDS, "Return the index of the maximum element."},
-    {"astype", Tensor_astype, METH_O, "Cast tensor to a different dtype. Returns a new tensor."},
-    {"flatten", Tensor_flatten, METH_NOARGS, "Return a flattened 1D view (copies if non-contiguous)"},
-    {"squeeze", (PyCFunction)Tensor_squeeze, METH_FASTCALL, "Remove dimensions of size 1"},
-    {"__array__", (PyCFunction)Tensor___array__, METH_FASTCALL | METH_KEYWORDS,
-     "Convert to NumPy array. Raises TypeError for exotic dtypes."},
+    {"copy", Tensor_copy, METH_NOARGS, doc_method_copy},
+    {"reshape", (PyCFunction)Tensor_reshape, METH_FASTCALL, doc_method_reshape},
+    {"moments", Tensor_moments, METH_NOARGS, doc_method_moments},
+    {"minmax", Tensor_minmax, METH_NOARGS, doc_method_minmax},
+    {"sum", (PyCFunction)Tensor_sum, METH_FASTCALL | METH_KEYWORDS, doc_method_sum},
+    {"norm", (PyCFunction)Tensor_norm, METH_FASTCALL | METH_KEYWORDS, doc_method_norm},
+    {"min", (PyCFunction)Tensor_min, METH_FASTCALL | METH_KEYWORDS, doc_method_min},
+    {"max", (PyCFunction)Tensor_max, METH_FASTCALL | METH_KEYWORDS, doc_method_max},
+    {"argmin", (PyCFunction)Tensor_argmin, METH_FASTCALL | METH_KEYWORDS, doc_method_argmin},
+    {"argmax", (PyCFunction)Tensor_argmax, METH_FASTCALL | METH_KEYWORDS, doc_method_argmax},
+    {"astype", Tensor_astype, METH_O, doc_method_astype},
+    {"flatten", Tensor_flatten, METH_NOARGS, doc_method_flatten},
+    {"squeeze", (PyCFunction)Tensor_squeeze, METH_FASTCALL, doc_method_squeeze},
+    {"__array__", (PyCFunction)Tensor___array__, METH_FASTCALL | METH_KEYWORDS, doc_method___array__},
     {NULL, NULL, 0, NULL},
 };
 
@@ -1770,8 +1924,8 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
 }
 
 static void Tensor_releasebuffer(PyObject *export_from, Py_buffer *view) {
-    (void)export_from;
-    (void)view;
+    nk_unused_(export_from);
+    nk_unused_(view);
 }
 
 static PyBufferProcs Tensor_as_buffer = {
@@ -2039,11 +2193,11 @@ static PyObject *Tensor_iter(PyObject *self) {
 }
 
 static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    (void)type;
+    nk_unused_(type);
     static char const *kwlist[] = {"", "dtype", NULL};
     PyObject *source = NULL;
-    char const *dtype_str = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$s", (char **)kwlist, &source, &dtype_str)) return NULL;
+    PyObject *dtype_obj = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|$O", (char **)kwlist, &source, &dtype_obj)) return NULL;
 
     Py_buffer buf;
     nk_buffer_backing_t backing;
@@ -2055,17 +2209,16 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     }
 
     nk_dtype_t dtype;
-    if (dtype_str) {
-        dtype = python_string_to_dtype(dtype_str);
+    if (dtype_obj) {
+        dtype = python_arg_to_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyBuffer_Release(&buf);
-            PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
             return NULL;
         }
         if ((Py_ssize_t)bytes_per_dtype(dtype) != buf.itemsize) {
             PyBuffer_Release(&buf);
-            PyErr_Format(PyExc_ValueError, "dtype '%s' has itemsize %zu but buffer has itemsize %zd", dtype_str,
-                         bytes_per_dtype(dtype), buf.itemsize);
+            PyErr_Format(PyExc_ValueError, "dtype has itemsize %zu but buffer has itemsize %zd", bytes_per_dtype(dtype),
+                         buf.itemsize);
             return NULL;
         }
     }
@@ -2156,16 +2309,105 @@ static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
     return 1;
 }
 
+char const doc_from_pointer[] =                                                          //
+    "Create a zero-copy Tensor view from a raw memory address.\n\n"                      //
+    "Parameters:\n"                                                                      //
+    "    address: Integer memory address of the data buffer.\n"                          //
+    "    shape: Shape of the array (int or tuple of ints).\n"                            //
+    "    dtype: Data type string (e.g. 'float32', 'bf16').\n"                            //
+    "    strides: Optional byte strides (default: C-contiguous).\n"                      //
+    "    owner: Optional Python object to prevent garbage collection of the source.\n\n" //
+    "Returns:\n"                                                                         //
+    "    Tensor: Non-owning view into the given memory.\n\n"                             //
+    "Signature:\n"                                                                       //
+    "    >>> def from_pointer(address, shape, dtype, /, *, strides=None, owner=None): ...";
+
+PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    nk_unused_(self);
+    PyObject *address_obj = NULL, *shape_obj = NULL, *dtype_obj = NULL;
+    PyObject *strides_obj = NULL, *owner_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+
+    // Positional: address, shape, dtype. Keyword-only: strides, owner.
+    if (nargs < 3 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "from_pointer(address, shape, dtype, *, strides=None, owner=None)");
+        return NULL;
+    }
+
+    address_obj = args[0];
+    shape_obj = args[1];
+    dtype_obj = args[2];
+
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        PyObject *val = args[nargs + i];
+        if (PyUnicode_CompareWithASCIIString(key, "strides") == 0) strides_obj = val;
+        else if (PyUnicode_CompareWithASCIIString(key, "owner") == 0) owner_obj = val;
+        else {
+            PyErr_Format(PyExc_TypeError, "from_pointer() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+
+    // Parse address
+    void *data = PyLong_AsVoidPtr(address_obj);
+    if (!data && PyErr_Occurred()) return NULL;
+    if (!data) {
+        PyErr_SetString(PyExc_ValueError, "address must be a non-zero integer pointer");
+        return NULL;
+    }
+
+    // Parse shape
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+
+    // Parse dtype
+    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    if (dtype == nk_dtype_unknown_k) return NULL;
+
+    // Compute or parse strides
+    Py_ssize_t strides[NK_TENSOR_MAX_RANK];
+    if (strides_obj && strides_obj != Py_None) {
+        if (!PyTuple_Check(strides_obj)) {
+            PyErr_SetString(PyExc_TypeError, "strides must be a tuple of ints");
+            return NULL;
+        }
+        if ((size_t)PyTuple_Size(strides_obj) != rank) {
+            PyErr_SetString(PyExc_ValueError, "strides length must match shape length");
+            return NULL;
+        }
+        for (size_t i = 0; i < rank; i++) {
+            PyObject *s = PyTuple_GetItem(strides_obj, (Py_ssize_t)i);
+            if (!PyLong_Check(s)) {
+                PyErr_SetString(PyExc_TypeError, "strides must be integers");
+                return NULL;
+            }
+            strides[i] = PyLong_AsSsize_t(s);
+            if (strides[i] == -1 && PyErr_Occurred()) return NULL;
+        }
+    }
+    else { compute_contiguous_strides(rank, shape, bytes_per_dtype(dtype), strides); }
+
+    // Use a sentinel owner if none provided — we need a non-NULL parent
+    // so Tensor_dealloc doesn't try to free the inline data
+    if (!owner_obj || owner_obj == Py_None) owner_obj = Py_None;
+
+    return (PyObject *)Tensor_view_object(owner_obj, (char *)data, dtype, rank, shape, strides);
+}
+
 char const doc_empty[] =                                       //
     "Create an uninitialized Tensor with the given shape.\n\n" //
     "Parameters:\n"                                            //
     "    shape: Shape of the array.\n"                         //
     "    dtype: Data type (default 'float32').\n\n"            //
     "Returns:\n"                                               //
-    "    Tensor: Uninitialized array.";
+    "    Tensor: Uninitialized array.\n\n"                     //
+    "Signature:\n"                                             //
+    "    >>> def empty(shape, /, *, dtype='float32'): ...";
 
 PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2190,13 +2432,8 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     return (PyObject *)Tensor_new(dtype, rank, shape);
@@ -2208,10 +2445,12 @@ char const doc_zeros[] =                            //
     "    shape: Shape of the array.\n"              //
     "    dtype: Data type (default 'float32').\n\n" //
     "Returns:\n"                                    //
-    "    Tensor: Array of zeros.";
+    "    Tensor: Array of zeros.\n\n"               //
+    "Signature:\n"                                  //
+    "    >>> def zeros(shape, /, *, dtype='float32'): ...";
 
 PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2236,13 +2475,8 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2261,10 +2495,12 @@ char const doc_ones[] =                             //
     "    shape: Shape of the array.\n"              //
     "    dtype: Data type (default 'float32').\n\n" //
     "Returns:\n"                                    //
-    "    Tensor: Array of ones.";
+    "    Tensor: Array of ones.\n\n"                //
+    "Signature:\n"                                  //
+    "    >>> def ones(shape, /, *, dtype='float32'): ...";
 
 PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2289,13 +2525,8 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2322,10 +2553,12 @@ char const doc_full[] =                               //
     "    fill_value: Value to fill the array with.\n" //
     "    dtype: Data type (default 'float32').\n\n"   //
     "Returns:\n"                                      //
-    "    Tensor: Array filled with fill_value.";
+    "    Tensor: Array filled with fill_value.\n\n"   //
+    "Signature:\n"                                    //
+    "    >>> def full(shape, fill_value, /, *, dtype='float32'): ...";
 
 PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *fill_obj = NULL, *dtype_obj = NULL;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
 
@@ -2357,13 +2590,8 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2383,17 +2611,19 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     return (PyObject *)result;
 }
 
-char const doc_iota[] =                             //
-    "Create a Tensor with incrementing values.\n\n" //
-    "Parameters:\n"                                 //
-    "    shape: Shape of the array.\n"              //
-    "    seed: Starting value (default 0).\n"       //
-    "    dtype: Data type (default 'float32').\n\n" //
-    "Returns:\n"                                    //
-    "    Tensor: Array with elements seed, seed+1, seed+2, ...";
+char const doc_iota[] =                                             //
+    "Create a Tensor with incrementing values.\n\n"                 //
+    "Parameters:\n"                                                 //
+    "    shape: Shape of the array.\n"                              //
+    "    seed: Starting value (default 0).\n"                       //
+    "    dtype: Data type (default 'float32').\n\n"                 //
+    "Returns:\n"                                                    //
+    "    Tensor: Array with elements seed, seed+1, seed+2, ...\n\n" //
+    "Signature:\n"                                                  //
+    "    >>> def iota(shape, seed=0, /, *, dtype='float32'): ...";
 
 PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     long long seed = 0;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2422,13 +2652,8 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2450,17 +2675,19 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     return (PyObject *)result;
 }
 
-char const doc_diagonal[] =                                 //
-    "Create an n x n Tensor with seed on the diagonal.\n\n" //
-    "Parameters:\n"                                         //
-    "    n: Size of the square matrix.\n"                   //
-    "    seed: Diagonal value (default 1).\n"               //
-    "    dtype: Data type (default 'float32').\n\n"         //
-    "Returns:\n"                                            //
-    "    Tensor: n x n matrix with seed on diagonal, 0 elsewhere.";
+char const doc_diagonal[] =                                            //
+    "Create an n x n Tensor with seed on the diagonal.\n\n"            //
+    "Parameters:\n"                                                    //
+    "    n: Size of the square matrix.\n"                              //
+    "    seed: Diagonal value (default 1).\n"                          //
+    "    dtype: Data type (default 'float32').\n\n"                    //
+    "Returns:\n"                                                       //
+    "    Tensor: n x n matrix with seed on diagonal, 0 elsewhere.\n\n" //
+    "Signature:\n"                                                     //
+    "    >>> def diagonal(n, seed=1, /, *, dtype='float32'): ...";
 
 PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *dtype_obj = NULL;
     long long seed = 1;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2491,13 +2718,8 @@ PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const n
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Py_ssize_t shape[2] = {n, n};
@@ -2529,17 +2751,19 @@ static inline uint64_t splitmix64(uint64_t x) {
     return x;
 }
 
-char const doc_hash[] =                                                 //
-    "Create a Tensor filled with deterministic pseudo-random bits.\n\n" //
-    "Parameters:\n"                                                     //
-    "    shape: Shape of the array.\n"                                  //
-    "    seed: Hash seed (default 0).\n"                                //
-    "    dtype: Data type (default 'float32').\n\n"                     //
-    "Returns:\n"                                                        //
-    "    Tensor: Array with hashed bit patterns reinterpreted as dtype.";
+char const doc_hash[] =                                                      //
+    "Create a Tensor filled with deterministic pseudo-random bits.\n\n"      //
+    "Parameters:\n"                                                          //
+    "    shape: Shape of the array.\n"                                       //
+    "    seed: Hash seed (default 0).\n"                                     //
+    "    dtype: Data type (default 'float32').\n\n"                          //
+    "Returns:\n"                                                             //
+    "    Tensor: Array with hashed bit patterns reinterpreted as dtype.\n\n" //
+    "Signature:\n"                                                           //
+    "    >>> def hash(shape, seed=0, /, *, dtype='float32'): ...";
 
 PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     PyObject *shape_obj = NULL, *dtype_obj = NULL;
     long long seed = 0;
     Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
@@ -2568,13 +2792,8 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        char const *s = PyUnicode_AsUTF8(dtype_obj);
-        if (!s) return NULL;
-        dtype = python_string_to_dtype(s);
-        if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
-            return NULL;
-        }
+        dtype = python_arg_to_dtype(dtype_obj);
+        if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
@@ -2595,101 +2814,371 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     return (PyObject *)result;
 }
 
-char const doc_reduce_moments[] =                                               //
-    "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n" //
-    "Parameters:\n"                                                             //
-    "    a: Input array.\n\n"                                                   //
-    "Returns:\n"                                                                //
-    "    tuple: (sum, sum_of_squares) for all elements.";
+char const doc_reduce_moments[] =                                                //
+    "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n"  //
+    "Parameters:\n"                                                              //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n" //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"   //
+    "Returns:\n"                                                                 //
+    "    tuple: (sum, sum_of_squares) for all elements.\n\n"                     //
+    "Signature:\n"                                                               //
+    "    >>> def moments(a, /, *, dtype=None): ...";
 
 PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
-    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "moments(a) takes exactly 1 positional argument");
-        return NULL;
+    nk_unused_(self);
+    if (nargs != 1) return (PyErr_SetString(PyExc_TypeError, "moments(a) takes exactly 1 positional argument"), NULL);
+
+    nk_dtype_t dtype_override = nk_dtype_unknown_k;
+    Py_ssize_t const kwcount = kwnames ? PyTuple_Size(kwnames) : 0;
+    for (Py_ssize_t i = 0; i < kwcount; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            PyObject *value = args[nargs + i];
+            if (value != Py_None) {
+                dtype_override = python_arg_to_dtype(value);
+                if (dtype_override == nk_dtype_unknown_k) return NULL;
+            }
+        }
+        else return (PyErr_Format(PyExc_TypeError, "unexpected keyword '%S'", name), NULL);
     }
+
     PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_moments(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "moments() argument must be a Tensor");
-    return NULL;
+    if (PyObject_TypeCheck(a_obj, &TensorType)) {
+        Tensor *t = (Tensor *)a_obj;
+        TensorView view = {t->dtype, t->rank, t->shape, t->strides, t->data};
+        if (dtype_override != nk_dtype_unknown_k) view.dtype = dtype_override;
+        return impl_moments_from_view(&view);
+    }
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(a_obj, &buffer, &view, &backing, dtype_override)) return NULL;
+    PyObject *result = impl_moments_from_view(&view);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
-char const doc_reduce_minmax[] =                                            //
-    "Find minimum and maximum elements with their indices in an array.\n\n" //
-    "Parameters:\n"                                                         //
-    "    a: Input array.\n\n"                                               //
-    "Returns:\n"                                                            //
-    "    tuple: (min_val, min_index, max_val, max_index), or None if all elements are NaN.";
+char const doc_reduce_minmax[] =                                                                //
+    "Find minimum and maximum elements with their indices in an array.\n\n"                     //
+    "Parameters:\n"                                                                             //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                  //
+    "Returns:\n"                                                                                //
+    "    tuple: (min_val, min_index, max_val, max_index), or None if all elements are NaN.\n\n" //
+    "Signature:\n"                                                                              //
+    "    >>> def minmax(a, /, *, dtype=None): ...";
 
 PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
-    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "minmax(a) takes exactly 1 positional argument");
-        return NULL;
+    nk_unused_(self);
+    if (nargs != 1) return (PyErr_SetString(PyExc_TypeError, "minmax(a) takes exactly 1 positional argument"), NULL);
+
+    nk_dtype_t dtype_override = nk_dtype_unknown_k;
+    Py_ssize_t const kwcount = kwnames ? PyTuple_Size(kwnames) : 0;
+    for (Py_ssize_t i = 0; i < kwcount; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
+            PyObject *value = args[nargs + i];
+            if (value != Py_None) {
+                dtype_override = python_arg_to_dtype(value);
+                if (dtype_override == nk_dtype_unknown_k) return NULL;
+            }
+        }
+        else return (PyErr_Format(PyExc_TypeError, "unexpected keyword '%S'", name), NULL);
     }
+
     PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_minmax(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "minmax() argument must be a Tensor");
-    return NULL;
+    if (PyObject_TypeCheck(a_obj, &TensorType)) {
+        Tensor *t = (Tensor *)a_obj;
+        TensorView view = {t->dtype, t->rank, t->shape, t->strides, t->data};
+        if (dtype_override != nk_dtype_unknown_k) view.dtype = dtype_override;
+        return impl_minmax_from_view(&view);
+    }
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(a_obj, &buffer, &view, &backing, dtype_override)) return NULL;
+    PyObject *result = impl_minmax_from_view(&view);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
-char const doc_reduce_sum[] =
-    "Return the sum of all elements.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Scalar sum.";
-char const doc_reduce_norm[] =
-    "Return the L2 norm.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Scalar L2 norm.";
-char const doc_reduce_min[] =
-    "Return the minimum element.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Scalar minimum.";
-char const doc_reduce_max[] =
-    "Return the maximum element.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Scalar maximum.";
-char const doc_reduce_argmin[] =
-    "Return the index of the minimum element.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Integer index.";
-char const doc_reduce_argmax[] =
-    "Return the index of the maximum element.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Integer index.";
+char const doc_reduce_sum[] =                                                                      //
+    "Return the sum of all elements, or per-slice sums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Scalar sum when axis is None.\n"                                                          //
+    "    Tensor of per-slice sums when axis is given.\n\n"                                         //
+    "Signature:\n"                                                                                 //
+    "    >>> def sum(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
+char const doc_reduce_norm[] =                                                                     //
+    "Return the L2 norm, or per-slice norms along an axis.\n\n"                                    //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Scalar L2 norm when axis is None.\n"                                                      //
+    "    Tensor of per-slice norms when axis is given.\n\n"                                        //
+    "Signature:\n"                                                                                 //
+    "    >>> def norm(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
+char const doc_reduce_min[] =                                                                      //
+    "Return the minimum element, or per-slice minimums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Scalar minimum when axis is None (None if all NaN).\n"                                    //
+    "    Tensor of per-slice minimums when axis is given.\n\n"                                     //
+    "Signature:\n"                                                                                 //
+    "    >>> def min(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
+char const doc_reduce_max[] =                                                                      //
+    "Return the maximum element, or per-slice maximums along an axis.\n\n"                         //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Scalar maximum when axis is None (None if all NaN).\n"                                    //
+    "    Tensor of per-slice maximums when axis is given.\n\n"                                     //
+    "Signature:\n"                                                                                 //
+    "    >>> def max(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
+char const doc_reduce_argmin[] =                                                                   //
+    "Return the index of the minimum element, or per-slice indices along an axis.\n\n"             //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Integer index when axis is None.\n"                                                       //
+    "    Tensor of per-slice indices when axis is given.\n\n"                                      //
+    "Signature:\n"                                                                                 //
+    "    >>> def argmin(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
+char const doc_reduce_argmax[] =                                                                   //
+    "Return the index of the maximum element, or per-slice indices along an axis.\n\n"             //
+    "Parameters:\n"                                                                                //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
+    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
+    "Returns:\n"                                                                                   //
+    "    Integer index when axis is None.\n"                                                       //
+    "    Tensor of per-slice indices when axis is given.\n\n"                                      //
+    "Signature:\n"                                                                                 //
+    "    >>> def argmax(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
 
 PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "sum() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "sum() first argument must be a Tensor"), NULL);
-    return Tensor_sum(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_sum(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t sum_buf, sumsq_buf;
+        nk_dtype_t sum_dtype, sumsq_dtype;
+        if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "sum not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else result = scalar_to_py_number(&sum_buf, sum_dtype);
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_moments_sum_dtype(view.dtype), sum_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
 PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "norm() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "norm() first argument must be a Tensor"), NULL);
-    return Tensor_norm(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_norm(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t sum_buf, sumsq_buf;
+        nk_dtype_t sum_dtype, sumsq_dtype;
+        if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "norm not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else result = PyFloat_FromDouble(nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_f64_k, norm_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
 PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "min() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "min() first argument must be a Tensor"), NULL);
-    return Tensor_min(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_min(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t min_buf, max_buf;
+        nk_dtype_t min_dtype, max_dtype;
+        size_t min_idx, max_idx;
+        if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "min not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else if (min_idx == NK_SIZE_MAX) {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        else result = scalar_to_py_number(&min_buf, min_dtype);
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), min_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
 PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "max() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "max() first argument must be a Tensor"), NULL);
-    return Tensor_max(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_max(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t min_buf, max_buf;
+        nk_dtype_t min_dtype, max_dtype;
+        size_t min_idx, max_idx;
+        if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "max not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else if (max_idx == NK_SIZE_MAX) {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        else result = scalar_to_py_number(&max_buf, max_dtype);
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), max_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
 PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "argmin() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "argmin() first argument must be a Tensor"), NULL);
-    return Tensor_argmin(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_argmin(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t min_buf, max_buf;
+        nk_dtype_t min_dtype, max_dtype;
+        size_t min_idx, max_idx;
+        if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "argmin not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else if (min_idx == NK_SIZE_MAX) {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        else result = PyLong_FromSsize_t((Py_ssize_t)min_idx);
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_i64_k, argmin_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }
 
 PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
+    nk_unused_(self);
     if (nargs < 1) return (PyErr_SetString(PyExc_TypeError, "argmax() requires at least 1 argument"), NULL);
-    if (!PyObject_TypeCheck(args[0], &TensorType))
-        return (PyErr_SetString(PyExc_TypeError, "argmax() first argument must be a Tensor"), NULL);
-    return Tensor_argmax(args[0], args + 1, nargs - 1, kwnames);
+    if (PyObject_TypeCheck(args[0], &TensorType)) return Tensor_argmax(args[0], args + 1, nargs - 1, kwnames);
+
+    Py_buffer buffer;
+    nk_buffer_backing_t backing;
+    TensorView view;
+    if (!parse_tensor_nd(args[0], &buffer, &view, &backing, nk_dtype_unknown_k)) return NULL;
+    reduce_args_t parsed;
+    if (parse_reduce_kwargs(args + 1, nargs - 1, kwnames, view.rank, &parsed) < 0) {
+        PyBuffer_Release(&buffer);
+        return NULL;
+    }
+    if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
+
+    PyObject *result;
+    if (parsed.axis == -1) {
+        nk_scalar_buffer_t min_buf, max_buf;
+        nk_dtype_t min_dtype, max_dtype;
+        size_t min_idx, max_idx;
+        if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
+            result = PyErr_Format(PyExc_NotImplementedError, "argmax not supported for dtype '%s'",
+                                  dtype_to_python_string(view.dtype));
+        else if (max_idx == NK_SIZE_MAX) {
+            Py_INCREF(Py_None);
+            result = Py_None;
+        }
+        else result = PyLong_FromSsize_t((Py_ssize_t)max_idx);
+    }
+    else result = reduce_axis_dispatch(&view, &parsed, nk_i64_k, argmax_slice);
+    PyBuffer_Release(&buffer);
+    return result;
 }

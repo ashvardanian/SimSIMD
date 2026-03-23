@@ -1,10 +1,6 @@
 # Contributing
 
-To keep the quality of the code high, we have a set of [guidelines](https://github.com/unum-cloud).
-
-- [What's the procedure?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#organizing-software-development)
-- [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
-- [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
+To keep the quality of the code high, we follow the [coding style and conventions](https://github.com/ashvardanian/ashvardanian/blob/master/CONTRIBUTING.md) shared across multiple projects — covering Git history, C++ and Python formatting, dependency management, and documentation.
 
 ## Directory Tree
 
@@ -289,6 +285,8 @@ cargo +stable install cargo-msrv
 cargo msrv find --ignore-lockfile
 ```
 
+Please avoid the temptation of using macros in this Rust code.
+
 ## JavaScript
 
 See [javascript/README.md](javascript/README.md) for JavaScript/TypeScript development, WASM support, and API documentation.
@@ -357,3 +355,21 @@ To add a new operation family, for example `foo`:
 7. __Cross-platform tests__: add entries to `test/test_cross.hpp` and the relevant `test_cross_*.cpp` files.
 8. __CMakeLists.txt__: wire the new source files into the `nk_test` and `nk_bench` targets.
 9. __Language bindings__: update `python/numkong.c`, `javascript/numkong.c`, `rust/numkong.rs`, etc. as needed.
+
+## Adding a Backend Kernel to an Existing Family
+
+For primary kernels, every backend implementation should be wired in five places beyond the backend header itself:
+
+1. __Forward declaration__: add the `NK_PUBLIC` declaration with the matching `@copydoc` in the first half of `include/numkong/<family>.h`.
+2. __Compile-time dispatch__: add the `#if !NK_DYNAMIC_DISPATCH` branch in the second half of `include/numkong/<family>.h`.
+3. __Run-time dispatch__: add the dtype-specific entry to the relevant `c/dispatch_*.c` table.
+4. __Precision tests__: register the kernel in `nk_test`, usually in the existing `test/test_<family>.cpp` suite.
+5. __Benchmarks__: register the kernel in `nk_bench`, usually in the existing `bench/bench_<family>.cpp` suite.
+
+Use the existing family suite unless the kernel introduces a genuinely new test shape.
+The rule is about coverage and reachability, not about creating a brand new source file for every symbol.
+
+There are two intentional exceptions:
+
+- `cast`: the family-level `nk_cast_*` kernels follow the same header/dispatch/test/bench rule, but scalar conversion helpers are wired through `c/dispatch_other.c` and are covered through `test/test_cast.cpp` and `bench/bench_cast.cpp`.
+- `scalar`: scalar helpers are centrally declared in `include/numkong/scalar.h`, wired through `c/dispatch_other.c`, and currently do not follow the per-helper `nk_test` and `nk_bench` registration pattern.

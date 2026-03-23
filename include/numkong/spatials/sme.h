@@ -20,13 +20,13 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme")
 #endif
 
-NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_t count) NK_STREAMING_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -38,7 +38,7 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
-NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data, nk_size_t count) NK_STREAMING_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -97,7 +97,7 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data, nk_siz
     return svaddv_f32(svptrue_b32(), accumulator_lo_f32x) + svaddv_f32(svptrue_b32(), accumulator_hi_f32x);
 }
 
-NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data, nk_size_t count) NK_STREAMING_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -135,7 +135,7 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data, nk_siz
     return svaddv_f32(svptrue_b32(), accumulator_lo_f32x) + svaddv_f32(svptrue_b32(), accumulator_hi_f32x);
 }
 
-NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) NK_STREAMING_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -149,7 +149,7 @@ NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t 
     return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
 }
 
-NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t count) NK_STREAMING_ {
     svuint64_t accumulator_u64x = svdup_u64(0);
     nk_size_t const vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -163,7 +163,7 @@ NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t 
     return (nk_u32_t)svaddv_u64(svptrue_b64(), accumulator_u64x);
 }
 
-NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_t count) NK_STREAMING_ {
     svint64_t accumulator_i64x = svdup_s64(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;
@@ -191,7 +191,7 @@ NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_
     return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
 }
 
-NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_t count) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_t count) NK_STREAMING_ {
     svuint64_t accumulator_u64x = svdup_u64(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;
@@ -217,7 +217,7 @@ NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_
 
 NK_PUBLIC svfloat32_t nk_angulars_from_dot_f32x_ssve_(svbool_t predicate_f32x, svfloat32_t dots_f32x,
                                                       svfloat32_t query_norm_sq_f32x,
-                                                      svfloat32_t target_norms_sq_f32x) NK_STREAMING_COMPATIBLE_ {
+                                                      svfloat32_t target_norms_sq_f32x) NK_STREAMING_ {
     svfloat32_t norms_product_f32x = svmul_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
     svfloat32_t rsqrt_f32x = svrsqrte_f32(norms_product_f32x);
     rsqrt_f32x = svmul_f32_x(predicate_f32x, rsqrt_f32x,
@@ -231,7 +231,7 @@ NK_PUBLIC svfloat32_t nk_angulars_from_dot_f32x_ssve_(svbool_t predicate_f32x, s
 
 NK_PUBLIC svfloat32_t nk_euclideans_from_dot_f32x_ssve_(svbool_t predicate_f32x, svfloat32_t dots_f32x,
                                                         svfloat32_t query_norm_sq_f32x,
-                                                        svfloat32_t target_norms_sq_f32x) NK_STREAMING_COMPATIBLE_ {
+                                                        svfloat32_t target_norms_sq_f32x) NK_STREAMING_ {
     svfloat32_t sum_sq_f32x = svadd_f32_x(predicate_f32x, query_norm_sq_f32x, target_norms_sq_f32x);
     svfloat32_t dist_sq_f32x = svsub_f32_x(predicate_f32x, sum_sq_f32x,
                                            svmul_f32_x(predicate_f32x, svdup_n_f32(2.0f), dots_f32x));

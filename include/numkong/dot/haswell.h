@@ -8,12 +8,12 @@
  *
  *  @section dot_haswell_instructions Key AVX2/FMA Dot Product Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_mul_ps/pd            VMULPS/PD (YMM, YMM, YMM)       5cy         0.5/cy      p01
- *      _mm256_add_ps/pd            VADDPS/PD (YMM, YMM, YMM)       3cy         1/cy        p01
- *      _mm256_cvtph_ps             VCVTPH2PS (YMM, XMM)            5cy         1/cy        p01
- *      _mm256_cvtps_pd             VCVTPS2PD (YMM, XMM)            2cy         1/cy        p01
+ *      Intrinsic           Instruction                Haswell    Genoa
+ *      _mm256_fmadd_ps/pd  VFMADD (YMM, YMM, YMM)     5cy @ p01  4cy @ p01
+ *      _mm256_mul_ps/pd    VMULPS/PD (YMM, YMM, YMM)  5cy @ p01  3cy @ p01
+ *      _mm256_add_ps/pd    VADDPS/PD (YMM, YMM, YMM)  3cy @ p01  3cy @ p23
+ *      _mm256_cvtph_ps     VCVTPH2PS (YMM, XMM)       5cy @ p01  4cy @ p12+p23
+ *      _mm256_cvtps_pd     VCVTPS2PD (YMM, XMM)       2cy @ p01  4cy @ p12+p23
  *
  *  For small numeric types (F16, BF16, E4M3, E5M2) we use F32 accumulators. For F32 dot products,
  *  upcasting to F64 and downcasting back is faster than stable summation algorithms. For F64 we

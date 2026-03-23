@@ -113,6 +113,7 @@ void test_dot() {
     check("dot_e2m3_neon", test_dot<e2m3_t>, nk_dot_e2m3_neon);
     check("dot_e3m2_neon", test_dot<e3m2_t>, nk_dot_e3m2_neon);
     check("dot_u1_neon", test_dot<u1x8_t>, nk_dot_u1_neon);
+    check("dot_f16_neon", test_dot<f16_t>, nk_dot_f16_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -161,23 +162,29 @@ void test_dot() {
     check("vdot_f16c_svehalf", test_vdot<f16c_t>, nk_vdot_f16c_svehalf);
 #endif // NK_TARGET_SVEHALF
 
+#if NK_TARGET_SVEBFDOT
+    check("dot_bf16_svebfdot", test_dot<bf16_t>, nk_dot_bf16_svebfdot);
+#endif // NK_TARGET_SVEBFDOT
+
 #if NK_TARGET_HASWELL
-    check("dot_f32_haswell", test_dot<f32_t>, nk_dot_f32_haswell);
-    check("dot_f64_haswell", test_dot<f64_t>, nk_dot_f64_haswell);
-    check("dot_f16_haswell", test_dot<f16_t>, nk_dot_f16_haswell);
-    check("dot_bf16_haswell", test_dot<bf16_t>, nk_dot_bf16_haswell);
-    check("dot_e4m3_haswell", test_dot<e4m3_t>, nk_dot_e4m3_haswell);
-    check("dot_e5m2_haswell", test_dot<e5m2_t>, nk_dot_e5m2_haswell);
-    check("dot_e2m3_haswell", test_dot<e2m3_t>, nk_dot_e2m3_haswell);
-    check("dot_e3m2_haswell", test_dot<e3m2_t>, nk_dot_e3m2_haswell);
-    check("dot_i8_haswell", test_dot<i8_t>, nk_dot_i8_haswell);
-    check("dot_u8_haswell", test_dot<u8_t>, nk_dot_u8_haswell);
+    check("dot_f64c_haswell", test_dot<f64c_t>, nk_dot_f64c_haswell);
+    check("vdot_f64c_haswell", test_vdot<f64c_t>, nk_vdot_f64c_haswell);
     check("dot_f32c_haswell", test_dot<f32c_t>, nk_dot_f32c_haswell);
     check("vdot_f32c_haswell", test_vdot<f32c_t>, nk_vdot_f32c_haswell);
-    check("dot_f16c_haswell", test_dot<f16c_t>, nk_dot_f16c_haswell);
-    check("vdot_f16c_haswell", test_vdot<f16c_t>, nk_vdot_f16c_haswell);
     check("dot_bf16c_haswell", test_dot<bf16c_t>, nk_dot_bf16c_haswell);
     check("vdot_bf16c_haswell", test_vdot<bf16c_t>, nk_vdot_bf16c_haswell);
+    check("dot_f16c_haswell", test_dot<f16c_t>, nk_dot_f16c_haswell);
+    check("vdot_f16c_haswell", test_vdot<f16c_t>, nk_vdot_f16c_haswell);
+    check("dot_f64_haswell", test_dot<f64_t>, nk_dot_f64_haswell);
+    check("dot_f32_haswell", test_dot<f32_t>, nk_dot_f32_haswell);
+    check("dot_bf16_haswell", test_dot<bf16_t>, nk_dot_bf16_haswell);
+    check("dot_f16_haswell", test_dot<f16_t>, nk_dot_f16_haswell);
+    check("dot_e5m2_haswell", test_dot<e5m2_t>, nk_dot_e5m2_haswell);
+    check("dot_e4m3_haswell", test_dot<e4m3_t>, nk_dot_e4m3_haswell);
+    check("dot_e3m2_haswell", test_dot<e3m2_t>, nk_dot_e3m2_haswell);
+    check("dot_e2m3_haswell", test_dot<e2m3_t>, nk_dot_e2m3_haswell);
+    check("dot_i8_haswell", test_dot<i8_t>, nk_dot_i8_haswell);
+    check("dot_u8_haswell", test_dot<u8_t>, nk_dot_u8_haswell);
     check("dot_i4_haswell", test_dot<i4x2_t>, nk_dot_i4_haswell);
     check("dot_u4_haswell", test_dot<u4x2_t>, nk_dot_u4_haswell);
     check("dot_u1_haswell", test_dot<u1x8_t>, nk_dot_u1_haswell);
@@ -231,16 +238,20 @@ void test_dot() {
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_RVV
+    check("dot_f64c_rvv", test_dot<f64c_t>, nk_dot_f64c_rvv);
+    check("vdot_f64c_rvv", test_vdot<f64c_t>, nk_vdot_f64c_rvv);
+    check("dot_f32c_rvv", test_dot<f32c_t>, nk_dot_f32c_rvv);
+    check("vdot_f32c_rvv", test_vdot<f32c_t>, nk_vdot_f32c_rvv);
+    check("dot_f64_rvv", test_dot<f64_t>, nk_dot_f64_rvv);
+    check("dot_f32_rvv", test_dot<f32_t>, nk_dot_f32_rvv);
+    check("dot_bf16_rvv", test_dot<bf16_t>, nk_dot_bf16_rvv);
+    check("dot_f16_rvv", test_dot<f16_t>, nk_dot_f16_rvv);
+    check("dot_e5m2_rvv", test_dot<e5m2_t>, nk_dot_e5m2_rvv);
+    check("dot_e4m3_rvv", test_dot<e4m3_t>, nk_dot_e4m3_rvv);
+    check("dot_e3m2_rvv", test_dot<e3m2_t>, nk_dot_e3m2_rvv);
+    check("dot_e2m3_rvv", test_dot<e2m3_t>, nk_dot_e2m3_rvv);
     check("dot_i8_rvv", test_dot<i8_t>, nk_dot_i8_rvv);
     check("dot_u8_rvv", test_dot<u8_t>, nk_dot_u8_rvv);
-    check("dot_f32_rvv", test_dot<f32_t>, nk_dot_f32_rvv);
-    check("dot_f64_rvv", test_dot<f64_t>, nk_dot_f64_rvv);
-    check("dot_f16_rvv", test_dot<f16_t>, nk_dot_f16_rvv);
-    check("dot_bf16_rvv", test_dot<bf16_t>, nk_dot_bf16_rvv);
-    check("dot_e4m3_rvv", test_dot<e4m3_t>, nk_dot_e4m3_rvv);
-    check("dot_e5m2_rvv", test_dot<e5m2_t>, nk_dot_e5m2_rvv);
-    check("dot_e2m3_rvv", test_dot<e2m3_t>, nk_dot_e2m3_rvv);
-    check("dot_e3m2_rvv", test_dot<e3m2_t>, nk_dot_e3m2_rvv);
     check("dot_i4_rvv", test_dot<i4x2_t>, nk_dot_i4_rvv);
     check("dot_u4_rvv", test_dot<u4x2_t>, nk_dot_u4_rvv);
     check("dot_u1_rvv", test_dot<u1x8_t>, nk_dot_u1_rvv);
@@ -277,6 +288,10 @@ void test_dot() {
     check("dot_e4m3_rvvbf16", test_dot<e4m3_t>, nk_dot_e4m3_rvvbf16);
     check("dot_e5m2_rvvbf16", test_dot<e5m2_t>, nk_dot_e5m2_rvvbf16);
 #endif // NK_TARGET_RVVBF16
+
+#if NK_TARGET_RVVBB
+    check("dot_u1_rvvbb", test_dot<u1x8_t>, nk_dot_u1_rvvbb);
+#endif // NK_TARGET_RVVBB
 
     // Serial always runs - baseline test
     check("dot_f32_serial", test_dot<f32_t>, nk_dot_f32_serial);

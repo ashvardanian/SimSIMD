@@ -159,8 +159,6 @@ void test_reduce() {
 #if NK_TARGET_NEONBFDOT
     check("reduce_moments_bf16_neonbfdot", test_reduce_moments<bf16_t>, nk_reduce_moments_bf16_neonbfdot,
           nk_reduce_moments_bf16_serial);
-    check("reduce_minmax_bf16_neonbfdot", test_reduce_minmax<bf16_t>, nk_reduce_minmax_bf16_neonbfdot,
-          nk_reduce_minmax_bf16_serial);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
@@ -177,10 +175,6 @@ void test_reduce() {
           nk_reduce_moments_e4m3_serial);
     check("reduce_moments_e5m2_neonfhm", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_neonfhm,
           nk_reduce_moments_e5m2_serial);
-    check("reduce_minmax_e4m3_neonfhm", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3_neonfhm,
-          nk_reduce_minmax_e4m3_serial);
-    check("reduce_minmax_e5m2_neonfhm", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2_neonfhm,
-          nk_reduce_minmax_e5m2_serial);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_HASWELL

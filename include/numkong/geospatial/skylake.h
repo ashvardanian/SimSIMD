@@ -8,13 +8,14 @@
  *
  *  @section geospatial_skylake_instructions Key AVX-512 Geospatial Instructions
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm512_sqrt_ps          VSQRTPS (ZMM, ZMM)              19c @ p05   15c @ p01
- *      _mm512_sqrt_pd          VSQRTPD (ZMM, ZMM)              23c @ p05   21c @ p01
- *      _mm256_div_ps           VDIVPS (YMM, YMM, YMM)          11c @ p0    11c @ p01
- *      _mm256_div_pd           VDIVPD (YMM, YMM, YMM)          13c @ p0    13c @ p01
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      Intrinsic           Instruction                  Icelake           Genoa
+ *      _mm512_sqrt_ps      VSQRTPS (ZMM, ZMM)           19cy @ p0+p0+p05  15cy @ p01
+ *      _mm512_sqrt_pd      VSQRTPD (ZMM, ZMM)           23cy @ p0+p0+p05  21cy @ p01
+ *      _mm256_div_ps       VDIVPS (YMM, YMM, YMM)       11cy @ p0         11cy @ p01
+ *      _mm256_div_pd       VDIVPD (YMM, YMM, YMM)       13cy @ p0         13cy @ p01
+ *      _mm256_fmadd_ps     VFMADD231PS (YMM, YMM, YMM)  4cy @ p01         4cy @ p01
+ *      _mm256_fmadd_pd     VFMADD231PD (YMM, YMM, YMM)  4cy @ p01         4cy @ p01
+ *      _mm512_cmp_ps_mask  VCMPPS (K, ZMM, ZMM, I8)     4cy @ p5          5cy @ p01
  */
 #ifndef NK_GEOSPATIAL_SKYLAKE_H
 #define NK_GEOSPATIAL_SKYLAKE_H

@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("sme,sve,sme-f64f64"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("+sme+sme-f64f64")
@@ -75,8 +75,8 @@ extern "C" {
 #pragma region Single Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_smef64(nk_size_t columns, nk_size_t depth) {
-    nk_size_t const tile_dimension = svcntsd();  // rows per `ZA64` tile (8 for SVL=512)
-    nk_size_t const depth_tile_size = svcntsw(); // `f32` depth elements per tile (16 for SVL=512)
+    nk_size_t const tile_dimension = nk_sme_cntd_();  // rows per `ZA64` tile (8 for SVL=512)
+    nk_size_t const depth_tile_size = nk_sme_cntw_(); // `f32` depth elements per tile (16 for SVL=512)
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth, depth_tile_size);
@@ -91,8 +91,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f32_smef64(nk_size_t columns, nk_size_t 
 NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_size_t depth, nk_size_t b_stride,
                                        void *b_packed) {
 
-    nk_size_t const tile_dimension = svcntsd();                       // rows per `ZA64` tile (8 for SVL=512)
-    nk_size_t const depth_tile_size = svcntsw();                      // `f32` depth elements per tile (16 for SVL=512)
+    nk_size_t const tile_dimension = nk_sme_cntd_();                  // rows per `ZA64` tile (8 for SVL=512)
+    nk_size_t const depth_tile_size = nk_sme_cntw_();                 // `f32` depth elements per tile (16 for SVL=512)
     nk_size_t const tile_elements = tile_dimension * depth_tile_size; // 128
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_f32_t);
 
@@ -106,7 +106,7 @@ NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_
     header->depth_tile_count = (nk_u32_t)depth_tile_count;
     header->columns = (nk_u32_t)columns;
     header->depth = (nk_u32_t)depth;
-    header->svl_bytes = (nk_u32_t)svcntsb(); // streaming vector length in bytes
+    header->svl_bytes = (nk_u32_t)nk_sme_cntb_(); // streaming vector length in bytes
 
     nk_f32_t *tiles = (nk_f32_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
@@ -431,7 +431,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                                                                                    : (n_vectors - row_tile_start);
         svbool_t const row_predicate_f64x = svwhilelt_b64_u64(0u, rows_actual);
 
-        nk_size_t column_tile_index = 0;
+        // Upper triangle: start from this row tile's column
+        nk_size_t column_tile_index = row_tile_start / tile_dimension;
 
         // Fast path: 7 column tiles at a time
         for (; column_tile_index + 7 <= column_tile_count; column_tile_index += 7) {
@@ -783,17 +784,17 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n
  *
  *  All slices fit in f32 (24-bit significand). Products: max 19+19 = 38 ≤ 53, exact in f64.
  */
-NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_(void) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_(void) NK_STREAMING_ {
     return 0xFFFFFFFC00000000ULL; // keep top 19 sig bits
 }
-NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_(void) NK_STREAMING_COMPATIBLE_ {
+NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_(void) NK_STREAMING_ {
     return 0xFFFFFFF000000000ULL; // keep top 17 sig bits
 }
 
 /*  Split a scalar f64 into 3 non-overlapping Ozaki slices (19+17+17 mantissa bits).
  *  Each slice fits in f32. Outputs stored via pointers. */
 NK_PUBLIC void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1,
-                                              nk_f64_t *slice_2) NK_STREAMING_COMPATIBLE_ {
+                                              nk_f64_t *slice_2) NK_STREAMING_ {
     nk_fui64_t pun;
     pun.f = val;
     pun.u &= nk_f64_smef64_ozaki_mask_19_bits_();
@@ -830,7 +831,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
                                                                                       : (n_vectors - row_tile_start);
         svbool_t const row_predicate_f64x = svwhilelt_b64_u64(0u, rows_clamped);
 
-        for (nk_size_t column_tile_index = 0; column_tile_index < column_tile_count; column_tile_index++) {
+        // Upper triangle: start from this row tile's column
+        for (nk_size_t column_tile_index = row_tile_start / tile_dimension; column_tile_index < column_tile_count;
+             column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
             nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                     ? tile_dimension
@@ -937,8 +940,8 @@ NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t depth) {
-    nk_size_t const tile_dimension = svcntsd();
-    nk_size_t const depth_tile_size = svcntsw();
+    nk_size_t const tile_dimension = nk_sme_cntd_();
+    nk_size_t const depth_tile_size = nk_sme_cntw_();
     nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth, depth_tile_size);
     // Single header + interleaved 3-slice data (3× tile_dimension elements per depth step)
@@ -953,8 +956,8 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
 
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_f64_t);
 
-    nk_size_t const tile_dimension = svcntsd();
-    nk_size_t const depth_tile_size = svcntsw();
+    nk_size_t const tile_dimension = nk_sme_cntd_();
+    nk_size_t const depth_tile_size = nk_sme_cntw_();
     nk_size_t const interleaved_stride = 3 * tile_dimension;
     nk_size_t const interleaved_tile_elements = depth_tile_size * interleaved_stride;
 
@@ -968,7 +971,7 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
     header->depth_tile_count = (nk_u32_t)depth_tile_count;
     header->columns = (nk_u32_t)columns;
     header->depth = (nk_u32_t)depth;
-    header->svl_bytes = (nk_u32_t)svcntsb();
+    header->svl_bytes = (nk_u32_t)nk_sme_cntb_();
 
     nk_f32_t *tiles = (nk_f32_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 

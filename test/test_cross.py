@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test cross-distance operations: batch, symmetric, and packed APIs.
 
 Covers batch operations for float and complex dtypes.
@@ -15,6 +14,7 @@ Matches C++ suite: test_cross_*.cpp.
 
 import atexit
 import decimal
+
 import pytest
 
 try:
@@ -24,25 +24,25 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    numpy_available,
-    scipy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
-    NK_ATOL,
-    NK_RTOL,
     DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
-    make_random,
-    make_nk,
-    tolerances_for_dtype,
+    NK_ATOL,
+    NK_RTOL,
+    assert_allclose,
     collect_errors,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    make_nk,
+    make_random,
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    randomized_repetitions_count,
+    scipy_available,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
 
 try:
@@ -62,7 +62,7 @@ def precise_matmul(A, B_T):
     with decimal.localcontext() as ctx:
         ctx.prec = DECIMAL_PRECISION
         D = decimal.Decimal
-        m, k = A.shape
+        m, _k = A.shape
         n = B_T.shape[0]
         result = np.empty((m, n), dtype=np.float64)
         for i in range(m):
@@ -286,6 +286,21 @@ def test_dots_pack_and_packed(dtype, capability):
     collect_errors(
         "dots_packed", height * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
     )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("numpy_dtype", ["float16", "float32", "float64"])
+def test_dots_pack_infers_dtype(numpy_dtype):
+    """dots_pack() without explicit dtype should infer from the input array."""
+    height, width, depth = 4, 8, 32
+    a = np.random.randn(height, depth).astype(numpy_dtype)
+    b = np.random.randn(width, depth).astype(numpy_dtype)
+
+    packed = nk.dots_pack(b)  # no dtype= argument
+    result = np.asarray(nk.dots_packed(a, packed))
+
+    expected = a.astype(np.float64) @ b.astype(np.float64).T
+    assert_allclose(result, expected)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

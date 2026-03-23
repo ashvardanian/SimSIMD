@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 NumKong build configuration.
 
@@ -9,15 +8,15 @@ to support cross-compilation scenarios like building ARM64 wheels on x64 hosts.
 
 from __future__ import annotations
 
-import os
-import sys
-import platform
 import glob
+import os
+import platform
+import re
 import subprocess
+import sys
 from pathlib import Path
-from typing import List, Tuple
 
-from setuptools import setup, Extension
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
 __lib_name__ = "numkong"
@@ -57,23 +56,38 @@ def is_64bit_riscv() -> bool:
     return (arch in ("riscv64",)) and (sys.maxsize > 2**32)
 
 
-def detect_apple_clang_version() -> Tuple[int, int]:
-    """Detect Apple Clang version for SME support (AppleClang 16+ / Clang 18+)."""
-    import re
+def has_darwin_sme_support() -> bool:
+    """Check whether the host compiler supports the AArch64 SME ABI on Darwin.
 
+    Apple Clang (Xcode 16+, AppleClang 16+) backported the Darwin SME ABI.
+    Upstream LLVM only gained Darwin SME ABI support in version 19, so
+    Homebrew / upstream Clang 18 will crash with:
+      "Calling convention AArch64_SME_ABI_Support_Routines_PreserveMost_From_X0
+       is unsupported on Darwin."
+    """
+    if not is_64bit_arm():
+        return False
     try:
         result = subprocess.run(["clang", "--version"], capture_output=True, text=True)
-        for line in result.stdout.split("\n"):
-            if "version" in line.lower():
-                match = re.search(r"version\s+(\d+)\.(\d+)", line)
-                if match:
-                    return (int(match.group(1)), int(match.group(2)))
+        output = result.stdout
+        for line in output.split("\n"):
+            if "version" not in line.lower():
+                continue
+            match = re.search(r"version\s+(\d+)\.(\d+)", line)
+            if not match:
+                continue
+            major = int(match.group(1))
+            # Apple Clang identifies itself with "Apple" in the version string
+            if "Apple" in output:
+                return major >= 16
+            # Upstream / Homebrew LLVM: Darwin SME ABI landed in LLVM 19
+            return major >= 19
     except Exception:
         pass
-    return (0, 0)
+    return False
 
 
-def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+def linux_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     """Build settings for Linux."""
     compile_args = [
         "-std=c11",
@@ -83,13 +97,14 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-fPIC",
         "-w",  # Hush warnings
     ]
-    # On RISC-V, GCC needs `-march` with V extension for vector types to be
+    # On RISC-V, GCC needs `-march` with the V extension for vector types to be
     # available at translation-unit scope (`#pragma GCC target` only affects
     # codegen, not type declarations).
-    # In manylinux_2_39 riscv64 CI we build with Clang + LLD to support
-    # zvfh/zvfbfwma/zvbb in this target string.
+    # Keep the module-wide baseline portable (`rv64gcv`) so wheels can import on
+    # weaker emulated CPUs. Richer kernels still compile through the explicit
+    # NK_TARGET_* defines below plus per-function target attributes.
     if is_64bit_riscv():
-        compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
+        compile_args.append("-march=rv64gcv")
     link_args = [
         "-shared",
         "-lm",  # Add vectorized `logf` implementation from the `glibc`
@@ -142,17 +157,16 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     """Build settings for macOS."""
     compile_args = [
         "-std=c11",
         "-O3",
         "-w",  # Hush warnings
     ]
-    link_args: List[str] = []
-    # SME available on M4+ with AppleClang 16+ (Xcode 16) or upstream Clang 18+
-    clang_major, _ = detect_apple_clang_version()
-    has_sme = is_64bit_arm() and clang_major >= 16
+    link_args: list[str] = []
+    # SME available on M4+ with AppleClang 16+ (Xcode 16) or upstream Clang 19+
+    has_sme = has_darwin_sme_support()
     # macOS: no SVE, conservative AVX-512 (not widely available)
     macros = [
         ("NK_DYNAMIC_DISPATCH", "1"),
@@ -201,7 +215,7 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-def freebsd_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+def freebsd_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     """Build settings for FreeBSD."""
     compile_args = [
         "-std=c11",
@@ -263,7 +277,7 @@ def freebsd_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-def detect_msvc_version() -> Tuple[int, int]:
+def detect_msvc_version() -> tuple[int, int]:
     """Detect MSVC version from cl.exe or environment variables."""
     try:
         result = subprocess.run(["cl"], capture_output=True, text=True, shell=True)
@@ -281,7 +295,7 @@ def detect_msvc_version() -> Tuple[int, int]:
                             minor = int(version_parts[1])
                             print(f"[NumKong] Detected MSVC version {major}.{minor}")
                             return (major, minor)
-    except:
+    except Exception:
         pass
 
     # Fallback to checking _MSC_VER from environment or defaults
@@ -291,7 +305,7 @@ def detect_msvc_version() -> Tuple[int, int]:
     return (19, 20)  # Conservative default to MSVC 2019
 
 
-def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
+def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     """Build settings for Windows."""
     compile_args = [
         "/std:c11",
@@ -301,7 +315,7 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "/d2FH4-",
         "/w",
     ]
-    link_args: List[str] = []
+    link_args: list[str] = []
 
     # Detect MSVC version for feature support
     msvc_major, msvc_minor = detect_msvc_version()
@@ -363,7 +377,68 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-if sys.platform == "linux":
+def emscripten_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
+    """Build settings for Emscripten/Pyodide (WASM)."""
+    compile_args = [
+        "-std=c11",
+        "-O3",
+        "-w",
+    ]
+    link_args: list[str] = []
+    # Dynamic dispatch is needed for the Python bindings (nk_find_kernel_punned).
+    # The EM_JS runtime probes in c/numkong.c are guarded by NK_DYNAMIC_DISPATCH
+    # and __EMSCRIPTEN__; when building as a Pyodide side module, we define
+    # NK_PYODIDE_SIDE_MODULE to replace them with conservative stubs (serial only).
+    macros = [
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_PYODIDE_SIDE_MODULE", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
+        # No x86, ARM, or RISC-V targets in WASM
+        ("NK_TARGET_HASWELL", "0"),
+        ("NK_TARGET_SKYLAKE", "0"),
+        ("NK_TARGET_ICELAKE", "0"),
+        ("NK_TARGET_GENOA", "0"),
+        ("NK_TARGET_SAPPHIRE", "0"),
+        ("NK_TARGET_TURIN", "0"),
+        ("NK_TARGET_ALDER", "0"),
+        ("NK_TARGET_SIERRA", "0"),
+        ("NK_TARGET_SAPPHIREAMX", "0"),
+        ("NK_TARGET_GRANITEAMX", "0"),
+        ("NK_TARGET_NEON", "0"),
+        ("NK_TARGET_NEONHALF", "0"),
+        ("NK_TARGET_NEONSDOT", "0"),
+        ("NK_TARGET_NEONBFDOT", "0"),
+        ("NK_TARGET_NEONFHM", "0"),
+        ("NK_TARGET_SVE", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
+        ("NK_TARGET_SME", "0"),
+        ("NK_TARGET_SME2", "0"),
+        ("NK_TARGET_SME2P1", "0"),
+        ("NK_TARGET_SMEF64", "0"),
+        ("NK_TARGET_SMEHALF", "0"),
+        ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
+        ("NK_TARGET_SMELUT2", "0"),
+        ("NK_TARGET_SMEFA64", "0"),
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
+    ]
+    return compile_args, link_args, macros
+
+
+# pyodide-build sets _PYTHON_HOST_PLATFORM to "emscripten-wasm32" during cross-compilation.
+# sys.platform remains "darwin" or "linux" on the host, so we check this env var first.
+_host_platform = os.environ.get("_PYTHON_HOST_PLATFORM", "")
+if "emscripten" in _host_platform:
+    compile_args, link_args, macros = emscripten_settings()
+elif sys.platform == "linux":
     compile_args, link_args, macros = linux_settings()
 elif sys.platform.startswith("freebsd"):
     # FreeBSD platform strings can be "freebsd11", "freebsd12", etc.
@@ -380,10 +455,7 @@ else:
 def _is_editable_install() -> bool:
     if "develop" in sys.argv or ("install" in sys.argv and "-e" in sys.argv):
         return True
-    for p in sys.path:
-        if Path(p, f"{__lib_name__}.egg-link").exists():
-            return True
-    return False
+    return any(Path(p, f"{__lib_name__}.egg-link").exists() for p in sys.path)
 
 
 SETUP_KWARGS = (
@@ -446,7 +518,11 @@ setup(
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/NumKong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
-    long_description=Path("README.md").read_text(encoding="utf8"),
+    long_description=(
+        Path("python/README.md").read_text(encoding="utf8")
+        + "\n\n"
+        + Path("README.md").read_text(encoding="utf8")
+    ),
     long_description_content_type="text/markdown",
     license="Apache-2.0",
     classifiers=[

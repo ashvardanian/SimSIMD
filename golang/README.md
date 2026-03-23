@@ -44,6 +44,18 @@ __Geospatial included.__
 __Capability bits exposed.__
 You can inspect the runtime SIMD surface from Go.
 
+## Ecosystem Comparison
+
+| Feature                      | NumKong                                                                                  | [GoNum](https://github.com/gonum/gonum)                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Operation families           | dots, distances, binary, probability, geospatial, MaxSim                                 | dots, distances, some statistics                         |
+| Precision                    | BFloat16 through sub-byte; automatic widening; Kahan summation; 0 ULP in Float32/Float64 | Float64 only; standard accuracy                          |
+| Runtime SIMD dispatch        | auto-selects best ISA per-thread at runtime across x86, ARM, RISC-V                      | no runtime dispatch; some hand-written assembly routines |
+| Packed matrix, GEMM-like     | pack once, reuse across query batches via `PackedMatrix`                                 | `mat.Dense.Mul` — no persistent packing                  |
+| Symmetric kernels, SYRK-like | skips duplicate pairs, up to 2x speedup for self-distance                                | no duplicate-pair skipping                               |
+| Memory model                 | slice-based, caller-owned; cGo zero-copy pointer passing                                 | allocates internally in many functions                   |
+| Host-side parallelism        | reusable `WorkerPool` for packed and symmetric batch ops                                 | partial — gonum/optimize has some parallel support       |
+
 ## Installation
 
 The Go binding compiles the C library from headers at `go build` time via cGo.

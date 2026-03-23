@@ -8,12 +8,12 @@
  *
  *  @section haswell_dots_instructions Key AVX2/FMA GEMM Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_mul_ps               VMULPS (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_add_ps               VADDPS (YMM, YMM, YMM)          3cy         1/cy        p01
- *      _mm256_cvtph_ps             VCVTPH2PS (YMM, XMM)            5cy         1/cy        p01
- *      _mm256_madd_epi16           VPMADDWD (YMM, YMM, YMM)        5cy         1/cy        p0
+ *      Intrinsic           Instruction               Haswell    Genoa
+ *      _mm256_fmadd_ps/pd  VFMADD (YMM, YMM, YMM)    5cy @ p01  4cy @ p01
+ *      _mm256_mul_ps       VMULPS (YMM, YMM, YMM)    5cy @ p01  3cy @ p01
+ *      _mm256_add_ps       VADDPS (YMM, YMM, YMM)    3cy @ p01  3cy @ p23
+ *      _mm256_cvtph_ps     VCVTPH2PS (YMM, XMM)      5cy @ p01  4cy @ p12+p23
+ *      _mm256_madd_epi16   VPMADDWD (YMM, YMM, YMM)  5cy @ p01  3cy @ p01
  *
  *  GEMM kernels use tiled dot products with 4-way parallel accumulation to hide FMA latency.
  *  Type-specific tile sizes: f32/f64 use depth_simd_dimensions=4, f16/bf16 use depth_simd_dimensions=8,

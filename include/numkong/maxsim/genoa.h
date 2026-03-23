@@ -9,8 +9,8 @@
  *  Uses AVX-512 VNNI (VPDPBUSD) for coarse i8 screening via icelake.h, and VDPBF16PS for bf16 refinement.
  *  f32/f16 MaxSim variants live in icelake.h — this file only provides bf16 pack and compute.
  *
- *      Intrinsic                   Instruction     Genoa (Zen4)
- *      _mm512_dpbf16_ps            VDPBF16PS       6cy @ p01 (512-bit)
+ *      Intrinsic         Instruction  Genoa
+ *      _mm512_dpbf16_ps  VDPBF16PS    6cy @ p01
  */
 #ifndef NK_MAXSIM_GENOA_H
 #define NK_MAXSIM_GENOA_H

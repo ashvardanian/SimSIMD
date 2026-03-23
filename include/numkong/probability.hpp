@@ -26,7 +26,7 @@ namespace ashvardanian::numkong {
  *  @tparam result_type_ Result type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -57,7 +57,7 @@ void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) n
  *  @tparam result_type_ Result type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void jsd(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
@@ -81,6 +81,38 @@ void jsd(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) n
         result_type_ divergence = half * sum;
         *r = divergence > result_type_(0) ? divergence.sqrt() : result_type_(0);
     }
+}
+
+} // namespace ashvardanian::numkong
+
+#include "numkong/tensor.hpp"
+
+namespace ashvardanian::numkong {
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void kld(tensor_view<in_type_, max_rank_a_> p, tensor_view<in_type_, max_rank_b_> q, std::size_t d,
+         result_type_ *r) noexcept {
+    kld<in_type_, result_type_, allow_simd_>(p.data(), q.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void kld(vector_view<in_type_> p, vector_view<in_type_> q, std::size_t d, result_type_ *r) noexcept {
+    kld<in_type_, result_type_, allow_simd_>(p.data(), q.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k, std::size_t max_rank_a_, std::size_t max_rank_b_>
+void jsd(tensor_view<in_type_, max_rank_a_> p, tensor_view<in_type_, max_rank_b_> q, std::size_t d,
+         result_type_ *r) noexcept {
+    jsd<in_type_, result_type_, allow_simd_>(p.data(), q.data(), d, r);
+}
+
+template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jsd(vector_view<in_type_> p, vector_view<in_type_> q, std::size_t d, result_type_ *r) noexcept {
+    jsd<in_type_, result_type_, allow_simd_>(p.data(), q.data(), d, r);
 }
 
 } // namespace ashvardanian::numkong

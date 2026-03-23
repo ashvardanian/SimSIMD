@@ -77,10 +77,10 @@
  *
  *  Relevant instructions and caveats:
  *
- *      Intrinsic                   Instruction        Notes
- *      _mm_rsqrt_ps                VRSQRTPS           fast approx; refine with NR
- *      _mm_maskz_rsqrt14_pd        VRSQRT14PD         higher-precision approx; MSVC masked-only
- *      _mm_sqrt_ps/_mm_sqrt_pd     VSQRTPS/VSQRTPD    higher latency, sqrt/div unit
+ *      Intrinsic                Instruction      Notes
+ *      _mm_rsqrt_ps             VRSQRTPS         fast approx; refine with NR
+ *      _mm_maskz_rsqrt14_pd     VRSQRT14PD       higher-precision approx; MSVC masked-only
+ *      _mm_sqrt_ps/_mm_sqrt_pd  VSQRTPS/VSQRTPD  higher latency, sqrt/div unit
  *
  *  Latency/port notes (rule of thumb):
  *  - On Intel client cores, sqrt/rsqrt execute on the divide/sqrt unit (often
@@ -96,15 +96,15 @@
  *  AVX-512 VNNI replaces that with VPDPWSSD. BF16 uses VDPBF16PS where available to avoid
  *  convert+FMA sequences; if the ISA lacks it, we fall back to f32 FMA in the AVX2/serial:
  *
- *      Intrinsic               Instruction                     Ice         Genoa
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
- *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p01    3c @ p01
- *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, K, ZMM, ZMM)     5c @ p05    4c @ p01
- *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, K, ZMM, ZMM)    n/a         6c @ p01
- *      _mm_rsqrt_ps            VRSQRTPS (XMM, XMM)             5c @ p0     4c @ p01
- *      _mm_maskz_rsqrt14_pd    VRSQRT14PD (XMM, K, XMM)        4c @ p0     5c @ p01
- *      _mm_sqrt_ps             VSQRTPS (XMM, XMM)              12c @ p0    15c @ p01
+ *      Intrinsic             Instruction                   Icelake    Genoa
+ *      _mm256_fmadd_ps       VFMADD231PS (YMM, YMM, YMM)   4cy @ p01  4cy @ p01
+ *      _mm256_fmadd_pd       VFMADD231PD (YMM, YMM, YMM)   4cy @ p01  4cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)      5cy @ p01  3cy @ p01
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, K, ZMM, ZMM)   5cy @ p05  4cy @ p01
+ *      _mm512_dpbf16_ps      VDPBF16PS (ZMM, K, ZMM, ZMM)  n/a        6cy @ p01
+ *      _mm_rsqrt_ps          VRSQRTPS (XMM, XMM)           5cy @ p0   4cy @ p01
+ *      _mm_maskz_rsqrt14_pd  VRSQRT14PD (XMM, K, XMM)      4cy @ p0   5cy @ p01
+ *      _mm_sqrt_ps           VSQRTPS (XMM, XMM)            12cy @ p0  15cy @ p01
  *
  *  @section arm_instructions Relevant Arm Instructions
  *
@@ -115,18 +115,18 @@
  *  instructions skipping `vbfmlal` and `vbfmlalt` alternatives to limit shuffle overhead
  *  and code complexity.
  *
- *      Intrinsic               Instruction         M1 Firestorm
- *      vfmaq_f32               FMLA.S (vec)        4c / 4c
- *      vfmaq_f64               FMLA.D (vec)        4c / 4c
- *      vdotq_s32               SDOT.B (vec)        3c / 4c
- *      vbfdotq_f32             BFDOT (vec)         n/a
- *      vrsqrteq_f32            FRSQRTE.S (vec)     3c / 1c
- *      vrsqrtsq_f32            FRSQRTS.S (vec)     4c / 4c
- *      vsqrtq_f32              FSQRT.S (vec)       10c / 0.5c
+ *      Intrinsic     Instruction      M1 Firestorm
+ *      vfmaq_f32     FMLA.S (vec)     4c / 4c
+ *      vfmaq_f64     FMLA.D (vec)     4c / 4c
+ *      vdotq_s32     SDOT.B (vec)     3c / 4c
+ *      vbfdotq_f32   BFDOT (vec)      n/a
+ *      vrsqrteq_f32  FRSQRTE.S (vec)  3c / 1c
+ *      vrsqrtsq_f32  FRSQRTS.S (vec)  4c / 4c
+ *      vsqrtq_f32    FSQRT.S (vec)    10c / 0.5c
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */
@@ -612,6 +612,12 @@ NK_PUBLIC void nk_angular_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_
 NK_PUBLIC void nk_euclidean_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e2m3_alder(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_ALDER
 
 #if NK_TARGET_V128RELAXED
@@ -1053,10 +1059,10 @@ NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
-    nk_euclidean_e4m3_genoa(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
+#if NK_TARGET_SAPPHIRE
     nk_euclidean_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
+    nk_euclidean_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1067,10 +1073,10 @@ NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
-    nk_sqeuclidean_e4m3_genoa(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
+#if NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
+    nk_sqeuclidean_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1187,6 +1193,8 @@ NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size
     nk_euclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_euclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_euclidean_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1201,6 +1209,8 @@ NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
     nk_sqeuclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_sqeuclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_sqeuclidean_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1215,6 +1225,8 @@ NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t
     nk_angular_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_e3m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1267,14 +1279,14 @@ NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_i8_rvv(a, b, n, result);
-#elif NK_TARGET_SIERRA
-    nk_angular_i8_sierra(a, b, n, result);
-#elif NK_TARGET_ALDER
-    nk_angular_i8_alder(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_angular_i8_icelake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_angular_i8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_i8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_i8_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
@@ -1327,14 +1339,14 @@ NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_u8_rvv(a, b, n, result);
-#elif NK_TARGET_SIERRA
-    nk_angular_u8_sierra(a, b, n, result);
-#elif NK_TARGET_ALDER
-    nk_angular_u8_alder(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_angular_u8_icelake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_angular_u8_sierra(a, b, n, result);
+#elif NK_TARGET_ALDER
+    nk_angular_u8_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_u8_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED

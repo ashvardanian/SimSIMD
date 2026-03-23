@@ -2,31 +2,31 @@
 
 NumKong implements element-wise vector arithmetic: addition, scaling, blending, and fused multiply-add across all supported numeric types.
 Each operation reads one to three input vectors and writes one output vector of the same length, with scalar coefficients $\alpha$ and $\beta$ controlling linear combinations.
-Mixed-precision workflows use narrower input types (f16, bf16, FP8) with f32 intermediate computation and narrowed output.
+Mixed-precision workflows use narrower input types (Float16, BFloat16, Float8) with Float32 intermediate computation and narrowed output.
 
 Sum (addition):
 
-```math
+$$
 \text{result}_i = a_i + b_i
-```
+$$
 
 Scale:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i + \beta
-```
+$$
 
 Blend:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i + \beta \cdot b_i
-```
+$$
 
 Fused multiply-add:
 
-```math
+$$
 \text{result}_i = \alpha \cdot a_i \cdot b_i + \beta \cdot c_i
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -52,22 +52,22 @@ def blend(a: np.ndarray, b: np.ndarray,
 
 Real and integer element-wise operations:
 
-| Input Type | Output Type | Description                            |
-| ---------- | ----------- | -------------------------------------- |
-| `f64`      | `f64`       | 64-bit IEEE 754 double precision       |
-| `f32`      | `f32`       | 32-bit IEEE 754 single precision       |
-| `f16`      | `f16`       | 16-bit IEEE 754 half precision         |
-| `bf16`     | `bf16`      | 16-bit brain float                     |
-| `e4m3`     | `e4m3`      | 8-bit FP8: 4 exponent, 3 mantissa bits |
-| `e5m2`     | `e5m2`      | 8-bit FP8: 5 exponent, 2 mantissa bits |
-| `i8`       | `i8`        | 8-bit signed integers, saturating      |
-| `u8`       | `u8`        | 8-bit unsigned integers, saturating    |
-| `i16`      | `i16`       | 16-bit signed integers                 |
-| `u16`      | `u16`       | 16-bit unsigned integers               |
-| `i32`      | `i32`       | 32-bit signed integers                 |
-| `u32`      | `u32`       | 32-bit unsigned integers               |
-| `i64`      | `i64`       | 64-bit signed integers                 |
-| `u64`      | `u64`       | 64-bit unsigned integers               |
+| Input Type | Output Type | Description                               |
+| ---------- | ----------- | ----------------------------------------- |
+| `f64`      | `f64`       | 64-bit IEEE 754 double precision          |
+| `f32`      | `f32`       | 32-bit IEEE 754 single precision          |
+| `f16`      | `f16`       | 16-bit IEEE 754 half precision            |
+| `bf16`     | `bf16`      | 16-bit brain float                        |
+| `e4m3`     | `e4m3`      | 8-bit Float8: 4 exponent, 3 mantissa bits |
+| `e5m2`     | `e5m2`      | 8-bit Float8: 5 exponent, 2 mantissa bits |
+| `i8`       | `i8`        | 8-bit signed integers, saturating         |
+| `u8`       | `u8`        | 8-bit unsigned integers, saturating       |
+| `i16`      | `i16`       | 16-bit signed integers                    |
+| `u16`      | `u16`       | 16-bit unsigned integers                  |
+| `i32`      | `i32`       | 32-bit signed integers                    |
+| `u32`      | `u32`       | 32-bit unsigned integers                  |
+| `i64`      | `i64`       | 64-bit signed integers                    |
+| `u64`      | `u64`       | 64-bit unsigned integers                  |
 
 Complex element-wise operations:
 
@@ -80,20 +80,20 @@ Complex element-wise operations:
 
 ### Widening-Narrowing Pipeline for Sub-32-bit Types
 
-`nk_each_fma_f16_haswell`, `nk_each_blend_bf16_neonbfdot`, `nk_each_scale_e4m3_haswell` widen inputs to f32 before arithmetic, then narrow the result back to the original type.
-The widen-compute-narrow pipeline costs 2 extra conversion instructions per element but guarantees f32-precision intermediate results -- critical for FMA where naive f16 multiplication would lose 5+ bits of mantissa.
-Haswell processes 8 f16 elements per cycle: `VCVTPH2PS` (widen) -> `VFMADD231PS` (FMA) -> `VCVTPS2PH` (narrow), fully pipelined across 3 execution ports.
+`nk_each_fma_f16_haswell`, `nk_each_blend_bf16_neonbfdot`, `nk_each_scale_e4m3_haswell` widen inputs to Float32 before arithmetic, then narrow the result back to the original type.
+The widen-compute-narrow pipeline costs 2 extra conversion instructions per element but guarantees Float32-precision intermediate results — critical for FMA where naive Float16 multiplication would lose 5+ bits of mantissa.
+Haswell processes 8 Float16 elements per cycle: `VCVTPH2PS` (widen) -> `VFMADD231PS` (FMA) -> `VCVTPS2PH` (narrow), fully pipelined across 3 execution ports.
 
 ### Saturating Integer Arithmetic
 
-`nk_each_sum_i8_haswell`, `nk_each_sum_u8_neonhalf` use saturating addition -- clamping to type bounds instead of wrapping on overflow.
+`nk_each_sum_i8_haswell`, `nk_each_sum_u8_neonhalf` use saturating addition — clamping to type bounds instead of wrapping on overflow.
 Haswell uses `VPADDSB` / `VPADDUSB` for signed/unsigned 8-bit saturation in a single instruction (32 elements per cycle at YMM width).
 Serial fallback implements saturation via branch-free min/max: `result = min(max(a + b, TYPE_MIN), TYPE_MAX)` with overflow detection through sign-bit comparison.
 
 ### Complex Number Layout
 
 `nk_each_fma_f32c_serial`, `nk_each_blend_f64c_serial` operate on interleaved real/imaginary pairs: `[re0, im0, re1, im1, ...]`.
-Addition and scaling treat complex vectors as 2N-length real vectors -- no special handling needed.
+Addition and scaling treat complex vectors as 2N-length real vectors — no special handling needed.
 FMA requires cross-lane operations for the imaginary part: `re(a*b) = re(a)*re(b) - im(a)*im(b)`, implemented via `VFMADDSUB231PS` which alternates add/subtract across even/odd lanes.
 
 ## Performance
@@ -220,7 +220,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_fma_i8_serial`      |                4.49 gb/s |                2.63 gb/s |                2.98 gb/s |
 | `nk_each_fma_i8_haswell`     |                7.36 gb/s |                6.84 gb/s |                7.15 gb/s |
 | `nk_each_fma_i8_skylake`     |                11.2 gb/s |                9.45 gb/s |                10.1 gb/s |
-| `nk_each_fma_i8_sapphire`    |                32.2 gb/s |                21.2 gb/s |                18.7 gb/s |
 | __u8__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_u8_serial`      |                17.0 gb/s |                13.7 gb/s |                12.5 gb/s |
 | `nk_each_sum_u8_haswell`     |                42.6 gb/s |                15.7 gb/s |                15.4 gb/s |
@@ -235,7 +234,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_fma_u8_serial`      |                3.19 gb/s |                3.92 gb/s |                4.54 gb/s |
 | `nk_each_fma_u8_haswell`     |                6.98 gb/s |                6.29 gb/s |                7.62 gb/s |
 | `nk_each_fma_u8_skylake`     |                9.66 gb/s |                9.21 gb/s |                10.3 gb/s |
-| `nk_each_fma_u8_sapphire`    |                25.3 gb/s |                21.2 gb/s |                19.0 gb/s |
 | __i16__                      | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_i16_serial`     |                12.0 gb/s |                11.6 gb/s |                14.2 gb/s |
 | `nk_each_sum_i16_haswell`    |                26.1 gb/s |                16.2 gb/s |                16.8 gb/s |
@@ -395,7 +393,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_blend_i8_serial`      |                2.29 gb/s |                2.32 gb/s |                2.24 gb/s |
 | `nk_each_blend_i8_neonhalf`    |                8.83 gb/s |                9.48 gb/s |                8.68 gb/s |
 | `nk_each_fma_i8_serial`        |                2.02 gb/s |                1.97 gb/s |                1.77 gb/s |
-| `nk_each_fma_i8_neonhalf`      |                7.27 gb/s |                6.97 gb/s |                4.79 gb/s |
 | __u8__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_u8_serial`        |                4.46 gb/s |                4.49 gb/s |                4.09 gb/s |
 | `nk_each_sum_u8_neonhalf`      |                35.0 gb/s |                38.1 gb/s |                20.2 gb/s |
@@ -404,7 +401,6 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_each_blend_u8_serial`      |                2.59 gb/s |                2.53 gb/s |                2.48 gb/s |
 | `nk_each_blend_u8_neonhalf`    |                9.21 gb/s |                8.53 gb/s |                8.00 gb/s |
 | `nk_each_fma_u8_serial`        |                2.17 gb/s |                2.16 gb/s |                1.86 gb/s |
-| `nk_each_fma_u8_neonhalf`      |                7.29 gb/s |                7.11 gb/s |                4.72 gb/s |
 | __i16__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_each_sum_i16_serial`       |                20.2 gb/s |                24.3 gb/s |                11.1 gb/s |
 | `nk_each_sum_i16_neon`         |                31.4 gb/s |                36.8 gb/s |                36.7 gb/s |

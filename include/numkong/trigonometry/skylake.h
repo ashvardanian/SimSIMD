@@ -9,12 +9,12 @@
  *
  *  @section skylake_trig_instructions Key AVX-512 Trigonometry Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
- *      _mm512_mul_ps               VMULPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p05
- *      _mm512_and_ps               VANDPS (ZMM, ZMM, ZMM)          1cy         0.33/cy     p015
- *      _mm512_cmp_ps_mask          VCMPPS (K, ZMM, ZMM, I8)        3cy         1/cy        p01
- *      _mm512_roundscale_ps        VRNDSCALEPS (ZMM, ZMM, I8)      8cy         0.5/cy      p01
+ *      Intrinsic             Instruction                  Skylake-X      Genoa
+ *      _mm512_fmadd_ps       VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p05      4cy @ p01
+ *      _mm512_mul_ps         VMULPS (ZMM, ZMM, ZMM)       4cy @ p05      3cy @ p01
+ *      _mm512_and_ps         VANDPS (ZMM, ZMM, ZMM)       1cy @ p05      1cy @ p0123
+ *      _mm512_cmp_ps_mask    VCMPPS (K, ZMM, ZMM, I8)     4cy @ p5       5cy @ p01
+ *      _mm512_roundscale_ps  VRNDSCALEPS (ZMM, ZMM, I8)   8cy @ p05+p05  3cy @ p23
  *
  *  Trigonometric functions use polynomial approximations evaluated via Horner's method with FMA chains.
  *  AVX-512 mask registers enable branchless range reduction and sign handling without blend overhead.
@@ -54,7 +54,9 @@ NK_INTERNAL __m512 nk_sin_f32x16_skylake_(__m512 const angles_radians) {
     // Compute (multiples_of_pi) = round(angle / π)
     __m512 quotients = _mm512_mul_ps(angles_radians, pi_reciprocal);
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __m512i multiples_of_pi = _mm512_cvt_roundps_epi32(rounded_quotients,
+                                                       _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     // Cody-Waite range reduction
     __m512 angles = _mm512_fnmadd_ps(rounded_quotients, pi_hi_f32x16, angles_radians);
@@ -90,7 +92,9 @@ NK_INTERNAL __m512 nk_cos_f32x16_skylake_(__m512 const angles_radians) {
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
     __m512 quotients = _mm512_fmsub_ps(angles_radians, pi_reciprocal, _mm512_set1_ps(0.5f));
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __m512i multiples_of_pi = _mm512_cvt_roundps_epi32(rounded_quotients,
+                                                       _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     // Cody-Waite range reduction: angle = angle_radians - (multiples * pi + pi/2)
     __m512 const offset = _mm512_fmadd_ps(rounded_quotients, pi_hi_f32x16, pi_half);
@@ -282,7 +286,10 @@ NK_INTERNAL __m512d nk_sin_f64x8_skylake_(__m512d const angles_radians) {
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_low, angles);
 
     // If rounded_quotients is odd (bit 0 set), negate the angle
-    __mmask8 const sign_flip_mask = _mm256_test_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients), _mm256_set1_epi32(1));
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __mmask8 const sign_flip_mask = _mm256_test_epi32_mask(
+        _mm512_cvt_roundpd_epi32(rounded_quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC),
+        _mm256_set1_epi32(1));
     angles = _mm512_mask_sub_pd(angles, sign_flip_mask, _mm512_setzero_pd(), angles);
 
     __m512d const angles_squared = _mm512_mul_pd(angles, angles);
@@ -340,8 +347,10 @@ NK_INTERNAL __m512d nk_cos_f64x8_skylake_(__m512d const angles_radians) {
     __m512d angles = angles_radians;
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_high_half, angles);
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_low_half, angles);
-    __mmask8 const sign_flip_mask = _mm256_testn_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients),
-                                                            _mm256_set1_epi32(2));
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __mmask8 const sign_flip_mask = _mm256_testn_epi32_mask(
+        _mm512_cvt_roundpd_epi32(rounded_quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC),
+        _mm256_set1_epi32(2));
     angles = _mm512_mask_sub_pd(angles, sign_flip_mask, _mm512_setzero_pd(), angles);
     __m512d const angles_squared = _mm512_mul_pd(angles, angles);
     __m512d const angles_cubed = _mm512_mul_pd(angles, angles_squared);
@@ -569,7 +578,8 @@ NK_INTERNAL __m256i nk_sin_f16x16_skylake_(__m256i angles_f16x16) {
 
     __m512 quotient_f32x16 = _mm512_mul_ps(angles_f32x16, pi_recip_f32x16);
     __m512 rounded_f32x16 = _mm512_roundscale_ps(quotient_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m512i multiple_i32x16 = _mm512_cvtps_epi32(rounded_f32x16);
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __m512i multiple_i32x16 = _mm512_cvt_roundps_epi32(rounded_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     angles_f32x16 = _mm512_fnmadd_ps(rounded_f32x16, pi_hi_f32x16, angles_f32x16);
     angles_f32x16 = _mm512_fnmadd_ps(rounded_f32x16, pi_lo_f32x16, angles_f32x16);
@@ -601,7 +611,8 @@ NK_INTERNAL __m256i nk_cos_f16x16_skylake_(__m256i angles_f16x16) {
 
     __m512 quotient_f32x16 = _mm512_fmsub_ps(angles_f32x16, pi_recip_f32x16, half_f32x16);
     __m512 rounded_f32x16 = _mm512_roundscale_ps(quotient_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m512i multiple_i32x16 = _mm512_cvtps_epi32(rounded_f32x16);
+    // Use explicit rounding to match roundscale (MXCSR-independent)
+    __m512i multiple_i32x16 = _mm512_cvt_roundps_epi32(rounded_f32x16, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
     __m512 shift_f32x16 = _mm512_fmadd_ps(rounded_f32x16, pi_hi_f32x16, pi_half_f32x16);
     angles_f32x16 = _mm512_sub_ps(angles_f32x16, shift_f32x16);

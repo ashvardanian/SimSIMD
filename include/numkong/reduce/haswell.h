@@ -3268,7 +3268,7 @@ NK_INTERNAL void nk_reduce_moments_bf16_haswell_contiguous_( //
         nk_b256_vec_t partial_vec;
         nk_partial_load_b16x16_serial_(data_ptr + idx, &partial_vec, remaining);
         nk_size_t first_half = remaining > 8 ? 8 : remaining;
-        (void)first_half;
+        nk_unused_(first_half);
         __m256 low_f32x8 = _mm256_castsi256_ps(
             _mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm256_castsi256_si128(partial_vec.ymm)), 16));
         sum_f32x8 = _mm256_add_ps(sum_f32x8, low_f32x8);

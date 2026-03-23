@@ -53,8 +53,8 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #endif
 #if NK_TARGET_NEONFHM
     if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
@@ -67,6 +67,12 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_e5m2_neonfhm, *c = nk_cap_neonfhm_k;
             return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_NEONBFDOT
+    if (v & nk_cap_neonbfdot_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         default: break;
         }
 #endif
@@ -202,6 +208,10 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_e5m2_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_e5m2_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_e5m2_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_e5m2_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_e5m2_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_e5m2_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_e5m2_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

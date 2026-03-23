@@ -8,13 +8,13 @@
  *
  *  @section scalars_haswell_instructions Key AVX2/FMA Scalar Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm_sqrt_ps                 VSQRTPS (XMM, XMM)              11cy        7cy         p0
- *      _mm_sqrt_pd                 VSQRTPD (XMM, XMM)              16cy        12cy        p0
- *      _mm_fmadd_ss                VFMADD (XMM, XMM, XMM)          5cy         0.5/cy      p01
- *      _mm_fmadd_sd                VFMADD (XMM, XMM, XMM)          5cy         0.5/cy      p01
- *      _mm_cvtps_ph                VCVTPS2PH (XMM, XMM, I8)        4cy         1/cy        p01+p5
- *      _mm_cvtph_ps                VCVTPH2PS (XMM, XMM)            5cy         1/cy        p01
+ *      Intrinsic     Instruction               Haswell    Genoa
+ *      _mm_sqrt_ps   VSQRTPS (XMM, XMM)        11cy @ p0  15cy @ p01
+ *      _mm_sqrt_pd   VSQRTPD (XMM, XMM)        16cy @ p0  15cy @ p01
+ *      _mm_fmadd_ss  VFMADD (XMM, XMM, XMM)    5cy @ p01  4cy @ p01
+ *      _mm_fmadd_sd  VFMADD (XMM, XMM, XMM)    5cy @ p01  4cy @ p01
+ *      _mm_cvtps_ph  VCVTPS2PH (XMM, XMM, I8)  5cy @ p01  4cy @ p12+p23
+ *      _mm_cvtph_ps  VCVTPH2PS (XMM, XMM)      5cy @ p01  4cy @ p12+p23
  */
 #ifndef NK_SCALAR_HASWELL_H
 #define NK_SCALAR_HASWELL_H

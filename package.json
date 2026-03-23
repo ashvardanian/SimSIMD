@@ -1,6 +1,6 @@
 {
   "name": "numkong",
-  "version": "6.5.15",
+  "version": "7.1.1",
   "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
   "homepage": "https://github.com/ashvardanian/NumKong",
   "author": "Ash Vardanian",
@@ -27,6 +27,7 @@
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=22.0.0",
     "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=22.0.0",
     "build-js": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
+    "build-browser": "esbuild javascript/dist/esm/numkong-browser.js --bundle --format=esm --platform=browser --target=es2022 --outfile=build-wasm/numkong-bundle.js",
     "test": "node --test ./test/test.mjs",
     "test:bun": "bun test ./test/test.mjs",
     "test:deno": "deno test -A --no-check",
@@ -49,6 +50,10 @@
     ".": {
       "import": "./javascript/dist/esm/numkong.js",
       "require": "./javascript/dist/cjs/numkong.js"
+    },
+    "./wasm": {
+      "import": "./wasm/numkong.js",
+      "types": "./wasm/numkong.d.ts"
     }
   },
   "engines": {
@@ -67,8 +72,17 @@
     "playwright": "^1.58.0",
     "prebuildify": "^6.0.1",
     "http-server": "^14.1.1",
+    "esbuild": "^0.25.0",
     "typescript": "^5.9.3"
   },
+  "files": [
+    "c/",
+    "include/",
+    "javascript/",
+    "wasm/",
+    "binding.gyp",
+    "LICENSE"
+  ],
   "prettier": {
     "printWidth": 120
   },

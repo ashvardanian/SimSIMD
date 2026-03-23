@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test probability divergences: nk.jensenshannon.
 
 Covers dtypes: float32, float16.
@@ -13,6 +12,7 @@ Matches C++ suite: test_probability.cpp.
 """
 
 import atexit
+
 import pytest
 
 try:
@@ -22,18 +22,18 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    make_positive_buffer,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    make_positive_buffer,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 

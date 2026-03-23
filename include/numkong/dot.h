@@ -73,14 +73,14 @@
  *  BF16 dot products (VDPBF16PS) are Genoa-only, accumulating bf16 pairs directly to f32.
  *  Genoa shows 40% faster integer multiply-add (3c vs 5c) than Ice Lake.
  *
- *      Intrinsic               Instruction                     Haswell     Ice         Genoa
- *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
- *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
- *      _mm256_maddubs_epi16    VPMADDUBSW (YMM, YMM, YMM)      5c @ p0     5c @ p01    3c @ p01
- *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p0     5c @ p01    3c @ p01
- *      _mm256_dpbusd_epi32     VPDPBUSD (YMM, YMM, YMM)        N/A         5c @ p01    4c @ p01
- *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, ZMM, ZMM)        N/A         5c @ p0     4c @ p01
- *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, ZMM, ZMM)       N/A         N/A         6c @ p01
+ *      Intrinsic             Instruction                  Haswell    Icelake    Genoa
+ *      _mm256_fmadd_ps       VFMADD231PS (YMM, YMM, YMM)  5cy @ p01  4cy @ p01  4cy @ p01
+ *      _mm256_fmadd_pd       VFMADD231PD (YMM, YMM, YMM)  5cy @ p01  4cy @ p01  4cy @ p01
+ *      _mm256_maddubs_epi16  VPMADDUBSW (YMM, YMM, YMM)   5cy @ p0   5cy @ p01  3cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)     5cy @ p0   5cy @ p01  3cy @ p01
+ *      _mm256_dpbusd_epi32   VPDPBUSD (YMM, YMM, YMM)     n/a        5cy @ p01  4cy @ p01
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, ZMM, ZMM)     n/a        5cy @ p0   4cy @ p01
+ *      _mm512_dpbf16_ps      VDPBF16PS (ZMM, ZMM, ZMM)    n/a        n/a        6cy @ p01
  *
  *  @section arm_neon_instructions Relevant ARM NEON Instructions
  *
@@ -89,13 +89,13 @@
  *  provides native bf16 dot products on Graviton 3+. Complex dot products use LD2 for deinterleaved
  *  loads of real/imag pairs, though its L01+V throughput can bottleneck on memory-bound workloads.
  *
- *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
- *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vfmaq_f64               FMLA.D (vec)    4c @ V0123      4c @ V0123      4c @ V0123
- *      vdotq_s32               SDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
- *      vdotq_u32               UDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
- *      vbfdotq_f32             BFDOT (vec)     N/A             4c @ V0123      5c @ V0123
- *      vld2q_f32               LD2 (Q-form)    5c @ L01+V      8c @ L01+V      8c @ L01+V
+ *      Intrinsic    Instruction   M1 Firestorm  Graviton 3   Graviton 4
+ *      vfmaq_f32    FMLA.S (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vfmaq_f64    FMLA.D (vec)  4cy @ V0123   4cy @ V0123  4cy @ V0123
+ *      vdotq_s32    SDOT (vec)    3cy @ V0123   3cy @ V0123  3cy @ V0123
+ *      vdotq_u32    UDOT (vec)    3cy @ V0123   3cy @ V0123  3cy @ V0123
+ *      vbfdotq_f32  BFDOT (vec)   N/A           4cy @ V0123  5cy @ V0123
+ *      vld2q_f32    LD2 (Q-form)  5cy @ L01+V   8cy @ L01+V  8cy @ L01+V
  *
  *  @section arm_sve_instructions Relevant ARM SVE Instructions
  *
@@ -103,12 +103,12 @@
  *  scalar cleanup loops. FADDV performs horizontal reduction; notably 45% faster on Graviton 4
  *  (6c) than Graviton 3 (11c). SVE complex dot products use svld2 for structure loads.
  *
- *      Intrinsic               Instruction     Graviton 3      Graviton 4
- *      svmla_f32_x             FMLA (pred)     4c @ V0123      4c @ V0123
- *      svmls_f32_x             FMLS (pred)     4c @ V0123      4c @ V0123
- *      svwhilelt_b32           WHILELT         3c @ M0         3c @ M0
- *      svld2_f32               LD2 (SVE)       8c @ L01+V      8c @ L01+V
- *      svaddv_f32              FADDV           11c @ V0123     6c @ V0123
+ *      Intrinsic      Instruction  Graviton 3    Graviton 4
+ *      svmla_f32_x    FMLA (pred)  4cy @ V0123   4cy @ V0123
+ *      svmls_f32_x    FMLS (pred)  4cy @ V0123   4cy @ V0123
+ *      svwhilelt_b32  WHILELT      3cy @ M0      3cy @ M0
+ *      svld2_f32      LD2 (SVE)    8cy @ L01+V   8cy @ L01+V
+ *      svaddv_f32     FADDV        11cy @ V0123  6cy @ V0123
  *
  *  @section complex_instructions Complex Number Optimizations
  *
@@ -121,7 +121,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */
@@ -290,6 +290,9 @@ NK_PUBLIC void nk_dot_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_
 /** @copydoc nk_dot_u1 */
 NK_PUBLIC void nk_dot_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result);
 
+/** @copydoc nk_dot_f16 */
+NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -304,6 +307,10 @@ NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_
 #if NK_TARGET_NEONFHM
 /** @copydoc nk_dot_f16 */
 NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e4m3 */
+NK_PUBLIC void nk_dot_e4m3_neonfhm(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e5m2 */
+NK_PUBLIC void nk_dot_e5m2_neonfhm(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f16c */
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
@@ -315,6 +322,10 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_s
 NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_i4 */
+NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u4 */
+NK_PUBLIC void nk_dot_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_dot_e2m3 */
 NK_PUBLIC void nk_dot_e2m3_neonsdot(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e3m2 */
@@ -324,11 +335,20 @@ NK_PUBLIC void nk_dot_e3m2_neonsdot(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_s
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_dot_bf16 */
 NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e4m3 */
+NK_PUBLIC void nk_dot_e4m3_neonbfdot(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e5m2 */
+NK_PUBLIC void nk_dot_e5m2_neonbfdot(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_bf16c */
 NK_PUBLIC void nk_dot_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_bf16c */
 NK_PUBLIC void nk_vdot_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
 #endif // NK_TARGET_NEONBFDOT
+
+#if NK_TARGET_SVEBFDOT
+/** @copydoc nk_dot_bf16 */
+NK_PUBLIC void nk_dot_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SVEBFDOT
 
 #if NK_TARGET_SVE
 /** @copydoc nk_dot_f32 */
@@ -363,6 +383,10 @@ NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result);
 /** @copydoc nk_vdot_f32c */
 NK_PUBLIC void nk_vdot_f32c_haswell(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result);
+/** @copydoc nk_dot_f64c */
+NK_PUBLIC void nk_dot_f64c_haswell(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
+/** @copydoc nk_vdot_f64c */
+NK_PUBLIC void nk_vdot_f64c_haswell(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
 
 /** @copydoc nk_dot_f16 */
 NK_PUBLIC void nk_dot_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
@@ -619,6 +643,7 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/neonbfdot.h"
 #include "numkong/dot/sve.h"
 #include "numkong/dot/svehalf.h"
+#include "numkong/dot/svebfdot.h"
 #include "numkong/dot/haswell.h"
 #include "numkong/dot/skylake.h"
 #include "numkong/dot/icelake.h"
@@ -647,12 +672,12 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_dot_i8_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_i8_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_i8_alder(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_i8_haswell(a, b, n, result);
 #else
@@ -669,12 +694,12 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
     nk_dot_u8_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_u8_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_u8_alder(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_u8_haswell(a, b, n, result);
 #else
@@ -685,6 +710,8 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
 NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_i4_icelake(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
+    nk_dot_i4_neonsdot(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_i4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -699,6 +726,8 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_u4_icelake(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
+    nk_dot_u4_neonsdot(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_u4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -741,6 +770,8 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_dot_f16_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_dot_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_dot_f16_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -763,6 +794,8 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
     nk_dot_bf16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_bf16_haswell(a, b, n, result);
+#elif NK_TARGET_SVEBFDOT
+    nk_dot_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_dot_bf16_neonbfdot(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -775,6 +808,10 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_NEONBFDOT
+    nk_dot_e4m3_neonbfdot(a, b, n, result);
+#elif NK_TARGET_NEONFHM
+    nk_dot_e4m3_neonfhm(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_dot_e4m3_rvvhalf(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -797,6 +834,10 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_NEONBFDOT
+    nk_dot_e5m2_neonbfdot(a, b, n, result);
+#elif NK_TARGET_NEONFHM
+    nk_dot_e5m2_neonfhm(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_dot_e5m2_rvvhalf(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -819,14 +860,14 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e2m3_icelake(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
     nk_dot_e2m3_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_dot_e2m3_alder(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
-#elif NK_TARGET_SKYLAKE
-    nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_e2m3_haswell(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -949,6 +990,8 @@ NK_PUBLIC void nk_dot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, 
     nk_dot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f64c_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_f64c_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
     nk_dot_f64c_v128relaxed(a, b, n, result);
 #else
@@ -1009,6 +1052,8 @@ NK_PUBLIC void nk_vdot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n,
     nk_vdot_f64c_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_vdot_f64c_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_vdot_f64c_haswell(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
     nk_vdot_f64c_v128relaxed(a, b, n, result);
 #else

@@ -245,6 +245,70 @@ public struct E3M2: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE3M2BitsToF32(bitPattern) }
 }
 
+// MARK: - CustomStringConvertible Conformance
+
+private func _hexPad(_ value: UInt16, width: Int) -> String {
+    let s = String(value, radix: 16, uppercase: false)
+    return String(repeating: "0", count: max(0, width - s.count)) + s
+}
+
+private func _hexPad(_ value: UInt8, width: Int) -> String {
+    let s = String(value, radix: 16, uppercase: false)
+    return String(repeating: "0", count: max(0, width - s.count)) + s
+}
+
+extension BFloat16: CustomStringConvertible {
+    public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 4))]" }
+}
+
+extension E4M3: CustomStringConvertible {
+    public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 2))]" }
+}
+
+extension E5M2: CustomStringConvertible {
+    public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 2))]" }
+}
+
+extension E2M3: CustomStringConvertible {
+    public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 2))]" }
+}
+
+extension E3M2: CustomStringConvertible {
+    public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 2))]" }
+}
+
+// MARK: - ExpressibleByFloatLiteral Conformance
+
+extension BFloat16: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Double) {
+        self.init(float: Float32(value))
+    }
+}
+
+extension E4M3: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Double) {
+        self.init(float: Float32(value))
+    }
+}
+
+extension E5M2: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Double) {
+        self.init(float: Float32(value))
+    }
+}
+
+extension E2M3: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Double) {
+        self.init(float: Float32(value))
+    }
+}
+
+extension E3M2: ExpressibleByFloatLiteral {
+    public init(floatLiteral value: Double) {
+        self.init(float: Float32(value))
+    }
+}
+
 // MARK: - Binary Storage Type
 
 /// Packed 8-bit binary vector element for Hamming and Jaccard distance computations.
@@ -254,4 +318,12 @@ public struct U1x8: Equatable, Hashable, Sendable {
     @inlinable public init(_ bits: UInt8) { self.bitPattern = bits }
     @inlinable public init(bitPattern: UInt8) { self.bitPattern = bitPattern }
     @inlinable public var popcount: Int { bitPattern.nonzeroBitCount }
+}
+
+extension U1x8: CustomStringConvertible {
+    public var description: String {
+        let binary = String(bitPattern, radix: 2)
+        let padded = String(repeating: "0", count: max(0, 8 - binary.count)) + binary
+        return "0b\(padded) [0x\(_hexPad(bitPattern, width: 2))]"
+    }
 }

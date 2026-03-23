@@ -8,13 +8,13 @@
  *
  *  @section dot_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vfmaq_f16                   FMLA (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
- *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
- *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
- *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
- *      vfmsq_f16                   FMLS (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
+ *      Intrinsic     Instruction              A76       M5
+ *      vfmaq_f16     FMLA (V.8H, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
+ *      vcvt_f32_f16  FCVTL (V.4S, V.4H)       3cy @ 2p  3cy @ 4p
+ *      vld1q_f16     LD1 (V.8H)               4cy @ 2p  4cy @ 3p
+ *      vaddvq_f32    FADDP+FADDP (V.4S)       4cy @ 1p  8cy @ 1p
+ *      vfmsq_f16     FMLS (V.8H, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
+ *      vfmaq_f32     FMLA (V.4S, V.4S, V.4S)  4cy @ 2p  3cy @ 4p
  *
  *  The ARMv8.2-FP16 extension enables native half-precision arithmetic, doubling the element count
  *  per vector register (8x F16 vs 4x F32). This doubles theoretical throughput for bandwidth-bound

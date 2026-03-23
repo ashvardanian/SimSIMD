@@ -140,18 +140,18 @@
  *  Low-precision matmul relies on VPMADD* (AVX2), VNNI dot-products, and BF16 dot-products
  *  on AVX-512. Zen4 improves throughput by dual-issuing many integer ops on FP ports.
  *
- *      Intrinsic                     Instruction                       Haswell     Genoa
- *      _mm256_maddubs_epi16          VPMADDUBSW (YMM, YMM, YMM)         5c @ p0     3c @ p01
- *      _mm256_madd_epi16             VPMADDWD (YMM, YMM, YMM)           5c @ p0     3c @ p01
- *      _mm256_dpbusd_epi32           VPDPBUSD (YMM, K, YMM, YMM)        n/a         4c @ p01
- *      _mm256_dpwssds_epi32          VPDPWSSDS (YMM, K, YMM, YMM)       n/a         4c @ p01
- *      _mm256_dpbf16_ps              VDPBF16PS (YMM, YMM, YMM)          n/a         6c @ p01
+ *      Intrinsic             Instruction                   Haswell   Genoa
+ *      _mm256_maddubs_epi16  VPMADDUBSW (YMM, YMM, YMM)    5cy @ p0  3cy @ p01
+ *      _mm256_madd_epi16     VPMADDWD (YMM, YMM, YMM)      5cy @ p0  3cy @ p01
+ *      _mm256_dpbusd_epi32   VPDPBUSD (YMM, K, YMM, YMM)   n/a       4cy @ p01
+ *      _mm256_dpwssds_epi32  VPDPWSSDS (YMM, K, YMM, YMM)  n/a       4cy @ p01
+ *      _mm256_dpbf16_ps      VDPBF16PS (YMM, YMM, YMM)     n/a       6cy @ p01
  *
  *  AMX tile ops (TDPBF16PS/TDPBUSD/TDPBSSD) are not covered by the uops.info 2022 dataset.
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - uops.info: https://uops.info/
  *  - Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
@@ -790,6 +790,24 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t n_
                                           nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SME
 
+/*  ARM SME with integer-accumulating binary outer products.
+ *  Used for packed 1-bit dot products backed by ZA32.
+ */
+#if NK_TARGET_SMEBI32
+/** @copydoc nk_dots_packed_size_u1 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1_smebi32(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_u1 */
+NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t height,
+                                         nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
+#endif // NK_TARGET_SMEBI32
+
 /*  ARM SME with FEAT_SME_F64F64 (F32/F64 with F64 accumulators).
  *  Requires Apple M4 or equivalent with F64 outer product support.
  */
@@ -1417,6 +1435,18 @@ NK_PUBLIC void nk_dots_packed_u1_neon(nk_u1x8_t const *a, void const *b_packed, 
 NK_PUBLIC void nk_dots_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                          nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                          nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_f16 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_f16_neon(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_f16 */
+NK_PUBLIC void nk_dots_pack_f16_neon(nk_f16_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                     void *b_packed);
+/** @copydoc nk_dots_packed_f16 */
+NK_PUBLIC void nk_dots_packed_f16_neon(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t height,
+                                       nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_f16 */
+NK_PUBLIC void nk_dots_symmetric_f16_neon(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_neon(nk_size_t width, nk_size_t depth);
 /** @copydoc nk_dots_pack_bf16 */
@@ -1810,6 +1840,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f16(nk_size_t width, nk_size_t depth) {
     return nk_dots_packed_size_f16_neonfhm(width, depth);
 #elif NK_TARGET_NEONHALF
     return nk_dots_packed_size_f16_neonhalf(width, depth);
+#elif NK_TARGET_NEON
+    return nk_dots_packed_size_f16_neon(width, depth);
 #elif NK_TARGET_SKYLAKE
     return nk_dots_packed_size_f16_skylake(width, depth);
 #elif NK_TARGET_HASWELL
@@ -1829,6 +1861,8 @@ NK_PUBLIC void nk_dots_pack_f16(nk_f16_t const *b, nk_size_t width, nk_size_t de
     nk_dots_pack_f16_neonfhm(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_NEONHALF
     nk_dots_pack_f16_neonhalf(b, width, depth, b_stride, b_packed);
+#elif NK_TARGET_NEON
+    nk_dots_pack_f16_neon(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
     nk_dots_pack_f16_skylake(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
@@ -1848,6 +1882,8 @@ NK_PUBLIC void nk_dots_packed_f16(nk_f16_t const *a, void const *b_packed, nk_f3
     nk_dots_packed_f16_neonfhm(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_NEONHALF
     nk_dots_packed_f16_neonhalf(a, b_packed, c, height, width, depth, a_stride, c_stride);
+#elif NK_TARGET_NEON
+    nk_dots_packed_f16_neon(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
     nk_dots_packed_f16_skylake(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
@@ -2214,12 +2250,12 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3(nk_size_t width, nk_size_t depth) {
     return nk_dots_packed_size_e2m3_sme(width, depth);
 #elif NK_TARGET_SAPPHIREAMX
     return nk_dots_packed_size_e2m3_sapphireamx(width, depth);
+#elif NK_TARGET_SKYLAKE
+    return nk_dots_packed_size_e2m3_skylake(width, depth);
 #elif NK_TARGET_SIERRA
     return nk_dots_packed_size_e2m3_sierra(width, depth);
 #elif NK_TARGET_ALDER
     return nk_dots_packed_size_e2m3_alder(width, depth);
-#elif NK_TARGET_SKYLAKE
-    return nk_dots_packed_size_e2m3_skylake(width, depth);
 #elif NK_TARGET_HASWELL
     return nk_dots_packed_size_e2m3_haswell(width, depth);
 #elif NK_TARGET_RVV
@@ -2237,12 +2273,12 @@ NK_PUBLIC void nk_dots_pack_e2m3(nk_e2m3_t const *b, nk_size_t width, nk_size_t 
     nk_dots_pack_e2m3_sme(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SAPPHIREAMX
     nk_dots_pack_e2m3_sapphireamx(b, width, depth, b_stride, b_packed);
+#elif NK_TARGET_SKYLAKE
+    nk_dots_pack_e2m3_skylake(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SIERRA
     nk_dots_pack_e2m3_sierra(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_ALDER
     nk_dots_pack_e2m3_alder(b, width, depth, b_stride, b_packed);
-#elif NK_TARGET_SKYLAKE
-    nk_dots_pack_e2m3_skylake(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_HASWELL
     nk_dots_pack_e2m3_haswell(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_RVV
@@ -2260,12 +2296,12 @@ NK_PUBLIC void nk_dots_packed_e2m3(nk_e2m3_t const *a, void const *b_packed, nk_
     nk_dots_packed_e2m3_sme(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SAPPHIREAMX
     nk_dots_packed_e2m3_sapphireamx(a, b_packed, c, height, width, depth, a_stride, c_stride);
+#elif NK_TARGET_SKYLAKE
+    nk_dots_packed_e2m3_skylake(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SIERRA
     nk_dots_packed_e2m3_sierra(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_ALDER
     nk_dots_packed_e2m3_alder(a, b_packed, c, height, width, depth, a_stride, c_stride);
-#elif NK_TARGET_SKYLAKE
-    nk_dots_packed_e2m3_skylake(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_HASWELL
     nk_dots_packed_e2m3_haswell(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_RVV
@@ -2484,6 +2520,8 @@ NK_PUBLIC void nk_dots_symmetric_f16(nk_f16_t const *vectors, nk_size_t n_vector
     nk_dots_symmetric_f16_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONHALF
     nk_dots_symmetric_f16_neonhalf(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_NEON
+    nk_dots_symmetric_f16_neon(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONFHM
     nk_dots_symmetric_f16_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
@@ -2628,12 +2666,12 @@ NK_PUBLIC void nk_dots_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e2m3_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SAPPHIREAMX
     nk_dots_symmetric_e2m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_SKYLAKE
+    nk_dots_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SIERRA
     nk_dots_symmetric_e2m3_sierra(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ALDER
     nk_dots_symmetric_e2m3_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
-#elif NK_TARGET_SKYLAKE
-    nk_dots_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_dots_symmetric_e2m3_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV

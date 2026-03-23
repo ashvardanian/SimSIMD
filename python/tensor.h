@@ -15,6 +15,20 @@
 
 #include "numkong.h"
 
+/**
+ *  Extra bytes appended to every SIMD-facing heap allocation (promoted buffers,
+ *  cast-staging buffers, Tensor inline storage). MSVC versions before 19.30
+ *  can mis-compile AVX-512 masked stores (`_mm256_mask_storeu_epi32` and friends),
+ *  emitting a full-width store that writes past the logical buffer end. Adding
+ *  one ZMM register (64 bytes) of padding absorbs any such spill. On GCC/Clang
+ *  the masked instructions are correct, so zero padding suffices.
+ */
+#if defined(_MSC_VER)
+#define NK_TENSOR_PADDING_ 64
+#else
+#define NK_TENSOR_PADDING_ 0
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -184,6 +198,7 @@ void each_blend_recursive(                                           //
     Py_ssize_t const *b_strides, Py_ssize_t const *result_strides,   //
     size_t remaining_dims, size_t contiguous_tail_dims);
 
+PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
@@ -201,6 +216,7 @@ PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
 PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
+extern char const doc_from_pointer[];
 extern char const doc_empty[];
 extern char const doc_zeros[];
 extern char const doc_ones[];
@@ -208,6 +224,7 @@ extern char const doc_full[];
 extern char const doc_iota[];
 extern char const doc_diagonal[];
 extern char const doc_hash[];
+
 extern char const doc_reduce_moments[];
 extern char const doc_reduce_minmax[];
 extern char const doc_reduce_sum[];

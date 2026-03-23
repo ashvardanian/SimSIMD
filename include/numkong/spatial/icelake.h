@@ -8,11 +8,10 @@
  *
  *  @section spatial_icelake_instructions Key AVX-512 VNNI Spatial Instructions
  *
- *      Intrinsic                   Instruction                     Ice         Genoa
- *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
- *      _mm512_cvtepi8_epi16        VPMOVSXBW (ZMM, YMM)            3cy @ p5    3cy @ p12
- *      _mm512_sub_epi16            VPSUBW (ZMM, ZMM, ZMM)          1cy @ p05   1cy @ p0123
- *      _mm512_reduce_add_epi32     (pseudo: shuffle chain)         ~8cy        ~8cy
+ *      Intrinsic             Instruction               Icelake    Genoa
+ *      _mm512_dpwssd_epi32   VPDPWSSD (ZMM, ZMM, ZMM)  5cy @ p0   4cy @ p01
+ *      _mm512_cvtepi8_epi16  VPMOVSXBW (ZMM, YMM)      3cy @ p5   3cy @ p12
+ *      _mm512_sub_epi16      VPSUBW (ZMM, ZMM, ZMM)    1cy @ p05  1cy @ p0123
  *
  *  Ice Lake's VNNI enables efficient i8 distance computations via VPDPWSSD for squared differences.
  *  After widening i8 to i16, the same instruction computes both multiply and horizontal pair addition.
@@ -142,7 +141,7 @@ nk_angular_i8_icelake_cycle:
     //
     // VNNI instruction performance (Ice Lake vs Zen4 Genoa):
     //
-    //      Instruction                     Ice             Genoa
+    //      Instruction                     Icelake         Genoa
     //      VPDPBUSDS (ZMM, ZMM, ZMM)       5cy @ p0        4cy @ p01
     //      VPDPWSSDS (ZMM, ZMM, ZMM)       5cy @ p0        4cy @ p01
     //      VPMADDWD (ZMM, ZMM, ZMM)        5cy @ p05       3cy @ p01

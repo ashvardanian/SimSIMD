@@ -25,7 +25,7 @@ int main(void) {
 
 ## Highlights
 
-This is the most complete SDK in the project.
+This is the primary SDK in the project.
 It is the right layer if you want exact control over dtypes, allocators, packed buffers, dispatch, and host-side partitioning.
 
 __Full kernel surface.__
@@ -43,16 +43,16 @@ Packing handles internal layout itself and does not require caller-side alignmen
 
 ## Ecosystem Comparison
 
-| Feature                  | NumKong                                                                    | BLAS/LAPACK                  | Eigen                      | Intel MKL                       |
-| ------------------------ | -------------------------------------------------------------------------- | ---------------------------- | -------------------------- | ------------------------------- |
-| Kernel coverage          | dots, distances, binary, probability, geospatial, mesh, sparse, MaxSim     | dense linear algebra only    | dense LA, some reductions  | dense LA, FFT, sparse solvers   |
-| SIMD dispatch            | automatic per-thread runtime dispatch                                      | vendor-selected at link time | compile-time ISA selection | runtime dispatch inside library |
-| Mixed-precision widening | first-class, encoded on every scalar type                                  | limited (mostly same-type)   | manual casts               | some mixed GEMM paths           |
-| Allocator control        | per-container, 64-byte aligned default                                     | caller-managed buffers       | `aligned_allocator`        | MKL allocator or caller buffers |
-| Packed matrix reuse      | `packed_matrix` with one-time packing                                      | no persistent packed form    | no equivalent              | JIT internal packing, opaque    |
-| Symmetric kernels        | `try_dots_symmetric`, `try_angulars_symmetric`, `try_euclideans_symmetric` | `SSYRK`/`DSYRK`              | `.selfadjointView()`       | `cblas_?syrk`                   |
+| Feature                      | NumKong                                                                                                                             | [OpenBLAS](https://github.com/OpenMathLib/OpenBLAS)               | [Eigen](https://gitlab.com/libeigen/eigen)                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Operation families           | dots, distances, binary, probability, geospatial, curved, mesh, sparse, MaxSim, elementwise, reductions, cast, trig                 | dense linear algebra only                                         | dense LA, some reductions and elementwise                                               |
+| Precision                    | Sub-byte to Float64 dtypes; automatic widening per scalar type; Kahan-compensated summation; 0 ULP Float32/Float64 where applicable | Float32, Float64 only; same-type in/out; no compensated summation | Float16/BFloat16 partial; no Float8 or sub-byte; manual casts; no compensated summation |
+| Runtime SIMD dispatch        | per-thread at runtime across x86, ARM, RISC-V                                                                                       | load-time CPU detection; one kernel set per process               | compile-time ISA flags only                                                             |
+| Packed matrix, GEMM-like     | `packed_matrix` — pack once, reuse across query batches                                                                             | internal opaque packing per GEMM call; no persistent packed form  | no equivalent packed reuse abstraction                                                  |
+| Symmetric kernels, SYRK-like | skips duplicate pairs, up to 2x speedup for self-distance                                                                           | `SSYRK`/`DSYRK` for rank-k updates                                | `.selfadjointView` for rank-k updates                                                   |
+| Memory model                 | Caller-owned buffers; C++ adds `tensor<T,A>` with per-container allocators                                                          | Caller-managed buffers; no container abstraction                  | Lazy expression templates avoid most temporaries; `aligned_allocator` provided          |
 
-NumKong-unique features not covered by the alternatives above: binary metrics (Hamming, Jaccard on packed `u1x8_t`), probability divergences (KL, JS), geospatial solvers (Haversine, Vincenty), geometric mesh alignment (RMSD, Kabsch, Umeyama), sparse set intersections, and MaxSim late interaction.
+
 
 ## Installation
 
@@ -148,14 +148,14 @@ They encode raw layout, default output types, and the kernel function pointer si
 | `nk_e5m2_t` | 1+5+2            | 1     | ±57344          | yes | yes |
 | `nk_e2m3_t` | 1+2+3            | 1     | ±7.5            | no  | no  |
 | `nk_e3m2_t` | 1+3+2            | 1     | ±28             | no  | no  |
-| `nk_u1x8_t` | 8 packed bits    | 1     | 0 or 1 per bit  | --  | --  |
-| `nk_u4x2_t` | 2x4-bit unsigned | 1     | 0-15 per nibble | --  | --  |
-| `nk_i4x2_t` | 2x4-bit signed   | 1     | -8-7 per nibble | --  | --  |
+| `nk_u1x8_t` | 8 packed bits    | 1     | 0 or 1 per bit  | —   | —   |
+| `nk_u4x2_t` | 2x4-bit unsigned | 1     | 0-15 per nibble | —   | —   |
+| `nk_i4x2_t` | 2x4-bit signed   | 1     | -8-7 per nibble | —   | —   |
 
 The layout column shows sign, exponent, and mantissa bit counts for floating-point types.
 For `nk_f16_t`, 1+5+10 means one sign bit, five exponent bits, and ten mantissa bits, totaling 16 bits stored in 2 bytes.
 For `nk_bf16_t`, the wider exponent field (8 bits) gives the same dynamic range as IEEE 754 single precision but with reduced mantissa precision.
-The FP8 types `nk_e4m3_t` and `nk_e5m2_t` follow the OFP8 specification.
+The Float8 types `nk_e4m3_t` and `nk_e5m2_t` follow the OFP8 specification.
 The narrower `nk_e2m3_t` and `nk_e3m2_t` types are MX-compatible micro-floats.
 Sub-byte types `nk_u1x8_t`, `nk_u4x2_t`, and `nk_i4x2_t` pack multiple logical values into a single byte.
 
@@ -166,6 +166,20 @@ For example, `f32_t::dot_result_t` is wider than `f32_t`.
 
 The higher-level templates use `result_type_ = typename in_type_::dot_result_t` and similar defaults.
 The fast typed overloads are constrained so that overriding the result type away from the native policy can disable the specialized path and fall back to the more generic one.
+
+When `__cpp_lib_format >= 202110L` for the C++23 `<format>` header support, all NumKong scalar types provide `std::formatter` specializations with similar format specs to the traditional `float`.
+For the BFloat16 type, the output for `nk::f16_t::from_f32(3.14f)` will look like:
+
+| Format spec | Output example       | Description                            |
+| ----------- | -------------------- | -------------------------------------- |
+| `{}`        | `3.140625`           | Clean float value                      |
+| `{:#}`      | `3.140625 [0x4248]`  | Annotated with hex bits                |
+| `{:.2f}`    | `3.14`               | Precision forwarded to float formatter |
+| `{:x}`      | `4248`               | Raw hex bits                           |
+| `{:#x}`     | `0x4248`             | Hex with prefix                        |
+| `{:X}`      | `4248`               | Uppercase hex                          |
+| `{:b}`      | `0100001001001000`   | Binary bits                            |
+| `{:#b}`     | `0b0100001001001000` | Binary with prefix                     |
 
 ## Dot Products
 
@@ -243,7 +257,7 @@ nk_jsd_f32(q, p, 3, &js_reverse);
 assert(js_forward == js_reverse && "JSD is symmetric");
 ```
 
-These paths are especially valuable once you move below `f64`.
+These paths are useful once you move below `f64`.
 Naive implementations are usually dominated by repeated scalar transcendental calls and weak accumulation policy.
 
 ## Geospatial Metrics
@@ -308,31 +322,101 @@ The important layout rules are:
 Memory ownership is explicit.
 `vector` and `tensor` deallocate through their allocator.
 `vector_view`, `tensor_view`, `matrix_view`, and spans never own memory.
+And heterogenous index types for `operator[]` enable more interesting access patterns:
+
 
 ```cpp
 #include <numkong/numkong.hpp>
-namespace nk = ashvardanian::numkong;
 
-auto t = nk::tensor<nk::f32_t>::try_from({
+namespace nk = ashvardanian::numkong;
+using nk::slice, nk::all, nk::f32_t, nk::tensor, nk::tensor_view;
+
+auto t = tensor<f32_t>::try_from({
     {1, 2, 3},
     {4, 5, 6},
     {7, 8, 9},
 });
 
-// C++23 variadic operator[] with heterogeneous index types:
-// integers (positive and negative) select axes, trailing `slice` keeps the rest as a view.
-auto row1 = t[1, nk::slice];          // second row → view of {4, 5, 6}
-auto last_row = t[-1, nk::slice];     // negative index wraps from end → view of {7, 8, 9}
-auto val = t[1, -1];                  // row 1, last column → scalar 6
+f32_t scalar_at_2d_coordinate = t[1, -1];
+f32_t scalar_at_global_offset = t[4];
+assert(scalar_at_2d_coordinate == scalar_at_global_offset && "same value");
 
-// Reductions compose with sliced views
-auto col1 = t.cview().slice({nk::all, nk::index(1)}); // strided column view → {2, 5, 8}
-auto idx = col1.argmin();             // index of the minimum in the second column
+tensor_view<f32_t> scalar_as_tensor = t[1, 1, slice]; 
+tensor_view<f32_t> second_row = t[1, slice];
+tensor_view<f32_t> second_column = t[all, 1, slice];
+assert(second_row[1] == second_column[1] && "same value");
+```
+
+You can also use a more traditional syntax with member functions, also leveraging built-in functionality for hardware-accelerated strided reductions and elementwise operations along any axis combination.
+Similar to NumPy, but statically typed:
+
+```cpp
+auto first_column = t[all, 1, slice];             // strided column view → {2, 5, 8}
+auto minimum_index = nk::argmin(first_column);    // index of the minimum in the second column
+```
+
+The view types are conceptually close to `std::mdspan` from C++23.
+The main differences are sub-byte element support, signed strides, and the kernel dispatch integration that `std::mdspan` does not provide.
+If your codebase already uses `std::mdspan`, converting at the NumKong call boundary is straightforward:
+
+```cpp
+#include <numkong/numkong.hpp>
+#include <mdspan>
+
+namespace nk = ashvardanian::numkong;
+
+// Existing std::mdspan from your codebase
+float data[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+auto md = std::mdspan<float, std::extents<std::size_t, 3, 3>>(data);
+
+// Wrap into a NumKong matrix_view — data pointer, extents, and strides map directly
+auto view = nk::matrix_view<nk::f32_t>(
+    reinterpret_cast<nk::f32_t const *>(md.data_handle()),
+    md.extent(0), md.extent(1));
+
+// Now use any NumKong kernel on it
+nk::f64_t dot {};
+nk::dot(view.row(0), view.row(1), md.extent(1), &dot);
+```
+
+## Iterators and Enumeration
+
+NumKong containers expose random-access iterators for element and row traversal.
+
+- __`dim_iterator`__ — random-access iterator over element values, used by `vector`, `vector_view`, and `vector_span`.
+  Supports all standard iterator operations plus `index()` to retrieve the current position.
+- __`axis_iterator`__ — random-access iterator over sub-views (rows), used by `tensor_view` and `tensor_span`.
+  Also exposes `index()`.
+- __`enumerate()`__ — free function returning a lightweight view that yields `{index, value}` pairs from any container with `begin()`/`end()`/`size()`.
+
+```cpp
+#include <numkong/numkong.hpp>
+
+namespace nk = ashvardanian::numkong;
+
+nk::vector<nk::f16_t> v(128);
+for (auto [i, val] : nk::enumerate(v))
+    std::printf("[%zu] = %f\n", i, val.to_f32());
+
+// index() on raw iterators
+for (auto it = v.begin(); it != v.end(); ++it)
+    std::printf("[%zu] = %f\n", it.index(), (*it).to_f32());
+```
+
+Since `tensor.hpp` includes `vector.hpp`, `enumerate()` works on tensor row views too.
+
+Tensors also support range-for over all logical scalar elements, yielding `(position, value)` pairs.
+For sub-byte types each dimension is a logical scalar. Use `.dims()` to iterate values without positions.
+
+```cpp
+for (auto [pos, val] : matrix)          { /* pos is std::array<size_t, R> */ }
+for (auto [pos, ref] : matrix.span())   { ref = nk::f32_t{1}; }
+for (auto val : matrix.dims())          { /* scalar only, no position */ }
 ```
 
 ## Packed Matrix Kernels for GEMM-Like Workloads
 
-This is the most distinctive native subsystem outside the raw vector kernels.
+This is a separate native subsystem from the raw vector kernels.
 It is the right tool when the right-hand side is reused many times.
 
 ```cpp
@@ -379,7 +463,7 @@ This is SYRK-like in the sense that the output is square and symmetric.
 The important difference from packed GEMM-style work is the partitioning model.
 You typically split by output row windows, not by distinct left batches against a shared packed right-hand side.
 
-The arithmetic advantage is direct and honest.
+The arithmetic advantage is straightforward.
 The symmetric kernels avoid recomputing both `(i, j)` and `(j, i)` pairs.
 That cuts the pair count almost in half before any micro-kernel details matter.
 
@@ -456,7 +540,7 @@ if (caps & nk_cap_sapphireamx_k) { /* AMX available */ }
 For exact register-level details, see `capabilities.h`.
 The C++ wrappers can also call directly into named backends if you want to pin a path for testing or benchmarking.
 
-## Parallelism and Fork Union
+## Parallelism and ForkUnion
 
 NumKong does not manage its own threads.
 That is deliberate.
@@ -465,12 +549,12 @@ The library is designed to sit inside a larger scheduler.
 GEMM-like packed work is usually partitioned across row ranges of `A` against one shared packed `B`:
 
 ```cpp
-using nk::range, nk::all;
+using nk::range, nk::all, nk::slice;
 fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
     auto start = t * rows_per_worker;
     auto stop = std::min(start + rows_per_worker, total_rows);
-    auto a_slice = a[range(start, stop), all].as_matrix_view();
-    auto c_slice = c[range(start, stop), all].as_matrix_span();
+    auto a_slice = a[range(start, stop), all, slice].as_matrix_view();
+    auto c_slice = c[range(start, stop), all, slice].as_matrix_span();
     nk::dots_packed<value_type_>(a_slice, packed, c_slice);
 });
 ```
@@ -486,9 +570,13 @@ fork_union.parallel_for(0, worker_count, [&](std::size_t t) {
 });
 ```
 
-We recommend [Fork Union](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
+We recommend [ForkUnion](https://github.com/ashvardanian/ForkUnion) for that host-side orchestration.
 OpenMP is still a reasonable fit if the rest of your application already uses it.
 Manual thread pools and task systems also work well because the kernels have explicit row-range interfaces.
+
+The C++26 Executors TS (`std::execution`) is a natural fit here.
+NumKong kernels take explicit row-range parameters and do not own threads, so they compose directly with `std::execution::bulk` or any sender/receiver scheduler.
+When executors ship in your toolchain, replacing the `parallel_for` lambda above with a `bulk` sender is a one-line change.
 
 ## Integration Notes
 
@@ -531,4 +619,25 @@ cmake -B build -D CMAKE_TOOLCHAIN_FILE=cmake/toolchain-aarch64-gnu.cmake
 
 NumKong does not use OpenMP and does not create a hidden thread pool.
 Standard pthreads are linked via CMake's `Threads` package.
-Parallelism is host-controlled: partition work across row ranges and dispatch through Fork Union, `std::thread`, or any external scheduler.
+Parallelism is host-controlled: partition work across row ranges and dispatch through ForkUnion, `std::thread`, or any external scheduler.
+
+## Addressing External Memory
+
+Every kernel takes plain pointers, so any CPU-accessible memory works: mmap, pinned buffers, CUDA unified memory, custom arenas.
+C++ views wrap any pointer without ownership.
+Owning containers accept any C++ Allocator.
+
+```cpp
+template <typename T>
+struct cuda_allocator {
+    using value_type = T;
+    T *allocate(std::size_t n) { T *p;
+        cudaMallocManaged(&p, n * sizeof(T), cudaMemAttachGlobal); 
+        return p; }
+    void deallocate(T *p, std::size_t) noexcept { cudaFree(p); }
+};
+
+nk_dot_f32(cuda_managed_ptr, cuda_managed_ptr, 1024, &dot);         // C ABI, any pointer
+auto view = nk::tensor_view<nk::f32_t>(mmap_ptr, rows, cols);       // non-owning view
+auto v = nk::vector<float, cuda_allocator<float>>::try_zeros(1024); // allocator-aware owning
+```

@@ -8,10 +8,10 @@
  *
  *  @section dot_sapphire_instructions Key AVX-512 FP16 Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_fmadd_ph             VFMADDPH (ZMM, ZMM, ZMM)        4cy         0.5/cy      p01
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p01
- *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            7cy         1/cy        p01
+ *      Intrinsic        Instruction                  Sapphire Rapids
+ *      _mm512_fmadd_ph  VFMADDPH (ZMM, ZMM, ZMM)     4cy @ p01
+ *      _mm512_fmadd_ps  VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p01
+ *      _mm512_cvtph_ps  VCVTPH2PS (ZMM, YMM)         7cy @ p01
  *
  *  Sapphire Rapids introduces native AVX-512 FP16 support, enabling 32 FP16 FMAs per instruction at the same
  *  throughput as 16 FP32 FMAs — effectively 2x compute density. For FP6 types (E2M3 and E3M2) whose products

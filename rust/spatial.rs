@@ -9,7 +9,9 @@
 //! - [`Roots`]: Scalar square root and reciprocal square root
 //! - [`SpatialSimilarity`]: Blanket trait combining `Dot + Angular + Euclidean`
 
-use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2};
+use crate::types::{
+    bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2, StorageElement,
+};
 
 #[link(name = "numkong")]
 extern "C" {
@@ -97,33 +99,21 @@ pub trait Roots: Sized {
 }
 
 impl Roots for f32 {
-    fn sqrt(self) -> Self {
-        unsafe { nk_f32_sqrt(self) }
-    }
+    fn sqrt(self) -> Self { unsafe { nk_f32_sqrt(self) } }
 
-    fn rsqrt(self) -> Self {
-        unsafe { nk_f32_rsqrt(self) }
-    }
+    fn rsqrt(self) -> Self { unsafe { nk_f32_rsqrt(self) } }
 }
 
 impl Roots for f64 {
-    fn sqrt(self) -> Self {
-        unsafe { nk_f64_sqrt(self) }
-    }
+    fn sqrt(self) -> Self { unsafe { nk_f64_sqrt(self) } }
 
-    fn rsqrt(self) -> Self {
-        unsafe { nk_f64_rsqrt(self) }
-    }
+    fn rsqrt(self) -> Self { unsafe { nk_f64_rsqrt(self) } }
 }
 
 impl Roots for f16 {
-    fn sqrt(self) -> Self {
-        f16(unsafe { nk_f16_sqrt(self.0) })
-    }
+    fn sqrt(self) -> Self { f16(unsafe { nk_f16_sqrt(self.0) }) }
 
-    fn rsqrt(self) -> Self {
-        f16(unsafe { nk_f16_rsqrt(self.0) })
-    }
+    fn rsqrt(self) -> Self { f16(unsafe { nk_f16_rsqrt(self.0) }) }
 }
 
 // endregion: Scalar Roots
@@ -147,14 +137,12 @@ impl Roots for f16 {
 /// let result = f32::dot(&a, &b).unwrap();
 /// assert!((result - 32.0).abs() < 1e-5);
 /// ```
-pub trait Dot: Sized {
+pub trait Dot: StorageElement {
     type Output;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `dot`.
-    fn inner(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        Self::dot(a, b)
-    }
+    fn inner(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::dot(a, b) }
 }
 
 impl Dot for f64 {
@@ -459,14 +447,12 @@ impl Dot for f64c {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
-pub trait Angular: Sized {
+pub trait Angular: StorageElement {
     type Output;
     fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `angular`.
-    fn cosine(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        Self::angular(a, b)
-    }
+    fn cosine(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::angular(a, b) }
 }
 
 impl Angular for f64 {
@@ -683,7 +669,7 @@ impl Angular for u4x2 {
 ///
 /// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
 /// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
-pub trait Euclidean: Sized {
+pub trait Euclidean: StorageElement {
     type SqEuclideanOutput;
     type EuclideanOutput;
 
@@ -1095,9 +1081,7 @@ impl Euclidean for u4x2 {
 /// For real-valued types this is identical to [`Dot::dot`]. For complex-valued types this
 /// computes the Hermitian inner product `∑ᵢ conj(aᵢ) × bᵢ`.
 pub trait VDot: Dot {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        Self::dot(a, b)
-    }
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::dot(a, b) }
 }
 
 impl VDot for f64 {}
@@ -1367,20 +1351,12 @@ mod tests {
         fn imag(&self) -> f64;
     }
     impl ComplexValue for f32c {
-        fn real(&self) -> f64 {
-            self.re as f64
-        }
-        fn imag(&self) -> f64 {
-            self.im as f64
-        }
+        fn real(&self) -> f64 { self.re as f64 }
+        fn imag(&self) -> f64 { self.im as f64 }
     }
     impl ComplexValue for f64c {
-        fn real(&self) -> f64 {
-            self.re
-        }
-        fn imag(&self) -> f64 {
-            self.im
-        }
+        fn real(&self) -> f64 { self.re }
+        fn imag(&self) -> f64 { self.im }
     }
 
     trait ComplexSample: Copy + StorageElement + Dot + VDot + Bilinear {
@@ -1396,12 +1372,8 @@ mod tests {
                 im: f16::from_f32(im),
             }
         }
-        fn atol() -> f64 {
-            5e-2
-        }
-        fn rtol() -> f64 {
-            5e-2
-        }
+        fn atol() -> f64 { 5e-2 }
+        fn rtol() -> f64 { 5e-2 }
     }
 
     impl ComplexSample for bf16c {
@@ -1411,24 +1383,14 @@ mod tests {
                 im: bf16::from_f32(im),
             }
         }
-        fn atol() -> f64 {
-            5e-2
-        }
-        fn rtol() -> f64 {
-            5e-2
-        }
+        fn atol() -> f64 { 5e-2 }
+        fn rtol() -> f64 { 5e-2 }
     }
 
     impl ComplexSample for f32c {
-        fn from_real_imag(re: f32, im: f32) -> Self {
-            Self { re, im }
-        }
-        fn atol() -> f64 {
-            1e-6
-        }
-        fn rtol() -> f64 {
-            1e-6
-        }
+        fn from_real_imag(re: f32, im: f32) -> Self { Self { re, im } }
+        fn atol() -> f64 { 1e-6 }
+        fn rtol() -> f64 { 1e-6 }
     }
 
     impl ComplexSample for f64c {
@@ -1438,12 +1400,8 @@ mod tests {
                 im: im as f64,
             }
         }
-        fn atol() -> f64 {
-            1e-12
-        }
-        fn rtol() -> f64 {
-            1e-12
-        }
+        fn atol() -> f64 { 1e-12 }
+        fn rtol() -> f64 { 1e-12 }
     }
 
     /// Test a complex two-input operation with real + imaginary expected outputs.

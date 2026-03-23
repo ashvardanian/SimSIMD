@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Module: test_base.py
 
@@ -47,18 +46,17 @@ Stats:
 
 from __future__ import annotations
 
-import os
-import sys
-import time
-import platform
+import array
 import collections
 import faulthandler
-
-import array
+import os
+import platform
 import random
+import sys
+import time
 
-import pytest
 import numkong as nk
+import pytest
 
 faulthandler.enable()
 
@@ -198,16 +196,34 @@ def to_array(x, dtype=None):
         return y
 
 
+_DTYPE_TOLERANCES: dict[str, tuple[float, float]] = {
+    "float64": (1e-6, 1e-6),
+    "float32": (1e-4, 1e-4),
+    "float16": (NK_ATOL, NK_RTOL),
+    "bfloat16": (NK_ATOL, NK_RTOL),
+    "bf16": (NK_ATOL, NK_RTOL),
+    "e4m3": (NK_ATOL, NK_RTOL),
+    "e5m2": (NK_ATOL, NK_RTOL),
+    "e2m3": (NK_ATOL, NK_RTOL),
+    "e3m2": (NK_ATOL, NK_RTOL),
+    "complex128": (1e-6, 1e-6),
+    "complex64": (1e-4, 1e-4),
+    "int8": (1, 0),
+    "uint8": (1, 0),
+    "int16": (1, 0),
+    "uint16": (1, 0),
+    "int32": (1, 0),
+    "uint32": (1, 0),
+    "int64": (1, 0),
+    "uint64": (1, 0),
+    "int4": (1, 0),
+    "uint4": (1, 0),
+}
+
+
 def tolerances_for_dtype(dtype: str) -> tuple[float, float]:
-    """Returns ``(atol, rtol)`` appropriate for assertions on the given dtype.
-
-    Integer dtypes: exact ±1 (discrete arithmetic, accumulator width differences).
-    Everything else: ``(NK_ATOL, NK_RTOL)``.
-
-    """
-    if dtype in ("int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64", "int4", "uint4"):
-        return 1, 0
-    return NK_ATOL, NK_RTOL
+    """Returns ``(atol, rtol)`` appropriate for assertions on the given dtype."""
+    return _DTYPE_TOLERANCES.get(dtype, (NK_ATOL, NK_RTOL))
 
 
 def random_of_dtype(dtype, shape):
@@ -303,7 +319,7 @@ def hex_array(arr):
     if not np.issubdtype(arr.dtype, np.integer):
         # View non-integer data as raw bytes for hex display
         shape = arr.shape
-        arr = arr.view(np.uint8).reshape(shape + (-1,))
+        arr = arr.view(np.uint8).reshape((*shape, -1))
     printer = np.vectorize(hex)
     strings = printer(arr)
     if strings.ndim == 1:
@@ -562,7 +578,7 @@ elif sys.platform.startswith("freebsd"):
 elif sys.platform in ("emscripten", "wasi"):
     hardware_capabilities = possible_wasm_capabilities
 
-possible_capabilities: list[str] = ["serial"] + hardware_capabilities
+possible_capabilities: list[str] = ["serial", *hardware_capabilities]
 
 current_capability: str | None = None
 
@@ -598,8 +614,36 @@ def create_stats():
     }
 
 
-def assert_allclose(actual, expected, atol=0, rtol=1e-7, err_msg=""):
-    """Drop-in replacement for ``np.testing.assert_allclose`` that works without NumPy."""
+_SENTINEL = object()
+
+
+def _infer_dtype_name(value) -> str:
+    """Extract a dtype name string from a NumPy array, nk.Tensor, or scalar."""
+    if hasattr(value, "dtype"):
+        dt = value.dtype
+        if hasattr(dt, "name"):
+            return dt.name
+        return str(dt)
+    if numpy_available:
+        arr = np.asarray(value)
+        return arr.dtype.name
+    return ""
+
+
+def assert_allclose(actual, expected, atol=_SENTINEL, rtol=_SENTINEL, err_msg=""):
+    """Drop-in replacement for ``np.testing.assert_allclose`` with dtype-aware defaults.
+
+    When both *atol* and *rtol* are omitted the tolerances are inferred from
+    the dtype of *actual* via :func:`tolerances_for_dtype`.
+    """
+    if atol is _SENTINEL and rtol is _SENTINEL:
+        dtype_name = _infer_dtype_name(actual)
+        atol, rtol = tolerances_for_dtype(dtype_name)
+    else:
+        if atol is _SENTINEL:
+            atol = 0
+        if rtol is _SENTINEL:
+            rtol = 1e-7
     if numpy_available:
         a_arr = np.asarray(actual)
         e_arr = np.asarray(expected)

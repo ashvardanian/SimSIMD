@@ -6,33 +6,33 @@ Used in structural biology (protein alignment), robotics (point cloud registrati
 
 Centroid:
 
-```math
+$$
 \bar{a} = \frac{1}{n}\sum a_i
-```
+$$
 
 Cross-covariance matrix:
 
-```math
+$$
 H = \sum (a_i - \bar{a})(b_i - \bar{b})^T
-```
+$$
 
 SVD-based rotation:
 
-```math
+$$
 H = U \Sigma V^T, \quad R = V U^T
-```
+$$
 
 Umeyama scale factor:
 
-```math
+$$
 s = \frac{\text{tr}(\Sigma)}{n \cdot \sigma_a^2}
-```
+$$
 
 RMSD after alignment:
 
-```math
+$$
 \text{RMSD} = \sqrt{\frac{1}{n}\sum \|s \cdot R(a_i - \bar{a}) - (b_i - \bar{b})\|^2}
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -87,14 +87,14 @@ RVV uses indexed loads with dynamic stride to adapt to variable vector length.
 
 ### Reflection Correction
 
-`nk_kabsch_f32_haswell`, `nk_kabsch_f64_skylake` check for improper rotations (det(R) = -1, reflections) after computing R = V·Uᵀ.
-If det(R) is negative, the last column of V is flipped.
-This ensures the output is always a proper rotation matrix (det = +1).
+`nk_kabsch_f32_haswell`, `nk_kabsch_f64_skylake` check for improper rotations after computing $R = V U^T$ from the SVD of the cross-covariance matrix $H = U \Sigma V^T$.
+If $\det(R) = -1$ (a reflection rather than a rotation), the last column of $V$ is negated before recomputing $R$.
+This ensures the output is always a proper rotation matrix with $\det(R) = +1$.
 
 ### Pre-Scaled Rotation for Umeyama
 
-`nk_umeyama_f32_haswell`, `nk_umeyama_f64_skylake` fold the computed scale factor into the rotation matrix before applying to points.
-`sr[i] = scale * r[i]` is computed once and broadcast — avoiding a per-point scalar multiply.
+`nk_umeyama_f32_haswell`, `nk_umeyama_f64_skylake` fold the computed scale factor $s$ into the rotation matrix before applying to points.
+The Umeyama transform is $b_i = s R a_i + t$; by precomputing $R' = s R$ once, the per-point operation reduces to $b_i = R' a_i + t$, avoiding a per-point scalar multiply.
 
 ### Why SME and SVE Were Removed
 
@@ -142,17 +142,23 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_rmsd_f32_haswell`     |        447 mp/s, 0.3 ulp |        484 mp/s, 0.3 ulp |        350 mp/s, 0.4 ulp |
 | `nk_kabsch_f32_haswell`   |        101 mp/s, 0.7 ulp |        192 mp/s, 0.9 ulp |        213 mp/s, 1.3 ulp |
 | `nk_umeyama_f32_haswell`  |       97.4 mp/s, 0.3 ulp |        155 mp/s, 0.4 ulp |        207 mp/s, 0.8 ulp |
-| `nk_rmsd_f32_skylake`     |        936 mp/s, 0.3 ulp |        970 mp/s, 0.3 ulp |        426 mp/s, 0.3 ulp |
-| `nk_kabsch_f32_skylake`   |        122 mp/s, 0.7 ulp |        258 mp/s, 0.7 ulp |        290 mp/s, 0.9 ulp |
-| `nk_umeyama_f32_skylake`  |        133 mp/s, 0.2 ulp |        231 mp/s, 0.3 ulp |        285 mp/s, 0.5 ulp |
+| `nk_rmsd_f32_skylake`     |      1,000 mp/s, 0.7 ulp |        974 mp/s, 1.2 ulp |        786 mp/s, 2.4 ulp |
+| `nk_kabsch_f32_skylake`   |       97.5 mp/s, 0.7 ulp |        232 mp/s, 0.7 ulp |        332 mp/s, 0.9 ulp |
+| `nk_umeyama_f32_skylake`  |       92.5 mp/s, 0.2 ulp |        227 mp/s, 0.2 ulp |        325 mp/s, 0.3 ulp |
 | __bf16__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_rmsd_bf16_haswell`    |        511 mp/s, 0.3 ulp |        481 mp/s, 3.5 ulp |       497 mp/s, 12.8 ulp |
 | `nk_kabsch_bf16_haswell`  |       52.4 mp/s, 0.7 ulp |       65.3 mp/s, 0.9 ulp |       74.8 mp/s, 1.3 ulp |
 | `nk_umeyama_bf16_haswell` |       51.5 mp/s, 0.2 ulp |       69.2 mp/s, 0.4 ulp |       74.6 mp/s, 0.8 ulp |
+| `nk_rmsd_bf16_skylake`    |      1,765 mp/s, 0.3 ulp |      1,945 mp/s, 0.5 ulp |      2,056 mp/s, 6.0 ulp |
+| `nk_kabsch_bf16_skylake`  |        132 mp/s, 0.7 ulp |        370 mp/s, 0.8 ulp |        689 mp/s, 0.9 ulp |
+| `nk_umeyama_bf16_skylake` |        130 mp/s, 0.2 ulp |        366 mp/s, 0.3 ulp |        689 mp/s, 0.5 ulp |
 | __f16__                   | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_rmsd_f16_haswell`     |        415 mp/s, 0.3 ulp |        497 mp/s, 0.7 ulp |        458 mp/s, 2.5 ulp |
 | `nk_kabsch_f16_haswell`   |        151 mp/s, 0.7 ulp |        222 mp/s, 0.9 ulp |        221 mp/s, 1.4 ulp |
 | `nk_umeyama_f16_haswell`  |        186 mp/s, 0.2 ulp |        232 mp/s, 0.5 ulp |        222 mp/s, 0.9 ulp |
+| `nk_rmsd_f16_skylake`     |      1,813 mp/s, 0.3 ulp |      1,982 mp/s, 0.4 ulp |      2,049 mp/s, 1.8 ulp |
+| `nk_kabsch_f16_skylake`   |        367 mp/s, 0.7 ulp |        695 mp/s, 0.7 ulp |        903 mp/s, 0.9 ulp |
+| `nk_umeyama_f16_skylake`  |        341 mp/s, 0.2 ulp |        686 mp/s, 0.2 ulp |        882 mp/s, 0.4 ulp |
 
 #### WASM
 

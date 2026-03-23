@@ -15,6 +15,12 @@ void nk_dispatch_f32c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_SMEF64
+    if (v & nk_cap_smef64_k) switch (k) {
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32c_smef64, *c = nk_cap_smef64_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE
     if (v & nk_cap_sve_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32c_sve, *c = nk_cap_sve_k; return;

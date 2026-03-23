@@ -8,11 +8,11 @@
  *
  *  @section dot_skylake_instructions Key AVX-512 Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm512_madd_epi16           VPMADDWD (ZMM, ZMM, ZMM)        5cy         0.5/cy      p05
- *      _mm512_add_epi32            VPADDD (ZMM, ZMM, ZMM)          1cy         0.5/cy      p05
- *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
- *      _mm512_cvtepi8_epi16        VPMOVSXBW (ZMM, YMM)            3cy         1/cy        p5
+ *      Intrinsic             Instruction                  Skylake-X  Genoa
+ *      _mm512_madd_epi16     VPMADDWD (ZMM, ZMM, ZMM)     5cy @ p05  3cy @ p01
+ *      _mm512_add_epi32      VPADDD (ZMM, ZMM, ZMM)       1cy @ p05  1cy @ p0123
+ *      _mm512_fmadd_ps       VFMADD132PS (ZMM, ZMM, ZMM)  4cy @ p05  4cy @ p01
+ *      _mm512_cvtepi8_epi16  VPMOVSXBW (ZMM, YMM)         3cy @ p5   4cy @ p12
  *
  *  Skylake-X server chips feature dual 512-bit FMA units on ports 0 and 5, enabling 0.5cy throughput for
  *  VFMADD and arithmetic operations. Client Skylake variants have only one FMA unit with 1cy throughput.

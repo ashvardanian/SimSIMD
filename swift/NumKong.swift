@@ -275,4 +275,5 @@ public enum Capabilities {
     public static let smeLut2: UInt64 = 1 << 32
     public static let rvvBB: UInt64 = 1 << 33
     public static let sierra: UInt64 = 1 << 34
+    public static let smeBi32: UInt64 = 1 << 35
 }

@@ -91,3 +91,38 @@ jobs:
 
       - name: Build via Cargo
         run: cargo ndk -t arm64-v8a build --release
+
+  test_riscv_llvm23:
+    name: Test RISC-V LLVM 23
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg
+          # Ubuntu 24.04 ships older LLVM in the default apt sources, but this
+          # RISC-V validation needs Clang 23 for the portable `rv64gcv` baseline
+          # while still compiling the richer RVV target-pragmas in our headers.
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble main" | sudo tee /etc/apt/sources.list.d/llvm.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y cmake clang-23 lld-23 llvm-23 gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
+
+      - name: Configure portable RISC-V library build
+        shell: bash
+        run: |
+          set -euo pipefail
+          SYSROOT="$(riscv64-linux-gnu-gcc -print-sysroot)"
+          cmake -B build_riscv \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-riscv64-llvm.cmake \
+            -DLLVM_ROOT=/usr/lib/llvm-23 \
+            -DRISCV_SYSROOT="${SYSROOT}" \
+            -DRISCV_MARCH=rv64gcv \
+            -DNK_BUILD_SHARED=ON
+
+      - name: Build portable RISC-V library
+        run: cmake --build build_riscv --parallel --target nk_shared

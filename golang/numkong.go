@@ -79,6 +79,7 @@ const (
 	CapSmeLut2     uint64 = 1 << 32 // 2025+: ARM SME LUTv2
 	CapRvvBB       uint64 = 1 << 33 // RISC-V: Byte-Byte extensions
 	CapSierra      uint64 = 1 << 34 // 2024: Intel AVXVNNIINT8
+	CapSmeBi32     uint64 = 1 << 35 // 2025+: ARM SME BI32I32
 )
 
 // Capabilities returns a bitmask of SIMD capabilities available on the current CPU.

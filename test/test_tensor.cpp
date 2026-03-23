@@ -10,6 +10,40 @@
 
 #include "test.hpp"
 
+#include "numkong/cast.hpp"
+#include "numkong/dot.hpp"
+#include "numkong/spatial.hpp"
+#include "numkong/curved.hpp"
+
+#if __has_include(<format>)
+#include <format>
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 202110L
+#define NK_TEST_FORMAT_ 1
+#endif
+#endif
+#ifndef NK_TEST_FORMAT_
+#define NK_TEST_FORMAT_ 0
+#endif
+
+#if NK_TEST_FORMAT_
+void test_format_scalars();
+#endif
+
+// Explicit instantiations for tensor types — forces full compilation of all APIs
+template class nk::tensor<nk::f32_t>;
+template class nk::tensor<nk::f64_t>;
+template class nk::tensor<nk::f16_t>;
+template class nk::tensor<nk::bf16_t>;
+template class nk::tensor<nk::i8_t>;
+
+// Views and spans for rank-2 (matrix) and default rank
+template class nk::tensor_view<nk::f32_t, 2>;
+template class nk::tensor_view<nk::f32_t, 8>;
+template class nk::tensor_span<nk::f32_t, 2>;
+template class nk::tensor_span<nk::f32_t, 8>;
+template class nk::tensor_view<nk::bf16_t, 2>;
+template class nk::tensor_span<nk::bf16_t, 2>;
+
 template <typename value_type_>
 void test_vector_basics() {
     constexpr std::size_t dims_per_value = nk::dimensions_per_value<value_type_>();
@@ -98,6 +132,26 @@ void test_tensor_operator_indexing() {
     assert((line[3] == cube[1, 2, 3]) && "line slice element mismatch");
     auto point = cube[1, 2, 3, nk::slice];
     assert((point.rank() == 0 && point.scalar() == cube[1, 2, 3]) && "point slice mismatch");
+
+    // all_t slicing: extract a column
+    auto second_column = t[nk::all, 1, nk::slice];
+    assert(second_column.rank() == 1 && "all_t column rank mismatch");
+    assert(second_column.numel() == 2 && "all_t column numel mismatch");
+
+    // range slicing: extract a sub-range of rows
+    auto first_two_planes = cube[nk::range(0, 2), nk::slice];
+    assert(first_two_planes.rank() == 3 && "range slice rank mismatch");
+    assert(first_two_planes.extent(0) == 2 && "range slice extent mismatch");
+
+    // combined: range + all_t + slice on a 3D tensor
+    auto sub = cube[nk::range(0, 2), nk::all, nk::slice];
+    assert(sub.rank() == 3 && sub.extent(0) == 2 && sub.extent(1) == 3 && "range+all slice mismatch");
+
+    // row() access
+    auto row0 = t.row(0);
+    assert(row0.rank() == 1 && row0.extent(0) == 3 && "row() rank/extent mismatch");
+    auto row0_via_slice = t[0, nk::slice];
+    assert(row0[0] == row0_via_slice[0] && "row() should match t[0, slice]");
 }
 
 void test_packed_tensor_operator_indexing() {
@@ -142,7 +196,7 @@ void test_move_semantics() {
     nk::vector<nk::f32_t> v2 = std::move(v1);
     assert(v2.size() == 100 && "move ctor size mismatch");
     assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
-    assert(v1.size() == 0 && "moved-from vector not empty");
+    assert(v1.size() == 0 && "moved-from vector not empty"); // NOLINT(bugprone-use-after-move)
 
     nk::vector<nk::f32_t> v3;
     v3 = std::move(v2);
@@ -460,6 +514,11 @@ void test_vector_types() {
 
     test_custom_allocator();
     std::printf("  custom allocator:             OK\n");
+
+#if NK_TEST_FORMAT_
+    test_format_scalars();
+    std::printf("  std::format scalars+refs:     OK\n");
+#endif
 }
 
 /**
@@ -532,6 +591,32 @@ void test_tensor_ops_for_type() {
     { [[maybe_unused]] bool ok = nk::scale<value_type_>(av, alpha, beta, out.span()); }
     { [[maybe_unused]] bool ok = nk::blend<value_type_>(av, bv, alpha, beta, out.span()); }
     { [[maybe_unused]] bool ok = nk::fma<value_type_>(av, bv, av, alpha, beta, out.span()); }
+
+    // try_from 1D
+    {
+        auto from1d = tensor_t::try_from({value_type_ {}, value_type_ {}, value_type_ {}});
+        assert(!from1d.empty() && "try_from 1D failed");
+        assert(from1d.rank() == 1 && from1d.numel() == 3 && "try_from 1D shape mismatch");
+    }
+
+    // try_from 2D
+    {
+        auto from2d = tensor_t::try_from({{value_type_ {}, value_type_ {}}, {value_type_ {}, value_type_ {}}});
+        assert(!from2d.empty() && "try_from 2D failed");
+        assert(from2d.rank() == 2 && from2d.extent(0) == 2 && from2d.extent(1) == 2 && "try_from 2D shape mismatch");
+    }
+
+    // row() access
+    {
+        auto row0 = a.row(0);
+        assert(row0.rank() == 1 && row0.extent(0) == 8 && "row() shape mismatch");
+    }
+
+    // Convenience view constructor (ptr, rows, cols)
+    {
+        nk::tensor_view<value_type_> view_from_ptr(a.data(), 4, 8);
+        assert(view_from_ptr.rank() == 2 && view_from_ptr.extent(0) == 4 && "convenience view ctor mismatch");
+    }
 }
 
 template <typename value_type_>
@@ -587,6 +672,124 @@ void test_tensor_maxsim_for_type() {
     auto pd = nk::packed_maxsim<value_type_>::try_pack(dm);
     { [[maybe_unused]] auto r = nk::maxsim(pq, pd); }
 }
+
+void test_view_overloads() {
+    nk::f32_t a_data[8] {}, b_data[8] {}, c_data[64] {};
+    nk::f32_t result {};
+    auto a_view = nk::vector_view<nk::f32_t>(a_data, 8u);
+    auto b_view = nk::vector_view<nk::f32_t>(b_data, 8u);
+
+    nk::dot(a_view, b_view, 8, &result);
+    nk::euclidean(a_view, b_view, 8, &result);
+    nk::sqeuclidean(a_view, b_view, 8, &result);
+    nk::angular(a_view, b_view, 8, &result);
+
+    auto c_view = nk::vector_view<nk::f32_t>(c_data, 64u);
+    nk::bilinear(a_view, b_view, c_view, 8, &result);
+    nk::mahalanobis(a_view, b_view, c_view, 8, &result);
+}
+
+void test_custom_allocator_try_fns() {
+    using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
+    auto a = nk::tensor<nk::f32_t>::try_zeros({4, 8});
+    auto av = a.view();
+
+    { auto r = nk::try_scale<nk::f32_t, 8, custom_alloc_t>(av, 1.0, 0.0); }
+    { auto r = nk::try_sin<nk::f32_t, 8, custom_alloc_t>(av); }
+
+    using sum_alloc_t = nk::aligned_allocator<nk::f64_t, 128>;
+    { auto r = nk::try_sum<nk::f32_t, 8, sum_alloc_t>(av, 0); }
+}
+
+template <typename value_type_>
+void test_vector_reductions_for_type() {
+    auto v = make_vector<value_type_>(32);
+    std::mt19937 generator(42);
+    fill_random(generator, v);
+    auto view = nk::vector_view<value_type_>(v.values_data(), static_cast<std::size_t>(v.size()));
+
+    { [[maybe_unused]] auto r = nk::moments(view); }
+    { [[maybe_unused]] auto r = nk::minmax(view); }
+    { [[maybe_unused]] auto r = nk::sum(view); }
+    { [[maybe_unused]] auto r = nk::min(view); }
+    { [[maybe_unused]] auto r = nk::max(view); }
+    { [[maybe_unused]] auto r = nk::argmin(view); }
+    { [[maybe_unused]] auto r = nk::argmax(view); }
+}
+
+void test_vector_reductions_correctness() {
+    nk::f32_t data[] = {nk::f32_t(1), nk::f32_t(2), nk::f32_t(3), nk::f32_t(4), nk::f32_t(5)};
+    auto view = nk::vector_view<nk::f32_t>(data, std::size_t {5});
+
+    auto m = nk::moments(view);
+    assert(m.sum.raw_ == 15.0 && "vector moments sum");
+    assert(m.sumsq.raw_ == 55.0 && "vector moments sumsq");
+
+    auto mm = nk::minmax(view);
+    assert(mm.min_value.raw_ == 1.0f && "vector min");
+    assert(mm.max_value.raw_ == 5.0f && "vector max");
+    assert(mm.min_index == 0 && "vector argmin");
+    assert(mm.max_index == 4 && "vector argmax");
+}
+
+template <typename from_type_, typename to_type_>
+void test_cast_for_types() {
+    auto src = make_vector<from_type_>(64);
+    auto dst = make_vector<to_type_>(64);
+    std::mt19937 generator(42);
+    fill_random(generator, src);
+
+    auto src_view = nk::vector_view<from_type_>(src.values_data(), static_cast<std::size_t>(src.size()));
+    auto dst_span = nk::vector_span<to_type_>(dst.values_data(), static_cast<std::size_t>(dst.size()));
+
+    // Pointer-level API
+    nk::cast<from_type_, to_type_>(src.values_data(), src.size(), dst.values_data());
+    // Vector view/span API
+    nk::cast<from_type_, to_type_>(src_view, dst_span);
+}
+
+#if NK_TEST_FORMAT_
+void test_format_scalars() {
+    // Float scalar formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:#}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:.2f}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:x}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{:b}", nk::f16_t(3.14f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::bf16_t(2.5f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e4m3_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e5m2_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e2m3_t(1.0f)); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::e3m2_t(1.0f)); }
+
+    // Packed type formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::i4x2_t {}); }
+    { [[maybe_unused]] auto s = std::format("{:x}", nk::u4x2_t {}); }
+    { [[maybe_unused]] auto s = std::format("{}", nk::u1x8_t {}); }
+
+    // Complex type formatters
+    { [[maybe_unused]] auto s = std::format("{}", nk::f16c_t(nk::f16_t(1), nk::f16_t(2))); }
+    { [[maybe_unused]] auto s = std::format("{:#}", nk::bf16c_t(nk::bf16_t(1), nk::bf16_t(2))); }
+
+    // Sub-byte ref formatters
+    nk_i4x2_t packed_i = 0x53;
+    nk::sub_byte_ref<nk::i4x2_t> iref(&packed_i, 0);
+    assert(std::format("{}", iref) == "3" && "i4 sub_byte_ref default format");
+    assert(std::format("{:x}", iref) == "3" && "i4 sub_byte_ref hex format");
+    assert(std::format("{:b}", iref) == "0011" && "i4 sub_byte_ref binary format");
+    assert(std::format("{:#}", iref) == "3 [0x3]" && "i4 sub_byte_ref annotated format");
+
+    nk_u4x2_t packed_u = 0xA7;
+    nk::sub_byte_ref<nk::u4x2_t> uref(&packed_u, 1);
+    assert(std::format("{}", uref) == "10" && "u4 sub_byte_ref default format");
+    assert(std::format("{:x}", uref) == "a" && "u4 sub_byte_ref hex format");
+    assert(std::format("{:b}", uref) == "1010" && "u4 sub_byte_ref binary format");
+
+    nk_u1x8_t packed_b = 0x05;
+    nk::sub_byte_ref<nk::u1x8_t> bref(&packed_b, 0);
+    assert(std::format("{}", bref) == "1" && "u1 sub_byte_ref format");
+}
+#endif // NK_TEST_FORMAT_
 
 void test_tensor_ops() {
     std::printf("Testing tensor op instantiations...\n");
@@ -649,4 +852,33 @@ void test_tensor_ops() {
     test_tensor_maxsim_for_type<nk::f32_t>();
     test_tensor_maxsim_for_type<nk::f16_t>();
     std::printf("  packed MaxSim (3 types):      OK\n");
+
+    test_view_overloads();
+    std::printf("  view overloads:               OK\n");
+
+    test_custom_allocator_try_fns();
+    std::printf("  custom allocator try_fns:     OK\n");
+
+    // Vector-level reductions
+    test_vector_reductions_for_type<nk::f32_t>();
+    test_vector_reductions_for_type<nk::f64_t>();
+    test_vector_reductions_for_type<nk::f16_t>();
+    test_vector_reductions_for_type<nk::bf16_t>();
+    test_vector_reductions_for_type<nk::i8_t>();
+    test_vector_reductions_for_type<nk::u8_t>();
+    std::printf("  vector reductions (6 types):  OK\n");
+
+    test_vector_reductions_correctness();
+    std::printf("  vector reductions correct:    OK\n");
+
+    // Cast wrapper
+    test_cast_for_types<nk::f32_t, nk::f16_t>();
+    test_cast_for_types<nk::f16_t, nk::f32_t>();
+    test_cast_for_types<nk::f32_t, nk::bf16_t>();
+    test_cast_for_types<nk::bf16_t, nk::f32_t>();
+    test_cast_for_types<nk::f32_t, nk::e4m3_t>();
+    test_cast_for_types<nk::e4m3_t, nk::f32_t>();
+    test_cast_for_types<nk::i8_t, nk::i32_t>();
+    test_cast_for_types<nk::f64_t, nk::f32_t>();
+    std::printf("  cast wrapper (8 pairs):       OK\n");
 }

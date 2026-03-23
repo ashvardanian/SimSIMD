@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test trigonometric functions: nk.sin, nk.cos, nk.atan.
 
 Covers dtypes: float32, float64.
@@ -14,6 +13,7 @@ Matches C++ suite: test_trigonometry.cpp.
 
 import atexit
 import math
+
 import pytest
 
 try:
@@ -23,21 +23,21 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    assert_allclose,
-    make_random,
-    make_random_buffer,
-    numpy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     create_stats,
-    print_stats_report,
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    make_random_buffer,
     nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
+    print_stats_report,
+    profile,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
 )
 

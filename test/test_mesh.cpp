@@ -162,6 +162,12 @@ void test_mesh() {
     check("kabsch_f32_skylake", test_kabsch<f32_t>, nk_kabsch_f32_skylake);
     check("umeyama_f64_skylake", test_umeyama<f64_t>, nk_umeyama_f64_skylake);
     check("umeyama_f32_skylake", test_umeyama<f32_t>, nk_umeyama_f32_skylake);
+    check("rmsd_f16_skylake", test_rmsd<f16_t>, nk_rmsd_f16_skylake);
+    check("rmsd_bf16_skylake", test_rmsd<bf16_t>, nk_rmsd_bf16_skylake);
+    check("kabsch_f16_skylake", test_kabsch<f16_t>, nk_kabsch_f16_skylake);
+    check("kabsch_bf16_skylake", test_kabsch<bf16_t>, nk_kabsch_bf16_skylake);
+    check("umeyama_f16_skylake", test_umeyama<f16_t>, nk_umeyama_f16_skylake);
+    check("umeyama_bf16_skylake", test_umeyama<bf16_t>, nk_umeyama_bf16_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_RVV

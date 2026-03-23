@@ -8,10 +8,10 @@
  *
  *  @section dot_icelake_instructions VNNI Instructions Performance
  *
- *      Intrinsic                   Instruction                     Ice         Genoa
- *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
- *      _mm512_dpbusd_epi32         VPDPBUSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
- *      _mm512_madd_epi16           VPMADDWD (ZMM, ZMM, ZMM)        5cy @ p05   3cy @ p01
+ *      Intrinsic            Instruction               Icelake    Genoa
+ *      _mm512_dpwssd_epi32  VPDPWSSD (ZMM, ZMM, ZMM)  5cy @ p0   4cy @ p01
+ *      _mm512_dpbusd_epi32  VPDPBUSD (ZMM, ZMM, ZMM)  5cy @ p0   4cy @ p01
+ *      _mm512_madd_epi16    VPMADDWD (ZMM, ZMM, ZMM)  5cy @ p05  3cy @ p01
  *
  *  Ice Lake introduces AVX-512 VNNI for accelerated integer dot products. VNNI instructions bottleneck
  *  on port 0, limiting throughput to 1/cy. AMD Genoa dual-issues on ports 0-1, achieving 0.5/cy throughput.
@@ -384,7 +384,7 @@ NK_INTERNAL void nk_sum_u8x64_update_icelake(nk_sum_u8x64_state_icelake_t *state
     state->sum_u64x8 = _mm512_add_epi64(state->sum_u64x8, sad_result_u64x8);
 }
 NK_INTERNAL nk_u32_t nk_sum_u8x64_finalize_icelake(nk_sum_u8x64_state_icelake_t const *state, nk_size_t count) {
-    (void)count;
+    nk_unused_(count);
     return (nk_u32_t)_mm512_reduce_add_epi64(state->sum_u64x8);
 }
 

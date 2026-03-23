@@ -236,11 +236,9 @@ void test_each() {
     check("each_scale_u8_neonhalf", test_scale<u8_t>, nk_each_scale_u8_neonhalf);
     check("each_sum_u8_neonhalf", test_sum<u8_t>, nk_each_sum_u8_neonhalf);
     check("each_blend_u8_neonhalf", test_blend<u8_t>, nk_each_blend_u8_neonhalf);
-    check("each_fma_u8_neonhalf", test_fma<u8_t>, nk_each_fma_u8_neonhalf);
     check("each_scale_i8_neonhalf", test_scale<i8_t>, nk_each_scale_i8_neonhalf);
     check("each_sum_i8_neonhalf", test_sum<i8_t>, nk_each_sum_i8_neonhalf);
     check("each_blend_i8_neonhalf", test_blend<i8_t>, nk_each_blend_i8_neonhalf);
-    check("each_fma_i8_neonhalf", test_fma<i8_t>, nk_each_fma_i8_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
@@ -333,26 +331,44 @@ void test_each() {
     check("each_sum_f16_sapphire", test_sum<f16_t>, nk_each_sum_f16_sapphire);
     check("each_scale_u8_sapphire", test_scale<u8_t>, nk_each_scale_u8_sapphire);
     check("each_blend_u8_sapphire", test_blend<u8_t>, nk_each_blend_u8_sapphire);
-    check("each_fma_u8_sapphire", test_fma<u8_t>, nk_each_fma_u8_sapphire);
     check("each_scale_i8_sapphire", test_scale<i8_t>, nk_each_scale_i8_sapphire);
     check("each_blend_i8_sapphire", test_blend<i8_t>, nk_each_blend_i8_sapphire);
-    check("each_fma_i8_sapphire", test_fma<i8_t>, nk_each_fma_i8_sapphire);
     check("each_sum_e4m3_sapphire", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
-    check("each_scale_f32_rvv", test_scale<f32_t>, nk_each_scale_f32_rvv);
+    check("each_sum_f64_rvv", test_sum<f64_t>, nk_each_sum_f64_rvv);
+    check("each_scale_f64_rvv", test_scale<f64_t>, nk_each_scale_f64_rvv);
+    check("each_blend_f64_rvv", test_blend<f64_t>, nk_each_blend_f64_rvv);
+    check("each_fma_f64_rvv", test_fma<f64_t>, nk_each_fma_f64_rvv);
     check("each_sum_f32_rvv", test_sum<f32_t>, nk_each_sum_f32_rvv);
+    check("each_scale_f32_rvv", test_scale<f32_t>, nk_each_scale_f32_rvv);
     check("each_blend_f32_rvv", test_blend<f32_t>, nk_each_blend_f32_rvv);
     check("each_fma_f32_rvv", test_fma<f32_t>, nk_each_fma_f32_rvv);
-    check("each_scale_e4m3_rvv", test_scale<e4m3_t>, nk_each_scale_e4m3_rvv);
-    check("each_scale_e5m2_rvv", test_scale<e5m2_t>, nk_each_scale_e5m2_rvv);
+    check("each_sum_f16_rvv", test_sum<f16_t>, nk_each_sum_f16_rvv);
+    check("each_scale_f16_rvv", test_scale<f16_t>, nk_each_scale_f16_rvv);
+    check("each_blend_f16_rvv", test_blend<f16_t>, nk_each_blend_f16_rvv);
+    check("each_fma_f16_rvv", test_fma<f16_t>, nk_each_fma_f16_rvv);
+    check("each_sum_bf16_rvv", test_sum<bf16_t>, nk_each_sum_bf16_rvv);
+    check("each_scale_bf16_rvv", test_scale<bf16_t>, nk_each_scale_bf16_rvv);
+    check("each_blend_bf16_rvv", test_blend<bf16_t>, nk_each_blend_bf16_rvv);
+    check("each_fma_bf16_rvv", test_fma<bf16_t>, nk_each_fma_bf16_rvv);
     check("each_sum_e4m3_rvv", test_sum<e4m3_t>, nk_each_sum_e4m3_rvv);
-    check("each_sum_e5m2_rvv", test_sum<e5m2_t>, nk_each_sum_e5m2_rvv);
+    check("each_scale_e4m3_rvv", test_scale<e4m3_t>, nk_each_scale_e4m3_rvv);
     check("each_blend_e4m3_rvv", test_blend<e4m3_t>, nk_each_blend_e4m3_rvv);
-    check("each_blend_e5m2_rvv", test_blend<e5m2_t>, nk_each_blend_e5m2_rvv);
     check("each_fma_e4m3_rvv", test_fma<e4m3_t>, nk_each_fma_e4m3_rvv);
+    check("each_sum_e5m2_rvv", test_sum<e5m2_t>, nk_each_sum_e5m2_rvv);
+    check("each_scale_e5m2_rvv", test_scale<e5m2_t>, nk_each_scale_e5m2_rvv);
+    check("each_blend_e5m2_rvv", test_blend<e5m2_t>, nk_each_blend_e5m2_rvv);
     check("each_fma_e5m2_rvv", test_fma<e5m2_t>, nk_each_fma_e5m2_rvv);
+    check("each_sum_i8_rvv", test_sum<i8_t>, nk_each_sum_i8_rvv);
+    check("each_scale_i8_rvv", test_scale<i8_t>, nk_each_scale_i8_rvv);
+    check("each_blend_i8_rvv", test_blend<i8_t>, nk_each_blend_i8_rvv);
+    check("each_fma_i8_rvv", test_fma<i8_t>, nk_each_fma_i8_rvv);
+    check("each_sum_u8_rvv", test_sum<u8_t>, nk_each_sum_u8_rvv);
+    check("each_scale_u8_rvv", test_scale<u8_t>, nk_each_scale_u8_rvv);
+    check("each_blend_u8_rvv", test_blend<u8_t>, nk_each_blend_u8_rvv);
+    check("each_fma_u8_rvv", test_fma<u8_t>, nk_each_fma_u8_rvv);
 #endif // NK_TARGET_RVV
 
     // Serial always runs - baseline test

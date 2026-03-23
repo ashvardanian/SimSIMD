@@ -10,13 +10,12 @@
  *
  *  @section curved_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vbfdotq_f32                 BFDOT (V.4S, V.8H, V.8H)        3cy         2/cy        4/cy
- *      vcvt_f32_bf16               BFCVTN (V.4H, V.4S)             3cy         2/cy        4/cy
- *      vld1q_bf16                  LD1 (V.8H)                      4cy         2/cy        3/cy
- *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
- *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *      Intrinsic      Instruction               A76       M5
+ *      vbfdotq_f32    BFDOT (V.4S, V.8H, V.8H)  3cy @ 2p  2cy @ 1p
+ *      vcvt_f32_bf16  BFCVTN (V.4H, V.4S)       3cy @ 2p  3cy @ 4p
+ *      vld1q_bf16     LD1 (V.8H)                4cy @ 2p  4cy @ 3p
+ *      vaddvq_f32     FADDP+FADDP (V.4S)        5cy @ 1p  8cy @ 1p
+ *      vfmaq_f32      FMLA (V.4S, V.4S, V.4S)   4cy @ 2p  3cy @ 4p
  *
  *  For bilinear forms, BFDOT enables efficient inner-product computation by processing 8 bf16
  *  pairs into 4 f32 results per instruction. For Mahalanobis distance, bf16 inputs are converted

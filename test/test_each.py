@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Test elementwise operations: nk.scale, nk.add, nk.blend, nk.fma, nk.multiply.
 
 Covers dtypes: float64, float32, float16, int8, uint8 (core ops);
@@ -23,6 +22,7 @@ Matches C++ suite: test_each.cpp.
 import atexit
 import decimal
 import random
+
 import pytest
 
 try:
@@ -32,24 +32,24 @@ except:  # noqa: E722
 
 import numkong as nk
 from test_base import (
-    numpy_available,
-    dense_dimensions,
-    possible_capabilities,
-    randomized_repetitions_count,
-    keep_one_capability,
-    profile,
-    make_random,
-    tolerances_for_dtype,
-    random_of_dtype,
-    assert_allclose,
-    nk_seed,  # noqa: F401 — pytest fixture
     NK_ATOL,
     NK_RTOL,
+    assert_allclose,
     collect_errors,
     collect_warnings,
     create_stats,
+    dense_dimensions,
+    keep_one_capability,
+    make_random,
+    nk_seed,  # noqa: F401 — pytest fixture
+    numpy_available,
+    possible_capabilities,
     print_stats_report,
+    profile,
+    random_of_dtype,
+    randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    tolerances_for_dtype,
 )
 
 algebraic_dtypes = ["float32", "float64"]
@@ -229,7 +229,6 @@ def random_coefficients(dtype, alpha_div=2, beta_div=2):
 def test_scale_random_accuracy(ndim, dtype, capability, nk_seed):
     """scale(alpha * x + beta) across float and integer dtypes against high-precision Decimal baseline."""
     input_raw, input_baseline = make_random((ndim,), dtype, seed=nk_seed)
-    atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype)
 
@@ -244,7 +243,7 @@ def test_scale_random_accuracy(ndim, dtype, capability, nk_seed):
 
     result_dt, result = profile(simd_kernel, input_raw, alpha=alpha, beta=beta)
 
-    assert_allclose(result, accurate, atol=atol, rtol=rtol)
+    assert_allclose(result, accurate)
     collect_errors("scale", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -256,7 +255,6 @@ def test_add_random_accuracy(ndim, dtype, capability, nk_seed):
     """Elementwise addition across float and integer dtypes against high-precision Decimal baseline."""
     a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
     b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
-    atol, rtol = tolerances_for_dtype(dtype)
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_EACH["add"]
@@ -269,7 +267,7 @@ def test_add_random_accuracy(ndim, dtype, capability, nk_seed):
 
     result_dt, result = profile(simd_kernel, a_raw, b_raw)
 
-    assert_allclose(result, accurate, atol=atol, rtol=rtol)
+    assert_allclose(result, accurate)
     collect_errors("add", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -281,7 +279,6 @@ def test_blend_random_accuracy(ndim, dtype, capability, nk_seed):
     """Weighted sum (alpha * x + beta * y) across float and integer dtypes against high-precision Decimal baseline."""
     a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
     b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
-    atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype)
 
@@ -296,7 +293,7 @@ def test_blend_random_accuracy(ndim, dtype, capability, nk_seed):
 
     result_dt, result = profile(simd_kernel, a_raw, b_raw, alpha=alpha, beta=beta)
 
-    assert_allclose(result, accurate, atol=atol, rtol=rtol)
+    assert_allclose(result, accurate)
     collect_errors("blend", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -309,7 +306,6 @@ def test_fma_random_accuracy(ndim, dtype, capability, nk_seed):
     a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
     b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
     c_raw, c_baseline = make_random((ndim,), dtype, seed=nk_seed + 2)
-    atol, rtol = tolerances_for_dtype(dtype)
 
     alpha, beta = random_coefficients(dtype, 512, 3)
 
@@ -332,7 +328,7 @@ def test_fma_random_accuracy(ndim, dtype, capability, nk_seed):
 
     result_dt, result = profile(simd_kernel, a_raw, b_raw, c_raw, alpha=alpha, beta=beta)
 
-    assert_allclose(result, accurate, atol=atol, rtol=rtol)
+    assert_allclose(result, accurate)
     collect_errors("fma", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -619,7 +615,7 @@ def test_add_numpy_buffer_protocol(dtype):
     result = nk.add(a, b)
     result_np = np.asarray(result)
 
-    assert_allclose(result_np, expected, rtol=1e-5)
+    assert_allclose(result_np, expected)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -633,7 +629,7 @@ def test_multiply_numpy_buffer_protocol(dtype):
     result = nk.multiply(a, b)
     result_np = np.asarray(result)
 
-    assert_allclose(result_np, expected, rtol=1e-4)
+    assert_allclose(result_np, expected)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -649,7 +645,7 @@ def test_blend_numpy_buffer_protocol(dtype):
     result = nk.blend(a, b, alpha=alpha, beta=beta)
     result_np = np.asarray(result)
 
-    assert_allclose(result_np, expected, rtol=1e-4)
+    assert_allclose(result_np, expected)
 
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)

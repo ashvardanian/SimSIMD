@@ -9,12 +9,12 @@
  *
  *  @section haswell_trig_instructions Key AVX2 Trigonometry Instructions
  *
- *      Intrinsic                   Instruction                     Latency     Throughput  Ports
- *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
- *      _mm256_mul_ps/pd            VMULPS/PD (YMM, YMM, YMM)       5cy         0.5/cy      p01
- *      _mm256_blendv_ps/pd         VBLENDVPS/PD (YMM, YMM, YMM)    2cy         1/cy        p015
- *      _mm256_round_ps/pd          VROUNDPS/PD (YMM, YMM, I8)      6cy         1/cy        p01
- *      _mm256_div_ps               VDIVPS (YMM, YMM, YMM)          13cy        5/cy        p0
+ *      Intrinsic            Instruction                   Haswell     Genoa
+ *      _mm256_fmadd_ps/pd   VFMADD (YMM, YMM, YMM)        5cy @ p01   4cy @ p01
+ *      _mm256_mul_ps/pd     VMULPS/PD (YMM, YMM, YMM)     5cy @ p01   3cy @ p01
+ *      _mm256_blendv_ps/pd  VBLENDVPS/PD (YMM, YMM, YMM)  2cy @ p015  1cy @ p01
+ *      _mm256_round_ps/pd   VROUNDPS/PD (YMM, YMM, I8)    6cy @ p01   3cy @ p23
+ *      _mm256_div_ps        VDIVPS (YMM, YMM, YMM)        13cy @ p0   11cy @ p01
  *
  *  Polynomial evaluation uses Horner's method with FMA for sin/cos/atan approximation. For large
  *  arrays, out-of-order execution across loop iterations hides FMA latency better than Estrin's
@@ -58,7 +58,8 @@ NK_INTERNAL __m256 nk_sin_f32x8_haswell_(__m256 const angles_radians) {
     // Compute (multiples_of_pi) = round(angle / π)
     __m256 quotients = _mm256_mul_ps(angles_radians, pi_reciprocal);
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
+    // Use truncation (MXCSR-independent) since rounded_quotients is already integer-valued
+    __m256i multiples_of_pi = _mm256_cvttps_epi32(rounded_quotients);
 
     // Cody-Waite range reduction
     __m256 angles = _mm256_fnmadd_ps(rounded_quotients, pi_hi_f32x8, angles_radians);
@@ -97,7 +98,8 @@ NK_INTERNAL __m256 nk_cos_f32x8_haswell_(__m256 const angles_radians) {
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
     __m256 quotients = _mm256_fmsub_ps(angles_radians, pi_reciprocal, _mm256_set1_ps(0.5f));
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
+    // Use truncation (MXCSR-independent) since rounded_quotients is already integer-valued
+    __m256i multiples_of_pi = _mm256_cvttps_epi32(rounded_quotients);
 
     // Cody-Waite range reduction: angle = angle_radians - (multiples * pi + pi/2)
     __m256 const offset = _mm256_fmadd_ps(rounded_quotients, pi_hi_f32x8, pi_half);
@@ -270,7 +272,8 @@ NK_INTERNAL __m256d nk_sin_f64x4_haswell_(__m256d const angles_radians) {
 
     // If rounded_quotients is odd (bit 0 set), negate the angle
     // Convert to 32-bit int (returns __m128i with 4 x 32-bit ints)
-    __m128i quotients_i32 = _mm256_cvtpd_epi32(rounded_quotients);
+    // Use truncation (MXCSR-independent) since rounded_quotients is already integer-valued
+    __m128i quotients_i32 = _mm256_cvttpd_epi32(rounded_quotients);
     __m128i parity = _mm_and_si128(quotients_i32, _mm_set1_epi32(1));
     __m128i odd_mask_i32 = _mm_cmpeq_epi32(parity, _mm_set1_epi32(1));
     // Expand 32-bit mask to 64-bit by shuffling
@@ -336,7 +339,8 @@ NK_INTERNAL __m256d nk_cos_f64x4_haswell_(__m256d const angles_radians) {
     angles = _mm256_fnmadd_pd(rounded_quotients, pi_low_half, angles);
 
     // If (rounded_quotients & 2) == 0, negate the angle
-    __m128i quotients_i32 = _mm256_cvtpd_epi32(rounded_quotients);
+    // Use truncation (MXCSR-independent) since rounded_quotients is already integer-valued
+    __m128i quotients_i32 = _mm256_cvttpd_epi32(rounded_quotients);
     __m128i bit2 = _mm_and_si128(quotients_i32, _mm_set1_epi32(2));
     __m128i flip_mask_i32 = _mm_cmpeq_epi32(bit2, _mm_setzero_si128());
     __m256i flip_mask_i64 = _mm256_cvtepi32_epi64(flip_mask_i32);

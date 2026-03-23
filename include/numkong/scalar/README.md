@@ -1,26 +1,26 @@
 # Scalar Math Primitives in NumKong
 
-NumKong provides single-element math operations -- square root, reciprocal square root, fused multiply-add, and saturating integer arithmetic -- with per-ISA implementations.
+NumKong provides single-element math operations — square root, reciprocal square root, fused multiply-add, and saturating integer arithmetic — with per-ISA implementations.
 These primitives serve as building blocks for vectorized kernels: distance finalizers call `nk_f32_rsqrt` for angular normalization, packing routines call `nk_f32_sqrt` for norm computation.
 Ordering functions (`nk_f16_order`, `nk_bf16_order`, `nk_e4m3_order`) convert floating-point bit patterns to integers that sort in the same order as the original floats.
 
 Reciprocal square root:
 
-```math
+$$
 \text{rsqrt}(x) = \frac{1}{\sqrt{x}}
-```
+$$
 
 Fused multiply-add:
 
-```math
+$$
 \text{fma}(a, b, c) = a \cdot b + c
-```
+$$
 
 Saturating addition:
 
-```math
+$$
 \text{sat\_add}(a, b) = \text{clamp}(a + b, \text{T\_MIN}, \text{T\_MAX})
-```
+$$
 
 Reformulating as Python pseudocode:
 
@@ -66,22 +66,22 @@ def saturating_add(a: int, b: int, bits: int, signed: bool) -> int:
 
 ### Quake 3 Fast Inverse Square Root
 
-`nk_f32_rsqrt_serial` uses the classic bit-manipulation trick: reinterpret f32 bits as i32, compute `0x5F375A86 - (bits >> 1)`, reinterpret back to f32, then refine with 3 Newton-Raphson iterations reaching ~34.9 correct bits.
-Each Newton-Raphson iteration: `y = y * (1.5f - 0.5f * x * y * y)` -- 2 multiplies and 1 subtract, ~4cy per iteration.
+`nk_f32_rsqrt_serial` uses the classic bit-manipulation trick: reinterpret Float32 bits as Int32, compute `0x5F375A86 - (bits >> 1)`, reinterpret back to Float32, then refine with 3 Newton-Raphson iterations reaching ~34.9 correct bits.
+Each Newton-Raphson iteration: `y = y * (1.5f - 0.5f * x * y * y)` — 2 multiplies and 1 subtract, ~4cy per iteration.
 `nk_f32_rsqrt_haswell` replaces this with hardware `VRSQRT14PS` ($2^{-14}$ relative error, ~4cy latency) plus one Newton-Raphson refinement (~22-24 correct bits).
-`nk_f64_rsqrt_serial` uses the f64 magic constant `0x5FE6EB50C7B537A9` with 4 iterations for 52-bit mantissa coverage.
+`nk_f64_rsqrt_serial` uses the Float64 magic constant `0x5FE6EB50C7B537A9` with 4 iterations for 52-bit mantissa coverage.
 
 ### Dekker Error-Free Multiplication for FMA
 
 `nk_f32_fma_serial` emulates fused multiply-add on platforms without hardware FMA using Dekker's algorithm: splits each operand into high and low halves via `a_hi = (a * 134217729.0f) - ((a * 134217729.0f) - a)`, then computes the exact product error term.
 The magic constant $134217729 = 2^{27} + 1$ splits a 24-bit mantissa into two 12-bit halves that multiply without rounding.
-`nk_f32_fma_haswell` uses hardware `VFMADD231SS` -- single instruction, single cycle, exact to the last bit.
+`nk_f32_fma_haswell` uses hardware `VFMADD231SS` — single instruction, single cycle, exact to the last bit.
 
 ### Float-to-Integer Ordering
 
 `nk_f16_order_serial`, `nk_bf16_order_serial`, `nk_e4m3_order_serial` convert floating-point bit patterns to unsigned integers that preserve the total order.
 Positive floats are already ordered by their bit patterns; negative floats need bit inversion: `if (bits & sign_bit) bits = ~bits; else bits ^= sign_bit`.
-This enables integer comparison instructions (`VPCMPUD`) for floating-point sorting without branching -- used by `nk_reduce_minmax_*` for FP8 and sub-32-bit types that lack native SIMD comparison.
+This enables integer comparison instructions (`VPCMPUD`) for floating-point sorting without branching — used by `nk_reduce_minmax_*` for Float8 and sub-32-bit types that lack native SIMD comparison.
 
 ## Performance
 

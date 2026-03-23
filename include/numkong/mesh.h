@@ -82,17 +82,17 @@
  *
  *  The SIMD kernels are dominated by FMA, permutes, and gathers:
  *
- *      Intrinsic                     Instruction        Notes
- *      _mm256_fmadd_ps/pd            VFMADD*            FMA on FP ports (Haswell/Skylake: ports 0/1)
- *      _mm256_i32gather_ps           VGATHERDPS         High-latency; memory-bound
- *      _mm512_permutex2var_ps/pd     VPERMT2*           Shuffle-heavy; can bottleneck on shuffle ports
- *      _mm512_reduce_add_ps/pd       (sequence)         Implemented via shuffles + adds
+ *      Intrinsic                  Instruction  Notes
+ *      _mm256_fmadd_ps/pd         VFMADD*      FMA on FP ports (Haswell/Skylake: ports 0/1)
+ *      _mm256_i32gather_ps        VGATHERDPS   High-latency; memory-bound
+ *      _mm512_permutex2var_ps/pd  VPERMT2*     Shuffle-heavy; can bottleneck on shuffle ports
+ *      _mm512_reduce_add_ps/pd    (sequence)   Implemented via shuffles + adds
  *
  *  Gather-heavy tails are intentionally isolated to keep the steady-state loop on contiguous loads.
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */
@@ -245,6 +245,25 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
 /** @copydoc nk_umeyama_f64 */
 NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                       nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+
+/** @copydoc nk_rmsd_f16 */
+NK_PUBLIC void nk_rmsd_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_f16 */
+NK_PUBLIC void nk_kabsch_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                     nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_f16 */
+NK_PUBLIC void nk_umeyama_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                      nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_rmsd_bf16 */
+NK_PUBLIC void nk_rmsd_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_bf16 */
+NK_PUBLIC void nk_kabsch_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                      nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_bf16 */
+NK_PUBLIC void nk_umeyama_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                       nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer.
@@ -344,28 +363,40 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_RVV
+/** @copydoc nk_rmsd_f32 */
 NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result);
+/** @copydoc nk_rmsd_f64 */
 NK_PUBLIC void nk_rmsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_rmsd_f16 */
 NK_PUBLIC void nk_rmsd_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_rmsd_bf16 */
 NK_PUBLIC void nk_rmsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                 nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_f32 */
 NK_PUBLIC void nk_kabsch_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                  nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result);
+/** @copydoc nk_kabsch_f64 */
 NK_PUBLIC void nk_kabsch_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                  nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_kabsch_f16 */
 NK_PUBLIC void nk_kabsch_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                  nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_bf16 */
 NK_PUBLIC void nk_kabsch_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_f32 */
 NK_PUBLIC void nk_umeyama_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result);
+/** @copydoc nk_umeyama_f64 */
 NK_PUBLIC void nk_umeyama_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                   nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_umeyama_f16 */
 NK_PUBLIC void nk_umeyama_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_bf16 */
 NK_PUBLIC void nk_umeyama_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
 #endif // NK_TARGET_RVV
@@ -394,9 +425,10 @@ NK_PUBLIC void nk_umeyama_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, 
 #endif // NK_TARGET_V128RELAXED
 
 /**
- *  @brief  Returns the output dtype for RMSD.
+ *  @brief  Returns the metric output dtype for mesh alignment operations.
+ *  Matches the C++ `mesh_metric_t` alias in types.hpp.
  */
-NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_mesh_metric_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f64_k;
@@ -407,25 +439,13 @@ NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
 }
 
 /**
- *  @brief  Returns the output dtype for Kabsch alignment.
+ *  @brief  Returns the transform output dtype for mesh alignment operations.
+ *  Matches the C++ `mesh_transform_t` alias in types.hpp.
  */
-NK_INTERNAL nk_dtype_t nk_kabsch_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_mesh_transform_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f64_k;
-    case nk_f16_k: return nk_f32_k;
-    case nk_bf16_k: return nk_f32_k;
-    default: return nk_dtype_unknown_k;
-    }
-}
-
-/**
- *  @brief  Returns the output dtype for Umeyama alignment.
- */
-NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
     default: return nk_dtype_unknown_k;
@@ -487,7 +507,9 @@ NK_PUBLIC void nk_rmsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk
 
 NK_PUBLIC void nk_rmsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                            nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_rmsd_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_rmsd_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONHALF
     nk_rmsd_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
@@ -500,7 +522,9 @@ NK_PUBLIC void nk_rmsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
 
 NK_PUBLIC void nk_rmsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                             nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_rmsd_bf16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_rmsd_bf16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONBFDOT
     nk_rmsd_bf16_neonbfdot(a, b, n, a_centroid, b_centroid, rotation, scale, result);
@@ -547,7 +571,9 @@ NK_PUBLIC void nk_kabsch_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, 
 
 NK_PUBLIC void nk_kabsch_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                              nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_kabsch_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_kabsch_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONHALF
     nk_kabsch_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
@@ -560,7 +586,9 @@ NK_PUBLIC void nk_kabsch_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, 
 
 NK_PUBLIC void nk_kabsch_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                               nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_kabsch_bf16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_kabsch_bf16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONBFDOT
     nk_kabsch_bf16_neonbfdot(a, b, n, a_centroid, b_centroid, rotation, scale, result);
@@ -607,7 +635,9 @@ NK_PUBLIC void nk_umeyama_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 
 NK_PUBLIC void nk_umeyama_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                               nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_umeyama_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_umeyama_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONHALF
     nk_umeyama_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
@@ -620,7 +650,9 @@ NK_PUBLIC void nk_umeyama_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 
 NK_PUBLIC void nk_umeyama_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_umeyama_bf16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_HASWELL
     nk_umeyama_bf16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_NEONBFDOT
     nk_umeyama_bf16_neonbfdot(a, b, n, a_centroid, b_centroid, rotation, scale, result);

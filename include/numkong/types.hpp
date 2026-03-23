@@ -293,6 +293,9 @@ struct f32_t {
     static constexpr f32_t from_bits(uint_t bits) noexcept { return f32_t {std::bit_cast<raw_t>(bits)}; }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr f32_t zero() noexcept { return f32_t {}; }
+    static constexpr f32_t one() noexcept { return f32_t {1.0f}; }
+
     static constexpr f32_t finite_max() noexcept { return f32_t {3.40282347e+38f}; }
     static constexpr f32_t finite_min() noexcept { return f32_t {-3.40282347e+38f}; }
     static constexpr f32_t positive_min() noexcept { return f32_t {1.17549435e-38f}; }
@@ -558,6 +561,9 @@ struct f64_t {
     static constexpr f64_t from_raw(raw_t r) noexcept { return f64_t {r}; }
     static constexpr f64_t from_bits(uint_t bits) noexcept { return f64_t {std::bit_cast<raw_t>(bits)}; }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
+
+    static constexpr f64_t zero() noexcept { return f64_t {}; }
+    static constexpr f64_t one() noexcept { return f64_t {1.0}; }
 
     static constexpr f64_t finite_max() noexcept { return f64_t {1.7976931348623157e+308}; }
     static constexpr f64_t finite_min() noexcept { return f64_t {-1.7976931348623157e+308}; }
@@ -1328,6 +1334,9 @@ struct f16_t {
     }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr f16_t zero() noexcept { return from_bits(0x0000); }
+    static constexpr f16_t one() noexcept { return from_bits(0x3C00); } // 1.0
+
     static constexpr f16_t finite_max() noexcept { return from_bits(0x7BFF); }    // 65504.0
     static constexpr f16_t finite_min() noexcept { return from_bits(0xFBFF); }    // -65504.0
     static constexpr f16_t positive_min() noexcept { return from_bits(0x0400); }  // Smallest positive normal
@@ -1574,6 +1583,9 @@ struct bf16_t {
     }
     constexpr uint_t to_bits() const noexcept { return std::bit_cast<uint_t>(raw_); }
 
+    static constexpr bf16_t zero() noexcept { return from_bits(0x0000); }
+    static constexpr bf16_t one() noexcept { return from_bits(0x3F80); } // 1.0
+
     static constexpr bf16_t finite_max() noexcept { return from_bits(0x7F7F); }    // ~3.39e38
     static constexpr bf16_t finite_min() noexcept { return from_bits(0xFF7F); }    // ~-3.39e38
     static constexpr bf16_t positive_min() noexcept { return from_bits(0x0080); }  // Smallest positive normal
@@ -1752,6 +1764,7 @@ struct f16c_t {
     inline f16_t imag() const noexcept { return f16_t::from_raw(raw_.imag); }
 
     static constexpr f16c_t zero() noexcept { return f16c_t {}; }
+    static constexpr f16c_t one() noexcept { return f16c_t {f16_t::one()}; }
 
     static constexpr f16c_t finite_max() noexcept { return f16c_t {f16_t::finite_max(), f16_t::finite_max()}; }
     static constexpr f16c_t finite_min() noexcept { return f16c_t {f16_t::finite_min(), f16_t::finite_min()}; }
@@ -1849,6 +1862,7 @@ struct bf16c_t {
     inline bf16_t imag() const noexcept { return bf16_t::from_raw(raw_.imag); }
 
     static constexpr bf16c_t zero() noexcept { return bf16c_t {}; }
+    static constexpr bf16c_t one() noexcept { return bf16c_t {bf16_t::one()}; }
 
     static constexpr bf16c_t finite_max() noexcept { return bf16c_t {bf16_t::finite_max(), bf16_t::finite_max()}; }
     static constexpr bf16c_t finite_min() noexcept { return bf16c_t {bf16_t::finite_min(), bf16_t::finite_min()}; }
@@ -2000,6 +2014,9 @@ struct e4m3_t {
         return v;
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    static constexpr e4m3_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e4m3_t one() noexcept { return from_bits(0x38); } // 1.0
 
     // Exp all 1s (0xF) with non-zero mantissa = NaN, no infinity representation
     static constexpr e4m3_t finite_max() noexcept { return from_bits(0x7E); }    // 448.0
@@ -2217,6 +2234,9 @@ struct e5m2_t {
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
+    static constexpr e5m2_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e5m2_t one() noexcept { return from_bits(0x3C); } // 1.0
+
     static constexpr e5m2_t finite_max() noexcept { return from_bits(0x7B); }    // 57344.0
     static constexpr e5m2_t finite_min() noexcept { return from_bits(0xFB); }    // -57344.0
     static constexpr e5m2_t positive_min() noexcept { return from_bits(0x04); }  // Smallest positive normal
@@ -2433,6 +2453,9 @@ struct e2m3_t {
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
+    static constexpr e2m3_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e2m3_t one() noexcept { return from_bits(0x08); } // 1.0
+
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
     static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
     static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
@@ -2610,6 +2633,9 @@ struct e3m2_t {
         return v;
     }
     constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    static constexpr e3m2_t zero() noexcept { return from_bits(0x00); }
+    static constexpr e3m2_t one() noexcept { return from_bits(0x0C); } // 1.0
 
     // E3M2FN range: [-28, +28], no Inf/NaN
     static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
@@ -5314,6 +5340,16 @@ constexpr unsigned dimensions_per_value() noexcept {
 }
 
 /**
+ *  @brief The mutable reference type for one logical dimension of a value.
+ *
+ *  For normal types (1 dim per value): a plain `value_type_ &`.
+ *  For sub-byte packed types: a `sub_byte_ref<value_type_>` proxy.
+ */
+template <typename value_type_>
+using value_ref =
+    std::conditional_t<dimensions_per_value<value_type_>() == 1, value_type_ &, sub_byte_ref<value_type_>>;
+
+/**
  *  @brief Extract the word type from a value type.
  *
  *  For complex types (f32c_t, f64c_t, etc.), returns the component type (f32_t, f64_t).
@@ -5517,7 +5553,7 @@ constexpr unsigned count_intersection(scalar_type_ a, scalar_type_ b) noexcept {
 /** @brief Count element-level union. For scalar types, always returns 1 (one element per pair). */
 template <typename scalar_type_>
 constexpr unsigned count_union(scalar_type_ a, scalar_type_ b) noexcept {
-    (void)a, (void)b;
+    nk_unused_(a), nk_unused_(b);
     return 1;
 }
 
@@ -5573,5 +5609,370 @@ concept packed_matrix_like = requires(packed_type_ const &p) {
 #pragma endregion - Concepts
 
 } // namespace ashvardanian::numkong
+
+#if __has_include(<format>)
+#include <format>
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 202110L
+
+namespace ashvardanian::numkong {
+
+/**
+ *  Parsed format spec for NumKong scalar types.
+ *
+ *  Supports the standard format spec grammar `[[fill]align][sign][#][0][width][.precision][type]`:
+ *  - `{}` — clean float value, composes with C++23 range formatting
+ *  - `{:#}` — annotated: `3.14 [0x4248]`
+ *  - `{:.2f}` — precision/type forwarded to `std::formatter<float>`
+ *  - `{:x}` / `{:#x}` / `{:X}` — hex bits (with optional `0x` prefix)
+ *  - `{:b}` / `{:#b}` — binary bits (with optional `0b` prefix)
+ */
+struct scalar_format_spec_t {
+    enum class mode_t : unsigned char { float_val_k, hex_k, binary_k };
+    mode_t mode_ = mode_t::float_val_k;
+    bool annotate_ = false; // '#' in float mode → append [0xHHHH]
+    bool prefix_ = false;   // '#' in hex/binary mode → 0x/0b prefix
+    bool upper_ = false;    // 'X' vs 'x'
+    std::formatter<float> float_fmt_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) {
+        auto it = ctx.begin();
+        auto end = ctx.end();
+        if (it == end || *it == '}') return it;
+
+        // Find last character of the format spec (the type position).
+        auto spec_last = it;
+        for (auto s = it; s != end && *s != '}'; ++s) spec_last = s;
+
+        char type_char = *spec_last;
+        if (type_char == 'x' || type_char == 'X') {
+            mode_ = mode_t::hex_k;
+            upper_ = (type_char == 'X');
+            for (auto s = it; s != spec_last; ++s)
+                if (*s == '#') {
+                    prefix_ = true;
+                    break;
+                }
+            return spec_last + 1;
+        }
+        if (type_char == 'b' || type_char == 'B') {
+            mode_ = mode_t::binary_k;
+            for (auto s = it; s != spec_last; ++s)
+                if (*s == '#') {
+                    prefix_ = true;
+                    break;
+                }
+            return spec_last + 1;
+        }
+
+        // Float mode — '#' means annotate with hex bits.
+        for (auto s = it; s != end && *s != '}'; ++s)
+            if (*s == '#') {
+                annotate_ = true;
+                break;
+            }
+        return float_fmt_.parse(ctx);
+    }
+};
+
+/** Write zero-padded hex to an output iterator. `width` is 1, 2, or 4. Each branch uses a literal format string. */
+inline std::format_context::iterator format_hex_(std::format_context::iterator out, unsigned bits, unsigned width,
+                                                 bool prefix, bool upper) {
+    if (width == 4) {
+        if (prefix && upper) return std::format_to(out, "0X{:04X}", bits);
+        if (prefix) return std::format_to(out, "0x{:04x}", bits);
+        if (upper) return std::format_to(out, "{:04X}", bits);
+        return std::format_to(out, "{:04x}", bits);
+    }
+    if (width == 1) {
+        if (prefix && upper) return std::format_to(out, "0X{:01X}", bits);
+        if (prefix) return std::format_to(out, "0x{:01x}", bits);
+        if (upper) return std::format_to(out, "{:01X}", bits);
+        return std::format_to(out, "{:01x}", bits);
+    }
+    if (prefix && upper) return std::format_to(out, "0X{:02X}", bits);
+    if (prefix) return std::format_to(out, "0x{:02x}", bits);
+    if (upper) return std::format_to(out, "{:02X}", bits);
+    return std::format_to(out, "{:02x}", bits);
+}
+
+/** Write zero-padded binary to an output iterator. `width` is 4, 8, or 16. */
+inline std::format_context::iterator format_bin_(std::format_context::iterator out, unsigned bits, unsigned width,
+                                                 bool prefix) {
+    if (width == 16) {
+        if (prefix) return std::format_to(out, "0b{:016b}", bits);
+        return std::format_to(out, "{:016b}", bits);
+    }
+    if (width == 4) {
+        if (prefix) return std::format_to(out, "0b{:04b}", bits);
+        return std::format_to(out, "{:04b}", bits);
+    }
+    if (prefix) return std::format_to(out, "0b{:08b}", bits);
+    return std::format_to(out, "{:08b}", bits);
+}
+
+/** Write hex annotation suffix: ` [0x{hex}]`. */
+inline std::format_context::iterator format_hex_suffix_(std::format_context::iterator out, unsigned bits,
+                                                        unsigned width) {
+    if (width == 4) return std::format_to(out, " [0x{:04x}]", bits);
+    if (width == 1) return std::format_to(out, " [0x{:01x}]", bits);
+    return std::format_to(out, " [0x{:02x}]", bits);
+}
+
+/**
+ *  Formatter implementation for float-like scalar types (f16, bf16, e4m3, e5m2, e2m3, e3m2).
+ *  @tparam value_type_ The NumKong scalar type.
+ *  @tparam hex_width_ Number of hex digits (4 for 16-bit, 2 for 8-bit).
+ *  @tparam bin_width_ Number of binary digits (16 for 16-bit, 8 for 8-bit).
+ */
+template <typename value_type_, unsigned hex_width_, unsigned bin_width_>
+struct float_scalar_formatter_ {
+    scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(value_type_ v, std::format_context &ctx) const {
+        using mode_t = scalar_format_spec_t::mode_t;
+        unsigned bits;
+        if constexpr (requires { v.to_bits(); }) bits = static_cast<unsigned>(v.to_bits());
+        else bits = static_cast<unsigned>(v.raw_);
+
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return format_hex_(ctx.out(), bits, hex_width_, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return format_bin_(ctx.out(), bits, bin_width_, spec_.prefix_);
+        default: {
+            auto out = spec_.float_fmt_.format(v.to_f32(), ctx);
+            if (spec_.annotate_) out = format_hex_suffix_(out, bits, hex_width_);
+            return out;
+        }
+        }
+    }
+};
+
+} // namespace ashvardanian::numkong
+
+template <>
+struct std::formatter<ashvardanian::numkong::f16_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::f16_t, 4, 16> {};
+template <>
+struct std::formatter<ashvardanian::numkong::bf16_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::bf16_t, 4, 16> {};
+template <>
+struct std::formatter<ashvardanian::numkong::e4m3_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::e4m3_t, 2, 8> {};
+template <>
+struct std::formatter<ashvardanian::numkong::e5m2_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::e5m2_t, 2, 8> {};
+template <>
+struct std::formatter<ashvardanian::numkong::e2m3_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::e2m3_t, 2, 8> {};
+template <>
+struct std::formatter<ashvardanian::numkong::e3m2_t>
+    : ashvardanian::numkong::float_scalar_formatter_<ashvardanian::numkong::e3m2_t, 2, 8> {};
+
+template <>
+struct std::formatter<ashvardanian::numkong::i4x2_t> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::i4x2_t v, std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.raw_);
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 2, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 8, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "({}, {})", static_cast<int>(v.low().raw()),
+                                      static_cast<int>(v.high().raw()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 2);
+            return out;
+        }
+        }
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::u4x2_t> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::u4x2_t v, std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.raw_);
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 2, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 8, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "({}, {})", static_cast<unsigned>(v.low().raw()),
+                                      static_cast<unsigned>(v.high().raw()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 2);
+            return out;
+        }
+        }
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::u1x8_t> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::u1x8_t v, std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.raw_);
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 2, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 8, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "0b{:08b}", bits);
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 2);
+            return out;
+        }
+        }
+    }
+};
+
+/**
+ *  @brief Formatter for a single signed nibble (-8..7). Supports `{}`, `{:#}`, `{:x}`, `{:b}`.
+ *  Float-precision specs (e.g. `{:.2f}`) are not meaningful and ignored.
+ */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::i4x2_t>> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::i4x2_t> v,
+                                         std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.get()) & 0x0Fu;
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 1, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 4, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "{}", static_cast<int>(v.get()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 1);
+            return out;
+        }
+        }
+    }
+};
+
+/**
+ *  @brief Formatter for a single unsigned nibble (0..15). Supports `{}`, `{:#}`, `{:x}`, `{:b}`.
+ *  Float-precision specs (e.g. `{:.2f}`) are not meaningful and ignored.
+ */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u4x2_t>> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u4x2_t> v,
+                                         std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned bits = static_cast<unsigned>(v.get());
+        switch (spec_.mode_) {
+        case mode_t::hex_k: return nk::format_hex_(ctx.out(), bits, 1, spec_.prefix_, spec_.upper_);
+        case mode_t::binary_k: return nk::format_bin_(ctx.out(), bits, 4, spec_.prefix_);
+        default: {
+            auto out = std::format_to(ctx.out(), "{}", static_cast<unsigned>(v.get()));
+            if (spec_.annotate_) out = nk::format_hex_suffix_(out, bits, 1);
+            return out;
+        }
+        }
+    }
+};
+
+/** @brief Formatter for a single bit. Only `{}` is supported — hex and binary are not meaningful. */
+template <>
+struct std::formatter<ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u1x8_t>> {
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return ctx.begin(); }
+
+    std::format_context::iterator format(ashvardanian::numkong::sub_byte_ref<ashvardanian::numkong::u1x8_t> v,
+                                         std::format_context &ctx) const {
+        return std::format_to(ctx.out(), "{}", v.get() ? 1u : 0u);
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::f16c_t> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::f16c_t v, std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned re_bits = static_cast<unsigned>(v.real().to_bits());
+        unsigned im_bits = static_cast<unsigned>(v.imag().to_bits());
+        switch (spec_.mode_) {
+        case mode_t::hex_k: {
+            auto out = std::format_to(ctx.out(), "(");
+            out = nk::format_hex_(out, re_bits, 4, spec_.prefix_, spec_.upper_);
+            out = std::format_to(out, ", ");
+            out = nk::format_hex_(out, im_bits, 4, spec_.prefix_, spec_.upper_);
+            return std::format_to(out, ")");
+        }
+        case mode_t::binary_k: {
+            auto out = std::format_to(ctx.out(), "(");
+            out = nk::format_bin_(out, re_bits, 16, spec_.prefix_);
+            out = std::format_to(out, ", ");
+            out = nk::format_bin_(out, im_bits, 16, spec_.prefix_);
+            return std::format_to(out, ")");
+        }
+        default:
+            if (spec_.annotate_)
+                return std::format_to(ctx.out(), "({} [0x{:04x}], {} [0x{:04x}])", v.real().to_f32(), re_bits,
+                                      v.imag().to_f32(), im_bits);
+            return std::format_to(ctx.out(), "({}, {})", v.real().to_f32(), v.imag().to_f32());
+        }
+    }
+};
+
+template <>
+struct std::formatter<ashvardanian::numkong::bf16c_t> {
+    ashvardanian::numkong::scalar_format_spec_t spec_;
+
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context &ctx) { return spec_.parse(ctx); }
+
+    std::format_context::iterator format(ashvardanian::numkong::bf16c_t v, std::format_context &ctx) const {
+        namespace nk = ashvardanian::numkong;
+        using mode_t = nk::scalar_format_spec_t::mode_t;
+        unsigned re_bits = static_cast<unsigned>(v.real().to_bits());
+        unsigned im_bits = static_cast<unsigned>(v.imag().to_bits());
+        switch (spec_.mode_) {
+        case mode_t::hex_k: {
+            auto out = std::format_to(ctx.out(), "(");
+            out = nk::format_hex_(out, re_bits, 4, spec_.prefix_, spec_.upper_);
+            out = std::format_to(out, ", ");
+            out = nk::format_hex_(out, im_bits, 4, spec_.prefix_, spec_.upper_);
+            return std::format_to(out, ")");
+        }
+        case mode_t::binary_k: {
+            auto out = std::format_to(ctx.out(), "(");
+            out = nk::format_bin_(out, re_bits, 16, spec_.prefix_);
+            out = std::format_to(out, ", ");
+            out = nk::format_bin_(out, im_bits, 16, spec_.prefix_);
+            return std::format_to(out, ")");
+        }
+        default:
+            if (spec_.annotate_)
+                return std::format_to(ctx.out(), "({} [0x{:04x}], {} [0x{:04x}])", v.real().to_f32(), re_bits,
+                                      v.imag().to_f32(), im_bits);
+            return std::format_to(ctx.out(), "({}, {})", v.real().to_f32(), v.imag().to_f32());
+        }
+    }
+};
+
+#endif // __cpp_lib_format
+#endif // __has_include(<format>)
 
 #endif // NK_TYPES_HPP

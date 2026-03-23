@@ -40,7 +40,7 @@
  *
  *  @section references References
  *
- *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  - Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  *  - Ogita, T., Rump, S.M., Oishi, S. (2005). "Accurate Sum and Dot Product"
@@ -209,6 +209,15 @@ NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, n
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                          nk_f64_t *result);
+/** @copydoc nk_bilinear_f64 */
+NK_PUBLIC void nk_bilinear_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                      nk_f64_t *result);
+/** @copydoc nk_bilinear_f64c */
+NK_PUBLIC void nk_bilinear_f64c_smef64(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
+                                       nk_f64c_t *result);
+/** @copydoc nk_mahalanobis_f64 */
+NK_PUBLIC void nk_mahalanobis_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                         nk_f64_t *result);
 #endif // NK_TARGET_SMEF64
 
 #if NK_TARGET_HASWELL
@@ -345,6 +354,8 @@ extern "C" {
 NK_PUBLIC void nk_bilinear_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f64_skylake(a, b, c, n, result);
+#elif NK_TARGET_SMEF64
+    nk_bilinear_f64_smef64(a, b, c, n, result);
 #elif NK_TARGET_RVV
     nk_bilinear_f64_rvv(a, b, c, n, result);
 #else
@@ -355,6 +366,8 @@ NK_PUBLIC void nk_bilinear_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t co
 NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f32_skylake(a, b, c, n, result);
+#elif NK_TARGET_SMEF64
+    nk_bilinear_f32_smef64(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_bilinear_f32_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEON
@@ -397,6 +410,8 @@ NK_PUBLIC void nk_bilinear_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_
                                 nk_f64c_t *results) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f64c_skylake(a, b, c, n, results);
+#elif NK_TARGET_SMEF64
+    nk_bilinear_f64c_smef64(a, b, c, n, results);
 #else
     nk_bilinear_f64c_serial(a, b, c, n, results);
 #endif
@@ -406,6 +421,8 @@ NK_PUBLIC void nk_bilinear_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_
                                 nk_f64c_t *results) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f32c_skylake(a, b, c, n, results);
+#elif NK_TARGET_SMEF64
+    nk_bilinear_f32c_smef64(a, b, c, n, results);
 #elif NK_TARGET_NEON
     nk_bilinear_f32c_neon(a, b, c, n, results);
 #else
@@ -437,6 +454,8 @@ NK_PUBLIC void nk_mahalanobis_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t
                                   nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_mahalanobis_f64_skylake(a, b, c, n, result);
+#elif NK_TARGET_SMEF64
+    nk_mahalanobis_f64_smef64(a, b, c, n, result);
 #elif NK_TARGET_RVV
     nk_mahalanobis_f64_rvv(a, b, c, n, result);
 #else
@@ -448,6 +467,8 @@ NK_PUBLIC void nk_mahalanobis_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t
                                   nk_f64_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_mahalanobis_f32_skylake(a, b, c, n, result);
+#elif NK_TARGET_SMEF64
+    nk_mahalanobis_f32_smef64(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_mahalanobis_f32_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEON

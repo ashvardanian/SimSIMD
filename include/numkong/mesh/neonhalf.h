@@ -8,16 +8,15 @@
  *
  *  @section mesh_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *
- *      Intrinsic                   Instruction                     Latency     Throughput
- *                                                                              A76         M4+/V1+/Oryon
- *      vld3_f16                    LD3 (V.4H x 3)                  6cy         1/cy        2/cy
- *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
- *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
- *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
- *      vsubq_f32                   FSUB (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
- *      vmulq_f32                   FMUL (V.4S, V.4S, V.4S)         3cy         2/cy        4/cy
- *      vdupq_n_f32                 DUP (V.4S, scalar)              2cy         2/cy        4/cy
- *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *      Intrinsic     Instruction              A76       M5
+ *      vld3_f16      LD3 (V.4H x 3)           4cy @ 1p  4cy @ 1p
+ *      vcvt_f32_f16  FCVTL (V.4S, V.4H)       3cy @ 2p  3cy @ 4p
+ *      vfmaq_f32     FMLA (V.4S, V.4S, V.4S)  4cy @ 2p  3cy @ 4p
+ *      vaddq_f32     FADD (V.4S, V.4S, V.4S)  3cy @ 2p  2cy @ 4p
+ *      vsubq_f32     FSUB (V.4S, V.4S, V.4S)  3cy @ 2p  2cy @ 4p
+ *      vmulq_f32     FMUL (V.4S, V.4S, V.4S)  3cy @ 2p  3cy @ 4p
+ *      vdupq_n_f32   DUP (V.4S, scalar)       2cy @ 2p  2cy @ 4p
+ *      vaddvq_f32    FADDP+FADDP (V.4S)       5cy @ 1p  8cy @ 1p
  *
  *  Mesh alignment algorithms (RMSD, Kabsch, Umeyama) for 3D point cloud registration using F16 input
  *  with F32 intermediate precision. VLD3 provides efficient stride-3 deinterleaving for XYZ triplets,
