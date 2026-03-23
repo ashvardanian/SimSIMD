@@ -179,6 +179,21 @@ void test_spatial() {
     check("euclidean_u8_neonsdot", test_euclidean<u8_t>, nk_euclidean_u8_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
+#if NK_TARGET_NEONFP8
+    check("angular_e4m3_neonfp8", test_angular<e4m3_t>, nk_angular_e4m3_neonfp8);
+    check("sqeuclidean_e4m3_neonfp8", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neonfp8);
+    check("euclidean_e4m3_neonfp8", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neonfp8);
+    check("angular_e5m2_neonfp8", test_angular<e5m2_t>, nk_angular_e5m2_neonfp8);
+    check("sqeuclidean_e5m2_neonfp8", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neonfp8);
+    check("euclidean_e5m2_neonfp8", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neonfp8);
+    check("angular_e2m3_neonfp8", test_angular<e2m3_t>, nk_angular_e2m3_neonfp8);
+    check("sqeuclidean_e2m3_neonfp8", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_neonfp8);
+    check("euclidean_e2m3_neonfp8", test_euclidean<e2m3_t>, nk_euclidean_e2m3_neonfp8);
+    check("angular_e3m2_neonfp8", test_angular<e3m2_t>, nk_angular_e3m2_neonfp8);
+    check("sqeuclidean_e3m2_neonfp8", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neonfp8);
+    check("euclidean_e3m2_neonfp8", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neonfp8);
+#endif // NK_TARGET_NEONFP8
+
 #if NK_TARGET_SVE
     check("angular_f64_sve", test_angular<f64_t>, nk_angular_f64_sve);
     check("sqeuclidean_f64_sve", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_sve);

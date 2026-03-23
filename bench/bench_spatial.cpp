@@ -90,6 +90,21 @@ void bench_spatial() {
     run_dense<bf16_k, f32_k>("euclidean_bf16_svebfdot", nk_euclidean_bf16_svebfdot);
 #endif
 
+#if NK_TARGET_NEONFP8
+    run_dense<e4m3_k, f32_k>("angular_e4m3_neonfp8", nk_angular_e4m3_neonfp8);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_neonfp8", nk_sqeuclidean_e4m3_neonfp8);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_neonfp8", nk_euclidean_e4m3_neonfp8);
+    run_dense<e5m2_k, f32_k>("angular_e5m2_neonfp8", nk_angular_e5m2_neonfp8);
+    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_neonfp8", nk_sqeuclidean_e5m2_neonfp8);
+    run_dense<e5m2_k, f32_k>("euclidean_e5m2_neonfp8", nk_euclidean_e5m2_neonfp8);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_neonfp8", nk_angular_e2m3_neonfp8);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_neonfp8", nk_sqeuclidean_e2m3_neonfp8);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_neonfp8", nk_euclidean_e2m3_neonfp8);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_neonfp8", nk_angular_e3m2_neonfp8);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_neonfp8", nk_sqeuclidean_e3m2_neonfp8);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_neonfp8", nk_euclidean_e3m2_neonfp8);
+#endif
+
 #if NK_TARGET_HASWELL
     run_dense<f64_k, f64_k>("angular_f64_haswell", nk_angular_f64_haswell);
     run_dense<f64_k, f64_k>("sqeuclidean_f64_haswell", nk_sqeuclidean_f64_haswell);

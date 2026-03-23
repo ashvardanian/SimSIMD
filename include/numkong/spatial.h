@@ -367,6 +367,33 @@ NK_PUBLIC void nk_sqeuclidean_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk
 NK_PUBLIC void nk_angular_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONSDOT
 
+#if NK_TARGET_NEONFP8
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e4m3_neonfp8(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e4m3_neonfp8(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e4m3_neonfp8(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e5m2_neonfp8(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e5m2_neonfp8(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e5m2_neonfp8(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e2m3_neonfp8(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e2m3_neonfp8(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e2m3_neonfp8(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_neonfp8(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_neonfp8(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_neonfp8(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_NEONFP8
+
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
@@ -812,6 +839,7 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 #include "numkong/spatial/sve.h"
 #include "numkong/spatial/svehalf.h"
 #include "numkong/spatial/svebfdot.h"
+#include "numkong/spatial/neonfp8.h"
 #include "numkong/spatial/haswell.h"
 #include "numkong/spatial/skylake.h"
 #include "numkong/spatial/genoa.h"
@@ -1059,7 +1087,9 @@ NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_euclidean_e4m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_euclidean_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_euclidean_e4m3_genoa(a, b, n, result);
@@ -1073,7 +1103,9 @@ NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_sqeuclidean_e4m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_sqeuclidean_e4m3_genoa(a, b, n, result);
@@ -1087,7 +1119,9 @@ NK_PUBLIC void nk_sqeuclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_si
 }
 
 NK_PUBLIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_NEONFP8
+    nk_angular_e4m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_angular_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e4m3_skylake(a, b, n, result);
@@ -1099,7 +1133,9 @@ NK_PUBLIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_NEONFP8
+    nk_euclidean_e5m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_euclidean_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e5m2_skylake(a, b, n, result);
@@ -1111,7 +1147,9 @@ NK_PUBLIC void nk_euclidean_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_NEONFP8
+    nk_sqeuclidean_e5m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_sqeuclidean_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e5m2_skylake(a, b, n, result);
@@ -1123,7 +1161,9 @@ NK_PUBLIC void nk_sqeuclidean_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_si
 }
 
 NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_NEONFP8
+    nk_angular_e5m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_angular_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e5m2_skylake(a, b, n, result);
@@ -1135,7 +1175,9 @@ NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_euclidean_e2m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_euclidean_e2m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e2m3_skylake(a, b, n, result);
@@ -1153,7 +1195,9 @@ NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_sqeuclidean_e2m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e2m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e2m3_skylake(a, b, n, result);
@@ -1171,7 +1215,9 @@ NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_si
 }
 
 NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_angular_e2m3_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_angular_e2m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e2m3_skylake(a, b, n, result);
@@ -1189,7 +1235,9 @@ NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_euclidean_e3m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_euclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e3m2_skylake(a, b, n, result);
@@ -1205,7 +1253,9 @@ NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_sqeuclidean_e3m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_sqeuclidean_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
@@ -1221,7 +1271,9 @@ NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
 }
 
 NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
+#if NK_TARGET_NEONFP8
+    nk_angular_e3m2_neonfp8(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
     nk_angular_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e3m2_skylake(a, b, n, result);

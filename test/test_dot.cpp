@@ -147,6 +147,13 @@ void test_dot() {
     check("dot_e5m2_neonbfdot", test_dot<e5m2_t>, nk_dot_e5m2_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
+#if NK_TARGET_NEONFP8
+    check("dot_e4m3_neonfp8", test_dot<e4m3_t>, nk_dot_e4m3_neonfp8);
+    check("dot_e5m2_neonfp8", test_dot<e5m2_t>, nk_dot_e5m2_neonfp8);
+    check("dot_e2m3_neonfp8", test_dot<e2m3_t>, nk_dot_e2m3_neonfp8);
+    check("dot_e3m2_neonfp8", test_dot<e3m2_t>, nk_dot_e3m2_neonfp8);
+#endif // NK_TARGET_NEONFP8
+
 #if NK_TARGET_SVE
     check("dot_f32_sve", test_dot<f32_t>, nk_dot_f32_sve);
     check("dot_f64_sve", test_dot<f64_t>, nk_dot_f64_sve);

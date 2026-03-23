@@ -959,6 +959,7 @@ static struct {
     {"neonfhm", nk_cap_neonfhm_k},
     {"neonbfdot", nk_cap_neonbfdot_k},
     {"neonsdot", nk_cap_neonsdot_k},
+    {"neonfp8", nk_cap_neonfp8_k},
     // ARM SVE
     {"sve", nk_cap_sve_k},
     {"svehalf", nk_cap_svehalf_k},

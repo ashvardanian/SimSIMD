@@ -244,6 +244,12 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(NK_TARGET_NEONBFDOT) || ...
 
+// Compiling for Arm: NK_TARGET_NEONFP8 (NEON FP8 extensions)
+#if !defined(NK_TARGET_NEONFP8) || (NK_TARGET_NEONFP8 && !NK_TARGET_ARM_)
+#undef NK_TARGET_NEONFP8
+#define NK_TARGET_NEONFP8 0
+#endif // !defined(NK_TARGET_NEONFP8) || ...
+
 // Compiling for Arm: NK_TARGET_SVE
 #if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)

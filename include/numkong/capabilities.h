@@ -290,6 +290,10 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 #define nk_cap_sierra_k      ((nk_capability_t)1 << 34)
 #define nk_cap_smebi32_k     ((nk_capability_t)1 << 35)
+#define nk_cap_loongsonapx_k ((nk_capability_t)1 << 36)
+#define nk_cap_powervsx_k    ((nk_capability_t)1 << 37)
+#define nk_cap_diamond_k     ((nk_capability_t)1 << 38)
+#define nk_cap_neonfp8_k     ((nk_capability_t)1 << 39)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -532,7 +536,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     return (nk_capability_t)(nk_cap_neon_k | nk_cap_serial_k);
 #endif
 
-    unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
+    unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0,
+                  id_aa64fpfr0_el1 = 0;
 
     __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
     unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
@@ -551,6 +556,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     unsigned supports_svebfdot = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
+
+    __asm__ __volatile__("mrs %0, ID_AA64FPFR0_EL1" : "=r"(id_aa64fpfr0_el1));
+    unsigned supports_fp8dot4 = ((id_aa64fpfr0_el1 >> 29) & 0x1) >= 1;
 
     unsigned long id_aa64pfr1_el1 = 0, id_aa64smfr0_el1 = 0;
     __asm__ __volatile__("mrs %0, ID_AA64PFR1_EL1" : "=r"(id_aa64pfr1_el1));
@@ -581,6 +589,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
                          (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
                          (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
                          (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) |
+                         (nk_cap_neonfp8_k * (supports_neon && supports_fp8dot4)) | //
                          (nk_cap_sve_k * (supports_sve)) | (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |
                          (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |
                          (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) | (nk_cap_sve2_k * (supports_sve2)) |
