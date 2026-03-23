@@ -99,8 +99,8 @@ A warning is emitted for each disabled backend.
 
 ## Dynamic Dispatch and Capabilities
 
-`configure_thread` configures rounding behavior and enables CPU-specific acceleration features such as Intel AMX.
-It must be called once per thread before using any SIMD-accelerated operations.
+`configure_thread` enables CPU-specific acceleration features such as Intel AMX.
+It must be called once per thread before using AMX operations.
 
 ```rust
 use numkong::{available, configure_thread, cap};
@@ -113,7 +113,7 @@ if caps & cap::SAPPHIREAMX != 0 {
 }
 ```
 
-Call `configure_thread` at the start of every thread that will invoke NumKong kernels.
+Call `configure_thread` at the start of every thread that will use AMX operations.
 In a thread-pool setting, each worker thread needs its own call.
 The function is idempotent and cheap to call more than once on the same thread.
 

@@ -75,16 +75,14 @@ Packed sub-byte conversions:
 
 ## Optimizations
 
-### FP8/FP6 Upcast via Integer-Add (FTZ-Safe)
+### FP8/FP6 Upcast via Integer-Add
 
 `nk_e4m3_to_f32_serial`, `nk_e5m2_to_f32_serial`, `nk_e2m3_to_f32_serial`, `nk_e3m2_to_f32_serial` use 256-entry precomputed lookup tables -- each 8-bit input indexes directly into an f32 result array.
 The reverse direction (`nk_f32_to_e4m3_serial`) uses clamping + rounding: clamp to format range, multiply by scale, round-to-nearest, cast to u8.
 
 SIMD backends use a Giesen-inspired integer-add trick instead of the original magic-multiply approach.
 The magic-multiply method places magnitude bits as a denormal f32 mantissa, then float-multiplies by a power of 2 to rebias the exponent.
-This breaks when FTZ/DAZ is set (as `nk_configure_thread` intentionally does for performance), flushing denormal intermediates to zero.
 The integer-add approach replaces the float multiply with an integer add for normal values (`shifted + (127-bias)<<23`), and uses `cvt_int_to_float * scale` for subnormal values.
-Both paths produce only normal f32 intermediates — no denormals, correct under any FTZ/DAZ setting.
 
 On AVX-512, masked operations (`_mm512_mask_cvtepi32_ps`, `_mm512_mask_mul_ps`, `_mm512_mask_or_epi32`) fold the subnormal blend and inf/NaN fixup into single instructions.
 On RVV, merge-undisturbed masked intrinsics (`_mu` variants) achieve the same optimization.

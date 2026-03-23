@@ -34,7 +34,7 @@ pub fn available() -> u64 {
 }
 
 /// Configures the current thread for optimal SIMD performance.
-/// This includes flushing denormalized numbers to zero and enabling AMX on supported CPUs.
+/// On x86, this enables AMX tile state via `arch_prctl`. On other platforms this is a no-op.
 /// Must be called once per thread before using AMX (Advanced Matrix Extensions) operations.
 pub fn configure_thread() -> bool {
     // Pass !0 to enable all capabilities including AMX

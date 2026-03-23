@@ -87,7 +87,7 @@ func Capabilities() uint64 {
 }
 
 // ConfigureThread pins the goroutine to an OS thread, configures SIMD state
-// (denormal flushing, AMX), and returns an unlock function.
+// (AMX tile permissions on x86), and returns an unlock function.
 // Call the returned function (typically via defer) to release the OS thread
 // when SIMD work is done.
 func ConfigureThread() func() {
@@ -102,4 +102,3 @@ func ConfigureThreadWith(caps uint64) func() {
 	C.nk_configure_thread(C.nk_capability_t(caps))
 	return runtime.UnlockOSThread
 }
-

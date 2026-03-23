@@ -444,8 +444,8 @@ Its footprint is exposed through `size_bytes()`.
 ## Runtime Dispatch and Capabilities
 
 Dynamic dispatch is the default recommendation for shipping one binary across many CPU generations.
-`nk_configure_thread` configures rounding behavior and enables CPU-specific acceleration features such as Intel AMX.
-It must be called once per thread before any kernel invocation and returns 1 on success, 0 on failure.
+`nk_configure_thread` enables CPU-specific acceleration features such as Intel AMX.
+It must be called once per thread before using AMX operations and returns 1 on success, 0 on failure.
 
 ```c
 nk_capability_t caps = nk_capabilities();

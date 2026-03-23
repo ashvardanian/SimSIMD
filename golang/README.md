@@ -443,8 +443,8 @@ go func() {
 
 ## Thread Configuration and Capabilities
 
-`ConfigureThread` pins the current goroutine to an OS thread via `runtime.LockOSThread`, configures rounding behavior and enables CPU-specific acceleration features such as Intel AMX, then returns an unlock function.
-Goroutines can migrate between OS threads, so thread-local state (AMX tiles, denormal flushing) would be lost without pinning.
+`ConfigureThread` pins the current goroutine to an OS thread via `runtime.LockOSThread`, enables CPU-specific acceleration features such as Intel AMX, then returns an unlock function.
+Goroutines can migrate between OS threads, so thread-local state (AMX tiles) would be lost without pinning.
 
 ```go
 defer nk.ConfigureThread()()                // auto-detect, lock thread, defer unlock
