@@ -83,6 +83,20 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         flags.insert("NK_IS_64BIT_X86".to_string(), false);
         flags.insert("NK_IS_64BIT_ARM".to_string(), false);
         flags.insert("NK_IS_64BIT_RISCV".to_string(), true);
+    } else if target_arch == "loongarch64" && target_bits == "64" {
+        build.define("NK_IS_64BIT_X86", "0");
+        build.define("NK_IS_64BIT_ARM", "0");
+        build.define("NK_IS_64BIT_RISCV", "0");
+        flags.insert("NK_IS_64BIT_X86".to_string(), false);
+        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
+    } else if target_arch == "powerpc64" && target_bits == "64" {
+        build.define("NK_IS_64BIT_X86", "0");
+        build.define("NK_IS_64BIT_ARM", "0");
+        build.define("NK_IS_64BIT_RISCV", "0");
+        flags.insert("NK_IS_64BIT_X86".to_string(), false);
+        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
     } else {
         build.define("NK_IS_64BIT_X86", "0");
         build.define("NK_IS_64BIT_ARM", "0");
@@ -135,6 +149,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
 
             // NEON is available on all ARM platforms
             flags.extend_from_slice(&[
+                "NK_TARGET_NEONFP8",
                 "NK_TARGET_NEONFHM",
                 "NK_TARGET_NEONBFDOT",
                 "NK_TARGET_NEONSDOT",
@@ -153,16 +168,18 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
                 flags.extend_from_slice(&["NK_TARGET_GRANITEAMX", "NK_TARGET_SAPPHIREAMX"]);
             }
 
-            // Advanced AVX-512 features available on Linux, FreeBSD, and Windows
+            // Advanced AVX-512 features available on Linux, FreeBSD, and Windows.
+            // Ordered most-advanced-first: the fallback mechanism disables from top to bottom.
             if is_linux || is_freebsd || is_windows {
                 flags.extend_from_slice(&[
-                    "NK_TARGET_ALDER",
-                    "NK_TARGET_SIERRA",
-                    "NK_TARGET_TURIN",
+                    "NK_TARGET_DIAMOND",
                     "NK_TARGET_SAPPHIRE",
+                    "NK_TARGET_TURIN",
                     "NK_TARGET_GENOA",
                     "NK_TARGET_ICELAKE",
                     "NK_TARGET_SKYLAKE",
+                    "NK_TARGET_SIERRA",
+                    "NK_TARGET_ALDER",
                 ]);
             }
 
@@ -180,6 +197,20 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
                     "NK_TARGET_RVVHALF",
                     "NK_TARGET_RVV",
                 ]
+            } else {
+                vec![]
+            }
+        }
+        "loongarch64" => {
+            if is_linux {
+                vec!["NK_TARGET_LOONGSONASX"]
+            } else {
+                vec![]
+            }
+        }
+        "powerpc64" => {
+            if is_linux {
+                vec!["NK_TARGET_POWERVSX"]
             } else {
                 vec![]
             }

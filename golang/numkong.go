@@ -80,6 +80,10 @@ const (
 	CapRvvBB       uint64 = 1 << 33 // RISC-V: Byte-Byte extensions
 	CapSierra      uint64 = 1 << 34 // 2024: Intel AVXVNNIINT8
 	CapSmeBi32     uint64 = 1 << 35 // 2025+: ARM SME BI32I32
+	CapLoongsonAsx uint64 = 1 << 36 // LoongArch LASX 256-bit SIMD
+	CapPowerVsx    uint64 = 1 << 37 // Power VSX 128-bit SIMD
+	CapDiamond     uint64 = 1 << 38 // 2025+: Intel AVX10.2
+	CapNeonFp8     uint64 = 1 << 39 // ARM NEON FP8
 )
 
 // Capabilities returns a bitmask of SIMD capabilities available on the current CPU.

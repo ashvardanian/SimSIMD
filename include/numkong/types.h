@@ -36,6 +36,29 @@
  *  @see https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *  @see FP8 Formats for Deep Learning: https://arxiv.org/pdf/2209.05433
  *  @see ONNX Float8 Types: https://onnx.ai/onnx/technical/float8.html
+ *
+ *  @section fp6_types FP6 Numeric Types
+ *
+ *  The OCP Microscaling (MX) v1.0 specification defines two 6-bit floating-point formats
+ *  for block-scaled quantization. Both are "FN" (finite-numeric): all bit patterns map
+ *  to real numbers with no Inf or NaN codes. Stored byte-aligned with 2 bits of padding.
+ *
+ *      Format  Bias  Sign  Exp  Mant  Range   Subnormals  Infinity  NaN  Standard
+ *      E2M3    1     1     2    3     ±7.5    14 of 64    ❌ No     ❌   OCP MX v1.0
+ *      E3M2    3     1     3    2     ±28     6 of 64     ❌ No     ❌   OCP MX v1.0
+ *
+ *  E2M3 favors mantissa precision (3 bits) for narrow dynamic range — ideal for activations.
+ *  E3M2 favors exponent range (3 bits) for wider dynamic range — suited for weights.
+ *  Both follow IEEE 754 subnormal rules: when exp=0, the implicit leading bit is 0,
+ *  giving value = (-1)^s × 0.mmm × 2^(1-bias). This provides gradual underflow to zero.
+ *
+ *  No hardware directly computes on FP6. On Arm with FEAT_FP8DOT4, E2M3 values can be
+ *  losslessly promoted to E4M3 (same mantissa width, rebias exponent by +6) and E3M2 to
+ *  E5M2 (same mantissa width, rebias exponent by +12), then fed to FDOT instructions.
+ *  Subnormal values (exp=0) require normalization during this promotion.
+ *
+ *  @see https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *  @see https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
  */
 #ifndef NK_TYPES_H
 #define NK_TYPES_H
@@ -122,6 +145,24 @@
 #endif // defined(__riscv) && (__riscv_xlen == 64)
 #endif // !defined(NK_TARGET_RISCV_)
 
+// Compiling for LoongArch: NK_TARGET_LOONGARCH_
+#if !defined(NK_TARGET_LOONGARCH_)
+#if defined(__loongarch__)
+#define NK_TARGET_LOONGARCH_ 1
+#else
+#define NK_TARGET_LOONGARCH_ 0
+#endif // defined(__loongarch__)
+#endif // !defined(NK_TARGET_LOONGARCH_)
+
+// Compiling for Power: NK_TARGET_POWER_
+#if !defined(NK_TARGET_POWER_)
+#if defined(__powerpc64__) || defined(__ppc64__) || defined(_ARCH_PPC64)
+#define NK_TARGET_POWER_ 1
+#else
+#define NK_TARGET_POWER_ 0
+#endif // defined(__powerpc64__) || defined(__ppc64__) || defined(_ARCH_PPC64)
+#endif // !defined(NK_TARGET_POWER_)
+
 // Compiling for WASM: NK_TARGET_WASM_
 #if !defined(NK_TARGET_WASM_)
 #if defined(__wasm__) || defined(__EMSCRIPTEN__)
@@ -194,6 +235,30 @@
 #endif // defined(__riscv_zvbb) && (__riscv_zvbb > 0)
 #endif // !defined(NK_TARGET_RVVBB) || ...
 
+// Compiling for LoongArch LASX (256-bit SIMD): NK_TARGET_LOONGSONASX
+// LASX provides 32 × 256-bit vector registers, widening integer multiply-accumulate,
+// and f32-to-f64 conversion (xvfcvtl_d_s / xvfcvth_d_s) but no widening FMA.
+#if !defined(NK_TARGET_LOONGSONASX) || (NK_TARGET_LOONGSONASX && !NK_TARGET_LOONGARCH_)
+#if defined(__loongarch_lasx)
+#define NK_TARGET_LOONGSONASX 1
+#else
+#undef NK_TARGET_LOONGSONASX
+#define NK_TARGET_LOONGSONASX 0
+#endif // defined(__loongarch_lasx)
+#endif // !defined(NK_TARGET_LOONGSONASX) || ...
+
+// Compiling for Power VSX (128-bit SIMD, POWER7+): NK_TARGET_POWERVSX
+// VSX provides 64 × 128-bit registers, FMA (vec_madd), native bf16 conversion (POWER10),
+// widening integer multiply (vec_mule/vec_mulo), and per-byte popcount (vec_popcnt, POWER8+).
+#if !defined(NK_TARGET_POWERVSX) || (NK_TARGET_POWERVSX && !NK_TARGET_POWER_)
+#if defined(__VSX__)
+#define NK_TARGET_POWERVSX 1
+#else
+#undef NK_TARGET_POWERVSX
+#define NK_TARGET_POWERVSX 0
+#endif // defined(__VSX__)
+#endif // !defined(NK_TARGET_POWERVSX) || ...
+
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
@@ -245,6 +310,8 @@
 #endif // !defined(NK_TARGET_NEONBFDOT) || ...
 
 // Compiling for Arm: NK_TARGET_NEONFP8 (NEON FP8 extensions)
+// No compiler-predefined macro exists for FP8; this ISA level is reachable only
+// via dynamic dispatch (NK_BUILD_SHARED) or explicit CMake override.
 #if !defined(NK_TARGET_NEONFP8) || (NK_TARGET_NEONFP8 && !NK_TARGET_ARM_)
 #undef NK_TARGET_NEONFP8
 #define NK_TARGET_NEONFP8 0
@@ -445,6 +512,11 @@
 #endif
 #endif // !defined(NK_TARGET_GENOA) || ...
 
+#if !defined(NK_TARGET_DIAMOND) || (NK_TARGET_DIAMOND && !NK_TARGET_X86_)
+#undef NK_TARGET_DIAMOND
+#define NK_TARGET_DIAMOND 0
+#endif // !defined(NK_TARGET_DIAMOND) || ...
+
 #if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !NK_TARGET_X86_)
 #if defined(__AVX512FP16__) || (defined(_MSC_VER) && _MSC_VER >= 1944)
 #define NK_TARGET_SAPPHIRE 1
@@ -499,10 +571,10 @@
 #endif
 #endif // !defined(NK_TARGET_SIERRA) || ...
 
-// Include the relevant intrinsics file - different for different OSes and ISAs
+// Include the relevant intrinsics headers
 #if defined(_MSC_VER)
 #include <intrin.h>
-#elif NK_TARGET_ARM_
+#endif
 #if NK_TARGET_NEON
 #include <arm_neon.h>
 #endif
@@ -512,11 +584,19 @@
 #if NK_TARGET_SME || NK_TARGET_SME2 || NK_TARGET_SMEBI32
 #include <arm_sme.h>
 #endif
-#elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
+#if NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
-#elif NK_TARGET_RVV
+#endif
+#if NK_TARGET_RVV
 #include <riscv_vector.h>
-#elif NK_TARGET_V128RELAXED
+#endif
+#if NK_TARGET_LOONGSONASX
+#include <lasxintrin.h>
+#endif
+#if NK_TARGET_POWERVSX
+#include <altivec.h>
+#endif
+#if NK_TARGET_V128RELAXED
 #include <wasm_simd128.h>
 #endif
 
@@ -585,6 +665,27 @@
 #endif
 #endif
 
+/*  AltiVec defines `bool`, `vector`, and `pixel` as macros, which conflict with C++.
+ *  We use `__vector` directly in our code, so undef the problematic macros.
+ */
+#if NK_TARGET_POWERVSX
+#ifdef __cplusplus
+#undef bool
+#undef vector
+#undef pixel
+#endif
+typedef __vector unsigned char nk_vu8x16_t;
+typedef __vector unsigned short nk_vu16x8_t;
+typedef __vector unsigned int nk_vu32x4_t;
+typedef __vector unsigned long long nk_vu64x2_t;
+typedef __vector signed char nk_vi8x16_t;
+typedef __vector signed short nk_vi16x8_t;
+typedef __vector signed int nk_vi32x4_t;
+typedef __vector signed long long nk_vi64x2_t;
+typedef __vector float nk_vf32x4_t;
+typedef __vector double nk_vf64x2_t;
+#endif // NK_TARGET_POWERVSX
+
 /** Copy 16 bits (2 bytes) from source to destination */
 #if defined(__GNUC__) || defined(__clang__)
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) __builtin_memcpy((destination_ptr), (source_ptr), count)
@@ -641,10 +742,16 @@ typedef unsigned char nk_e4m3_t;
  *  122 of 248 finite values (49.2%) fall in [−1, +1]. */
 typedef unsigned char nk_e5m2_t;
 /** @brief 6-bit E2M3 micro-float (OCP MX v1.0): sign(1) + exponent(2) + mantissa(3), bias=1.
- *  Range: ±7.5, no infinities or NaN. Only 64 total codes; 18 (28.1%) fall in [−1, +1]. */
+ *  Stored as 0b00SEEMMM with 2 bits of padding. Range: ±7.5, no infinities or NaN.
+ *  64 total codes: 48 normal, 14 subnormal (exp=0, mant≠0), 2 zeros (±0).
+ *  18 of 64 values (28.1%) fall in [−1, +1]. Subnormal values span [±0.125, ±0.875].
+ *  Losslessly promotable to E4M3 by rebiasing exponent +6 (normals) or normalizing (subnormals). */
 typedef unsigned char nk_e2m3_t;
 /** @brief 6-bit E3M2 micro-float (OCP MX v1.0): sign(1) + exponent(3) + mantissa(2), bias=3.
- *  Range: ±28, supports infinities. Only 64 total codes; 26 (40.6%) fall in [−1, +1]. */
+ *  Stored as 0b00SEEEMM with 2 bits of padding. Range: ±28, no infinities or NaN.
+ *  64 total codes: 56 normal, 6 subnormal (exp=0, mant≠0), 2 zeros (±0).
+ *  26 of 64 values (40.6%) fall in [−1, +1]. Subnormal values span [±0.0625, ±0.1875].
+ *  Losslessly promotable to E5M2 by rebiasing exponent +12 (normals) or normalizing (subnormals). */
 typedef unsigned char nk_e3m2_t;
 
 /** @brief Signed 8-bit integer. Range: [−128, +127]. */
@@ -1091,6 +1198,21 @@ typedef union nk_b128_vec_t {
     float32x4_t f32x4;
     float64x2_t f64x2;
 #endif
+#if NK_TARGET_POWERVSX
+    nk_vu8x16_t vu8x16;
+    nk_vu16x8_t vu16x8;
+    nk_vu32x4_t vu32x4;
+    nk_vu64x2_t vu64x2;
+    nk_vi8x16_t vi8x16;
+    nk_vi16x8_t vi16x8;
+    nk_vi32x4_t vi32x4;
+    nk_vi64x2_t vi64x2;
+    nk_vf32x4_t vf32x4;
+    nk_vf64x2_t vf64x2;
+#endif
+#if NK_TARGET_LOONGSONASX
+    __m256i lasx;
+#endif
     nk_u8_t u8s[16];
     nk_u16_t u16s[8];
     nk_u32_t u32s[4];
@@ -1131,6 +1253,21 @@ typedef union nk_b256_vec_t {
     int64x2_t i64x2s[2];
     float32x4_t f32x4s[2];
     float64x2_t f64x2s[2];
+#endif
+#if NK_TARGET_POWERVSX
+    nk_vu8x16_t vu8x16s[2];
+    nk_vu16x8_t vu16x8s[2];
+    nk_vu32x4_t vu32x4s[2];
+    nk_vu64x2_t vu64x2s[2];
+    nk_vi8x16_t vi8x16s[2];
+    nk_vi16x8_t vi16x8s[2];
+    nk_vi32x4_t vi32x4s[2];
+    nk_vi64x2_t vi64x2s[2];
+    nk_vf32x4_t vf32x4s[2];
+    nk_vf64x2_t vf64x2s[2];
+#endif
+#if NK_TARGET_LOONGSONASX
+    __m256i lasx;
 #endif
     nk_u8_t u8s[32];
     nk_u16_t u16s[16];

@@ -290,7 +290,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 #define nk_cap_sierra_k      ((nk_capability_t)1 << 34)
 #define nk_cap_smebi32_k     ((nk_capability_t)1 << 35)
-#define nk_cap_loongsonapx_k ((nk_capability_t)1 << 36)
+#define nk_cap_loongsonasx_k ((nk_capability_t)1 << 36)
 #define nk_cap_powervsx_k    ((nk_capability_t)1 << 37)
 #define nk_cap_diamond_k     ((nk_capability_t)1 << 38)
 #define nk_cap_neonfp8_k     ((nk_capability_t)1 << 39)
@@ -402,13 +402,17 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
         struct separate_t {
             unsigned eax, ebx, ecx, edx;
         } named;
-    } info1, info7, info7sub1;
+    } info0, info1, info7, info7sub1;
 
 #if defined(_MSC_VER)
+    __cpuidex(info0.array, 0, 0);
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
     __cpuidex(info7sub1.array, 7, 1);
 #else
+    __asm__ __volatile__("cpuid"
+                         : "=a"(info0.named.eax), "=b"(info0.named.ebx), "=c"(info0.named.ecx), "=d"(info0.named.edx)
+                         : "a"(0), "c"(0));
     __asm__ __volatile__("cpuid"
                          : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
                          : "a"(1), "c"(0));
@@ -421,6 +425,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
                          : "a"(7), "c"(1));
 #endif
 
+    unsigned max_leaf = info0.named.eax;
     unsigned supports_avx2 = (info7.named.ebx & 0x00000020) != 0;
     unsigned supports_f16c = (info1.named.ecx & 0x20000000) != 0;
     unsigned supports_fma = (info1.named.ecx & 0x00001000) != 0;
@@ -441,12 +446,29 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_avxvnni = (info7sub1.named.eax & 0x00000010) != 0;
     unsigned supports_avxvnniint8 = (info7sub1.named.edx & 0x00000010) != 0;
 
+    // AVX10.2 detection via CPUID leaf 0x24, subleaf 0.
+    // EBX[7:0] contains the AVX10 convergent vector ISA version number.
+    unsigned supports_avx10v2 = 0;
+    if (max_leaf >= 0x24) {
+        union four_registers_t info24;
+#if defined(_MSC_VER)
+        __cpuidex(info24.array, 0x24, 0);
+#else
+        __asm__ __volatile__("cpuid"
+                             : "=a"(info24.named.eax), "=b"(info24.named.ebx), "=c"(info24.named.ecx),
+                               "=d"(info24.named.edx)
+                             : "a"(0x24), "c"(0));
+#endif
+        supports_avx10v2 = (info24.named.ebx & 0xFF) >= 2;
+    }
+
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
     unsigned supports_skylake = supports_avx512f;
     unsigned supports_icelake = supports_avx512vnni && supports_avx512ifma && supports_avx512bitalg &&
                                 supports_avx512vbmi && supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
+    unsigned supports_diamond = supports_avx10v2 && supports_sapphire;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
     unsigned supports_sierra = supports_haswell && supports_avxvnniint8;
     unsigned supports_alder = supports_haswell && supports_avxvnni;
@@ -455,9 +477,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
 
     return (nk_capability_t)((nk_cap_haswell_k * supports_haswell) | (nk_cap_skylake_k * supports_skylake) |
                              (nk_cap_icelake_k * supports_icelake) | (nk_cap_genoa_k * supports_genoa) |
-                             (nk_cap_sapphire_k * supports_sapphire) | (nk_cap_turin_k * supports_turin) |
-                             (nk_cap_sierra_k * supports_sierra) | (nk_cap_alder_k * supports_alder) |
-                             (nk_cap_sapphireamx_k * supports_sapphireamx) |
+                             (nk_cap_diamond_k * supports_diamond) | (nk_cap_sapphire_k * supports_sapphire) |
+                             (nk_cap_turin_k * supports_turin) | (nk_cap_sierra_k * supports_sierra) |
+                             (nk_cap_alder_k * supports_alder) | (nk_cap_sapphireamx_k * supports_sapphireamx) |
                              (nk_cap_graniteamx_k * supports_graniteamx) | (nk_cap_serial_k));
 }
 
@@ -661,6 +683,40 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 
 #endif // NK_TARGET_RISCV_
 
+#if NK_TARGET_LOONGARCH_
+
+NK_PUBLIC nk_capability_t nk_capabilities_loongarch_(void) {
+#if defined(NK_DEFINED_LINUX_)
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    nk_capability_t caps = nk_cap_serial_k;
+    // LoongArch HWCAP bit 5 = LASX (256-bit SIMD)
+    if (hwcap & (1UL << 5)) caps |= nk_cap_loongsonasx_k;
+    return caps;
+#else
+    return nk_cap_serial_k;
+#endif
+}
+
+#endif // NK_TARGET_LOONGARCH_
+
+#if NK_TARGET_POWER_
+
+NK_PUBLIC nk_capability_t nk_capabilities_power_(void) {
+#if defined(NK_DEFINED_LINUX_)
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    unsigned long hwcap2 = getauxval(AT_HWCAP2);
+    nk_capability_t caps = nk_cap_serial_k;
+    nk_unused_(hwcap2);
+    // PPC_FEATURE_HAS_VSX = 0x00000080
+    if (hwcap & 0x00000080) caps |= nk_cap_powervsx_k;
+    return caps;
+#else
+    return nk_cap_serial_k;
+#endif
+}
+
+#endif // NK_TARGET_POWER_
+
 #if NK_TARGET_WASM_
 
 #if defined(__EMSCRIPTEN__) && NK_DYNAMIC_DISPATCH && !defined(NK_PYODIDE_SIDE_MODULE)
@@ -706,17 +762,19 @@ NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
 NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 #if NK_TARGET_X86_
     return nk_capabilities_x86_();
-#endif
-#if NK_TARGET_ARM_
+#elif NK_TARGET_ARM_
     return nk_capabilities_arm_();
-#endif
-#if NK_TARGET_RISCV_
+#elif NK_TARGET_RISCV_
     return nk_capabilities_riscv_();
-#endif
-#if NK_TARGET_WASM_
+#elif NK_TARGET_LOONGARCH_
+    return nk_capabilities_loongarch_();
+#elif NK_TARGET_POWER_
+    return nk_capabilities_power_();
+#elif NK_TARGET_WASM_
     return nk_capabilities_v128relaxed_();
-#endif
+#else
     return nk_cap_serial_k;
+#endif
 }
 
 #if NK_DYNAMIC_DISPATCH

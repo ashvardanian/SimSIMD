@@ -45,6 +45,49 @@
  *
  *  @sa `dimensions_per_value<T>()` to convert dimension counts to value counts.
  *  @sa `bits_per_value<T>()` to infer the size of each value.
+ *
+ *  @section fp8_types FP8 Numeric Types
+ *
+ *  There are several variants of 8-bit floating point types supported by different industry memebers
+ *  with different hardware support. None are part of the IEEE 754 standard, but some are part of the
+ *  Open Compute Project (OCP) 8-bit Floating Point Specification (OFP8):
+ *
+ *      Format    Bias  Sign  Exp  Mant  Range   Infinity            NaN               Standard
+ *      E4M3FN    7     1     4    3     ±448    ❌ No               Only 0x7F/0xFF    OCP, NVIDIA, ONNX
+ *      E5M2      15    1     5    2     ±57344  ✅ Yes (0x7C/0xFC)  0x7D-7F, 0xFD-FF  OCP, IEEE-like
+ *      E4M3FNUZ  8     1     4    3     ±240    ❌ No               0x80 only         GraphCore, ONNX
+ *      E5M2FNUZ  16    1     5    2     ±57344  ❌ No               0x80 only         GraphCore, ONNX
+ *
+ *  In currently available and soon incoming harware, only two series of models prioritze FNUZ over OCP:
+ *
+ *  - GraphCore IPUs were the original platform proposing FNUZ
+ *  - AMD MI300 series based on CDNA3 implements FNUZ, but not OCP
+ *  - AMD MI350+ series based on CDNA4 switch to OCP and remove FNUZ
+ *  - NVIDIA Hopper and Blackwell only support E4M3FN, E5M2
+ *  - Intel AVX10.2 defines HF8 (E4M3FN) and BF8 (E5M2) - OCP-aligned
+ *  - Arm implements E4M3 (meaning E4M3FN) and E5M2 with a shared `__mfp8` type and a `FPMR` format selector
+ *
+ *  For brevety, across NumKong, "E4M3" implies "E4M3FN".
+ *
+ *  @section fp6_types FP6 Numeric Types
+ *
+ *  The OCP Microscaling (MX) v1.0 specification defines two 6-bit floating-point formats
+ *  for block-scaled quantization. Both are "FN" (finite-numeric): all bit patterns map
+ *  to real numbers with no Inf or NaN codes. Stored byte-aligned with 2 bits of padding.
+ *
+ *      Format  Bias  Sign  Exp  Mant  Range   Subnormals  Infinity  NaN  Standard
+ *      E2M3    1     1     2    3     ±7.5    14 of 64    ❌ No     ❌   OCP MX v1.0
+ *      E3M2    3     1     3    2     ±28     6 of 64     ❌ No     ❌   OCP MX v1.0
+ *
+ *  E2M3 favors mantissa precision (3 bits) for narrow dynamic range — ideal for activations.
+ *  E3M2 favors exponent range (3 bits) for wider dynamic range — suited for weights.
+ *  Both follow IEEE 754 subnormal rules: when exp=0, the implicit leading bit is 0,
+ *  giving value = (-1)^s × 0.mmm × 2^(1-bias). This provides gradual underflow to zero.
+ *
+ *  No hardware directly computes on FP6. On Arm with FEAT_FP8DOT4, E2M3 values can be
+ *  losslessly promoted to E4M3 (same mantissa width, rebias exponent by +6) and E3M2 to
+ *  E5M2 (same mantissa width, rebias exponent by +12), then fed to FDOT instructions.
+ *  Subnormal values (exp=0) require normalization during this promotion.
  */
 
 #ifndef NK_TYPES_HPP
@@ -2352,10 +2395,13 @@ struct e5m2_t {
  *  @brief Float6 E2M3FN: 1 sign + 2 exponent (bias=1) + 3 mantissa bits, with 2 bits of padding.
  *
  *  Range: [-7.5, +7.5], stored byte-aligned (0b00SEEMMM, upper 2 bits padding).
- *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid.
+ *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid numbers.
+ *  64 total codes: 48 normal, 14 subnormal (exp=0, mant!=0), 2 zeros (+/-0).
  *  Only 18 of 64 values (28.1%) fall in [-1, +1] — 72% of codes represent |x| > 1.
+ *  Subnormal values span [+/-0.125, +/-0.875] using formula 0.mmm x 2^(1-bias).
  *  Dot products are exact via integer accumulation: every value x 16 is an integer
  *  in [-120, +120], so products fit in i16 and sums fit in i32 without rounding.
+ *  Losslessly promotable to E4M3 by rebiasing exponent +6 (normals) or normalizing (subnormals).
  *
  *  @see https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
  *  @see https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
@@ -2533,10 +2579,13 @@ struct e2m3_t {
  *  @brief Float6 E3M2FN: 1 sign + 3 exponent (bias=3) + 2 mantissa bits, with 2 bits of padding.
  *
  *  Range: [-28, +28], stored byte-aligned (0b00SEEEMM, upper 2 bits padding).
- *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid.
+ *  No Inf/NaN (OCP Microscaling FN format). All 64 bit patterns are valid numbers.
+ *  64 total codes: 56 normal, 6 subnormal (exp=0, mant!=0), 2 zeros (+/-0).
  *  26 of 64 values (40.6%) fall in [-1, +1].
+ *  Subnormal values span [+/-0.0625, +/-0.1875] using formula 0.mm x 2^(1-bias).
  *  Dot products are exact via integer accumulation: every value x 4 is an integer
  *  in [-28, +28], so products fit in i16 and sums fit in i32 without rounding.
+ *  Losslessly promotable to E5M2 by rebiasing exponent +12 (normals) or normalizing (subnormals).
  *
  *  @see https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
  *  @see https://arxiv.org/abs/2401.14112 (FP6-LLM paper)

@@ -76,7 +76,7 @@ export const Capability = {
   SVE: 1n << 10n,            // 2020: ARM SVE
   SVEHALF: 1n << 11n,        // 2020: ARM SVE FP16
   SVESDOT: 1n << 12n,        // 2020: ARM SVE i8 dot
-  SIERRA: 1n << 13n,         // 2021: Intel AVX2+VNNI
+  ALDER: 1n << 13n,          // 2021: Intel AVX2+VNNI
   SVEBFDOT: 1n << 14n,       // 2021: ARM SVE BF16
   SVE2: 1n << 15n,           // 2022: ARM SVE2
   V128RELAXED: 1n << 16n,    // 2022: WASM Relaxed SIMD
@@ -97,7 +97,12 @@ export const Capability = {
   SMEBF16: 1n << 31n,        // 2025+: ARM SME B16B16
   SMELUT2: 1n << 32n,        // 2025+: ARM SME LUTv2
   RVVBB: 1n << 33n,          // 2025+: RISC-V Zvbb
+  SIERRA: 1n << 34n,         // 2024: Intel AVXVNNIINT8
   SMEBI32: 1n << 35n,        // 2025+: ARM SME BI32I32
+  LOONGSONASX: 1n << 36n,    // LoongArch LASX 256-bit SIMD
+  POWERVSX: 1n << 37n,       // Power VSX 128-bit SIMD
+  DIAMOND: 1n << 38n,        // 2025+: Intel AVX10.2
+  NEONFP8: 1n << 39n,        // ARM NEON FP8
 } as const;
 
 export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, outputDtype };

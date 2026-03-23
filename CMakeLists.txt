@@ -143,6 +143,12 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm64|ARM64")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64|RISCV64")
     set(NK_IS_64BIT_RISCV_ TRUE)
     message(STATUS "NumKong Platform: RISC-V 64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "loongarch64|LOONGARCH64")
+    set(NK_IS_64BIT_LOONGARCH_ TRUE)
+    message(STATUS "NumKong Platform: LoongArch 64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le|ppc64|powerpc64le|powerpc64")
+    set(NK_IS_64BIT_POWER_ TRUE)
+    message(STATUS "NumKong Platform: Power 64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm|^ARM|armv7")
     set(NK_IS_32BIT_ARM_ TRUE)
     message(STATUS "NumKong Platform: ARM32 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
@@ -359,6 +365,14 @@ include(cmake/nk_x86_isa_probes.cmake)
 # See cmake/nk_arm_isa_probes.cmake for details and probe definitions.
 include(cmake/nk_arm_isa_probes.cmake)
 
+# LoongArch ISA runtime probes — detect LASX capability at configure time.
+# See cmake/nk_loongarch_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_loongarch_isa_probes.cmake)
+
+# Power ISA runtime probes — detect VSX capability at configure time.
+# See cmake/nk_power_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_power_isa_probes.cmake)
+
 # Build benchmarks
 if (NK_BUILD_BENCH)
     # Fetch external dependencies
@@ -434,6 +448,14 @@ if (NK_BUILD_BENCH)
     if (nk_arm_isa_defs_)
         target_compile_definitions(nk_bench PRIVATE ${nk_arm_isa_defs_})
     endif ()
+
+    if (nk_loongarch_isa_defs_)
+        target_compile_definitions(nk_bench PRIVATE ${nk_loongarch_isa_defs_})
+    endif ()
+
+    if (nk_power_isa_defs_)
+        target_compile_definitions(nk_bench PRIVATE ${nk_power_isa_defs_})
+    endif ()
 endif ()
 
 # Dtype-specific dispatch sources (for parallel compilation)
@@ -496,6 +518,14 @@ if (NK_BUILD_TEST)
         target_compile_definitions(nk_test PRIVATE ${nk_arm_isa_defs_})
     endif ()
 
+    if (nk_loongarch_isa_defs_)
+        target_compile_definitions(nk_test PRIVATE ${nk_loongarch_isa_defs_})
+    endif ()
+
+    if (nk_power_isa_defs_)
+        target_compile_definitions(nk_test PRIVATE ${nk_power_isa_defs_})
+    endif ()
+
     add_test(NAME nk_test COMMAND nk_test)
 endif ()
 
@@ -532,13 +562,13 @@ if (NK_BUILD_SHARED)
         target_compile_definitions(
             nk_shared
             PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
-                    NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_SAPPHIREAMX=0
-                    NK_TARGET_GRANITEAMX=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0
-                    NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
-                    NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
-                    NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0
-                    NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0
-                    NK_TARGET_RVVBB=0 NK_TARGET_V128RELAXED=1
+                    NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0 NK_TARGET_TURIN=0
+                    NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0
+                    NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0
+                    NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0
+                    NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
+                    NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
+                    NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0 NK_TARGET_V128RELAXED=1
         )
 
         target_link_options(
@@ -592,42 +622,42 @@ if (NK_BUILD_SHARED)
         if (NK_IS_64BIT_X86_)
             target_compile_definitions(
                 nk_shared
-                PRIVATE NK_TARGET_HASWELL=1 NK_TARGET_NEON=0 NK_TARGET_SVE=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
-                        NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_NEONHALF=0
-                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
-                        NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
-                        NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
-                        NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
+                PRIVATE NK_TARGET_HASWELL=1 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0
+                        NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0
+                        NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
+                        NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
+                        NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
+                        NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
             )
 
             if (NK_IS_LINUX_)
                 target_compile_definitions(
                     nk_shared
-                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_SAPPHIRE=1
-                            NK_TARGET_TURIN=1 NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIREAMX=1
-                            NK_TARGET_GRANITEAMX=1
+                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_TURIN=1
+                            NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIRE=1 NK_TARGET_SAPPHIREAMX=1
+                            NK_TARGET_GRANITEAMX=1 NK_TARGET_DIAMOND=1
                 )
             elseif (NK_IS_FREEBSD_)
                 target_compile_definitions(
                     nk_shared
-                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_SAPPHIRE=1
-                            NK_TARGET_TURIN=1 NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIREAMX=0
-                            NK_TARGET_GRANITEAMX=0
+                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_DIAMOND=1
+                            NK_TARGET_SAPPHIRE=1 NK_TARGET_TURIN=1 NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1
+                            NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0
                 )
             elseif (NK_IS_WINDOWS_)
                 # MSVC 19.44+ (VS 2022 17.14+): all AVX-512 intrinsics available without /arch:AVX512
                 target_compile_definitions(
                     nk_shared
-                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_SAPPHIRE=1
-                            NK_TARGET_TURIN=1 NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIREAMX=1
-                            NK_TARGET_GRANITEAMX=1
+                    PRIVATE NK_TARGET_SKYLAKE=1 NK_TARGET_ICELAKE=1 NK_TARGET_GENOA=1 NK_TARGET_TURIN=1
+                            NK_TARGET_ALDER=1 NK_TARGET_SIERRA=1 NK_TARGET_SAPPHIRE=1 NK_TARGET_SAPPHIREAMX=1
+                            NK_TARGET_GRANITEAMX=1 NK_TARGET_DIAMOND=1
                 )
             elseif (NK_IS_MACOS_)
                 target_compile_definitions(
                     nk_shared
-                    PRIVATE NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
-                            NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_SAPPHIREAMX=0
-                            NK_TARGET_GRANITEAMX=0
+                    PRIVATE NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_TURIN=0
+                            NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_SAPPHIRE=0 NK_TARGET_SAPPHIREAMX=0
+                            NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0
                 )
             endif ()
 
@@ -636,8 +666,8 @@ if (NK_BUILD_SHARED)
             target_compile_definitions(
                 nk_shared
                 PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
-                        NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
-                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
+                        NK_TARGET_SAPPHIRE=0 NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0
+                        NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
                         NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
             )
 
@@ -645,10 +675,10 @@ if (NK_BUILD_SHARED)
                 target_compile_definitions(
                     nk_shared
                     PRIVATE NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1 NK_TARGET_NEONBFDOT=1
-                            NK_TARGET_NEONFHM=1 NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1 NK_TARGET_SVEBFDOT=1
-                            NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1 NK_TARGET_SME=1 NK_TARGET_SME2=1
-                            NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1 NK_TARGET_SMEBF16=1
-                            NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
+                            NK_TARGET_NEONFHM=1 NK_TARGET_NEONFP8=1 NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1
+                            NK_TARGET_SVEBFDOT=1 NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1
+                            NK_TARGET_SME=1 NK_TARGET_SME2=1 NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1
+                            NK_TARGET_SMEBF16=1 NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
                 )
             elseif (NK_IS_ANDROID_)
                 # Android NDK Clang supports NEON universally on ARM64.
@@ -658,10 +688,10 @@ if (NK_BUILD_SHARED)
                 target_compile_definitions(
                     nk_shared
                     PRIVATE NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1 NK_TARGET_NEONBFDOT=1
-                            NK_TARGET_NEONFHM=1 NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1 NK_TARGET_SVEBFDOT=1
-                            NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1 NK_TARGET_SME=1 NK_TARGET_SME2=1
-                            NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1 NK_TARGET_SMEBF16=1
-                            NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
+                            NK_TARGET_NEONFHM=1 NK_TARGET_NEONFP8=1 NK_TARGET_SVE=1 NK_TARGET_SVEHALF=1
+                            NK_TARGET_SVEBFDOT=1 NK_TARGET_SVESDOT=1 NK_TARGET_SVE2=1 NK_TARGET_SVE2P1=1
+                            NK_TARGET_SME=1 NK_TARGET_SME2=1 NK_TARGET_SME2P1=1 NK_TARGET_SMEF64=1 NK_TARGET_SMEHALF=1
+                            NK_TARGET_SMEBF16=1 NK_TARGET_SMEBI32=1 NK_TARGET_SMELUT2=1 NK_TARGET_SMEFA64=1
                 )
             elseif (NK_IS_IOS_ OR NK_IS_MACOS_)
                 # SME requires AppleClang 16+ (Xcode 16, based on Clang 18) or Clang 18+
@@ -677,20 +707,20 @@ if (NK_BUILD_SHARED)
                 target_compile_definitions(
                     nk_shared
                     PRIVATE NK_TARGET_NEON=1 NK_TARGET_NEONHALF=1 NK_TARGET_NEONSDOT=1 NK_TARGET_NEONBFDOT=1
-                            NK_TARGET_NEONFHM=1 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
-                            NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=${NK_SME_}
-                            NK_TARGET_SME2=${NK_SME_} NK_TARGET_SME2P1=${NK_SME_} NK_TARGET_SMEF64=${NK_SME_}
-                            NK_TARGET_SMEHALF=${NK_SME_} NK_TARGET_SMEBF16=${NK_SME_} NK_TARGET_SMEBI32=${NK_SME_}
-                            NK_TARGET_SMELUT2=${NK_SME_} NK_TARGET_SMEFA64=${NK_SME_}
+                            NK_TARGET_NEONFHM=1 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0
+                            NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+                            NK_TARGET_SME=${NK_SME_} NK_TARGET_SME2=${NK_SME_} NK_TARGET_SME2P1=${NK_SME_}
+                            NK_TARGET_SMEF64=${NK_SME_} NK_TARGET_SMEHALF=${NK_SME_} NK_TARGET_SMEBF16=${NK_SME_}
+                            NK_TARGET_SMEBI32=${NK_SME_} NK_TARGET_SMELUT2=${NK_SME_} NK_TARGET_SMEFA64=${NK_SME_}
                 )
             elseif (NK_IS_WINDOWS_)
                 target_compile_definitions(
                     nk_shared
                     PRIVATE NK_TARGET_NEON=1 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=1 NK_TARGET_NEONBFDOT=0
-                            NK_TARGET_NEONFHM=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
-                            NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
-                            NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
-                            NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0
+                            NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0
+                            NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0
+                            NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0
+                            NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0
                 )
             endif ()
 
@@ -699,10 +729,10 @@ if (NK_BUILD_SHARED)
             target_compile_definitions(
                 nk_shared
                 PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
-                        NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
-                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0
-                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_SVE=0
-                        NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
+                        NK_TARGET_SAPPHIRE=0 NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0
+                        NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0
+                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0
+                        NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
                         NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
                         NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
                         NK_TARGET_SMEFA64=0
@@ -718,18 +748,48 @@ if (NK_BUILD_SHARED)
                 )
             endif ()
 
+            # LoongArch 64
+        elseif (NK_IS_64BIT_LOONGARCH_)
+            target_compile_definitions(
+                nk_shared
+                PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                        NK_TARGET_DIAMOND=0 NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
+                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0
+                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0
+                        NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
+                        NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
+                        NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
+                        NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
+                        NK_TARGET_POWERVSX=0 NK_TARGET_V128RELAXED=0 NK_TARGET_LOONGSONASX=1
+            )
+
+            # Power 64
+        elseif (NK_IS_64BIT_POWER_)
+            target_compile_definitions(
+                nk_shared
+                PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
+                        NK_TARGET_DIAMOND=0 NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
+                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0
+                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0
+                        NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
+                        NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
+                        NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
+                        NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
+                        NK_TARGET_LOONGSONASX=0 NK_TARGET_V128RELAXED=0 NK_TARGET_POWERVSX=1
+            )
+
         elseif (NK_IS_32BIT_ARM_)
             # ARM32 — serial-only (the NEON kernels target AArch64 intrinsics)
             target_compile_definitions(
                 nk_shared
                 PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0
-                        NK_TARGET_SAPPHIRE=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0
-                        NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0
-                        NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
-                        NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
-                        NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0
-                        NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_NEON=0
-                        NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0
+                        NK_TARGET_SAPPHIRE=0 NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0
+                        NK_TARGET_TURIN=0 NK_TARGET_ALDER=0 NK_TARGET_SIERRA=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0
+                        NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0 NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0
+                        NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0 NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0
+                        NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0 NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0
+                        NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0 NK_TARGET_SMELUT2=0
+                        NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0 NK_TARGET_RVVBB=0
             )
         endif ()
     endif ()

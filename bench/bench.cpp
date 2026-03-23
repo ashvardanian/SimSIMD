@@ -145,15 +145,16 @@ int main(int argc, char **argv) {
     std::printf("  ISA:");
     // x86
     print_isa("Haswell", NK_TARGET_HASWELL, nk_cap_haswell_k, runtime_caps);
+    print_isa("Alder", NK_TARGET_ALDER, nk_cap_alder_k, runtime_caps);
+    print_isa("Sierra", NK_TARGET_SIERRA, nk_cap_sierra_k, runtime_caps);
     print_isa("Skylake", NK_TARGET_SKYLAKE, nk_cap_skylake_k, runtime_caps);
     print_isa("Ice Lake", NK_TARGET_ICELAKE, nk_cap_icelake_k, runtime_caps);
     print_isa("Genoa", NK_TARGET_GENOA, nk_cap_genoa_k, runtime_caps);
+    print_isa("Turin", NK_TARGET_TURIN, nk_cap_turin_k, runtime_caps);
     print_isa("Sapphire", NK_TARGET_SAPPHIRE, nk_cap_sapphire_k, runtime_caps);
     print_isa("Sapphire AMX", NK_TARGET_SAPPHIREAMX, nk_cap_sapphireamx_k, runtime_caps);
     print_isa("Granite AMX", NK_TARGET_GRANITEAMX, nk_cap_graniteamx_k, runtime_caps);
-    print_isa("Turin", NK_TARGET_TURIN, nk_cap_turin_k, runtime_caps);
-    print_isa("Alder", NK_TARGET_ALDER, nk_cap_alder_k, runtime_caps);
-    print_isa("Sierra", NK_TARGET_SIERRA, nk_cap_sierra_k, runtime_caps);
+    print_isa("Diamond", NK_TARGET_DIAMOND, nk_cap_diamond_k, runtime_caps);
     // Arm
     print_isa("NEON", NK_TARGET_NEON, nk_cap_neon_k, runtime_caps);
     print_isa("NEON F16", NK_TARGET_NEONHALF, nk_cap_neonhalf_k, runtime_caps);
@@ -181,6 +182,10 @@ int main(int argc, char **argv) {
     print_isa("RVV HALF", NK_TARGET_RVVHALF, nk_cap_rvvhalf_k, runtime_caps);
     print_isa("RVV BF16", NK_TARGET_RVVBF16, nk_cap_rvvbf16_k, runtime_caps);
     print_isa("RVV BB", NK_TARGET_RVVBB, nk_cap_rvvbb_k, runtime_caps);
+    // LoongArch
+    print_isa("LoongArch LASX", NK_TARGET_LOONGSONASX, nk_cap_loongsonasx_k, runtime_caps);
+    // Power
+    print_isa("Power VSX", NK_TARGET_POWERVSX, nk_cap_powervsx_k, runtime_caps);
     // WASM
     print_isa("V128 Relaxed", NK_TARGET_V128RELAXED, nk_cap_v128relaxed_k, runtime_caps);
     std::printf("\n");

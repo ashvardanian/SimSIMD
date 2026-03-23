@@ -533,21 +533,25 @@ available_capabilities: dict[str, str] = nk.get_capabilities()
 # fmt: off
 possible_x86_capabilities: list[str] = [
     "haswell", "alder", "sierra",
-    "skylake", "icelake", "genoa", "sapphire", "turin",
-    "sapphireamx", "graniteamx",
+    "skylake", "icelake", "genoa", "turin", "sapphire",
+    "sapphireamx", "graniteamx", "diamond",
 ]
 possible_arm_capabilities: list[str] = [
-    "neon", "neonhalf", "neonfhm", "neonbfdot", "neonsdot",
+    "neon", "neonhalf", "neonfhm", "neonbfdot", "neonsdot", "neonfp8",
     "sve", "svehalf", "svebfdot", "svesdot", "sve2", "sve2p1",
-    "sme", "sme2", "sme2p1", "smef64", "smehalf", "smebf16", "smelut2", "smefa64",
+    "sme", "sme2", "sme2p1", "smef64", "smehalf", "smebf16", "smebi32", "smelut2", "smefa64",
 ]
 possible_rvv_capabilities: list[str] = ["rvv", "rvvhalf", "rvvbf16", "rvvbb"]
+possible_loongarch_capabilities: list[str] = ["loongsonasx"]
+possible_power_capabilities: list[str] = ["powervsx"]
 possible_wasm_capabilities: list[str] = ["v128relaxed"]
 # fmt: on
 
 possible_x86_capabilities = [c for c in possible_x86_capabilities if available_capabilities[c]]
 possible_arm_capabilities = [c for c in possible_arm_capabilities if available_capabilities[c]]
 possible_rvv_capabilities = [c for c in possible_rvv_capabilities if available_capabilities[c]]
+possible_loongarch_capabilities = [c for c in possible_loongarch_capabilities if available_capabilities[c]]
+possible_power_capabilities = [c for c in possible_power_capabilities if available_capabilities[c]]
 possible_wasm_capabilities = [c for c in possible_wasm_capabilities if available_capabilities[c]]
 
 hardware_capabilities: list[str] = []
@@ -560,6 +564,10 @@ if sys.platform == "linux":
         hardware_capabilities = possible_arm_capabilities
     elif machine_architecture == "riscv64":
         hardware_capabilities = possible_rvv_capabilities
+    elif machine_architecture == "loongarch64":
+        hardware_capabilities = possible_loongarch_capabilities
+    elif machine_architecture in ("ppc64le", "ppc64"):
+        hardware_capabilities = possible_power_capabilities
 elif sys.platform == "darwin":
     if machine_architecture == "x86_64":
         hardware_capabilities = possible_x86_capabilities

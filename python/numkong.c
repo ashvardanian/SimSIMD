@@ -979,20 +979,25 @@ static struct {
     {"smefa64", nk_cap_smefa64_k},
     // x86
     {"haswell", nk_cap_haswell_k},
+    {"alder", nk_cap_alder_k},
+    {"sierra", nk_cap_sierra_k},
     {"skylake", nk_cap_skylake_k},
     {"icelake", nk_cap_icelake_k},
     {"genoa", nk_cap_genoa_k},
+    {"turin", nk_cap_turin_k},
     {"sapphire", nk_cap_sapphire_k},
     {"sapphireamx", nk_cap_sapphireamx_k},
     {"graniteamx", nk_cap_graniteamx_k},
-    {"turin", nk_cap_turin_k},
-    {"alder", nk_cap_alder_k},
-    {"sierra", nk_cap_sierra_k},
+    {"diamond", nk_cap_diamond_k},
     // RISC-V
     {"rvv", nk_cap_rvv_k},
     {"rvvhalf", nk_cap_rvvhalf_k},
     {"rvvbf16", nk_cap_rvvbf16_k},
     {"rvvbb", nk_cap_rvvbb_k},
+    // LoongArch
+    {"loongsonasx", nk_cap_loongsonasx_k},
+    // Power
+    {"powervsx", nk_cap_powervsx_k},
     // WASM
     {"v128relaxed", nk_cap_v128relaxed_k},
     {NULL, 0},

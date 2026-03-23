@@ -56,6 +56,24 @@ def is_64bit_riscv() -> bool:
     return (arch in ("riscv64",)) and (sys.maxsize > 2**32)
 
 
+def is_64bit_loongarch() -> bool:
+    """Detect LoongArch 64-bit architecture with environment override support."""
+    override = os.environ.get("NK_TARGET_LOONGARCH_")
+    if override is not None:
+        return override == "1"
+    arch = platform.machine().lower()
+    return (arch in ("loongarch64",)) and (sys.maxsize > 2**32)
+
+
+def is_64bit_power() -> bool:
+    """Detect Power 64-bit architecture with environment override support."""
+    override = os.environ.get("NK_TARGET_POWER_")
+    if override is not None:
+        return override == "1"
+    arch = platform.machine().lower()
+    return (arch in ("ppc64le", "ppc64", "powerpc64le", "powerpc64")) and (sys.maxsize > 2**32)
+
+
 def has_darwin_sme_support() -> bool:
     """Check whether the host compiler supports the AArch64 SME ABI on Darwin.
 
@@ -116,21 +134,23 @@ def linux_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_NATIVE_BF16", "0"),
         # x86 targets
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ALDER", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ALDER", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIREAMX", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GRANITEAMX", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_DIAMOND", "1" if is_64bit_x86() else "0"),
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFP8", "1" if is_64bit_arm() else "0"),
         # ARM SVE targets
         ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
@@ -153,6 +173,10 @@ def linux_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBB", "1" if is_64bit_riscv() else "0"),
+        # LoongArch targets
+        ("NK_TARGET_LOONGSONASX", "1" if is_64bit_loongarch() else "0"),
+        # Power targets
+        ("NK_TARGET_POWERVSX", "1" if is_64bit_power() else "0"),
     ]
     return compile_args, link_args, macros
 
@@ -174,21 +198,23 @@ def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_NATIVE_BF16", "0"),
         # x86 targets - conservative for macOS compatibility
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ALDER", "0"),
+        ("NK_TARGET_SIERRA", "0"),
         ("NK_TARGET_SKYLAKE", "0"),  # AVX-512 not common on Mac
         ("NK_TARGET_ICELAKE", "0"),
         ("NK_TARGET_GENOA", "0"),
-        ("NK_TARGET_SAPPHIRE", "0"),
         ("NK_TARGET_TURIN", "0"),
-        ("NK_TARGET_ALDER", "0"),
-        ("NK_TARGET_SIERRA", "0"),
+        ("NK_TARGET_SAPPHIRE", "0"),
         ("NK_TARGET_SAPPHIREAMX", "0"),
         ("NK_TARGET_GRANITEAMX", "0"),
+        ("NK_TARGET_DIAMOND", "0"),
         # ARM NEON targets - NEON only on Apple Silicon
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFP8", "0"),
         # ARM SVE targets - not available on Apple Silicon
         ("NK_TARGET_SVE", "0"),
         ("NK_TARGET_SVEHALF", "0"),
@@ -211,6 +237,10 @@ def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_RVVHALF", "0"),
         ("NK_TARGET_RVVBF16", "0"),
         ("NK_TARGET_RVVBB", "0"),
+        # LoongArch targets - not available on macOS
+        ("NK_TARGET_LOONGSONASX", "0"),
+        # Power targets - not available on macOS
+        ("NK_TARGET_POWERVSX", "0"),
     ]
     return compile_args, link_args, macros
 
@@ -236,21 +266,23 @@ def freebsd_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_NATIVE_BF16", "0"),
         # x86 targets
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ALDER", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ALDER", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX may not be available on FreeBSD
         ("NK_TARGET_GRANITEAMX", "0"),
+        ("NK_TARGET_DIAMOND", "1" if is_64bit_x86() else "0"),
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFP8", "1" if is_64bit_arm() else "0"),
         # ARM SVE targets
         ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
@@ -273,6 +305,10 @@ def freebsd_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBB", "1" if is_64bit_riscv() else "0"),
+        # LoongArch targets - not available on FreeBSD
+        ("NK_TARGET_LOONGSONASX", "0"),
+        # Power targets - not available on FreeBSD
+        ("NK_TARGET_POWERVSX", "0"),
     ]
     return compile_args, link_args, macros
 
@@ -332,19 +368,21 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         # Advanced x86 targets - require MSVC 19.44+ for full AVX-512 FP16/BF16/VNNI
-        ("NK_TARGET_GENOA", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
-        ("NK_TARGET_SAPPHIRE", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
-        ("NK_TARGET_TURIN", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         ("NK_TARGET_ALDER", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         ("NK_TARGET_SIERRA", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_GENOA", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_TURIN", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         ("NK_TARGET_SAPPHIREAMX", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         ("NK_TARGET_GRANITEAMX", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
+        ("NK_TARGET_DIAMOND", "1" if (is_64bit_x86() and has_full_avx512) else "0"),
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "0"),  # MSVC lacks `float16_t` intrinsics
         ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONBFDOT", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
         ("NK_TARGET_NEONFHM", "0"),  # MSVC lacks FHM intrinsics
+        ("NK_TARGET_NEONFP8", "0"),
         # ARM SVE targets - not supported on Windows
         ("NK_TARGET_SVE", "0"),
         ("NK_TARGET_SVEHALF", "0"),
@@ -367,6 +405,10 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_RVVHALF", "0"),
         ("NK_TARGET_RVVBF16", "0"),
         ("NK_TARGET_RVVBB", "0"),
+        # LoongArch targets - not supported on Windows
+        ("NK_TARGET_LOONGSONASX", "0"),
+        # Power targets - not supported on Windows
+        ("NK_TARGET_POWERVSX", "0"),
     ]
     # MSVC requires architecture-specific macros for winnt.h
     if is_64bit_arm():
@@ -405,11 +447,13 @@ def emscripten_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_SIERRA", "0"),
         ("NK_TARGET_SAPPHIREAMX", "0"),
         ("NK_TARGET_GRANITEAMX", "0"),
+        ("NK_TARGET_DIAMOND", "0"),
         ("NK_TARGET_NEON", "0"),
         ("NK_TARGET_NEONHALF", "0"),
         ("NK_TARGET_NEONSDOT", "0"),
         ("NK_TARGET_NEONBFDOT", "0"),
         ("NK_TARGET_NEONFHM", "0"),
+        ("NK_TARGET_NEONFP8", "0"),
         ("NK_TARGET_SVE", "0"),
         ("NK_TARGET_SVEHALF", "0"),
         ("NK_TARGET_SVEBFDOT", "0"),
@@ -429,6 +473,8 @@ def emscripten_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         ("NK_TARGET_RVVHALF", "0"),
         ("NK_TARGET_RVVBF16", "0"),
         ("NK_TARGET_RVVBB", "0"),
+        ("NK_TARGET_LOONGSONASX", "0"),
+        ("NK_TARGET_POWERVSX", "0"),
     ]
     return compile_args, link_args, macros
 

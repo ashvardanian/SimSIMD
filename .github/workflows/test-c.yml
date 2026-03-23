@@ -126,3 +126,112 @@ jobs:
 
       - name: Build portable RISC-V library
         run: cmake --build build_riscv --parallel --target nk_shared
+
+  test_loongarch:
+    name: Test LoongArch (QEMU)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake qemu-user \
+            gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu
+
+      - name: Configure
+        run: |
+          SYSROOT="$(loongarch64-linux-gnu-gcc-14 -print-sysroot)"
+          cmake -B build_loongarch \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=loongarch64 \
+            -DCMAKE_C_COMPILER=loongarch64-linux-gnu-gcc-14 \
+            -DCMAKE_CXX_COMPILER=loongarch64-linux-gnu-g++-14 \
+            -DCMAKE_C_FLAGS_INIT="-mlasx" \
+            -DCMAKE_CXX_FLAGS_INIT="-mlasx" \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-loongarch64;-L;${SYSROOT};-cpu;max" \
+            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+            -DNK_BUILD_TEST=ON \
+            -DNK_BUILD_SHARED=ON
+
+      - name: Build
+        run: cmake --build build_loongarch --parallel
+
+      - name: Test
+        run: ctest --test-dir build_loongarch --output-on-failure
+        env:
+          NK_IN_QEMU: 1
+
+  test_power:
+    name: Test Power (QEMU)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake qemu-user \
+            gcc-14-powerpc64le-linux-gnu g++-14-powerpc64le-linux-gnu
+
+      - name: Configure
+        run: |
+          SYSROOT="$(powerpc64le-linux-gnu-gcc-14 -print-sysroot)"
+          cmake -B build_power \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=ppc64le \
+            -DCMAKE_C_COMPILER=powerpc64le-linux-gnu-gcc-14 \
+            -DCMAKE_CXX_COMPILER=powerpc64le-linux-gnu-g++-14 \
+            -DCMAKE_C_FLAGS_INIT="-mcpu=power10 -mvsx" \
+            -DCMAKE_CXX_FLAGS_INIT="-mcpu=power10 -mvsx" \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-ppc64le;-L;${SYSROOT};-cpu;max" \
+            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+            -DNK_BUILD_TEST=ON \
+            -DNK_BUILD_SHARED=ON
+
+      - name: Build
+        run: cmake --build build_power --parallel
+
+      - name: Test
+        run: ctest --test-dir build_power --output-on-failure
+        env:
+          NK_IN_QEMU: 1
+
+  test_x86_sde:
+    name: Test x86 (Intel SDE)
+    runs-on: ubuntu-24.04
+    env:
+      SDE_VERSION: sde-external-9.44.0-2024-08-22-lin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Download Intel SDE
+        run: |
+          curl -fsSL -o sde.tar.xz \
+            "https://downloadmirror.intel.com/831748/${SDE_VERSION}.tar.xz"
+          tar -xf sde.tar.xz
+          echo "$(pwd)/${SDE_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Build with all x86 ISAs
+        run: |
+          cmake -B build_sde \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNK_BUILD_TEST=ON
+          cmake --build build_sde --config Release --parallel
+
+      - name: Test under Diamond Rapids emulation
+        run: sde64 -dmr -- build_sde/nk_test
+
+      - name: Test under Sapphire Rapids emulation
+        run: sde64 -spr -- build_sde/nk_test
