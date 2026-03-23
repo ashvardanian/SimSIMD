@@ -39,13 +39,13 @@ extern "C" {
 #pragma region - Horizontal Reduction Helpers
 
 /** @brief Horizontal sum of 4 f64 lanes in a 256-bit LASX register. */
-NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256i sum_f64x4) {
+NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256d sum_f64x4) {
     // Add high 128-bit lane to low 128-bit lane
-    __m256i hi_f64x4 = __lasx_xvpermi_q(sum_f64x4, sum_f64x4, 0x11);
-    __m256i sum_f64x2 = __lasx_xvfadd_d(sum_f64x4, hi_f64x4);
+    __m256d hi_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)sum_f64x4, (__m256i)sum_f64x4, 0x11);
+    __m256d sum_f64x2 = __lasx_xvfadd_d(sum_f64x4, hi_f64x4);
     // Extract 2 remaining f64 values and add
     nk_b256_vec_t vec;
-    vec.lasx = sum_f64x2;
+    vec.ymm_pd = sum_f64x2;
     return vec.f64s[0] + vec.f64s[1];
 }
 
@@ -55,39 +55,41 @@ NK_INTERNAL nk_i32_t nk_reduce_add_i32x8_loongsonasx_(__m256i sum_i32x8) {
     __m256i sum_i32x4 = __lasx_xvadd_w(sum_i32x8, hi_i32x8);
     // Now 4 i32 values in low 128 bits, reduce via nk_b256_vec_t
     nk_b256_vec_t vec;
-    vec.lasx = sum_i32x4;
+    vec.ymm = sum_i32x4;
     return vec.i32s[0] + vec.i32s[1] + vec.i32s[2] + vec.i32s[3];
 }
 
 /** @brief Compensated horizontal sum of 4 f64 lanes via TwoSum tree reduction.
  *  @sa nk_reduce_sum_f64_serial_ for the serial equivalent
  */
-NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_loongsonasx_(__m256i sum_f64x4, __m256i compensation_f64x4) {
+NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_loongsonasx_(__m256d sum_f64x4, __m256d compensation_f64x4) {
     // Stage 0: TwoSum merge of sum + compensation (4-wide, parallel)
-    __m256i tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, compensation_f64x4);
-    __m256i virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
-    __m256i rounding_error_f64x4 = __lasx_xvfadd_d(
+    __m256d tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, compensation_f64x4);
+    __m256d virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
+    __m256d rounding_error_f64x4 = __lasx_xvfadd_d(
         __lasx_xvfsub_d(sum_f64x4, __lasx_xvfsub_d(tentative_sum_f64x4, virtual_addend_f64x4)),
         __lasx_xvfsub_d(compensation_f64x4, virtual_addend_f64x4));
 
     // Stage 1: TwoSum halving 4 → 2 by adding high 128-bit lane to low 128-bit lane
-    __m256i upper_sum_f64x4 = __lasx_xvpermi_q(tentative_sum_f64x4, tentative_sum_f64x4, 0x11);
-    __m256i lower_sum_f64x4 = __lasx_xvpermi_q(tentative_sum_f64x4, tentative_sum_f64x4, 0x00);
-    __m256i tentative_sum_f64x2 = __lasx_xvfadd_d(lower_sum_f64x4, upper_sum_f64x4);
-    __m256i virtual_addend_f64x2 = __lasx_xvfsub_d(tentative_sum_f64x2, lower_sum_f64x4);
-    __m256i rounding_error_f64x2 = __lasx_xvfadd_d(
+    __m256d upper_sum_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)tentative_sum_f64x4, (__m256i)tentative_sum_f64x4,
+                                                        0x11);
+    __m256d lower_sum_f64x4 = tentative_sum_f64x4; // low 128 bits are already there
+    __m256d tentative_sum_f64x2 = __lasx_xvfadd_d(lower_sum_f64x4, upper_sum_f64x4);
+    __m256d virtual_addend_f64x2 = __lasx_xvfsub_d(tentative_sum_f64x2, lower_sum_f64x4);
+    __m256d rounding_error_f64x2 = __lasx_xvfadd_d(
         __lasx_xvfsub_d(lower_sum_f64x4, __lasx_xvfsub_d(tentative_sum_f64x2, virtual_addend_f64x2)),
         __lasx_xvfsub_d(upper_sum_f64x4, virtual_addend_f64x2));
     // Accumulate errors: stage 0 errors (halved) + stage 1 rounding error
-    __m256i upper_error_f64x4 = __lasx_xvpermi_q(rounding_error_f64x4, rounding_error_f64x4, 0x11);
-    __m256i lower_error_f64x4 = __lasx_xvpermi_q(rounding_error_f64x4, rounding_error_f64x4, 0x00);
-    __m256i accumulated_error_f64x2 = __lasx_xvfadd_d(__lasx_xvfadd_d(lower_error_f64x4, upper_error_f64x4),
+    __m256d upper_error_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)rounding_error_f64x4, (__m256i)rounding_error_f64x4,
+                                                          0x11);
+    __m256d lower_error_f64x4 = rounding_error_f64x4; // low 128 bits are already there
+    __m256d accumulated_error_f64x2 = __lasx_xvfadd_d(__lasx_xvfadd_d(lower_error_f64x4, upper_error_f64x4),
                                                       rounding_error_f64x2);
 
     // Stage 2: Scalar TwoSum 2 → 1
     nk_b256_vec_t sum_vec, err_vec;
-    sum_vec.lasx = tentative_sum_f64x2;
-    err_vec.lasx = accumulated_error_f64x2;
+    sum_vec.ymm_pd = tentative_sum_f64x2;
+    err_vec.ymm_pd = accumulated_error_f64x2;
     nk_f64_t sum_low = sum_vec.f64s[0], sum_high = sum_vec.f64s[1];
     nk_f64_t error_low = err_vec.f64s[0], error_high = err_vec.f64s[1];
     nk_f64_t tentative_sum = sum_low + sum_high;
@@ -103,23 +105,23 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_loongsonasx_(__m256i sum_f64x4, __m
 NK_PUBLIC void nk_dot_f32_loongsonasx(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f64_t *result) {
     // LASX is 256-bit = 8 × f32. Load 8 f32, split into low/high 4, widen each to f64, FMA in f64.
-    __m256i sum_low_f64x4 = __lasx_xvreplgr2vr_d(0);  // 4 f64 accumulators (from low 4 f32)
-    __m256i sum_high_f64x4 = __lasx_xvreplgr2vr_d(0); // 4 f64 accumulators (from high 4 f32)
+    __m256d sum_low_f64x4 = (__m256d)__lasx_xvreplgr2vr_d(0);  // 4 f64 accumulators (from low 4 f32)
+    __m256d sum_high_f64x4 = (__m256d)__lasx_xvreplgr2vr_d(0); // 4 f64 accumulators (from high 4 f32)
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count_scalars; idx_scalars += 8) {
         __m256i a_f32x8 = __lasx_xvld(a_scalars + idx_scalars, 0);
         __m256i b_f32x8 = __lasx_xvld(b_scalars + idx_scalars, 0);
         // Widen low 4 f32 → f64
-        __m256i a_low_f64x4 = __lasx_xvfcvtl_d_s(a_f32x8);
-        __m256i b_low_f64x4 = __lasx_xvfcvtl_d_s(b_f32x8);
+        __m256d a_low_f64x4 = __lasx_xvfcvtl_d_s((__m256)a_f32x8);
+        __m256d b_low_f64x4 = __lasx_xvfcvtl_d_s((__m256)b_f32x8);
         // Widen high 4 f32 → f64
-        __m256i a_high_f64x4 = __lasx_xvfcvth_d_s(a_f32x8);
-        __m256i b_high_f64x4 = __lasx_xvfcvth_d_s(b_f32x8);
+        __m256d a_high_f64x4 = __lasx_xvfcvth_d_s((__m256)a_f32x8);
+        __m256d b_high_f64x4 = __lasx_xvfcvth_d_s((__m256)b_f32x8);
         // FMA in f64
         sum_low_f64x4 = __lasx_xvfmadd_d(a_low_f64x4, b_low_f64x4, sum_low_f64x4);
         sum_high_f64x4 = __lasx_xvfmadd_d(a_high_f64x4, b_high_f64x4, sum_high_f64x4);
     }
-    __m256i combined_f64x4 = __lasx_xvfadd_d(sum_low_f64x4, sum_high_f64x4);
+    __m256d combined_f64x4 = __lasx_xvfadd_d(sum_low_f64x4, sum_high_f64x4);
     nk_f64_t sum = nk_reduce_add_f64x4_loongsonasx_(combined_f64x4);
     for (; idx_scalars < count_scalars; ++idx_scalars) sum += (nk_f64_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
     *result = sum;
@@ -128,21 +130,21 @@ NK_PUBLIC void nk_dot_f32_loongsonasx(nk_f32_t const *a_scalars, nk_f32_t const 
 NK_PUBLIC void nk_dot_f64_loongsonasx(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f64_t *result) {
     // Dot2 algorithm (Ogita-Rump-Oishi 2005) for compensated dot product
-    __m256i sum_f64x4 = __lasx_xvreplgr2vr_d(0);
-    __m256i compensation_f64x4 = __lasx_xvreplgr2vr_d(0);
+    __m256d sum_f64x4 = (__m256d)__lasx_xvreplgr2vr_d(0);
+    __m256d compensation_f64x4 = (__m256d)__lasx_xvreplgr2vr_d(0);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 4 <= count_scalars; idx_scalars += 4) {
-        __m256i a_f64x4 = __lasx_xvld(a_scalars + idx_scalars, 0);
-        __m256i b_f64x4 = __lasx_xvld(b_scalars + idx_scalars, 0);
+        __m256d a_f64x4 = (__m256d)__lasx_xvld(a_scalars + idx_scalars, 0);
+        __m256d b_f64x4 = (__m256d)__lasx_xvld(b_scalars + idx_scalars, 0);
 
         // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
-        __m256i product_f64x4 = __lasx_xvfmul_d(a_f64x4, b_f64x4);
-        __m256i product_error_f64x4 = __lasx_xvfmsub_d(a_f64x4, b_f64x4, product_f64x4);
+        __m256d product_f64x4 = __lasx_xvfmul_d(a_f64x4, b_f64x4);
+        __m256d product_error_f64x4 = __lasx_xvfmsub_d(a_f64x4, b_f64x4, product_f64x4);
 
         // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-        __m256i tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, product_f64x4);
-        __m256i virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
-        __m256i sum_error_f64x4 = __lasx_xvfadd_d(
+        __m256d tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, product_f64x4);
+        __m256d virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
+        __m256d sum_error_f64x4 = __lasx_xvfadd_d(
             __lasx_xvfsub_d(sum_f64x4, __lasx_xvfsub_d(tentative_sum_f64x4, virtual_addend_f64x4)),
             __lasx_xvfsub_d(product_f64x4, virtual_addend_f64x4));
 
@@ -198,20 +200,20 @@ NK_PUBLIC void nk_dot_u8_loongsonasx(nk_u8_t const *a_scalars, nk_u8_t const *b_
 
 NK_PUBLIC void nk_dot_bf16_loongsonasx(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
-    __m256i sum_f32x8 = __lasx_xvreplgr2vr_w(0);
+    __m256 sum_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count_scalars; idx_scalars += 8) {
         __m128i a_bf16x8 = __lsx_vld(a_scalars + idx_scalars, 0);
         __m128i b_bf16x8 = __lsx_vld(b_scalars + idx_scalars, 0);
-        __m256i a_f32x8 = nk_bf16x8_to_f32x8_loongsonasx_(a_bf16x8);
-        __m256i b_f32x8 = nk_bf16x8_to_f32x8_loongsonasx_(b_bf16x8);
+        __m256 a_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(a_bf16x8);
+        __m256 b_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(b_bf16x8);
         sum_f32x8 = __lasx_xvfmadd_s(a_f32x8, b_f32x8, sum_f32x8);
     }
     // Horizontal reduce 8 × f32 → 1 × f32
-    __m256i high_f32x4 = __lasx_xvpermi_q(sum_f32x8, sum_f32x8, 0x11);
-    __m256i sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
+    __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
+    __m256 sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
     nk_b256_vec_t vec;
-    vec.lasx = sum_f32x4;
+    vec.ymm_ps = sum_f32x4;
     nk_f32_t sum = vec.f32s[0] + vec.f32s[1] + vec.f32s[2] + vec.f32s[3];
     for (; idx_scalars < count_scalars; ++idx_scalars) {
         nk_f32_t a_val, b_val;
@@ -236,26 +238,26 @@ NK_INTERNAL void nk_dot_f64x4_update_loongsonasx(nk_dot_f64x4_state_loongsonasx_
                                                  nk_b256_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    __m256i sum_f64x4 = state->sum_f64x4;
-    __m256i compensation_f64x4 = state->compensation_f64x4;
-    __m256i a_f64x4 = __lasx_xvld(&a, 0);
-    __m256i b_f64x4 = __lasx_xvld(&b, 0);
+    __m256d sum_f64x4 = (__m256d)state->sum_f64x4;
+    __m256d compensation_f64x4 = (__m256d)state->compensation_f64x4;
+    __m256d a_f64x4 = (__m256d)__lasx_xvld(&a, 0);
+    __m256d b_f64x4 = (__m256d)__lasx_xvld(&b, 0);
 
     // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
-    __m256i product_f64x4 = __lasx_xvfmul_d(a_f64x4, b_f64x4);
-    __m256i product_error_f64x4 = __lasx_xvfmsub_d(a_f64x4, b_f64x4, product_f64x4);
+    __m256d product_f64x4 = __lasx_xvfmul_d(a_f64x4, b_f64x4);
+    __m256d product_error_f64x4 = __lasx_xvfmsub_d(a_f64x4, b_f64x4, product_f64x4);
 
     // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-    __m256i tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, product_f64x4);
-    __m256i virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
-    __m256i sum_error_f64x4 = __lasx_xvfadd_d(
+    __m256d tentative_sum_f64x4 = __lasx_xvfadd_d(sum_f64x4, product_f64x4);
+    __m256d virtual_addend_f64x4 = __lasx_xvfsub_d(tentative_sum_f64x4, sum_f64x4);
+    __m256d sum_error_f64x4 = __lasx_xvfadd_d(
         __lasx_xvfsub_d(sum_f64x4, __lasx_xvfsub_d(tentative_sum_f64x4, virtual_addend_f64x4)),
         __lasx_xvfsub_d(product_f64x4, virtual_addend_f64x4));
 
     // Update: sum = t, compensation += q + r
-    state->sum_f64x4 = tentative_sum_f64x4;
-    state->compensation_f64x4 = __lasx_xvfadd_d(compensation_f64x4,
-                                                __lasx_xvfadd_d(sum_error_f64x4, product_error_f64x4));
+    state->sum_f64x4 = (__m256i)tentative_sum_f64x4;
+    state->compensation_f64x4 = (__m256i)__lasx_xvfadd_d(compensation_f64x4,
+                                                         __lasx_xvfadd_d(sum_error_f64x4, product_error_f64x4));
 }
 
 NK_INTERNAL void nk_dot_f64x4_finalize_loongsonasx(                                                   //
@@ -264,10 +266,14 @@ NK_INTERNAL void nk_dot_f64x4_finalize_loongsonasx(                             
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
     // Compensated horizontal reduction preserving Dot2 error tracking per state
-    result->f64s[0] = nk_dot_stable_sum_f64x4_loongsonasx_(state_a->sum_f64x4, state_a->compensation_f64x4);
-    result->f64s[1] = nk_dot_stable_sum_f64x4_loongsonasx_(state_b->sum_f64x4, state_b->compensation_f64x4);
-    result->f64s[2] = nk_dot_stable_sum_f64x4_loongsonasx_(state_c->sum_f64x4, state_c->compensation_f64x4);
-    result->f64s[3] = nk_dot_stable_sum_f64x4_loongsonasx_(state_d->sum_f64x4, state_d->compensation_f64x4);
+    result->f64s[0] = nk_dot_stable_sum_f64x4_loongsonasx_((__m256d)state_a->sum_f64x4,
+                                                           (__m256d)state_a->compensation_f64x4);
+    result->f64s[1] = nk_dot_stable_sum_f64x4_loongsonasx_((__m256d)state_b->sum_f64x4,
+                                                           (__m256d)state_b->compensation_f64x4);
+    result->f64s[2] = nk_dot_stable_sum_f64x4_loongsonasx_((__m256d)state_c->sum_f64x4,
+                                                           (__m256d)state_c->compensation_f64x4);
+    result->f64s[3] = nk_dot_stable_sum_f64x4_loongsonasx_((__m256d)state_d->sum_f64x4,
+                                                           (__m256d)state_d->compensation_f64x4);
 }
 
 typedef struct nk_dot_f32x4_state_loongsonasx_t {
@@ -285,10 +291,10 @@ NK_INTERNAL void nk_dot_f32x4_update_loongsonasx(nk_dot_f32x4_state_loongsonasx_
     // Load 4 f32 values from nk_b128_vec_t via memory, widen to 4 f64
     __m256i a_f32x4 = __lasx_xvld(&a, 0);
     __m256i b_f32x4 = __lasx_xvld(&b, 0);
-    __m256i a_f64x4 = __lasx_xvfcvtl_d_s(a_f32x4);
-    __m256i b_f64x4 = __lasx_xvfcvtl_d_s(b_f32x4);
+    __m256d a_f64x4 = __lasx_xvfcvtl_d_s((__m256)a_f32x4);
+    __m256d b_f64x4 = __lasx_xvfcvtl_d_s((__m256)b_f32x4);
     // FMA accumulation in f64
-    state->sum_f64x4 = __lasx_xvfmadd_d(a_f64x4, b_f64x4, state->sum_f64x4);
+    state->sum_f64x4 = (__m256i)__lasx_xvfmadd_d(a_f64x4, b_f64x4, (__m256d)state->sum_f64x4);
 }
 
 NK_INTERNAL void nk_dot_f32x4_finalize_loongsonasx(                                                   //
@@ -297,27 +303,31 @@ NK_INTERNAL void nk_dot_f32x4_finalize_loongsonasx(                             
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
     // Horizontal reduction: 4 f64s → 1 f64 for each state, packed into result via SIMD
-    __m256i sum_a_f64x4 = state_a->sum_f64x4;
-    __m256i sum_b_f64x4 = state_b->sum_f64x4;
-    __m256i sum_c_f64x4 = state_c->sum_f64x4;
-    __m256i sum_d_f64x4 = state_d->sum_f64x4;
+    __m256d sum_a_f64x4 = (__m256d)state_a->sum_f64x4;
+    __m256d sum_b_f64x4 = (__m256d)state_b->sum_f64x4;
+    __m256d sum_c_f64x4 = (__m256d)state_c->sum_f64x4;
+    __m256d sum_d_f64x4 = (__m256d)state_d->sum_f64x4;
 
     // 4 → 2: add high 128-bit lane to low lane
-    __m256i sum_a_f64x2 = __lasx_xvfadd_d(sum_a_f64x4, __lasx_xvpermi_q(sum_a_f64x4, sum_a_f64x4, 0x11));
-    __m256i sum_b_f64x2 = __lasx_xvfadd_d(sum_b_f64x4, __lasx_xvpermi_q(sum_b_f64x4, sum_b_f64x4, 0x11));
-    __m256i sum_c_f64x2 = __lasx_xvfadd_d(sum_c_f64x4, __lasx_xvpermi_q(sum_c_f64x4, sum_c_f64x4, 0x11));
-    __m256i sum_d_f64x2 = __lasx_xvfadd_d(sum_d_f64x4, __lasx_xvpermi_q(sum_d_f64x4, sum_d_f64x4, 0x11));
+    __m256d sum_a_f64x2 = __lasx_xvfadd_d(sum_a_f64x4,
+                                          (__m256d)__lasx_xvpermi_q((__m256i)sum_a_f64x4, (__m256i)sum_a_f64x4, 0x11));
+    __m256d sum_b_f64x2 = __lasx_xvfadd_d(sum_b_f64x4,
+                                          (__m256d)__lasx_xvpermi_q((__m256i)sum_b_f64x4, (__m256i)sum_b_f64x4, 0x11));
+    __m256d sum_c_f64x2 = __lasx_xvfadd_d(sum_c_f64x4,
+                                          (__m256d)__lasx_xvpermi_q((__m256i)sum_c_f64x4, (__m256i)sum_c_f64x4, 0x11));
+    __m256d sum_d_f64x2 = __lasx_xvfadd_d(sum_d_f64x4,
+                                          (__m256d)__lasx_xvpermi_q((__m256i)sum_d_f64x4, (__m256i)sum_d_f64x4, 0x11));
 
-    // 2 → 1: interleave then horizontal add
-    __m256i ab_low_f64x2 = __lasx_xvilvl_d(sum_b_f64x2, sum_a_f64x2);
-    __m256i ab_high_f64x2 = __lasx_xvilvh_d(sum_b_f64x2, sum_a_f64x2);
-    __m256i cd_low_f64x2 = __lasx_xvilvl_d(sum_d_f64x2, sum_c_f64x2);
-    __m256i cd_high_f64x2 = __lasx_xvilvh_d(sum_d_f64x2, sum_c_f64x2);
-    __m256i sum_ab_f64x2 = __lasx_xvfadd_d(ab_low_f64x2, ab_high_f64x2);
-    __m256i sum_cd_f64x2 = __lasx_xvfadd_d(cd_low_f64x2, cd_high_f64x2);
+    // 2 → 1: interleave then horizontal add (xvilvl_d/xvilvh_d are integer intrinsics)
+    __m256d ab_low_f64x2 = (__m256d)__lasx_xvilvl_d((__m256i)sum_b_f64x2, (__m256i)sum_a_f64x2);
+    __m256d ab_high_f64x2 = (__m256d)__lasx_xvilvh_d((__m256i)sum_b_f64x2, (__m256i)sum_a_f64x2);
+    __m256d cd_low_f64x2 = (__m256d)__lasx_xvilvl_d((__m256i)sum_d_f64x2, (__m256i)sum_c_f64x2);
+    __m256d cd_high_f64x2 = (__m256d)__lasx_xvilvh_d((__m256i)sum_d_f64x2, (__m256i)sum_c_f64x2);
+    __m256d sum_ab_f64x2 = __lasx_xvfadd_d(ab_low_f64x2, ab_high_f64x2);
+    __m256d sum_cd_f64x2 = __lasx_xvfadd_d(cd_low_f64x2, cd_high_f64x2);
 
     // Pack [sum_a, sum_b, sum_c, sum_d] into one 256-bit result
-    result->lasx = __lasx_xvpermi_q(sum_cd_f64x2, sum_ab_f64x2, 0x20);
+    result->ymm = __lasx_xvpermi_q((__m256i)sum_cd_f64x2, (__m256i)sum_ab_f64x2, 0x20);
 }
 
 #pragma endregion - Traditional Floats
@@ -371,7 +381,13 @@ NK_INTERNAL void nk_dot_through_i32_finalize_loongsonasx_(                      
     // Step 3: Vertical sum
     __m256i sum_i32x4 = __lasx_xvadd_w(__lasx_xvadd_w(sum_lane0_i32x4, sum_lane1_i32x4),
                                        __lasx_xvadd_w(sum_lane2_i32x4, sum_lane3_i32x4));
-    result->lasx = sum_i32x4;
+    // Extract low 128 bits from 256-bit result
+    nk_b256_vec_t wide;
+    wide.ymm = sum_i32x4;
+    result->i32s[0] = wide.i32s[0];
+    result->i32s[1] = wide.i32s[1];
+    result->i32s[2] = wide.i32s[2];
+    result->i32s[3] = wide.i32s[3];
 }
 
 /**
@@ -469,7 +485,7 @@ NK_INTERNAL void nk_dot_through_f32_update_loongsonasx_(nk_dot_through_f32_state
                                                         nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    state->sum_f32x8 = __lasx_xvfmadd_s(a.lasx, b.lasx, state->sum_f32x8);
+    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a.ymm_ps, b.ymm_ps, (__m256)state->sum_f32x8);
 }
 
 /**
@@ -484,27 +500,33 @@ NK_INTERNAL void nk_dot_through_f32_finalize_loongsonasx_(                      
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Step 1: 8 → 4 for all 4 states (add high 128-bit lane to low lane)
-    __m256i sum_a_f32x4 = __lasx_xvfadd_s(state_a->sum_f32x8,
-                                          __lasx_xvpermi_q(state_a->sum_f32x8, state_a->sum_f32x8, 0x11));
-    __m256i sum_b_f32x4 = __lasx_xvfadd_s(state_b->sum_f32x8,
-                                          __lasx_xvpermi_q(state_b->sum_f32x8, state_b->sum_f32x8, 0x11));
-    __m256i sum_c_f32x4 = __lasx_xvfadd_s(state_c->sum_f32x8,
-                                          __lasx_xvpermi_q(state_c->sum_f32x8, state_c->sum_f32x8, 0x11));
-    __m256i sum_d_f32x4 = __lasx_xvfadd_s(state_d->sum_f32x8,
-                                          __lasx_xvpermi_q(state_d->sum_f32x8, state_d->sum_f32x8, 0x11));
-    // Step 2: Transpose 4×4 matrix via interleave
-    __m256i transpose_ab_low_f32x4 = __lasx_xvilvl_w(sum_b_f32x4, sum_a_f32x4);
-    __m256i transpose_cd_low_f32x4 = __lasx_xvilvl_w(sum_d_f32x4, sum_c_f32x4);
-    __m256i transpose_ab_high_f32x4 = __lasx_xvilvh_w(sum_b_f32x4, sum_a_f32x4);
-    __m256i transpose_cd_high_f32x4 = __lasx_xvilvh_w(sum_d_f32x4, sum_c_f32x4);
+    __m256 sum_a_f32x4 = __lasx_xvfadd_s((__m256)state_a->sum_f32x8,
+                                         (__m256)__lasx_xvpermi_q(state_a->sum_f32x8, state_a->sum_f32x8, 0x11));
+    __m256 sum_b_f32x4 = __lasx_xvfadd_s((__m256)state_b->sum_f32x8,
+                                         (__m256)__lasx_xvpermi_q(state_b->sum_f32x8, state_b->sum_f32x8, 0x11));
+    __m256 sum_c_f32x4 = __lasx_xvfadd_s((__m256)state_c->sum_f32x8,
+                                         (__m256)__lasx_xvpermi_q(state_c->sum_f32x8, state_c->sum_f32x8, 0x11));
+    __m256 sum_d_f32x4 = __lasx_xvfadd_s((__m256)state_d->sum_f32x8,
+                                         (__m256)__lasx_xvpermi_q(state_d->sum_f32x8, state_d->sum_f32x8, 0x11));
+    // Step 2: Transpose 4×4 matrix via interleave (integer intrinsics, cast at boundaries)
+    __m256i transpose_ab_low_f32x4 = __lasx_xvilvl_w((__m256i)sum_b_f32x4, (__m256i)sum_a_f32x4);
+    __m256i transpose_cd_low_f32x4 = __lasx_xvilvl_w((__m256i)sum_d_f32x4, (__m256i)sum_c_f32x4);
+    __m256i transpose_ab_high_f32x4 = __lasx_xvilvh_w((__m256i)sum_b_f32x4, (__m256i)sum_a_f32x4);
+    __m256i transpose_cd_high_f32x4 = __lasx_xvilvh_w((__m256i)sum_d_f32x4, (__m256i)sum_c_f32x4);
     __m256i sum_lane0_f32x4 = __lasx_xvilvl_d(transpose_cd_low_f32x4, transpose_ab_low_f32x4);
     __m256i sum_lane1_f32x4 = __lasx_xvilvh_d(transpose_cd_low_f32x4, transpose_ab_low_f32x4);
     __m256i sum_lane2_f32x4 = __lasx_xvilvl_d(transpose_cd_high_f32x4, transpose_ab_high_f32x4);
     __m256i sum_lane3_f32x4 = __lasx_xvilvh_d(transpose_cd_high_f32x4, transpose_ab_high_f32x4);
     // Step 3: Vertical sum
-    __m256i sum_f32x4 = __lasx_xvfadd_s(__lasx_xvfadd_s(sum_lane0_f32x4, sum_lane1_f32x4),
-                                        __lasx_xvfadd_s(sum_lane2_f32x4, sum_lane3_f32x4));
-    result->lasx = sum_f32x4;
+    __m256 sum_f32x4 = __lasx_xvfadd_s(__lasx_xvfadd_s((__m256)sum_lane0_f32x4, (__m256)sum_lane1_f32x4),
+                                       __lasx_xvfadd_s((__m256)sum_lane2_f32x4, (__m256)sum_lane3_f32x4));
+    // Extract low 128 bits from 256-bit result
+    nk_b256_vec_t wide;
+    wide.ymm_ps = sum_f32x4;
+    result->f32s[0] = wide.f32s[0];
+    result->f32s[1] = wide.f32s[1];
+    result->f32s[2] = wide.f32s[2];
+    result->f32s[3] = wide.f32s[3];
 }
 
 /**
@@ -523,9 +545,9 @@ NK_INTERNAL void nk_dot_bf16x8_update_loongsonasx(nk_dot_bf16x8_state_loongsonas
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Convert 8 × bf16 → 8 × f32, then FMA accumulate
-    __m256i a_f32x8 = nk_bf16x8_to_f32x8_loongsonasx_(a.lasx);
-    __m256i b_f32x8 = nk_bf16x8_to_f32x8_loongsonasx_(b.lasx);
-    state->sum_f32x8 = __lasx_xvfmadd_s(a_f32x8, b_f32x8, state->sum_f32x8);
+    __m256 a_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(a.xmm);
+    __m256 b_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(b.xmm);
+    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_f32x8, b_f32x8, (__m256)state->sum_f32x8);
 }
 
 NK_INTERNAL void nk_dot_bf16x8_finalize_loongsonasx(                                                    //

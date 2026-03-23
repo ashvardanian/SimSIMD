@@ -1178,7 +1178,7 @@ typedef union nk_b64_vec_t {
 
 /** @brief  Small 16-byte memory slice viewable as different types. */
 typedef union nk_b128_vec_t {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_HASWELL || NK_TARGET_LOONGSONASX
     __m128i xmm;
     __m128d xmm_pd;
     __m128 xmm_ps;
@@ -1210,9 +1210,7 @@ typedef union nk_b128_vec_t {
     nk_vf32x4_t vf32x4;
     nk_vf64x2_t vf64x2;
 #endif
-#if NK_TARGET_LOONGSONASX
-    __m128i lasx;
-#endif
+
     nk_u8_t u8s[16];
     nk_u16_t u16s[8];
     nk_u32_t u32s[4];
@@ -1233,7 +1231,7 @@ typedef union nk_b128_vec_t {
 
 /** @brief  Small 32-byte memory slice viewable as different types. */
 typedef union nk_b256_vec_t {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_HASWELL || NK_TARGET_LOONGSONASX
     __m256i ymm;
     __m256d ymm_pd;
     __m256 ymm_ps;
@@ -1266,9 +1264,7 @@ typedef union nk_b256_vec_t {
     nk_vf32x4_t vf32x4s[2];
     nk_vf64x2_t vf64x2s[2];
 #endif
-#if NK_TARGET_LOONGSONASX
-    __m256i lasx;
-#endif
+
     nk_u8_t u8s[32];
     nk_u16_t u16s[16];
     nk_u32_t u32s[8];

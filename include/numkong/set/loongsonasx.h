@@ -51,7 +51,7 @@ NK_INTERNAL nk_u64_t nk_reduce_add_u64x4_loongsonasx_(__m256i sum_u64x4) {
     __m256i hi_u64x4 = __lasx_xvpermi_q(sum_u64x4, sum_u64x4, 0x11);
     __m256i sum_u64x2 = __lasx_xvadd_d(sum_u64x4, hi_u64x4);
     nk_b256_vec_t vec;
-    vec.lasx = sum_u64x2;
+    vec.ymm = sum_u64x2;
     return vec.u64s[0] + vec.u64s[1];
 }
 
@@ -83,7 +83,7 @@ NK_PUBLIC void nk_hamming_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b,
     }
 
     nk_b256_vec_t vec;
-    vec.lasx = count_u64x4;
+    vec.ymm = count_u64x4;
     nk_u64_t count = vec.u64s[0] + vec.u64s[1] + vec.u64s[2] + vec.u64s[3];
 
     for (; i < n_bytes; ++i) count += nk_u1x8_popcount_(a[i] ^ b[i]);
@@ -106,8 +106,8 @@ NK_PUBLIC void nk_jaccard_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b,
     }
 
     nk_b256_vec_t xor_vec, or_vec;
-    xor_vec.lasx = xor_count_u64x4;
-    or_vec.lasx = or_count_u64x4;
+    xor_vec.ymm = xor_count_u64x4;
+    or_vec.ymm = or_count_u64x4;
     nk_u64_t xor_count = xor_vec.u64s[0] + xor_vec.u64s[1] + xor_vec.u64s[2] + xor_vec.u64s[3];
     nk_u64_t or_count = or_vec.u64s[0] + or_vec.u64s[1] + or_vec.u64s[2] + or_vec.u64s[3];
 
@@ -139,7 +139,7 @@ NK_PUBLIC void nk_hamming_u8_loongsonasx(nk_u8_t const *a, nk_u8_t const *b, nk_
     }
 
     nk_b256_vec_t vec;
-    vec.lasx = count_u64x4;
+    vec.ymm = count_u64x4;
     nk_u64_t count = vec.u64s[0] + vec.u64s[1] + vec.u64s[2] + vec.u64s[3];
 
     for (; i < n; ++i) count += (a[i] != b[i]);

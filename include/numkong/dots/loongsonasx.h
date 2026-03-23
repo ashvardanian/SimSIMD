@@ -32,16 +32,15 @@ nk_define_cross_pack_(dots, f32, loongsonasx, f32, f32, nk_assign_from_to_, /*no
                       /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f32, loongsonasx, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_loongsonasx_t,
                            nk_b256_vec_t, nk_dot_f32x4_init_loongsonasx, nk_load_b128_loongsonasx_,
-                           nk_partial_load_b32x4_loongsonasx_, nk_dot_f32x4_update_loongsonasx,
+                           nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_loongsonasx,
                            nk_dot_f32x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
-                           nk_partial_store_b64x4_loongsonasx_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f32, loongsonasx, f32, f32, f64, nk_b128_vec_t, nk_dot_f32x4_state_loongsonasx_t,
                         nk_b256_vec_t, nk_dot_f32x4_init_loongsonasx, nk_load_b128_loongsonasx_,
-                        nk_partial_load_b32x4_loongsonasx_, nk_load_b128_loongsonasx_,
-                        nk_partial_load_b32x4_loongsonasx_, nk_dot_f32x4_update_loongsonasx,
-                        nk_dot_f32x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
-                        nk_partial_store_b64x4_loongsonasx_,
+                        nk_partial_load_b32x4_serial_, nk_load_b128_loongsonasx_, nk_partial_load_b32x4_serial_,
+                        nk_dot_f32x4_update_loongsonasx, nk_dot_f32x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
+                        nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* F64 GEMM: depth_simd_dimensions=4 (4 f64s = 256-bit = full LASX register) */
@@ -52,16 +51,15 @@ nk_define_cross_pack_(dots, f64, loongsonasx, f64, f64, nk_assign_from_to_, /*no
                       /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f64, loongsonasx, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_loongsonasx_t,
                            nk_b256_vec_t, nk_dot_f64x4_init_loongsonasx, nk_load_b256_loongsonasx_,
-                           nk_partial_load_b64x4_loongsonasx_, nk_dot_f64x4_update_loongsonasx,
+                           nk_partial_load_b64x4_serial_, nk_dot_f64x4_update_loongsonasx,
                            nk_dot_f64x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
-                           nk_partial_store_b64x4_loongsonasx_,
+                           nk_partial_store_b64x4_serial_,
                            /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, f64, loongsonasx, f64, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_loongsonasx_t,
                         nk_b256_vec_t, nk_dot_f64x4_init_loongsonasx, nk_load_b256_loongsonasx_,
-                        nk_partial_load_b64x4_loongsonasx_, nk_load_b256_loongsonasx_,
-                        nk_partial_load_b64x4_loongsonasx_, nk_dot_f64x4_update_loongsonasx,
-                        nk_dot_f64x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
-                        nk_partial_store_b64x4_loongsonasx_,
+                        nk_partial_load_b64x4_serial_, nk_load_b256_loongsonasx_, nk_partial_load_b64x4_serial_,
+                        nk_dot_f64x4_update_loongsonasx, nk_dot_f64x4_finalize_loongsonasx, nk_store_b256_loongsonasx_,
+                        nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* I8 GEMM: depth_simd_dimensions=16 (16 i8s = 128-bit input -> i32 accumulation) */
