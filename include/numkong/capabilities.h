@@ -374,19 +374,6 @@ typedef void (*nk_kernel_punned_t)(void *);
 #if NK_TARGET_X86_
 
 NK_PUBLIC int nk_configure_thread_x86_(nk_capability_t capabilities) {
-#if defined(_MSC_VER)
-    unsigned int mxcsr = _mm_getcsr();
-    mxcsr |= 1 << 15;
-    mxcsr |= 1 << 6;
-    _mm_setcsr(mxcsr);
-#else
-    unsigned int mxcsr;
-    __asm__ __volatile__("stmxcsr %0" : "=m"(mxcsr));
-    mxcsr |= 1 << 15;
-    mxcsr |= 1 << 6;
-    __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
-#endif
-
 #if NK_TARGET_SAPPHIREAMX
     if (capabilities & nk_cap_sapphireamx_k) {
 #if defined(NK_DEFINED_LINUX_)
@@ -491,20 +478,7 @@ static void nk_mrs_test_sigill_handler_(int sig) {
 
 NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
     nk_unused_(capabilities);
-#if defined(NK_DEFINED_APPLE_)
-    int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
-    return is_success;
-#elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
-    uint64_t fpcr;
-    __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
-    fpcr |= (1 << 19);
-    fpcr |= (1 << 24);
-    fpcr |= (1 << 25);
-    __asm__ volatile("msr fpcr, %0" : : "r"(fpcr));
     return 1;
-#else
-    return 0;
-#endif
 }
 
 NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {

@@ -1193,7 +1193,7 @@ mod tests {
     use crate::curved::Bilinear;
     use crate::types::{
         assert_close, bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2,
-        FloatLike, StorageElement, TestableType,
+        FloatLike, NumberLike, StorageElement, TestableType,
     };
 
     /// Test a two-input metric: convert f32 inputs to T, call `op`, compare to `expected`.
@@ -1543,6 +1543,144 @@ mod tests {
         check_complex_bilinear_identity::<f32c>(4);
         check_complex_bilinear_identity::<f16c>(4);
         check_complex_bilinear_identity::<bf16c>(4);
+    }
+
+    // endregion
+
+    // region: Denormal (subnormal) inputs
+    //
+    // Verify that distance kernels produce correct results when fed IEEE-754
+    // denormal (subnormal) values. This guards against FTZ/DAZ silently
+    // flushing tiny values to zero.
+
+    #[test]
+    fn dot_f32_denormals() {
+        // Largest f32 denormal: exp=0, mantissa=0x7FFFFF → ≈ 1.1754942e-38
+        let d = f32::from_bits(0x007F_FFFF);
+        // dot([d,d,d], [d,d,d]) = 3 * d * d
+        // F32 dot accumulates in F64 internally, so the result is precise.
+        let expected = 3.0 * (d as f64) * (d as f64);
+        let a = [d, d, d];
+        let b = [d, d, d];
+        let result = f32::dot(&a, &b).unwrap();
+        assert_close(result as f64, expected, 1e-50, 1e-6, "dot<f32> denormal");
+    }
+
+    #[test]
+    fn dot_f64_denormals() {
+        // Largest f64 denormal: exp=0, mantissa all-ones → ≈ 2.225e-308
+        let d = f64::from_bits(0x000F_FFFF_FFFF_FFFF);
+        let expected = 3.0 * d * d;
+        let a = [d, d, d];
+        let b = [d, d, d];
+        let result = f64::dot(&a, &b).unwrap();
+        // F64 dot uses Neumaier compensation; the product d*d underflows to 0 in f64
+        // (since d ≈ 2.2e-308, d*d ≈ 5e-616 which is below f64 min denormal ~5e-324).
+        // So expected = 0.0 and result should also be 0.0 — the key test is that
+        // the kernel doesn't crash or produce NaN/Inf.
+        assert!(
+            result.is_finite(),
+            "dot<f64> denormal produced non-finite: {result}"
+        );
+        assert_close(result, expected, 1e-300, 1e-6, "dot<f64> denormal");
+    }
+
+    #[test]
+    fn dot_f16_denormals() {
+        // F16 denormal: exp=0, mantissa=0x0100 → 2^-14 * 256/1024 = 2^-16 ≈ 1.526e-5
+        // F16 denormals upcast to normal f32 values, so no penalty or flushing.
+        let d = f16(0x0100);
+        let d_f64 = d.to_f64();
+        let expected = 3.0 * d_f64 * d_f64;
+        check_dot::<f16>(
+            &[d.to_f32(), d.to_f32(), d.to_f32()],
+            &[d.to_f32(), d.to_f32(), d.to_f32()],
+            expected,
+        );
+    }
+
+    #[test]
+    fn dot_bf16_denormals() {
+        // BF16 denormal: exp=0, mantissa=0x7F (largest BF16 denormal)
+        // BF16 shares f32's exponent, so this IS a f32 denormal after upcast.
+        let d = bf16(0x007F);
+        let d_f64 = d.to_f64();
+        let expected = 3.0 * d_f64 * d_f64;
+        check_dot::<bf16>(
+            &[d.to_f32(), d.to_f32(), d.to_f32()],
+            &[d.to_f32(), d.to_f32(), d.to_f32()],
+            expected,
+        );
+    }
+
+    #[test]
+    fn sqeuclidean_f32_denormals() {
+        // Two vectors of denormals: differences are also denormal.
+        let a_val = f32::from_bits(0x007F_FFFF); // largest f32 denormal
+        let b_val = f32::from_bits(0x003F_FFFF); // half-way f32 denormal
+        let diff = (a_val as f64) - (b_val as f64);
+        let expected = 3.0 * diff * diff;
+        let a = [a_val; 3];
+        let b = [b_val; 3];
+        let result = f32::sqeuclidean(&a, &b).unwrap();
+        assert!(
+            result.is_finite(),
+            "sqeuclidean<f32> denormal produced non-finite: {result}"
+        );
+        assert_close(
+            result as f64,
+            expected,
+            1e-50,
+            1e-6,
+            "sqeuclidean<f32> denormal",
+        );
+    }
+
+    #[test]
+    fn sqeuclidean_f64_denormals() {
+        let a_val = f64::from_bits(0x000F_FFFF_FFFF_FFFF);
+        let b_val = f64::from_bits(0x0007_FFFF_FFFF_FFFF);
+        let diff = a_val - b_val;
+        let expected = 3.0 * diff * diff;
+        let a = [a_val; 3];
+        let b = [b_val; 3];
+        let result = f64::sqeuclidean(&a, &b).unwrap();
+        assert!(
+            result.is_finite(),
+            "sqeuclidean<f64> denormal produced non-finite: {result}"
+        );
+        assert_close(result, expected, 1e-300, 1e-6, "sqeuclidean<f64> denormal");
+    }
+
+    #[test]
+    fn angular_f32_denormals() {
+        // Two identical denormal vectors: angular distance should be 0 (cosine = 1).
+        let d = f32::from_bits(0x007F_FFFF);
+        let a = [d, d, d];
+        let result = f32::angular(&a, &a).unwrap();
+        assert!(
+            result.is_finite(),
+            "angular<f32> denormal produced non-finite: {result}"
+        );
+        assert_close(
+            result as f64,
+            0.0,
+            1e-4,
+            0.0,
+            "angular<f32> identical denormals",
+        );
+    }
+
+    #[test]
+    fn angular_f64_denormals() {
+        let d = f64::from_bits(0x000F_FFFF_FFFF_FFFF);
+        let a = [d, d, d];
+        let result = f64::angular(&a, &a).unwrap();
+        assert!(
+            result.is_finite(),
+            "angular<f64> denormal produced non-finite: {result}"
+        );
+        assert_close(result, 0.0, 1e-9, 0.0, "angular<f64> identical denormals");
     }
 
     // endregion

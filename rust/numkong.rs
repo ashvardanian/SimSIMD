@@ -42,7 +42,7 @@
 //! let angular_dist = f32::angular(a, b);
 //! let l2sq_dist = f32::sqeuclidean(a, b);
 //!
-//! // Optimize performance by flushing denormals
+//! // Enable AMX and other platform-specific SIMD features
 //! numkong::capabilities::configure_thread();
 //! ```
 //!
