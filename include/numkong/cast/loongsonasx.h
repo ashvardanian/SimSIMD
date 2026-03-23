@@ -1,0 +1,206 @@
+/**
+ *  @brief SIMD-accelerated Type Conversions and Load/Store Helpers for LoongArch LASX (256-bit).
+ *  @file include/numkong/cast/loongsonasx.h
+ *  @author Ash Vardanian
+ *  @date March 23, 2026
+ *
+ *  @sa include/numkong/cast.h
+ *
+ *  @section loongsonasx_cast_instructions Key LASX Load/Store Instructions
+ *
+ *      Intrinsic                      Instruction       Description
+ *      __lasx_xvld(ptr, 0)            XVLD              256-bit aligned/unaligned load
+ *      __lasx_xvst(v, ptr, 0)         XVST              256-bit aligned/unaligned store
+ *      __lasx_xvreplgr2vr_w(bits)     XVREPLGR2VR.W     Broadcast i32 to 8 lanes
+ *      __lasx_xvreplgr2vr_d(bits)     XVREPLGR2VR.D     Broadcast i64 to 4 lanes
+ *      __lasx_xvffint_s_w(v)          XVFFINT.S.W       4x i32 -> f32 (per 128-bit lane)
+ *      __lasx_xvfrsqrte_s(v)          XVFRSQRTE.S       f32 reciprocal sqrt estimate (~14 bits)
+ *      __lasx_xvfsqrt_s(v)            XVFSQRT.S         f32 full-precision sqrt
+ *      __lasx_xvfsqrt_d(v)            XVFSQRT.D         f64 full-precision sqrt
+ *
+ *  LASX is a 256-bit extension; all vector registers are 256-bit `__m256i`. For 128-bit
+ *  `nk_b128_vec_t` operations, `__lasx_xvld` safely loads into the low 128 bits (the high
+ *  128 bits are zeroed or undefined depending on context). For 128-bit stores we use `memcpy`
+ *  to avoid writing beyond the intended 16 bytes. Partial loads/stores delegate to serial
+ *  helpers since LASX lacks masked load/store instructions.
+ */
+#ifndef NK_CAST_LOONGSONASX_H
+#define NK_CAST_LOONGSONASX_H
+
+#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGSONASX
+
+#include "numkong/types.h"
+#include "numkong/cast/serial.h" // `nk_partial_load_b32x4_serial_`, `nk_partial_load_b64x4_serial_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#pragma region - Type Punned Loads and Stores
+
+/** @brief Type-agnostic 256-bit full load (LASX). */
+NK_INTERNAL void nk_load_b256_loongsonasx_(void const *src, nk_b256_vec_t *dst) { dst->lasx = __lasx_xvld(src, 0); }
+
+/** @brief Type-agnostic 256-bit full store (LASX). */
+NK_INTERNAL void nk_store_b256_loongsonasx_(nk_b256_vec_t const *src, void *dst) { __lasx_xvst(src->lasx, dst, 0); }
+
+/** @brief Type-agnostic 128-bit full load (LSX subset of LASX). */
+NK_INTERNAL void nk_load_b128_loongsonasx_(void const *src, nk_b128_vec_t *dst) { dst->lasx = __lsx_vld(src, 0); }
+
+/** @brief Type-agnostic 128-bit full store (LSX subset of LASX). */
+NK_INTERNAL void nk_store_b128_loongsonasx_(nk_b128_vec_t const *src, void *dst) { __lsx_vst(src->lasx, dst, 0); }
+
+/** @brief Convert 8 × bf16 → 8 × f32 by zero-extending u16 → u32 and shifting left 16 (LASX). */
+NK_INTERNAL __m256i nk_bf16x8_to_f32x8_loongsonasx_(__m128i bf16_i16x8) {
+    // Zero-extend low 8 × u16 → 8 × u32, then shift left 16 to place bf16 mantissa in f32 position
+    __m256i extended_u32x8 = __lasx_xvsllwil_wu_hu((__m256i)bf16_i16x8, 0);
+    return __lasx_xvslli_w(extended_u32x8, 16);
+}
+
+/** @brief Load 8 × bf16 from memory, convert to 8 × f32, store in 256-bit vector (LASX). */
+NK_INTERNAL void nk_load_bf16x8_to_f32x8_loongsonasx_(void const *src, nk_b256_vec_t *dst) {
+    dst->lasx = nk_bf16x8_to_f32x8_loongsonasx_(__lsx_vld(src, 0));
+}
+
+/** @brief Partial load for bf16 elements (up to 8) with conversion to f32 (LASX). */
+NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_loongsonasx_(nk_bf16_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t vec;
+    nk_partial_load_b16x8_serial_(src, &vec, n);
+    dst->lasx = nk_bf16x8_to_f32x8_loongsonasx_(vec.lasx);
+}
+
+#pragma endregion - Type Punned Loads and Stores
+
+#pragma region - Vectorized From-Dot Helpers
+
+/** @brief Reciprocal square root of 8 floats with Newton-Raphson refinement (LASX). */
+NK_INTERNAL __m256i nk_rsqrt_f32x8_loongsonasx_(__m256i x_f32x8) {
+    __m256i estimate_f32x8 = __lasx_xvfrsqrte_s(x_f32x8);
+    // One Newton-Raphson refinement: y' = 0.5 × y × (3 − x × y²)
+    __m256i three_f32x8 = __lasx_xvfreplgr2vr_s(3.0f);
+    __m256i half_f32x8 = __lasx_xvfreplgr2vr_s(0.5f);
+    __m256i y_sq_f32x8 = __lasx_xvfmul_s(estimate_f32x8, estimate_f32x8);
+    __m256i refinement_f32x8 = __lasx_xvfsub_s(three_f32x8, __lasx_xvfmul_s(x_f32x8, y_sq_f32x8));
+    return __lasx_xvfmul_s(__lasx_xvfmul_s(half_f32x8, estimate_f32x8), refinement_f32x8);
+}
+
+/** @brief Safe square root of 8 floats with zero-clamping for numerical stability (LASX). */
+NK_INTERNAL __m256i nk_safe_sqrt_f32x8_loongsonasx_(__m256i x_f32x8) {
+    __m256i zero_f32x8 = __lasx_xvreplgr2vr_w(0);
+    return __lasx_xvfsqrt_s(__lasx_xvfmax_s(x_f32x8, zero_f32x8));
+}
+
+/** @brief Angular from_dot: computes 1 − dot × rsqrt(query_sumsq × target_sumsq) for 4 pairs (LASX f32 in low 128). */
+NK_INTERNAL void nk_angular_through_f32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
+                                                              nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    // LASX operates on 256-bit registers; only the low 128 bits (4 × f32) carry meaningful data.
+    __m256i dots_f32x8 = dots.lasx;
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s(query_sumsq);
+    __m256i products_f32x8 = __lasx_xvfmul_s(query_sumsq_f32x8, target_sumsqs.lasx);
+    __m256i rsqrt_f32x8 = nk_rsqrt_f32x8_loongsonasx_(products_f32x8);
+    __m256i normalized_f32x8 = __lasx_xvfmul_s(dots_f32x8, rsqrt_f32x8);
+    __m256i one_f32x8 = __lasx_xvfreplgr2vr_s(1.0f);
+    __m256i angular_f32x8 = __lasx_xvfsub_s(one_f32x8, normalized_f32x8);
+    __m256i zero_f32x8 = __lasx_xvreplgr2vr_w(0);
+    results->lasx = __lasx_xvfmax_s(angular_f32x8, zero_f32x8);
+}
+
+/** @brief Euclidean from_dot: computes √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs (LASX f32 in low 128). */
+NK_INTERNAL void nk_euclidean_through_f32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
+                                                                nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m256i dots_f32x8 = dots.lasx;
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s(query_sumsq);
+    __m256i sum_sq_f32x8 = __lasx_xvfadd_s(query_sumsq_f32x8, target_sumsqs.lasx);
+    __m256i two_f32x8 = __lasx_xvfreplgr2vr_s(2.0f);
+    // dist_sq = sum_sq − 2 × dots = -(2 × dots − sum_sq)
+    __m256i dist_sq_f32x8 = __lasx_xvfnmsub_s(two_f32x8, dots_f32x8, sum_sq_f32x8);
+    results->lasx = nk_safe_sqrt_f32x8_loongsonasx_(dist_sq_f32x8);
+}
+
+/** @brief Angular from_dot for native f64: 1 − dot / √(query_sumsq × target_sumsq) for 4 pairs (LASX). */
+NK_INTERNAL void nk_angular_through_f64_from_dot_loongsonasx_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                              nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    __m256i dots_f64x4 = dots.lasx;
+    __m256i query_sumsq_f64x4 = __lasx_xvfreplgr2vr_d(query_sumsq);
+    __m256i products_f64x4 = __lasx_xvfmul_d(query_sumsq_f64x4, target_sumsqs.lasx);
+    __m256i sqrt_products_f64x4 = __lasx_xvfsqrt_d(products_f64x4);
+    __m256i normalized_f64x4 = __lasx_xvfdiv_d(dots_f64x4, sqrt_products_f64x4);
+    __m256i one_f64x4 = __lasx_xvfreplgr2vr_d(1.0);
+    __m256i angular_f64x4 = __lasx_xvfsub_d(one_f64x4, normalized_f64x4);
+    __m256i zero_f64x4 = __lasx_xvreplgr2vr_d(0);
+    results->lasx = __lasx_xvfmax_d(angular_f64x4, zero_f64x4);
+}
+
+/** @brief Euclidean from_dot for native f64: √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs (LASX). */
+NK_INTERNAL void nk_euclidean_through_f64_from_dot_loongsonasx_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                                nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    __m256i dots_f64x4 = dots.lasx;
+    __m256i query_sumsq_f64x4 = __lasx_xvfreplgr2vr_d(query_sumsq);
+    __m256i sum_sq_f64x4 = __lasx_xvfadd_d(query_sumsq_f64x4, target_sumsqs.lasx);
+    __m256i two_f64x4 = __lasx_xvfreplgr2vr_d(2.0);
+    // dist_sq = sum_sq − 2 × dots = -(2 × dots − sum_sq)
+    __m256i dist_sq_f64x4 = __lasx_xvfnmsub_d(two_f64x4, dots_f64x4, sum_sq_f64x4);
+    __m256i zero_f64x4 = __lasx_xvreplgr2vr_d(0);
+    results->lasx = __lasx_xvfsqrt_d(__lasx_xvfmax_d(dist_sq_f64x4, zero_f64x4));
+}
+
+/** @brief Angular from_dot for i32 accumulators: cast i32 → f32, rsqrt+NR, clamp. 4 pairs (LASX). */
+NK_INTERNAL void nk_angular_through_i32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
+                                                              nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m256i dots_f32x8 = __lasx_xvffint_s_w(dots.lasx);
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s((nk_f32_t)query_sumsq);
+    __m256i products_f32x8 = __lasx_xvfmul_s(query_sumsq_f32x8, __lasx_xvffint_s_w(target_sumsqs.lasx));
+    __m256i rsqrt_f32x8 = nk_rsqrt_f32x8_loongsonasx_(products_f32x8);
+    __m256i normalized_f32x8 = __lasx_xvfmul_s(dots_f32x8, rsqrt_f32x8);
+    __m256i one_f32x8 = __lasx_xvfreplgr2vr_s(1.0f);
+    __m256i angular_f32x8 = __lasx_xvfsub_s(one_f32x8, normalized_f32x8);
+    __m256i zero_f32x8 = __lasx_xvreplgr2vr_w(0);
+    results->lasx = __lasx_xvfmax_s(angular_f32x8, zero_f32x8);
+}
+
+/** @brief Euclidean from_dot for i32 accumulators: cast i32 → f32, then √(a² + b² − 2ab). 4 pairs (LASX). */
+NK_INTERNAL void nk_euclidean_through_i32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
+                                                                nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m256i dots_f32x8 = __lasx_xvffint_s_w(dots.lasx);
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s((nk_f32_t)query_sumsq);
+    __m256i sum_sq_f32x8 = __lasx_xvfadd_s(query_sumsq_f32x8, __lasx_xvffint_s_w(target_sumsqs.lasx));
+    __m256i two_f32x8 = __lasx_xvfreplgr2vr_s(2.0f);
+    __m256i dist_sq_f32x8 = __lasx_xvfnmsub_s(two_f32x8, dots_f32x8, sum_sq_f32x8);
+    results->lasx = nk_safe_sqrt_f32x8_loongsonasx_(dist_sq_f32x8);
+}
+
+/** @brief Angular from_dot for u32 accumulators: cast u32 → f32, rsqrt+NR, clamp. 4 pairs (LASX). */
+NK_INTERNAL void nk_angular_through_u32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                              nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m256i dots_f32x8 = __lasx_xvffint_s_w(dots.lasx);
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s((nk_f32_t)query_sumsq);
+    __m256i products_f32x8 = __lasx_xvfmul_s(query_sumsq_f32x8, __lasx_xvffint_s_w(target_sumsqs.lasx));
+    __m256i rsqrt_f32x8 = nk_rsqrt_f32x8_loongsonasx_(products_f32x8);
+    __m256i normalized_f32x8 = __lasx_xvfmul_s(dots_f32x8, rsqrt_f32x8);
+    __m256i one_f32x8 = __lasx_xvfreplgr2vr_s(1.0f);
+    __m256i angular_f32x8 = __lasx_xvfsub_s(one_f32x8, normalized_f32x8);
+    __m256i zero_f32x8 = __lasx_xvreplgr2vr_w(0);
+    results->lasx = __lasx_xvfmax_s(angular_f32x8, zero_f32x8);
+}
+
+/** @brief Euclidean from_dot for u32 accumulators: cast u32 → f32, then √(a² + b² − 2ab). 4 pairs (LASX). */
+NK_INTERNAL void nk_euclidean_through_u32_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
+                                                                nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m256i dots_f32x8 = __lasx_xvffint_s_w(dots.lasx);
+    __m256i query_sumsq_f32x8 = __lasx_xvfreplgr2vr_s((nk_f32_t)query_sumsq);
+    __m256i sum_sq_f32x8 = __lasx_xvfadd_s(query_sumsq_f32x8, __lasx_xvffint_s_w(target_sumsqs.lasx));
+    __m256i two_f32x8 = __lasx_xvfreplgr2vr_s(2.0f);
+    __m256i dist_sq_f32x8 = __lasx_xvfnmsub_s(two_f32x8, dots_f32x8, sum_sq_f32x8);
+    results->lasx = nk_safe_sqrt_f32x8_loongsonasx_(dist_sq_f32x8);
+}
+
+#pragma endregion - Vectorized From - Dot Helpers
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#endif // NK_TARGET_LOONGSONASX
+#endif // NK_TARGET_LOONGARCH_
+#endif // NK_CAST_LOONGSONASX_H

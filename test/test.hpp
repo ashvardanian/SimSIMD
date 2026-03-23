@@ -558,6 +558,7 @@ void test_cross_arm();
 void test_cross_sme();
 void test_cross_blas();
 void test_cross_rvv();
+void test_cross_loongarch();
 void test_cross_wasm();
 
 #endif // NK_TEST_HPP

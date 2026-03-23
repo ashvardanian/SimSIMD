@@ -128,6 +128,12 @@ void test_set() {
     check("jaccard_u32_v128relaxed", test_jaccard<u32_t>, nk_jaccard_u32_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
+#if NK_TARGET_LOONGSONASX
+    check("hamming_u1_loongsonasx", test_hamming<u1x8_t>, nk_hamming_u1_loongsonasx);
+    check("jaccard_u1_loongsonasx", test_jaccard<u1x8_t>, nk_jaccard_u1_loongsonasx);
+    check("hamming_u8_loongsonasx", test_hamming<u8_t>, nk_hamming_u8_loongsonasx);
+#endif // NK_TARGET_LOONGSONASX
+
     // Serial always runs - baseline test
     check("hamming_u1_serial", test_hamming<u1x8_t>, nk_hamming_u1_serial);
     check("jaccard_u1_serial", test_jaccard<u1x8_t>, nk_jaccard_u1_serial);

@@ -812,3 +812,4 @@ void bench_cross_sme();
 void bench_cross_blas();
 void bench_cross_rvv();
 void bench_cross_wasm();
+void bench_cross_loongarch();

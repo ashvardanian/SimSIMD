@@ -300,6 +300,14 @@ void test_dot() {
     check("dot_u1_rvvbb", test_dot<u1x8_t>, nk_dot_u1_rvvbb);
 #endif // NK_TARGET_RVVBB
 
+#if NK_TARGET_LOONGSONASX
+    check("dot_f64_loongsonasx", test_dot<f64_t>, nk_dot_f64_loongsonasx);
+    check("dot_f32_loongsonasx", test_dot<f32_t>, nk_dot_f32_loongsonasx);
+    check("dot_bf16_loongsonasx", test_dot<bf16_t>, nk_dot_bf16_loongsonasx);
+    check("dot_i8_loongsonasx", test_dot<i8_t>, nk_dot_i8_loongsonasx);
+    check("dot_u8_loongsonasx", test_dot<u8_t>, nk_dot_u8_loongsonasx);
+#endif // NK_TARGET_LOONGSONASX
+
     // Serial always runs - baseline test
     check("dot_f32_serial", test_dot<f32_t>, nk_dot_f32_serial);
     check("dot_f64_serial", test_dot<f64_t>, nk_dot_f64_serial);

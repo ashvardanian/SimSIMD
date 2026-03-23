@@ -2047,6 +2047,7 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t 
 #include "numkong/spatials/v128relaxed.h"
 #include "numkong/spatials/sme.h"
 #include "numkong/spatials/smef64.h"
+#include "numkong/spatials/loongsonasx.h"
 
 #if defined(__cplusplus)
 extern "C" {

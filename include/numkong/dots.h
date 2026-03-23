@@ -1769,6 +1769,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
 #include "numkong/dots/smebi32.h"
 #include "numkong/dots/rvv.h"
 #include "numkong/dots/v128relaxed.h"
+#include "numkong/dots/loongsonasx.h"
 
 #if defined(__cplusplus)
 extern "C" {

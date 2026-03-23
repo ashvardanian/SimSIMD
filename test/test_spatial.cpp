@@ -403,6 +403,24 @@ void test_spatial() {
     check("angular_bf16_rvvbf16", test_angular<bf16_t>, nk_angular_bf16_rvvbf16);
 #endif // NK_TARGET_RVVBF16
 
+#if NK_TARGET_LOONGSONASX
+    check("angular_f64_loongsonasx", test_angular<f64_t>, nk_angular_f64_loongsonasx);
+    check("sqeuclidean_f64_loongsonasx", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_loongsonasx);
+    check("euclidean_f64_loongsonasx", test_euclidean<f64_t>, nk_euclidean_f64_loongsonasx);
+    check("angular_f32_loongsonasx", test_angular<f32_t>, nk_angular_f32_loongsonasx);
+    check("sqeuclidean_f32_loongsonasx", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_loongsonasx);
+    check("euclidean_f32_loongsonasx", test_euclidean<f32_t>, nk_euclidean_f32_loongsonasx);
+    check("angular_bf16_loongsonasx", test_angular<bf16_t>, nk_angular_bf16_loongsonasx);
+    check("sqeuclidean_bf16_loongsonasx", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_loongsonasx);
+    check("euclidean_bf16_loongsonasx", test_euclidean<bf16_t>, nk_euclidean_bf16_loongsonasx);
+    check("angular_i8_loongsonasx", test_angular<i8_t>, nk_angular_i8_loongsonasx);
+    check("sqeuclidean_i8_loongsonasx", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_loongsonasx);
+    check("euclidean_i8_loongsonasx", test_euclidean<i8_t>, nk_euclidean_i8_loongsonasx);
+    check("angular_u8_loongsonasx", test_angular<u8_t>, nk_angular_u8_loongsonasx);
+    check("sqeuclidean_u8_loongsonasx", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_loongsonasx);
+    check("euclidean_u8_loongsonasx", test_euclidean<u8_t>, nk_euclidean_u8_loongsonasx);
+#endif // NK_TARGET_LOONGSONASX
+
     // Serial always runs - baseline test
     check("sqeuclidean_f32_serial", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_serial);
     check("sqeuclidean_f64_serial", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_serial);

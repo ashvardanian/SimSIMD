@@ -667,6 +667,7 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/rvvhalf.h"
 #include "numkong/dot/rvvbf16.h"
 #include "numkong/dot/v128relaxed.h"
+#include "numkong/dot/loongsonasx.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -677,6 +678,8 @@ extern "C" {
 NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_i8_v128relaxed(a, b, n, result);
+#elif NK_TARGET_LOONGSONASX
+    nk_dot_i8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_i8_rvv(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -699,6 +702,8 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_u8_v128relaxed(a, b, n, result);
+#elif NK_TARGET_LOONGSONASX
+    nk_dot_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_u8_rvv(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -795,6 +800,8 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_bf16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_LOONGSONASX
+    nk_dot_bf16_loongsonasx(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -923,6 +930,8 @@ NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_f32_v128relaxed(a, b, n, result);
+#elif NK_TARGET_LOONGSONASX
+    nk_dot_f32_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_f32_rvv(a, b, n, result);
 #elif NK_TARGET_SVE
@@ -941,6 +950,8 @@ NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_f64_v128relaxed(a, b, n, result);
+#elif NK_TARGET_LOONGSONASX
+    nk_dot_f64_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_f64_rvv(a, b, n, result);
 #elif NK_TARGET_SVE

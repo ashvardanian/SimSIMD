@@ -275,6 +275,14 @@ void bench_dot() {
     run_dense<u1_k, u32_k>("dot_u1_v128relaxed", nk_dot_u1_v128relaxed);
 #endif
 
+#if NK_TARGET_LOONGSONASX
+    run_dense<f64_k, f64_k>("dot_f64_loongsonasx", nk_dot_f64_loongsonasx);
+    run_dense<f32_k, f64_k>("dot_f32_loongsonasx", nk_dot_f32_loongsonasx);
+    run_dense<bf16_k, f32_k>("dot_bf16_loongsonasx", nk_dot_bf16_loongsonasx);
+    run_dense<i8_k, i32_k>("dot_i8_loongsonasx", nk_dot_i8_loongsonasx);
+    run_dense<u8_k, u32_k>("dot_u8_loongsonasx", nk_dot_u8_loongsonasx);
+#endif
+
     // Serial fallbacks
     run_dense<f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial);
     run_dense<f64c_k, f64c_k>("vdot_f64c_serial", nk_vdot_f64c_serial);

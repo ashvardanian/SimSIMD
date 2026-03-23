@@ -1211,7 +1211,7 @@ typedef union nk_b128_vec_t {
     nk_vf64x2_t vf64x2;
 #endif
 #if NK_TARGET_LOONGSONASX
-    __m256i lasx;
+    __m128i lasx;
 #endif
     nk_u8_t u8s[16];
     nk_u16_t u16s[8];

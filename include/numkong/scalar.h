@@ -384,6 +384,7 @@ NK_PUBLIC nk_f64_t nk_f64_fma_v128relaxed(nk_f64_t a, nk_f64_t b, nk_f64_t c);
 #include "numkong/scalar/sapphire.h"    // `nk_f16_order_sapphire`
 #include "numkong/scalar/rvv.h"         // `nk_f32_rsqrt_rvv`
 #include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
+#include "numkong/scalar/loongsonasx.h" // `nk_f32_rsqrt_loongsonasx`
 
 #if defined(__cplusplus)
 extern "C" {
