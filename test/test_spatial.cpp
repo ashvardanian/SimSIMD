@@ -299,6 +299,18 @@ void test_spatial() {
     check("euclidean_e4m3_genoa", test_euclidean<e4m3_t>, nk_euclidean_e4m3_genoa);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_DIAMOND
+    check("angular_f16_diamond", test_angular<f16_t>, nk_angular_f16_diamond);
+    check("sqeuclidean_f16_diamond", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_diamond);
+    check("euclidean_f16_diamond", test_euclidean<f16_t>, nk_euclidean_f16_diamond);
+    check("angular_e4m3_diamond", test_angular<e4m3_t>, nk_angular_e4m3_diamond);
+    check("sqeuclidean_e4m3_diamond", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_diamond);
+    check("euclidean_e4m3_diamond", test_euclidean<e4m3_t>, nk_euclidean_e4m3_diamond);
+    check("angular_e5m2_diamond", test_angular<e5m2_t>, nk_angular_e5m2_diamond);
+    check("sqeuclidean_e5m2_diamond", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_diamond);
+    check("euclidean_e5m2_diamond", test_euclidean<e5m2_t>, nk_euclidean_e5m2_diamond);
+#endif // NK_TARGET_DIAMOND
+
 #if NK_TARGET_ALDER
     check("angular_e3m2_alder", test_angular<e3m2_t>, nk_angular_e3m2_alder);
     check("sqeuclidean_e3m2_alder", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_alder);

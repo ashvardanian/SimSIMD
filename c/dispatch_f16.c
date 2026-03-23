@@ -174,6 +174,15 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         default: break;
         }
 #endif
+#if NK_TARGET_DIAMOND
+    if (v & nk_cap_diamond_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_diamond, *c = nk_cap_diamond_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f16_diamond, *c = nk_cap_diamond_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f16_diamond, *c = nk_cap_diamond_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_diamond, *c = nk_cap_diamond_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_skylake, *c = nk_cap_skylake_k; return;

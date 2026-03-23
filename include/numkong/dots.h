@@ -551,6 +551,33 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_genoa(nk_e5m2_t const *vectors, nk_size_t 
                                             nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_DIAMOND
+/** @copydoc nk_dots_packed_size_e4m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_diamond(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_e4m3 */
+NK_PUBLIC void nk_dots_pack_e4m3_diamond(nk_e4m3_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                         void *b_packed);
+/** @copydoc nk_dots_packed_e4m3 */
+NK_PUBLIC void nk_dots_packed_e4m3_diamond(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t height,
+                                           nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_size_e5m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_diamond(nk_size_t width, nk_size_t depth);
+/** @copydoc nk_dots_pack_e5m2 */
+NK_PUBLIC void nk_dots_pack_e5m2_diamond(nk_e5m2_t const *b, nk_size_t width, nk_size_t depth, nk_size_t b_stride,
+                                         void *b_packed);
+/** @copydoc nk_dots_packed_e5m2 */
+NK_PUBLIC void nk_dots_packed_e5m2_diamond(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t height,
+                                           nk_size_t width, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e4m3 */
+NK_PUBLIC void nk_dots_symmetric_e4m3_diamond(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_symmetric_e5m2 */
+NK_PUBLIC void nk_dots_symmetric_e5m2_diamond(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
+#endif // NK_TARGET_DIAMOND
+
 /*  Sapphire Rapids backends using Intel AMX (Advanced Matrix Extensions).
  *  AMX provides 8 tile registers (TMM0-TMM7), each holding up to 1KB of data.
  *  Tiles are configured as 16 rows × 64 bytes, enabling (16 × 32) BF16 or (16 × 64) INT8 tiles.
@@ -1757,6 +1784,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
 #include "numkong/dots/alder.h"
 #include "numkong/dots/sierra.h"
 #include "numkong/dots/genoa.h"
+#include "numkong/dots/diamond.h"
 #include "numkong/dots/sapphireamx.h"
 #include "numkong/dots/neon.h"
 #include "numkong/dots/neonsdot.h"
@@ -2174,6 +2202,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3(nk_size_t width, nk_size_t depth) {
     return nk_dots_packed_size_e4m3_neonfp8(width, depth);
 #elif NK_TARGET_NEONFHM
     return nk_dots_packed_size_e4m3_neonfhm(width, depth);
+#elif NK_TARGET_DIAMOND
+    return nk_dots_packed_size_e4m3_diamond(width, depth);
 #elif NK_TARGET_GENOA
     return nk_dots_packed_size_e4m3_genoa(width, depth);
 #elif NK_TARGET_SKYLAKE
@@ -2199,6 +2229,8 @@ NK_PUBLIC void nk_dots_pack_e4m3(nk_e4m3_t const *b, nk_size_t width, nk_size_t 
     nk_dots_pack_e4m3_neonfp8(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_NEONFHM
     nk_dots_pack_e4m3_neonfhm(b, width, depth, b_stride, b_packed);
+#elif NK_TARGET_DIAMOND
+    nk_dots_pack_e4m3_diamond(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_GENOA
     nk_dots_pack_e4m3_genoa(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
@@ -2224,6 +2256,8 @@ NK_PUBLIC void nk_dots_packed_e4m3(nk_e4m3_t const *a, void const *b_packed, nk_
     nk_dots_packed_e4m3_neonfp8(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_NEONFHM
     nk_dots_packed_e4m3_neonfhm(a, b_packed, c, height, width, depth, a_stride, c_stride);
+#elif NK_TARGET_DIAMOND
+    nk_dots_packed_e4m3_diamond(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_GENOA
     nk_dots_packed_e4m3_genoa(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
@@ -2248,6 +2282,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2(nk_size_t width, nk_size_t depth) {
     return nk_dots_packed_size_e5m2_neonfp8(width, depth);
 #elif NK_TARGET_NEONFHM
     return nk_dots_packed_size_e5m2_neonfhm(width, depth);
+#elif NK_TARGET_DIAMOND
+    return nk_dots_packed_size_e5m2_diamond(width, depth);
 #elif NK_TARGET_GENOA
     return nk_dots_packed_size_e5m2_genoa(width, depth);
 #elif NK_TARGET_SKYLAKE
@@ -2273,6 +2309,8 @@ NK_PUBLIC void nk_dots_pack_e5m2(nk_e5m2_t const *b, nk_size_t width, nk_size_t 
     nk_dots_pack_e5m2_neonfp8(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_NEONFHM
     nk_dots_pack_e5m2_neonfhm(b, width, depth, b_stride, b_packed);
+#elif NK_TARGET_DIAMOND
+    nk_dots_pack_e5m2_diamond(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_GENOA
     nk_dots_pack_e5m2_genoa(b, width, depth, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
@@ -2298,6 +2336,8 @@ NK_PUBLIC void nk_dots_packed_e5m2(nk_e5m2_t const *a, void const *b_packed, nk_
     nk_dots_packed_e5m2_neonfp8(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_NEONFHM
     nk_dots_packed_e5m2_neonfhm(a, b_packed, c, height, width, depth, a_stride, c_stride);
+#elif NK_TARGET_DIAMOND
+    nk_dots_packed_e5m2_diamond(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_GENOA
     nk_dots_packed_e5m2_genoa(a, b_packed, c, height, width, depth, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
@@ -2702,6 +2742,8 @@ NK_PUBLIC void nk_dots_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e4m3_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SAPPHIREAMX
     nk_dots_symmetric_e4m3_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_DIAMOND
+    nk_dots_symmetric_e4m3_diamond(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_GENOA
     nk_dots_symmetric_e4m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
@@ -2728,6 +2770,8 @@ NK_PUBLIC void nk_dots_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e5m2_neonfhm(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SAPPHIREAMX
     nk_dots_symmetric_e5m2_sapphireamx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_DIAMOND
+    nk_dots_symmetric_e5m2_diamond(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_GENOA
     nk_dots_symmetric_e5m2_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE

@@ -247,6 +247,12 @@ void bench_dot() {
     run_dense<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
 #endif
 
+#if NK_TARGET_DIAMOND
+    run_dense<f16_k, f32_k>("dot_f16_diamond", nk_dot_f16_diamond);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_diamond", nk_dot_e4m3_diamond);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_diamond", nk_dot_e5m2_diamond);
+#endif
+
 #if NK_TARGET_RVV
     run_dense<f64_k, f64_k>("dot_f64_rvv", nk_dot_f64_rvv);
     run_dense<f32_k, f64_k>("dot_f32_rvv", nk_dot_f32_rvv);

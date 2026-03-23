@@ -244,6 +244,12 @@ void test_dot() {
     check("vdot_bf16c_genoa", test_vdot<bf16c_t>, nk_vdot_bf16c_genoa);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_DIAMOND
+    check("dot_f16_diamond", test_dot<f16_t>, nk_dot_f16_diamond);
+    check("dot_e4m3_diamond", test_dot<e4m3_t>, nk_dot_e4m3_diamond);
+    check("dot_e5m2_diamond", test_dot<e5m2_t>, nk_dot_e5m2_diamond);
+#endif // NK_TARGET_DIAMOND
+
 #if NK_TARGET_RVV
     check("dot_f64c_rvv", test_dot<f64c_t>, nk_dot_f64c_rvv);
     check("vdot_f64c_rvv", test_vdot<f64c_t>, nk_vdot_f64c_rvv);

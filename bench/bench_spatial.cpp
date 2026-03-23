@@ -216,6 +216,18 @@ void bench_spatial() {
     run_dense<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
 #endif
 
+#if NK_TARGET_DIAMOND
+    run_dense<f16_k, f32_k>("angular_f16_diamond", nk_angular_f16_diamond);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_diamond", nk_sqeuclidean_f16_diamond);
+    run_dense<f16_k, f32_k>("euclidean_f16_diamond", nk_euclidean_f16_diamond);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_diamond", nk_angular_e4m3_diamond);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_diamond", nk_sqeuclidean_e4m3_diamond);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_diamond", nk_euclidean_e4m3_diamond);
+    run_dense<e5m2_k, f32_k>("angular_e5m2_diamond", nk_angular_e5m2_diamond);
+    run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_diamond", nk_sqeuclidean_e5m2_diamond);
+    run_dense<e5m2_k, f32_k>("euclidean_e5m2_diamond", nk_euclidean_e5m2_diamond);
+#endif
+
 #if NK_TARGET_SAPPHIRE
     run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_sapphire", nk_sqeuclidean_e4m3_sapphire);
     run_dense<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
