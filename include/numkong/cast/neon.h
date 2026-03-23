@@ -107,69 +107,60 @@ NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 4x e4m3 → f32x4 via bit manipulation (NEON).
- *  E4M3FN format: S EEEE MMM (bias=7). No ∞ representation.
- *  Only exp=15, mant=7 (0x7F) is NaN; exp=15, mant ∈ [0,6] are valid normals (max=448). */
+/** @brief Convert 4x e4m3 → f32x4 via Giesen magic-multiply (NEON).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMUL. NaN fixup for magnitude 0x7F.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e4m3_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
     uint32x4_t e4m3_u32x4 = vmovl_u16(vget_low_u16(e4m3_u16x8));
+
+    // Extract sign: (raw & 0x80) << 24 → f32 sign bit
     uint32x4_t sign_u32x4 = vshlq_n_u32(vandq_u32(e4m3_u32x4, vdupq_n_u32(0x80)), 24);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(e4m3_u32x4, 3), vdupq_n_u32(0x0F));
-    uint32x4_t mant_u32x4 = vandq_u32(e4m3_u32x4, vdupq_n_u32(0x07));
+    // Strip sign to get 7-bit magnitude, shift left by 20 so E4M3 exponent overlaps f32 exponent
+    uint32x4_t nonsign_u32x4 = vandq_u32(e4m3_u32x4, vdupq_n_u32(0x7F));
+    uint32x4_t shifted_u32x4 = vshlq_n_u32(nonsign_u32x4, 20);
 
-    // Normal path: f32 = sign | ((exp+120)<<23) | (mant<<20)
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(120)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
-    uint32x4_t normal_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    // Magic multiply: reinterpret as f32 × 2^120 rebiases from E4M3 (bias=7) to f32 (bias=127).
+    float32x4_t result_f32x4 = vmulq_f32(vreinterpretq_f32_u32(shifted_u32x4),
+                                         vreinterpretq_f32_u32(vdupq_n_u32(0x7B800000))); // 2^120
 
-    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻⁹
-    float32x4_t subnormal_f32x4 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 512.0f);
-    uint32x4_t subnormal_u32x4 = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32x4), sign_u32x4);
-
-    // NaN path: E4M3FN only has NaN when exp=15 AND mant=7 (0x7F or 0xFF)
+    // NaN fixup: E4M3FN NaN only at magnitude 0x7F → force to f32 quiet NaN
+    uint32x4_t is_nan_mask = vceqq_u32(nonsign_u32x4, vdupq_n_u32(0x7F));
     uint32x4_t nan_u32x4 = vorrq_u32(sign_u32x4, vdupq_n_u32(0x7FC00000));
-    uint32x4_t is_nan_mask = vandq_u32(vceqq_u32(exp_u32x4, vdupq_n_u32(15)), vceqq_u32(mant_u32x4, vdupq_n_u32(7)));
+    uint32x4_t result_u32x4 = vbslq_u32(is_nan_mask, nan_u32x4, vreinterpretq_u32_f32(result_f32x4));
 
-    // Blend paths: subnormal when exp=0, NaN when exp=15 && mant=7, else normal
-    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask, subnormal_u32x4, normal_u32x4);
-    result_u32x4 = vbslq_u32(is_nan_mask, nan_u32x4, result_u32x4);
-    return vreinterpretq_f32_u32(result_u32x4);
+    // Restore sign
+    return vreinterpretq_f32_u32(vorrq_u32(result_u32x4, sign_u32x4));
 }
 
-/** @brief Convert 4x e5m2 → f32x4 via bit manipulation (NEON).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21.
- *  Handles subnormals (exp=0, mant ≠ 0), inf (exp=31, mant=0), and nan (exp=31, mant ≠ 0). */
+/** @brief Convert 4x e5m2 → f32x4 via Giesen magic-multiply (NEON).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMUL. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e5m2_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
     uint32x4_t e5m2_u32x4 = vmovl_u16(vget_low_u16(e5m2_u16x8));
+
+    // Extract sign: (raw & 0x80) << 24 → f32 sign bit
     uint32x4_t sign_u32x4 = vshlq_n_u32(vandq_u32(e5m2_u32x4, vdupq_n_u32(0x80)), 24);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(e5m2_u32x4, 2), vdupq_n_u32(0x1F));
-    uint32x4_t mant_u32x4 = vandq_u32(e5m2_u32x4, vdupq_n_u32(0x03));
+    // Strip sign to get 7-bit magnitude, shift left by 21 so E5M2 exponent overlaps f32 exponent
+    uint32x4_t nonsign_u32x4 = vandq_u32(e5m2_u32x4, vdupq_n_u32(0x7F));
+    uint32x4_t shifted_u32x4 = vshlq_n_u32(nonsign_u32x4, 21);
 
-    // Normal path: f32 = sign | ((exp+112)<<23) | (mant<<21)
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(112)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
-    uint32x4_t normal_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    // Magic multiply: reinterpret as f32 × 2^112 rebiases from E5M2 (bias=15) to f32 (bias=127).
+    float32x4_t result_f32x4 = vmulq_f32(vreinterpretq_f32_u32(shifted_u32x4),
+                                         vreinterpretq_f32_u32(vdupq_n_u32(0x77800000))); // 2^112
 
-    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻¹⁶
-    float32x4_t subnormal_f32x4 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 65536.0f);
-    uint32x4_t subnormal_u32x4 = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32x4), sign_u32x4);
+    // Inf/NaN fixup: nonsign > 123 means exp=31 → force f32 exponent to 255
+    uint32x4_t is_infnan = vcgtq_u32(nonsign_u32x4, vdupq_n_u32(123));
+    uint32x4_t result_u32x4 = vorrq_u32(vreinterpretq_u32_f32(result_f32x4),
+                                        vandq_u32(is_infnan, vdupq_n_u32(0x7F800000)));
 
-    // Special path (exp=31): inf (mant=0) or nan (mant≠0)
-    uint32x4_t infinity_u32x4 = vorrq_u32(sign_u32x4, vdupq_n_u32(0x7F800000));
-    uint32x4_t nan_u32x4 = vorrq_u32(sign_u32x4, vdupq_n_u32(0x7FC00000));
-    uint32x4_t mant_zero_mask = vceqq_u32(mant_u32x4, vdupq_n_u32(0));
-    uint32x4_t special_u32x4 = vbslq_u32(mant_zero_mask, infinity_u32x4, nan_u32x4);
-
-    // Blend paths based on exponent value
-    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    uint32x4_t exp_max_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(31));
-    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask, subnormal_u32x4, normal_u32x4);
-    result_u32x4 = vbslq_u32(exp_max_mask, special_u32x4, result_u32x4);
-    return vreinterpretq_f32_u32(result_u32x4);
+    // Restore sign
+    return vreinterpretq_f32_u32(vorrq_u32(result_u32x4, sign_u32x4));
 }
 
 /** @brief Convert 8x e4m3 → f16x8 via bit manipulation (NEON).
@@ -796,56 +787,50 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e5m2x4_neon_(float32x4_t f32x4) {
     return result;
 }
 
-/** @brief Convert 4x e2m3 → f32x4 via bit manipulation (NEON).
- *  E2M3 format: S EE MMM (bias=1). F32: sign<<31, (exp+126)<<23, mantissa<<20.
- *  Handles subnormals (exp=0, mant ≠ 0). */
+/** @brief Convert 4x e2m3 → f32x4 via Giesen magic-multiply (NEON).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMUL. No inf/NaN in E2M3FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL float32x4_t nk_e2m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e2m3_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e2m3_u16x8 = vmovl_u8(e2m3_u8x8);
     uint32x4_t e2m3_u32x4 = vmovl_u16(vget_low_u16(e2m3_u16x8));
+
+    // Extract sign: bit 5 → bit 31
     uint32x4_t sign_u32x4 = vshlq_n_u32(vandq_u32(e2m3_u32x4, vdupq_n_u32(0x20)), 26);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(e2m3_u32x4, 3), vdupq_n_u32(0x03));
-    uint32x4_t mant_u32x4 = vandq_u32(e2m3_u32x4, vdupq_n_u32(0x07));
+    // Strip sign to get 5-bit magnitude, shift left by 20 so E2M3 exponent overlaps f32 exponent
+    uint32x4_t nonsign_u32x4 = vandq_u32(e2m3_u32x4, vdupq_n_u32(0x1F));
+    uint32x4_t shifted_u32x4 = vshlq_n_u32(nonsign_u32x4, 20);
 
-    // Normal path: f32 = sign | ((exp+126)<<23) | (mant<<20)
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(126)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
-    uint32x4_t normal_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    // Magic multiply: reinterpret as f32 × 2^126 rebiases from E2M3 (bias=1) to f32 (bias=127).
+    float32x4_t result_f32x4 = vmulq_f32(vreinterpretq_f32_u32(shifted_u32x4),
+                                         vreinterpretq_f32_u32(vdupq_n_u32(0x7E800000))); // 2^126
 
-    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻³
-    float32x4_t subnormal_f32x4 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 8.0f);
-    uint32x4_t subnormal_u32x4 = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32x4), sign_u32x4);
-
-    // Blend paths: subnormal when exp=0, else normal
-    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask, subnormal_u32x4, normal_u32x4);
-    return vreinterpretq_f32_u32(result_u32x4);
+    // Restore sign (no inf/NaN fixup needed for E2M3FN)
+    return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(result_f32x4), sign_u32x4));
 }
 
-/** @brief Convert 4x e3m2 → f32x4 via bit manipulation (NEON).
- *  E3M2 format: S EEE MM (bias=3). F32: sign<<31, (exp+124)<<23, mantissa<<21.
- *  Handles subnormals (exp=0, mant ≠ 0). */
+/** @brief Convert 4x e3m2 → f32x4 via Giesen magic-multiply (NEON).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMUL. No inf/NaN in E3M2FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL float32x4_t nk_e3m2x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e3m2_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e3m2_u16x8 = vmovl_u8(e3m2_u8x8);
     uint32x4_t e3m2_u32x4 = vmovl_u16(vget_low_u16(e3m2_u16x8));
+
+    // Extract sign: bit 5 → bit 31
     uint32x4_t sign_u32x4 = vshlq_n_u32(vandq_u32(e3m2_u32x4, vdupq_n_u32(0x20)), 26);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(e3m2_u32x4, 2), vdupq_n_u32(0x07));
-    uint32x4_t mant_u32x4 = vandq_u32(e3m2_u32x4, vdupq_n_u32(0x03));
+    // Strip sign to get 5-bit magnitude, shift left by 21 so E3M2 exponent overlaps f32 exponent
+    uint32x4_t nonsign_u32x4 = vandq_u32(e3m2_u32x4, vdupq_n_u32(0x1F));
+    uint32x4_t shifted_u32x4 = vshlq_n_u32(nonsign_u32x4, 21);
 
-    // Normal path: f32 = sign | ((exp+124)<<23) | (mant<<21)
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(124)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
-    uint32x4_t normal_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    // Magic multiply: reinterpret as f32 × 2^124 rebiases from E3M2 (bias=3) to f32 (bias=127).
+    float32x4_t result_f32x4 = vmulq_f32(vreinterpretq_f32_u32(shifted_u32x4),
+                                         vreinterpretq_f32_u32(vdupq_n_u32(0x7D800000))); // 2^124
 
-    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻⁴
-    float32x4_t subnormal_f32x4 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 16.0f);
-    uint32x4_t subnormal_u32x4 = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32x4), sign_u32x4);
-
-    // Blend paths: subnormal when exp=0, else normal
-    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask, subnormal_u32x4, normal_u32x4);
-    return vreinterpretq_f32_u32(result_u32x4);
+    // Restore sign (no inf/NaN fixup needed for E3M2FN)
+    return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(result_f32x4), sign_u32x4));
 }
 
 /** @brief Convert f32x4 → 4x e2m3 via bit manipulation (NEON).

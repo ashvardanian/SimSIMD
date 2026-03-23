@@ -180,39 +180,39 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | __e5m2__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e5m2_serial`         |        4.00 gso/s, 0 ulp |        4.79 gso/s, 0 ulp |        4.80 gso/s, 0 ulp |
 | `nk_dots_symmetric_e5m2_serial`      |        3.90 gso/s, 0 ulp |        4.17 gso/s, 0 ulp |        5.06 gso/s, 0 ulp |
-| `nk_dots_packed_e5m2_haswell`        |        29.7 gso/s, 0 ulp |        34.4 gso/s, 0 ulp |        33.4 gso/s, 0 ulp |
-| `nk_dots_symmetric_e5m2_haswell`     |        16.1 gso/s, 0 ulp |        16.7 gso/s, 0 ulp |        32.1 gso/s, 0 ulp |
-| `nk_dots_packed_e5m2_skylake`        |        38.9 gso/s, 0 ulp |        45.7 gso/s, 0 ulp |        47.2 gso/s, 0 ulp |
-| `nk_dots_symmetric_e5m2_skylake`     |        24.0 gso/s, 0 ulp |        26.4 gso/s, 0 ulp |        27.9 gso/s, 0 ulp |
+| `nk_dots_packed_e5m2_haswell`        |        38.6 gso/s, 0 ulp |        42.3 gso/s, 0 ulp |        41.4 gso/s, 0 ulp |
+| `nk_dots_symmetric_e5m2_haswell`     |        19.2 gso/s, 0 ulp |        23.1 gso/s, 0 ulp |        22.1 gso/s, 0 ulp |
+| `nk_dots_packed_e5m2_skylake`        |        45.2 gso/s, 0 ulp |        52.1 gso/s, 0 ulp |        54.1 gso/s, 0 ulp |
+| `nk_dots_symmetric_e5m2_skylake`     |        25.0 gso/s, 0 ulp |        27.7 gso/s, 0 ulp |        28.8 gso/s, 0 ulp |
 | `nk_dots_packed_e5m2_genoa`          |        44.0 gso/s, 0 ulp |        50.6 gso/s, 0 ulp |        49.5 gso/s, 0 ulp |
 | `nk_dots_symmetric_e5m2_genoa`       |        30.4 gso/s, 0 ulp |        33.9 gso/s, 0 ulp |        34.6 gso/s, 0 ulp |
 | `nk_dots_packed_e5m2_sapphireamx`    |         261 gso/s, 0 ulp |         419 gso/s, 0 ulp |         435 gso/s, 0 ulp |
 | __e4m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e4m3_serial`         |       0.433 gso/s, 0 ulp |       0.478 gso/s, 0 ulp |       0.415 gso/s, 0 ulp |
 | `nk_dots_symmetric_e4m3_serial`      |       0.408 gso/s, 0 ulp |       0.376 gso/s, 0 ulp |       0.618 gso/s, 0 ulp |
-| `nk_dots_packed_e4m3_haswell`        |        28.3 gso/s, 0 ulp |        31.2 gso/s, 0 ulp |        29.8 gso/s, 0 ulp |
-| `nk_dots_symmetric_e4m3_haswell`     |        15.3 gso/s, 0 ulp |        16.6 gso/s, 0 ulp |        24.4 gso/s, 0 ulp |
-| `nk_dots_packed_e4m3_skylake`        |        39.3 gso/s, 0 ulp |        46.0 gso/s, 0 ulp |        45.9 gso/s, 0 ulp |
-| `nk_dots_symmetric_e4m3_skylake`     |        24.5 gso/s, 0 ulp |        26.8 gso/s, 0 ulp |        26.3 gso/s, 0 ulp |
+| `nk_dots_packed_e4m3_haswell`        |        29.3 gso/s, 0 ulp |        30.9 gso/s, 0 ulp |        32.1 gso/s, 0 ulp |
+| `nk_dots_symmetric_e4m3_haswell`     |        14.6 gso/s, 0 ulp |        15.8 gso/s, 0 ulp |        16.1 gso/s, 0 ulp |
+| `nk_dots_packed_e4m3_skylake`        |        35.2 gso/s, 0 ulp |        38.5 gso/s, 0 ulp |        37.9 gso/s, 0 ulp |
+| `nk_dots_symmetric_e4m3_skylake`     |        19.8 gso/s, 0 ulp |        21.5 gso/s, 0 ulp |        21.9 gso/s, 0 ulp |
 | `nk_dots_packed_e4m3_genoa`          |        42.8 gso/s, 0 ulp |        50.0 gso/s, 0 ulp |        50.3 gso/s, 0 ulp |
 | `nk_dots_symmetric_e4m3_genoa`       |        30.7 gso/s, 0 ulp |        33.5 gso/s, 0 ulp |        34.4 gso/s, 0 ulp |
 | `nk_dots_packed_e4m3_sapphireamx`    |         260 gso/s, 0 ulp |         425 gso/s, 0 ulp |         423 gso/s, 0 ulp |
 | __e3m2__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e3m2_serial`         |        4.38 gso/s, 0 ulp |        4.14 gso/s, 0 ulp |        4.72 gso/s, 0 ulp |
 | `nk_dots_symmetric_e3m2_serial`      |        3.28 gso/s, 0 ulp |        3.57 gso/s, 0 ulp |        3.96 gso/s, 0 ulp |
-| `nk_dots_packed_e3m2_haswell`        |        31.8 gso/s, 0 ulp |        32.6 gso/s, 0 ulp |        32.3 gso/s, 0 ulp |
-| `nk_dots_symmetric_e3m2_haswell`     |        29.4 gso/s, 0 ulp |        32.9 gso/s, 0 ulp |        67.1 gso/s, 0 ulp |
-| `nk_dots_packed_e3m2_skylake`        |        39.7 gso/s, 0 ulp |        43.5 gso/s, 0 ulp |        44.1 gso/s, 0 ulp |
-| `nk_dots_symmetric_e3m2_skylake`     |        39.2 gso/s, 0 ulp |        44.9 gso/s, 0 ulp |        47.0 gso/s, 0 ulp |
+| `nk_dots_packed_e3m2_haswell`        |        31.6 gso/s, 0 ulp |        32.3 gso/s, 0 ulp |        33.8 gso/s, 0 ulp |
+| `nk_dots_symmetric_e3m2_haswell`     |        29.4 gso/s, 0 ulp |        32.7 gso/s, 0 ulp |        31.4 gso/s, 0 ulp |
+| `nk_dots_packed_e3m2_skylake`        |        39.3 gso/s, 0 ulp |        44.3 gso/s, 0 ulp |        44.4 gso/s, 0 ulp |
+| `nk_dots_symmetric_e3m2_skylake`     |        39.2 gso/s, 0 ulp |        46.0 gso/s, 0 ulp |        47.1 gso/s, 0 ulp |
 | `nk_dots_packed_e3m2_sapphireamx`    |         276 gso/s, 0 ulp |         490 gso/s, 0 ulp |         483 gso/s, 0 ulp |
 | `nk_dots_symmetric_e3m2_sapphireamx` |        63.3 gso/s, 0 ulp |         104 gso/s, 0 ulp |        91.6 gso/s, 0 ulp |
 | __e2m3__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dots_packed_e2m3_serial`         |        4.79 gso/s, 0 ulp |        5.06 gso/s, 0 ulp |        4.35 gso/s, 0 ulp |
 | `nk_dots_symmetric_e2m3_serial`      |        3.24 gso/s, 0 ulp |        3.74 gso/s, 0 ulp |        4.05 gso/s, 0 ulp |
-| `nk_dots_packed_e2m3_haswell`        |        57.7 gso/s, 0 ulp |        60.6 gso/s, 0 ulp |        62.5 gso/s, 0 ulp |
-| `nk_dots_symmetric_e2m3_haswell`     |        51.0 gso/s, 0 ulp |        59.7 gso/s, 0 ulp |         132 gso/s, 0 ulp |
-| `nk_dots_packed_e2m3_skylake`        |        68.9 gso/s, 0 ulp |        82.6 gso/s, 0 ulp |        87.3 gso/s, 0 ulp |
-| `nk_dots_symmetric_e2m3_skylake`     |        64.5 gso/s, 0 ulp |        80.1 gso/s, 0 ulp |        82.9 gso/s, 0 ulp |
+| `nk_dots_packed_e2m3_haswell`        |        59.0 gso/s, 0 ulp |        62.5 gso/s, 0 ulp |        65.6 gso/s, 0 ulp |
+| `nk_dots_symmetric_e2m3_haswell`     |        50.8 gso/s, 0 ulp |        62.4 gso/s, 0 ulp |        64.6 gso/s, 0 ulp |
+| `nk_dots_packed_e2m3_skylake`        |        70.2 gso/s, 0 ulp |        81.9 gso/s, 0 ulp |        85.5 gso/s, 0 ulp |
+| `nk_dots_symmetric_e2m3_skylake`     |        65.5 gso/s, 0 ulp |        84.2 gso/s, 0 ulp |        85.4 gso/s, 0 ulp |
 | `nk_dots_packed_e2m3_sapphireamx`    |         426 gso/s, 0 ulp |       1,192 gso/s, 0 ulp |       1,072 gso/s, 0 ulp |
 | `nk_dots_symmetric_e2m3_sapphireamx` |        96.3 gso/s, 0 ulp |         209 gso/s, 0 ulp |         195 gso/s, 0 ulp |
 | `nk_dots_packed_e2m3_alder`          |        72.2 gso/s, 0 ulp |        78.3 gso/s, 0 ulp |        85.8 gso/s, 0 ulp |

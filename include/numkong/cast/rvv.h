@@ -166,9 +166,10 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t
 }
 
 /**
- *  @brief Convert e4m3 (m1) to f32 (m4) via Giesen-inspired integer-add.
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
- *  Subnormal path: int→float conversion with scale factor. NaN fixup for magnitude 0x7F.
+ *  @brief Convert e4m3 (m1) to f32 (m4) via Giesen magic-multiply.
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single vfmul. NaN fixup for magnitude 0x7F.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
     // Extract sign: (raw & 0x80) → bit 7, shift to bit 31
@@ -180,18 +181,11 @@ NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t
     vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
 
-    // Normal path: integer add of (127-7)<<23 produces correct f32 bits directly
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3C000000, vector_length));
-    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e4m3_sub_lut_[8] = {0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,
-                                                 0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e4m3_sub_lut_, 8);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^120 rebiases from E4M3 (bias=7) to f32 (bias=127).
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vmv_v_x_u32m4(0x7B800000, vector_length)); // 2^120 = (254-7)<<23
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
 
     // NaN fixup: masked OR writes sign|0x7FC00000 only into NaN lanes
     vbool8_t is_nan = __riscv_vmseq_vx_u8m1_b8(nonsign_u8m1, 0x7F, vector_length);
@@ -204,9 +198,10 @@ NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t
 }
 
 /**
- *  @brief Convert e5m2 (m1) to f32 (m4) via Giesen-inspired integer-add.
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
- *  Subnormal path: int→float conversion with scale factor. Inf/NaN fixup for exp=31.
+ *  @brief Convert e5m2 (m1) to f32 (m4) via Giesen magic-multiply.
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single vfmul. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
     // Extract sign: (raw & 0x80) → bit 7, shift to bit 31
@@ -218,17 +213,11 @@ NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t
                                                         vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
 
-    // Normal path: integer add of (127-15)<<23 produces correct f32 bits directly
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x38000000, vector_length));
-    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e5m2_sub_lut_[4] = {0x00000000, 0x37800000, 0x38000000, 0x38400000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e5m2_sub_lut_, 4);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^112 rebiases from E5M2 (bias=15) to f32 (bias=127).
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vmv_v_x_u32m4(0x77800000, vector_length)); // 2^112 = (254-15)<<23
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
 
     // Inf/NaN fixup: masked OR writes 0x7F800000 only into inf/NaN lanes (nonsign > 123)
     vbool8_t is_infnan = __riscv_vmsgtu_vx_u32m4_b8(nonsign_u32m4, 123, vector_length);
@@ -242,9 +231,10 @@ NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t
 }
 
 /**
- *  @brief Convert e2m3 (m1) to f32 (m4) via Giesen-inspired integer-add.
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
- *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e2m3.
+ *  @brief Convert e2m3 (m1) to f32 (m4) via Giesen magic-multiply.
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single vfmul. No inf/NaN in E2M3FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL vfloat32m4_t nk_e2m3m1_to_f32m4_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
     // Extract sign: bit 5 → bit 31
@@ -256,29 +246,23 @@ NK_INTERNAL vfloat32m4_t nk_e2m3m1_to_f32m4_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t
                                                         vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
 
-    // Normal path: integer add of (127-1)<<23 produces correct f32 bits directly
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3F000000, vector_length));
-    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e2m3_sub_lut_[8] = {0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,
-                                                 0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e2m3_sub_lut_, 8);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^126 rebiases from E2M3 (bias=1) to f32 (bias=127).
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vmv_v_x_u32m4(0x7E800000, vector_length)); // 2^126 = (254-1)<<23
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
 
-    // Restore sign (no inf/NaN fixup needed for e2m3)
+    // Restore sign (no inf/NaN fixup needed for E2M3FN)
     vuint32m4_t result_u32m4 = __riscv_vor_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), sign_u32m4,
                                                     vector_length);
     return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
 /**
- *  @brief Convert e3m2 (m1) to f32 (m4) via Giesen-inspired integer-add.
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ-safe).
- *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e3m2.
+ *  @brief Convert e3m2 (m1) to f32 (m4) via Giesen magic-multiply.
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single vfmul. No inf/NaN in E3M2FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL vfloat32m4_t nk_e3m2m1_to_f32m4_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
     // Extract sign: bit 5 → bit 31
@@ -290,43 +274,29 @@ NK_INTERNAL vfloat32m4_t nk_e3m2m1_to_f32m4_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t
                                                         vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
 
-    // Normal path: integer add of (127-3)<<23 produces correct f32 bits directly
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3E000000, vector_length));
-    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e3m2_sub_lut_[4] = {0x00000000, 0x3D800000, 0x3E000000, 0x3E400000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e3m2_sub_lut_, 4);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^124 rebiases from E3M2 (bias=3) to f32 (bias=127).
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
+        __riscv_vmv_v_x_u32m4(0x7D800000, vector_length)); // 2^124 = (254-3)<<23
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(
+        __riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4, vector_length);
 
-    // Restore sign (no inf/NaN fixup needed for e3m2)
+    // Restore sign (no inf/NaN fixup needed for E3M2FN)
     vuint32m4_t result_u32m4 = __riscv_vor_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), sign_u32m4,
                                                     vector_length);
     return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
 }
 
-/** @brief Convert e4m3 (m1) to bf16 (m2) via Giesen-inspired integer-add.
- *  Integer-add to f32, truncate upper 16 bits to bf16. NaN fixup for magnitude 0x7F. */
+/** @brief Convert e4m3 (m1) to bf16 (m2) via Giesen magic-multiply.
+ *  Magic-multiply to f32, truncate upper 16 bits to bf16. NaN fixup for magnitude 0x7F. */
 NK_INTERNAL vuint16m2_t nk_e4m3m1_to_bf16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
     vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
-    // Integer-add: shift 7-bit magnitude, add (127-7)<<23 for correct f32 bits
     vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3C000000, vector_length));
-    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e4m3_sub_lut_[8] = {0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,
-                                                 0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e4m3_sub_lut_, 8);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^120
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vmv_v_x_u32m4(0x7B800000, vector_length));
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
     // Truncate f32 → bf16 (right shift 16, exact for all e4m3 values)
     vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);
@@ -338,24 +308,17 @@ NK_INTERNAL vuint16m2_t nk_e4m3m1_to_bf16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e5m2 (m1) to bf16 (m2) via Giesen-inspired integer-add.
- *  Integer-add to f32, inf/NaN fixup, truncate upper 16 bits to bf16. */
+/** @brief Convert e5m2 (m1) to bf16 (m2) via Giesen magic-multiply.
+ *  Magic-multiply to f32, inf/NaN fixup, truncate upper 16 bits to bf16. */
 NK_INTERNAL vuint16m2_t nk_e5m2m1_to_bf16m2_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length);
     vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
-    // Integer-add: shift 7-bit magnitude, add (127-15)<<23 for correct f32 bits
     vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x38000000, vector_length));
-    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e5m2_sub_lut_[4] = {0x00000000, 0x37800000, 0x38000000, 0x38400000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e5m2_sub_lut_, 4);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^112
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vmv_v_x_u32m4(0x77800000, vector_length));
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
     // Inf/NaN fixup: masked OR writes 0x7F800000 only into inf/NaN lanes (nonsign > 123)
     vbool8_t is_infnan = __riscv_vmsgtu_vx_u32m4_b8(nonsign_u32m4, 123, vector_length);
     vuint32m4_t f32_bits = __riscv_vor_vx_u32m4_mu(is_infnan, __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4),
@@ -368,25 +331,17 @@ NK_INTERNAL vuint16m2_t nk_e5m2m1_to_bf16m2_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e2m3 (m1) to bf16 (m2) via Giesen-inspired integer-add.
- *  Integer-add to f32, truncate upper 16 bits to bf16. No inf/NaN in e2m3. */
+/** @brief Convert e2m3 (m1) to bf16 (m2) via Giesen magic-multiply.
+ *  Magic-multiply to f32, truncate upper 16 bits to bf16. No inf/NaN in E2M3FN. */
 NK_INTERNAL vuint16m2_t nk_e2m3m1_to_bf16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
     vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
-    // Integer-add: shift 5-bit magnitude, add (127-1)<<23 for correct f32 bits
     vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 20, vector_length);
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3F000000, vector_length));
-    // Subnormal path: 8-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e2m3_sub_lut_[8] = {0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,
-                                                 0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 8, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e2m3_sub_lut_, 8);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^126
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vmv_v_x_u32m4(0x7E800000, vector_length));
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
     // Truncate f32 → bf16 (right shift 16, exact for all e2m3 values)
     vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);
@@ -396,24 +351,17 @@ NK_INTERNAL vuint16m2_t nk_e2m3m1_to_bf16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t
     return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
-/** @brief Convert e3m2 (m1) to bf16 (m2) via Giesen-inspired integer-add.
- *  Integer-add to f32, truncate upper 16 bits to bf16. No inf/NaN in e3m2. */
+/** @brief Convert e3m2 (m1) to bf16 (m2) via Giesen magic-multiply.
+ *  Magic-multiply to f32, truncate upper 16 bits to bf16. No inf/NaN in E3M2FN. */
 NK_INTERNAL vuint16m2_t nk_e3m2m1_to_bf16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
     vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
     vuint8m1_t nonsign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
-    // Integer-add: shift 5-bit magnitude, add (127-3)<<23 for correct f32 bits
     vuint32m4_t nonsign_u32m4 = __riscv_vzext_vf4_u32m4(nonsign_u8m1, vector_length);
     vuint32m4_t shifted_u32m4 = __riscv_vsll_vx_u32m4(nonsign_u32m4, 21, vector_length);
-    vfloat32m4_t result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(
-        __riscv_vadd_vx_u32m4(shifted_u32m4, 0x3E000000, vector_length));
-    // Subnormal path: 4-entry LUT via vrgather (replaces vfcvt+vfmul)
-    static nk_u32_t const nk_e3m2_sub_lut_[4] = {0x00000000, 0x3D800000, 0x3E000000, 0x3E400000};
-    vbool8_t is_sub = __riscv_vmsltu_vx_u32m4_b8(nonsign_u32m4, 4, vector_length);
-    vuint32m4_t sub_lut_u32m4 = __riscv_vle32_v_u32m4(nk_e3m2_sub_lut_, 4);
-    result_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(                                 //
-        __riscv_vrgather_vv_u32m4_mu(is_sub,                                           //
-                                     __riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), //
-                                     sub_lut_u32m4, nonsign_u32m4, vector_length));
+    // Magic multiply: reinterpret as f32 × 2^124
+    vfloat32m4_t magic_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vmv_v_x_u32m4(0x7D800000, vector_length));
+    vfloat32m4_t result_f32m4 = __riscv_vfmul_vv_f32m4(__riscv_vreinterpret_v_u32m4_f32m4(shifted_u32m4), magic_f32m4,
+                                                       vector_length);
     // Truncate f32 → bf16 (right shift 16, exact for all e3m2 values)
     vuint16m2_t result_u16m2 = __riscv_vnsrl_wx_u16m2(__riscv_vreinterpret_v_f32m4_u32m4(result_f32m4), 16,
                                                       vector_length);

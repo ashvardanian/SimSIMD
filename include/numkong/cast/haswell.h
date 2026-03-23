@@ -331,31 +331,24 @@ NK_INTERNAL __m256i nk_e5m2x16_to_f16x16_haswell_(__m128i e5m2x16) {
     return _mm256_or_si256(result_i16x16, sign_i16x16);
 }
 
-/** @brief Convert 8x e4m3 → 8x f32 via Giesen-inspired integer-add (AVX2).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: int→float conversion with scale factor. NaN fixup for magnitude 0x7F. */
+/** @brief Convert 8x e4m3 → 8x f32 via Giesen magic-multiply (AVX2).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. NaN fixup for magnitude 0x7F.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
     __m256i e4m3_i32x8 = _mm256_cvtepu8_epi32(e4m3_i8x8);
 
     // Extract sign: (raw >> 7) << 31
     __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_srli_epi32(e4m3_i32x8, 7), 31);
-    // Strip sign to get 7-bit magnitude, shift left by 20 into f32 mantissa position
+    // Strip sign to get 7-bit magnitude, shift left by 20 so E4M3 exponent overlaps f32 exponent
     __m256i nonsign_i32x8 = _mm256_and_si256(e4m3_i32x8, _mm256_set1_epi32(0x7F));
     __m256i shifted_i32x8 = _mm256_slli_epi32(nonsign_i32x8, 20);
 
-    // Normal path: integer add of (127-7)<<23 produces correct f32 bits directly
-    __m256i norm_i32x8 = _mm256_add_epi32(shifted_i32x8, _mm256_set1_epi32(0x3C000000));
-    // Subnormal path: 8-entry LUT via cross-lane VPERMD (3c latency, replaces CVT+MUL 9c)
-    __m256i sub_lut_i32x8 = _mm256_setr_epi32(           //
-        0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,  // 0, 2^-18, 2^-17, 3·2^-18
-        0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000); // 2^-16, 5·2^-18, 6·2^-18, 7·2^-18
-    __m256i sub_i32x8 = _mm256_permutevar8x32_epi32(sub_lut_i32x8, nonsign_i32x8);
-    // Blend: subnormal when nonsign < 8 (exp_field == 0)
-    __m256i is_sub_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(8), nonsign_i32x8);
-    __m256 result_f32x8 = _mm256_blendv_ps(_mm256_castsi256_ps(norm_i32x8), _mm256_castsi256_ps(sub_i32x8),
-                                           _mm256_castsi256_ps(is_sub_i32x8));
+    // Magic multiply: reinterpret as f32 × 2^120 rebiases exponent from E4M3 (bias=7) to f32 (bias=127).
+    __m256 magic_f32x8 = _mm256_castsi256_ps(_mm256_set1_epi32(0x7B800000)); // 2^120 = (254-7)<<23
+    __m256 result_f32x8 = _mm256_mul_ps(_mm256_castsi256_ps(shifted_i32x8), magic_f32x8);
 
-    // NaN fixup: e4m3fn NaN only at magnitude 0x7F → force to F32 quiet NaN
+    // NaN fixup: E4M3FN NaN only at magnitude 0x7F → force to f32 quiet NaN
     __m256i is_nan_mask = _mm256_cmpeq_epi32(nonsign_i32x8, _mm256_set1_epi32(0x7F));
     __m256i nan_bits = _mm256_or_si256(sign_i32x8, _mm256_set1_epi32(0x7FC00000));
     result_f32x8 = _mm256_blendv_ps(result_f32x8, _mm256_castsi256_ps(nan_bits), _mm256_castsi256_ps(is_nan_mask));
@@ -364,32 +357,24 @@ NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
     return _mm256_or_ps(result_f32x8, _mm256_castsi256_ps(sign_i32x8));
 }
 
-/** @brief Convert 8x e5m2 → 8x f32 via Giesen-inspired integer-add (AVX2).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: int→float conversion with scale factor. Inf/NaN fixup for exp=31. */
+/** @brief Convert 8x e5m2 → 8x f32 via Giesen magic-multiply (AVX2).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
     __m256i e5m2_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
 
     // Extract sign: (raw >> 7) << 31
     __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_srli_epi32(e5m2_i32x8, 7), 31);
-    // Strip sign to get 7-bit magnitude, shift left by 21 into f32 mantissa position
+    // Strip sign to get 7-bit magnitude, shift left by 21 so E5M2 exponent overlaps f32 exponent
     __m256i nonsign_i32x8 = _mm256_and_si256(e5m2_i32x8, _mm256_set1_epi32(0x7F));
     __m256i shifted_i32x8 = _mm256_slli_epi32(nonsign_i32x8, 21);
 
-    // Normal path: integer add of (127-15)<<23 produces correct f32 bits directly
-    __m256i norm_i32x8 = _mm256_add_epi32(shifted_i32x8, _mm256_set1_epi32(0x38000000));
-    // Subnormal path: 4-entry LUT via in-lane VPERMILPS (1c latency, replaces CVT+MUL 9c)
-    __m256 sub_lut_f32x8 = _mm256_castsi256_ps(_mm256_setr_epi32( //
-        0x00000000, 0x37800000, 0x38000000, 0x38400000,           // lane 0: 0, 2^-15·2^-2, ...
-        0x00000000, 0x37800000, 0x38000000, 0x38400000));         // lane 1: duplicated
-    __m256 sub_f32x8 = _mm256_permutevar_ps(sub_lut_f32x8, nonsign_i32x8);
-    // Blend: subnormal when nonsign < 4 (exp_field == 0)
-    __m256i is_sub_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(4), nonsign_i32x8);
-    __m256 result_f32x8 = _mm256_blendv_ps(_mm256_castsi256_ps(norm_i32x8), sub_f32x8,
-                                           _mm256_castsi256_ps(is_sub_i32x8));
+    // Magic multiply: reinterpret as f32 × 2^112 rebiases exponent from E5M2 (bias=15) to f32 (bias=127).
+    __m256 magic_f32x8 = _mm256_castsi256_ps(_mm256_set1_epi32(0x77800000)); // 2^112 = (254-15)<<23
+    __m256 result_f32x8 = _mm256_mul_ps(_mm256_castsi256_ps(shifted_i32x8), magic_f32x8);
 
-    // Inf/NaN fixup: nonsign > 123 means exp=31 (inf/NaN in e5m2).
-    // OR'ing 0x7F800000 forces f32 exp=255, preserving mantissa (inf stays inf, NaN stays NaN).
+    // Inf/NaN fixup: nonsign > 123 means exp=31 → force f32 exponent to 255
     __m256i is_infnan = _mm256_cmpgt_epi32(nonsign_i32x8, _mm256_set1_epi32(123));
     __m256i fixed_bits = _mm256_or_si256(_mm256_castps_si256(result_f32x8), _mm256_set1_epi32(0x7F800000));
     result_f32x8 = _mm256_blendv_ps(result_f32x8, _mm256_castsi256_ps(fixed_bits), _mm256_castsi256_ps(is_infnan));
@@ -516,59 +501,45 @@ NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
     return packed_i8x8;
 }
 
-/** @brief Convert 8x e2m3 → 8x f32 via Giesen-inspired integer-add (AVX2).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e2m3. */
+/** @brief Convert 8x e2m3 → 8x f32 via Giesen magic-multiply (AVX2).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. No inf/NaN in E2M3FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m256 nk_e2m3x8_to_f32x8_haswell_(__m128i e2m3_i8x8) {
     __m256i e2m3_i32x8 = _mm256_cvtepu8_epi32(e2m3_i8x8);
 
     // Extract sign: bit 5 → bit 31
     __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(e2m3_i32x8, _mm256_set1_epi32(0x20)), 26);
-    // Strip sign to get 5-bit magnitude, shift left by 20 into f32 mantissa position
+    // Strip sign to get 5-bit magnitude, shift left by 20 so E2M3 exponent overlaps f32 exponent
     __m256i nonsign_i32x8 = _mm256_and_si256(e2m3_i32x8, _mm256_set1_epi32(0x1F));
     __m256i shifted_i32x8 = _mm256_slli_epi32(nonsign_i32x8, 20);
 
-    // Normal path: integer add of (127-1)<<23 produces correct f32 bits directly
-    __m256i norm_i32x8 = _mm256_add_epi32(shifted_i32x8, _mm256_set1_epi32(0x3F000000));
-    // Subnormal path: 8-entry LUT via cross-lane VPERMD (3c latency, replaces CVT+MUL 9c)
-    __m256i sub_lut_i32x8 = _mm256_setr_epi32(           //
-        0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,  // 0, 0.125, 0.25, 0.375
-        0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000); // 0.5, 0.625, 0.75, 0.875
-    __m256i sub_i32x8 = _mm256_permutevar8x32_epi32(sub_lut_i32x8, nonsign_i32x8);
-    // Blend: subnormal when nonsign < 8 (exp_field == 0)
-    __m256i is_sub_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(8), nonsign_i32x8);
-    __m256 result_f32x8 = _mm256_blendv_ps(_mm256_castsi256_ps(norm_i32x8), _mm256_castsi256_ps(sub_i32x8),
-                                           _mm256_castsi256_ps(is_sub_i32x8));
+    // Magic multiply: reinterpret as f32 × 2^126 rebiases exponent from E2M3 (bias=1) to f32 (bias=127).
+    __m256 magic_f32x8 = _mm256_castsi256_ps(_mm256_set1_epi32(0x7E800000)); // 2^126 = (254-1)<<23
+    __m256 result_f32x8 = _mm256_mul_ps(_mm256_castsi256_ps(shifted_i32x8), magic_f32x8);
 
-    // Restore sign (no inf/NaN fixup needed for e2m3)
+    // Restore sign (no inf/NaN fixup needed for E2M3FN)
     return _mm256_or_ps(result_f32x8, _mm256_castsi256_ps(sign_i32x8));
 }
 
-/** @brief Convert 8x e3m2 → 8x f32 via Giesen-inspired integer-add (AVX2).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: int→float conversion with scale factor. No inf/NaN in e3m2. */
+/** @brief Convert 8x e3m2 → 8x f32 via Giesen magic-multiply (AVX2).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. No inf/NaN in E3M2FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m256 nk_e3m2x8_to_f32x8_haswell_(__m128i e3m2_i8x8) {
     __m256i e3m2_i32x8 = _mm256_cvtepu8_epi32(e3m2_i8x8);
 
     // Extract sign: bit 5 → bit 31
     __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(e3m2_i32x8, _mm256_set1_epi32(0x20)), 26);
-    // Strip sign to get 5-bit magnitude, shift left by 21 into f32 mantissa position
+    // Strip sign to get 5-bit magnitude, shift left by 21 so E3M2 exponent overlaps f32 exponent
     __m256i nonsign_i32x8 = _mm256_and_si256(e3m2_i32x8, _mm256_set1_epi32(0x1F));
     __m256i shifted_i32x8 = _mm256_slli_epi32(nonsign_i32x8, 21);
 
-    // Normal path: integer add of (127-3)<<23 produces correct f32 bits directly
-    __m256i norm_i32x8 = _mm256_add_epi32(shifted_i32x8, _mm256_set1_epi32(0x3E000000));
-    // Subnormal path: 4-entry LUT via in-lane VPERMILPS (1c latency, replaces CVT+MUL 9c)
-    __m256 sub_lut_f32x8 = _mm256_castsi256_ps(_mm256_setr_epi32( //
-        0x00000000, 0x3D800000, 0x3E000000, 0x3E400000,           // lane 0: 0, 0.0625, 0.125, 0.1875
-        0x00000000, 0x3D800000, 0x3E000000, 0x3E400000));         // lane 1: duplicated
-    __m256 sub_f32x8 = _mm256_permutevar_ps(sub_lut_f32x8, nonsign_i32x8);
-    // Blend: subnormal when nonsign < 4 (exp_field == 0)
-    __m256i is_sub_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(4), nonsign_i32x8);
-    __m256 result_f32x8 = _mm256_blendv_ps(_mm256_castsi256_ps(norm_i32x8), sub_f32x8,
-                                           _mm256_castsi256_ps(is_sub_i32x8));
+    // Magic multiply: reinterpret as f32 × 2^124 rebiases exponent from E3M2 (bias=3) to f32 (bias=127).
+    __m256 magic_f32x8 = _mm256_castsi256_ps(_mm256_set1_epi32(0x7D800000)); // 2^124 = (254-3)<<23
+    __m256 result_f32x8 = _mm256_mul_ps(_mm256_castsi256_ps(shifted_i32x8), magic_f32x8);
 
-    // Restore sign (no inf/NaN fixup needed for e3m2)
+    // Restore sign (no inf/NaN fixup needed for E3M2FN)
     return _mm256_or_ps(result_f32x8, _mm256_castsi256_ps(sign_i32x8));
 }
 

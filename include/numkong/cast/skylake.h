@@ -153,116 +153,98 @@ NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
     return _mm512_cvtepi32_epi16(x);
 }
 
-/** @brief Convert 16x e4m3 → 16x f32 via Giesen-inspired integer-add (AVX-512).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: masked int→float + scale. NaN fixup for magnitude 0x7F. */
+/** @brief Convert 16x e4m3 → 16x f32 via Giesen magic-multiply (AVX-512).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. NaN fixup for magnitude 0x7F.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
 
     // Extract sign: (raw >> 7) << 31
     __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e4m3_i32x16, 7), 31);
-    // Strip sign to get 7-bit magnitude, shift left by 20 into f32 mantissa position
+    // Strip sign to get 7-bit magnitude, shift left by 20 so E4M3 exponent overlaps f32 exponent
     __m512i nonsign_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x7F));
     __m512i shifted_i32x16 = _mm512_slli_epi32(nonsign_i32x16, 20);
 
-    // Normal path: integer add of (127-7)<<23 produces correct f32 bits directly
-    __m512 result_f32x16 = _mm512_castsi512_ps(_mm512_add_epi32(shifted_i32x16, _mm512_set1_epi32(0x3C000000)));
-    // Subnormal path: 8-entry LUT via cross-lane VPERMPS (3c latency, replaces CVT+MUL 9c)
-    __mmask16 is_sub = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(8), nonsign_i32x16);
-    __m512i sub_lut_i32x16 = _mm512_setr_epi32(                                       //
-        0x00000000, 0x3B000000, 0x3B800000, 0x3BC00000,                                // 0, 2^-18, 2^-17, 3·2^-18
-        0x3C000000, 0x3C200000, 0x3C400000, 0x3C600000,                                // 2^-16, 5·2^-18, 6·2^-18, 7·2^-18
-        0, 0, 0, 0, 0, 0, 0, 0);                                                      // don't-care (masked off)
-    result_f32x16 = _mm512_castsi512_ps(_mm512_mask_permutexvar_epi32(                 //
-        _mm512_castps_si512(result_f32x16), is_sub, nonsign_i32x16, sub_lut_i32x16));
+    // Magic multiply: reinterpret as f32 × 2^120 rebiases exponent from E4M3 (bias=7) to f32 (bias=127).
+    // Correctly handles zero (0×magic=0), subnormals (denormal×magic=scaled), and normals.
+    __m512 magic_f32x16 = _mm512_castsi512_ps(_mm512_set1_epi32(0x7B800000)); // 2^120 = (254-7)<<23
+    __m512 result_f32x16 = _mm512_mul_ps(_mm512_castsi512_ps(shifted_i32x16), magic_f32x16);
 
-    // NaN fixup: masked OR writes sign|0x7FC00000 only into NaN lanes
+    // NaN fixup: E4M3FN NaN only at magnitude 0x7F → force to f32 quiet NaN
     __mmask16 is_nan = _mm512_cmpeq_epi32_mask(nonsign_i32x16, _mm512_set1_epi32(0x7F));
-    __m512i result_i32x16 = _mm512_mask_or_epi32(
-        _mm512_castps_si512(result_f32x16), is_nan, sign_i32x16, _mm512_set1_epi32(0x7FC00000));
+    __m512i result_i32x16 = _mm512_mask_or_epi32(_mm512_castps_si512(result_f32x16), is_nan, sign_i32x16,
+                                                 _mm512_set1_epi32(0x7FC00000));
 
     // Restore sign
     return _mm512_castsi512_ps(_mm512_or_si512(result_i32x16, sign_i32x16));
 }
 
-/** @brief Convert 16x e5m2 → 16x f32 via Giesen-inspired integer-add (AVX-512).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: masked int→float + scale. Inf/NaN fixup via masked OR. */
+/** @brief Convert 16x e5m2 → 16x f32 via Giesen magic-multiply (AVX-512).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
 
     // Extract sign: (raw >> 7) << 31
     __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e5m2_i32x16, 7), 31);
-    // Strip sign to get 7-bit magnitude, shift left by 21 into f32 mantissa position
+    // Strip sign to get 7-bit magnitude, shift left by 21 so E5M2 exponent overlaps f32 exponent
     __m512i nonsign_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x7F));
     __m512i shifted_i32x16 = _mm512_slli_epi32(nonsign_i32x16, 21);
 
-    // Normal path: integer add of (127-15)<<23 produces correct f32 bits directly
-    __m512 result_f32x16 = _mm512_castsi512_ps(_mm512_add_epi32(shifted_i32x16, _mm512_set1_epi32(0x38000000)));
-    // Subnormal path: 4-entry LUT via in-lane VPERMILPS (1c latency, replaces CVT+MUL 9c)
-    __mmask16 is_sub = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(4), nonsign_i32x16);
-    __m512 sub_lut_f32x16 = _mm512_broadcast_f32x4(                                   //
-        _mm_castsi128_ps(_mm_setr_epi32(0x00000000, 0x37800000, 0x38000000, 0x38400000)));
-    result_f32x16 = _mm512_mask_permutevar_ps(result_f32x16, is_sub, sub_lut_f32x16, nonsign_i32x16);
+    // Magic multiply: reinterpret as f32 × 2^112 rebiases exponent from E5M2 (bias=15) to f32 (bias=127).
+    __m512 magic_f32x16 = _mm512_castsi512_ps(_mm512_set1_epi32(0x77800000)); // 2^112 = (254-15)<<23
+    __m512 result_f32x16 = _mm512_mul_ps(_mm512_castsi512_ps(shifted_i32x16), magic_f32x16);
 
-    // Inf/NaN fixup: masked OR writes 0x7F800000 only into inf/NaN lanes (nonsign > 123)
+    // Inf/NaN fixup: nonsign > 123 means exp=31 → force f32 exponent to 255
     __mmask16 is_infnan = _mm512_cmpgt_epi32_mask(nonsign_i32x16, _mm512_set1_epi32(123));
-    __m512i result_i32x16 = _mm512_mask_or_epi32(
-        _mm512_castps_si512(result_f32x16), is_infnan,
-        _mm512_castps_si512(result_f32x16), _mm512_set1_epi32(0x7F800000));
+    __m512i result_i32x16 = _mm512_mask_or_epi32(_mm512_castps_si512(result_f32x16), is_infnan,
+                                                 _mm512_castps_si512(result_f32x16), _mm512_set1_epi32(0x7F800000));
 
     // Restore sign
     return _mm512_castsi512_ps(_mm512_or_si512(result_i32x16, sign_i32x16));
 }
 
-/** @brief Convert 16x e2m3 → 16x f32 via Giesen-inspired integer-add (AVX-512).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: masked int→float + scale. No inf/NaN fixup needed. */
+/** @brief Convert 16x e2m3 → 16x f32 via Giesen magic-multiply (AVX-512).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. No inf/NaN in E2M3FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m512 nk_e2m3x16_to_f32x16_skylake_(__m128i e2m3_i8x16) {
     __m512i e2m3_i32x16 = _mm512_cvtepu8_epi32(e2m3_i8x16);
 
     // Extract sign: bit 5 → bit 31
     __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_and_si512(e2m3_i32x16, _mm512_set1_epi32(0x20)), 26);
-    // Strip sign to get 5-bit magnitude, shift left by 20 into f32 mantissa position
+    // Strip sign to get 5-bit magnitude, shift left by 20 so E2M3 exponent overlaps f32 exponent
     __m512i nonsign_i32x16 = _mm512_and_si512(e2m3_i32x16, _mm512_set1_epi32(0x1F));
     __m512i shifted_i32x16 = _mm512_slli_epi32(nonsign_i32x16, 20);
 
-    // Normal path: integer add of (127-1)<<23 produces correct f32 bits directly
-    __m512 result_f32x16 = _mm512_castsi512_ps(_mm512_add_epi32(shifted_i32x16, _mm512_set1_epi32(0x3F000000)));
-    // Subnormal path: 8-entry LUT via cross-lane VPERMPS (3c latency, replaces CVT+MUL 9c)
-    __mmask16 is_sub = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(8), nonsign_i32x16);
-    __m512i sub_lut_i32x16 = _mm512_setr_epi32(                                       //
-        0x00000000, 0x3E000000, 0x3E800000, 0x3EC00000,                                // 0, 0.125, 0.25, 0.375
-        0x3F000000, 0x3F200000, 0x3F400000, 0x3F600000,                                // 0.5, 0.625, 0.75, 0.875
-        0, 0, 0, 0, 0, 0, 0, 0);                                                      // don't-care (masked off)
-    result_f32x16 = _mm512_castsi512_ps(_mm512_mask_permutexvar_epi32(                 //
-        _mm512_castps_si512(result_f32x16), is_sub, nonsign_i32x16, sub_lut_i32x16));
+    // Magic multiply: reinterpret as f32 × 2^126 rebiases exponent from E2M3 (bias=1) to f32 (bias=127).
+    __m512 magic_f32x16 = _mm512_castsi512_ps(_mm512_set1_epi32(0x7E800000)); // 2^126 = (254-1)<<23
+    __m512 result_f32x16 = _mm512_mul_ps(_mm512_castsi512_ps(shifted_i32x16), magic_f32x16);
 
-    // Restore sign (no inf/NaN fixup needed for e2m3)
+    // Restore sign (no inf/NaN fixup needed for E2M3FN)
     return _mm512_castsi512_ps(_mm512_or_si512(_mm512_castps_si512(result_f32x16), sign_i32x16));
 }
 
-/** @brief Convert 16x e3m2 → 16x f32 via Giesen-inspired integer-add (AVX-512).
- *  Normal path: integer-add rebias (no denormal intermediates, FTZ/DAZ-safe).
- *  Subnormal path: masked int→float + scale. No inf/NaN fixup needed. */
+/** @brief Convert 16x e3m2 → 16x f32 via Giesen magic-multiply (AVX-512).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single VMULPS. No inf/NaN in E3M2FN.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/ */
 NK_INTERNAL __m512 nk_e3m2x16_to_f32x16_skylake_(__m128i e3m2_i8x16) {
     __m512i e3m2_i32x16 = _mm512_cvtepu8_epi32(e3m2_i8x16);
 
     // Extract sign: bit 5 → bit 31
     __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_and_si512(e3m2_i32x16, _mm512_set1_epi32(0x20)), 26);
-    // Strip sign to get 5-bit magnitude, shift left by 21 into f32 mantissa position
+    // Strip sign to get 5-bit magnitude, shift left by 21 so E3M2 exponent overlaps f32 exponent
     __m512i nonsign_i32x16 = _mm512_and_si512(e3m2_i32x16, _mm512_set1_epi32(0x1F));
     __m512i shifted_i32x16 = _mm512_slli_epi32(nonsign_i32x16, 21);
 
-    // Normal path: integer add of (127-3)<<23 produces correct f32 bits directly
-    __m512 result_f32x16 = _mm512_castsi512_ps(_mm512_add_epi32(shifted_i32x16, _mm512_set1_epi32(0x3E000000)));
-    // Subnormal path: 4-entry LUT via in-lane VPERMILPS (1c latency, replaces CVT+MUL 9c)
-    __mmask16 is_sub = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(4), nonsign_i32x16);
-    __m512 sub_lut_f32x16 = _mm512_broadcast_f32x4(                                   //
-        _mm_castsi128_ps(_mm_setr_epi32(0x00000000, 0x3D800000, 0x3E000000, 0x3E400000)));
-    result_f32x16 = _mm512_mask_permutevar_ps(result_f32x16, is_sub, sub_lut_f32x16, nonsign_i32x16);
+    // Magic multiply: reinterpret as f32 × 2^124 rebiases exponent from E3M2 (bias=3) to f32 (bias=127).
+    __m512 magic_f32x16 = _mm512_castsi512_ps(_mm512_set1_epi32(0x7D800000)); // 2^124 = (254-3)<<23
+    __m512 result_f32x16 = _mm512_mul_ps(_mm512_castsi512_ps(shifted_i32x16), magic_f32x16);
 
-    // Restore sign (no inf/NaN fixup needed for e3m2)
+    // Restore sign (no inf/NaN fixup needed for E3M2FN)
     return _mm512_castsi512_ps(_mm512_or_si512(_mm512_castps_si512(result_f32x16), sign_i32x16));
 }
 

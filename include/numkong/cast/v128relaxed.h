@@ -45,126 +45,85 @@ NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec)
 
 /**
  *  @brief F16→F32: extract sign/exp/mantissa, rebias exponent (F16 bias=15, F32 bias=127, delta=112),
- *  widen mantissa from 10 to 23 bits.  Early-exit when all lanes are normal (exp in [1,30]),
- *  skipping the expensive f32x4.convert_u32x4 needed for denormal FPU-based normalization.
+ *  Giesen magic-multiply: shift 15-bit magnitude left by 13, multiply by 2^112 to rebias.
+ *  Handles zero, denormals, and normals in a single f32x4.mul. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     v128_t f16_u16x4_in_u64 = wasm_v128_load64_zero(&f16_vec.u64);
     v128_t f16_u32x4 = wasm_u32x4_extend_low_u16x8(f16_u16x4_in_u64);
 
-    v128_t sign_u32x4 = wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x8000));                  // bit 15
-    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(f16_u32x4, 10), wasm_i32x4_splat(0x1F)); // bits 14-10
-    v128_t mant_u32x4 = wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x03FF));                  // bits 9-0
+    // Extract sign: (raw & 0x8000) << 16 → f32 sign bit
+    v128_t sign_u32x4 = wasm_i32x4_shl(wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x8000)), 16);
+    // Strip sign to get 15-bit magnitude, shift left by 13 so F16 exponent overlaps f32 exponent
+    v128_t nonsign_u32x4 = wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x7FFF));
+    v128_t shifted_u32x4 = wasm_i32x4_shl(nonsign_u32x4, 13);
 
-    v128_t sign_f32_u32x4 = wasm_i32x4_shl(sign_u32x4, 16); // shift sign to F32 bit 31
+    // Magic multiply: reinterpret as f32 × 2^112 rebiases from F16 (bias=15) to f32 (bias=127).
+    v128_t result_u32x4 = wasm_f32x4_mul(shifted_u32x4, wasm_i32x4_splat(0x77800000)); // 2^112 = (254-15)<<23
 
-    // Normal path: rebias exponent, widen mantissa
-    v128_t exp_rebiased_u32x4 = wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(112));
-    v128_t normal_exp_u32x4 = wasm_i32x4_shl(exp_rebiased_u32x4, 23);
-    v128_t normal_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 13);
-    v128_t normal_bits_u32x4 = wasm_v128_or(sign_f32_u32x4, wasm_v128_or(normal_exp_u32x4, normal_mant_u32x4));
-
-    // Early exit: skip zero/denormal/inf/NaN handling when all lanes are normal
-    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
-    v128_t exp_max_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(31));
-    v128_t exceptional_mask = wasm_v128_or(exp_zero_mask, exp_max_mask);
-    if (!wasm_v128_any_true(exceptional_mask)) {
-        nk_b128_vec_t result;
-        result.v128 = normal_bits_u32x4;
-        return result;
-    }
-
-    // Slow path: handle zero (exp=0, mant=0), denormal (exp=0, mant!=0), inf/NaN (exp=31)
-    v128_t zero_bits_u32x4 = sign_f32_u32x4;
-    v128_t inf_nan_bits_u32x4 = wasm_v128_or(
-        sign_f32_u32x4, wasm_v128_or(wasm_i32x4_splat(0x7F800000), wasm_i32x4_shl(mant_u32x4, 13)));
-
-    // Denormals: convert mantissa to f32 and multiply by 2^-24, letting the FPU normalize.
-    // This avoids a manual CLZ+shift loop.  The f32x4.convert_u32x4 legalizes to a
-    // multi-instruction sequence on x86 (no native u32→f32 until AVX-512), which is why
-    // the early exit above is so valuable.
-    v128_t mant_f32x4 = wasm_f32x4_convert_u32x4(mant_u32x4);
-    v128_t denorm_normalized_f32x4 = wasm_f32x4_mul(mant_f32x4, wasm_f32x4_splat(0x1p-24f));
-    v128_t denorm_bits_u32x4 = wasm_v128_or(denorm_normalized_f32x4, sign_f32_u32x4);
-
-    v128_t mant_zero_mask = wasm_i32x4_eq(mant_u32x4, wasm_i32x4_splat(0));
-    v128_t is_zero_mask = wasm_v128_and(exp_zero_mask, mant_zero_mask);
-    v128_t is_denormal_mask = wasm_v128_andnot(exp_zero_mask, mant_zero_mask);
-
-    // Blend via relaxed_laneselect (1 instruction: vblendvps on x86, vs 3 for and/andn/or)
-    v128_t result_u32x4 = normal_bits_u32x4;
-    result_u32x4 = wasm_i32x4_relaxed_laneselect(zero_bits_u32x4, result_u32x4, is_zero_mask);
-    result_u32x4 = wasm_i32x4_relaxed_laneselect(denorm_bits_u32x4, result_u32x4, is_denormal_mask);
-    result_u32x4 = wasm_i32x4_relaxed_laneselect(inf_nan_bits_u32x4, result_u32x4, exp_max_mask);
+    // Inf/NaN fixup (branchless): result >= 2^16 means f16 exp=31 → OR in f32 exponent=255.
+    // When no inf/NaN lanes exist, the OR bits are masked to zero — no effect.
+    v128_t is_infnan = wasm_u32x4_ge(result_u32x4, wasm_i32x4_splat(0x47800000));
+    result_u32x4 = wasm_v128_or(result_u32x4, wasm_v128_and(is_infnan, wasm_i32x4_splat(0x7F800000)));
 
     nk_b128_vec_t result;
-    result.v128 = result_u32x4;
+    result.v128 = wasm_v128_or(result_u32x4, sign_u32x4);
     return result;
 }
 
 /**
- *  @brief E4M3→F32: 4-bit exponent (bias=7→127, delta=120), 3-bit mantissa (shift by 20).
- *  Subnormal via FPU: mant * (1/512) = mant * 2^-9.  NaN only at exp=15,mant=7.
+ *  @brief E4M3→F32 via Giesen magic-multiply (WASM Relaxed SIMD).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single f32x4.mul. NaN fixup for magnitude 0x7F.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL nk_b128_vec_t nk_e4m3x4_to_f32x4_v128relaxed_(nk_b32_vec_t e4m3_vec) {
     v128_t e4m3_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e4m3_vec.u32)));
-    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e4m3_u32x4, 3), wasm_i32x4_splat(0x0F));
-    v128_t mant_u32x4 = wasm_v128_and(e4m3_u32x4, wasm_i32x4_splat(0x07));
+
+    // Extract sign: (raw >> 7) << 31
     v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e4m3_u32x4, 7), 31);
-    v128_t f32_exp_u32x4 = wasm_i32x4_shl(wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(120)), 23);
-    v128_t f32_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 20);
-    v128_t normal_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_v128_or(f32_exp_u32x4, f32_mant_u32x4));
-    v128_t subnorm_abs_f32x4 = wasm_f32x4_mul(wasm_f32x4_convert_u32x4(mant_u32x4), wasm_f32x4_splat(1.0f / 512.0f));
-    v128_t subnorm_f32x4 = wasm_v128_or(subnorm_abs_f32x4, sign_u32x4);
-    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
-    v128_t is_nan_mask = wasm_v128_and(wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(15)),
-                                       wasm_i32x4_eq(mant_u32x4, wasm_i32x4_splat(7)));
-    v128_t exceptional_mask = wasm_v128_or(exp_zero_mask, is_nan_mask);
-    if (!wasm_v128_any_true(exceptional_mask)) {
-        nk_b128_vec_t result;
-        result.v128 = normal_bits_u32x4;
-        return result;
-    }
-    v128_t result_u32x4 = wasm_i32x4_relaxed_laneselect(subnorm_f32x4, normal_bits_u32x4, exp_zero_mask);
-    if (wasm_v128_any_true(is_nan_mask)) {
-        v128_t nan_bits = wasm_v128_or(sign_u32x4, wasm_i32x4_splat(0x7FC00000));
-        result_u32x4 = wasm_i32x4_relaxed_laneselect(nan_bits, result_u32x4, is_nan_mask);
-    }
+    // Strip sign to get 7-bit magnitude, shift left by 20 so E4M3 exponent overlaps f32 exponent
+    v128_t nonsign_u32x4 = wasm_v128_and(e4m3_u32x4, wasm_i32x4_splat(0x7F));
+    v128_t shifted_u32x4 = wasm_i32x4_shl(nonsign_u32x4, 20);
+
+    // Magic multiply: reinterpret as f32 × 2^120
+    v128_t result_u32x4 = wasm_f32x4_mul(shifted_u32x4, wasm_i32x4_splat(0x7B800000)); // 2^120 = (254-7)<<23
+
+    // NaN fixup (branchless): E4M3FN NaN only at magnitude 0x7F → blend in quiet NaN bits.
+    v128_t is_nan_mask = wasm_i32x4_eq(nonsign_u32x4, wasm_i32x4_splat(0x7F));
+    v128_t nan_bits = wasm_v128_or(sign_u32x4, wasm_i32x4_splat(0x7FC00000));
+    result_u32x4 = wasm_i32x4_relaxed_laneselect(nan_bits, result_u32x4, is_nan_mask);
+
     nk_b128_vec_t result;
-    result.v128 = result_u32x4;
+    result.v128 = wasm_v128_or(result_u32x4, sign_u32x4);
     return result;
 }
 
 /**
- *  @brief E5M2→F32: same exponent encoding as F16 (5-bit, bias=15, delta=112), 2-bit mantissa (shift by 21).
- *  Subnormal via FPU: mant * (1/65536) = mant * 2^-16.  Inf at exp=31,mant=0; NaN otherwise.
+ *  @brief E5M2→F32 via Giesen magic-multiply (WASM Relaxed SIMD).
+ *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
+ *  Handles zero, subnormals, and normals in a single f32x4.mul. Inf/NaN fixup for exp=31.
+ *  https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
  */
 NK_INTERNAL nk_b128_vec_t nk_e5m2x4_to_f32x4_v128relaxed_(nk_b32_vec_t e5m2_vec) {
     v128_t e5m2_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e5m2_vec.u32)));
-    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e5m2_u32x4, 2), wasm_i32x4_splat(0x1F));
-    v128_t mant_u32x4 = wasm_v128_and(e5m2_u32x4, wasm_i32x4_splat(0x03));
+
+    // Extract sign: (raw >> 7) << 31
     v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e5m2_u32x4, 7), 31);
-    v128_t f32_exp_u32x4 = wasm_i32x4_shl(wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(112)), 23);
-    v128_t f32_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 21);
-    v128_t normal_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_v128_or(f32_exp_u32x4, f32_mant_u32x4));
-    v128_t subnorm_abs_f32x4 = wasm_f32x4_mul(wasm_f32x4_convert_u32x4(mant_u32x4), wasm_f32x4_splat(1.0f / 65536.0f));
-    v128_t subnorm_f32x4 = wasm_v128_or(subnorm_abs_f32x4, sign_u32x4);
-    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
-    v128_t exp_max_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(31));
-    v128_t exceptional_mask = wasm_v128_or(exp_zero_mask, exp_max_mask);
-    if (!wasm_v128_any_true(exceptional_mask)) {
-        nk_b128_vec_t result;
-        result.v128 = normal_bits_u32x4;
-        return result;
-    }
-    v128_t result_u32x4 = wasm_i32x4_relaxed_laneselect(subnorm_f32x4, normal_bits_u32x4, exp_zero_mask);
-    v128_t mant_zero_mask = wasm_i32x4_eq(mant_u32x4, wasm_i32x4_splat(0));
-    v128_t inf_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_i32x4_splat(0x7F800000));
-    v128_t nan_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_i32x4_splat(0x7FC00000));
-    v128_t special_bits_u32x4 = wasm_i32x4_relaxed_laneselect(inf_bits_u32x4, nan_bits_u32x4, mant_zero_mask);
-    result_u32x4 = wasm_i32x4_relaxed_laneselect(special_bits_u32x4, result_u32x4, exp_max_mask);
+    // Strip sign to get 7-bit magnitude, shift left by 21 so E5M2 exponent overlaps f32 exponent
+    v128_t nonsign_u32x4 = wasm_v128_and(e5m2_u32x4, wasm_i32x4_splat(0x7F));
+    v128_t shifted_u32x4 = wasm_i32x4_shl(nonsign_u32x4, 21);
+
+    // Magic multiply: reinterpret as f32 × 2^112
+    v128_t result_u32x4 = wasm_f32x4_mul(shifted_u32x4, wasm_i32x4_splat(0x77800000)); // 2^112 = (254-15)<<23
+
+    // Inf/NaN fixup (branchless): nonsign > 123 means exp=31 → OR in f32 exponent=255.
+    v128_t is_infnan = wasm_u32x4_gt(nonsign_u32x4, wasm_i32x4_splat(123));
+    result_u32x4 = wasm_v128_or(result_u32x4, wasm_v128_and(is_infnan, wasm_i32x4_splat(0x7F800000)));
+
     nk_b128_vec_t result;
-    result.v128 = result_u32x4;
+    result.v128 = wasm_v128_or(result_u32x4, sign_u32x4);
     return result;
 }
 

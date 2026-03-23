@@ -63,38 +63,24 @@ NK_PUBLIC void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
 #if NK_NATIVE_F16
     *dest = (nk_f32_t)(*src);
 #else
+    // Giesen magic-multiply: handles zero, denormals, and normals in one FP multiply.
+    // https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
     unsigned short x;
     nk_copy_bytes_(&x, src, 2);
 
-    unsigned int sign = (x >> 15) & 1;
-    unsigned int exponent = (x >> 10) & 0x1F;
-    unsigned int mantissa = x & 0x03FF;
+    nk_u32_t sign = ((nk_u32_t)(x & 0x8000)) << 16;
+    nk_u32_t nonsign = x & 0x7FFF;
+    nk_u32_t shifted = nonsign << 13;
 
-    nk_fui32_t conv;
+    nk_fui32_t magic, result;
+    magic.u = (nk_u32_t)(254 - 15) << 23; // 2^112
+    result.u = shifted;
+    result.f *= magic.f;
 
-    if (exponent == 0) {
-        if (mantissa == 0) {
-            // Zero (preserve sign)
-            conv.u = sign << 31;
-        }
-        else {
-            // Denormal: value = mantissa × 2⁻²⁴
-            // Use FPU normalization, then subtract 24 from exponent
-            nk_fui32_t temp;
-            temp.f = (float)mantissa;
-            conv.u = (sign << 31) | (temp.u - 0x0C000000);
-        }
-    }
-    else if (exponent == 31) {
-        // Infinity (mantissa=0) or NaN (mantissa!=0)
-        conv.u = (sign << 31) | 0x7F800000 | (mantissa << 13);
-    }
-    else {
-        // Normal: rebias exponent (127-15=112), shift mantissa
-        conv.u = (sign << 31) | ((exponent + 112) << 23) | (mantissa << 13);
-    }
-
-    *dest = conv.f;
+    // Inf/NaN fixup: f16 exp=31 maps to a large finite f32 after scaling; force exp=255.
+    if (result.u >= 0x47800000u) result.u |= 0x7F800000u;
+    result.u |= sign;
+    *dest = result.f;
 #endif
 }
 
