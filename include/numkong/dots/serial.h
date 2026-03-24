@@ -79,6 +79,13 @@
 #include "numkong/spatial/serial.h" // `nk_f32_sqrt_serial`
 #include "numkong/reduce.h"         // `nk_reduce_moments_*`
 
+/*  GCC's -Wstringop-overflow produces false positives on the padded accumulator arrays
+ *  in nk_define_cross_symmetric_ macro expansions (accumulators[4][7] with runtime indexing). */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -2839,6 +2846,10 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
 #endif
 
 #endif // NK_DOTS_SERIAL_H
