@@ -246,6 +246,11 @@ def test_scale_random_accuracy(ndim, dtype, capability, nk_seed):
     assert_allclose(result, accurate)
     collect_errors("scale", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
+    # out= must match the allocated result
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    assert simd_kernel(input_raw, alpha=alpha, beta=beta, out=out_nk) is None
+    assert_allclose(list(out_nk), result)
+
 
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
@@ -269,6 +274,11 @@ def test_add_random_accuracy(ndim, dtype, capability, nk_seed):
 
     assert_allclose(result, accurate)
     collect_errors("add", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
+
+    # out= must match the allocated result
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    assert simd_kernel(a_raw, b_raw, out=out_nk) is None
+    assert_allclose(list(out_nk), result)
 
 
 @pytest.mark.repeat(randomized_repetitions_count)
@@ -295,6 +305,11 @@ def test_blend_random_accuracy(ndim, dtype, capability, nk_seed):
 
     assert_allclose(result, accurate)
     collect_errors("blend", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
+
+    # out= must match the allocated result
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    assert simd_kernel(a_raw, b_raw, alpha=alpha, beta=beta, out=out_nk) is None
+    assert_allclose(list(out_nk), result)
 
 
 @pytest.mark.repeat(randomized_repetitions_count)
@@ -330,6 +345,12 @@ def test_fma_random_accuracy(ndim, dtype, capability, nk_seed):
 
     assert_allclose(result, accurate)
     collect_errors("fma", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
+
+    # out= must match the allocated result
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    ret = simd_kernel(a_raw, b_raw, c_raw, alpha=alpha, beta=beta, out=out_nk)
+    assert ret is None
+    assert_allclose(list(out_nk), result)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -399,6 +420,14 @@ def test_add_multiply_noncontiguous(dtype, kernel, capability):
         mismatch_count = np.sum(~np.isclose(inplace_numkong, inplace_numpy, atol=NK_ATOL, rtol=NK_RTOL))
         if mismatch_count:
             collect_warnings(f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})", stats)
+
+        # out= with nk.Tensor buffer (same-dtype only, to avoid cast complexity)
+        if first_dtype == second_dtype == output_dtype and inplace_numkong.ndim == 1:
+            out_nk = nk.zeros(inplace_numkong.shape, dtype=output_dtype)
+            ret = simd_kernel(a, b, out=out_nk)
+            assert ret is None
+            assert_allclose(np.asarray(out_nk), inplace_numkong, atol=NK_ATOL, rtol=NK_RTOL)
+
         return result_numkong
 
     # Vector-Vector
@@ -568,6 +597,27 @@ def test_scale_edge_cases(ndim, dtype, capability):
     result = np.array(simd_kernel(a, alpha=-1.5, beta=-2.0))
     assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
+    # out= with NumPy buffer
+    out_np = np.zeros(ndim, dtype=dtype)
+    ret = simd_kernel(a, alpha=alpha, beta=beta, out=out_np)
+    assert ret is None
+    assert_allclose(out_np, baseline_kernel(a, alpha=alpha, beta=beta).astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+
+    # out= with nk.Tensor buffer
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    ret = simd_kernel(a, alpha=alpha, beta=beta, out=out_nk)
+    assert ret is None
+    assert_allclose(np.asarray(out_nk), baseline_kernel(a, alpha=alpha, beta=beta).astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+
+    # out= shape mismatch raises
+    with pytest.raises(ValueError):
+        simd_kernel(a, alpha=alpha, beta=beta, out=np.zeros(ndim + 1, dtype=dtype))
+
+    # out= non-contiguous 1D raises (stride only matters when ndim > 1)
+    if ndim > 1:
+        with pytest.raises(ValueError):
+            simd_kernel(a, alpha=alpha, beta=beta, out=np.zeros(ndim * 2, dtype=dtype)[::2])
+
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
@@ -635,7 +685,7 @@ def test_multiply_numpy_buffer_protocol(dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
 def test_blend_numpy_buffer_protocol(dtype):
-    """nk.blend() accepts NumPy arrays directly via buffer protocol."""
+    """nk.blend() accepts NumPy arrays directly via buffer protocol, including out=."""
     a = np.random.randn(50).astype(dtype)
     b = np.random.randn(50).astype(dtype)
     alpha = 2.0
@@ -644,8 +694,27 @@ def test_blend_numpy_buffer_protocol(dtype):
     expected = alpha * a + beta * b
     result = nk.blend(a, b, alpha=alpha, beta=beta)
     result_np = np.asarray(result)
-
     assert_allclose(result_np, expected)
+
+    # out= with NumPy buffer
+    out_np = np.zeros(50, dtype=dtype)
+    ret = nk.blend(a, b, alpha=alpha, beta=beta, out=out_np)
+    assert ret is None
+    assert_allclose(out_np, expected)
+
+    # out= with nk.Tensor buffer
+    out_nk = nk.zeros((50,), dtype=dtype)
+    ret = nk.blend(a, b, alpha=alpha, beta=beta, out=out_nk)
+    assert ret is None
+    assert_allclose(np.asarray(out_nk), expected)
+
+    # out= shape mismatch raises
+    with pytest.raises(ValueError):
+        nk.blend(a, b, alpha=alpha, beta=beta, out=np.zeros(49, dtype=dtype))
+
+    # out= non-contiguous 1D raises
+    with pytest.raises(ValueError):
+        nk.blend(a, b, alpha=alpha, beta=beta, out=np.zeros(100, dtype=dtype)[::2])
 
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)

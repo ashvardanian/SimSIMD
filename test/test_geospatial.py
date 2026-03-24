@@ -180,6 +180,18 @@ def test_haversine_random_accuracy(ndim, dtype, capability):
     relative_tolerance = 1e-2
     assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
 
+    # out= with numpy buffer
+    output_distances = np.zeros(ndim, dtype=dtype)
+    ret = nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances)
+    assert ret is None
+    assert_allclose(output_distances, result, atol=1e-10, rtol=1e-10)
+
+    # out= with nk.Tensor buffer 
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    ret = nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=out_nk)
+    assert ret is None
+    assert_allclose(np.asarray(out_nk), result, atol=1e-10, rtol=1e-10)
+
     collect_errors("haversine", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -230,6 +242,12 @@ def test_vincenty_random_accuracy(ndim, dtype, capability):
     relative_tolerance = 1.0 if dtype == "float32" else 1e-2
     assert_allclose(result, accurate, atol=absolute_tolerance, rtol=relative_tolerance)
 
+    # out= must match the allocated result
+    out_nk = nk.zeros((ndim,), dtype=dtype)
+    ret = nk.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=out_nk)
+    assert ret is None
+    assert_allclose(np.asarray(out_nk), result, atol=1e-10, rtol=1e-10)
+
     collect_errors("vincenty", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats)
 
 
@@ -250,24 +268,6 @@ def test_haversine_known():
     result_kilometers = float(result[0]) / 1000
 
     assert 3800 < result_kilometers < 4100, f"Expected ~3940 km, got {result_kilometers:.0f} km"
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-def test_haversine_out_parameter():
-    """The out= parameter writes haversine results to a pre-allocated buffer."""
-    count = 10
-    first_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
-    first_longitudes = np.random.rand(count).astype(np.float64) * 2 * np.pi - np.pi
-    second_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
-    second_longitudes = np.random.rand(count).astype(np.float64) * 2 * np.pi - np.pi
-
-    output_distances = np.zeros(count, dtype=np.float64)
-    result = nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances)
-    assert result is None, "Expected None when using out parameter"
-    assert np.all(output_distances >= 0), "Output should contain non-negative distances"
-
-    expected = np.array(nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
-    assert_allclose(output_distances, expected)
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)
