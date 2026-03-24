@@ -119,6 +119,7 @@
 #endif
 
 // Compiling for Arm: NK_TARGET_ARM_
+// https://arm-software.github.io/acle/main/acle.html
 #if !defined(NK_TARGET_ARM_)
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define NK_TARGET_ARM_ 1
@@ -128,6 +129,7 @@
 #endif // !defined(NK_TARGET_ARM_)
 
 // Compiling for x86: NK_TARGET_X86_
+// https://www.intel.com/content/www/us/en/docs/dpcpp-cpp-compiler/developer-guide-reference/2024-2/additional-predefined-macros.html
 #if !defined(NK_TARGET_X86_)
 #if defined(__x86_64__) || defined(_M_X64)
 #define NK_TARGET_X86_ 1
@@ -310,13 +312,17 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(NK_TARGET_NEONBFDOT) || ...
 
-// Compiling for Arm: NK_TARGET_NEONFP8 (NEON FP8 extensions)
-// No compiler-predefined macro exists for FP8; this ISA level is reachable only
-// via dynamic dispatch (NK_BUILD_SHARED) or explicit CMake override.
+// Compiling for Arm: NK_TARGET_NEONFP8 (NEON FP8 extensions, FEAT_FP8DOT4)
+// ACLE macro __ARM_FEATURE_FP8DOT4 defined by GCC 15+ and Clang 21+ when +fp8dot4 is enabled.
+// Older compilers lack mfloat8x16_t and the fp8dot4 target attribute entirely.
 #if !defined(NK_TARGET_NEONFP8) || (NK_TARGET_NEONFP8 && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_FP8DOT4)
+#define NK_TARGET_NEONFP8 1
+#else
 #undef NK_TARGET_NEONFP8
 #define NK_TARGET_NEONFP8 0
-#endif // !defined(NK_TARGET_NEONFP8) || ...
+#endif // defined(__ARM_FEATURE_FP8DOT4)
+#endif // !defined(NK_TARGET_NEONFP8)  || ...
 
 // Compiling for Arm: NK_TARGET_SVE
 #if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !NK_TARGET_ARM_)
@@ -393,20 +399,26 @@
 #endif // defined(__ARM_FEATURE_SME2)
 #endif // !defined(NK_TARGET_SME2) || ...
 
+// Compiling for Arm: NK_TARGET_SME2P1 (FEAT_SME2p1)
+// ACLE macro: __ARM_FEATURE_SME2p1 (note lowercase 'p')
 #if !defined(NK_TARGET_SME2P1) || (NK_TARGET_SME2P1 && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_SME2p1)
+#define NK_TARGET_SME2P1 1
+#else
 #undef NK_TARGET_SME2P1
 #define NK_TARGET_SME2P1 0
-#endif
+#endif // defined(__ARM_FEATURE_SME2p1)
+#endif // !defined(NK_TARGET_SME2P1) || ...
 
 // AppleClang 17 exposes SME sub-features through `arm_sme.h` builtin aliases,
 // not dedicated `__ARM_FEATURE_*` predefines for every matrix subtype.
 #if !defined(NK_TARGET_SMEF64) || (NK_TARGET_SMEF64 && !NK_TARGET_ARM_)
-#if defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za64_f64_m)
+#if defined(__ARM_FEATURE_SME_F64F64) || (defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za64_f64_m))
 #define NK_TARGET_SMEF64 1
 #else
 #undef NK_TARGET_SMEF64
 #define NK_TARGET_SMEF64 0
-#endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za64_f64_m)
+#endif // defined(__ARM_FEATURE_SME_F64F64) || ...
 #endif // !defined(NK_TARGET_SMEF64) || ...
 
 #if !defined(NK_TARGET_SMEBI32) || (NK_TARGET_SMEBI32 && !NK_TARGET_ARM_)
@@ -419,7 +431,7 @@
 #endif // !defined(NK_TARGET_SMEBI32) || ...
 
 #if !defined(NK_TARGET_SMEHALF) || (NK_TARGET_SMEHALF && !NK_TARGET_ARM_)
-#if defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_f16_m)
+#if defined(__ARM_FEATURE_SME_F16F16) || (defined(__has_builtin) && __has_builtin(__builtin_sme_svmopa_za32_f16_m))
 #define NK_TARGET_SMEHALF 1
 #else
 #undef NK_TARGET_SMEHALF
@@ -445,10 +457,15 @@
 #endif // defined(__has_builtin) && __has_builtin(__builtin_sme_svluti2_lane_zt_u8)
 #endif // !defined(NK_TARGET_SMELUT2) || ...
 
+// Compiling for Arm: NK_TARGET_SMEFA64 (FEAT_SME_FA64, full SVE2 in streaming mode)
 #if !defined(NK_TARGET_SMEFA64) || (NK_TARGET_SMEFA64 && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_SME_FA64)
+#define NK_TARGET_SMEFA64 1
+#else
 #undef NK_TARGET_SMEFA64
 #define NK_TARGET_SMEFA64 0
-#endif
+#endif // defined(__ARM_FEATURE_SME_FA64)
+#endif // !defined(NK_TARGET_SMEFA64) || ...
 
 // Compiling for x86: NK_TARGET_HASWELL
 //
@@ -510,12 +527,20 @@
 #else
 #undef NK_TARGET_GENOA
 #define NK_TARGET_GENOA 0
-#endif
+#endif // defined(__AVX512BF16__) || ...
 #endif // !defined(NK_TARGET_GENOA) || ...
 
+// Compiling for x86: NK_TARGET_DIAMOND (AVX10.2, Diamond Rapids)
+// GCC 14+: defines __AVX10_2__ with -mavx10.2-512
+// Clang 19+: defines __AVX10_2__ with -mavx10.2-512
+// MSVC: defines __AVX10_VER__ >= 2 with /arch:AVX10.2 (VS 2026+, not yet released)
 #if !defined(NK_TARGET_DIAMOND) || (NK_TARGET_DIAMOND && !NK_TARGET_X86_)
+#if defined(__AVX10_2__) || (defined(__AVX10_VER__) && __AVX10_VER__ >= 2)
+#define NK_TARGET_DIAMOND 1
+#else
 #undef NK_TARGET_DIAMOND
 #define NK_TARGET_DIAMOND 0
+#endif // defined(__AVX10_2__) || ...
 #endif // !defined(NK_TARGET_DIAMOND) || ...
 
 #if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !NK_TARGET_X86_)
