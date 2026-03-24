@@ -206,6 +206,13 @@ def test_dots_symmetric(dtype, capability):
 
     mask = np.triu(np.ones((num_vectors, num_vectors), dtype=bool))
     assert_allclose(result[mask], accurate[mask], atol=atol, rtol=rtol)
+
+    # out= must match the allocated result (upper triangle)
+    out_dtype = str(result.dtype)  # kernel output dtype depends on input
+    out = nk.zeros((num_vectors, num_vectors), dtype=out_dtype)
+    simd_kernel(vectors_raw, dtype=dtype, out=out)
+    assert_allclose(np.asarray(out)[mask], result[mask], atol=1e-10, rtol=1e-10)
+
     collect_errors(
         "dots_symmetric",
         num_vectors * vector_depth,
@@ -283,6 +290,13 @@ def test_dots_pack_and_packed(dtype, capability):
     expected_dt, expected = profile(baseline_dots_packed, a_baseline.astype(native_dt), b_baseline.astype(native_dt))
 
     assert_allclose(result, accurate, atol=atol, rtol=rtol)
+
+    # out= must match the allocated result
+    out_dtype = str(result.dtype)  # kernel output dtype depends on input
+    out = nk.zeros((height, width), dtype=out_dtype)
+    nk.dots_packed(a_tensor, b_packed, out=out)
+    assert_allclose(np.asarray(out), result, atol=1e-10, rtol=1e-10)
+
     collect_errors(
         "dots_packed", height * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
     )

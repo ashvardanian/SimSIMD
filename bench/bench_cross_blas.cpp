@@ -5,14 +5,14 @@
  *  @date January 14, 2025
  */
 
-#include <cstring> // std::memcpy
-#include <vector>  // std::vector
+#include <cstring> // `std::memcpy`
+#include <vector>  // `std::vector`
 
 #include "bench.hpp"
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
-struct identity_init {
+struct identity_init_t {
     template <typename scalar_type_>
     scalar_type_ operator()(scalar_type_ v) const noexcept {
         return v;
@@ -20,7 +20,8 @@ struct identity_init {
 };
 
 template <typename input_type_, typename input_b_type_ = input_type_, typename output_type_ = input_type_,
-          typename init_first_type_ = identity_init, typename init_second_type_ = identity_init, typename kernel_type_>
+          typename init_first_type_ = identity_init_t, typename init_second_type_ = identity_init_t,
+          typename kernel_type_>
 void measure_dots_unpacked(bm::State &state, std::size_t m, std::size_t n, std::size_t k, kernel_type_ kernel,
                            init_first_type_ init_first = {}, init_second_type_ init_second = {}) {
 
@@ -71,7 +72,7 @@ void measure_dots_f64_with_blas(bm::State &state, std::size_t m, std::size_t n, 
                                   });
 }
 
-template <typename input_type_, typename output_type_ = input_type_, typename init_type_ = identity_init,
+template <typename input_type_, typename output_type_ = input_type_, typename init_type_ = identity_init_t,
           typename kernel_type_>
 void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_t k, kernel_type_ kernel,
                                      init_type_ init = {}) {
@@ -115,6 +116,62 @@ void measure_dots_symmetric_f64_with_blas(bm::State &state, std::size_t n, std::
 }
 
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
+
+#if NK_COMPARE_TO_ACCELERATE
+
+static BNNSNDArrayDescriptor bnns_matrix_desc(BNNSDataType dtype, void *data, std::size_t rows, std::size_t cols) {
+    BNNSNDArrayDescriptor desc = {};
+    desc.layout = BNNSDataLayout2DFirstMajor;
+    desc.size[0] = rows;
+    desc.size[1] = cols;
+    desc.data_type = dtype;
+    desc.data = data;
+    return desc;
+}
+
+void measure_dots_f16_with_accelerate(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_dots_unpacked<nk_f16_t, nk_f16_t, float>(
+        state, m, n, k,
+        [](nk_f16_t *a, nk_f16_t *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+            auto a_desc = bnns_matrix_desc(BNNSDataTypeFloat16, a, m, k);
+            auto b_desc = bnns_matrix_desc(BNNSDataTypeFloat16, b, n, k);
+            auto c_desc = bnns_matrix_desc(BNNSDataTypeFloat32, c, m, n);
+            BNNSMatMul(false, true, 1.0f, &a_desc, &b_desc, &c_desc, nullptr, nullptr);
+        },
+        [](float val) -> nk_f16_t {
+            nk_f16_t result;
+            nk_f32_to_f16(&val, &result);
+            return result;
+        },
+        [](float val) -> nk_f16_t {
+            nk_f16_t result;
+            nk_f32_to_f16(&val, &result);
+            return result;
+        });
+}
+
+void measure_dots_bf16_with_accelerate(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_dots_unpacked<nk_bf16_t, nk_bf16_t, float>(
+        state, m, n, k,
+        [](nk_bf16_t *a, nk_bf16_t *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+            auto a_desc = bnns_matrix_desc(BNNSDataTypeBFloat16, a, m, k);
+            auto b_desc = bnns_matrix_desc(BNNSDataTypeBFloat16, b, n, k);
+            auto c_desc = bnns_matrix_desc(BNNSDataTypeFloat32, c, m, n);
+            BNNSMatMul(false, true, 1.0f, &a_desc, &b_desc, &c_desc, nullptr, nullptr);
+        },
+        [](float val) -> nk_bf16_t {
+            nk_bf16_t result;
+            nk_f32_to_bf16(&val, &result);
+            return result;
+        },
+        [](float val) -> nk_bf16_t {
+            nk_bf16_t result;
+            nk_f32_to_bf16(&val, &result);
+            return result;
+        });
+}
+
+#endif // NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
 
@@ -224,6 +281,15 @@ void bench_cross_blas() {
                           measure_dots_symmetric_f32_with_blas, bench_config.matrix_height, bench_config.matrix_depth);
     bm::RegisterBenchmark(("dots_symmetric_f64_with_blas<" + syrk_dims + ">").c_str(),
                           measure_dots_symmetric_f64_with_blas, bench_config.matrix_height, bench_config.matrix_depth);
+#endif
+
+#if NK_COMPARE_TO_ACCELERATE
+    bm::RegisterBenchmark(("dots_packed_f16_with_accelerate<" + gemm_dims + ">").c_str(),
+                          measure_dots_f16_with_accelerate, bench_config.matrix_height, bench_config.matrix_width,
+                          bench_config.matrix_depth);
+    bm::RegisterBenchmark(("dots_packed_bf16_with_accelerate<" + gemm_dims + ">").c_str(),
+                          measure_dots_bf16_with_accelerate, bench_config.matrix_height, bench_config.matrix_width,
+                          bench_config.matrix_depth);
 #endif
 
 #if NK_COMPARE_TO_MKL
