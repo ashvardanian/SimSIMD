@@ -52,10 +52,10 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("vsx"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("cpu=power9"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("vsx")
+#pragma GCC target("cpu=power9")
 #endif
 
 NK_PUBLIC void nk_hamming_u1_powervsx(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {

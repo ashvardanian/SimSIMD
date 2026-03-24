@@ -141,6 +141,62 @@ NK_INTERNAL void nk_load_b64_powervsx_(void const *source, nk_b64_vec_t *destina
     nk_copy_bytes_(destination, source, 8);
 }
 
+/** @brief Partial load for 64-bit elements (n elements, max 4) into 256-bit vector.
+ *  Uses vec_xl_len to load exactly n×8 bytes, zero-filling the remainder.
+ *  vec_xl_len with length=0 produces a zero vector (no branch needed). */
+NK_INTERNAL void nk_partial_load_b64x4_powervsx_(void const *source, nk_b256_vec_t *destination, nk_size_t n) {
+    nk_size_t bytes = n * 8;
+    nk_size_t first_half = bytes < 16 ? bytes : 16;
+    nk_size_t second_half = bytes > 16 ? bytes - 16 : 0;
+    destination->vu8x16s[0] = vec_xl_len((nk_u8_t *)source, first_half);
+    destination->vu8x16s[1] = vec_xl_len((nk_u8_t *)source + 16, second_half);
+}
+
+/** @brief Partial load for 64-bit elements (n elements, max 2) into 128-bit vector. */
+NK_INTERNAL void nk_partial_load_b64x2_powervsx_(void const *source, nk_b128_vec_t *destination, nk_size_t n) {
+    destination->vu8x16 = vec_xl_len((nk_u8_t *)source, n * 8);
+}
+
+/** @brief Partial load for 32-bit elements (n elements, max 4) into 128-bit vector. */
+NK_INTERNAL void nk_partial_load_b32x4_powervsx_(void const *source, nk_b128_vec_t *destination, nk_size_t n) {
+    destination->vu8x16 = vec_xl_len((nk_u8_t *)source, n * 4);
+}
+
+/** @brief Partial load for 32-bit elements (n elements, max 2) into 64-bit vector. */
+NK_INTERNAL void nk_partial_load_b32x2_powervsx_(void const *source, nk_b64_vec_t *destination, nk_size_t n) {
+    nk_copy_bytes_(destination, source, n * 4);
+}
+
+/** @brief Partial load for 16-bit elements (n elements, max 8) into 128-bit vector. */
+NK_INTERNAL void nk_partial_load_b16x8_powervsx_(void const *source, nk_b128_vec_t *destination, nk_size_t n) {
+    destination->vu8x16 = vec_xl_len((nk_u8_t *)source, n * 2);
+}
+
+/** @brief Partial load for 8-bit elements (n elements, max 16) into 128-bit vector. */
+NK_INTERNAL void nk_partial_load_b8x16_powervsx_(void const *source, nk_b128_vec_t *destination, nk_size_t n) {
+    destination->vu8x16 = vec_xl_len((nk_u8_t *)source, n);
+}
+
+/** @brief Partial load for 1-bit elements (n bits, max 128) into 128-bit vector. */
+NK_INTERNAL void nk_partial_load_b1x128_powervsx_(void const *source, nk_b128_vec_t *destination, nk_size_t n_bits) {
+    destination->vu8x16 = vec_xl_len((nk_u8_t *)source, nk_size_divide_round_up_(n_bits, 8));
+}
+
+/** @brief Partial store for 64-bit elements (n elements, max 4) from 256-bit vector.
+ *  vec_xst_len with length=0 stores nothing (no branch needed). */
+NK_INTERNAL void nk_partial_store_b64x4_powervsx_(nk_b256_vec_t const *source, void *destination, nk_size_t n) {
+    nk_size_t bytes = n * 8;
+    nk_size_t first_half = bytes < 16 ? bytes : 16;
+    nk_size_t second_half = bytes > 16 ? bytes - 16 : 0;
+    vec_xst_len(source->vu8x16s[0], (nk_u8_t *)destination, first_half);
+    vec_xst_len(source->vu8x16s[1], (nk_u8_t *)destination + 16, second_half);
+}
+
+/** @brief Partial store for 32-bit elements (n elements, max 4) from 128-bit vector. */
+NK_INTERNAL void nk_partial_store_b32x4_powervsx_(nk_b128_vec_t const *source, void *destination, nk_size_t n) {
+    vec_xst_len(source->vu8x16, (nk_u8_t *)destination, n * 4);
+}
+
 /** @brief Convert 4x f16 → f32x4 via POWER9 hardware (xvcvhpsp, 1 instruction!).
  *  Loads 4 f16 values into a u16x8 register and uses `vec_extract_fp32_from_shorth`. */
 NK_INTERNAL nk_vf32x4_t nk_f16x4_to_f32x4_powervsx_(nk_f16_t const *source) {
