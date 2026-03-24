@@ -79,6 +79,7 @@
     "c/",
     "include/",
     "javascript/",
+    "probes/",
     "wasm/",
     "binding.gyp",
     "LICENSE"

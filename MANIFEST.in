@@ -1,7 +1,7 @@
 recursive-include include *.h
 recursive-include c *.c *.h
 recursive-include python *.c *.h *.py *.pyi
-recursive-include test *.py
+recursive-include probes *.c
 include VERSION
 include LICENSE
 include README.md

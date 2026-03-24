@@ -1,14 +1,307 @@
 use std::collections::HashMap;
 use std::env;
+use std::path::Path;
 
 fn main() { build_numkong().expect("Failed to build NumKong"); }
 
-/// Build NumKong with dynamic SIMD dispatching.
-/// Returns a HashMap of enabled compilation flags for potential reuse.
+/// Try to compile a single probe .c file with the given flags.
+/// Uses `flag()` (hard error) instead of `flag_if_supported()` to avoid
+/// silently dropping flags the compiler doesn't recognize.
+fn probe_isa(probe_file: &str, flags: &[&str]) -> bool {
+    let mut build = cc::Build::new();
+    build.file(probe_file).warnings(false).opt_level(0);
+    for flag in flags {
+        build.flag(flag);
+    }
+    let name = probe_file.replace("probes/", "probe_").replace(".c", "");
+    build.try_compile(&name).is_ok()
+}
+
+/// Recursively collect all files under a directory for cargo:rerun-if-changed.
+fn watch_dir(dir: &str) {
+    let path = Path::new(dir);
+    if !path.is_dir() {
+        return;
+    }
+    println!("cargo:rerun-if-changed={dir}");
+    for entry in std::fs::read_dir(path).into_iter().flatten().flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            watch_dir(&p.to_string_lossy());
+        } else {
+            println!("cargo:rerun-if-changed={}", p.display());
+        }
+    }
+}
+
+struct IsaProbe {
+    name: &'static str,
+    probe_file: &'static str,
+    gcc_flags: &'static [&'static str],
+    msvc_flags: &'static [&'static str],
+}
+
+// x86 probes: GCC flags are minimal — each implies its prerequisites.
+// E.g., -mavx512vnni implies -mavx512f; -mavxvnni implies -mavx2.
+const X86_PROBES: &[IsaProbe] = &[
+    IsaProbe {
+        name: "NK_TARGET_HASWELL",
+        probe_file: "probes/x86_haswell.c",
+        gcc_flags: &["-mavx2", "-mfma", "-mf16c"], // all 3 are independent
+        msvc_flags: &["/arch:AVX2"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SKYLAKE",
+        probe_file: "probes/x86_skylake.c",
+        gcc_flags: &["-mavx512f", "-mavx512bw", "-mavx512dq", "-mavx512vl"], // 4 independent sub-features
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_ICELAKE",
+        probe_file: "probes/x86_icelake.c",
+        gcc_flags: &["-mavx512vnni", "-mavx512vl"], // vnni implies F
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_GENOA",
+        probe_file: "probes/x86_genoa.c",
+        gcc_flags: &["-mavx512bf16", "-mavx512vl"], // bf16 implies F+BW
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SAPPHIRE",
+        probe_file: "probes/x86_sapphire.c",
+        gcc_flags: &["-mavx512fp16", "-mavx512vl"], // fp16 implies F+BW
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SAPPHIREAMX",
+        probe_file: "probes/x86_sapphireamx.c",
+        gcc_flags: &["-mamx-tile", "-mamx-int8"],
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_GRANITEAMX",
+        probe_file: "probes/x86_graniteamx.c",
+        gcc_flags: &["-mamx-tile", "-mamx-fp16"],
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_DIAMOND",
+        probe_file: "probes/x86_diamond.c",
+        gcc_flags: &["-mavx10.2-512"], // implies all AVX-512 + FP16 + AVX10.1
+        msvc_flags: &["/arch:AVX10.2"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_TURIN",
+        probe_file: "probes/x86_turin.c",
+        gcc_flags: &["-mavx512vp2intersect"], // implies F+DQ
+        msvc_flags: &["/arch:AVX512"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_ALDER",
+        probe_file: "probes/x86_alder.c",
+        gcc_flags: &["-mavxvnni"], // implies AVX2
+        msvc_flags: &["/arch:AVX2"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SIERRA",
+        probe_file: "probes/x86_sierra.c",
+        gcc_flags: &["-mavxvnniint8"], // implies AVX2
+        msvc_flags: &["/arch:AVX2"],
+    },
+];
+
+// ARM probes: msvc_flags are empty because MSVC does not define __ARM_FEATURE_*
+// macros via /arch: flags. For MSVC header-only builds, types.h infers features
+// from __ARM_ARCH level instead. SVE/SME probes also have #error guards for _WIN32.
+const ARM_PROBES: &[IsaProbe] = &[
+    // FEAT_AdvSIMD (baseline ARM64)
+    IsaProbe {
+        name: "NK_TARGET_NEON",
+        probe_file: "probes/arm_neon.c",
+        gcc_flags: &["-march=armv8-a+simd"],
+        msvc_flags: &[],
+    },
+    // FEAT_FP16: optional from ARMv8.2, mandatory at ARMv9.0 with AdvSIMD
+    IsaProbe {
+        name: "NK_TARGET_NEONHALF",
+        probe_file: "probes/arm_neon_half.c",
+        gcc_flags: &["-march=armv8.2-a+simd+fp16"],
+        msvc_flags: &["/arch:armv8.2"],
+    },
+    // FEAT_DotProd: optional from ARMv8.1, mandatory at ARMv8.4 with AdvSIMD
+    IsaProbe {
+        name: "NK_TARGET_NEONSDOT",
+        probe_file: "probes/arm_neon_sdot.c",
+        gcc_flags: &["-march=armv8.2-a+dotprod"],
+        msvc_flags: &["/arch:armv8.4"],
+    },
+    // FEAT_BF16: optional from ARMv8.2, mandatory at ARMv8.6 with FP
+    IsaProbe {
+        name: "NK_TARGET_NEONBFDOT",
+        probe_file: "probes/arm_neon_bfdot.c",
+        gcc_flags: &["-march=armv8.6-a+simd+bf16"],
+        msvc_flags: &["/arch:armv8.6"],
+    },
+    // FEAT_FHM: optional from ARMv8.1, mandatory at ARMv8.4 with FP16
+    IsaProbe {
+        name: "NK_TARGET_NEONFHM",
+        probe_file: "probes/arm_neon_fhm.c",
+        gcc_flags: &["-march=armv8.2-a+simd+fp16+fp16fml"],
+        msvc_flags: &["/arch:armv8.4"],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVE",
+        probe_file: "probes/arm_sve.c",
+        gcc_flags: &["-march=armv8.2-a+sve"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVEHALF",
+        probe_file: "probes/arm_sve_half.c",
+        gcc_flags: &["-march=armv8.2-a+sve+fp16"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVEBFDOT",
+        probe_file: "probes/arm_sve_bfdot.c",
+        gcc_flags: &["-march=armv8.2-a+sve+bf16"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVESDOT",
+        probe_file: "probes/arm_sve_sdot.c",
+        gcc_flags: &["-march=armv8.2-a+sve+dotprod"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVE2",
+        probe_file: "probes/arm_sve2.c",
+        gcc_flags: &["-march=armv8.2-a+sve2"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SVE2P1",
+        probe_file: "probes/arm_sve2p1.c",
+        gcc_flags: &["-march=armv8.2-a+sve2p1"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_NEONFP8",
+        probe_file: "probes/arm_neonfp8.c",
+        gcc_flags: &["-march=armv8-a+simd+fp8dot4"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SME",
+        probe_file: "probes/arm_sme.c",
+        gcc_flags: &["-march=armv8-a+sme"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SME2",
+        probe_file: "probes/arm_sme2.c",
+        gcc_flags: &["-march=armv8-a+sme2"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SME2P1",
+        probe_file: "probes/arm_sme2p1.c",
+        gcc_flags: &["-march=armv8-a+sme2p1"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMEF64",
+        probe_file: "probes/arm_sme_f64.c",
+        gcc_flags: &["-march=armv8-a+sme+sme-f64f64"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMEHALF",
+        probe_file: "probes/arm_sme_half.c",
+        gcc_flags: &["-march=armv8-a+sme+sme-f16f16"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMEBF16",
+        probe_file: "probes/arm_sme_bf16.c",
+        gcc_flags: &["-march=armv8-a+sme2+b16b16"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMEBI32",
+        probe_file: "probes/arm_sme_bi32.c",
+        gcc_flags: &["-march=armv8-a+sme2+sme-i16i32"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMELUT2",
+        probe_file: "probes/arm_sme_lut2.c",
+        gcc_flags: &["-march=armv8-a+sme2+lut"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_SMEFA64",
+        probe_file: "probes/arm_sme_fa64.c",
+        gcc_flags: &["-march=armv8-a+sme+sme-fa64"],
+        msvc_flags: &[],
+    },
+];
+
+const RISCV_PROBES: &[IsaProbe] = &[
+    IsaProbe {
+        name: "NK_TARGET_RVV",
+        probe_file: "probes/riscv_rvv.c",
+        gcc_flags: &["-march=rv64gcv"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_RVVHALF",
+        probe_file: "probes/riscv_rvv_half.c",
+        gcc_flags: &["-march=rv64gcv_zvfh"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_RVVBF16",
+        probe_file: "probes/riscv_rvv_bf16.c",
+        gcc_flags: &["-march=rv64gcv_zvfbfwma"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_RVVBB",
+        probe_file: "probes/riscv_rvv_bb.c",
+        gcc_flags: &["-march=rv64gcv_zvbb"],
+        msvc_flags: &[],
+    },
+];
+
+const LOONGARCH_PROBES: &[IsaProbe] = &[IsaProbe {
+    name: "NK_TARGET_LOONGSONASX",
+    probe_file: "probes/loongarch_lasx.c",
+    gcc_flags: &["-mlasx"],
+    msvc_flags: &[],
+}];
+
+const POWER_PROBES: &[IsaProbe] = &[IsaProbe {
+    name: "NK_TARGET_POWERVSX",
+    probe_file: "probes/power_vsx.c",
+    gcc_flags: &["-mcpu=power9", "-mvsx"],
+    msvc_flags: &[],
+}];
+
+const WASM_PROBES: &[IsaProbe] = &[IsaProbe {
+    name: "NK_TARGET_V128RELAXED",
+    probe_file: "probes/wasm_v128relaxed.c",
+    gcc_flags: &["-mrelaxed-simd"],
+    msvc_flags: &[],
+}];
+
 fn build_numkong() -> Result<HashMap<String, bool>, String> {
     let mut flags = HashMap::<String, bool>::new();
     let mut build = cc::Build::new();
 
+    // Source files
     build
         // Prefer portable flags to support MSVC and older toolchains
         .std("c99") // Enforce C99 standard when supported
@@ -52,446 +345,96 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         .flag_if_supported("-Wno-psabi") // Suppress GCC ABI note for 32-byte aligned params
         .warnings(false);
 
+    // Architecture detection
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let target_bits = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
+    let is_msvc = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default() == "msvc";
+
+    let is_x86_64 = target_arch == "x86_64" && target_bits == "64";
+    let is_aarch64 = target_arch == "aarch64" && target_bits == "64";
+    let is_riscv64 = target_arch == "riscv64" && target_bits == "64";
+    let is_loongarch64 = target_arch == "loongarch64" && target_bits == "64";
+    let is_power64 = target_arch == "powerpc64" && target_bits == "64";
+
+    build.define("NK_IS_64BIT_X86", if is_x86_64 { "1" } else { "0" });
+    build.define("NK_IS_64BIT_ARM", if is_aarch64 { "1" } else { "0" });
+    build.define("NK_IS_64BIT_RISCV", if is_riscv64 { "1" } else { "0" });
+    build.define(
+        "NK_IS_64BIT_LOONGARCH",
+        if is_loongarch64 { "1" } else { "0" },
+    );
+    build.define("NK_IS_64BIT_POWER", if is_power64 { "1" } else { "0" });
+
     // On 32-bit x86, ensure proper stack alignment for floating-point operations
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=38534
-    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     if target_arch == "x86" {
         build.flag_if_supported("-mstackrealign");
         build.flag_if_supported("-mpreferred-stack-boundary=4");
     }
 
-    // Set architecture-specific macros explicitly
-    let target_bits = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
-    if target_arch == "x86_64" && target_bits == "64" {
-        build.define("NK_IS_64BIT_X86", "1");
-        build.define("NK_IS_64BIT_ARM", "0");
-        build.define("NK_IS_64BIT_RISCV", "0");
-        flags.insert("NK_IS_64BIT_X86".to_string(), true);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
-    } else if target_arch == "aarch64" && target_bits == "64" {
-        build.define("NK_IS_64BIT_X86", "0");
-        build.define("NK_IS_64BIT_ARM", "1");
-        build.define("NK_IS_64BIT_RISCV", "0");
-        flags.insert("NK_IS_64BIT_X86".to_string(), false);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), true);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
-    } else if target_arch == "riscv64" && target_bits == "64" {
-        build.define("NK_IS_64BIT_X86", "0");
-        build.define("NK_IS_64BIT_ARM", "0");
-        build.define("NK_IS_64BIT_RISCV", "1");
-        flags.insert("NK_IS_64BIT_X86".to_string(), false);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), true);
-    } else if target_arch == "loongarch64" && target_bits == "64" {
-        build.define("NK_IS_64BIT_X86", "0");
-        build.define("NK_IS_64BIT_ARM", "0");
-        build.define("NK_IS_64BIT_RISCV", "0");
-        flags.insert("NK_IS_64BIT_X86".to_string(), false);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
-    } else if target_arch == "powerpc64" && target_bits == "64" {
-        build.define("NK_IS_64BIT_X86", "0");
-        build.define("NK_IS_64BIT_ARM", "0");
-        build.define("NK_IS_64BIT_RISCV", "0");
-        flags.insert("NK_IS_64BIT_X86".to_string(), false);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
-    } else {
-        build.define("NK_IS_64BIT_X86", "0");
-        build.define("NK_IS_64BIT_ARM", "0");
-        build.define("NK_IS_64BIT_RISCV", "0");
-        flags.insert("NK_IS_64BIT_X86".to_string(), false);
-        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
-        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
-    }
-
-    // Detect target OS for platform-specific optimizations
-    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    let is_freebsd = target_os == "freebsd";
-    let is_linux = target_os == "linux";
-    let is_windows = target_os == "windows";
-    let is_macos = target_os == "macos";
-    let is_android = target_os == "android";
-
-    // Determine which backends to try based on target architecture and OS.
-    // The fallback mechanism will disable unsupported targets one by one.
-    let flags_to_try = match target_arch.as_str() {
-        "arm" | "aarch64" => {
-            let mut flags = Vec::new();
-
-            // SME is available on Linux, FreeBSD, macOS (M4+ with Clang 18+), and Android
-            if is_linux || is_freebsd || is_macos || is_android {
-                flags.extend_from_slice(&[
-                    "NK_TARGET_SMELUT2",
-                    "NK_TARGET_SMEBF16",
-                    "NK_TARGET_SMEBI32",
-                    "NK_TARGET_SMEHALF",
-                    "NK_TARGET_SMEFA64",
-                    "NK_TARGET_SMEF64",
-                    "NK_TARGET_SME2P1",
-                    "NK_TARGET_SME2",
-                    "NK_TARGET_SME",
-                ]);
-            }
-
-            // SVE is available on Linux, FreeBSD, and Android (not on Apple Silicon)
-            if is_linux || is_freebsd || is_android {
-                flags.extend_from_slice(&[
-                    "NK_TARGET_SVE2P1",
-                    "NK_TARGET_SVE2",
-                    "NK_TARGET_SVESDOT",
-                    "NK_TARGET_SVEBFDOT",
-                    "NK_TARGET_SVEHALF",
-                    "NK_TARGET_SVE",
-                ]);
-            }
-
-            // NEON is available on all ARM platforms
-            flags.extend_from_slice(&[
-                "NK_TARGET_NEONFP8",
-                "NK_TARGET_NEONFHM",
-                "NK_TARGET_NEONBFDOT",
-                "NK_TARGET_NEONSDOT",
-                "NK_TARGET_NEONHALF",
-                "NK_TARGET_NEON",
-            ]);
-
-            flags
-        }
-        "x86_64" => {
-            let mut flags = Vec::new();
-
-            // AMX requires OS kernel support: Linux uses arch_prctl, Windows enables automatically.
-            // FreeBSD and macOS lack tile permission support.
-            if is_linux || is_windows {
-                flags.extend_from_slice(&["NK_TARGET_GRANITEAMX", "NK_TARGET_SAPPHIREAMX"]);
-            }
-
-            // Advanced AVX-512 features available on Linux, FreeBSD, and Windows.
-            // Ordered most-advanced-first: the fallback mechanism disables from top to bottom.
-            if is_linux || is_freebsd || is_windows {
-                flags.extend_from_slice(&[
-                    "NK_TARGET_DIAMOND",
-                    "NK_TARGET_SAPPHIRE",
-                    "NK_TARGET_TURIN",
-                    "NK_TARGET_GENOA",
-                    "NK_TARGET_ICELAKE",
-                    "NK_TARGET_SKYLAKE",
-                    "NK_TARGET_SIERRA",
-                    "NK_TARGET_ALDER",
-                ]);
-            }
-
-            // Haswell (AVX2) is available on all x86_64 platforms
-            flags.push("NK_TARGET_HASWELL");
-
-            flags
-        }
-        "riscv64" => {
-            // RISC-V is primarily Linux and FreeBSD
-            if is_linux || is_freebsd {
-                vec![
-                    "NK_TARGET_RVVBB",
-                    "NK_TARGET_RVVBF16",
-                    "NK_TARGET_RVVHALF",
-                    "NK_TARGET_RVV",
-                ]
-            } else {
-                vec![]
-            }
-        }
-        "loongarch64" => {
-            if is_linux {
-                vec!["NK_TARGET_LOONGSONASX"]
-            } else {
-                vec![]
-            }
-        }
-        "powerpc64" => {
-            if is_linux {
-                vec!["NK_TARGET_POWERVSX"]
-            } else {
-                vec![]
-            }
-        }
-        "wasm32" | "wasm64" => vec!["NK_TARGET_V128RELAXED"],
-        _ => vec![],
+    // Select probe tables for this architecture
+    let probe_tables: &[&[IsaProbe]] = match target_arch.as_str() {
+        "x86_64" => &[X86_PROBES],
+        "aarch64" => &[ARM_PROBES],
+        "riscv64" => &[RISCV_PROBES],
+        "loongarch64" => &[LOONGARCH_PROBES],
+        "powerpc64" => &[POWER_PROBES],
+        "wasm32" | "wasm64" => &[WASM_PROBES],
+        _ => &[],
     };
 
-    // Check environment variables to allow users to disable specific backends.
-    // Usage: NK_TARGET_NEON=0 NK_TARGET_SVE=0 cargo build
-    for flag in flags_to_try.iter() {
-        let enabled = match env::var(flag) {
-            Ok(val) => val != "0" && val.to_lowercase() != "false",
-            Err(_) => true, // Default to enabled if not specified
-        };
+    // Probe each ISA — uniform for all architectures including NEON and WASM
+    for table in probe_tables {
+        for probe in table.iter() {
+            let enabled = match env::var(probe.name) {
+                Ok(val) => val != "0" && val.to_lowercase() != "false",
+                Err(_) => true,
+            };
 
-        if enabled {
-            build.define(flag, "1");
-            flags.insert(flag.to_string(), true);
-        } else {
-            build.define(flag, "0");
-            flags.insert(flag.to_string(), false);
-            println!("cargo:warning=Disabled {} via environment variable", flag);
-        }
-    }
-
-    // Try compilation with all enabled backends
-    if build.try_compile("numkong").is_err() {
-        println!("cargo:warning=Failed to compile NumKong with all SIMD backends...");
-
-        // Fallback: disable backends one by one until compilation succeeds
-        let mut compiled = false;
-        for flag in flags_to_try.iter() {
-            build.define(flag, "0");
-            flags.insert(flag.to_string(), false);
-
-            if build.try_compile("numkong").is_ok() {
+            if !enabled {
+                build.define(probe.name, "0");
+                flags.insert(probe.name.to_string(), false);
                 println!(
-                    "cargo:warning=Successfully compiled after disabling {}",
-                    flag
+                    "cargo:warning=Disabled {} via environment variable",
+                    probe.name
                 );
-                compiled = true;
-                break;
+                continue;
             }
 
-            println!(
-                "cargo:warning=Failed to compile after disabling {}, trying next configuration...",
-                flag
-            );
-        }
-
-        if !compiled {
-            return Err("Failed to compile NumKong with any SIMD configuration".into());
+            let probe_flags = if is_msvc {
+                probe.msvc_flags
+            } else {
+                probe.gcc_flags
+            };
+            let ok = probe_isa(probe.probe_file, probe_flags);
+            build.define(probe.name, if ok { "1" } else { "0" });
+            flags.insert(probe.name.to_string(), ok);
+            if !ok {
+                println!("cargo:warning={}: not supported by compiler", probe.name);
+            }
         }
     }
 
-    // Declare file dependencies
-    println!("cargo:rerun-if-changed=c/dispatch.h");
-    println!("cargo:rerun-if-changed=c/dispatch_f64c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f32c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_bf16c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f16c.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f64.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f32.c");
-    println!("cargo:rerun-if-changed=c/dispatch_bf16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_f16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e5m2.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e4m3.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e3m2.c");
-    println!("cargo:rerun-if-changed=c/dispatch_e2m3.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i64.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i32.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i8.c");
-    println!("cargo:rerun-if-changed=c/dispatch_i4.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u64.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u32.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u16.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u8.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u4.c");
-    println!("cargo:rerun-if-changed=c/dispatch_u1.c");
-    println!("cargo:rerun-if-changed=c/dispatch_other.c");
-    println!("cargo:rerun-if-changed=c/numkong.c");
-    // Top-level headers
-    println!("cargo:rerun-if-changed=include/numkong/numkong.h");
-    println!("cargo:rerun-if-changed=include/numkong/types.h");
-    println!("cargo:rerun-if-changed=include/numkong/capabilities.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast.h");
-    println!("cargo:rerun-if-changed=include/numkong/set.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots.h");
-    println!("cargo:rerun-if-changed=include/numkong/each.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce.h");
-    println!("cargo:rerun-if-changed=include/numkong/sets.h");
-    println!("cargo:rerun-if-changed=include/numkong/sparse.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry.h");
-    // cast/
-    println!("cargo:rerun-if-changed=include/numkong/cast/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/rvv.h");
-    println!("cargo:rerun-if-changed=include/numkong/cast/v128relaxed.h");
-    // curved/
-    println!("cargo:rerun-if-changed=include/numkong/curved/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/smef64.h");
-    println!("cargo:rerun-if-changed=include/numkong/curved/rvv.h");
-    // dot/
-    println!("cargo:rerun-if-changed=include/numkong/dot/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/neonfhm.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/svehalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/spacemit.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/sifive.h");
-    println!("cargo:rerun-if-changed=include/numkong/dot/xuantie.h");
-    // dots/
-    println!("cargo:rerun-if-changed=include/numkong/dots/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/sapphire_amx.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/dots/svehalf.h");
-    // each/
-    println!("cargo:rerun-if-changed=include/numkong/each/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/each/rvv.h");
-    // geospatial/
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/rvv.h");
-    println!("cargo:rerun-if-changed=include/numkong/geospatial/v128relaxed.h");
-    // maxsim/
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/maxsim/sme.h");
-    // mesh/
-    println!("cargo:rerun-if-changed=include/numkong/mesh/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/neonsdot.h");
-    // probability/
-    println!("cargo:rerun-if-changed=include/numkong/probability/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/probability/rvv.h");
-    // reduce/
-    println!("cargo:rerun-if-changed=include/numkong/reduce/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/neonsdot.h");
-    // scalar/
-    println!("cargo:rerun-if-changed=include/numkong/scalar/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar/rvv.h");
-    println!("cargo:rerun-if-changed=include/numkong/scalar/v128relaxed.h");
-    // set/
-    println!("cargo:rerun-if-changed=include/numkong/set/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/rvv.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/rvvbb.h");
-    println!("cargo:rerun-if-changed=include/numkong/set/v128relaxed.h");
-    // sets/
-    println!("cargo:rerun-if-changed=include/numkong/sets/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/sets/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/sets/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/sets/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/sets/smebi32.h");
-    // sparse/
-    println!("cargo:rerun-if-changed=include/numkong/sparse/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/sparse/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/sparse/turin.h");
-    println!("cargo:rerun-if-changed=include/numkong/sparse/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/sparse/sve2.h");
-    // spatial/
-    println!("cargo:rerun-if-changed=include/numkong/spatial/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/sapphire.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/svehalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/svebfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/spacemit.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/sifive.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatial/xuantie.h");
-    // spatials/
-    println!("cargo:rerun-if-changed=include/numkong/spatials/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/icelake.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/sapphireamx.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/neonhalf.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/neonfhm.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/sme.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/smef64.h");
-    println!("cargo:rerun-if-changed=include/numkong/spatials/rvv.h");
-    // trigonometry/
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/serial.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/haswell.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/skylake.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/ice.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/genoa.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/sierra.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/neon.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonbfdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonsdot.h");
+    // Compile
+    build.compile("numkong");
 
-    // Rerun if environment variables change
-    for flag in flags_to_try.iter() {
-        println!("cargo:rerun-if-env-changed={}", flag);
+    // Watch directories recursively instead of listing individual files
+    watch_dir("c");
+    watch_dir("include");
+    watch_dir("probes");
+
+    // Rerun on env var changes
+    for table in [
+        X86_PROBES,
+        ARM_PROBES,
+        RISCV_PROBES,
+        LOONGARCH_PROBES,
+        POWER_PROBES,
+        WASM_PROBES,
+    ] {
+        for probe in table {
+            println!("cargo:rerun-if-env-changed={}", probe.name);
+        }
     }
 
     Ok(flags)
