@@ -382,10 +382,12 @@ NK_INTERNAL void nk_dot_f32x2_finalize_powervsx(                                
     nk_dot_f32x2_state_powervsx_t const *state_c, nk_dot_f32x2_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f64s[0] = nk_hsum_f64x2_powervsx_(state_a->sum_f64x2);
-    result->f64s[1] = nk_hsum_f64x2_powervsx_(state_b->sum_f64x2);
-    result->f64s[2] = nk_hsum_f64x2_powervsx_(state_c->sum_f64x2);
-    result->f64s[3] = nk_hsum_f64x2_powervsx_(state_d->sum_f64x2);
+    nk_vf64x2_t sum_a_f64x2 = vec_add(state_a->sum_f64x2, vec_xxpermdi(state_a->sum_f64x2, state_a->sum_f64x2, 2));
+    nk_vf64x2_t sum_b_f64x2 = vec_add(state_b->sum_f64x2, vec_xxpermdi(state_b->sum_f64x2, state_b->sum_f64x2, 2));
+    nk_vf64x2_t sum_c_f64x2 = vec_add(state_c->sum_f64x2, vec_xxpermdi(state_c->sum_f64x2, state_c->sum_f64x2, 2));
+    nk_vf64x2_t sum_d_f64x2 = vec_add(state_d->sum_f64x2, vec_xxpermdi(state_d->sum_f64x2, state_d->sum_f64x2, 2));
+    result->vf64x2s[0] = vec_xxpermdi(sum_a_f64x2, sum_b_f64x2, 0);
+    result->vf64x2s[1] = vec_xxpermdi(sum_c_f64x2, sum_d_f64x2, 0);
 }
 
 /**
@@ -474,10 +476,21 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_powervsx(                               
     nk_dot_bf16x8_state_powervsx_t const *state_c, nk_dot_bf16x8_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = nk_hsum_f32x4_powervsx_(state_a->sum_f32x4);
-    result->f32s[1] = nk_hsum_f32x4_powervsx_(state_b->sum_f32x4);
-    result->f32s[2] = nk_hsum_f32x4_powervsx_(state_c->sum_f32x4);
-    result->f32s[3] = nk_hsum_f32x4_powervsx_(state_d->sum_f32x4);
+    nk_vf32x4_t a_f32x4 = state_a->sum_f32x4, b_f32x4 = state_b->sum_f32x4, c_f32x4 = state_c->sum_f32x4,
+                d_f32x4 = state_d->sum_f32x4;
+    nk_vf32x4_t transpose_ab_low_f32x4 = vec_mergeh(a_f32x4, b_f32x4);
+    nk_vf32x4_t transpose_cd_low_f32x4 = vec_mergeh(c_f32x4, d_f32x4);
+    nk_vf32x4_t transpose_ab_high_f32x4 = vec_mergel(a_f32x4, b_f32x4);
+    nk_vf32x4_t transpose_cd_high_f32x4 = vec_mergel(c_f32x4, d_f32x4);
+    nk_vf32x4_t sum_lane0_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_f32x4, 0);
+    nk_vf32x4_t sum_lane1_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_f32x4, 3);
+    nk_vf32x4_t sum_lane2_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_f32x4, 0);
+    nk_vf32x4_t sum_lane3_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_f32x4, 3);
+    result->vf32x4 = vec_add(vec_add(sum_lane0_f32x4, sum_lane1_f32x4), vec_add(sum_lane2_f32x4, sum_lane3_f32x4));
 }
 
 /**
@@ -514,10 +527,21 @@ NK_INTERNAL void nk_dot_f16x8_finalize_powervsx(                                
     nk_dot_f16x8_state_powervsx_t const *state_c, nk_dot_f16x8_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = nk_hsum_f32x4_powervsx_(state_a->sum_f32x4);
-    result->f32s[1] = nk_hsum_f32x4_powervsx_(state_b->sum_f32x4);
-    result->f32s[2] = nk_hsum_f32x4_powervsx_(state_c->sum_f32x4);
-    result->f32s[3] = nk_hsum_f32x4_powervsx_(state_d->sum_f32x4);
+    nk_vf32x4_t a_f32x4 = state_a->sum_f32x4, b_f32x4 = state_b->sum_f32x4, c_f32x4 = state_c->sum_f32x4,
+                d_f32x4 = state_d->sum_f32x4;
+    nk_vf32x4_t transpose_ab_low_f32x4 = vec_mergeh(a_f32x4, b_f32x4);
+    nk_vf32x4_t transpose_cd_low_f32x4 = vec_mergeh(c_f32x4, d_f32x4);
+    nk_vf32x4_t transpose_ab_high_f32x4 = vec_mergel(a_f32x4, b_f32x4);
+    nk_vf32x4_t transpose_cd_high_f32x4 = vec_mergel(c_f32x4, d_f32x4);
+    nk_vf32x4_t sum_lane0_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_f32x4, 0);
+    nk_vf32x4_t sum_lane1_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_f32x4, 3);
+    nk_vf32x4_t sum_lane2_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_f32x4, 0);
+    nk_vf32x4_t sum_lane3_f32x4 = (nk_vf32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_f32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_f32x4, 3);
+    result->vf32x4 = vec_add(vec_add(sum_lane0_f32x4, sum_lane1_f32x4), vec_add(sum_lane2_f32x4, sum_lane3_f32x4));
 }
 
 /**
@@ -548,10 +572,21 @@ NK_INTERNAL void nk_dot_i8x16_finalize_powervsx(                                
     nk_dot_i8x16_state_powervsx_t const *state_c, nk_dot_i8x16_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->i32s[0] = nk_hsum_i32x4_powervsx_(state_a->sum_i32x4);
-    result->i32s[1] = nk_hsum_i32x4_powervsx_(state_b->sum_i32x4);
-    result->i32s[2] = nk_hsum_i32x4_powervsx_(state_c->sum_i32x4);
-    result->i32s[3] = nk_hsum_i32x4_powervsx_(state_d->sum_i32x4);
+    nk_vi32x4_t a_i32x4 = state_a->sum_i32x4, b_i32x4 = state_b->sum_i32x4, c_i32x4 = state_c->sum_i32x4,
+                d_i32x4 = state_d->sum_i32x4;
+    nk_vi32x4_t transpose_ab_low_i32x4 = vec_mergeh(a_i32x4, b_i32x4);
+    nk_vi32x4_t transpose_cd_low_i32x4 = vec_mergeh(c_i32x4, d_i32x4);
+    nk_vi32x4_t transpose_ab_high_i32x4 = vec_mergel(a_i32x4, b_i32x4);
+    nk_vi32x4_t transpose_cd_high_i32x4 = vec_mergel(c_i32x4, d_i32x4);
+    nk_vi32x4_t sum_lane0_i32x4 = (nk_vi32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_i32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_i32x4, 0);
+    nk_vi32x4_t sum_lane1_i32x4 = (nk_vi32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_i32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_i32x4, 3);
+    nk_vi32x4_t sum_lane2_i32x4 = (nk_vi32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_i32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_i32x4, 0);
+    nk_vi32x4_t sum_lane3_i32x4 = (nk_vi32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_i32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_i32x4, 3);
+    result->vi32x4 = vec_add(vec_add(sum_lane0_i32x4, sum_lane1_i32x4), vec_add(sum_lane2_i32x4, sum_lane3_i32x4));
 }
 
 /**
@@ -582,10 +617,21 @@ NK_INTERNAL void nk_dot_u8x16_finalize_powervsx(                                
     nk_dot_u8x16_state_powervsx_t const *state_c, nk_dot_u8x16_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->u32s[0] = nk_hsum_u32x4_powervsx_(state_a->sum_u32x4);
-    result->u32s[1] = nk_hsum_u32x4_powervsx_(state_b->sum_u32x4);
-    result->u32s[2] = nk_hsum_u32x4_powervsx_(state_c->sum_u32x4);
-    result->u32s[3] = nk_hsum_u32x4_powervsx_(state_d->sum_u32x4);
+    nk_vu32x4_t a_u32x4 = state_a->sum_u32x4, b_u32x4 = state_b->sum_u32x4, c_u32x4 = state_c->sum_u32x4,
+                d_u32x4 = state_d->sum_u32x4;
+    nk_vu32x4_t transpose_ab_low_u32x4 = vec_mergeh(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_low_u32x4 = vec_mergeh(c_u32x4, d_u32x4);
+    nk_vu32x4_t transpose_ab_high_u32x4 = vec_mergel(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_high_u32x4 = vec_mergel(c_u32x4, d_u32x4);
+    nk_vu32x4_t sum_lane0_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 0);
+    nk_vu32x4_t sum_lane1_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 3);
+    nk_vu32x4_t sum_lane2_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 0);
+    nk_vu32x4_t sum_lane3_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 3);
+    result->vu32x4 = vec_add(vec_add(sum_lane0_u32x4, sum_lane1_u32x4), vec_add(sum_lane2_u32x4, sum_lane3_u32x4));
 }
 
 /**
@@ -620,10 +666,17 @@ NK_INTERNAL void nk_dot_u1x128_finalize_powervsx(                               
     nk_dot_u1x128_state_powervsx_t const *state_c, nk_dot_u1x128_state_powervsx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->u32s[0] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_a->dot_count_u64x2);
-    result->u32s[1] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_b->dot_count_u64x2);
-    result->u32s[2] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_c->dot_count_u64x2);
-    result->u32s[3] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_d->dot_count_u64x2);
+    nk_vu64x2_t sum_a_u64x2 = vec_add(state_a->dot_count_u64x2,
+                                      vec_xxpermdi(state_a->dot_count_u64x2, state_a->dot_count_u64x2, 2));
+    nk_vu64x2_t sum_b_u64x2 = vec_add(state_b->dot_count_u64x2,
+                                      vec_xxpermdi(state_b->dot_count_u64x2, state_b->dot_count_u64x2, 2));
+    nk_vu64x2_t sum_c_u64x2 = vec_add(state_c->dot_count_u64x2,
+                                      vec_xxpermdi(state_c->dot_count_u64x2, state_c->dot_count_u64x2, 2));
+    nk_vu64x2_t sum_d_u64x2 = vec_add(state_d->dot_count_u64x2,
+                                      vec_xxpermdi(state_d->dot_count_u64x2, state_d->dot_count_u64x2, 2));
+    nk_vu64x2_t ab_u64x2 = vec_xxpermdi(sum_a_u64x2, sum_b_u64x2, 0);
+    nk_vu64x2_t cd_u64x2 = vec_xxpermdi(sum_c_u64x2, sum_d_u64x2, 0);
+    result->vu32x4 = vec_pack(ab_u64x2, cd_u64x2);
 }
 
 #if defined(__clang__)

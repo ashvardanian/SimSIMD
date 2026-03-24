@@ -129,11 +129,11 @@ NK_PUBLIC void nk_hamming_u8_powervsx(nk_u8_t const *a, nk_u8_t const *b, nk_siz
 }
 
 typedef struct nk_hamming_u1x128_state_powervsx_t {
-    nk_vu64x2_t intersection_count_u64x2;
+    nk_vu32x4_t intersection_count_u32x4;
 } nk_hamming_u1x128_state_powervsx_t;
 
 NK_INTERNAL void nk_hamming_u1x128_init_powervsx(nk_hamming_u1x128_state_powervsx_t *state) {
-    state->intersection_count_u64x2 = vec_splats((nk_u64_t)0);
+    state->intersection_count_u32x4 = vec_splats((nk_u32_t)0);
 }
 
 NK_INTERNAL void nk_hamming_u1x128_update_powervsx(nk_hamming_u1x128_state_powervsx_t *state, nk_b128_vec_t a,
@@ -147,8 +147,8 @@ NK_INTERNAL void nk_hamming_u1x128_update_powervsx(nk_hamming_u1x128_state_power
     //
     // Power9 VSX instruction characteristics:
     // - `vec_xor`:     xxlxor (V, V, V)             1cy, bitwise XOR
-    // - `vec_popcnt`:  vpopcntd (V.2D, V.2D)        3cy, doubleword popcount
-    // - `vec_add`:     vaddudm (V.2D, V.2D, V.2D)   2cy, u64 add
+    // - `vec_popcnt`:  vpopcntw (V.4S, V.4S)        3cy, word popcount
+    // - `vec_add`:     vadduwm (V.4S, V.4S, V.4S)   2cy, u32 add
     // Total: ~6cy per 128-bit chunk (horizontal sum deferred to finalize)
 
     // Step 1: Compute difference bits (A XOR B)
@@ -156,11 +156,11 @@ NK_INTERNAL void nk_hamming_u1x128_update_powervsx(nk_hamming_u1x128_state_power
     nk_vu8x16_t b_u8x16 = *(nk_vu8x16_t *)&b;
     nk_vu8x16_t xor_u8x16 = vec_xor(a_u8x16, b_u8x16);
 
-    // Step 2: Doubleword popcount → each u64 lane contains total set bits for 8 bytes
-    nk_vu64x2_t popcnt_u64x2 = vec_popcnt((nk_vu64x2_t)xor_u8x16);
+    // Step 2: Word popcount → each u32 lane contains set bits for 4 bytes
+    nk_vu32x4_t popcnt_u32x4 = vec_popcnt((nk_vu32x4_t)xor_u8x16);
 
     // Step 3: Vector accumulation (defers horizontal sum to finalize)
-    state->intersection_count_u64x2 = vec_add(state->intersection_count_u64x2, popcnt_u64x2);
+    state->intersection_count_u32x4 = vec_add(state->intersection_count_u32x4, popcnt_u32x4);
 }
 
 NK_INTERNAL void nk_hamming_u1x128_finalize_powervsx( //
@@ -169,19 +169,29 @@ NK_INTERNAL void nk_hamming_u1x128_finalize_powervsx( //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
 
-    // Horizontal sum each state → one u32 per state, pack into result
-    result->u32s[0] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_a->intersection_count_u64x2);
-    result->u32s[1] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_b->intersection_count_u64x2);
-    result->u32s[2] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_c->intersection_count_u64x2);
-    result->u32s[3] = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_d->intersection_count_u64x2);
+    nk_vu32x4_t a_u32x4 = state_a->intersection_count_u32x4, b_u32x4 = state_b->intersection_count_u32x4,
+                c_u32x4 = state_c->intersection_count_u32x4, d_u32x4 = state_d->intersection_count_u32x4;
+    nk_vu32x4_t transpose_ab_low_u32x4 = vec_mergeh(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_low_u32x4 = vec_mergeh(c_u32x4, d_u32x4);
+    nk_vu32x4_t transpose_ab_high_u32x4 = vec_mergel(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_high_u32x4 = vec_mergel(c_u32x4, d_u32x4);
+    nk_vu32x4_t sum_lane0_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 0);
+    nk_vu32x4_t sum_lane1_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 3);
+    nk_vu32x4_t sum_lane2_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 0);
+    nk_vu32x4_t sum_lane3_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 3);
+    result->vu32x4 = vec_add(vec_add(sum_lane0_u32x4, sum_lane1_u32x4), vec_add(sum_lane2_u32x4, sum_lane3_u32x4));
 }
 
 typedef struct nk_jaccard_u1x128_state_powervsx_t {
-    nk_vu64x2_t intersection_count_u64x2;
+    nk_vu32x4_t intersection_count_u32x4;
 } nk_jaccard_u1x128_state_powervsx_t;
 
 NK_INTERNAL void nk_jaccard_u1x128_init_powervsx(nk_jaccard_u1x128_state_powervsx_t *state) {
-    state->intersection_count_u64x2 = vec_splats((nk_u64_t)0);
+    state->intersection_count_u32x4 = vec_splats((nk_u32_t)0);
 }
 
 NK_INTERNAL void nk_jaccard_u1x128_update_powervsx(nk_jaccard_u1x128_state_powervsx_t *state, nk_b128_vec_t a,
@@ -195,8 +205,8 @@ NK_INTERNAL void nk_jaccard_u1x128_update_powervsx(nk_jaccard_u1x128_state_power
     //
     // Power9 VSX instruction characteristics:
     // - `vec_and`:     xxland (V, V, V)              1cy, bitwise AND
-    // - `vec_popcnt`:  vpopcntd (V.2D, V.2D)         3cy, doubleword popcount
-    // - `vec_add`:     vaddudm (V.2D, V.2D, V.2D)    2cy, u64 add
+    // - `vec_popcnt`:  vpopcntw (V.4S, V.4S)         3cy, word popcount
+    // - `vec_add`:     vadduwm (V.4S, V.4S, V.4S)    2cy, u32 add
     // Total: ~6cy per 128-bit chunk (horizontal sum deferred to finalize)
 
     // Step 1: Compute intersection bits (A AND B)
@@ -204,11 +214,11 @@ NK_INTERNAL void nk_jaccard_u1x128_update_powervsx(nk_jaccard_u1x128_state_power
     nk_vu8x16_t b_u8x16 = *(nk_vu8x16_t *)&b;
     nk_vu8x16_t intersection_u8x16 = vec_and(a_u8x16, b_u8x16);
 
-    // Step 2: Doubleword popcount → each u64 lane contains total set bits for 8 bytes
-    nk_vu64x2_t popcnt_u64x2 = vec_popcnt((nk_vu64x2_t)intersection_u8x16);
+    // Step 2: Word popcount → each u32 lane contains set bits for 4 bytes
+    nk_vu32x4_t popcnt_u32x4 = vec_popcnt((nk_vu32x4_t)intersection_u8x16);
 
     // Step 3: Vector accumulation (defers horizontal sum to finalize)
-    state->intersection_count_u64x2 = vec_add(state->intersection_count_u64x2, popcnt_u64x2);
+    state->intersection_count_u32x4 = vec_add(state->intersection_count_u32x4, popcnt_u32x4);
 }
 
 NK_INTERNAL void nk_jaccard_u1x128_finalize_powervsx( //
@@ -218,18 +228,24 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_powervsx( //
     nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
 
-    // Horizontal sum each state → scalar intersection count
-    nk_u32_t int_a = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_a->intersection_count_u64x2);
-    nk_u32_t int_b = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_b->intersection_count_u64x2);
-    nk_u32_t int_c = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_c->intersection_count_u64x2);
-    nk_u32_t int_d = (nk_u32_t)nk_hsum_u64x2_powervsx_(state_d->intersection_count_u64x2);
-
-    // Build intersection vector via vec_insert
-    nk_vf32x4_t intersection_f32x4 = vec_splats(0.0f);
-    intersection_f32x4 = vec_insert((nk_f32_t)int_a, intersection_f32x4, 0);
-    intersection_f32x4 = vec_insert((nk_f32_t)int_b, intersection_f32x4, 1);
-    intersection_f32x4 = vec_insert((nk_f32_t)int_c, intersection_f32x4, 2);
-    intersection_f32x4 = vec_insert((nk_f32_t)int_d, intersection_f32x4, 3);
+    // Transpose-based 4-way horizontal sum of u32x4 intersection counts
+    nk_vu32x4_t a_u32x4 = state_a->intersection_count_u32x4, b_u32x4 = state_b->intersection_count_u32x4,
+                c_u32x4 = state_c->intersection_count_u32x4, d_u32x4 = state_d->intersection_count_u32x4;
+    nk_vu32x4_t transpose_ab_low_u32x4 = vec_mergeh(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_low_u32x4 = vec_mergeh(c_u32x4, d_u32x4);
+    nk_vu32x4_t transpose_ab_high_u32x4 = vec_mergel(a_u32x4, b_u32x4);
+    nk_vu32x4_t transpose_cd_high_u32x4 = vec_mergel(c_u32x4, d_u32x4);
+    nk_vu32x4_t sum_lane0_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 0);
+    nk_vu32x4_t sum_lane1_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_low_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_low_u32x4, 3);
+    nk_vu32x4_t sum_lane2_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 0);
+    nk_vu32x4_t sum_lane3_u32x4 = (nk_vu32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_u32x4,
+                                                            (nk_vu64x2_t)transpose_cd_high_u32x4, 3);
+    nk_vu32x4_t intersection_u32x4 = vec_add(vec_add(sum_lane0_u32x4, sum_lane1_u32x4),
+                                             vec_add(sum_lane2_u32x4, sum_lane3_u32x4));
+    nk_vf32x4_t intersection_f32x4 = vec_ctf(intersection_u32x4, 0);
 
     // Build target popcounts vector via vec_insert
     nk_vf32x4_t targets_f32x4 = vec_splats(0.0f);
