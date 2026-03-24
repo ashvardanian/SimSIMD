@@ -63,8 +63,8 @@ set(CMAKE_CXX_FLAGS_INIT "-mcpu=${PPC_MCPU} -mvsx")
 
 # QEMU user-mode emulation for running tests.
 # -L sysroot provides the dynamic linker path.
-# -cpu max enables all supported extensions.
-set(CMAKE_CROSSCOMPILING_EMULATOR "qemu-ppc64le;-L;${PPC_SYSROOT};-cpu;max")
+# -cpu power9 matches our POWER9+ baseline (older QEMU lacks "-cpu max" for ppc64le).
+set(CMAKE_CROSSCOMPILING_EMULATOR "qemu-ppc64le;-L;${PPC_SYSROOT};-cpu;power9")
 
 # Search paths for libraries and headers (target system only).
 set(CMAKE_FIND_ROOT_PATH "${PPC_SYSROOT}")

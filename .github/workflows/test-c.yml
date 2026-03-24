@@ -188,7 +188,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=powerpc64le-linux-gnu-g++-14 \
             -DCMAKE_C_FLAGS_INIT="-mcpu=power10 -mvsx" \
             -DCMAKE_CXX_FLAGS_INIT="-mcpu=power10 -mvsx" \
-            -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-ppc64le;-L;${SYSROOT};-cpu;max" \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-ppc64le;-L;${SYSROOT};-cpu;power10" \
             -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DNK_BUILD_TEST=ON \
             -DNK_BUILD_SHARED=ON
