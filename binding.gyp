@@ -50,12 +50,12 @@
                 "-Wno-switch",
                 "-Wno-psabi",
                 "-include",
-                "build/nk_probes.h",
+                "<(module_root_dir)/nk_probes.h",
             ],
             "msvs_settings": {
                 "VCCLCompilerTool": {
                     "ForcedIncludeFiles": [
-                        "build/nk_probes.h"
+                        "<(module_root_dir)/nk_probes.h"
                     ],
                 },
             },

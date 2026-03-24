@@ -9,6 +9,7 @@ package-ci/
 prebuilds/
 wasm/
 build/
+nk_probes.h
 dist/
 javascript/dist
 bun.lockb

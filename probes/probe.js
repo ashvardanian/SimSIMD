@@ -94,7 +94,7 @@ const PROBES = [
 ];
 
 function main() {
-    const buildDir = path.join(__dirname, "..", "build");
+    const buildDir = path.join(__dirname, "..");
     fs.mkdirSync(buildDir, { recursive: true });
 
     const arch = process.arch; // 'x64', 'arm64', etc.
