@@ -110,7 +110,7 @@ NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8
 
 /** @brief Convert 4x e4m3 → f32x4 via bit manipulation (NEON).
  *  E4M3FN format: S EEEE MMM (bias=7). No ∞ representation.
- *  Only exp=15, mant=7 (0x7F) is NaN; exp=15, mant ∈ [0,6] are valid normals (max=448). */
+ *  Only magnitude 0x7F is NaN; all other exp=15 values are valid normals (max=448). */
 NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e4m3_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
@@ -124,18 +124,19 @@ NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
     uint32x4_t normal_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
 
-    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻⁹
+    // Subnormal path (exp=0): value = ±mantissa × 2⁻⁹
     float32x4_t subnormal_f32x4 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 512.0f);
     uint32x4_t subnormal_u32x4 = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32x4), sign_u32x4);
 
-    // NaN path: E4M3FN only has NaN when exp=15 AND mant=7 (0x7F or 0xFF)
-    uint32x4_t nan_u32x4 = vorrq_u32(sign_u32x4, vdupq_n_u32(0x7FC00000));
-    uint32x4_t is_nan_mask = vandq_u32(vceqq_u32(exp_u32x4, vdupq_n_u32(15)), vceqq_u32(mant_u32x4, vdupq_n_u32(7)));
+    // Blend: subnormal when exp=0, else normal
+    uint32x4_t exp_zero_mask_b32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask_b32x4, subnormal_u32x4, normal_u32x4);
 
-    // Blend paths: subnormal when exp=0, NaN when exp=15 && mant=7, else normal
-    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    uint32x4_t result_u32x4 = vbslq_u32(exp_zero_mask, subnormal_u32x4, normal_u32x4);
-    result_u32x4 = vbslq_u32(is_nan_mask, nan_u32x4, result_u32x4);
+    // NaN: single comparison on 7-bit magnitude (0x7F) instead of two comparisons + and
+    uint32x4_t lower7_u32x4 = vandq_u32(e4m3_u32x4, vdupq_n_u32(0x7F));
+    uint32x4_t is_nan_mask_b32x4 = vceqq_u32(lower7_u32x4, vdupq_n_u32(0x7F));
+    uint32x4_t nan_u32x4 = vorrq_u32(sign_u32x4, vdupq_n_u32(0x7FC00000));
+    result_u32x4 = vbslq_u32(is_nan_mask_b32x4, nan_u32x4, result_u32x4);
     return vreinterpretq_f32_u32(result_u32x4);
 }
 

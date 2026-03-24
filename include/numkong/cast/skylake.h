@@ -169,18 +169,20 @@ NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     __m512 result_f32x16 = _mm512_castsi512_ps(
         _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
 
-    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 512) | sign using masked OR
+    // Subnormal fix: vpermps from 8-entry LUT (repeated to fill 16 lanes)
     __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
-    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 512.0f));
+    __m512 subnorm_lut_f32x16 = _mm512_setr_ps(                                                //
+        0, 1.0f / 512, 2.0f / 512, 3.0f / 512, 4.0f / 512, 5.0f / 512, 6.0f / 512, 7.0f / 512, //
+        0, 1.0f / 512, 2.0f / 512, 3.0f / 512, 4.0f / 512, 5.0f / 512, 6.0f / 512, 7.0f / 512);
+    __m512 subnorm_abs_f32x16 = _mm512_permutexvar_ps(mantissa_i32x16, subnorm_lut_f32x16);
     result_f32x16 = _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16,
                                       _mm512_castsi512_ps(sign_i32x16));
 
-    // NaN path: E4M3FN has NaN only when exp=15 AND mant=7 (0x7F or 0xFF)
-    __mmask16 is_nan = _mm512_mask_cmpeq_epi32_mask(                                //
-        _mm512_cmpeq_epi32_mask(exp_i32x16, _mm512_set1_epi32(15)),                 //
-        mantissa_i32x16, _mm512_set1_epi32(7));                                     //
-    __m512i nan_bits = _mm512_or_si512(sign_i32x16, _mm512_set1_epi32(0x7FC00000)); // F32 quiet NaN
-    return _mm512_mask_blend_ps(is_nan, result_f32x16, _mm512_castsi512_ps(nan_bits));
+    // NaN: E4M3FN has NaN only at magnitude 0x7F (single mask comparison)
+    __m512i lower7_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x7F));
+    __mmask16 is_nan = _mm512_cmpeq_epi32_mask(lower7_i32x16, _mm512_set1_epi32(0x7F));
+    __m512i nan_i32x16 = _mm512_or_si512(sign_i32x16, _mm512_set1_epi32(0x7FC00000));
+    return _mm512_mask_blend_ps(is_nan, result_f32x16, _mm512_castsi512_ps(nan_i32x16));
 }
 
 /** @brief Convert 16x e5m2 → 16x f32 via bit manipulation (AVX-512).

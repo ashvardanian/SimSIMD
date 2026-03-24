@@ -72,7 +72,12 @@ NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_icelake_(__m256i e4m3x32) {
 
     // Apply sign: shift E4M3 bit 7 to BF16 bit 15
     sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
-    return _mm512_or_si512(result_abs_i16x32, sign_i16x32);
+    __m512i result_i16x32 = _mm512_or_si512(result_abs_i16x32, sign_i16x32);
+
+    // NaN: E4M3FN has NaN only at magnitude 0x7F → BF16 quiet NaN (0x7FC0)
+    __mmask32 is_nan = _mm512_cmpeq_epi16_mask(lower7_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i nan_i16x32 = _mm512_or_si512(sign_i16x32, _mm512_set1_epi16(0x7FC0));
+    return _mm512_mask_blend_epi16(is_nan, result_i16x32, nan_i16x32);
 }
 
 /** @brief Convert 32x e5m2 → 32x bf16 via arithmetic + 4-entry subnormal LUT (AVX-512BW).
