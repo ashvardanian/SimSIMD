@@ -554,8 +554,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     int mrs_works = 0;
     if (sigaction(SIGILL, &action_new, &action_old) == 0) {
         if (sigsetjmp(nk_mrs_test_jump_buffer_, 1) == 0) {
-            unsigned long midr_value;
-            __asm__ __volatile__("mrs %0, MIDR_EL1" : "=r"(midr_value));
+            register unsigned long midr_value __asm__("x0");
+            __asm__ __volatile__(".inst 0xD5380000" : "=r"(midr_value)); // MRS x0, MIDR_EL1
             mrs_works = 1;
         }
         sigaction(SIGILL, &action_old, NULL);
@@ -569,29 +569,43 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0,
                   id_aa64fpfr0_el1 = 0;
 
-    __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
+    register unsigned long __isar0 __asm__("x0");
+    __asm__ __volatile__(".inst 0xD5380600" : "=r"(__isar0)); // MRS x0, ID_AA64ISAR0_EL1
+    id_aa64isar0_el1 = __isar0;
     unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
     unsigned supports_fhm = ((id_aa64isar0_el1 >> 48) & 0xF) >= 1;
-    __asm__ __volatile__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
+    register unsigned long __isar1 __asm__("x0");
+    __asm__ __volatile__(".inst 0xD5380620" : "=r"(__isar1)); // MRS x0, ID_AA64ISAR1_EL1
+    id_aa64isar1_el1 = __isar1;
     unsigned supports_i8mm = ((id_aa64isar1_el1 >> 52) & 0xF) >= 1;
     unsigned supports_bf16 = ((id_aa64isar1_el1 >> 44) & 0xF) >= 1;
 
-    __asm__ __volatile__("mrs %0, ID_AA64PFR0_EL1" : "=r"(id_aa64pfr0_el1));
+    register unsigned long __pfr0 __asm__("x0");
+    __asm__ __volatile__(".inst 0xD5380400" : "=r"(__pfr0)); // MRS x0, ID_AA64PFR0_EL1
+    id_aa64pfr0_el1 = __pfr0;
     unsigned supports_sve = ((id_aa64pfr0_el1 >> 32) & 0xF) >= 1;
     unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 0x1;
     unsigned supports_neon = ((id_aa64pfr0_el1 >> 20) & 0xF) != 0xF;
 
-    if (supports_sve) __asm__ __volatile__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
+    if (supports_sve) {
+        register unsigned long __zfr0 __asm__("x0");
+        __asm__ __volatile__(".inst 0xD5380480" : "=r"(__zfr0)); // MRS x0, ID_AA64ZFR0_EL1
+        id_aa64zfr0_el1 = __zfr0;
+    }
     unsigned supports_svesdotmm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
     unsigned supports_svebfdot = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
 
-    __asm__ __volatile__("mrs %0, ID_AA64FPFR0_EL1" : "=r"(id_aa64fpfr0_el1));
+    register unsigned long __fpfr0 __asm__("x0");
+    __asm__ __volatile__(".inst 0xD53804E0" : "=r"(__fpfr0)); // MRS x0, ID_AA64FPFR0_EL1
+    id_aa64fpfr0_el1 = __fpfr0;
     unsigned supports_fp8dot4 = ((id_aa64fpfr0_el1 >> 29) & 0x1) >= 1;
 
     unsigned long id_aa64pfr1_el1 = 0, id_aa64smfr0_el1 = 0;
-    __asm__ __volatile__("mrs %0, ID_AA64PFR1_EL1" : "=r"(id_aa64pfr1_el1));
+    register unsigned long __pfr1 __asm__("x0");
+    __asm__ __volatile__(".inst 0xD5380420" : "=r"(__pfr1)); // MRS x0, ID_AA64PFR1_EL1
+    id_aa64pfr1_el1 = __pfr1;
     unsigned supports_sme = ((id_aa64pfr1_el1 >> 24) & 0xF) >= 1;
 
     unsigned supports_sme2 = 0, supports_sme2p1 = 0;
