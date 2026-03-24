@@ -272,44 +272,44 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(NK_TARGET_NEON) || ...
 
-// Compiling for Arm: NK_TARGET_NEONSDOT
+// Compiling for Arm: NK_TARGET_NEONSDOT (FEAT_DotProd, optional from ARMv8.1, mandatory at ARMv8.4 with AdvSIMD)
 #if !defined(NK_TARGET_NEONSDOT) || (NK_TARGET_NEONSDOT && !NK_TARGET_ARM_)
-#if defined(__ARM_NEON)
+#if defined(__ARM_FEATURE_DOTPROD) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
 #define NK_TARGET_NEONSDOT 1
 #else
 #undef NK_TARGET_NEONSDOT
 #define NK_TARGET_NEONSDOT 0
-#endif // defined(__ARM_NEON)
+#endif
 #endif // !defined(NK_TARGET_NEONSDOT) || ...
 
-// Compiling for Arm: NK_TARGET_NEONHALF
+// Compiling for Arm: NK_TARGET_NEONHALF (FEAT_FP16, optional from ARMv8.2, mandatory at ARMv9.0 with AdvSIMD)
 #if !defined(NK_TARGET_NEONHALF) || (NK_TARGET_NEONHALF && !NK_TARGET_ARM_)
-#if defined(__ARM_NEON)
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 802)
 #define NK_TARGET_NEONHALF 1
 #else
 #undef NK_TARGET_NEONHALF
 #define NK_TARGET_NEONHALF 0
-#endif // defined(__ARM_NEON)
+#endif
 #endif // !defined(NK_TARGET_NEONHALF) || ...
 
-// Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM - FMLAL/FMLSL widening ops)
+// Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM, optional from ARMv8.1, mandatory at ARMv8.4 with FP16)
 #if !defined(NK_TARGET_NEONFHM) || (NK_TARGET_NEONFHM && !NK_TARGET_ARM_)
-#if defined(__ARM_NEON)
+#if defined(__ARM_FEATURE_FP16_FML) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
 #define NK_TARGET_NEONFHM 1
 #else
 #undef NK_TARGET_NEONFHM
 #define NK_TARGET_NEONFHM 0
-#endif // defined(__ARM_NEON)
+#endif
 #endif // !defined(NK_TARGET_NEONFHM) || ...
 
-// Compiling for Arm: NK_TARGET_NEONBFDOT
+// Compiling for Arm: NK_TARGET_NEONBFDOT (FEAT_BF16, optional from ARMv8.2, mandatory at ARMv8.6 with FP)
 #if !defined(NK_TARGET_NEONBFDOT) || (NK_TARGET_NEONBFDOT && !NK_TARGET_ARM_)
-#if defined(__ARM_NEON)
+#if defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 806)
 #define NK_TARGET_NEONBFDOT 1
 #else
 #undef NK_TARGET_NEONBFDOT
 #define NK_TARGET_NEONBFDOT 0
-#endif // defined(__ARM_NEON)
+#endif
 #endif // !defined(NK_TARGET_NEONBFDOT) || ...
 
 // Compiling for Arm: NK_TARGET_NEONFP8 (NEON FP8 extensions, FEAT_FP8DOT4)
@@ -813,7 +813,7 @@ typedef float nk_f32_t;
 /** @brief Double-precision (64-bit) IEEE 754 float. sign(1) + exponent(11) + mantissa(52), bias=1023. */
 typedef double nk_f64_t;
 
-#if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_ || NK_TARGET_POWER_
+#if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_ || NK_TARGET_POWER_ || NK_TARGET_LOONGARCH_
 #define NK_IS_64BIT_ 1
 #else
 #define NK_IS_64BIT_ 0
