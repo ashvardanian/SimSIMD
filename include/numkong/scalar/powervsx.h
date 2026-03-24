@@ -29,10 +29,10 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("cpu=power9"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("power9-vector"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("cpu=power9")
+#pragma GCC target("power9-vector")
 #endif
 
 NK_PUBLIC nk_f32_t nk_f32_sqrt_powervsx(nk_f32_t x) {
