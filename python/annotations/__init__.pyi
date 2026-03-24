@@ -311,25 +311,25 @@ class Tensor(memoryview):
         ...
 
     def sum(
-        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+        self, axis: int | tuple[int, ...] | None = None, *, keepdims: bool = False, out: Tensor | None = None
     ) -> float | int | Tensor:
         """Return the sum of all elements."""
         ...
 
     def norm(
-        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+        self, axis: int | tuple[int, ...] | None = None, *, keepdims: bool = False, out: Tensor | None = None
     ) -> float | Tensor:
         """Return the L2 norm."""
         ...
 
     def min(
-        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+        self, axis: int | tuple[int, ...] | None = None, *, keepdims: bool = False, out: Tensor | None = None
     ) -> float | int | None | Tensor:
         """Return the minimum element, or None if all elements are NaN."""
         ...
 
     def max(
-        self, axis: int | None = None, *, keepdims: bool = False, out: Tensor | None = None
+        self, axis: int | tuple[int, ...] | None = None, *, keepdims: bool = False, out: Tensor | None = None
     ) -> float | int | None | Tensor:
         """Return the maximum element, or None if all elements are NaN."""
         ...
@@ -729,22 +729,22 @@ def minmax(
     a: _BufferType, /, *, dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None
 ) -> tuple[float, int, float, int] | None: ...
 def sum(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
     keepdims: bool = False, out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | Tensor: ...
 def norm(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
     keepdims: bool = False, out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | Tensor: ...
 def min(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
     keepdims: bool = False, out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...
 def max(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
     keepdims: bool = False, out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...

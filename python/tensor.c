@@ -1363,16 +1363,76 @@ PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
 }
 
 typedef struct {
-    Py_ssize_t axis;           // 0..rank-1 after normalization, or -1 when axis=None (reduce all)
-    int keepdims;              // 0 or 1
-    Tensor *out;               // NULL or user-provided
-    nk_dtype_t dtype_override; // nk_dtype_unknown_k means "use source dtype"
+    Py_ssize_t axes[NK_TENSOR_MAX_RANK]; // sorted, normalized axes to reduce
+    size_t n_axes;                       // 0 = reduce-all (axis=None), else 1..rank
+    int keepdims;                        // 0 or 1
+    Tensor *out;                         // NULL or user-provided
+    nk_dtype_t dtype_override;           // nk_dtype_unknown_k means "use source dtype"
 } reduce_args_t;
+
+/** @brief Parse a single axis value (int, tuple of ints, or None) into the axes array.
+ *  Returns 1 if axes were set, 0 if None, -1 on error. */
+static int parse_axis_value(PyObject *value, reduce_args_t *parsed) {
+    if (value == Py_None) {
+        parsed->n_axes = 0;
+        return 0;
+    }
+    if (PyLong_Check(value)) {
+        parsed->axes[0] = PyLong_AsSsize_t(value);
+        if (parsed->axes[0] == -1 && PyErr_Occurred()) return -1;
+        parsed->n_axes = 1;
+        return 1;
+    }
+    if (PyTuple_Check(value)) {
+        Py_ssize_t const len = PyTuple_GET_SIZE(value);
+        if (len == 0) return (PyErr_SetString(PyExc_ValueError, "empty axis tuple"), -1);
+        if ((size_t)len > NK_TENSOR_MAX_RANK) return (PyErr_SetString(PyExc_ValueError, "too many axes"), -1);
+        for (Py_ssize_t i = 0; i < len; i++) {
+            PyObject *item = PyTuple_GET_ITEM(value, i);
+            if (!PyLong_Check(item))
+                return (PyErr_SetString(PyExc_TypeError, "axis tuple elements must be integers"), -1);
+            parsed->axes[i] = PyLong_AsSsize_t(item);
+            if (parsed->axes[i] == -1 && PyErr_Occurred()) return -1;
+        }
+        parsed->n_axes = (size_t)len;
+        return 1;
+    }
+    PyErr_SetString(PyExc_TypeError, "axis must be None, an integer, or a tuple of integers");
+    return -1;
+}
+
+/** @brief Normalize, sort, and validate the axes array against tensor rank. */
+static int normalize_axes(reduce_args_t *parsed, size_t tensor_rank) {
+    // Normalize negative indices and range-check
+    for (size_t i = 0; i < parsed->n_axes; i++) {
+        Py_ssize_t ax = parsed->axes[i];
+        if (ax < 0) ax += (Py_ssize_t)tensor_rank;
+        if (ax < 0 || (size_t)ax >= tensor_rank)
+            return (PyErr_Format(PyExc_ValueError, "axis %zd out of range for rank %zu", parsed->axes[i], tensor_rank),
+                    -1);
+        parsed->axes[i] = ax;
+    }
+    // Insertion sort (n_axes <= 64)
+    for (size_t i = 1; i < parsed->n_axes; i++) {
+        Py_ssize_t key = parsed->axes[i];
+        size_t j = i;
+        while (j > 0 && parsed->axes[j - 1] > key) {
+            parsed->axes[j] = parsed->axes[j - 1];
+            j--;
+        }
+        parsed->axes[j] = key;
+    }
+    // Check for duplicates (adjacent after sort)
+    for (size_t i = 1; i < parsed->n_axes; i++)
+        if (parsed->axes[i] == parsed->axes[i - 1])
+            return (PyErr_Format(PyExc_ValueError, "duplicate axis %zd", parsed->axes[i]), -1);
+    return 0;
+}
 
 /** @brief Parse (axis=None, keepdims=False, out=None) from FASTCALL kwargs. */
 static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, size_t tensor_rank,
                                reduce_args_t *parsed) {
-    parsed->axis = -1;
+    parsed->n_axes = 0;
     parsed->keepdims = 0;
     parsed->out = NULL;
     parsed->dtype_override = nk_dtype_unknown_k;
@@ -1380,11 +1440,9 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
 
     // axis is positional-or-keyword (position 0)
     if (nargs >= 1) {
-        if (args[0] != Py_None) {
-            parsed->axis = PyLong_AsSsize_t(args[0]);
-            if (parsed->axis == -1 && PyErr_Occurred()) return -1;
-            axis_set = 1;
-        }
+        int rc = parse_axis_value(args[0], parsed);
+        if (rc < 0) return -1;
+        axis_set = rc;
     }
     if (nargs > 1) {
         PyErr_SetString(PyExc_TypeError, "at most 1 positional argument");
@@ -1396,15 +1454,9 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
         PyObject *name = PyTuple_GET_ITEM(kwnames, i);
         PyObject *value = args[nargs + i];
         if (PyUnicode_CompareWithASCIIString(name, "axis") == 0) {
-            if (value == Py_None) {
-                parsed->axis = -1;
-                axis_set = 0;
-            }
-            else {
-                parsed->axis = PyLong_AsSsize_t(value);
-                if (parsed->axis == -1 && PyErr_Occurred()) return -1;
-                axis_set = 1;
-            }
+            int rc = parse_axis_value(value, parsed);
+            if (rc < 0) return -1;
+            axis_set = rc;
         }
         else if (PyUnicode_CompareWithASCIIString(name, "keepdims") == 0) {
             parsed->keepdims = PyObject_IsTrue(value);
@@ -1426,32 +1478,23 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
         else return (PyErr_Format(PyExc_TypeError, "unexpected keyword: %S", name), -1);
     }
 
-    // Normalize negative axis
     if (!axis_set) return 0;
-    if (parsed->axis >= 0) {
-        if ((size_t)parsed->axis >= tensor_rank)
-            return (PyErr_Format(PyExc_ValueError, "axis %zd out of range for rank %zu", parsed->axis, tensor_rank),
-                    -1);
-    }
-    else {
-        parsed->axis += (Py_ssize_t)tensor_rank;
-        if (parsed->axis < 0)
-            return (PyErr_Format(PyExc_ValueError, "axis out of range for rank %zu", tensor_rank), -1);
-    }
-    return 0;
+    return normalize_axes(parsed, tensor_rank);
 }
 
-/** @brief Compute output shape for axis reduction. Returns output rank. */
-static size_t reduce_output_shape(Py_ssize_t const *in_shape, size_t in_rank, size_t axis, int keepdims,
-                                  Py_ssize_t *out_shape) {
-    if (keepdims) {
-        for (size_t i = 0; i < in_rank; i++) out_shape[i] = (i == axis) ? 1 : in_shape[i];
-        return in_rank;
+/** @brief Compute output shape for multi-axis reduction. Returns output rank.
+ *  @param axes  sorted array of axes to reduce, length n_axes. */
+static size_t reduce_output_shape(Py_ssize_t const *in_shape, size_t in_rank, Py_ssize_t const *axes, size_t n_axes,
+                                  int keepdims, Py_ssize_t *out_shape) {
+    size_t j = 0, a = 0;
+    for (size_t i = 0; i < in_rank; i++) {
+        if (a < n_axes && (size_t)axes[a] == i) {
+            a++;
+            if (keepdims) out_shape[j++] = 1;
+        }
+        else { out_shape[j++] = in_shape[i]; }
     }
-    size_t j = 0;
-    for (size_t i = 0; i < in_rank; i++)
-        if (i != axis) out_shape[j++] = in_shape[i];
-    return in_rank - 1;
+    return j;
 }
 
 /** @brief Validate user-provided out tensor. */
@@ -1473,33 +1516,46 @@ static int validate_reduce_out(Tensor *out, Py_ssize_t const *expected_shape, si
 /** @brief Callback that processes one 1D slice and writes result to out. */
 typedef void (*reduce_slice_fn_t)(TensorView const *slice, nk_scalar_buffer_t *out);
 
-/** @brief Walk all positions except axis, calling on_slice for each 1D axis slice. */
-static void reduce_along_axis(char const *data, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t rank,
-                              size_t dim, size_t axis, nk_dtype_t dtype, char *out_data, size_t out_elem_size,
-                              reduce_slice_fn_t on_slice, size_t *out_index) {
+/** @brief Walk all positions except the reduced axes, calling on_slice for each sub-view.
+ *  @param axes     sorted array of axes to reduce, length n_axes.
+ *  @param next_ax  current scan position into the axes array. */
+static void reduce_along_axes(char const *data, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t rank,
+                              size_t dim, Py_ssize_t const *axes, size_t n_axes, size_t next_ax, nk_dtype_t dtype,
+                              char *out_data, size_t out_elem_size, reduce_slice_fn_t on_slice, size_t *out_index) {
     if (dim >= rank) {
-        TensorView slice = {dtype, 1, &shape[axis], &strides[axis], (char *)data};
+        // Build sub-view over the reduced axes only
+        Py_ssize_t sub_shape[NK_TENSOR_MAX_RANK];
+        Py_ssize_t sub_strides[NK_TENSOR_MAX_RANK];
+        for (size_t i = 0; i < n_axes; i++) {
+            sub_shape[i] = shape[axes[i]];
+            sub_strides[i] = strides[axes[i]];
+        }
+        TensorView slice = {dtype, n_axes, sub_shape, sub_strides, (char *)data};
         nk_scalar_buffer_t element = {0};
         on_slice(&slice, &element);
         memcpy(out_data + (*out_index) * out_elem_size, &element, out_elem_size);
         (*out_index)++;
         return;
     }
-    if (dim == axis) {
-        reduce_along_axis(data, shape, strides, rank, dim + 1, axis, dtype, out_data, out_elem_size, on_slice,
-                          out_index);
-        return;
+    if (next_ax < n_axes && (size_t)axes[next_ax] == dim) {
+        // Skip reduced dimension — it will be part of the sub-view
+        reduce_along_axes(data, shape, strides, rank, dim + 1, axes, n_axes, next_ax + 1, dtype, out_data,
+                          out_elem_size, on_slice, out_index);
     }
-    for (size_t i = 0; i < (size_t)shape[dim]; i++)
-        reduce_along_axis(data + i * strides[dim], shape, strides, rank, dim + 1, axis, dtype, out_data, out_elem_size,
-                          on_slice, out_index);
+    else {
+        // Iterate over non-reduced dimension
+        for (size_t i = 0; i < (size_t)shape[dim]; i++)
+            reduce_along_axes(data + i * strides[dim], shape, strides, rank, dim + 1, axes, n_axes, next_ax, dtype,
+                              out_data, out_elem_size, on_slice, out_index);
+    }
 }
 
 /** @brief Dispatch axis reduction: build output, walk slices, return result. */
 static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t const *parsed, nk_dtype_t out_dtype,
                                       reduce_slice_fn_t on_slice) {
     Py_ssize_t out_shape[NK_TENSOR_MAX_RANK];
-    size_t out_rank = reduce_output_shape(view->shape, view->rank, (size_t)parsed->axis, parsed->keepdims, out_shape);
+    size_t out_rank = reduce_output_shape(view->shape, view->rank, parsed->axes, parsed->n_axes, parsed->keepdims,
+                                          out_shape);
     Tensor *result;
     if (parsed->out) {
         if (validate_reduce_out(parsed->out, out_shape, out_rank, out_dtype) < 0) return NULL;
@@ -1510,8 +1566,8 @@ static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t cons
         if (!result) return NULL;
     }
     size_t out_index = 0;
-    reduce_along_axis(view->data, view->shape, view->strides, view->rank, 0, (size_t)parsed->axis, view->dtype,
-                      result->data, bytes_per_dtype(out_dtype), on_slice, &out_index);
+    reduce_along_axes(view->data, view->shape, view->strides, view->rank, 0, parsed->axes, parsed->n_axes, 0,
+                      view->dtype, result->data, bytes_per_dtype(out_dtype), on_slice, &out_index);
     if (parsed->out) Py_INCREF((PyObject *)parsed->out);
     return (PyObject *)result;
 }
@@ -1559,16 +1615,16 @@ static void norm_slice(TensorView const *slice, nk_scalar_buffer_t *out) {
     out->f64 = nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype));
 }
 
-char const doc_method_sum[] =                                                                      //
-    "Return the sum of all elements, or per-slice sums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
-    "Returns:\n"                                                                                   //
-    "    Scalar sum when axis is None.\n"                                                          //
-    "    Tensor of per-slice sums when axis is given.\n\n"                                         //
-    "Signature:\n"                                                                                 //
+char const doc_method_sum[] =                                                                                         //
+    "Return the sum of all elements, or per-slice sums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                                     //
+    "Returns:\n"                                                                                                      //
+    "    Scalar sum when axis is None.\n"                                                                             //
+    "    Tensor of per-slice sums when axis is given.\n\n"                                                            //
+    "Signature:\n"                                                                                                    //
     "    >>> def sum(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -1576,7 +1632,7 @@ static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t na
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
@@ -1587,16 +1643,16 @@ static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t na
     return reduce_axis_dispatch(&view, &parsed, nk_reduce_moments_sum_dtype(view.dtype), sum_slice);
 }
 
-char const doc_method_norm[] =                                                                     //
-    "Return the L2 norm, or per-slice norms along an axis.\n\n"                                    //
-    "Parameters:\n"                                                                                //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
-    "Returns:\n"                                                                                   //
-    "    Scalar L2 norm when axis is None.\n"                                                      //
-    "    Tensor of per-slice norms when axis is given.\n\n"                                        //
-    "Signature:\n"                                                                                 //
+char const doc_method_norm[] =                                                                                        //
+    "Return the L2 norm, or per-slice norms along one or more axes.\n\n"                                              //
+    "Parameters:\n"                                                                                                   //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                                     //
+    "Returns:\n"                                                                                                      //
+    "    Scalar L2 norm when axis is None.\n"                                                                         //
+    "    Tensor of per-slice norms when axis is given.\n\n"                                                           //
+    "Signature:\n"                                                                                                    //
     "    >>> def norm(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -1604,7 +1660,7 @@ static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t n
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
@@ -1615,16 +1671,16 @@ static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t n
     return reduce_axis_dispatch(&view, &parsed, nk_f64_k, norm_slice);
 }
 
-char const doc_method_min[] =                                                                      //
-    "Return the minimum element, or per-slice minimums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
-    "Returns:\n"                                                                                   //
-    "    Scalar minimum when axis is None (None if all NaN).\n"                                    //
-    "    Tensor of per-slice minimums when axis is given.\n\n"                                     //
-    "Signature:\n"                                                                                 //
+char const doc_method_min[] =                                                                                         //
+    "Return the minimum element, or per-slice minimums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                                     //
+    "Returns:\n"                                                                                                      //
+    "    Scalar minimum when axis is None (None if all NaN).\n"                                                       //
+    "    Tensor of per-slice minimums when axis is given.\n\n"                                                        //
+    "Signature:\n"                                                                                                    //
     "    >>> def min(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -1632,7 +1688,7 @@ static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t na
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -1645,16 +1701,16 @@ static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t na
     return reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), min_slice);
 }
 
-char const doc_method_max[] =                                                                      //
-    "Return the maximum element, or per-slice maximums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                  //
-    "Returns:\n"                                                                                   //
-    "    Scalar maximum when axis is None (None if all NaN).\n"                                    //
-    "    Tensor of per-slice maximums when axis is given.\n\n"                                     //
-    "Signature:\n"                                                                                 //
+char const doc_method_max[] =                                                                                         //
+    "Return the maximum element, or per-slice maximums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n\n"                                     //
+    "Returns:\n"                                                                                                      //
+    "    Scalar maximum when axis is None (None if all NaN).\n"                                                       //
+    "    Tensor of per-slice maximums when axis is given.\n\n"                                                        //
+    "Signature:\n"                                                                                                    //
     "    >>> def max(self, /, axis=None, *, keepdims=False, out=None): ...";
 
 static PyObject *Tensor_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -1662,7 +1718,7 @@ static PyObject *Tensor_max(PyObject *self, PyObject *const *args, Py_ssize_t na
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -1692,7 +1748,8 @@ static PyObject *Tensor_argmin(PyObject *self, PyObject *const *args, Py_ssize_t
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes > 1) return (PyErr_SetString(PyExc_TypeError, "argmin does not support tuple axis"), NULL);
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -1722,7 +1779,8 @@ static PyObject *Tensor_argmax(PyObject *self, PyObject *const *args, Py_ssize_t
     TensorView view = {tensor->dtype, tensor->rank, tensor->shape, tensor->strides, tensor->data};
     reduce_args_t parsed;
     if (parse_reduce_kwargs(args, nargs, kwnames, view.rank, &parsed) < 0) return NULL;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes > 1) return (PyErr_SetString(PyExc_TypeError, "argmax does not support tuple axis"), NULL);
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -2904,57 +2962,57 @@ PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
     return result;
 }
 
-char const doc_reduce_sum[] =                                                                      //
-    "Return the sum of all elements, or per-slice sums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
-    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
-    "Returns:\n"                                                                                   //
-    "    Scalar sum when axis is None.\n"                                                          //
-    "    Tensor of per-slice sums when axis is given.\n\n"                                         //
-    "Signature:\n"                                                                                 //
+char const doc_reduce_sum[] =                                                                                         //
+    "Return the sum of all elements, or per-slice sums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                                      //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                                       //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                                        //
+    "Returns:\n"                                                                                                      //
+    "    Scalar sum when axis is None.\n"                                                                             //
+    "    Tensor of per-slice sums when axis is given.\n\n"                                                            //
+    "Signature:\n"                                                                                                    //
     "    >>> def sum(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
-char const doc_reduce_norm[] =                                                                     //
-    "Return the L2 norm, or per-slice norms along an axis.\n\n"                                    //
-    "Parameters:\n"                                                                                //
-    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
-    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
-    "Returns:\n"                                                                                   //
-    "    Scalar L2 norm when axis is None.\n"                                                      //
-    "    Tensor of per-slice norms when axis is given.\n\n"                                        //
-    "Signature:\n"                                                                                 //
+char const doc_reduce_norm[] =                                                                                        //
+    "Return the L2 norm, or per-slice norms along one or more axes.\n\n"                                              //
+    "Parameters:\n"                                                                                                   //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                                      //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                                       //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                                        //
+    "Returns:\n"                                                                                                      //
+    "    Scalar L2 norm when axis is None.\n"                                                                         //
+    "    Tensor of per-slice norms when axis is given.\n\n"                                                           //
+    "Signature:\n"                                                                                                    //
     "    >>> def norm(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
-char const doc_reduce_min[] =                                                                      //
-    "Return the minimum element, or per-slice minimums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
-    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
-    "Returns:\n"                                                                                   //
-    "    Scalar minimum when axis is None (None if all NaN).\n"                                    //
-    "    Tensor of per-slice minimums when axis is given.\n\n"                                     //
-    "Signature:\n"                                                                                 //
+char const doc_reduce_min[] =                                                                                         //
+    "Return the minimum element, or per-slice minimums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                                      //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                                       //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                                        //
+    "Returns:\n"                                                                                                      //
+    "    Scalar minimum when axis is None (None if all NaN).\n"                                                       //
+    "    Tensor of per-slice minimums when axis is given.\n\n"                                                        //
+    "Signature:\n"                                                                                                    //
     "    >>> def min(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
-char const doc_reduce_max[] =                                                                      //
-    "Return the maximum element, or per-slice maximums along an axis.\n\n"                         //
-    "Parameters:\n"                                                                                //
-    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                   //
-    "    axis (int, optional): Axis to reduce along. When None (default), reduces all elements.\n" //
-    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n" //
-    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                    //
-    "    dtype (str, optional): Override the presumed input element type.\n\n"                     //
-    "Returns:\n"                                                                                   //
-    "    Scalar maximum when axis is None (None if all NaN).\n"                                    //
-    "    Tensor of per-slice maximums when axis is given.\n\n"                                     //
-    "Signature:\n"                                                                                 //
+char const doc_reduce_max[] =                                                                                         //
+    "Return the maximum element, or per-slice maximums along one or more axes.\n\n"                                   //
+    "Parameters:\n"                                                                                                   //
+    "    a: Input array (Tensor, NumPy array, or any buffer-protocol object).\n"                                      //
+    "    axis (int or tuple of ints, optional): Axis or axes to reduce along. None (default) reduces all elements.\n" //
+    "    keepdims (bool, optional): Keep the reduced axis as a size-1 dimension. Default False.\n"                    //
+    "    out (Tensor, optional): Pre-allocated output tensor for the result.\n"                                       //
+    "    dtype (str, optional): Override the presumed input element type.\n\n"                                        //
+    "Returns:\n"                                                                                                      //
+    "    Scalar maximum when axis is None (None if all NaN).\n"                                                       //
+    "    Tensor of per-slice maximums when axis is given.\n\n"                                                        //
+    "Signature:\n"                                                                                                    //
     "    >>> def max(a, /, axis=None, *, keepdims=False, out=None, dtype=None): ...";
 char const doc_reduce_argmin[] =                                                                   //
     "Return the index of the minimum element, or per-slice indices along an axis.\n\n"             //
@@ -3000,7 +3058,7 @@ PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
@@ -3030,7 +3088,7 @@ PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t sum_buf, sumsq_buf;
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
@@ -3060,7 +3118,7 @@ PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -3095,7 +3153,7 @@ PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -3127,10 +3185,14 @@ PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nar
         PyBuffer_Release(&buffer);
         return NULL;
     }
+    if (parsed.n_axes > 1) {
+        PyBuffer_Release(&buffer);
+        return (PyErr_SetString(PyExc_TypeError, "argmin does not support tuple axis"), NULL);
+    }
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
@@ -3162,10 +3224,14 @@ PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
         PyBuffer_Release(&buffer);
         return NULL;
     }
+    if (parsed.n_axes > 1) {
+        PyBuffer_Release(&buffer);
+        return (PyErr_SetString(PyExc_TypeError, "argmax does not support tuple axis"), NULL);
+    }
     if (parsed.dtype_override != nk_dtype_unknown_k) view.dtype = parsed.dtype_override;
 
     PyObject *result;
-    if (parsed.axis == -1) {
+    if (parsed.n_axes == 0) {
         nk_scalar_buffer_t min_buf, max_buf;
         nk_dtype_t min_dtype, max_dtype;
         size_t min_idx, max_idx;
