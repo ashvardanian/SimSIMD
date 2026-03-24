@@ -161,6 +161,7 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t n, 
 #include "numkong/cast/icelake.h"
 #include "numkong/cast/sapphire.h"
 #include "numkong/cast/rvv.h"
+#include "numkong/cast/powervsx.h"
 #include "numkong/cast/loongsonasx.h"
 
 #if defined(__cplusplus)
@@ -178,6 +179,8 @@ NK_PUBLIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void
     nk_cast_skylake(from, from_type, n, to, to_type);
 #elif NK_TARGET_HASWELL
     nk_cast_haswell(from, from_type, n, to, to_type);
+#elif NK_TARGET_POWERVSX
+    nk_cast_powervsx(from, from_type, n, to, to_type);
 #elif NK_TARGET_RVV
     nk_cast_rvv(from, from_type, n, to, to_type);
 #elif NK_TARGET_NEON

@@ -41,13 +41,13 @@ set(PPC_SYSROOT "${PPC_SYSROOT}" CACHE PATH "ppc64le sysroot for GNU cross-compi
 set(CMAKE_SYSROOT "${PPC_SYSROOT}")
 
 # Target CPU microarchitecture.
-# power10: VSX + MMA + native bf16 conversions.
-# power8:  VSX + vec_popcnt (minimum for NumKong powervsx backend).
+# power9:  VSX + vec_xl_len + vec_cmpne + f16 conversion (minimum for NumKong powervsx backend).
+# power10: adds MMA + native bf16 conversions (future powermma backend).
 if (NOT DEFINED PPC_MCPU)
     if (DEFINED ENV{PPC_MCPU})
         set(PPC_MCPU "$ENV{PPC_MCPU}")
     else ()
-        set(PPC_MCPU "power10")
+        set(PPC_MCPU "power9")
     endif ()
 endif ()
 set(PPC_MCPU "${PPC_MCPU}" CACHE STRING "Power CPU target for cross-compilation")

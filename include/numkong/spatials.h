@@ -2084,6 +2084,7 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t 
 #include "numkong/spatials/v128relaxed.h"
 #include "numkong/spatials/sme.h"
 #include "numkong/spatials/smef64.h"
+#include "numkong/spatials/powervsx.h"
 #include "numkong/spatials/loongsonasx.h"
 
 #if defined(__cplusplus)
@@ -2103,6 +2104,8 @@ NK_PUBLIC void nk_angulars_packed_f64(nk_f64_t const *a, void const *b_packed, n
     nk_angulars_packed_f64_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_f64_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_f64_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_f64_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2122,6 +2125,8 @@ NK_PUBLIC void nk_angulars_symmetric_f64(nk_f64_t const *vectors, nk_size_t n_ve
     nk_angulars_symmetric_f64_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_f64_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_f64_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_f64_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2142,6 +2147,8 @@ NK_PUBLIC void nk_euclideans_packed_f64(nk_f64_t const *a, void const *b_packed,
     nk_euclideans_packed_f64_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_f64_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_f64_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_f64_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2161,6 +2168,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f64(nk_f64_t const *vectors, nk_size_t n_
     nk_euclideans_symmetric_f64_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_f64_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_f64_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                         row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_f64_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2182,6 +2192,8 @@ NK_PUBLIC void nk_angulars_packed_f32(nk_f32_t const *a, void const *b_packed, n
     nk_angulars_packed_f32_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_f32_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_f32_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_f32_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2201,6 +2213,8 @@ NK_PUBLIC void nk_angulars_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_ve
     nk_angulars_symmetric_f32_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_f32_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_f32_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_f32_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2221,6 +2235,8 @@ NK_PUBLIC void nk_euclideans_packed_f32(nk_f32_t const *a, void const *b_packed,
     nk_euclideans_packed_f32_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_f32_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_f32_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_f32_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2240,6 +2256,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_
     nk_euclideans_symmetric_f32_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_f32_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_f32_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                         row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_f32_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2265,6 +2284,8 @@ NK_PUBLIC void nk_angulars_packed_f16(nk_f16_t const *a, void const *b_packed, n
     nk_angulars_packed_f16_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_f16_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_f16_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_f16_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
@@ -2286,6 +2307,8 @@ NK_PUBLIC void nk_angulars_symmetric_f16(nk_f16_t const *vectors, nk_size_t n_ve
     nk_angulars_symmetric_f16_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_f16_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_f16_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_f16_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
@@ -2307,6 +2330,8 @@ NK_PUBLIC void nk_euclideans_packed_f16(nk_f16_t const *a, void const *b_packed,
     nk_euclideans_packed_f16_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_f16_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_f16_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_f16_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #else
@@ -2329,6 +2354,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f16(nk_f16_t const *vectors, nk_size_t n_
     nk_euclideans_symmetric_f16_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_f16_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_f16_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                         row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_f16_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
@@ -2351,6 +2379,8 @@ NK_PUBLIC void nk_angulars_packed_bf16(nk_bf16_t const *a, void const *b_packed,
     nk_angulars_packed_bf16_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_bf16_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_bf16_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_bf16_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2376,6 +2406,8 @@ NK_PUBLIC void nk_angulars_symmetric_bf16(nk_bf16_t const *vectors, nk_size_t n_
     nk_angulars_symmetric_bf16_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_bf16_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_bf16_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_bf16_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2400,6 +2432,8 @@ NK_PUBLIC void nk_euclideans_packed_bf16(nk_bf16_t const *a, void const *b_packe
     nk_euclideans_packed_bf16_skylake(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_bf16_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_bf16_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_bf16_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2427,6 +2461,9 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16(nk_bf16_t const *vectors, nk_size_t 
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_bf16_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start,
                                          row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_bf16_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start,
+                                          row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_bf16_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2880,6 +2917,8 @@ NK_PUBLIC void nk_angulars_packed_i8(nk_i8_t const *a, void const *b_packed, nk_
     nk_angulars_packed_i8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_i8_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_i8_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_i8_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2906,6 +2945,8 @@ NK_PUBLIC void nk_angulars_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_vect
     nk_angulars_symmetric_i8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_i8_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_i8_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_i8_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2932,6 +2973,8 @@ NK_PUBLIC void nk_euclideans_packed_i8(nk_i8_t const *a, void const *b_packed, n
     nk_euclideans_packed_i8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_i8_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_i8_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_i8_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -2958,6 +3001,8 @@ NK_PUBLIC void nk_euclideans_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_ve
     nk_euclideans_symmetric_i8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_i8_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_i8_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_i8_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -2985,6 +3030,8 @@ NK_PUBLIC void nk_angulars_packed_u8(nk_u8_t const *a, void const *b_packed, nk_
     nk_angulars_packed_u8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_angulars_packed_u8_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_packed_u8_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_angulars_packed_u8_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -3011,6 +3058,8 @@ NK_PUBLIC void nk_angulars_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vect
     nk_angulars_symmetric_u8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_angulars_symmetric_u8_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_angulars_symmetric_u8_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_angulars_symmetric_u8_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
@@ -3037,6 +3086,8 @@ NK_PUBLIC void nk_euclideans_packed_u8(nk_u8_t const *a, void const *b_packed, n
     nk_euclideans_packed_u8_alder(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_euclideans_packed_u8_haswell(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_packed_u8_powervsx(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_RVV
     nk_euclideans_packed_u8_rvv(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
@@ -3063,6 +3114,8 @@ NK_PUBLIC void nk_euclideans_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_ve
     nk_euclideans_symmetric_u8_alder(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_euclideans_symmetric_u8_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_euclideans_symmetric_u8_powervsx(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_RVV
     nk_euclideans_symmetric_u8_rvv(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED

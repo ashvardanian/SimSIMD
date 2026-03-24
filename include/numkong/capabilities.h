@@ -148,6 +148,10 @@ extern long syscall(long, ...);
 #include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
 #endif
 
+#if defined(NK_DEFINED_LINUX_) && NK_TARGET_POWER_
+#include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
+#endif
+
 // On FreeBSD RISC-V, we use elf_aux_info for capability detection
 #if defined(NK_DEFINED_FREEBSD_) && NK_TARGET_RISCV_
 #include <sys/auxv.h> // `elf_aux_info`, `AT_HWCAP`

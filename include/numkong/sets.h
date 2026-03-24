@@ -251,6 +251,7 @@ NK_PUBLIC void nk_jaccards_symmetric_u1_v128relaxed(nk_u1x8_t const *vectors, nk
 #include "numkong/sets/haswell.h"
 #include "numkong/sets/smebi32.h"
 #include "numkong/sets/v128relaxed.h"
+#include "numkong/sets/powervsx.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -269,6 +270,8 @@ NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *v, void const *q_packed, n
     nk_hammings_packed_u1_icelake(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_hammings_packed_u1_haswell(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_hammings_packed_u1_powervsx(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
     nk_hammings_packed_u1_v128relaxed(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #else
@@ -287,6 +290,8 @@ NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
     nk_hammings_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_hammings_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_hammings_symmetric_u1_powervsx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
     nk_hammings_symmetric_u1_v128relaxed(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #else
@@ -305,6 +310,8 @@ NK_PUBLIC void nk_jaccards_packed_u1(nk_u1x8_t const *v, void const *q_packed, n
     nk_jaccards_packed_u1_icelake(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_jaccards_packed_u1_haswell(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_POWERVSX
+    nk_jaccards_packed_u1_powervsx(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_V128RELAXED
     nk_jaccards_packed_u1_v128relaxed(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #else
@@ -323,6 +330,8 @@ NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
     nk_jaccards_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
     nk_jaccards_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_POWERVSX
+    nk_jaccards_symmetric_u1_powervsx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_V128RELAXED
     nk_jaccards_symmetric_u1_v128relaxed(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #else

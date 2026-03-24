@@ -344,6 +344,7 @@ NK_INTERNAL nk_dtype_t nk_jaccard_output_dtype(nk_dtype_t dtype) {
 #include "numkong/set/sve.h"
 #include "numkong/set/icelake.h"
 #include "numkong/set/haswell.h"
+#include "numkong/set/powervsx.h"
 #include "numkong/set/v128relaxed.h"
 #include "numkong/set/rvv.h"
 #include "numkong/set/rvvbb.h"
@@ -366,6 +367,8 @@ NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_hamming_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u1_haswell(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_hamming_u1_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_hamming_u1_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVVBB
@@ -388,6 +391,8 @@ NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_jaccard_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u1_haswell(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_jaccard_u1_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_jaccard_u1_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVVBB
@@ -428,6 +433,8 @@ NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
     nk_hamming_u8_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u8_haswell(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_hamming_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_hamming_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV

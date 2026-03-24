@@ -341,6 +341,7 @@ int main(int argc, char **argv) {
     test_cross_sme();
     test_cross_blas();
     test_cross_rvv();
+    test_cross_power();
     test_cross_loongarch();
     test_cross_wasm();
 

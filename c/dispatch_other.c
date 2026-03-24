@@ -89,6 +89,13 @@ void nk_dispatch_cast_init_(nk_capability_t caps) {
     }
 #endif
 
+#if NK_TARGET_POWERVSX
+    if (caps & nk_cap_powervsx_k) {
+        t->f16_to_f32 = &nk_f16_to_f32_powervsx;
+        t->f32_to_f16 = &nk_f32_to_f16_powervsx;
+    }
+#endif
+
     // Scalar conversions: e5m2, e4m3, e3m2, e2m3 (serial only)
     t->e5m2_to_f32 = &nk_e5m2_to_f32_serial;
     t->f32_to_e5m2 = &nk_f32_to_e5m2_serial;
@@ -141,6 +148,17 @@ void nk_dispatch_math_init_(nk_capability_t caps) {
         t->f32_sqrt = &nk_f32_sqrt_neon;
         t->f32_rsqrt = &nk_f32_rsqrt_neon;
         t->f32_fma = &nk_f32_fma_neon;
+    }
+#endif
+
+#if NK_TARGET_POWERVSX
+    if (caps & nk_cap_powervsx_k) {
+        t->f64_sqrt = &nk_f64_sqrt_powervsx;
+        t->f64_rsqrt = &nk_f64_rsqrt_powervsx;
+        t->f64_fma = &nk_f64_fma_powervsx;
+        t->f32_sqrt = &nk_f32_sqrt_powervsx;
+        t->f32_rsqrt = &nk_f32_rsqrt_powervsx;
+        t->f32_fma = &nk_f32_fma_powervsx;
     }
 #endif
 

@@ -407,8 +407,8 @@ if (NK_BUILD_BENCH)
         bench/bench_mesh.cpp bench/bench_sparse.cpp bench/bench_cast.cpp bench/bench_reduce.cpp
         # ISA-family cross/batch files for parallel compilation
         bench/bench_cross_serial.cpp bench/bench_cross_x86.cpp bench/bench_cross_amx.cpp bench/bench_cross_arm.cpp
-        bench/bench_cross_sme.cpp bench/bench_cross_blas.cpp bench/bench_cross_rvv.cpp bench/bench_cross_wasm.cpp
-        bench/bench_cross_loongarch.cpp bench/bench_maxsim.cpp
+        bench/bench_cross_sme.cpp bench/bench_cross_blas.cpp bench/bench_cross_rvv.cpp bench/bench_cross_power.cpp
+        bench/bench_cross_wasm.cpp bench/bench_cross_loongarch.cpp bench/bench_maxsim.cpp
     )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
@@ -476,8 +476,8 @@ if (NK_BUILD_TEST)
         test/test_mesh.cpp test/test_cast.cpp test/test_reduce.cpp test/test_sparse.cpp
         # ISA-family cross/batch files for parallel compilation
         test/test_cross_serial.cpp test/test_cross_x86.cpp test/test_cross_amx.cpp test/test_cross_arm.cpp
-        test/test_cross_sme.cpp test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_loongarch.cpp
-        test/test_cross_wasm.cpp test/test_maxsim.cpp test/test_tensor.cpp
+        test/test_cross_sme.cpp test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_power.cpp
+        test/test_cross_loongarch.cpp test/test_cross_wasm.cpp test/test_maxsim.cpp test/test_tensor.cpp
     )
     target_link_libraries(nk_test numkong ${NK_CXX_MATH_LIB_})
 
@@ -820,8 +820,8 @@ if (NK_BUILD_SHARED_TEST)
         test/test_probability.cpp test/test_each.cpp test/test_trigonometry.cpp test/test_geospatial.cpp
         test/test_mesh.cpp test/test_cast.cpp test/test_reduce.cpp test/test_sparse.cpp test/test_cross_serial.cpp
         test/test_cross_x86.cpp test/test_cross_amx.cpp test/test_cross_arm.cpp test/test_cross_sme.cpp
-        test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_loongarch.cpp test/test_cross_wasm.cpp
-        test/test_maxsim.cpp test/test_tensor.cpp
+        test/test_cross_blas.cpp test/test_cross_rvv.cpp test/test_cross_power.cpp test/test_cross_loongarch.cpp
+        test/test_cross_wasm.cpp test/test_maxsim.cpp test/test_tensor.cpp
     )
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)

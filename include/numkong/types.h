@@ -247,11 +247,12 @@
 #endif // defined(__loongarch_lasx)
 #endif // !defined(NK_TARGET_LOONGSONASX) || ...
 
-// Compiling for Power VSX (128-bit SIMD, POWER7+): NK_TARGET_POWERVSX
-// VSX provides 64 × 128-bit registers, FMA (vec_madd), native bf16 conversion (POWER10),
-// widening integer multiply (vec_mule/vec_mulo), and per-byte popcount (vec_popcnt, POWER8+).
+// Compiling for Power VSX (128-bit SIMD, POWER9+ baseline): NK_TARGET_POWERVSX
+// VSX provides 64 × 128-bit registers, FMA (vec_madd), vec_msum (multiply-sum), hardware f16
+// conversion (vec_extract_fp32_from_shorth/l), length-limited loads (vec_xl_len), per-byte
+// popcount (vec_popcnt), and vec_cmpne. Requires POWER9 (ISA 3.0) or newer.
 #if !defined(NK_TARGET_POWERVSX) || (NK_TARGET_POWERVSX && !NK_TARGET_POWER_)
-#if defined(__VSX__)
+#if defined(__VSX__) && defined(__POWER9_VECTOR__)
 #define NK_TARGET_POWERVSX 1
 #else
 #undef NK_TARGET_POWERVSX
@@ -786,7 +787,7 @@ typedef float nk_f32_t;
 /** @brief Double-precision (64-bit) IEEE 754 float. sign(1) + exponent(11) + mantissa(52), bias=1023. */
 typedef double nk_f64_t;
 
-#if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_
+#if NK_TARGET_X86_ || NK_TARGET_ARM_ || NK_TARGET_RISCV_ || NK_TARGET_POWER_
 #define NK_IS_64BIT_ 1
 #else
 #define NK_IS_64BIT_ 0

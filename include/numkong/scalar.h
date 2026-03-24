@@ -383,8 +383,8 @@ NK_PUBLIC nk_f64_t nk_f64_fma_v128relaxed(nk_f64_t a, nk_f64_t b, nk_f64_t c);
 #include "numkong/scalar/haswell.h"     // `nk_f32_sqrt_haswell`
 #include "numkong/scalar/sapphire.h"    // `nk_f16_order_sapphire`
 #include "numkong/scalar/rvv.h"         // `nk_f32_rsqrt_rvv`
+#include "numkong/scalar/powervsx.h"    // `nk_f32_sqrt_powervsx`
 #include "numkong/scalar/v128relaxed.h" // `nk_f32_sqrt_v128relaxed`
-#include "numkong/scalar/loongsonasx.h" // `nk_f32_rsqrt_loongsonasx`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -397,6 +397,8 @@ NK_PUBLIC nk_f32_t nk_f32_sqrt(nk_f32_t x) {
     return nk_f32_sqrt_haswell(x);
 #elif NK_TARGET_NEON
     return nk_f32_sqrt_neon(x);
+#elif NK_TARGET_POWERVSX
+    return nk_f32_sqrt_powervsx(x);
 #elif NK_TARGET_RVV
     return nk_f32_sqrt_rvv(x);
 #elif NK_TARGET_V128RELAXED
@@ -411,6 +413,8 @@ NK_PUBLIC nk_f64_t nk_f64_sqrt(nk_f64_t x) {
     return nk_f64_sqrt_haswell(x);
 #elif NK_TARGET_NEON
     return nk_f64_sqrt_neon(x);
+#elif NK_TARGET_POWERVSX
+    return nk_f64_sqrt_powervsx(x);
 #elif NK_TARGET_RVV
     return nk_f64_sqrt_rvv(x);
 #elif NK_TARGET_V128RELAXED
@@ -425,6 +429,8 @@ NK_PUBLIC nk_f32_t nk_f32_rsqrt(nk_f32_t x) {
     return nk_f32_rsqrt_haswell(x);
 #elif NK_TARGET_NEON
     return nk_f32_rsqrt_neon(x);
+#elif NK_TARGET_POWERVSX
+    return nk_f32_rsqrt_powervsx(x);
 #elif NK_TARGET_RVV
     return nk_f32_rsqrt_rvv(x);
 #elif NK_TARGET_V128RELAXED
@@ -439,6 +445,8 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt(nk_f64_t x) {
     return nk_f64_rsqrt_haswell(x);
 #elif NK_TARGET_NEON
     return nk_f64_rsqrt_neon(x);
+#elif NK_TARGET_POWERVSX
+    return nk_f64_rsqrt_powervsx(x);
 #elif NK_TARGET_RVV
     return nk_f64_rsqrt_rvv(x);
 #elif NK_TARGET_V128RELAXED
@@ -453,6 +461,8 @@ NK_PUBLIC nk_f32_t nk_f32_fma(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
     return nk_f32_fma_haswell(a, b, c);
 #elif NK_TARGET_NEON
     return nk_f32_fma_neon(a, b, c);
+#elif NK_TARGET_POWERVSX
+    return nk_f32_fma_powervsx(a, b, c);
 #elif NK_TARGET_RVV
     return nk_f32_fma_rvv(a, b, c);
 #elif NK_TARGET_V128RELAXED
@@ -467,6 +477,8 @@ NK_PUBLIC nk_f64_t nk_f64_fma(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
     return nk_f64_fma_haswell(a, b, c);
 #elif NK_TARGET_NEON
     return nk_f64_fma_neon(a, b, c);
+#elif NK_TARGET_POWERVSX
+    return nk_f64_fma_powervsx(a, b, c);
 #elif NK_TARGET_RVV
     return nk_f64_fma_rvv(a, b, c);
 #elif NK_TARGET_V128RELAXED

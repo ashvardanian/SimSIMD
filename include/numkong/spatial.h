@@ -873,6 +873,7 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 #include "numkong/spatial/rvvhalf.h"
 #include "numkong/spatial/rvvbf16.h"
 #include "numkong/spatial/v128relaxed.h"
+#include "numkong/spatial/powervsx.h"
 #include "numkong/spatial/loongsonasx.h"
 
 #if defined(__cplusplus)
@@ -884,6 +885,8 @@ extern "C" {
 NK_PUBLIC void nk_euclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_euclidean_f64_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_f64_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_f64_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -904,6 +907,8 @@ NK_PUBLIC void nk_euclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
 NK_PUBLIC void nk_sqeuclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_sqeuclidean_f64_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_f64_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_f64_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -924,6 +929,8 @@ NK_PUBLIC void nk_sqeuclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_angular_f64_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_f64_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_f64_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -944,6 +951,8 @@ NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
 NK_PUBLIC void nk_euclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_euclidean_f32_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_f32_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_f32_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -964,6 +973,8 @@ NK_PUBLIC void nk_euclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
 NK_PUBLIC void nk_sqeuclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_sqeuclidean_f32_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_f32_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_f32_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -984,6 +995,8 @@ NK_PUBLIC void nk_sqeuclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_
 NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_angular_f32_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_f32_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_f32_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1004,6 +1017,8 @@ NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 NK_PUBLIC void nk_euclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_euclidean_f16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_f16_powervsx(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_euclidean_f16_rvvhalf(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1026,6 +1041,8 @@ NK_PUBLIC void nk_euclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t 
 NK_PUBLIC void nk_sqeuclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_sqeuclidean_f16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_f16_powervsx(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_sqeuclidean_f16_rvvhalf(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1048,6 +1065,8 @@ NK_PUBLIC void nk_sqeuclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_angular_f16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_f16_powervsx(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_angular_f16_rvvhalf(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -1070,6 +1089,8 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 NK_PUBLIC void nk_euclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_euclidean_bf16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_bf16_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_bf16_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -1092,6 +1113,8 @@ NK_PUBLIC void nk_euclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_sqeuclidean_bf16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_bf16_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_bf16_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -1114,6 +1137,8 @@ NK_PUBLIC void nk_sqeuclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
 NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_angular_bf16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_bf16_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_bf16_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVVBF16
@@ -1350,6 +1375,8 @@ NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_euclidean_i8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_i8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -1372,6 +1399,8 @@ NK_PUBLIC void nk_euclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_RVV
     nk_sqeuclidean_i8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_i8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -1394,6 +1423,8 @@ NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_i8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_i8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -1416,6 +1447,8 @@ NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_euclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_euclidean_u8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_euclidean_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -1438,6 +1471,8 @@ NK_PUBLIC void nk_euclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_RVV
     nk_sqeuclidean_u8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_sqeuclidean_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
@@ -1460,6 +1495,8 @@ NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
 NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_RVV
     nk_angular_u8_rvv(a, b, n, result);
+#elif NK_TARGET_POWERVSX
+    nk_angular_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_NEONSDOT

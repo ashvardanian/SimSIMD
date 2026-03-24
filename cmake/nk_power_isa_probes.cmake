@@ -36,14 +36,16 @@ macro (nk_power_isa_probe_ var_ gcc_flags_ source_)
     endif ()
 endmacro ()
 
-# Power VSX — 128-bit SIMD (POWER7+)
+# Power VSX — 128-bit SIMD (POWER9+ baseline)
+# Requires POWER9 for vec_extract, vec_xl_len, vec_cmpne, vec_extract_fp32_from_shorth.
 nk_power_isa_probe_(
-    nk_target_powervsx_ "-mvsx" "
+    nk_target_powervsx_ "-mcpu=power9" "
     #include <altivec.h>
     int main(void) {
         __vector float a = vec_splats(1.0f);
         __vector float b = vec_splats(2.0f);
         __vector float c = vec_madd(a, b, a);
+        // vec_extract requires POWER9+
         return vec_extract(c, 0) == 3.0f ? 0 : 1;
     }
 "

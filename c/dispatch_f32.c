@@ -255,6 +255,23 @@ void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         default: break;
         }
 #endif
+#if NK_TARGET_POWERVSX
+    if (v & nk_cap_powervsx_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_f32_powervsx, *c = nk_cap_powervsx_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_LOONGSONASX
     if (v & nk_cap_loongsonasx_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_loongsonasx, *c = nk_cap_loongsonasx_k; return;
