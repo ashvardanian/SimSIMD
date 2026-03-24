@@ -52,7 +52,7 @@ NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {
 }
 
 /** @brief Safe square root of 4 floats with zero-clamping for numerical stability. */
-NK_INTERNAL __m128 nk_safe_sqrt_f32x4_haswell_(__m128 x) { return _mm_sqrt_ps(_mm_max_ps(x, _mm_setzero_ps())); }
+NK_INTERNAL __m128 nk_sqrt_f32x4_haswell_(__m128 x) { return _mm_sqrt_ps(_mm_max_ps(x, _mm_setzero_ps())); }
 
 /** @brief Angular from_dot: computes 1 − dot × rsqrt(query_sumsq × target_sumsq) for 4 pairs. */
 NK_INTERNAL void nk_angular_through_f32_from_dot_haswell_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
@@ -73,7 +73,7 @@ NK_INTERNAL void nk_euclidean_through_f32_from_dot_haswell_(nk_b128_vec_t dots, 
     __m128 query_sumsq_f32x4 = _mm_set1_ps(query_sumsq);
     __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, target_sumsqs.xmm_ps);
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_safe_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 /** @brief Angular from_dot for native f64: 1 − dot / √(query_sumsq × target_sumsq) for 4 pairs. */
@@ -117,7 +117,7 @@ NK_INTERNAL void nk_euclidean_through_i32_from_dot_haswell_(nk_b128_vec_t dots, 
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
     __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_safe_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 /** @brief Angular from_dot for u32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
@@ -139,7 +139,7 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_haswell_(nk_b128_vec_t dots, 
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
     __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_safe_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {

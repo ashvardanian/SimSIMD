@@ -6,9 +6,8 @@
  *
  *  @sa include/numkong/scalar.h
  *
- *  LASX provides `xvfrsqrte` (reciprocal sqrt estimate, ~14 bits precision) and
- *  `xvfsqrt` (full-precision sqrt). The rsqrt estimate with one Newton-Raphson
- *  iteration gives ~28 bits for f32 — sufficient for angular normalization.
+ *  LASX provides `xvfrsqrt` (full-precision reciprocal sqrt) and `xvfsqrt`
+ *  (full-precision sqrt). No Newton-Raphson refinement needed.
  *  Full-precision sqrt uses the hardware `xvfsqrt` instruction.
  *  Broadcast via `xvreplgr2vr`, extract via `xvpickve2gr` — no memory round-trips.
  */
@@ -46,14 +45,9 @@ NK_INTERNAL __m256d nk_xvfreplgr2vr_d_(double x) {
 }
 
 NK_PUBLIC nk_f32_t nk_f32_rsqrt_loongsonasx(nk_f32_t x) {
+    // xvfrsqrt.s is full precision — no Newton-Raphson needed
     __m256 x_f32x8 = nk_xvfreplgr2vr_s_(x);
-    __m256 estimate_f32x8 = __lasx_xvfrsqrte_s(x_f32x8);
-    // One Newton-Raphson refinement: y' = 0.5 × y × (3 − x × y²)
-    __m256 three_f32x8 = nk_xvfreplgr2vr_s_(3.0f);
-    __m256 half_f32x8 = nk_xvfreplgr2vr_s_(0.5f);
-    __m256 y_sq_f32x8 = __lasx_xvfmul_s(estimate_f32x8, estimate_f32x8);
-    __m256 refinement_f32x8 = __lasx_xvfsub_s(three_f32x8, __lasx_xvfmul_s(x_f32x8, y_sq_f32x8));
-    __m256 result_f32x8 = __lasx_xvfmul_s(__lasx_xvfmul_s(half_f32x8, estimate_f32x8), refinement_f32x8);
+    __m256 result_f32x8 = __lasx_xvfrsqrt_s(x_f32x8);
     nk_b256_vec_t vec;
     vec.ymm_ps = result_f32x8;
     return vec.f32s[0];
