@@ -178,8 +178,8 @@ nk_sqeuclidean_f16_diamond_cycle:
         n = 0;
     }
     else {
-        a_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)a);
-        b_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)b);
+        a_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(a));
+        b_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
     a_sq_f32x16 = _mm512_dpph_ps(a_sq_f32x16, a_f16x32, a_f16x32);
@@ -210,8 +210,8 @@ nk_angular_f16_diamond_cycle:
         n = 0;
     }
     else {
-        a_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)a);
-        b_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)b);
+        a_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(a));
+        b_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
     dot_f32x16 = _mm512_dpph_ps(dot_f32x16, a_f16x32, b_f16x32);

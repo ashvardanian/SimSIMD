@@ -112,8 +112,8 @@ nk_dot_f16_diamond_cycle:
         count_scalars = 0;
     }
     else {
-        a_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)a_scalars);
-        b_f16x32 = _mm512_loadu_ph((nk_f16_for_arm_simd_t const *)b_scalars);
+        a_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(a_scalars));
+        b_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(b_scalars));
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     sum_f32x16 = _mm512_dpph_ps(sum_f32x16, a_f16x32, b_f16x32);

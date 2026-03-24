@@ -54,8 +54,8 @@ nk_each_sum_f16_sapphire_cycle:
         n = 0;
     }
     else {
-        a_f16_vec = _mm512_loadu_ph(a);
-        b_f16_vec = _mm512_loadu_ph(b);
+        a_f16_vec = _mm512_castsi512_ph(_mm512_loadu_epi16(a));
+        b_f16_vec = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
     sum_f16_vec = _mm512_add_ph(a_f16_vec, b_f16_vec);
