@@ -41,6 +41,7 @@ jobs:
       - name: Build and Test
         run: |
           npm install --ignore-scripts
+          node probes/probe.js
           npm run prebuild-single
           npm run build-js
           npm test
@@ -332,6 +333,7 @@ jobs:
       - name: Build and Test with Node
         run: |
           npm install --ignore-scripts
+          node probes/probe.js
           npm run prebuild-single
           npm run build-js
           npm test
@@ -378,6 +380,7 @@ jobs:
       - name: Build prebuilds and JS
         run: |
           npm install --ignore-scripts
+          node probes/probe.js
           npm run prebuild-single
           npm run build-js
 

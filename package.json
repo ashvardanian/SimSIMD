@@ -22,6 +22,7 @@
     "f16"
   ],
   "scripts": {
+    "preinstall": "node probes/probe.js",
     "install": "node-gyp-build",
     "prebuild-single": "prebuildify --napi --strip --target=22.0.0",
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=22.0.0",
