@@ -592,7 +592,8 @@
 #include <riscv_vector.h>
 #endif
 #if NK_TARGET_LOONGSONASX
-#include <lasxintrin.h>
+#include <lsxintrin.h>  // `__m128i` for LSX SIMD
+#include <lasxintrin.h> // `__m256i` for LASX SIMD
 #endif
 #if NK_TARGET_POWERVSX
 #include <altivec.h>
