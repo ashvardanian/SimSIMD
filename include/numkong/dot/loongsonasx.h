@@ -206,17 +206,17 @@ NK_PUBLIC void nk_dot_u8_loongsonasx(nk_u8_t const *a_scalars, nk_u8_t const *b_
 NK_PUBLIC void nk_dot_bf16_loongsonasx(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
     __m256 sum_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
-    __m256i zero_i16x16 = __lasx_xvreplgr2vr_h(0);
+    __m256i mask_high_u32x8 = __lasx_xvreplgr2vr_w((int)0xFFFF0000);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 16 <= count_scalars; idx_scalars += 16) {
         __m256i a_bf16x16 = __lasx_xvld(a_scalars + idx_scalars, 0);
         __m256i b_bf16x16 = __lasx_xvld(b_scalars + idx_scalars, 0);
-        __m256 a_low_f32x8 = (__m256)__lasx_xvilvl_h(a_bf16x16, zero_i16x16);
-        __m256 b_low_f32x8 = (__m256)__lasx_xvilvl_h(b_bf16x16, zero_i16x16);
-        sum_f32x8 = __lasx_xvfmadd_s(a_low_f32x8, b_low_f32x8, sum_f32x8);
-        __m256 a_high_f32x8 = (__m256)__lasx_xvilvh_h(a_bf16x16, zero_i16x16);
-        __m256 b_high_f32x8 = (__m256)__lasx_xvilvh_h(b_bf16x16, zero_i16x16);
-        sum_f32x8 = __lasx_xvfmadd_s(a_high_f32x8, b_high_f32x8, sum_f32x8);
+        __m256 a_even_f32x8 = (__m256)__lasx_xvslli_w(a_bf16x16, 16);
+        __m256 b_even_f32x8 = (__m256)__lasx_xvslli_w(b_bf16x16, 16);
+        sum_f32x8 = __lasx_xvfmadd_s(a_even_f32x8, b_even_f32x8, sum_f32x8);
+        __m256 a_odd_f32x8 = (__m256)__lasx_xvand_v(a_bf16x16, mask_high_u32x8);
+        __m256 b_odd_f32x8 = (__m256)__lasx_xvand_v(b_bf16x16, mask_high_u32x8);
+        sum_f32x8 = __lasx_xvfmadd_s(a_odd_f32x8, b_odd_f32x8, sum_f32x8);
     }
     // Horizontal reduce 8 × f32 → 1 × f32
     __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
@@ -534,15 +534,15 @@ NK_INTERNAL void nk_dot_bf16x16_update_loongsonasx(nk_dot_bf16x16_state_loongson
                                                    nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // xvilvl_h(bf16, zero) places each bf16 in the high 16 bits of a u32 slot — valid f32, no shift.
-    // Per-lane operation on 256-bit input naturally covers all 16 bf16 elements (4 per lane × 2 halves).
-    __m256i zero_i16x16 = __lasx_xvreplgr2vr_h(0);
-    __m256 a_low_f32x8 = (__m256)__lasx_xvilvl_h(a.ymm, zero_i16x16);
-    __m256 b_low_f32x8 = (__m256)__lasx_xvilvl_h(b.ymm, zero_i16x16);
-    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_low_f32x8, b_low_f32x8, (__m256)state->sum_f32x8);
-    __m256 a_high_f32x8 = (__m256)__lasx_xvilvh_h(a.ymm, zero_i16x16);
-    __m256 b_high_f32x8 = (__m256)__lasx_xvilvh_h(b.ymm, zero_i16x16);
-    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_high_f32x8, b_high_f32x8, (__m256)state->sum_f32x8);
+    // Even bf16 elements → slli_epi32 by 16 places them in f32 upper bits.
+    // Odd bf16 elements → AND with 0xFFFF0000 keeps them in f32 upper bits.
+    __m256i mask_high_u32x8 = __lasx_xvreplgr2vr_w((int)0xFFFF0000);
+    __m256 a_even_f32x8 = (__m256)__lasx_xvslli_w(a.ymm, 16);
+    __m256 b_even_f32x8 = (__m256)__lasx_xvslli_w(b.ymm, 16);
+    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_even_f32x8, b_even_f32x8, (__m256)state->sum_f32x8);
+    __m256 a_odd_f32x8 = (__m256)__lasx_xvand_v(a.ymm, mask_high_u32x8);
+    __m256 b_odd_f32x8 = (__m256)__lasx_xvand_v(b.ymm, mask_high_u32x8);
+    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_odd_f32x8, b_odd_f32x8, (__m256)state->sum_f32x8);
 }
 
 NK_INTERNAL void nk_dot_bf16x16_finalize_loongsonasx(                                                     //

@@ -158,17 +158,17 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dots_packed_f32_skylake`         |        35.4 gso/s, 0 ulp |        41.4 gso/s, 0 ulp |        40.0 gso/s, 0 ulp |
 | `nk_dots_symmetric_f32_skylake`      |        22.4 gso/s, 0 ulp |        28.2 gso/s, 0 ulp |        28.1 gso/s, 0 ulp |
 | __bf16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `dots_packed_bf16_with_mkl` 🧩        |         190 gso/s, 0 ulp |       531 gso/s, 0.7 ulp |       865 gso/s, 5.8 ulp |
-| `nk_dots_packed_bf16_serial`         |        1.20 gso/s, 0 ulp |      1.21 gso/s, 0.5 ulp |      1.21 gso/s, 5.4 ulp |
-| `nk_dots_symmetric_bf16_serial`      |        1.16 gso/s, 0 ulp |      1.17 gso/s, 0.9 ulp |      1.17 gso/s, 5.4 ulp |
-| `nk_dots_packed_bf16_haswell`        |        58.5 gso/s, 0 ulp |      67.0 gso/s, 0.4 ulp |      68.3 gso/s, 4.5 ulp |
-| `nk_dots_symmetric_bf16_haswell`     |        31.4 gso/s, 0 ulp |      37.2 gso/s, 0.3 ulp |      38.2 gso/s, 4.2 ulp |
-| `nk_dots_packed_bf16_skylake`        |        76.1 gso/s, 0 ulp |      95.2 gso/s, 0.3 ulp |      91.3 gso/s, 3.7 ulp |
-| `nk_dots_symmetric_bf16_skylake`     |        39.0 gso/s, 0 ulp |      51.4 gso/s, 0.3 ulp |      56.2 gso/s, 3.2 ulp |
-| `nk_dots_packed_bf16_genoa`          |        65.7 gso/s, 0 ulp |      80.9 gso/s, 0.3 ulp |      85.2 gso/s, 3.5 ulp |
-| `nk_dots_symmetric_bf16_genoa`       |        52.6 gso/s, 0 ulp |      72.2 gso/s, 0.5 ulp |      76.6 gso/s, 3.5 ulp |
-| `nk_dots_packed_bf16_sapphireamx`    |         396 gso/s, 0 ulp |       691 gso/s, 0.7 ulp |       657 gso/s, 5.8 ulp |
-| `nk_dots_symmetric_bf16_sapphireamx` |        80.9 gso/s, 0 ulp |       118 gso/s, 0.5 ulp |       119 gso/s, 5.8 ulp |
+| `dots_packed_bf16_with_mkl` 🧩        |         182 gso/s, 0 ulp |       523 gso/s, 0.7 ulp |       847 gso/s, 5.8 ulp |
+| `nk_dots_packed_bf16_serial`         |        1.20 gso/s, 0 ulp |      1.21 gso/s, 0.5 ulp |      1.22 gso/s, 5.4 ulp |
+| `nk_dots_symmetric_bf16_serial`      |        1.16 gso/s, 0 ulp |      1.19 gso/s, 0.9 ulp |      1.18 gso/s, 5.4 ulp |
+| `nk_dots_packed_bf16_haswell`        |        65.6 gso/s, 0 ulp |      73.3 gso/s, 0.3 ulp |      76.8 gso/s, 4.4 ulp |
+| `nk_dots_symmetric_bf16_haswell`     |        40.2 gso/s, 0 ulp |      55.6 gso/s, 0.5 ulp |      60.8 gso/s, 4.6 ulp |
+| `nk_dots_packed_bf16_skylake`        |        79.8 gso/s, 0 ulp |      92.1 gso/s, 0.3 ulp |       102 gso/s, 3.5 ulp |
+| `nk_dots_symmetric_bf16_skylake`     |        57.4 gso/s, 0 ulp |      78.9 gso/s, 0.5 ulp |      82.5 gso/s, 3.5 ulp |
+| `nk_dots_packed_bf16_genoa`          |        65.8 gso/s, 0 ulp |      83.2 gso/s, 0.3 ulp |      88.9 gso/s, 3.5 ulp |
+| `nk_dots_symmetric_bf16_genoa`       |        52.5 gso/s, 0 ulp |      70.5 gso/s, 0.5 ulp |      76.0 gso/s, 3.5 ulp |
+| `nk_dots_packed_bf16_sapphireamx`    |         348 gso/s, 0 ulp |       706 gso/s, 0.7 ulp |       667 gso/s, 5.8 ulp |
+| `nk_dots_symmetric_bf16_sapphireamx` |        84.2 gso/s, 0 ulp |       120 gso/s, 0.5 ulp |       120 gso/s, 5.8 ulp |
 | __f16__                              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `dots_packed_f16_with_mkl` 🧩         |        123 gso/s, 17 ulp |        138 gso/s, 31 ulp |      138 gso/s, 39.5 ulp |
 | `nk_dots_packed_f16_serial`          |       8.19 gso/s, 14 ulp |       8.21 gso/s, 40 ulp |      8.11 gso/s, 326 ulp |

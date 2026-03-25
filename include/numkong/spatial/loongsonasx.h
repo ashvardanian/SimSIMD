@@ -353,14 +353,19 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f32x8_loongsonasx_(__m256 sum_f32x8) {
 
 NK_PUBLIC void nk_sqeuclidean_bf16_loongsonasx(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 sum_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    __m256i mask_high_u32x8 = __lasx_xvreplgr2vr_w((int)0xFFFF0000);
     nk_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = __lsx_vld(a + i, 0);
-        __m128i b_bf16x8 = __lsx_vld(b + i, 0);
-        __m256 a_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(a_bf16x8);
-        __m256 b_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(b_bf16x8);
-        __m256 diff_f32x8 = __lasx_xvfsub_s(a_f32x8, b_f32x8);
-        sum_f32x8 = __lasx_xvfmadd_s(diff_f32x8, diff_f32x8, sum_f32x8);
+    for (; i + 16 <= n; i += 16) {
+        __m256i a_bf16x16 = __lasx_xvld(a + i, 0);
+        __m256i b_bf16x16 = __lasx_xvld(b + i, 0);
+        __m256 a_even_f32x8 = (__m256)__lasx_xvslli_w(a_bf16x16, 16);
+        __m256 b_even_f32x8 = (__m256)__lasx_xvslli_w(b_bf16x16, 16);
+        __m256 diff_even_f32x8 = __lasx_xvfsub_s(a_even_f32x8, b_even_f32x8);
+        sum_f32x8 = __lasx_xvfmadd_s(diff_even_f32x8, diff_even_f32x8, sum_f32x8);
+        __m256 a_odd_f32x8 = (__m256)__lasx_xvand_v(a_bf16x16, mask_high_u32x8);
+        __m256 b_odd_f32x8 = (__m256)__lasx_xvand_v(b_bf16x16, mask_high_u32x8);
+        __m256 diff_odd_f32x8 = __lasx_xvfsub_s(a_odd_f32x8, b_odd_f32x8);
+        sum_f32x8 = __lasx_xvfmadd_s(diff_odd_f32x8, diff_odd_f32x8, sum_f32x8);
     }
     nk_f32_t sum = nk_reduce_add_f32x8_loongsonasx_(sum_f32x8);
     for (; i < n; ++i) {
@@ -382,15 +387,21 @@ NK_PUBLIC void nk_angular_bf16_loongsonasx(nk_bf16_t const *a, nk_bf16_t const *
     __m256 dot_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
     __m256 a_sq_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
     __m256 b_sq_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    __m256i mask_high_u32x8 = __lasx_xvreplgr2vr_w((int)0xFFFF0000);
     nk_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = __lsx_vld(a + i, 0);
-        __m128i b_bf16x8 = __lsx_vld(b + i, 0);
-        __m256 a_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(a_bf16x8);
-        __m256 b_f32x8 = (__m256)nk_bf16x8_to_f32x8_loongsonasx_(b_bf16x8);
-        dot_f32x8 = __lasx_xvfmadd_s(a_f32x8, b_f32x8, dot_f32x8);
-        a_sq_f32x8 = __lasx_xvfmadd_s(a_f32x8, a_f32x8, a_sq_f32x8);
-        b_sq_f32x8 = __lasx_xvfmadd_s(b_f32x8, b_f32x8, b_sq_f32x8);
+    for (; i + 16 <= n; i += 16) {
+        __m256i a_bf16x16 = __lasx_xvld(a + i, 0);
+        __m256i b_bf16x16 = __lasx_xvld(b + i, 0);
+        __m256 a_even_f32x8 = (__m256)__lasx_xvslli_w(a_bf16x16, 16);
+        __m256 b_even_f32x8 = (__m256)__lasx_xvslli_w(b_bf16x16, 16);
+        dot_f32x8 = __lasx_xvfmadd_s(a_even_f32x8, b_even_f32x8, dot_f32x8);
+        a_sq_f32x8 = __lasx_xvfmadd_s(a_even_f32x8, a_even_f32x8, a_sq_f32x8);
+        b_sq_f32x8 = __lasx_xvfmadd_s(b_even_f32x8, b_even_f32x8, b_sq_f32x8);
+        __m256 a_odd_f32x8 = (__m256)__lasx_xvand_v(a_bf16x16, mask_high_u32x8);
+        __m256 b_odd_f32x8 = (__m256)__lasx_xvand_v(b_bf16x16, mask_high_u32x8);
+        dot_f32x8 = __lasx_xvfmadd_s(a_odd_f32x8, b_odd_f32x8, dot_f32x8);
+        a_sq_f32x8 = __lasx_xvfmadd_s(a_odd_f32x8, a_odd_f32x8, a_sq_f32x8);
+        b_sq_f32x8 = __lasx_xvfmadd_s(b_odd_f32x8, b_odd_f32x8, b_sq_f32x8);
     }
     nk_f32_t dot = nk_reduce_add_f32x8_loongsonasx_(dot_f32x8);
     nk_f32_t a_sq = nk_reduce_add_f32x8_loongsonasx_(a_sq_f32x8);

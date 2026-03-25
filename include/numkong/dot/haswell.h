@@ -485,24 +485,29 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
 
 NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m128i a_bf16x8, b_bf16x8;
+    __m256i a_bf16x16, b_bf16x16;
     __m256 sum_f32x8 = _mm256_setzero_ps();
+    __m256i mask_high_u32x8 = _mm256_set1_epi32((int)0xFFFF0000);
 nk_dot_bf16_haswell_cycle:
-    if (count_scalars < 8) {
+    if (count_scalars < 16) {
         nk_b256_vec_t a_vec, b_vec;
         nk_partial_load_b16x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b16x16_serial_(b_scalars, &b_vec, count_scalars);
-        a_bf16x8 = a_vec.xmms[0];
-        b_bf16x8 = b_vec.xmms[0];
+        a_bf16x16 = a_vec.ymm;
+        b_bf16x16 = b_vec.ymm;
         count_scalars = 0;
     }
     else {
-        a_bf16x8 = _mm_loadu_si128((__m128i const *)a_scalars);
-        b_bf16x8 = _mm_loadu_si128((__m128i const *)b_scalars);
-        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+        a_bf16x16 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_bf16x16 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
-    sum_f32x8 = _mm256_fmadd_ps(nk_bf16x8_to_f32x8_haswell_(a_bf16x8), nk_bf16x8_to_f32x8_haswell_(b_bf16x8),
-                                sum_f32x8);
+    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a_bf16x16, 16));
+    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b_bf16x16, 16));
+    sum_f32x8 = _mm256_fmadd_ps(a_even_f32x8, b_even_f32x8, sum_f32x8);
+    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a_bf16x16, mask_high_u32x8));
+    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b_bf16x16, mask_high_u32x8));
+    sum_f32x8 = _mm256_fmadd_ps(a_odd_f32x8, b_odd_f32x8, sum_f32x8);
     if (count_scalars) goto nk_dot_bf16_haswell_cycle;
     *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
 }
@@ -946,10 +951,34 @@ NK_INTERNAL void nk_dot_through_f32_finalize_haswell_(                          
 typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_f16x8_state_haswell_t;
 
 /**
- *  @brief Running state for 128-bit dot accumulation over bf16 scalars on Haswell.
- *  @note Alias of nk_dot_through_f32_state_haswell_t_
+ *  @brief Running state for 256-bit dot accumulation over bf16 scalars on Haswell.
+ *  @note Processes 16 bf16 per tile step via unpack(zero, bf16) → 2×8 f32 FMA.
  */
-typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_bf16x8_state_haswell_t;
+typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_bf16x16_state_haswell_t;
+
+NK_INTERNAL void nk_dot_bf16x16_init_haswell(nk_dot_bf16x16_state_haswell_t *state) {
+    nk_dot_through_f32_init_haswell_(state);
+}
+
+NK_INTERNAL void nk_dot_bf16x16_update_haswell(nk_dot_bf16x16_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256i mask_high_u32x8 = _mm256_set1_epi32((int)0xFFFF0000);
+    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a.ymm, 16));
+    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b.ymm, 16));
+    state->sum_f32x8 = _mm256_fmadd_ps(a_even_f32x8, b_even_f32x8, state->sum_f32x8);
+    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a.ymm, mask_high_u32x8));
+    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b.ymm, mask_high_u32x8));
+    state->sum_f32x8 = _mm256_fmadd_ps(a_odd_f32x8, b_odd_f32x8, state->sum_f32x8);
+}
+
+NK_INTERNAL void nk_dot_bf16x16_finalize_haswell(                                                 //
+    nk_dot_bf16x16_state_haswell_t const *state_a, nk_dot_bf16x16_state_haswell_t const *state_b, //
+    nk_dot_bf16x16_state_haswell_t const *state_c, nk_dot_bf16x16_state_haswell_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_dot_through_f32_finalize_haswell_(state_a, state_b, state_c, state_d, total_dimensions, result);
+}
 
 /**
  *  @brief Running state for 128-bit dot accumulation over e4m3 scalars on Haswell.

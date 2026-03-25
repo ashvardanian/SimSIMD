@@ -508,24 +508,28 @@ nk_dot_f16_skylake_cycle:
 
 NK_PUBLIC void nk_dot_bf16_skylake(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m256i a_bf16x16, b_bf16x16;
+    __m512i a_bf16x32, b_bf16x32;
     __m512 sum_f32x16 = _mm512_setzero_ps();
+    __m512i mask_high_u32x16 = _mm512_set1_epi32((int)0xFFFF0000);
 
 nk_dot_bf16_skylake_cycle:
-    if (count_scalars < 16) {
-        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
-        a_bf16x16 = _mm256_maskz_loadu_epi16(mask, a_scalars);
-        b_bf16x16 = _mm256_maskz_loadu_epi16(mask, b_scalars);
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_bf16x32 = _mm512_maskz_loadu_epi16(mask, a_scalars);
+        b_bf16x32 = _mm512_maskz_loadu_epi16(mask, b_scalars);
         count_scalars = 0;
     }
     else {
-        a_bf16x16 = _mm256_loadu_si256((__m256i const *)a_scalars);
-        b_bf16x16 = _mm256_loadu_si256((__m256i const *)b_scalars);
-        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+        a_bf16x32 = _mm512_loadu_si512(a_scalars);
+        b_bf16x32 = _mm512_loadu_si512(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
-    __m512 a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a_bf16x16);
-    __m512 b_f32x16 = nk_bf16x16_to_f32x16_skylake_(b_bf16x16);
-    sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
+    __m512 a_even_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(a_bf16x32, 16));
+    __m512 b_even_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(b_bf16x32, 16));
+    sum_f32x16 = _mm512_fmadd_ps(a_even_f32x16, b_even_f32x16, sum_f32x16);
+    __m512 a_odd_f32x16 = _mm512_castsi512_ps(_mm512_and_si512(a_bf16x32, mask_high_u32x16));
+    __m512 b_odd_f32x16 = _mm512_castsi512_ps(_mm512_and_si512(b_bf16x32, mask_high_u32x16));
+    sum_f32x16 = _mm512_fmadd_ps(a_odd_f32x16, b_odd_f32x16, sum_f32x16);
     if (count_scalars) goto nk_dot_bf16_skylake_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
@@ -872,6 +876,32 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
 #pragma endregion - Traditional Floats
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;
+
+typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x32_state_skylake_t;
+
+NK_INTERNAL void nk_dot_bf16x32_init_skylake(nk_dot_bf16x32_state_skylake_t *state) {
+    nk_dot_through_f32_init_skylake_(state);
+}
+
+NK_INTERNAL void nk_dot_bf16x32_update_skylake(nk_dot_bf16x32_state_skylake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m512i mask_high_u32x16 = _mm512_set1_epi32((int)0xFFFF0000);
+    __m512 a_even_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(a.zmm, 16));
+    __m512 b_even_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(b.zmm, 16));
+    state->sum_f32x16 = _mm512_fmadd_ps(a_even_f32x16, b_even_f32x16, state->sum_f32x16);
+    __m512 a_odd_f32x16 = _mm512_castsi512_ps(_mm512_and_si512(a.zmm, mask_high_u32x16));
+    __m512 b_odd_f32x16 = _mm512_castsi512_ps(_mm512_and_si512(b.zmm, mask_high_u32x16));
+    state->sum_f32x16 = _mm512_fmadd_ps(a_odd_f32x16, b_odd_f32x16, state->sum_f32x16);
+}
+
+NK_INTERNAL void nk_dot_bf16x32_finalize_skylake(                                                 //
+    nk_dot_bf16x32_state_skylake_t const *state_a, nk_dot_bf16x32_state_skylake_t const *state_b, //
+    nk_dot_bf16x32_state_skylake_t const *state_c, nk_dot_bf16x32_state_skylake_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_dot_through_f32_finalize_skylake_(state_a, state_b, state_c, state_d, total_dimensions, result);
+}
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_f16x16_state_skylake_t;
 

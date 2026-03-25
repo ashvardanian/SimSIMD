@@ -179,9 +179,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dot_f32_haswell`    |         30.5 gb/s, 0 ulp |         23.9 gb/s, 0 ulp |         24.4 gb/s, 0 ulp |
 | `nk_dot_f32_skylake`    |         44.2 gb/s, 0 ulp |         29.8 gb/s, 0 ulp |         30.0 gb/s, 0 ulp |
 | __bf16__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_bf16_serial`    |        0.624 gb/s, 0 ulp |      0.425 gb/s, 0.6 ulp |      0.478 gb/s, 5.2 ulp |
-| `nk_dot_bf16_haswell`   |         30.5 gb/s, 0 ulp |       19.8 gb/s, 0.2 ulp |      19.2 gb/s, 41.3 ulp |
-| `nk_dot_bf16_skylake`   |         52.0 gb/s, 0 ulp |       29.8 gb/s, 0.2 ulp |      30.3 gb/s, 21.8 ulp |
+| `nk_dot_bf16_serial`    |        0.633 gb/s, 0 ulp |      0.630 gb/s, 0.5 ulp |      0.638 gb/s, 5.4 ulp |
+| `nk_dot_bf16_haswell`   |         39.3 gb/s, 0 ulp |       25.5 gb/s, 0.2 ulp |      20.2 gb/s, 25.3 ulp |
+| `nk_dot_bf16_skylake`   |         62.7 gb/s, 0 ulp |       30.2 gb/s, 0.2 ulp |       29.5 gb/s, 2.3 ulp |
 | `nk_dot_bf16_genoa`     |         88.8 gb/s, 0 ulp |       29.7 gb/s, 0.2 ulp |       31.2 gb/s, 2.2 ulp |
 | __f16__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_f16_serial`     |      1.31 gb/s, 11.5 ulp |      1.32 gb/s, 33.7 ulp |      1.30 gb/s, 59.7 ulp |
