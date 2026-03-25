@@ -134,6 +134,12 @@ void test_set() {
     check("hamming_u8_loongsonasx", test_hamming<u8_t>, nk_hamming_u8_loongsonasx);
 #endif // NK_TARGET_LOONGSONASX
 
+#if NK_TARGET_POWERVSX
+    check("hamming_u1_powervsx", test_hamming<u1x8_t>, nk_hamming_u1_powervsx);
+    check("jaccard_u1_powervsx", test_jaccard<u1x8_t>, nk_jaccard_u1_powervsx);
+    check("hamming_u8_powervsx", test_hamming<u8_t>, nk_hamming_u8_powervsx);
+#endif // NK_TARGET_POWERVSX
+
     // Serial always runs - baseline test
     check("hamming_u1_serial", test_hamming<u1x8_t>, nk_hamming_u1_serial);
     check("jaccard_u1_serial", test_jaccard<u1x8_t>, nk_jaccard_u1_serial);

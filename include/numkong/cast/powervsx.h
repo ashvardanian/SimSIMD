@@ -249,7 +249,7 @@ NK_INTERNAL nk_vf32x4_t nk_i16x4_to_f32x4_powervsx_(nk_i16_t const *source) {
 NK_INTERNAL nk_vf32x4_t nk_u16x4_to_f32x4_powervsx_(nk_u16_t const *source) {
     nk_vu16x8_t values_u16x8 = (nk_vu16x8_t)vec_xl_len((nk_u8_t *)source, 8);
     nk_vu16x8_t zero_u16x8 = vec_splats((nk_u16_t)0);
-    nk_vu32x4_t values_u32x4 = (nk_vu32x4_t)vec_mergeh(zero_u16x8, values_u16x8);
+    nk_vu32x4_t values_u32x4 = (nk_vu32x4_t)vec_mergeh(values_u16x8, zero_u16x8);
     return vec_ctf(values_u32x4, 0);
 }
 
@@ -265,9 +265,9 @@ NK_INTERNAL nk_vf32x4_t nk_i8x4_to_f32x4_powervsx_(void const *source) {
 NK_INTERNAL nk_vf32x4_t nk_u8x4_to_f32x4_powervsx_(void const *source) {
     nk_vu8x16_t values_u8x16 = (nk_vu8x16_t)vec_xl_len((nk_u8_t *)source, 4);
     nk_vu8x16_t zero_u8x16 = vec_splats((nk_u8_t)0);
-    nk_vu16x8_t values_u16x8 = (nk_vu16x8_t)vec_mergeh(zero_u8x16, values_u8x16);
+    nk_vu16x8_t values_u16x8 = (nk_vu16x8_t)vec_mergeh(values_u8x16, zero_u8x16);
     nk_vu16x8_t zero_u16x8 = vec_splats((nk_u16_t)0);
-    nk_vu32x4_t values_u32x4 = (nk_vu32x4_t)vec_mergeh(zero_u16x8, values_u16x8);
+    nk_vu32x4_t values_u32x4 = (nk_vu32x4_t)vec_mergeh(values_u16x8, zero_u16x8);
     return vec_ctf(values_u32x4, 0);
 }
 
