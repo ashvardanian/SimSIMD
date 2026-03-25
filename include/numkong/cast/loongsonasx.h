@@ -74,11 +74,19 @@ NK_INTERNAL void nk_load_b128_loongsonasx_(void const *src, nk_b128_vec_t *dst) 
 /** @brief Type-agnostic 128-bit full store (LSX subset of LASX). */
 NK_INTERNAL void nk_store_b128_loongsonasx_(nk_b128_vec_t const *src, void *dst) { __lsx_vst(src->xmm, dst, 0); }
 
-/** @brief Convert 8 × bf16 → 8 × f32 by zero-extending u16 → u32 and shifting left 16 (LASX). */
+/** @brief Convert 8 × bf16 → 8 × f32 by interleaving with zero so bf16 lands in upper 16 bits (LASX).
+ *
+ *  Duplicates the 128-bit input into both lanes, then `xvilvl_h(bf16, zero)` places each bf16
+ *  value in the high 16 bits of a 32-bit slot — which is valid f32 with no shift needed.
+ *  `xvpermi_q` combines the low-element and high-element halves into a single register.
+ */
 NK_INTERNAL __m256i nk_bf16x8_to_f32x8_loongsonasx_(__m128i bf16_i16x8) {
-    // Zero-extend low 8 × u16 → 8 × u32, then shift left 16 to place bf16 mantissa in f32 position
-    __m256i extended_u32x8 = __lasx_xvsllwil_wu_hu(nk_lasx_castsi128_si256_(bf16_i16x8), 0);
-    return __lasx_xvslli_w(extended_u32x8, 16);
+    __m256i duped_bf16x16 = __lasx_xvpermi_q(nk_lasx_castsi128_si256_(bf16_i16x8), nk_lasx_castsi128_si256_(bf16_i16x8),
+                                             0x00);
+    __m256i zero_i16x16 = __lasx_xvreplgr2vr_h(0);
+    __m256i low_f32x8 = __lasx_xvilvl_h(duped_bf16x16, zero_i16x16);
+    __m256i high_f32x8 = __lasx_xvilvh_h(duped_bf16x16, zero_i16x16);
+    return __lasx_xvpermi_q(high_f32x8, low_f32x8, 0x20);
 }
 
 /** @brief Load 8 × bf16 from memory, convert to 8 × f32, store in 256-bit vector (LASX). */
@@ -95,7 +103,11 @@ NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_loongsonasx_(nk_bf16_t const *s
 
 /** @brief Convert 8 × f16 → 8 × f32 via native LASX hardware conversion. */
 NK_INTERNAL __m256i nk_f16x8_to_f32x8_loongsonasx_(__m128i f16_i16x8) {
-    return (__m256i)__lasx_xvfcvtl_s_h(nk_lasx_castsi128_si256_(f16_i16x8));
+    __m256i duped_f16x16 = __lasx_xvpermi_q(nk_lasx_castsi128_si256_(f16_i16x8), nk_lasx_castsi128_si256_(f16_i16x8),
+                                            0x00);
+    __m256i low_f32x8 = (__m256i)__lasx_xvfcvtl_s_h(duped_f16x16);
+    __m256i high_f32x8 = (__m256i)__lasx_xvfcvth_s_h(duped_f16x16);
+    return __lasx_xvpermi_q(high_f32x8, low_f32x8, 0x20);
 }
 
 /** @brief Load 8 × f16 from memory, convert to 8 × f32 via native LASX conversion. */
