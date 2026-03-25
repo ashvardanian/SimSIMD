@@ -141,13 +141,14 @@ nk_sqeuclidean_f32_powervsx_cycle:
         b_f32x4 = vec_xl(0, b);
         a += 4, b += 4, n -= 4;
     }
-    nk_vf32x4_t diff_f32x4 = vec_sub(a_f32x4, b_f32x4);
-    // Widen even elements (0, 2) → f64, accumulate
-    nk_vf64x2_t diff_even_f64x2 = vec_doublee(diff_f32x4);
+    // Widen a and b to f64 before subtraction to avoid f32 precision loss in (a−b)
+    nk_vf64x2_t a_even_f64x2 = vec_doublee(a_f32x4);
+    nk_vf64x2_t b_even_f64x2 = vec_doublee(b_f32x4);
+    nk_vf64x2_t diff_even_f64x2 = vec_sub(a_even_f64x2, b_even_f64x2);
     sum_even_f64x2 = vec_madd(diff_even_f64x2, diff_even_f64x2, sum_even_f64x2);
-    // Widen odd elements (1, 3) → f64: rotate by 4 bytes to bring odd → even positions
-    nk_vf32x4_t diff_rotated_f32x4 = vec_sld(diff_f32x4, diff_f32x4, 4);
-    nk_vf64x2_t diff_odd_f64x2 = vec_doublee(diff_rotated_f32x4);
+    nk_vf64x2_t a_odd_f64x2 = vec_doubleo(a_f32x4);
+    nk_vf64x2_t b_odd_f64x2 = vec_doubleo(b_f32x4);
+    nk_vf64x2_t diff_odd_f64x2 = vec_sub(a_odd_f64x2, b_odd_f64x2);
     sum_odd_f64x2 = vec_madd(diff_odd_f64x2, diff_odd_f64x2, sum_odd_f64x2);
     if (n) goto nk_sqeuclidean_f32_powervsx_cycle;
 
@@ -464,12 +465,19 @@ NK_PUBLIC void nk_euclidean_i8_powervsx(nk_i8_t const *a, nk_i8_t const *b, nk_s
 }
 
 NK_PUBLIC void nk_angular_i8_powervsx(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
-    // Triple accumulator in i32 using vec_msum(i8, u8, i32) → VMSUMMBM
-    // vec_msum treats first operand as signed i8, second as unsigned u8.
-    // For a·b with signed a, signed b: cast second operand to unsigned.
+    // Hybrid approach for 3-accumulator i8 angular distance:
+    //   a·b: algebraic transform — VMSUMMBM(a, b⊕0x80) with correction −128·Σa
+    //   a·a: abs-based unsigned   — VMSUMUBM(|a|, |a|), no correction needed
+    //   b·b: abs-based unsigned   — VMSUMUBM(|b|, |b|), no correction needed
+    // abs(-128)→-128 in i8 → 128 as u8 → 128²=16384=(-128)². Safe for all values.
+    // 3 independent MSUM chains → excellent ILP on POWER9's dual-issue p01.
+    nk_vu8x16_t const bias_u8x16 = vec_splats((nk_u8_t)0x80);
+    nk_vi8x16_t const zeros_i8x16 = vec_splats((nk_i8_t)0);
     nk_vi32x4_t dot_product_i32x4 = vec_splats((nk_i32_t)0);
-    nk_vi32x4_t a_norm_sq_i32x4 = vec_splats((nk_i32_t)0);
-    nk_vi32x4_t b_norm_sq_i32x4 = vec_splats((nk_i32_t)0);
+    nk_vu32x4_t a_norm_sq_u32x4 = vec_splats((nk_u32_t)0);
+    nk_vu32x4_t b_norm_sq_u32x4 = vec_splats((nk_u32_t)0);
+    nk_vu32x4_t sum_a_biased_u32x4 = vec_splats((nk_u32_t)0);
+    nk_size_t count_padded = ((n + 15) / 16) * 16;
     nk_vi8x16_t a_i8x16, b_i8x16;
     nk_size_t tail_bytes;
 
@@ -485,17 +493,28 @@ nk_angular_i8_powervsx_cycle:
         b_i8x16 = vec_xl(0, b);
         a += 16, b += 16, n -= 16;
     }
-    // VMSUMMBM: i8 × u8 → i32 accumulate
-    dot_product_i32x4 = vec_msum(a_i8x16, (nk_vu8x16_t)b_i8x16, dot_product_i32x4);
-    a_norm_sq_i32x4 = vec_msum(a_i8x16, (nk_vu8x16_t)a_i8x16, a_norm_sq_i32x4);
-    b_norm_sq_i32x4 = vec_msum(b_i8x16, (nk_vu8x16_t)b_i8x16, b_norm_sq_i32x4);
+
+    // Dot product: algebraic via VMSUMMBM(i8 × u8 → i32)
+    nk_vu8x16_t b_biased_u8x16 = vec_xor((nk_vu8x16_t)b_i8x16, bias_u8x16);
+    dot_product_i32x4 = vec_msum(a_i8x16, b_biased_u8x16, dot_product_i32x4);
+    // Correction sum: Σ(a+128) via VSUM4UBS
+    sum_a_biased_u32x4 = vec_sum4s(vec_xor((nk_vu8x16_t)a_i8x16, bias_u8x16), sum_a_biased_u32x4);
+    // Norms: |a|² and |b|² via VMSUMUBM(u8 × u8 → u32) on absolute values
+    nk_vu8x16_t a_abs_u8x16 = (nk_vu8x16_t)vec_max(a_i8x16, vec_sub(zeros_i8x16, a_i8x16));
+    nk_vu8x16_t b_abs_u8x16 = (nk_vu8x16_t)vec_max(b_i8x16, vec_sub(zeros_i8x16, b_i8x16));
+    a_norm_sq_u32x4 = vec_msum(a_abs_u8x16, a_abs_u8x16, a_norm_sq_u32x4);
+    b_norm_sq_u32x4 = vec_msum(b_abs_u8x16, b_abs_u8x16, b_norm_sq_u32x4);
+
     if (n) goto nk_angular_i8_powervsx_cycle;
 
-    nk_i32_t dot_product_i32 = nk_hsum_i32x4_powervsx_(dot_product_i32x4);
-    nk_i32_t a_norm_sq_i32 = nk_hsum_i32x4_powervsx_(a_norm_sq_i32x4);
-    nk_i32_t b_norm_sq_i32 = nk_hsum_i32x4_powervsx_(b_norm_sq_i32x4);
-    *result = nk_angular_normalize_f32_powervsx_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
-                                                 (nk_f32_t)b_norm_sq_i32);
+    // Correct the biased dot product: a·b = biased − 128·Σa = biased − 128·(Σ(a+128) − 128·count_padded)
+    nk_i64_t correction = 128LL * (nk_i64_t)nk_hsum_u32x4_powervsx_(sum_a_biased_u32x4) -
+                          16384LL * (nk_i64_t)count_padded;
+    nk_i32_t dot_product_i32 = (nk_i32_t)((nk_i64_t)nk_hsum_i32x4_powervsx_(dot_product_i32x4) - correction);
+    nk_u32_t a_norm_sq_u32 = nk_hsum_u32x4_powervsx_(a_norm_sq_u32x4);
+    nk_u32_t b_norm_sq_u32 = nk_hsum_u32x4_powervsx_(b_norm_sq_u32x4);
+    *result = nk_angular_normalize_f32_powervsx_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_u32,
+                                                 (nk_f32_t)b_norm_sq_u32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_u8_powervsx(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {

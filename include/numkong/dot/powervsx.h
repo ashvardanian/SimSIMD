@@ -14,8 +14,12 @@
  *      vec_madd(a, b, c)                XVMADDADP/XVMADDASP   5cy  FMA: a×b+c
  *      vec_msub(a, b, c)                XVMSUBADP/XVMSUBASP   5cy  FMS: a×b−c
  *      vec_msum(a, b, c)                VMSUMUBM/VMSUMMBM     5cy  i8/u8 widening multiply-sum → i32/u32
+ *      vec_msum(a, b, c)                VMSUMSHM/VMSUMUHM     5cy  i16/u16 widening multiply-sum → i32/u32
  *      vec_doublee(a)                   XVCVSPDP              3cy  Widen even f32 lanes → f64x2
  *      vec_doubleo(a)                   XVCVSPDP (odd)        3cy  Widen odd f32 lanes → f64x2
+ *      vec_unpackh(a)                   VUPKHSB/VUPKHSH       2cy  Sign-extend high half (i8→i16 or i16→i32)
+ *      vec_unpackl(a)                   VUPKLSB/VUPKLSH       2cy  Sign-extend low half (i8→i16 or i16→i32)
+ *      vec_xor(a, b)                    VXOR/XXLXOR           1cy  Bitwise XOR
  *      vec_xl(off, ptr)                 LXV                   5cy  Aligned 16-byte load
  *      vec_xl_len(ptr, len)             LXVL                  5cy  Partial load (Power9), zero-fills tail
  *      vec_extract_fp32_from_shorth     XVCVHPSP (high)       5cy  f16x4 → f32x4 from high half
@@ -265,30 +269,46 @@ nk_dot_f16_powervsx_cycle:
 
 NK_PUBLIC void nk_dot_i8_powervsx(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                   nk_i32_t *result) {
-    // vec_msum: multiply i8×u8 pairs and accumulate 16 products → 4 i32 lanes per call
+    // Algebraic transform for i8×i8 using VMSUMMBM (i8×u8 → i32):
+    //   b' = b ⊕ 0x80  (reinterpret signed as unsigned)
+    //   a·b = a·b' − 128·Σa
+    // Σ(a+128) accumulated via VSUM4UBS; correction applied after loop.
+    // Tail handling is free: vec_xl_len zero-fills unused lanes.
+    //   - Product: 0 × (0⊕0x80) = 0 → no spurious contribution
+    //   - Correction: (0⊕0x80) = 128 in sum_a_biased, compensated by count_padded
+    nk_vu8x16_t const bias_u8x16 = vec_splats((nk_u8_t)0x80);
     nk_vi32x4_t accumulator_i32x4 = vec_splats((nk_i32_t)0);
-    nk_vi8x16_t a_i8x16, b_i8x16;
+    nk_vu32x4_t sum_a_biased_u32x4 = vec_splats((nk_u32_t)0);
+    nk_size_t count_padded = ((count_scalars + 15) / 16) * 16;
+    nk_vi8x16_t a_i8x16;
+    nk_vu8x16_t b_biased_u8x16;
     nk_size_t tail_bytes;
 
 nk_dot_i8_powervsx_cycle:
     if (count_scalars < 16) {
         tail_bytes = count_scalars * sizeof(nk_i8_t);
         a_i8x16 = vec_xl_len((nk_i8_t *)a_scalars, tail_bytes);
-        b_i8x16 = vec_xl_len((nk_i8_t *)b_scalars, tail_bytes);
+        b_biased_u8x16 = vec_xor(vec_xl_len((nk_u8_t *)b_scalars, tail_bytes), bias_u8x16);
         count_scalars = 0;
     }
     else {
         a_i8x16 = vec_xl(0, a_scalars);
-        b_i8x16 = vec_xl(0, b_scalars);
+        b_biased_u8x16 = vec_xor(vec_xl(0, (nk_u8_t *)b_scalars), bias_u8x16);
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
 
-    // Signed × unsigned multiply-sum: vec_msum treats first operand as signed,
-    // second as unsigned, so cast b to unsigned for correct i8×i8 semantics
-    accumulator_i32x4 = vec_msum(a_i8x16, (nk_vu8x16_t)b_i8x16, accumulator_i32x4);
+    // VMSUMMBM: i8 × u8 → i32 (16 products per instruction)
+    accumulator_i32x4 = vec_msum(a_i8x16, b_biased_u8x16, accumulator_i32x4);
+    // VSUM4UBS: accumulate Σ(a+128) as unsigned (independent chain, good ILP)
+    sum_a_biased_u32x4 = vec_sum4s(vec_xor((nk_vu8x16_t)a_i8x16, bias_u8x16), sum_a_biased_u32x4);
 
     if (count_scalars) goto nk_dot_i8_powervsx_cycle;
-    *result = nk_hsum_i32x4_powervsx_(accumulator_i32x4);
+
+    // Correction: a·b = biased_dot − 128·Σa = biased_dot − 128·(Σ(a+128) − 128·count_padded)
+    nk_i32_t biased_dot = nk_hsum_i32x4_powervsx_(accumulator_i32x4);
+    nk_i64_t correction = 128LL * (nk_i64_t)nk_hsum_u32x4_powervsx_(sum_a_biased_u32x4) -
+                          16384LL * (nk_i64_t)count_padded;
+    *result = (nk_i32_t)((nk_i64_t)biased_dot - correction);
 }
 
 NK_PUBLIC void nk_dot_u8_powervsx(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
@@ -547,33 +567,41 @@ NK_INTERNAL void nk_dot_f16x8_finalize_powervsx(                                
 /**
  *  @brief Running state for 128-bit dot accumulation over i8 scalars on Power VSX.
  *
- *  Processes 16 i8 values at a time via vec_msum, accumulating into 4 i32 lanes.
+ *  Algebraic transform: a·b = a·(b⊕0x80) − 128·Σa. Uses VMSUMMBM (i8×u8 → i32) for the biased
+ *  product. Correction is applied at finalize using precomputed column sums from the compensated
+ *  macro infrastructure.
  */
 typedef struct nk_dot_i8x16_state_powervsx_t {
-    nk_vi32x4_t sum_i32x4;
+    nk_vi32x4_t biased_sum_i32x4;
 } nk_dot_i8x16_state_powervsx_t;
 
 NK_INTERNAL void nk_dot_i8x16_init_powervsx(nk_dot_i8x16_state_powervsx_t *state) {
-    state->sum_i32x4 = vec_splats((nk_i32_t)0);
+    state->biased_sum_i32x4 = vec_splats((nk_i32_t)0);
 }
 
 NK_INTERNAL void nk_dot_i8x16_update_powervsx(nk_dot_i8x16_state_powervsx_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Signed × unsigned multiply-sum: vec_msum treats first as signed, second as unsigned
-    nk_vi8x16_t a_i8x16 = a.vi8x16;
-    nk_vu8x16_t b_u8x16 = b.vu8x16;
-    state->sum_i32x4 = vec_msum(a_i8x16, b_u8x16, state->sum_i32x4);
+    // VMSUMMBM(b, a⊕0x80) = Σ(b_i · (a_i+128)) = a·b + 128·Σb
+    // Swapping operands: b in signed slot, biased a in unsigned slot.
+    // Correction −128·Σb uses precomputed B column sums from the compensated macro.
+    nk_vu8x16_t const bias_u8x16 = vec_splats((nk_u8_t)0x80);
+    nk_vu8x16_t a_biased_u8x16 = vec_xor(a.vu8x16, bias_u8x16);
+    state->biased_sum_i32x4 = vec_msum(b.vi8x16, a_biased_u8x16, state->biased_sum_i32x4);
 }
 
 NK_INTERNAL void nk_dot_i8x16_finalize_powervsx(                                                //
     nk_dot_i8x16_state_powervsx_t const *state_a, nk_dot_i8x16_state_powervsx_t const *state_b, //
     nk_dot_i8x16_state_powervsx_t const *state_c, nk_dot_i8x16_state_powervsx_t const *state_d, //
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_size_t total_dimensions,                                                                 //
+    nk_i32_t a_sum, nk_b128_vec_t b_sums, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    nk_vi32x4_t a_i32x4 = state_a->sum_i32x4, b_i32x4 = state_b->sum_i32x4, c_i32x4 = state_c->sum_i32x4,
-                d_i32x4 = state_d->sum_i32x4;
+    nk_unused_(a_sum);
+
+    // Transpose-reduce biased products across 4 accumulators → one i32x4
+    nk_vi32x4_t a_i32x4 = state_a->biased_sum_i32x4, b_i32x4 = state_b->biased_sum_i32x4,
+                c_i32x4 = state_c->biased_sum_i32x4, d_i32x4 = state_d->biased_sum_i32x4;
     nk_vi32x4_t transpose_ab_low_i32x4 = vec_mergeh(a_i32x4, b_i32x4);
     nk_vi32x4_t transpose_cd_low_i32x4 = vec_mergeh(c_i32x4, d_i32x4);
     nk_vi32x4_t transpose_ab_high_i32x4 = vec_mergel(a_i32x4, b_i32x4);
@@ -586,7 +614,34 @@ NK_INTERNAL void nk_dot_i8x16_finalize_powervsx(                                
                                                             (nk_vu64x2_t)transpose_cd_high_i32x4, 0);
     nk_vi32x4_t sum_lane3_i32x4 = (nk_vi32x4_t)vec_xxpermdi((nk_vu64x2_t)transpose_ab_high_i32x4,
                                                             (nk_vu64x2_t)transpose_cd_high_i32x4, 3);
-    result->vi32x4 = vec_add(vec_add(sum_lane0_i32x4, sum_lane1_i32x4), vec_add(sum_lane2_i32x4, sum_lane3_i32x4));
+    nk_vi32x4_t biased_i32x4 = vec_add(vec_add(sum_lane0_i32x4, sum_lane1_i32x4),
+                                       vec_add(sum_lane2_i32x4, sum_lane3_i32x4));
+
+    // Correction: VMSUMMBM(b, a⊕0x80) = Σ(b_i·(a_i+128)) = a·b + 128·Σb
+    // So a·b = biased − 128·Σb. B column sums are precomputed during packing.
+    nk_vu32x4_t shift_u32x4 = vec_splats((nk_u32_t)7);
+    nk_vi32x4_t correction_i32x4 = (nk_vi32x4_t)vec_sl((nk_vu32x4_t)b_sums.vi32x4, shift_u32x4);
+    result->vi32x4 = vec_sub(biased_i32x4, correction_i32x4);
+}
+
+/** @brief Running state for i8 column sum precomputation on Power VSX. */
+typedef struct nk_sum_i8x16_state_powervsx_t {
+    nk_vu32x4_t biased_sum_u32x4;
+} nk_sum_i8x16_state_powervsx_t;
+
+NK_INTERNAL void nk_sum_i8x16_init_powervsx(nk_sum_i8x16_state_powervsx_t *state) {
+    state->biased_sum_u32x4 = vec_splats((nk_u32_t)0);
+}
+
+NK_INTERNAL void nk_sum_i8x16_update_powervsx(nk_sum_i8x16_state_powervsx_t *state, nk_b128_vec_t values_vec) {
+    nk_vu8x16_t const bias_u8x16 = vec_splats((nk_u8_t)0x80);
+    nk_vu8x16_t biased_u8x16 = vec_xor(values_vec.vu8x16, bias_u8x16);
+    state->biased_sum_u32x4 = vec_sum4s(biased_u8x16, state->biased_sum_u32x4);
+}
+
+NK_INTERNAL nk_i32_t nk_sum_i8x16_finalize_powervsx(nk_sum_i8x16_state_powervsx_t const *state, nk_size_t count) {
+    nk_u32_t biased_sum = nk_hsum_u32x4_powervsx_(state->biased_sum_u32x4);
+    return (nk_i32_t)((nk_i64_t)biased_sum - 128 * (nk_i64_t)count);
 }
 
 /**

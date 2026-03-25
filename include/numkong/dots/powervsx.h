@@ -108,22 +108,32 @@ nk_define_cross_packed_(dots, f16, powervsx, f16, f16, f32, nk_b128_vec_t, nk_do
                         nk_dot_f16x8_finalize_powervsx, nk_store_b128_powervsx_, nk_partial_store_b32x4_powervsx_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
-/* I8 GEMM: depth_simd_dimensions=16 (16 i8s = 16 bytes = VSX register width) */
-nk_define_cross_pack_size_(dots, i8, powervsx, i8, i8, /*norm_value_type=*/u32, /*depth_simd_dimensions=*/16,
-                           /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, i8, powervsx, i8, i8, nk_assign_from_to_, /*norm_value_type=*/u32, nk_dots_reduce_sumsq_i8_,
-                      /*depth_simd_dimensions=*/16,
-                      /*dimensions_per_value=*/1)
-nk_define_cross_symmetric_(dots, i8, powervsx, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_powervsx_t, nk_b128_vec_t,
-                           nk_dot_i8x16_init_powervsx, nk_load_b128_powervsx_, nk_partial_load_b8x16_powervsx_,
-                           nk_dot_i8x16_update_powervsx, nk_dot_i8x16_finalize_powervsx, nk_store_b128_powervsx_,
-                           nk_partial_store_b32x4_powervsx_,
-                           /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
-nk_define_cross_packed_(dots, i8, powervsx, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_powervsx_t, nk_b128_vec_t,
-                        nk_dot_i8x16_init_powervsx, nk_load_b128_powervsx_, nk_partial_load_b8x16_powervsx_,
-                        nk_load_b128_powervsx_, nk_partial_load_b8x16_powervsx_, nk_dot_i8x16_update_powervsx,
-                        nk_dot_i8x16_finalize_powervsx, nk_store_b128_powervsx_, nk_partial_store_b32x4_powervsx_,
-                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+/* I8 GEMM: depth_simd_dimensions=16, compensated (algebraic bias, column sums precomputed) */
+nk_define_cross_compensated_pack_size_(dots, i8, powervsx, i8, i8,
+                                       /*sum_value_type=*/i32, /*norm_value_type=*/u32,
+                                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_pack_(dots, i8, powervsx, i8, i8, nk_assign_from_to_,
+                                  /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_dots_reduce_moments_i8_,
+                                  /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_symmetric_(dots, i8, powervsx, i8, i32,
+                                       /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_b128_vec_t,
+                                       nk_dot_i8x16_state_powervsx_t, nk_b128_vec_t, nk_dot_i8x16_init_powervsx,
+                                       nk_load_b128_powervsx_, nk_partial_load_b8x16_powervsx_,
+                                       nk_dot_i8x16_update_powervsx, nk_dot_i8x16_finalize_powervsx,
+                                       nk_store_b128_powervsx_, nk_partial_store_b32x4_powervsx_,
+                                       nk_load_b128_powervsx_, nk_partial_load_b32x4_powervsx_,
+                                       nk_sum_i8x16_state_powervsx_t, nk_sum_i8x16_init_powervsx,
+                                       nk_sum_i8x16_update_powervsx, nk_sum_i8x16_finalize_powervsx,
+                                       /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_cross_compensated_packed_(dots, i8, powervsx, i8, i8, i32,
+                                    /*sum_value_type=*/i32, /*norm_value_type=*/u32, nk_b128_vec_t,
+                                    nk_dot_i8x16_state_powervsx_t, nk_b128_vec_t, nk_dot_i8x16_init_powervsx,
+                                    nk_load_b128_powervsx_, nk_partial_load_b8x16_powervsx_, nk_load_b128_powervsx_,
+                                    nk_partial_load_b8x16_powervsx_, nk_dot_i8x16_update_powervsx,
+                                    nk_dot_i8x16_finalize_powervsx, nk_store_b128_powervsx_,
+                                    nk_partial_store_b32x4_powervsx_, nk_load_b128_powervsx_,
+                                    nk_partial_load_b32x4_powervsx_, nk_dots_reduce_sum_i8_stub_,
+                                    /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* U8 GEMM: depth_simd_dimensions=16 (16 u8s = 16 bytes = VSX register width) */
 nk_define_cross_pack_size_(dots, u8, powervsx, u8, u8, /*norm_value_type=*/u32, /*depth_simd_dimensions=*/16,
