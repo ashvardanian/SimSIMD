@@ -170,66 +170,68 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_vdot_f16c_haswell`  |      24.0 gb/s, 11.1 ulp |      20.0 gb/s, 17.4 ulp |      17.1 gb/s, 29.2 ulp |
 | __f64__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `dot_f64_with_blas` 🧩   |       27.8 gb/s, 6.9 ulp |       30.1 gb/s, 9.3 ulp |        15.7 gb/s, 20 ulp |
-| `nk_dot_f64_serial`     |       5.41 gb/s, 2.2 ulp |       6.31 gb/s, 2.0 ulp |       6.77 gb/s, 3.3 ulp |
-| `nk_dot_f64_haswell`    |         21.9 gb/s, 0 ulp |         26.1 gb/s, 0 ulp |         12.4 gb/s, 0 ulp |
-| `nk_dot_f64_skylake`    |         23.9 gb/s, 0 ulp |         27.0 gb/s, 0 ulp |         16.4 gb/s, 0 ulp |
+| `nk_dot_f64_serial`     |       4.28 gb/s, 2.2 ulp |       4.39 gb/s, 2.0 ulp |       4.42 gb/s, 3.3 ulp |
+| `nk_dot_f64_haswell`    |         24.2 gb/s, 0 ulp |         25.7 gb/s, 0 ulp |         18.3 gb/s, 0 ulp |
+| `nk_dot_f64_skylake`    |         29.0 gb/s, 0 ulp |         28.6 gb/s, 0 ulp |         24.9 gb/s, 0 ulp |
 | __f32__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `dot_f32_with_blas` 🧩   |        47.8 gb/s, 14 ulp |        30.7 gb/s, 14 ulp |        29.7 gb/s, 15 ulp |
-| `nk_dot_f32_serial`     |         11.3 gb/s, 0 ulp |         11.7 gb/s, 0 ulp |         10.7 gb/s, 0 ulp |
-| `nk_dot_f32_haswell`    |         28.0 gb/s, 0 ulp |         23.6 gb/s, 0 ulp |         21.3 gb/s, 0 ulp |
-| `nk_dot_f32_skylake`    |         36.3 gb/s, 0 ulp |         29.2 gb/s, 0 ulp |         23.7 gb/s, 0 ulp |
+| `nk_dot_f32_serial`     |         11.0 gb/s, 0 ulp |         11.2 gb/s, 0 ulp |         11.5 gb/s, 0 ulp |
+| `nk_dot_f32_haswell`    |         30.5 gb/s, 0 ulp |         23.9 gb/s, 0 ulp |         24.4 gb/s, 0 ulp |
+| `nk_dot_f32_skylake`    |         44.2 gb/s, 0 ulp |         29.8 gb/s, 0 ulp |         30.0 gb/s, 0 ulp |
 | __bf16__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_bf16_serial`    |        0.655 gb/s, 0 ulp |      0.644 gb/s, 0.6 ulp |      0.651 gb/s, 5.2 ulp |
-| `nk_dot_bf16_haswell`   |         30.1 gb/s, 0 ulp |       20.3 gb/s, 0.2 ulp |      19.4 gb/s, 41.3 ulp |
-| `nk_dot_bf16_skylake`   |         53.6 gb/s, 0 ulp |       30.4 gb/s, 0.2 ulp |      29.6 gb/s, 21.8 ulp |
-| `nk_dot_bf16_genoa`     |         88.1 gb/s, 0 ulp |       31.6 gb/s, 0.2 ulp |       31.1 gb/s, 2.2 ulp |
+| `nk_dot_bf16_serial`    |        0.624 gb/s, 0 ulp |      0.425 gb/s, 0.6 ulp |      0.478 gb/s, 5.2 ulp |
+| `nk_dot_bf16_haswell`   |         30.5 gb/s, 0 ulp |       19.8 gb/s, 0.2 ulp |      19.2 gb/s, 41.3 ulp |
+| `nk_dot_bf16_skylake`   |         52.0 gb/s, 0 ulp |       29.8 gb/s, 0.2 ulp |      30.3 gb/s, 21.8 ulp |
+| `nk_dot_bf16_genoa`     |         88.8 gb/s, 0 ulp |       29.7 gb/s, 0.2 ulp |       31.2 gb/s, 2.2 ulp |
 | __f16__                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_f16_serial`     |      1.38 gb/s, 11.5 ulp |      1.37 gb/s, 33.7 ulp |      1.32 gb/s, 59.7 ulp |
-| `nk_dot_f16_haswell`    |       30.6 gb/s, 7.0 ulp |      23.3 gb/s, 14.0 ulp |      20.0 gb/s, 29.8 ulp |
-| `nk_dot_f16_skylake`    |       54.4 gb/s, 6.2 ulp |       31.4 gb/s, 8.6 ulp |      30.0 gb/s, 22.8 ulp |
+| `nk_dot_f16_serial`     |      1.31 gb/s, 11.5 ulp |      1.32 gb/s, 33.7 ulp |      1.30 gb/s, 59.7 ulp |
+| `nk_dot_f16_haswell`    |       31.3 gb/s, 7.0 ulp |      22.8 gb/s, 14.0 ulp |      19.8 gb/s, 29.8 ulp |
+| `nk_dot_f16_skylake`    |       54.9 gb/s, 6.2 ulp |       31.7 gb/s, 8.6 ulp |      30.9 gb/s, 22.8 ulp |
 | __e5m2__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e5m2_serial`    |         1.99 gb/s, 0 ulp |         2.11 gb/s, 0 ulp |         2.13 gb/s, 0 ulp |
-| `nk_dot_e5m2_haswell`   |         4.90 gb/s, 0 ulp |         4.87 gb/s, 0 ulp |         4.56 gb/s, 0 ulp |
-| `nk_dot_e5m2_skylake`   |         6.34 gb/s, 0 ulp |         6.45 gb/s, 0 ulp |         6.17 gb/s, 0 ulp |
-| `nk_dot_e5m2_genoa`     |         12.6 gb/s, 0 ulp |         12.7 gb/s, 0 ulp |         12.8 gb/s, 0 ulp |
+| `nk_dot_e5m2_serial`    |         1.90 gb/s, 0 ulp |         1.07 gb/s, 0 ulp |         1.08 gb/s, 0 ulp |
+| `nk_dot_e5m2_haswell`   |         4.92 gb/s, 0 ulp |         4.95 gb/s, 0 ulp |         4.80 gb/s, 0 ulp |
+| `nk_dot_e5m2_skylake`   |         6.20 gb/s, 0 ulp |         6.36 gb/s, 0 ulp |         6.25 gb/s, 0 ulp |
+| `nk_dot_e5m2_genoa`     |         12.1 gb/s, 0 ulp |         12.6 gb/s, 0 ulp |         12.6 gb/s, 0 ulp |
 | __e4m3__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e4m3_serial`    |        0.797 gb/s, 0 ulp |        0.801 gb/s, 0 ulp |        0.816 gb/s, 0 ulp |
-| `nk_dot_e4m3_haswell`   |         3.25 gb/s, 0 ulp |         3.25 gb/s, 0 ulp |         2.53 gb/s, 0 ulp |
-| `nk_dot_e4m3_skylake`   |         4.99 gb/s, 0 ulp |         5.03 gb/s, 0 ulp |         4.94 gb/s, 0 ulp |
-| `nk_dot_e4m3_genoa`     |         12.4 gb/s, 0 ulp |         13.0 gb/s, 0 ulp |         12.7 gb/s, 0 ulp |
+| `nk_dot_e4m3_serial`    |        0.762 gb/s, 0 ulp |        0.424 gb/s, 0 ulp |        0.420 gb/s, 0 ulp |
+| `nk_dot_e4m3_haswell`   |         3.78 gb/s, 0 ulp |         3.77 gb/s, 0 ulp |         3.75 gb/s, 0 ulp |
+| `nk_dot_e4m3_skylake`   |         5.10 gb/s, 0 ulp |         5.16 gb/s, 0 ulp |         5.21 gb/s, 0 ulp |
+| `nk_dot_e4m3_genoa`     |         9.83 gb/s, 0 ulp |         7.62 gb/s, 0 ulp |         10.2 gb/s, 0 ulp |
 | __e3m2__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e3m2_serial`    |         2.02 gb/s, 0 ulp |         2.08 gb/s, 0 ulp |         2.14 gb/s, 0 ulp |
-| `nk_dot_e3m2_haswell`   |         11.9 gb/s, 0 ulp |         12.0 gb/s, 0 ulp |         11.5 gb/s, 0 ulp |
-| `nk_dot_e3m2_icelake`   |         22.6 gb/s, 0 ulp |         24.1 gb/s, 0 ulp |         22.5 gb/s, 0 ulp |
+| `nk_dot_e3m2_serial`    |         1.47 gb/s, 0 ulp |         1.05 gb/s, 0 ulp |         1.04 gb/s, 0 ulp |
+| `nk_dot_e3m2_haswell`   |         12.0 gb/s, 0 ulp |         12.2 gb/s, 0 ulp |         12.2 gb/s, 0 ulp |
+| `nk_dot_e3m2_skylake`   |         21.6 gb/s, 0 ulp |         23.1 gb/s, 0 ulp |         23.2 gb/s, 0 ulp |
+| `nk_dot_e3m2_icelake`   |         23.1 gb/s, 0 ulp |         24.3 gb/s, 0 ulp |         23.9 gb/s, 0 ulp |
 | __e2m3__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_e2m3_serial`    |         2.07 gb/s, 0 ulp |         2.05 gb/s, 0 ulp |         2.14 gb/s, 0 ulp |
-| `nk_dot_e2m3_haswell`   |         20.0 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |         18.7 gb/s, 0 ulp |
-| `nk_dot_e2m3_icelake`   |         56.9 gb/s, 0 ulp |         43.1 gb/s, 0 ulp |         30.1 gb/s, 0 ulp |
-| `nk_dot_e2m3_alder`     |         29.8 gb/s, 0 ulp |         30.2 gb/s, 0 ulp |         25.6 gb/s, 0 ulp |
+| `nk_dot_e2m3_serial`    |         1.87 gb/s, 0 ulp |         1.25 gb/s, 0 ulp |         1.96 gb/s, 0 ulp |
+| `nk_dot_e2m3_haswell`   |         20.5 gb/s, 0 ulp |         20.4 gb/s, 0 ulp |         19.3 gb/s, 0 ulp |
+| `nk_dot_e2m3_skylake`   |         35.7 gb/s, 0 ulp |         33.2 gb/s, 0 ulp |         30.7 gb/s, 0 ulp |
+| `nk_dot_e2m3_icelake`   |         58.0 gb/s, 0 ulp |         46.0 gb/s, 0 ulp |         31.5 gb/s, 0 ulp |
+| `nk_dot_e2m3_alder`     |         29.9 gb/s, 0 ulp |         30.8 gb/s, 0 ulp |         29.1 gb/s, 0 ulp |
 | __i8__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_i8_serial`      |                17.4 gb/s |                17.2 gb/s |                16.0 gb/s |
-| `nk_dot_i8_haswell`     |                33.4 gb/s |                23.5 gb/s |                24.9 gb/s |
-| `nk_dot_i8_skylake`     |                53.6 gb/s |                39.9 gb/s |                29.7 gb/s |
-| `nk_dot_i8_icelake`     |                63.3 gb/s |                49.5 gb/s |                30.4 gb/s |
-| `nk_dot_i8_alder`       |                43.8 gb/s |                43.0 gb/s |                30.4 gb/s |
+| `nk_dot_i8_serial`      |                16.9 gb/s |                16.8 gb/s |                15.6 gb/s |
+| `nk_dot_i8_haswell`     |                43.2 gb/s |                35.8 gb/s |                29.1 gb/s |
+| `nk_dot_i8_skylake`     |                52.9 gb/s |                36.5 gb/s |                28.5 gb/s |
+| `nk_dot_i8_icelake`     |                64.0 gb/s |                46.2 gb/s |                26.8 gb/s |
+| `nk_dot_i8_alder`       |                42.8 gb/s |                40.4 gb/s |                31.1 gb/s |
 | __u8__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_dot_u8_serial`      |                17.4 gb/s |                17.1 gb/s |                16.3 gb/s |
-| `nk_dot_u8_haswell`     |                32.2 gb/s |                37.5 gb/s |                28.3 gb/s |
-| `nk_dot_u8_skylake`     |                54.6 gb/s |                41.0 gb/s |                28.4 gb/s |
-| `nk_dot_u8_icelake`     |                74.4 gb/s |                48.4 gb/s |                30.3 gb/s |
-| `nk_dot_u8_alder`       |                54.2 gb/s |                43.9 gb/s |                32.3 gb/s |
+| `nk_dot_u8_serial`      |                16.9 gb/s |                16.5 gb/s |                15.8 gb/s |
+| `nk_dot_u8_haswell`     |                47.7 gb/s |                37.7 gb/s |                29.1 gb/s |
+| `nk_dot_u8_skylake`     |                48.7 gb/s |                32.6 gb/s |                27.5 gb/s |
+| `nk_dot_u8_icelake`     |                68.4 gb/s |                46.9 gb/s |                30.2 gb/s |
+| `nk_dot_u8_alder`       |                42.1 gb/s |                41.8 gb/s |                31.6 gb/s |
 | __i4__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_i4_serial`      |                9.37 gb/s |                11.8 gb/s |                11.8 gb/s |
-| `nk_dot_i4_haswell`     |                8.39 gb/s |                8.47 gb/s |                8.30 gb/s |
-| `nk_dot_i4_icelake`     |                24.9 gb/s |                35.9 gb/s |                25.8 gb/s |
+| `nk_dot_i4_haswell`     |                8.22 gb/s |                8.53 gb/s |                8.23 gb/s |
+| `nk_dot_i4_icelake`     |                24.3 gb/s |                36.3 gb/s |                25.5 gb/s |
 | __u4__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_u4_serial`      |                10.6 gb/s |                12.0 gb/s |                11.9 gb/s |
-| `nk_dot_u4_haswell`     |                15.2 gb/s |                16.0 gb/s |                14.4 gb/s |
-| `nk_dot_u4_icelake`     |                49.6 gb/s |                58.3 gb/s |                29.6 gb/s |
+| `nk_dot_u4_haswell`     |                15.0 gb/s |                16.4 gb/s |                14.3 gb/s |
+| `nk_dot_u4_icelake`     |                48.1 gb/s |                64.4 gb/s |                30.9 gb/s |
 | __u1__                  | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_u1_serial`      |                3.92 gb/s |                5.04 gb/s |                4.97 gb/s |
-| `nk_dot_u1_haswell`     |                14.2 gb/s |                46.7 gb/s |                70.9 gb/s |
-| `nk_dot_u1_icelake`     |                21.1 gb/s |                70.9 gb/s |                 109 gb/s |
+| `nk_dot_u1_haswell`     |                14.7 gb/s |                43.2 gb/s |                69.4 gb/s |
+| `nk_dot_u1_icelake`     |                17.9 gb/s |                68.8 gb/s |                 110 gb/s |
 
 #### WASM
 
