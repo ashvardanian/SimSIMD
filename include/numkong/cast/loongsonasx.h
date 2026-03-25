@@ -40,6 +40,28 @@ extern "C" {
 
 #pragma region - Type Punned Loads and Stores
 
+/**
+ *  LSX and LASX share the same physical register file, so widening __m128i → __m256i and
+ *  extracting __m256i → __m128i are no-ops on hardware. Empty inline asm with "f" constraints
+ *  avoids the stack round-trip that union punning causes on GCC 14.
+ *  Named after x86 `_mm256_castsi128_si256` / `_mm256_castsi256_si128` / `_mm256_castps256_ps128`.
+ */
+NK_INTERNAL __m256i nk_lasx_castsi128_si256_(__m128i low_i64x2) {
+    __m256i wide_i64x4;
+    __asm__("" : "=f"(wide_i64x4) : "f"(low_i64x2));
+    return wide_i64x4;
+}
+NK_INTERNAL __m128i nk_lasx_castsi256_si128_(__m256i wide_i64x4) {
+    __m128i low_i64x2;
+    __asm__("" : "=f"(low_i64x2) : "f"(wide_i64x4));
+    return low_i64x2;
+}
+NK_INTERNAL __m128 nk_lasx_castps256_ps128_(__m256 wide_f32x8) {
+    __m128 low_f32x4;
+    __asm__("" : "=f"(low_f32x4) : "f"(wide_f32x8));
+    return low_f32x4;
+}
+
 /** @brief Type-agnostic 256-bit full load (LASX). */
 NK_INTERNAL void nk_load_b256_loongsonasx_(void const *src, nk_b256_vec_t *dst) { dst->ymm = __lasx_xvld(src, 0); }
 
@@ -55,7 +77,7 @@ NK_INTERNAL void nk_store_b128_loongsonasx_(nk_b128_vec_t const *src, void *dst)
 /** @brief Convert 8 × bf16 → 8 × f32 by zero-extending u16 → u32 and shifting left 16 (LASX). */
 NK_INTERNAL __m256i nk_bf16x8_to_f32x8_loongsonasx_(__m128i bf16_i16x8) {
     // Zero-extend low 8 × u16 → 8 × u32, then shift left 16 to place bf16 mantissa in f32 position
-    __m256i extended_u32x8 = __lasx_xvsllwil_wu_hu(__lasx_cast_128(bf16_i16x8), 0);
+    __m256i extended_u32x8 = __lasx_xvsllwil_wu_hu(nk_lasx_castsi128_si256_(bf16_i16x8), 0);
     return __lasx_xvslli_w(extended_u32x8, 16);
 }
 
@@ -73,7 +95,7 @@ NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_loongsonasx_(nk_bf16_t const *s
 
 /** @brief Convert 8 × f16 → 8 × f32 via native LASX hardware conversion. */
 NK_INTERNAL __m256i nk_f16x8_to_f32x8_loongsonasx_(__m128i f16_i16x8) {
-    return (__m256i)__lasx_xvfcvtl_s_h(__lasx_cast_128(f16_i16x8));
+    return (__m256i)__lasx_xvfcvtl_s_h(nk_lasx_castsi128_si256_(f16_i16x8));
 }
 
 /** @brief Load 8 × f16 from memory, convert to 8 × f32 via native LASX conversion. */

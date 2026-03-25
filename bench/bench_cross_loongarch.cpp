@@ -9,6 +9,7 @@
 
 #include "numkong/dot.h"
 #include "numkong/dots.h"
+#include "numkong/sets.h"
 #include "numkong/spatials.h"
 
 #include "bench.hpp"
@@ -20,6 +21,7 @@ void bench_cross_loongarch() {
     constexpr nk_dtype_t f16_k = nk_f16_k;
     constexpr nk_dtype_t i8_k = nk_i8_k;
     constexpr nk_dtype_t u8_k = nk_u8_k;
+    constexpr nk_dtype_t u1_k = nk_u1x8_k;
 
 #if NK_TARGET_LOONGSONASX
 
@@ -36,6 +38,8 @@ void bench_cross_loongarch() {
                           nk_dots_packed_i8_loongsonasx);
     run_dots_packed<u8_k>("dots_packed_u8_loongsonasx", nk_dots_packed_size_u8_loongsonasx, nk_dots_pack_u8_loongsonasx,
                           nk_dots_packed_u8_loongsonasx);
+    run_dots_packed<u1_k>("dots_packed_u1_loongsonasx", nk_dots_packed_size_u1_loongsonasx, nk_dots_pack_u1_loongsonasx,
+                          nk_dots_packed_u1_loongsonasx);
 
     // Dots: symmetric
     run_dots_symmetric<f64_k>("dots_symmetric_f64_loongsonasx", nk_dots_symmetric_f64_loongsonasx);
@@ -44,6 +48,7 @@ void bench_cross_loongarch() {
     run_dots_symmetric<f16_k>("dots_symmetric_f16_loongsonasx", nk_dots_symmetric_f16_loongsonasx);
     run_dots_symmetric<i8_k>("dots_symmetric_i8_loongsonasx", nk_dots_symmetric_i8_loongsonasx);
     run_dots_symmetric<u8_k>("dots_symmetric_u8_loongsonasx", nk_dots_symmetric_u8_loongsonasx);
+    run_dots_symmetric<u1_k>("dots_symmetric_u1_loongsonasx", nk_dots_symmetric_u1_loongsonasx);
 
     // Angulars: packed
     run_angulars_packed<f64_k>("angulars_packed_f64_loongsonasx", nk_dots_packed_size_f64_loongsonasx,
@@ -88,6 +93,14 @@ void bench_cross_loongarch() {
     run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_loongsonasx", nk_euclideans_symmetric_f16_loongsonasx);
     run_euclideans_symmetric<i8_k>("euclideans_symmetric_i8_loongsonasx", nk_euclideans_symmetric_i8_loongsonasx);
     run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_loongsonasx", nk_euclideans_symmetric_u8_loongsonasx);
+
+    // Sets
+    run_hammings_packed<u1_k>("hammings_packed_u1_loongsonasx", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+                              nk_hammings_packed_u1_loongsonasx);
+    run_hammings_symmetric<u1_k>("hammings_symmetric_u1_loongsonasx", nk_hammings_symmetric_u1_loongsonasx);
+    run_jaccards_packed<u1_k>("jaccards_packed_u1_loongsonasx", nk_dots_packed_size_u1_serial, nk_dots_pack_u1_serial,
+                              nk_jaccards_packed_u1_loongsonasx);
+    run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_loongsonasx", nk_jaccards_symmetric_u1_loongsonasx);
 
 #endif // NK_TARGET_LOONGSONASX
 }

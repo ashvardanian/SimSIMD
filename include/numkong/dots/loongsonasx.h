@@ -100,6 +100,25 @@ nk_define_cross_packed_(dots, u8, loongsonasx, u8, u8, u32, nk_b128_vec_t, nk_do
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
+/* U1 GEMM: depth_simd_dimensions=256 (256 bits = 32 bytes per tile → u32 popcount via XVPCNT.W) */
+nk_define_cross_pack_size_(dots, u1, loongsonasx, u1x8, u1x8, /*norm_value_type=*/u32, /*depth_simd_dimensions=*/256,
+                           /*dimensions_per_value=*/8)
+nk_define_cross_pack_(dots, u1, loongsonasx, u1x8, u1x8, nk_assign_from_to_, /*norm_value_type=*/u32,
+                      nk_dots_reduce_sum_u1_,
+                      /*depth_simd_dimensions=*/256, /*dimensions_per_value=*/8)
+nk_define_cross_symmetric_(dots, u1, loongsonasx, u1x8, u32, nk_b256_vec_t, nk_dot_u1x256_state_loongsonasx_t,
+                           nk_b128_vec_t, nk_dot_u1x256_init_loongsonasx, nk_load_b256_loongsonasx_,
+                           nk_partial_load_b1x256_serial_, nk_dot_u1x256_update_loongsonasx,
+                           nk_dot_u1x256_finalize_loongsonasx, nk_store_b128_loongsonasx_,
+                           nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/256, /*dimensions_per_value=*/8)
+nk_define_cross_packed_(dots, u1, loongsonasx, u1x8, u1x8, u32, nk_b256_vec_t, nk_dot_u1x256_state_loongsonasx_t,
+                        nk_b128_vec_t, nk_dot_u1x256_init_loongsonasx, nk_load_b256_loongsonasx_,
+                        nk_partial_load_b1x256_serial_, nk_load_b256_loongsonasx_, nk_partial_load_b1x256_serial_,
+                        nk_dot_u1x256_update_loongsonasx, nk_dot_u1x256_finalize_loongsonasx,
+                        nk_store_b128_loongsonasx_, nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/256, /*dimensions_per_value=*/8)
+
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 128-bit input → f32 accumulation) */
 nk_define_cross_pack_size_(dots, bf16, loongsonasx, bf16, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
                            /*dimensions_per_value=*/1)

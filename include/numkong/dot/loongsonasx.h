@@ -298,8 +298,8 @@ NK_INTERNAL void nk_dot_f32x4_update_loongsonasx(nk_dot_f32x4_state_loongsonasx_
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Widen 4 f32 values from nk_b128_vec_t to 4 f64
-    __m256i a_f32x4 = __lasx_cast_128(a.xmm);
-    __m256i b_f32x4 = __lasx_cast_128(b.xmm);
+    __m256i a_f32x4 = nk_lasx_castsi128_si256_(a.xmm);
+    __m256i b_f32x4 = nk_lasx_castsi128_si256_(b.xmm);
     __m256d a_f64x4 = __lasx_xvfcvtl_d_s((__m256)a_f32x4);
     __m256d b_f64x4 = __lasx_xvfcvtl_d_s((__m256)b_f32x4);
     // FMA accumulation in f64
@@ -390,13 +390,7 @@ NK_INTERNAL void nk_dot_through_i32_finalize_loongsonasx_(                      
     // Step 3: Vertical sum
     __m256i sum_i32x4 = __lasx_xvadd_w(__lasx_xvadd_w(sum_lane0_i32x4, sum_lane1_i32x4),
                                        __lasx_xvadd_w(sum_lane2_i32x4, sum_lane3_i32x4));
-    // Extract low 128 bits from 256-bit result
-    nk_b256_vec_t wide;
-    wide.ymm = sum_i32x4;
-    result->i32s[0] = wide.i32s[0];
-    result->i32s[1] = wide.i32s[1];
-    result->i32s[2] = wide.i32s[2];
-    result->i32s[3] = wide.i32s[3];
+    result->xmm = nk_lasx_castsi256_si128_(sum_i32x4);
 }
 
 /**
@@ -414,8 +408,8 @@ NK_INTERNAL void nk_dot_i8x16_update_loongsonasx(nk_dot_i8x16_state_loongsonasx_
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Widen 16 i8 values into 256-bit register (only low 128 bits meaningful)
-    __m256i a_i8x16 = __lasx_cast_128(a.xmm);
-    __m256i b_i8x16 = __lasx_cast_128(b.xmm);
+    __m256i a_i8x16 = nk_lasx_castsi128_si256_(a.xmm);
+    __m256i b_i8x16 = nk_lasx_castsi128_si256_(b.xmm);
     // Widening multiply i8 × i8 → i16 (even and odd elements separately)
     __m256i acc_i16x16 = __lasx_xvreplgr2vr_h(0);
     acc_i16x16 = __lasx_xvmaddwev_h_b(acc_i16x16, a_i8x16, b_i8x16);
@@ -447,8 +441,8 @@ NK_INTERNAL void nk_dot_u8x16_update_loongsonasx(nk_dot_u8x16_state_loongsonasx_
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Widen 16 u8 values into 256-bit register (only low 128 bits meaningful)
-    __m256i a_u8x16 = __lasx_cast_128(a.xmm);
-    __m256i b_u8x16 = __lasx_cast_128(b.xmm);
+    __m256i a_u8x16 = nk_lasx_castsi128_si256_(a.xmm);
+    __m256i b_u8x16 = nk_lasx_castsi128_si256_(b.xmm);
     // Unsigned widening multiply u8 × u8 → u16 (even and odd elements separately)
     __m256i acc_u16x16 = __lasx_xvreplgr2vr_h(0);
     acc_u16x16 = __lasx_xvmaddwev_h_bu(acc_u16x16, a_u8x16, b_u8x16);
@@ -529,13 +523,7 @@ NK_INTERNAL void nk_dot_through_f32_finalize_loongsonasx_(                      
     // Step 3: Vertical sum
     __m256 sum_f32x4 = __lasx_xvfadd_s(__lasx_xvfadd_s((__m256)sum_lane0_f32x4, (__m256)sum_lane1_f32x4),
                                        __lasx_xvfadd_s((__m256)sum_lane2_f32x4, (__m256)sum_lane3_f32x4));
-    // Extract low 128 bits from 256-bit result
-    nk_b256_vec_t wide;
-    wide.ymm_ps = sum_f32x4;
-    result->f32s[0] = wide.f32s[0];
-    result->f32s[1] = wide.f32s[1];
-    result->f32s[2] = wide.f32s[2];
-    result->f32s[3] = wide.f32s[3];
+    result->xmm_ps = nk_lasx_castps256_ps128_(sum_f32x4);
 }
 
 /**
@@ -622,6 +610,55 @@ NK_INTERNAL void nk_dot_f16x8_finalize_loongsonasx(                             
 }
 
 #pragma endregion - Smaller Floats
+
+#pragma region - Binary
+
+typedef struct nk_dot_u1x256_state_loongsonasx_t {
+    __m256i dot_count_u32x8;
+} nk_dot_u1x256_state_loongsonasx_t;
+
+NK_INTERNAL void nk_dot_u1x256_init_loongsonasx(nk_dot_u1x256_state_loongsonasx_t *state) {
+    state->dot_count_u32x8 = __lasx_xvreplgr2vr_w(0);
+}
+
+NK_INTERNAL void nk_dot_u1x256_update_loongsonasx(nk_dot_u1x256_state_loongsonasx_t *state, nk_b256_vec_t a,
+                                                  nk_b256_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256i and_u8x32 = __lasx_xvand_v(a.ymm, b.ymm);
+    state->dot_count_u32x8 = __lasx_xvadd_w(state->dot_count_u32x8, __lasx_xvpcnt_w(and_u8x32));
+}
+
+NK_INTERNAL void nk_dot_u1x256_finalize_loongsonasx(                                                    //
+    nk_dot_u1x256_state_loongsonasx_t const *state_a, nk_dot_u1x256_state_loongsonasx_t const *state_b, //
+    nk_dot_u1x256_state_loongsonasx_t const *state_c, nk_dot_u1x256_state_loongsonasx_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    // Step 1: Fold 8→4 in 256-bit (add high 128-bit lane to low), extract low 128 bits
+    __m128i sum_a_u32x4 = nk_lasx_castsi256_si128_(__lasx_xvadd_w(
+        state_a->dot_count_u32x8, __lasx_xvpermi_q(state_a->dot_count_u32x8, state_a->dot_count_u32x8, 0x11)));
+    __m128i sum_b_u32x4 = nk_lasx_castsi256_si128_(__lasx_xvadd_w(
+        state_b->dot_count_u32x8, __lasx_xvpermi_q(state_b->dot_count_u32x8, state_b->dot_count_u32x8, 0x11)));
+    __m128i sum_c_u32x4 = nk_lasx_castsi256_si128_(__lasx_xvadd_w(
+        state_c->dot_count_u32x8, __lasx_xvpermi_q(state_c->dot_count_u32x8, state_c->dot_count_u32x8, 0x11)));
+    __m128i sum_d_u32x4 = nk_lasx_castsi256_si128_(__lasx_xvadd_w(
+        state_d->dot_count_u32x8, __lasx_xvpermi_q(state_d->dot_count_u32x8, state_d->dot_count_u32x8, 0x11)));
+    // Step 2: Transpose 4×4 in 128-bit via LSX interleave
+    __m128i transpose_ab_low_u32x4 = __lsx_vilvl_w(sum_b_u32x4, sum_a_u32x4);
+    __m128i transpose_cd_low_u32x4 = __lsx_vilvl_w(sum_d_u32x4, sum_c_u32x4);
+    __m128i transpose_ab_high_u32x4 = __lsx_vilvh_w(sum_b_u32x4, sum_a_u32x4);
+    __m128i transpose_cd_high_u32x4 = __lsx_vilvh_w(sum_d_u32x4, sum_c_u32x4);
+    __m128i sum_lane0_u32x4 = __lsx_vilvl_d(transpose_cd_low_u32x4, transpose_ab_low_u32x4);
+    __m128i sum_lane1_u32x4 = __lsx_vilvh_d(transpose_cd_low_u32x4, transpose_ab_low_u32x4);
+    __m128i sum_lane2_u32x4 = __lsx_vilvl_d(transpose_cd_high_u32x4, transpose_ab_high_u32x4);
+    __m128i sum_lane3_u32x4 = __lsx_vilvh_d(transpose_cd_high_u32x4, transpose_ab_high_u32x4);
+    // Step 3: Vertical sum in 128-bit
+    result->xmm = __lsx_vadd_w(__lsx_vadd_w(sum_lane0_u32x4, sum_lane1_u32x4),
+                               __lsx_vadd_w(sum_lane2_u32x4, sum_lane3_u32x4));
+}
+
+#pragma endregion - Binary
 
 #if defined(__cplusplus)
 } // extern "C"

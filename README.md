@@ -109,7 +109,7 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 | SME BI32       |   ·   |   ●    |     ·     |     ·      |   ·   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
 | __Other__      |       |        |           |            |       |        |        |          |        |          |        |
 | Power VSX      |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| LoongArch LASX |   ●   |   ●    |     ●     |     ●      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| LoongArch LASX |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
 | RVV            |   ●   |   ●    |     ●     |     ●      |   ●   |   ·    |   ●    |    ●     |   ●    |    ·     |   ●    |
 | RVV Half       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
 | RVV BF16       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
@@ -161,7 +161,7 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 | SME BI32       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
 | __Other__      |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
 | Power VSX      |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
 | RVV            |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
 | RVV Half       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | RVV BF16       |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |

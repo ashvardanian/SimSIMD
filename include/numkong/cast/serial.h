@@ -1557,6 +1557,12 @@ NK_INTERNAL void nk_partial_load_b1x128_serial_(void const *src, nk_b128_vec_t *
     for (nk_size_t i = 0; i < n_bytes && i < 16; i++) dst->u8s[i] = s[i];
 }
 
+/** @brief Partial load for binary (u1) data into 256-bit vector, converting n_bits → n_bytes. */
+NK_INTERNAL void nk_partial_load_b1x256_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n_bits) {
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, 8);
+    nk_partial_load_b8x32_serial_(src, dst, n_bytes);
+}
+
 /** @brief Partial load for 4-bit nibbles (16 max = 8 bytes) into 64-bit vector (zeros in remaining slots). */
 NK_INTERNAL void nk_partial_load_b4x16_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
