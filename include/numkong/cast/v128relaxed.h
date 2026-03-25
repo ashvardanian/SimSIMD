@@ -36,7 +36,7 @@ NK_INTERNAL void nk_store_b256_v128relaxed_(nk_b256_vec_t const *src, void *dst)
 
 /** @brief BF16 is the upper 16 bits of F32, so zero-extend to u32 and shift left by 16. */
 NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec) {
-    v128_t bf16_u16x4_in_u64 = wasm_v128_load64_zero(&bf16_vec.u64);
+    v128_t bf16_u16x4_in_u64 = wasm_i64x2_splat(bf16_vec.u64);
     v128_t bf16_u32x4_low = wasm_u32x4_extend_low_u16x8(bf16_u16x4_in_u64);
     nk_b128_vec_t result;
     result.v128 = wasm_i32x4_shl(bf16_u32x4_low, 16);
@@ -54,7 +54,7 @@ NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec)
  *  is fixed with a comparison + blend.
  */
 NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
-    v128_t raw_u16x4_in_u64 = wasm_v128_load64_zero(&f16_vec.u64);
+    v128_t raw_u16x4_in_u64 = wasm_i64x2_splat(f16_vec.u64);
     v128_t raw_u32x4 = wasm_u32x4_extend_low_u16x8(raw_u16x4_in_u64);
 
     // Extract sign and unsigned magnitude
@@ -87,7 +87,7 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
  *  Subnormal via FPU: mant * (1/512) = mant * 2^-9.  NaN only at exp=15,mant=7.
  */
 NK_INTERNAL nk_b128_vec_t nk_e4m3x4_to_f32x4_v128relaxed_(nk_b32_vec_t e4m3_vec) {
-    v128_t e4m3_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e4m3_vec.u32)));
+    v128_t e4m3_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_i32x4_splat(e4m3_vec.u32)));
     v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e4m3_u32x4, 3), wasm_i32x4_splat(0x0F));
     v128_t mant_u32x4 = wasm_v128_and(e4m3_u32x4, wasm_i32x4_splat(0x07));
     v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e4m3_u32x4, 7), 31);
@@ -120,7 +120,7 @@ NK_INTERNAL nk_b128_vec_t nk_e4m3x4_to_f32x4_v128relaxed_(nk_b32_vec_t e4m3_vec)
  *  Subnormal via FPU: mant * (1/65536) = mant * 2^-16.  Inf at exp=31,mant=0; NaN otherwise.
  */
 NK_INTERNAL nk_b128_vec_t nk_e5m2x4_to_f32x4_v128relaxed_(nk_b32_vec_t e5m2_vec) {
-    v128_t e5m2_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e5m2_vec.u32)));
+    v128_t e5m2_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_i32x4_splat(e5m2_vec.u32)));
     v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e5m2_u32x4, 2), wasm_i32x4_splat(0x1F));
     v128_t mant_u32x4 = wasm_v128_and(e5m2_u32x4, wasm_i32x4_splat(0x03));
     v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e5m2_u32x4, 7), 31);

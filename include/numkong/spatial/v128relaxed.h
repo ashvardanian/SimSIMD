@@ -83,8 +83,8 @@ nk_sqeuclidean_f32_v128relaxed_cycle:
         nk_load_b64_serial_(b_scalars, &b_f32_vec);
         a_scalars += 2, b_scalars += 2, count_scalars -= 2;
     }
-    v128_t a_f32x2 = wasm_v128_load64_zero(&a_f32_vec.u64);
-    v128_t b_f32x2 = wasm_v128_load64_zero(&b_f32_vec.u64);
+    v128_t a_f32x2 = wasm_i64x2_splat(a_f32_vec.u64);
+    v128_t b_f32x2 = wasm_i64x2_splat(b_f32_vec.u64);
     v128_t a_f64x2 = wasm_f64x2_promote_low_f32x4(a_f32x2);
     v128_t b_f64x2 = wasm_f64x2_promote_low_f32x4(b_f32x2);
     v128_t diff_f64x2 = wasm_f64x2_sub(a_f64x2, b_f64x2);
@@ -152,8 +152,8 @@ nk_angular_f32_v128relaxed_cycle:
     }
 
     // Upcast F32x2 → F64x2 for high-precision accumulation
-    v128_t a_f32x2 = wasm_v128_load64_zero(&a_f32_vec.u64);
-    v128_t b_f32x2 = wasm_v128_load64_zero(&b_f32_vec.u64);
+    v128_t a_f32x2 = wasm_i64x2_splat(a_f32_vec.u64);
+    v128_t b_f32x2 = wasm_i64x2_splat(b_f32_vec.u64);
     v128_t a_f64x2 = wasm_f64x2_promote_low_f32x4(a_f32x2);
     v128_t b_f64x2 = wasm_f64x2_promote_low_f32x4(b_f32x2);
 

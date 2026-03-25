@@ -73,8 +73,8 @@ nk_dot_f32_v128relaxed_cycle:
         nk_load_b64_serial_(b_scalars, &b_f32_vec);
         a_scalars += 2, b_scalars += 2, count_scalars -= 2;
     }
-    v128_t a_f32x2 = wasm_v128_load64_zero(&a_f32_vec.u64);
-    v128_t b_f32x2 = wasm_v128_load64_zero(&b_f32_vec.u64);
+    v128_t a_f32x2 = wasm_i64x2_splat(a_f32_vec.u64);
+    v128_t b_f32x2 = wasm_i64x2_splat(b_f32_vec.u64);
     v128_t a_f64x2 = wasm_f64x2_promote_low_f32x4(a_f32x2);
     v128_t b_f64x2 = wasm_f64x2_promote_low_f32x4(b_f32x2);
     sum_f64x2 = wasm_f64x2_relaxed_madd(a_f64x2, b_f64x2, sum_f64x2);
@@ -509,8 +509,8 @@ NK_INTERNAL void nk_dot_f32x2_update_v128relaxed(nk_dot_f32x2_state_v128relaxed_
                                                  nk_b64_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    v128_t a_f32x2 = wasm_v128_load64_zero(&a.u64);
-    v128_t b_f32x2 = wasm_v128_load64_zero(&b.u64);
+    v128_t a_f32x2 = wasm_i64x2_splat(a.u64);
+    v128_t b_f32x2 = wasm_i64x2_splat(b.u64);
     v128_t a_f64x2 = wasm_f64x2_promote_low_f32x4(a_f32x2);
     v128_t b_f64x2 = wasm_f64x2_promote_low_f32x4(b_f32x2);
     state->sum_f64x2 = wasm_f64x2_relaxed_madd(a_f64x2, b_f64x2, state->sum_f64x2);
