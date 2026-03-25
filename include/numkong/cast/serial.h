@@ -98,6 +98,28 @@ NK_PUBLIC void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
 #endif
 }
 
+/** @brief Load 4 × f16 from memory and upcast them to 4 × f32. */
+NK_INTERNAL void nk_load_f16x4_to_f32x4_serial_(void const *src, nk_b128_vec_t *dst) {
+    nk_f16_t const *scalars = (nk_f16_t const *)src;
+    nk_f16_to_f32_serial(scalars + 0, dst->f32s + 0);
+    nk_f16_to_f32_serial(scalars + 1, dst->f32s + 1);
+    nk_f16_to_f32_serial(scalars + 2, dst->f32s + 2);
+    nk_f16_to_f32_serial(scalars + 3, dst->f32s + 3);
+}
+
+/** @brief Partial load for up to 4 × f16 with upcast to 4 × f32. */
+NK_INTERNAL void nk_partial_load_f16x4_to_f32x4_serial_(nk_f16_t const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    switch (n) {
+    default:
+    case 4: nk_f16_to_f32_serial(src + 3, dst->f32s + 3); // fallthrough
+    case 3: nk_f16_to_f32_serial(src + 2, dst->f32s + 2); // fallthrough
+    case 2: nk_f16_to_f32_serial(src + 1, dst->f32s + 1); // fallthrough
+    case 1: nk_f16_to_f32_serial(src + 0, dst->f32s + 0); // fallthrough
+    case 0: break;
+    }
+}
+
 /**
  *  @brief Compresses a `float` to an `f16` (IEEE-754 16-bit).
  *

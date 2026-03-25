@@ -364,6 +364,36 @@ NK_INTERNAL void nk_dot_f16x8_finalize_serial(                                  
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
+typedef struct nk_dot_through_f32x4_state_serial_t {
+    nk_f32_t sums[4];
+} nk_dot_through_f32x4_state_serial_t;
+
+NK_INTERNAL void nk_dot_through_f32x4_init_serial(nk_dot_through_f32x4_state_serial_t *state) {
+    state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
+}
+
+NK_INTERNAL void nk_dot_through_f32x4_update_serial(nk_dot_through_f32x4_state_serial_t *state, nk_b128_vec_t a,
+                                                    nk_b128_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    state->sums[0] += a.f32s[0] * b.f32s[0];
+    state->sums[1] += a.f32s[1] * b.f32s[1];
+    state->sums[2] += a.f32s[2] * b.f32s[2];
+    state->sums[3] += a.f32s[3] * b.f32s[3];
+}
+
+NK_INTERNAL void nk_dot_through_f32x4_finalize_serial(                                                      //
+    nk_dot_through_f32x4_state_serial_t const *state_a, nk_dot_through_f32x4_state_serial_t const *state_b, //
+    nk_dot_through_f32x4_state_serial_t const *state_c, nk_dot_through_f32x4_state_serial_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+}
+
 typedef struct nk_dot_bf16x8_state_serial_t {
     nk_f32_t sums[4];
 } nk_dot_bf16x8_state_serial_t;

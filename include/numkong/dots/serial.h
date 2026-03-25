@@ -2489,22 +2489,23 @@ nk_define_cross_packed_(dots, f32, serial, f32, f32, f64, nk_b128_vec_t, nk_dot_
                         nk_dot_f32x4_finalize_serial, nk_store_b256_serial_, nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
-/* F16 GEMM: depth_simd_dimensions=8 (8 f16s = 16 bytes), F32 accumulator */
-nk_define_cross_pack_size_(dots, f16, serial, f16, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
+/* F16 packed GEMM: pre-upcast B to f32 and process 4 logical dimensions per 128-bit step. */
+nk_define_cross_pack_size_(dots, f16, serial, f16, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/4,
                            /*dimensions_per_value=*/1)
-nk_define_cross_pack_(dots, f16, serial, f16, f16, nk_assign_from_to_, /*norm_value_type=*/f32,
+nk_define_cross_pack_(dots, f16, serial, f16, f32, nk_f16_to_f32_serial, /*norm_value_type=*/f32,
                       nk_dots_reduce_sumsq_f16_,
-                      /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+                      /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, f16, serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                            nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                            nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_store_b128_serial_,
                            nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
-nk_define_cross_packed_(dots, f16, serial, f16, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
-                        nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
-                        nk_load_b128_serial_, nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_serial,
-                        nk_dot_f16x8_finalize_serial, nk_store_b128_serial_, nk_partial_store_b32x4_serial_,
-                        /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+nk_define_cross_packed_(dots, f16, serial, f16, f32, f32, nk_b128_vec_t, nk_dot_through_f32x4_state_serial_t,
+                        nk_b128_vec_t, nk_dot_through_f32x4_init_serial, nk_load_f16x4_to_f32x4_serial_,
+                        nk_partial_load_f16x4_to_f32x4_serial_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                        nk_dot_through_f32x4_update_serial, nk_dot_through_f32x4_finalize_serial, nk_store_b128_serial_,
+                        nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes), F32 accumulator */
 nk_define_cross_pack_size_(dots, bf16, serial, bf16, bf16, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
