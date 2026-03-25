@@ -71,38 +71,12 @@ NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_loongsonasx_(nk_bf16_t const *s
     dst->ymm = nk_bf16x8_to_f32x8_loongsonasx_(vec.xmm);
 }
 
-/**
- *  @brief Convert 8 × f16 → 8 × f32 via Giesen's magic-number multiply trick (LASX, branchless).
- *  @see https://fgiesen.wordpress.com/2012/03/28/half-to-float-done-quic/
- *
- *  Shifts the 15-bit magnitude into F32 position, multiplies by 2^112 (0x77800000)
- *  to rebias the exponent and normalize subnormals in one step. Inf/NaN (exp=31)
- *  overflows the multiply and is fixed with a comparison + blend.
- */
+/** @brief Convert 8 × f16 → 8 × f32 via native LASX hardware conversion. */
 NK_INTERNAL __m256i nk_f16x8_to_f32x8_loongsonasx_(__m128i f16_i16x8) {
-    __m256i raw_u32x8 = __lasx_xvsllwil_wu_hu(__lasx_cast_128(f16_i16x8), 0);
-
-    // Extract sign and unsigned magnitude
-    __m256i sign_u32x8 = __lasx_xvand_v(raw_u32x8, __lasx_xvreplgr2vr_w(0x8000));
-    __m256i sign_f32_u32x8 = __lasx_xvslli_w(sign_u32x8, 16);
-    __m256i magnitude_u32x8 = __lasx_xvand_v(raw_u32x8, __lasx_xvreplgr2vr_w(0x7FFF));
-
-    // Shift mantissa+exponent into F32 position and multiply by magic 2^112
-    __m256i shifted_u32x8 = __lasx_xvslli_w(magnitude_u32x8, 13);
-    __m256i magic_u32x8 = __lasx_xvreplgr2vr_w(0x77800000);
-    __m256i rebiased_u32x8 = (__m256i)__lasx_xvfmul_s((__m256)shifted_u32x8, (__m256)magic_u32x8);
-
-    // Fix inf/NaN: exp=31 overflows the multiply, detect and apply direct rebias
-    __m256i infnan_threshold_u32x8 = __lasx_xvreplgr2vr_w(0x38800000);
-    __m256i infnan_mask_u32x8 = __lasx_xvsle_wu(infnan_threshold_u32x8, shifted_u32x8);
-    __m256i direct_u32x8 = __lasx_xvor_v(shifted_u32x8, __lasx_xvreplgr2vr_w(0x70000000));
-    __m256i result_u32x8 = __lasx_xvbitsel_v(rebiased_u32x8, direct_u32x8, infnan_mask_u32x8);
-
-    // Apply sign
-    return __lasx_xvor_v(result_u32x8, sign_f32_u32x8);
+    return (__m256i)__lasx_xvfcvtl_s_h(__lasx_cast_128(f16_i16x8));
 }
 
-/** @brief Load 8 × f16 from memory, convert to 8 × f32 via Giesen's trick (LASX). */
+/** @brief Load 8 × f16 from memory, convert to 8 × f32 via native LASX conversion. */
 NK_INTERNAL void nk_load_f16x8_to_f32x8_loongsonasx_(void const *src, nk_b256_vec_t *dst) {
     dst->ymm = nk_f16x8_to_f32x8_loongsonasx_(__lsx_vld(src, 0));
 }

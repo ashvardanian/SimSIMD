@@ -342,9 +342,13 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f32x8_loongsonasx_(__m256 sum_f32x8) {
     // Add high 128-bit lane to low 128-bit lane
     __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
     __m256 sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
-    nk_b256_vec_t vec;
-    vec.ymm_ps = sum_f32x4;
-    return vec.f32s[0] + vec.f32s[1] + vec.f32s[2] + vec.f32s[3];
+    __m256 swapped_f32x4 = (__m256)__lasx_xvshuf4i_w((__m256i)sum_f32x4, 0b01001110);
+    __m256 reduced_f32x4 = __lasx_xvfadd_s(sum_f32x4, swapped_f32x4);
+    __m256 swapped_f32x2 = (__m256)__lasx_xvshuf4i_w((__m256i)reduced_f32x4, 0b10110001);
+    __m256 reduced_f32x2 = __lasx_xvfadd_s(reduced_f32x4, swapped_f32x2);
+    nk_fui32_t c;
+    c.u = (nk_u32_t)__lasx_xvpickve2gr_w((__m256i)reduced_f32x2, 0);
+    return c.f;
 }
 
 NK_PUBLIC void nk_sqeuclidean_bf16_loongsonasx(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {

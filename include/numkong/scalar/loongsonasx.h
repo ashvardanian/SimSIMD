@@ -48,9 +48,9 @@ NK_PUBLIC nk_f32_t nk_f32_rsqrt_loongsonasx(nk_f32_t x) {
     // xvfrsqrt.s is full precision — no Newton-Raphson needed
     __m256 x_f32x8 = nk_xvfreplgr2vr_s_(x);
     __m256 result_f32x8 = __lasx_xvfrsqrt_s(x_f32x8);
-    nk_b256_vec_t vec;
-    vec.ymm_ps = result_f32x8;
-    return vec.f32s[0];
+    nk_fui32_t c;
+    c.u = (nk_u32_t)__lasx_xvpickve2gr_w((__m256i)result_f32x8, 0);
+    return c.f;
 }
 
 NK_PUBLIC nk_f32_t nk_f32_sqrt_loongsonasx(nk_f32_t x) { return x > 0 ? x * nk_f32_rsqrt_loongsonasx(x) : 0; }
@@ -58,9 +58,9 @@ NK_PUBLIC nk_f32_t nk_f32_sqrt_loongsonasx(nk_f32_t x) { return x > 0 ? x * nk_f
 NK_PUBLIC nk_f64_t nk_f64_sqrt_loongsonasx(nk_f64_t x) {
     __m256d x_f64x4 = nk_xvfreplgr2vr_d_(x);
     __m256d result_f64x4 = __lasx_xvfsqrt_d(x_f64x4);
-    nk_b256_vec_t vec;
-    vec.ymm_pd = result_f64x4;
-    return vec.f64s[0];
+    nk_fui64_t c;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)result_f64x4, 0);
+    return c.f;
 }
 
 NK_PUBLIC nk_f64_t nk_f64_rsqrt_loongsonasx(nk_f64_t x) { return 1.0 / nk_f64_sqrt_loongsonasx(x); }

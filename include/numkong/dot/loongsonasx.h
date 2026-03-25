@@ -43,20 +43,21 @@ NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256d sum_f64x4) {
     // Add high 128-bit lane to low 128-bit lane
     __m256d hi_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)sum_f64x4, (__m256i)sum_f64x4, 0x11);
     __m256d sum_f64x2 = __lasx_xvfadd_d(sum_f64x4, hi_f64x4);
-    // Extract 2 remaining f64 values and add
-    nk_b256_vec_t vec;
-    vec.ymm_pd = sum_f64x2;
-    return vec.f64s[0] + vec.f64s[1];
+    // Swap lanes 0↔1, add to reduce to 1 value, then extract
+    __m256d swapped_f64x2 = (__m256d)__lasx_xvshuf4i_d((__m256i)sum_f64x2, (__m256i)sum_f64x2, 0b0001);
+    __m256d reduced_f64x2 = __lasx_xvfadd_d(sum_f64x2, swapped_f64x2);
+    nk_fui64_t c;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)reduced_f64x2, 0);
+    return c.f;
 }
 
 /** @brief Horizontal sum of 8 i32 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_i32_t nk_reduce_add_i32x8_loongsonasx_(__m256i sum_i32x8) {
     __m256i hi_i32x8 = __lasx_xvpermi_q(sum_i32x8, sum_i32x8, 0x11);
     __m256i sum_i32x4 = __lasx_xvadd_w(sum_i32x8, hi_i32x8);
-    // Now 4 i32 values in low 128 bits, reduce via nk_b256_vec_t
-    nk_b256_vec_t vec;
-    vec.ymm = sum_i32x4;
-    return vec.i32s[0] + vec.i32s[1] + vec.i32s[2] + vec.i32s[3];
+    // Pairwise widen i32 → i64, then extract and add
+    __m256i sum_i64x2 = __lasx_xvhaddw_d_w(sum_i32x4, sum_i32x4);
+    return (nk_i32_t)(__lasx_xvpickve2gr_d(sum_i64x2, 0) + __lasx_xvpickve2gr_d(sum_i64x2, 1));
 }
 
 /** @brief Compensated horizontal sum of 4 f64 lanes via TwoSum tree reduction.
@@ -87,11 +88,15 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_loongsonasx_(__m256d sum_f64x4, __m
                                                       rounding_error_f64x2);
 
     // Stage 2: Scalar TwoSum 2 → 1
-    nk_b256_vec_t sum_vec, err_vec;
-    sum_vec.ymm_pd = tentative_sum_f64x2;
-    err_vec.ymm_pd = accumulated_error_f64x2;
-    nk_f64_t sum_low = sum_vec.f64s[0], sum_high = sum_vec.f64s[1];
-    nk_f64_t error_low = err_vec.f64s[0], error_high = err_vec.f64s[1];
+    nk_fui64_t c;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)tentative_sum_f64x2, 0);
+    nk_f64_t sum_low = c.f;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)tentative_sum_f64x2, 1);
+    nk_f64_t sum_high = c.f;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)accumulated_error_f64x2, 0);
+    nk_f64_t error_low = c.f;
+    c.u = (nk_u64_t)__lasx_xvpickve2gr_du((__m256i)accumulated_error_f64x2, 1);
+    nk_f64_t error_high = c.f;
     nk_f64_t tentative_sum = sum_low + sum_high;
     nk_f64_t virtual_addend = tentative_sum - sum_low;
     nk_f64_t rounding_error = (sum_low - (tentative_sum - virtual_addend)) + (sum_high - virtual_addend);
@@ -212,9 +217,13 @@ NK_PUBLIC void nk_dot_bf16_loongsonasx(nk_bf16_t const *a_scalars, nk_bf16_t con
     // Horizontal reduce 8 × f32 → 1 × f32
     __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
     __m256 sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
-    nk_b256_vec_t vec;
-    vec.ymm_ps = sum_f32x4;
-    nk_f32_t sum = vec.f32s[0] + vec.f32s[1] + vec.f32s[2] + vec.f32s[3];
+    __m256 swapped_f32x4 = (__m256)__lasx_xvshuf4i_w((__m256i)sum_f32x4, 0b01001110);
+    __m256 reduced_f32x4 = __lasx_xvfadd_s(sum_f32x4, swapped_f32x4);
+    __m256 swapped_f32x2 = (__m256)__lasx_xvshuf4i_w((__m256i)reduced_f32x4, 0b10110001);
+    __m256 reduced_f32x2 = __lasx_xvfadd_s(reduced_f32x4, swapped_f32x2);
+    nk_fui32_t c;
+    c.u = (nk_u32_t)__lasx_xvpickve2gr_w((__m256i)reduced_f32x2, 0);
+    nk_f32_t sum = c.f;
     for (; idx_scalars < count_scalars; ++idx_scalars) {
         nk_f32_t a_val, b_val;
         nk_bf16_to_f32_serial(&a_scalars[idx_scalars], &a_val);
@@ -240,8 +249,8 @@ NK_INTERNAL void nk_dot_f64x4_update_loongsonasx(nk_dot_f64x4_state_loongsonasx_
     nk_unused_(active_dimensions);
     __m256d sum_f64x4 = (__m256d)state->sum_f64x4;
     __m256d compensation_f64x4 = (__m256d)state->compensation_f64x4;
-    __m256d a_f64x4 = (__m256d)__lasx_xvld(&a, 0);
-    __m256d b_f64x4 = (__m256d)__lasx_xvld(&b, 0);
+    __m256d a_f64x4 = a.ymm_pd;
+    __m256d b_f64x4 = b.ymm_pd;
 
     // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
     __m256d product_f64x4 = __lasx_xvfmul_d(a_f64x4, b_f64x4);
@@ -288,9 +297,9 @@ NK_INTERNAL void nk_dot_f32x4_update_loongsonasx(nk_dot_f32x4_state_loongsonasx_
                                                  nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Load 4 f32 values from nk_b128_vec_t via memory, widen to 4 f64
-    __m256i a_f32x4 = __lasx_xvld(&a, 0);
-    __m256i b_f32x4 = __lasx_xvld(&b, 0);
+    // Widen 4 f32 values from nk_b128_vec_t to 4 f64
+    __m256i a_f32x4 = __lasx_cast_128(a.xmm);
+    __m256i b_f32x4 = __lasx_cast_128(b.xmm);
     __m256d a_f64x4 = __lasx_xvfcvtl_d_s((__m256)a_f32x4);
     __m256d b_f64x4 = __lasx_xvfcvtl_d_s((__m256)b_f32x4);
     // FMA accumulation in f64
@@ -404,9 +413,9 @@ NK_INTERNAL void nk_dot_i8x16_update_loongsonasx(nk_dot_i8x16_state_loongsonasx_
                                                  nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Load 16 i8 values into 256-bit register (only low 128 bits meaningful)
-    __m256i a_i8x16 = __lasx_xvld(&a, 0);
-    __m256i b_i8x16 = __lasx_xvld(&b, 0);
+    // Widen 16 i8 values into 256-bit register (only low 128 bits meaningful)
+    __m256i a_i8x16 = __lasx_cast_128(a.xmm);
+    __m256i b_i8x16 = __lasx_cast_128(b.xmm);
     // Widening multiply i8 × i8 → i16 (even and odd elements separately)
     __m256i acc_i16x16 = __lasx_xvreplgr2vr_h(0);
     acc_i16x16 = __lasx_xvmaddwev_h_b(acc_i16x16, a_i8x16, b_i8x16);
@@ -437,9 +446,9 @@ NK_INTERNAL void nk_dot_u8x16_update_loongsonasx(nk_dot_u8x16_state_loongsonasx_
                                                  nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Load 16 u8 values into 256-bit register (only low 128 bits meaningful)
-    __m256i a_u8x16 = __lasx_xvld(&a, 0);
-    __m256i b_u8x16 = __lasx_xvld(&b, 0);
+    // Widen 16 u8 values into 256-bit register (only low 128 bits meaningful)
+    __m256i a_u8x16 = __lasx_cast_128(a.xmm);
+    __m256i b_u8x16 = __lasx_cast_128(b.xmm);
     // Unsigned widening multiply u8 × u8 → u16 (even and odd elements separately)
     __m256i acc_u16x16 = __lasx_xvreplgr2vr_h(0);
     acc_u16x16 = __lasx_xvmaddwev_h_bu(acc_u16x16, a_u8x16, b_u8x16);
@@ -570,9 +579,13 @@ NK_PUBLIC void nk_dot_f16_loongsonasx(nk_f16_t const *a_scalars, nk_f16_t const 
     }
     __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
     __m256 sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
-    nk_b256_vec_t vec;
-    vec.ymm_ps = sum_f32x4;
-    nk_f32_t sum = vec.f32s[0] + vec.f32s[1] + vec.f32s[2] + vec.f32s[3];
+    __m256 swapped_f32x4 = (__m256)__lasx_xvshuf4i_w((__m256i)sum_f32x4, 0b01001110);
+    __m256 reduced_f32x4 = __lasx_xvfadd_s(sum_f32x4, swapped_f32x4);
+    __m256 swapped_f32x2 = (__m256)__lasx_xvshuf4i_w((__m256i)reduced_f32x4, 0b10110001);
+    __m256 reduced_f32x2 = __lasx_xvfadd_s(reduced_f32x4, swapped_f32x2);
+    nk_fui32_t c;
+    c.u = (nk_u32_t)__lasx_xvpickve2gr_w((__m256i)reduced_f32x2, 0);
+    nk_f32_t sum = c.f;
     for (; idx_scalars < count_scalars; ++idx_scalars) {
         nk_f32_t a_val, b_val;
         nk_f16_to_f32_serial(&a_scalars[idx_scalars], &a_val);
@@ -593,8 +606,7 @@ NK_INTERNAL void nk_dot_f16x8_init_loongsonasx(nk_dot_f16x8_state_loongsonasx_t 
 }
 
 NK_INTERNAL void nk_dot_f16x8_update_loongsonasx(nk_dot_f16x8_state_loongsonasx_t *state, nk_b128_vec_t a,
-                                                  nk_b128_vec_t b, nk_size_t depth_offset,
-                                                  nk_size_t active_dimensions) {
+                                                 nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     __m256 a_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(a.xmm);
@@ -602,7 +614,7 @@ NK_INTERNAL void nk_dot_f16x8_update_loongsonasx(nk_dot_f16x8_state_loongsonasx_
     state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_f32x8, b_f32x8, (__m256)state->sum_f32x8);
 }
 
-NK_INTERNAL void nk_dot_f16x8_finalize_loongsonasx(                                                  //
+NK_INTERNAL void nk_dot_f16x8_finalize_loongsonasx(                                                   //
     nk_dot_f16x8_state_loongsonasx_t const *state_a, nk_dot_f16x8_state_loongsonasx_t const *state_b, //
     nk_dot_f16x8_state_loongsonasx_t const *state_c, nk_dot_f16x8_state_loongsonasx_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {

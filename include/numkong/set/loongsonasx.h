@@ -50,9 +50,9 @@ extern "C" {
 NK_INTERNAL nk_u64_t nk_reduce_add_u64x4_loongsonasx_(__m256i sum_u64x4) {
     __m256i hi_u64x4 = __lasx_xvpermi_q(sum_u64x4, sum_u64x4, 0x11);
     __m256i sum_u64x2 = __lasx_xvadd_d(sum_u64x4, hi_u64x4);
-    nk_b256_vec_t vec;
-    vec.ymm = sum_u64x2;
-    return vec.u64s[0] + vec.u64s[1];
+    __m256i swapped_u64x2 = __lasx_xvshuf4i_d(sum_u64x2, sum_u64x2, 0b0001);
+    __m256i reduced_u64x2 = __lasx_xvadd_d(sum_u64x2, swapped_u64x2);
+    return (nk_u64_t)__lasx_xvpickve2gr_du(reduced_u64x2, 0);
 }
 
 /** @brief Horizontally sum all bytes in a 256-bit register as unsigned values.
@@ -82,9 +82,7 @@ NK_PUBLIC void nk_hamming_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b,
         count_u64x4 = __lasx_xvadd_d(count_u64x4, __lasx_xvpcnt_d(xor_u8x32));
     }
 
-    nk_b256_vec_t vec;
-    vec.ymm = count_u64x4;
-    nk_u64_t count = vec.u64s[0] + vec.u64s[1] + vec.u64s[2] + vec.u64s[3];
+    nk_u64_t count = nk_reduce_add_u64x4_loongsonasx_(count_u64x4);
 
     for (; i < n_bytes; ++i) count += nk_u1x8_popcount_(a[i] ^ b[i]);
     *result = (nk_u32_t)count;
@@ -105,11 +103,8 @@ NK_PUBLIC void nk_jaccard_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b,
         or_count_u64x4 = __lasx_xvadd_d(or_count_u64x4, __lasx_xvpcnt_d(or_u8x32));
     }
 
-    nk_b256_vec_t xor_vec, or_vec;
-    xor_vec.ymm = xor_count_u64x4;
-    or_vec.ymm = or_count_u64x4;
-    nk_u64_t xor_count = xor_vec.u64s[0] + xor_vec.u64s[1] + xor_vec.u64s[2] + xor_vec.u64s[3];
-    nk_u64_t or_count = or_vec.u64s[0] + or_vec.u64s[1] + or_vec.u64s[2] + or_vec.u64s[3];
+    nk_u64_t xor_count = nk_reduce_add_u64x4_loongsonasx_(xor_count_u64x4);
+    nk_u64_t or_count = nk_reduce_add_u64x4_loongsonasx_(or_count_u64x4);
 
     for (; i < n_bytes; ++i) {
         xor_count += nk_u1x8_popcount_(a[i] ^ b[i]);
@@ -138,9 +133,7 @@ NK_PUBLIC void nk_hamming_u8_loongsonasx(nk_u8_t const *a, nk_u8_t const *b, nk_
         count_u64x4 = __lasx_xvadd_d(count_u64x4, sum_u64x4);
     }
 
-    nk_b256_vec_t vec;
-    vec.ymm = count_u64x4;
-    nk_u64_t count = vec.u64s[0] + vec.u64s[1] + vec.u64s[2] + vec.u64s[3];
+    nk_u64_t count = nk_reduce_add_u64x4_loongsonasx_(count_u64x4);
 
     for (; i < n; ++i) count += (a[i] != b[i]);
     *result = (nk_u32_t)count;
