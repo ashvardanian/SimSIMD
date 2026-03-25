@@ -120,6 +120,26 @@ nk_define_cross_packed_(dots, bf16, loongsonasx, bf16, f32, f32, nk_b256_vec_t, 
                         nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 
+/* F16 GEMM: depth_simd_dimensions=8 (8 f16s = 128-bit input → f32 accumulation via Giesen's trick) */
+nk_define_cross_pack_size_(dots, f16, loongsonasx, f16, f32, /*norm_value_type=*/f32, /*depth_simd_dimensions=*/8,
+                           /*dimensions_per_value=*/1)
+nk_define_cross_pack_(dots, f16, loongsonasx, f16, f32, nk_f16_to_f32_serial, /*norm_value_type=*/f32,
+                      nk_dots_reduce_sumsq_f16_,
+                      /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+nk_define_cross_symmetric_(dots, f16, loongsonasx, f16, f32, nk_b256_vec_t, nk_dot_through_f32_state_loongsonasx_t_,
+                           nk_b128_vec_t, nk_dot_through_f32_init_loongsonasx_, nk_load_f16x8_to_f32x8_loongsonasx_,
+                           nk_partial_load_f16x8_to_f32x8_loongsonasx_, nk_dot_through_f32_update_loongsonasx_,
+                           nk_dot_through_f32_finalize_loongsonasx_, nk_store_b128_loongsonasx_,
+                           nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+nk_define_cross_packed_(dots, f16, loongsonasx, f16, f32, f32, nk_b256_vec_t, nk_dot_through_f32_state_loongsonasx_t_,
+                        nk_b128_vec_t, nk_dot_through_f32_init_loongsonasx_, nk_load_f16x8_to_f32x8_loongsonasx_,
+                        nk_partial_load_f16x8_to_f32x8_loongsonasx_, nk_load_b256_loongsonasx_,
+                        nk_partial_load_b32x8_serial_, nk_dot_through_f32_update_loongsonasx_,
+                        nk_dot_through_f32_finalize_loongsonasx_, nk_store_b128_loongsonasx_,
+                        nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

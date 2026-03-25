@@ -402,6 +402,61 @@ NK_PUBLIC void nk_angular_bf16_loongsonasx(nk_bf16_t const *a, nk_bf16_t const *
     *result = nk_angular_normalize_f32_loongsonasx_(dot, a_sq, b_sq);
 }
 
+NK_PUBLIC void nk_sqeuclidean_f16_loongsonasx(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m256 sum_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_f16x8 = __lsx_vld(a + i, 0);
+        __m128i b_f16x8 = __lsx_vld(b + i, 0);
+        __m256 a_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(a_f16x8);
+        __m256 b_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(b_f16x8);
+        __m256 diff_f32x8 = __lasx_xvfsub_s(a_f32x8, b_f32x8);
+        sum_f32x8 = __lasx_xvfmadd_s(diff_f32x8, diff_f32x8, sum_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_loongsonasx_(sum_f32x8);
+    for (; i < n; ++i) {
+        nk_f32_t a_val, b_val;
+        nk_f16_to_f32_serial(&a[i], &a_val);
+        nk_f16_to_f32_serial(&b[i], &b_val);
+        nk_f32_t diff = a_val - b_val;
+        sum += diff * diff;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_euclidean_f16_loongsonasx(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_f16_loongsonasx(a, b, n, result);
+    *result = nk_f32_sqrt_loongsonasx(*result);
+}
+
+NK_PUBLIC void nk_angular_f16_loongsonasx(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m256 dot_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    __m256 a_sq_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    __m256 b_sq_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_f16x8 = __lsx_vld(a + i, 0);
+        __m128i b_f16x8 = __lsx_vld(b + i, 0);
+        __m256 a_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(a_f16x8);
+        __m256 b_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(b_f16x8);
+        dot_f32x8 = __lasx_xvfmadd_s(a_f32x8, b_f32x8, dot_f32x8);
+        a_sq_f32x8 = __lasx_xvfmadd_s(a_f32x8, a_f32x8, a_sq_f32x8);
+        b_sq_f32x8 = __lasx_xvfmadd_s(b_f32x8, b_f32x8, b_sq_f32x8);
+    }
+    nk_f32_t dot = nk_reduce_add_f32x8_loongsonasx_(dot_f32x8);
+    nk_f32_t a_sq = nk_reduce_add_f32x8_loongsonasx_(a_sq_f32x8);
+    nk_f32_t b_sq = nk_reduce_add_f32x8_loongsonasx_(b_sq_f32x8);
+    for (; i < n; ++i) {
+        nk_f32_t a_val, b_val;
+        nk_f16_to_f32_serial(&a[i], &a_val);
+        nk_f16_to_f32_serial(&b[i], &b_val);
+        dot += a_val * b_val;
+        a_sq += a_val * a_val;
+        b_sq += b_val * b_val;
+    }
+    *result = nk_angular_normalize_f32_loongsonasx_(dot, a_sq, b_sq);
+}
+
 #pragma endregion - Smaller Floats
 
 #if defined(__cplusplus)

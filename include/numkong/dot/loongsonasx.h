@@ -557,6 +557,58 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_loongsonasx(                            
     nk_dot_through_f32_finalize_loongsonasx_(state_a, state_b, state_c, state_d, total_dimensions, result);
 }
 
+NK_PUBLIC void nk_dot_f16_loongsonasx(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                      nk_f32_t *result) {
+    __m256 sum_f32x8 = (__m256)__lasx_xvreplgr2vr_w(0);
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 8 <= count_scalars; idx_scalars += 8) {
+        __m128i a_f16x8 = __lsx_vld(a_scalars + idx_scalars, 0);
+        __m128i b_f16x8 = __lsx_vld(b_scalars + idx_scalars, 0);
+        __m256 a_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(a_f16x8);
+        __m256 b_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(b_f16x8);
+        sum_f32x8 = __lasx_xvfmadd_s(a_f32x8, b_f32x8, sum_f32x8);
+    }
+    __m256 high_f32x4 = (__m256)__lasx_xvpermi_q((__m256i)sum_f32x8, (__m256i)sum_f32x8, 0x11);
+    __m256 sum_f32x4 = __lasx_xvfadd_s(sum_f32x8, high_f32x4);
+    nk_b256_vec_t vec;
+    vec.ymm_ps = sum_f32x4;
+    nk_f32_t sum = vec.f32s[0] + vec.f32s[1] + vec.f32s[2] + vec.f32s[3];
+    for (; idx_scalars < count_scalars; ++idx_scalars) {
+        nk_f32_t a_val, b_val;
+        nk_f16_to_f32_serial(&a_scalars[idx_scalars], &a_val);
+        nk_f16_to_f32_serial(&b_scalars[idx_scalars], &b_val);
+        sum += a_val * b_val;
+    }
+    *result = sum;
+}
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over f16 scalars on LASX.
+ *  @note Alias of nk_dot_through_f32_state_loongsonasx_t_
+ */
+typedef struct nk_dot_through_f32_state_loongsonasx_t_ nk_dot_f16x8_state_loongsonasx_t;
+
+NK_INTERNAL void nk_dot_f16x8_init_loongsonasx(nk_dot_f16x8_state_loongsonasx_t *state) {
+    nk_dot_through_f32_init_loongsonasx_(state);
+}
+
+NK_INTERNAL void nk_dot_f16x8_update_loongsonasx(nk_dot_f16x8_state_loongsonasx_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256 a_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(a.xmm);
+    __m256 b_f32x8 = (__m256)nk_f16x8_to_f32x8_loongsonasx_(b.xmm);
+    state->sum_f32x8 = (__m256i)__lasx_xvfmadd_s(a_f32x8, b_f32x8, (__m256)state->sum_f32x8);
+}
+
+NK_INTERNAL void nk_dot_f16x8_finalize_loongsonasx(                                                  //
+    nk_dot_f16x8_state_loongsonasx_t const *state_a, nk_dot_f16x8_state_loongsonasx_t const *state_b, //
+    nk_dot_f16x8_state_loongsonasx_t const *state_c, nk_dot_f16x8_state_loongsonasx_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_dot_through_f32_finalize_loongsonasx_(state_a, state_b, state_c, state_d, total_dimensions, result);
+}
+
 #pragma endregion - Smaller Floats
 
 #if defined(__cplusplus)
