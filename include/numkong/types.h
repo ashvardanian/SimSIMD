@@ -241,12 +241,12 @@
 // LASX provides 32 × 256-bit vector registers, widening integer multiply-accumulate,
 // and f32-to-f64 conversion (xvfcvtl_d_s / xvfcvth_d_s) but no widening FMA.
 #if !defined(NK_TARGET_LOONGSONASX) || (NK_TARGET_LOONGSONASX && !NK_TARGET_LOONGARCH_)
-#if defined(__loongarch_lasx)
+#if defined(__loongarch_asx)
 #define NK_TARGET_LOONGSONASX 1
 #else
 #undef NK_TARGET_LOONGSONASX
 #define NK_TARGET_LOONGSONASX 0
-#endif // defined(__loongarch_lasx)
+#endif // defined(__loongarch_asx)
 #endif // !defined(NK_TARGET_LOONGSONASX) || ...
 
 // Compiling for Power VSX (128-bit SIMD, POWER9+ baseline): NK_TARGET_POWERVSX

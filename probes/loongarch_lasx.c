@@ -1,5 +1,5 @@
 /* NumKong ISA probe: LoongArch LASX (256-bit SIMD) */
-#if !defined(__loongarch_lasx)
+#if !defined(__loongarch_asx)
 #error "Feature not available"
 #endif
 #include <lasxintrin.h>
