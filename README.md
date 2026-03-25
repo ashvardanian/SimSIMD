@@ -75,40 +75,128 @@ A broader throughput comparison is maintained in [NumWars](https://github.com/as
 
 ## What's Inside
 
-NumKong covers 16 numeric types — from 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
+NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
 
-<div align="center">
-<pre><code>
-┌──────────────────────────────┬────────────────┬───────────────────────────┬────────────┐
-│          Operations          │   Datatypes    │         Backends          │ Ecosystems │
-├──────────────────────────────┼────────────────┼───────────────────────────┼────────────┤
-│ Vector-Vector                │ <a href="#numeric-types">Bits &amp; Ints</a>    │ <a href="#compile-time-and-run-time-dispatch">x86</a>                       │ Core       │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dot-products">dot</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dense-distances">angular</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#dense-distances">euclidean</a>    │ u1 · u4 · u8   │ Haswell · Alder Lake      │ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#the-c-abi">C 99</a>       │
-│ hamming · kld · jsd · …      │ i4 · i8        │ Sierra Forest · Skylake   │            │
-│                              │                │ Ice Lake · Genoa · Turin  │ Primary    │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">Matrix-Matrix</a>                │ <a href="#mini-floats-e4m3-e5m2-e3m2--e2m3">Mini-floats</a>    │ Sapphire Rapids ·         │ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#the-c-layer">C++ 23</a>     │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">dots_packed</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#symmetric-kernels-for-syrk-like-workloads">dots_symmetric</a> │ e2m3 · e3m2    │ Granite Rapids            │ <a href="https://github.com/ashvardanian/NumKong/blob/main/python/README.md">Python 3</a>   │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#packed-matrix-kernels-for-gemm-like-workloads">euclideans_packed</a> · …        │ e4m3 · e5m2    │                           │ <a href="https://github.com/ashvardanian/NumKong/blob/main/rust/README.md">Rust</a>       │
-│                              │                │ <a href="#compile-time-and-run-time-dispatch">Arm</a>                       │            │
-│ Quadratic                    │ <a href="#float16--bfloat16-half-precision">Half &amp; Classic</a> │ NEON · NEONHalf · NEONFhm │ Additional │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#curved-metrics">bilinear</a> · mahalanobis       │ f16 · bf16     │ NEONBFDot · NEONSDot      │ <a href="https://github.com/ashvardanian/NumKong/blob/main/swift/README.md">Swift</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/javascript/README.md">JS</a> │
-│                              │ f32 · f64      │ SVE · SVEHalf · SVEBfDot  │ <a href="https://github.com/ashvardanian/NumKong/blob/main/golang/README.md">Go</a>         │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#geospatial-metrics">Geospatial</a> &amp; <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#geometric-mesh-alignment">Geometric</a>       │                │ SVESDot · SVE2            │            │
-│ haversine · vincenty         │ <a href="#complex-types">Complex</a>        │ SME · SMEF64 · SMEBI32    │ <a href="https://github.com/ashvardanian/NumKong/blob/main/CONTRIBUTING.md">Tools</a>      │
-│ rmsd · kabsch · umeyama · …  │ f16c · bf16c   │                           │ <a href="https://github.com/ashvardanian/NumKong/blob/main/test/README.md">Tests</a>      │
-│                              │ f32c · f64c    │ <a href="#compile-time-and-run-time-dispatch">RISC-V</a>                    │ <a href="https://github.com/ashvardanian/NumKong/blob/main/bench/README.md">Benchmarks</a> │
-│ Bespoke                      │                │ RVV · RVVHalf             │ <a href="https://github.com/ashvardanian/NumWars">NumWars</a>    │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/each/README.md">fma</a> · blend · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/trigonometry/README.md">sin</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/cast/README.md">cast</a>     │                │ RVVBf16 · RVVBB           │            │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/reduce/README.md">reduce_moments</a> · <a href="https://github.com/ashvardanian/NumKong/blob/main/include/numkong/sparse/README.md">sparse_dot</a>  │                │                           │            │
-│ <a href="https://github.com/ashvardanian/NumKong/blob/main/include/README.md#maxsim-and-late-interaction">maxsim</a> · intersect · …       │                │ <a href="https://github.com/ashvardanian/NumKong/blob/main/CONTRIBUTING.md#cross-compilation">WASM</a>                      │            │
-│                              │                │ V128Relaxed               │            │
-└──────────────────────────────┴────────────────┴───────────────────────────┴────────────┘
-</code></pre>
-</div>
+### Operations × Backend
 
-Not every combination is implemented — only the ones that unlock interesting new opportunities.
+| Backend        | [dot] | [dots] | [spatial] | [spatials] | [set] | [sets] | [cast] | [reduce] | [trig] | [maxsim] | [mesh] |
+| :------------- | :---: | :----: | :-------: | :--------: | :---: | :----: | :----: | :------: | :----: | :------: | :----: |
+| __x86__        |       |        |           |            |       |        |        |          |        |          |        |
+| Haswell        |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ●     |   ●    |
+| Skylake        |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ●    |    ●     |   ●    |    ·     |   ●    |
+| Ice Lake       |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ·    |    ●     |   ·    |
+| Genoa          |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
+| Sapphire       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ●    |    ·     |   ·    |    ·     |   ·    |
+| Sapphire AMX   |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ●     |   ·    |
+| Diamond        |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| Alder Lake     |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
+| Sierra Forest  |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ·    |
+| Turin          |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| __Arm__        |       |        |           |            |       |        |        |          |        |          |        |
+| NEON           |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ·     |   ●    |
+| NEON Half      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ●    |
+| NEON FHM       |   ●   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ·    |
+| NEON BF16      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ●    |
+| NEON SDot      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
+| NEON FP8       |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SVE            |   ●   |   ·    |     ●     |     ·      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SVE Half       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SVE BF16       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SVE SDot       |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SVE2           |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SME            |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ●     |   ·    |
+| SME F64        |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| SME BI32       |   ·   |   ●    |     ·     |     ·      |   ·   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| __Other__      |       |        |           |            |       |        |        |          |        |          |        |
+| Power VSX      |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| LoongArch LASX |   ●   |   ●    |     ●     |     ●      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| RVV            |   ●   |   ●    |     ●     |     ●      |   ●   |   ·    |   ●    |    ●     |   ●    |    ·     |   ●    |
+| RVV Half       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| RVV BF16       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| RVV BB         |   ●   |   ·    |     ·     |     ·      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
+| WASM V128      |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ●     |   ●    |    ●     |   ●    |
+| Serial         |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ●     |   ●    |
+
+[dot]: include/numkong/dot/README.md
+[dots]: include/numkong/dots/README.md
+[spatial]: include/numkong/spatial/README.md
+[spatials]: include/numkong/spatials/README.md
+[set]: include/numkong/set/README.md
+[sets]: include/numkong/sets/README.md
+[cast]: include/numkong/cast/README.md
+[reduce]: include/numkong/reduce/README.md
+[trig]: include/numkong/trigonometry/README.md
+[maxsim]: include/numkong/maxsim/README.md
+[mesh]: include/numkong/mesh/README.md
+
+### Numeric Types × Backend
+
+| Backend        |  f64  |  f32  | bf16  |  f16  | e5m2  | e4m3  | e3m2  | e2m3  |  i8   |  u8   |  i4   |  u4   |  u1   | f64c  | f32c  | bf16c | f16c  |
+| :------------- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| __x86__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
+| Haswell        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |
+| Skylake        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
+| Ice Lake       |   ·   |   ●   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| Genoa          |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
+| Sapphire       |   ·   |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Sapphire AMX   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Diamond        |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Alder Lake     |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Sierra Forest  |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Turin          |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| __Arm__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
+| NEON           |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
+| NEON Half      |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
+| NEON FHM       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
+| NEON BF16      |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
+| NEON SDot      |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| NEON FP8       |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SVE            |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
+| SVE Half       |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
+| SVE BF16       |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SVE SDot       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SVE2           |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SME            |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SME F64        |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |
+| SME BI32       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| __Other__      |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
+| Power VSX      |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| RVV            |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
+| RVV Half       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| RVV BF16       |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| RVV BB         |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| WASM V128      |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
+
+### Language Bindings
+
+| Operation    | [C/C++][c_guide] | [Python][py_guide] | [Rust][rs_guide] | [JavaScript][js_guide] | [Swift][sw_guide] | [Go][go_guide] |
+| :----------- | :--------------: | :----------------: | :--------------: | :--------------------: | :---------------: | :------------: |
+| [dot]        |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
+| [dots]       |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
+| [spatial]    |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
+| [spatials]   |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
+| [set]        |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
+| [sets]       |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
+| [cast]       |        ●         |         ●          |        ●         |           ●            |         ·         |       ·        |
+| [reduce]     |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
+| [trig]       |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
+| [geospatial] |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
+| [maxsim]     |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
+| [mesh]       |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
+
+[geospatial]: include/numkong/geospatial/README.md
+[c_guide]: include/README.md
+[py_guide]: python/README.md
+[js_guide]: javascript/README.md
+[rs_guide]: rust/README.md
+[sw_guide]: swift/README.md
+[go_guide]: golang/README.md
+
+Not every combination is implemented — only the ones that unlock real performance gains.
 The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
 Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
+For details on compile-time and run-time [dispatch](CONTRIBUTING.md#compile-time-and-run-time-dispatch), see the contributor guide.
 
 ## Design Decisions
 
@@ -272,7 +360,7 @@ The standard BLAS interface was never designed for sub-byte types either — [no
 __Some operations need more than GEMM + postprocessing.__
 NumKong implements several GEMM-shaped operations where the "epilogue" is too complex for a simple addition:
 
-- __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's typed `nk_bilinear_*` kernels stream through rows of $C$ with nested compensated dot products, never allocating beyond registers.
+- __Bilinear forms__ ($a^T C b$) in quantum computing compute a [scalar expectation value](<https://phys.libretexts.org/Bookshelves/Quantum_Mechanics/Advanced_Quantum_Mechanics_(Kok)/10:_Pauli_Spin_Matrices/10.2:_Expectation_Values>) — the naive approach materializes an $N$-dimensional intermediate vector $Cb$, but NumKong's typed `nk_bilinear_*` kernels stream through rows of $C$ with nested compensated dot products, never allocating beyond registers.
   For complex-valued quantum states, where the intermediate would be a 2N-element complex vector, the savings double.
 - __MaxSim scoring__ for [ColBERT-style late-interaction retrieval](https://github.com/stanford-futuredata/ColBERT) computes $\sum_i \min_j \text{angular}(q_i, d_j)$ — a sum-of-min-distances across token pairs.
   A GEMM would produce the full $M \times N$ similarity matrix, but NumKong's typed `nk_maxsim_packed_*` kernels fuse a coarse Int8-quantized screening with full-precision angular refinement on winning pairs only, packing both query and document matrices to use all 4 SME tiles as accumulators.
@@ -489,6 +577,20 @@ for (...) { // Complex multiply optimization: XOR sign flip after the loop
 }
 sum_real = xor(sum_real, 0x80000000);  // Single XOR after loop
 ```
+
+## Reading Materials
+
+Beyond the READMEs in this repository, there are several standalone articles covering different evolution steps and features of this library.
+
+- [NumKong: 2'000 Mixed Precision Kernels For All](https://ashvardanian.com/posts/numkong/)
+- [Hiding x86 Port Latency for 330 GB/s/core Reductions](https://ashvardanian.com/posts/cpu-ports/)
+- [Understanding SIMD: Infinite Complexity of Trivial Problems](https://ashvardanian.com/posts/understanding-simd-complexity/)
+- [NumPy vs BLAS: Losing 90% of Throughput](https://ashvardanian.com/posts/numpy-vs-blas-costs/)
+- [5x Faster Set Intersections: SVE2, AVX-512, & NEON](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/)
+- [Python, C, Assembly - 2'500x Faster Cosine Similarity](https://ashvardanian.com/posts/python-c-assembly-comparison/)
+- [GCC Compiler vs Human - 119x Faster Assembly](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/)
+- [Accelerating JavaScript arrays by 10x for Vector Search](https://ashvardanian.com/posts/javascript-ai-vector-search/)
+- [SciPy distances... up to 200x faster with AVX-512 & SVE](https://ashvardanian.com/posts/simsimd-faster-scipy/)
 
 ## License
 
