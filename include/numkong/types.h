@@ -111,6 +111,14 @@
 #define NK_DYNAMIC NK_PUBLIC
 #endif // NK_DYNAMIC_DISPATCH
 
+// Vector union types use type punning by design (write as f16, read as f32, etc.).
+// Without this, GCC at -O2 assumes strict aliasing and may optimize away valid accesses.
+#if defined(__GNUC__) || defined(__clang__)
+#define NK_MAY_ALIAS_ __attribute__((may_alias))
+#else
+#define NK_MAY_ALIAS_
+#endif
+
 // Allow SIMD kernels to redirect small inputs to serial implementations.
 // Enabled by default for production use. Tests and benchmarks may disable
 // this to isolate SIMD path behavior on small inputs.
@@ -1118,7 +1126,7 @@ NK_STATIC_ASSERT(sizeof(nk_bf16_t) == 2, nk_bf16_t_must_be_2_bytes);
 #define nk_assign_from_to_(src, dest) (*(dest) = *(src))
 
 /** @brief 16-bit union for f16/bf16/u16/i16 bit manipulation. */
-typedef union {
+typedef union NK_MAY_ALIAS_ {
     nk_u16_t u;
     nk_i16_t i;
     nk_f16_t f;
@@ -1126,14 +1134,14 @@ typedef union {
 } nk_fui16_t;
 
 /** @brief 32-bit union for f32/u32/i32 bit manipulation. */
-typedef union {
+typedef union NK_MAY_ALIAS_ {
     nk_u32_t u;
     nk_i32_t i;
     nk_f32_t f;
 } nk_fui32_t;
 
 /** @brief 64-bit union for f64/u64/i64 bit manipulation. */
-typedef union {
+typedef union NK_MAY_ALIAS_ {
     nk_u64_t u;
     nk_i64_t i;
     nk_f64_t f;
@@ -1164,7 +1172,7 @@ typedef struct {
 } nk_f64c_t;
 
 /** @brief  Small 4-byte memory slice viewable as different types. */
-typedef union nk_b32_vec_t {
+typedef union NK_MAY_ALIAS_ nk_b32_vec_t {
     nk_u32_t u32;
     nk_i32_t i32;
     nk_f32_t f32;
@@ -1177,7 +1185,7 @@ typedef union nk_b32_vec_t {
 } nk_b32_vec_t;
 
 /** @brief  Small 8-byte memory slice viewable as different types. */
-typedef union nk_b64_vec_t {
+typedef union NK_MAY_ALIAS_ nk_b64_vec_t {
 #if NK_TARGET_NEON
     uint8x8_t u8x8;
     uint16x4_t u16x4;
@@ -1204,7 +1212,7 @@ typedef union nk_b64_vec_t {
 } nk_b64_vec_t;
 
 /** @brief  Small 16-byte memory slice viewable as different types. */
-typedef union nk_b128_vec_t {
+typedef union NK_MAY_ALIAS_ nk_b128_vec_t {
 #if NK_TARGET_HASWELL || NK_TARGET_LOONGSONASX
     __m128i xmm;
     __m128d xmm_pd;
@@ -1257,7 +1265,7 @@ typedef union nk_b128_vec_t {
 } nk_b128_vec_t;
 
 /** @brief  Small 32-byte memory slice viewable as different types. */
-typedef union nk_b256_vec_t {
+typedef union NK_MAY_ALIAS_ nk_b256_vec_t {
 #if NK_TARGET_HASWELL || NK_TARGET_LOONGSONASX
     __m256i ymm;
     __m256d ymm_pd;
@@ -1317,7 +1325,7 @@ typedef union nk_b256_vec_t {
  *  of this is that the argument of such type is passed to functions using the calling convention of the first
  *  member of the union, which in our case is a register-based calling convention for SIMD types.
  */
-typedef union nk_b512_vec_t {
+typedef union NK_MAY_ALIAS_ nk_b512_vec_t {
 #if NK_TARGET_SKYLAKE
     __m512i zmm;
     __m512d zmm_pd;
