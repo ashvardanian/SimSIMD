@@ -21,7 +21,7 @@ void bench_cross_loongarch() {
     constexpr nk_dtype_t f16_k = nk_f16_k;
     constexpr nk_dtype_t i8_k = nk_i8_k;
     constexpr nk_dtype_t u8_k = nk_u8_k;
-    constexpr nk_dtype_t u1_k = nk_u1x8_k;
+    constexpr nk_dtype_t u1_k = nk_u1_k;
 
 #if NK_TARGET_LOONGSONASX
 
