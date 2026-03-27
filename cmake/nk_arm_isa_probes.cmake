@@ -3,7 +3,14 @@
 # Detect which ISA extensions the compiler can emit.
 # Probe source lives in probes/arm_*.c — shared with setup.py and build.rs.
 
-set(nk_native_flags_ "-march=native")
+# Apple Clang's -march=native on arm64 omits feature macros like
+# __ARM_FEATURE_FP16_FML that the hardware supports; -mcpu=native
+# queries the actual CPU and defines them correctly.
+if (APPLE)
+    set(nk_native_flags_ "-mcpu=native")
+else ()
+    set(nk_native_flags_ "-march=native")
+endif ()
 include(cmake/nk_isa_probe.cmake)
 
 nk_isa_probes_begin_()
