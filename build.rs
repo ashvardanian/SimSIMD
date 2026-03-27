@@ -418,6 +418,10 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     // Compile
     build.compile("numkong");
 
+    // Expose the include directory so dependents can find <numkong/numkong.h>
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    println!("cargo:include={}/include", manifest_dir);
+
     // Watch directories recursively instead of listing individual files
     watch_dir("c");
     watch_dir("include");
