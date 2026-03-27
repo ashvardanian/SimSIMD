@@ -232,7 +232,7 @@ if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     )
 
     # Install module map
-    install(FILES ${CMAKE_SOURCE_DIR}/include/module.modulemap DESTINATION include)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/module.modulemap DESTINATION include)
 
     message(STATUS "Clang C modules enabled: cache at ${CMAKE_BINARY_DIR}/module-cache")
 endif ()

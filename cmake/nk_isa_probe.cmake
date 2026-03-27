@@ -32,7 +32,7 @@ endmacro ()
 #   Power:             -mcpu=native
 #   RISC-V:            "" (no equivalent — falls back to Pass 1)
 macro (nk_isa_probe_ var_ msvc_arch_ gcc_flags_ probe_file_)
-    file(READ "${CMAKE_SOURCE_DIR}/${probe_file_}" nk_probe_source_)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/${probe_file_}" nk_probe_source_)
     # Pass 1: can the compiler emit this ISA?
     if (MSVC)
         set(CMAKE_REQUIRED_FLAGS "${msvc_arch_}")
