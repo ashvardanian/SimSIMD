@@ -288,6 +288,12 @@ void test_spatial() {
     check("angular_e4m3_icelake", test_angular<e4m3_t>, nk_angular_e4m3_icelake);
     check("sqeuclidean_e4m3_icelake", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_icelake);
     check("euclidean_e4m3_icelake", test_euclidean<e4m3_t>, nk_euclidean_e4m3_icelake);
+    check("angular_e2m3_icelake", test_angular<e2m3_t>, nk_angular_e2m3_icelake);
+    check("sqeuclidean_e2m3_icelake", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_icelake);
+    check("euclidean_e2m3_icelake", test_euclidean<e2m3_t>, nk_euclidean_e2m3_icelake);
+    check("angular_e3m2_icelake", test_angular<e3m2_t>, nk_angular_e3m2_icelake);
+    check("sqeuclidean_e3m2_icelake", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_icelake);
+    check("euclidean_e3m2_icelake", test_euclidean<e3m2_t>, nk_euclidean_e3m2_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -330,6 +336,9 @@ void test_spatial() {
     check("angular_e2m3_sierra", test_angular<e2m3_t>, nk_angular_e2m3_sierra);
     check("sqeuclidean_e2m3_sierra", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sierra);
     check("euclidean_e2m3_sierra", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sierra);
+    check("angular_e3m2_sierra", test_angular<e3m2_t>, nk_angular_e3m2_sierra);
+    check("sqeuclidean_e3m2_sierra", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_sierra);
+    check("euclidean_e3m2_sierra", test_euclidean<e3m2_t>, nk_euclidean_e3m2_sierra);
     check("angular_i8_sierra", test_angular<i8_t>, nk_angular_i8_sierra);
     check("sqeuclidean_i8_sierra", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_sierra);
     check("euclidean_i8_sierra", test_euclidean<i8_t>, nk_euclidean_i8_sierra);
@@ -337,15 +346,6 @@ void test_spatial() {
     check("sqeuclidean_u8_sierra", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_sierra);
     check("euclidean_u8_sierra", test_euclidean<u8_t>, nk_euclidean_u8_sierra);
 #endif // NK_TARGET_SIERRA
-
-#if NK_TARGET_SAPPHIRE
-    check("angular_e2m3_sapphire", test_angular<e2m3_t>, nk_angular_e2m3_sapphire);
-    check("sqeuclidean_e2m3_sapphire", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_sapphire);
-    check("euclidean_e2m3_sapphire", test_euclidean<e2m3_t>, nk_euclidean_e2m3_sapphire);
-    check("angular_e3m2_sapphire", test_angular<e3m2_t>, nk_angular_e3m2_sapphire);
-    check("sqeuclidean_e3m2_sapphire", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_sapphire);
-    check("euclidean_e3m2_sapphire", test_euclidean<e3m2_t>, nk_euclidean_e3m2_sapphire);
-#endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
     check("angular_f64_rvv", test_angular<f64_t>, nk_angular_f64_rvv);

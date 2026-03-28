@@ -15,7 +15,6 @@
  *
  *  Ice Lake's VNNI enables efficient i8 distance computations via VPDPWSSD for squared differences.
  *  After widening i8 to i16, the same instruction computes both multiply and horizontal pair addition.
- *  This approach avoids the asymmetric VPDPBUSD issues with signed values like -128.
  */
 #ifndef NK_SPATIAL_ICELAKE_H
 #define NK_SPATIAL_ICELAKE_H
@@ -573,10 +572,8 @@ nk_angular_u4_icelake_cycle:
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
-/** @brief E4M3 squared Euclidean distance via octave VNNI.
- *  Computes ||a-b||² = ||a||² + ||b||² - 2·dot(a,b) using the octave decomposition.
- *  16 VPDPBUSD for dot(a,b) + 4 for ||a||² + 4 for ||b||² = 24 per 64 elements. */
 NK_PUBLIC void nk_sqeuclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E4M3 squared Euclidean distance via octave VNNI.
 
     __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
         120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
@@ -594,10 +591,10 @@ NK_PUBLIC void nk_sqeuclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *
     __m512i const oct_threshold_40_u8x64 = _mm512_set1_epi8(0x40);
     __m512i const oct_threshold_60_u8x64 = _mm512_set1_epi8(0x60);
 
-    __m512i dot0_i32x16 = _mm512_setzero_si512(), dot1_i32x16 = _mm512_setzero_si512();
-    __m512i dot2_i32x16 = _mm512_setzero_si512(), dot3_i32x16 = _mm512_setzero_si512();
-    __m512i dot4_i32x16 = _mm512_setzero_si512(), dot5_i32x16 = _mm512_setzero_si512();
-    __m512i dot6_i32x16 = _mm512_setzero_si512();
+    __m512i ab0_i32x16 = _mm512_setzero_si512(), ab1_i32x16 = _mm512_setzero_si512();
+    __m512i ab2_i32x16 = _mm512_setzero_si512(), ab3_i32x16 = _mm512_setzero_si512();
+    __m512i ab4_i32x16 = _mm512_setzero_si512(), ab5_i32x16 = _mm512_setzero_si512();
+    __m512i ab6_i32x16 = _mm512_setzero_si512();
     __m512i a2_0_i32x16 = _mm512_setzero_si512(), a2_2_i32x16 = _mm512_setzero_si512();
     __m512i a2_4_i32x16 = _mm512_setzero_si512(), a2_6_i32x16 = _mm512_setzero_si512();
     __m512i b2_0_i32x16 = _mm512_setzero_si512(), b2_2_i32x16 = _mm512_setzero_si512();
@@ -650,21 +647,21 @@ nk_sqeuclidean_e4m3_icelake_cycle:
     __m512i b3_i8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_signed_i8x64);
 
     // dot(a,b): 16 VPDPBUSD
-    dot0_i32x16 = _mm512_dpbusd_epi32(dot0_i32x16, a0_u8x64, b0_i8x64);
-    dot1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
-    dot2_i32x16 = _mm512_dpbusd_epi32(
-        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
+    ab0_i32x16 = _mm512_dpbusd_epi32(ab0_i32x16, a0_u8x64, b0_i8x64);
+    ab1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
+    ab2_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
         b0_i8x64);
-    dot3_i32x16 = _mm512_dpbusd_epi32(
+    ab3_i32x16 = _mm512_dpbusd_epi32(
         _mm512_dpbusd_epi32(
-            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
+            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
             b1_i8x64),
         a3_u8x64, b0_i8x64);
-    dot4_i32x16 = _mm512_dpbusd_epi32(
-        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
+    ab4_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
         b1_i8x64);
-    dot5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
-    dot6_i32x16 = _mm512_dpbusd_epi32(dot6_i32x16, a3_u8x64, b3_i8x64);
+    ab5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
+    ab6_i32x16 = _mm512_dpbusd_epi32(ab6_i32x16, a3_u8x64, b3_i8x64);
 
     // ||a||²: 4 VPDPBUSD (self-dot, same-octave only)
     a2_0_i32x16 = _mm512_dpbusd_epi32(a2_0_i32x16, a0_u8x64, a0_u8x64);
@@ -685,13 +682,13 @@ nk_sqeuclidean_e4m3_icelake_cycle:
     if (n) goto nk_sqeuclidean_e4m3_icelake_cycle;
 
     // Reduce dot(a,b)
-    __m512 dot_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(dot0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot1_i32x16), _mm512_set1_ps(1.52587890625e-05f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot2_i32x16), _mm512_set1_ps(2.44140625e-04f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot3_i32x16), _mm512_set1_ps(3.90625e-03f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot4_i32x16), _mm512_set1_ps(6.25e-02f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot5_i32x16), _mm512_set1_ps(1.0f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot6_i32x16), _mm512_set1_ps(16.0f), dot_f32x16);
+    __m512 ab_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(ab0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab1_i32x16), _mm512_set1_ps(1.52587890625e-05f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab2_i32x16), _mm512_set1_ps(2.44140625e-04f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab3_i32x16), _mm512_set1_ps(3.90625e-03f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab4_i32x16), _mm512_set1_ps(6.25e-02f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab5_i32x16), _mm512_set1_ps(1.0f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab6_i32x16), _mm512_set1_ps(16.0f), ab_f32x16);
 
     // Reduce ||a||² and ||b||² (even-k only: scale = 2^(8·oct − 20))
     __m512 a2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(a2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
@@ -706,7 +703,7 @@ nk_sqeuclidean_e4m3_icelake_cycle:
 
     // (a-b)² = ||a||² + ||b||² - 2·dot(a,b)
     __m512 sum_sq_f32x16 = _mm512_add_ps(a2_f32x16, b2_f32x16);
-    *result = nk_reduce_add_f32x16_skylake_(_mm512_fnmadd_ps(_mm512_set1_ps(2.0f), dot_f32x16, sum_sq_f32x16));
+    *result = nk_reduce_add_f32x16_skylake_(_mm512_fnmadd_ps(_mm512_set1_ps(2.0f), ab_f32x16, sum_sq_f32x16));
 }
 
 NK_PUBLIC void nk_euclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -714,10 +711,8 @@ NK_PUBLIC void nk_euclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b,
     *result = nk_f32_sqrt_haswell(*result);
 }
 
-/** @brief E4M3 angular distance via octave VNNI.
- *  Computes 1 - dot(a,b) / (||a|| × ||b||) using the octave decomposition.
- *  16 VPDPBUSD for dot + 4 for ||a||² + 4 for ||b||² = 24 per 64 elements. */
 NK_PUBLIC void nk_angular_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E4M3 angular distance via octave VNNI.
 
     __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
         120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
@@ -735,10 +730,10 @@ NK_PUBLIC void nk_angular_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, n
     __m512i const oct_threshold_40_u8x64 = _mm512_set1_epi8(0x40);
     __m512i const oct_threshold_60_u8x64 = _mm512_set1_epi8(0x60);
 
-    __m512i dot0_i32x16 = _mm512_setzero_si512(), dot1_i32x16 = _mm512_setzero_si512();
-    __m512i dot2_i32x16 = _mm512_setzero_si512(), dot3_i32x16 = _mm512_setzero_si512();
-    __m512i dot4_i32x16 = _mm512_setzero_si512(), dot5_i32x16 = _mm512_setzero_si512();
-    __m512i dot6_i32x16 = _mm512_setzero_si512();
+    __m512i ab0_i32x16 = _mm512_setzero_si512(), ab1_i32x16 = _mm512_setzero_si512();
+    __m512i ab2_i32x16 = _mm512_setzero_si512(), ab3_i32x16 = _mm512_setzero_si512();
+    __m512i ab4_i32x16 = _mm512_setzero_si512(), ab5_i32x16 = _mm512_setzero_si512();
+    __m512i ab6_i32x16 = _mm512_setzero_si512();
     __m512i a2_0_i32x16 = _mm512_setzero_si512(), a2_2_i32x16 = _mm512_setzero_si512();
     __m512i a2_4_i32x16 = _mm512_setzero_si512(), a2_6_i32x16 = _mm512_setzero_si512();
     __m512i b2_0_i32x16 = _mm512_setzero_si512(), b2_2_i32x16 = _mm512_setzero_si512();
@@ -791,21 +786,21 @@ nk_angular_e4m3_icelake_cycle:
     __m512i b3_i8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_signed_i8x64);
 
     // dot(a,b): 16 VPDPBUSD
-    dot0_i32x16 = _mm512_dpbusd_epi32(dot0_i32x16, a0_u8x64, b0_i8x64);
-    dot1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
-    dot2_i32x16 = _mm512_dpbusd_epi32(
-        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
+    ab0_i32x16 = _mm512_dpbusd_epi32(ab0_i32x16, a0_u8x64, b0_i8x64);
+    ab1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
+    ab2_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
         b0_i8x64);
-    dot3_i32x16 = _mm512_dpbusd_epi32(
+    ab3_i32x16 = _mm512_dpbusd_epi32(
         _mm512_dpbusd_epi32(
-            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
+            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
             b1_i8x64),
         a3_u8x64, b0_i8x64);
-    dot4_i32x16 = _mm512_dpbusd_epi32(
-        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
+    ab4_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
         b1_i8x64);
-    dot5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
-    dot6_i32x16 = _mm512_dpbusd_epi32(dot6_i32x16, a3_u8x64, b3_i8x64);
+    ab5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(ab5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
+    ab6_i32x16 = _mm512_dpbusd_epi32(ab6_i32x16, a3_u8x64, b3_i8x64);
 
     // ||a||²: 4 VPDPBUSD
     a2_0_i32x16 = _mm512_dpbusd_epi32(a2_0_i32x16, a0_u8x64, a0_u8x64);
@@ -826,13 +821,13 @@ nk_angular_e4m3_icelake_cycle:
     if (n) goto nk_angular_e4m3_icelake_cycle;
 
     // Reduce dot(a,b)
-    __m512 dot_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(dot0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot1_i32x16), _mm512_set1_ps(1.52587890625e-05f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot2_i32x16), _mm512_set1_ps(2.44140625e-04f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot3_i32x16), _mm512_set1_ps(3.90625e-03f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot4_i32x16), _mm512_set1_ps(6.25e-02f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot5_i32x16), _mm512_set1_ps(1.0f), dot_f32x16);
-    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot6_i32x16), _mm512_set1_ps(16.0f), dot_f32x16);
+    __m512 ab_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(ab0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab1_i32x16), _mm512_set1_ps(1.52587890625e-05f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab2_i32x16), _mm512_set1_ps(2.44140625e-04f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab3_i32x16), _mm512_set1_ps(3.90625e-03f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab4_i32x16), _mm512_set1_ps(6.25e-02f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab5_i32x16), _mm512_set1_ps(1.0f), ab_f32x16);
+    ab_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(ab6_i32x16), _mm512_set1_ps(16.0f), ab_f32x16);
 
     __m512 a2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(a2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
     a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_2_i32x16), _mm512_set1_ps(2.44140625e-04f), a2_f32x16);
@@ -844,10 +839,215 @@ nk_angular_e4m3_icelake_cycle:
     b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_4_i32x16), _mm512_set1_ps(6.25e-02f), b2_f32x16);
     b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_6_i32x16), _mm512_set1_ps(16.0f), b2_f32x16);
 
-    nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
+    nk_f32_t ab_f32 = nk_reduce_add_f32x16_skylake_(ab_f32x16);
     nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(a2_f32x16);
     nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(b2_f32x16);
-    *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
+    *result = nk_angular_normalize_f32_haswell_(ab_f32, a_norm_sq_f32, b_norm_sq_f32);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E2M3 squared Euclidean distance via VPDPBUSD integer MAC.
+    __m512i const lut_magnitude_u8x64 = _mm512_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0,
+                                                        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x1F);
+    __m512i const sign_mask_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i ab_i32x16 = _mm512_setzero_si512();
+    __m512i a2_i32x16 = _mm512_setzero_si512();
+    __m512i b2_i32x16 = _mm512_setzero_si512();
+    __m512i a_e2m3_u8x64, b_e2m3_u8x64;
+
+nk_sqeuclidean_e2m3_icelake_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e2m3_u8x64 = _mm512_loadu_si512(a);
+        b_e2m3_u8x64 = _mm512_loadu_si512(b);
+        a += 64, b += 64, n -= 64;
+    }
+
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e2m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e2m3_u8x64, magnitude_mask_u8x64);
+    __m512i a_unsigned_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_magnitude_u8x64);
+    __m512i b_unsigned_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_magnitude_u8x64);
+
+    __m512i sign_combined_u8x64 = _mm512_and_si512(_mm512_xor_si512(a_e2m3_u8x64, b_e2m3_u8x64), sign_mask_u8x64);
+    __mmask64 negate_mask = _mm512_test_epi8_mask(sign_combined_u8x64, sign_combined_u8x64);
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_unsigned_u8x64, negate_mask, _mm512_setzero_si512(),
+                                                  b_unsigned_u8x64);
+
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_unsigned_u8x64, b_signed_i8x64);
+    a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_unsigned_u8x64, a_unsigned_u8x64);
+    b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_unsigned_u8x64, b_unsigned_u8x64);
+
+    if (n) goto nk_sqeuclidean_e2m3_icelake_cycle;
+
+    // (a-b)² = a² + b² − 2·ab, scaled by 256 (16² from LUT)
+    __m512 a2_f32x16 = _mm512_cvtepi32_ps(a2_i32x16);
+    __m512 b2_f32x16 = _mm512_cvtepi32_ps(b2_i32x16);
+    __m512 ab_f32x16 = _mm512_cvtepi32_ps(ab_i32x16);
+    __m512 sum_sq_f32x16 = _mm512_add_ps(a2_f32x16, b2_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(_mm512_fnmadd_ps(_mm512_set1_ps(2.0f), ab_f32x16, sum_sq_f32x16)) / 256.0f;
+}
+
+NK_PUBLIC void nk_euclidean_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e2m3_icelake(a, b, n, result);
+    *result = nk_f32_sqrt_haswell(*result);
+}
+
+NK_PUBLIC void nk_angular_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E2M3 angular distance via VPDPBUSD integer MAC.
+    __m512i const lut_magnitude_u8x64 = _mm512_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0,
+                                                        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x1F);
+    __m512i const sign_mask_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i ab_i32x16 = _mm512_setzero_si512();
+    __m512i a2_i32x16 = _mm512_setzero_si512();
+    __m512i b2_i32x16 = _mm512_setzero_si512();
+    __m512i a_e2m3_u8x64, b_e2m3_u8x64;
+
+nk_angular_e2m3_icelake_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e2m3_u8x64 = _mm512_loadu_si512(a);
+        b_e2m3_u8x64 = _mm512_loadu_si512(b);
+        a += 64, b += 64, n -= 64;
+    }
+
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e2m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e2m3_u8x64, magnitude_mask_u8x64);
+    __m512i a_unsigned_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_magnitude_u8x64);
+    __m512i b_unsigned_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_magnitude_u8x64);
+
+    __m512i sign_combined_u8x64 = _mm512_and_si512(_mm512_xor_si512(a_e2m3_u8x64, b_e2m3_u8x64), sign_mask_u8x64);
+    __mmask64 negate_mask = _mm512_test_epi8_mask(sign_combined_u8x64, sign_combined_u8x64);
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_unsigned_u8x64, negate_mask, _mm512_setzero_si512(),
+                                                  b_unsigned_u8x64);
+
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_unsigned_u8x64, b_signed_i8x64);
+    a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_unsigned_u8x64, a_unsigned_u8x64);
+    b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_unsigned_u8x64, b_unsigned_u8x64);
+
+    if (n) goto nk_angular_e2m3_icelake_cycle;
+
+    nk_f32_t ab_f32 = (nk_f32_t)_mm512_reduce_add_epi32(ab_i32x16) / 256.0f;
+    nk_f32_t a_norm_sq_f32 = (nk_f32_t)_mm512_reduce_add_epi32(a2_i32x16) / 256.0f;
+    nk_f32_t b_norm_sq_f32 = (nk_f32_t)_mm512_reduce_add_epi32(b2_i32x16) / 256.0f;
+    *result = nk_angular_normalize_f32_haswell_(ab_f32, a_norm_sq_f32, b_norm_sq_f32);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E3M2 squared Euclidean distance via direct difference squaring.
+    __m512i const lut_magnitude_i16x32 = _mm512_set_epi16(                       //
+        448, 384, 320, 256, 224, 192, 160, 128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i const magnitude_mask_i16x32 = _mm512_set1_epi16(0x1F);
+    __m512i const sign_mask_i16x32 = _mm512_set1_epi16(0x20);
+    __m512i sum_i32x16 = _mm512_setzero_si512();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
+nk_sqeuclidean_e3m2_icelake_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+        a_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b);
+        a += 32, b += 32, n -= 32;
+    }
+
+    __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_e3m2_u8x32);
+    __m512i b_u16x32 = _mm512_cvtepu8_epi16(b_e3m2_u8x32);
+    __m512i a_unsigned_i16x32 = _mm512_permutexvar_epi16(_mm512_and_si512(a_u16x32, magnitude_mask_i16x32),
+                                                         lut_magnitude_i16x32);
+    __m512i b_unsigned_i16x32 = _mm512_permutexvar_epi16(_mm512_and_si512(b_u16x32, magnitude_mask_i16x32),
+                                                         lut_magnitude_i16x32);
+
+    // Apply signs individually
+    __mmask32 a_negative_mask = _mm512_test_epi16_mask(a_u16x32, sign_mask_i16x32);
+    __mmask32 b_negative_mask = _mm512_test_epi16_mask(b_u16x32, sign_mask_i16x32);
+    __m512i a_signed_i16x32 = _mm512_mask_sub_epi16(a_unsigned_i16x32, a_negative_mask, _mm512_setzero_si512(),
+                                                    a_unsigned_i16x32);
+    __m512i b_signed_i16x32 = _mm512_mask_sub_epi16(b_unsigned_i16x32, b_negative_mask, _mm512_setzero_si512(),
+                                                    b_unsigned_i16x32);
+
+    // Direct difference squaring: (a-b)² via VPMADDWD
+    __m512i diff_i16x32 = _mm512_sub_epi16(a_signed_i16x32, b_signed_i16x32);
+    sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(diff_i16x32, diff_i16x32));
+
+    if (n) goto nk_sqeuclidean_e3m2_icelake_cycle;
+    *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
+}
+
+NK_PUBLIC void nk_euclidean_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e3m2_icelake(a, b, n, result);
+    *result = nk_f32_sqrt_haswell(*result);
+}
+
+NK_PUBLIC void nk_angular_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // E3M2 angular distance via VPMADDWD integer MAC.
+    __m512i const lut_magnitude_i16x32 = _mm512_set_epi16(                       //
+        448, 384, 320, 256, 224, 192, 160, 128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i const magnitude_mask_i16x32 = _mm512_set1_epi16(0x1F);
+    __m512i const sign_mask_i16x32 = _mm512_set1_epi16(0x20);
+    __m512i ab_i32x16 = _mm512_setzero_si512();
+    __m512i a2_i32x16 = _mm512_setzero_si512();
+    __m512i b2_i32x16 = _mm512_setzero_si512();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
+nk_angular_e3m2_icelake_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+        a_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b);
+        a += 32, b += 32, n -= 32;
+    }
+
+    __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_e3m2_u8x32);
+    __m512i b_u16x32 = _mm512_cvtepu8_epi16(b_e3m2_u8x32);
+    __m512i a_unsigned_i16x32 = _mm512_permutexvar_epi16(_mm512_and_si512(a_u16x32, magnitude_mask_i16x32),
+                                                         lut_magnitude_i16x32);
+    __m512i b_unsigned_i16x32 = _mm512_permutexvar_epi16(_mm512_and_si512(b_u16x32, magnitude_mask_i16x32),
+                                                         lut_magnitude_i16x32);
+
+    __mmask32 a_negative_mask = _mm512_test_epi16_mask(a_u16x32, sign_mask_i16x32);
+    __mmask32 b_negative_mask = _mm512_test_epi16_mask(b_u16x32, sign_mask_i16x32);
+    __m512i a_signed_i16x32 = _mm512_mask_sub_epi16(a_unsigned_i16x32, a_negative_mask, _mm512_setzero_si512(),
+                                                    a_unsigned_i16x32);
+    __m512i b_signed_i16x32 = _mm512_mask_sub_epi16(b_unsigned_i16x32, b_negative_mask, _mm512_setzero_si512(),
+                                                    b_unsigned_i16x32);
+
+    ab_i32x16 = _mm512_add_epi32(ab_i32x16, _mm512_madd_epi16(a_signed_i16x32, b_signed_i16x32));
+    a2_i32x16 = _mm512_add_epi32(a2_i32x16, _mm512_madd_epi16(a_unsigned_i16x32, a_unsigned_i16x32));
+    b2_i32x16 = _mm512_add_epi32(b2_i32x16, _mm512_madd_epi16(b_unsigned_i16x32, b_unsigned_i16x32));
+
+    if (n) goto nk_angular_e3m2_icelake_cycle;
+
+    nk_f32_t ab_f32 = (nk_f32_t)_mm512_reduce_add_epi32(ab_i32x16) / 256.0f;
+    nk_f32_t a_norm_sq_f32 = (nk_f32_t)_mm512_reduce_add_epi32(a2_i32x16) / 256.0f;
+    nk_f32_t b_norm_sq_f32 = (nk_f32_t)_mm512_reduce_add_epi32(b2_i32x16) / 256.0f;
+    *result = nk_angular_normalize_f32_haswell_(ab_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 #if defined(__clang__)

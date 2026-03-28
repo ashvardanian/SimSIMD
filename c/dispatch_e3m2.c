@@ -114,17 +114,12 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_SAPPHIRE
-    if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e3m2_icelake, *c = nk_cap_icelake_k; return;
         default: break;
         }
@@ -149,6 +144,14 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e3m2_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SIERRA
+    if (v & nk_cap_sierra_k) switch (k) {
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_sierra, *c = nk_cap_sierra_k; return;
         default: break;
         }
 #endif

@@ -185,7 +185,7 @@ NK_PUBLIC void nk_angular_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t cons
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
     __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
-    __m256i dot_i32x8 = _mm256_setzero_si256();
+    __m256i ab_i32x8 = _mm256_setzero_si256();
     __m256i a_norm_i32x8 = _mm256_setzero_si256();
     __m256i b_norm_i32x8 = _mm256_setzero_si256();
     __m256i a_e2m3_u8x32, b_e2m3_u8x32;
@@ -207,32 +207,36 @@ nk_angular_e2m3_sierra_cycle:
 
     // Decode a: extract magnitude, dual-VPSHUFB LUT, apply sign
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i a_shuffle_idx = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i a_upper_sel = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32), half_select_u8x32);
-    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_idx),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_idx), a_upper_sel);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
     __m256i a_negate = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i a_signed_i8x32 = _mm256_blendv_epi8(a_unsigned_u8x32,
                                                 _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate);
 
     // Decode b: same LUT decode + sign
     __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i b_shuffle_idx = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_upper_sel = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32), half_select_u8x32);
-    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_idx),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_idx), b_upper_sel);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
     __m256i b_negate = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32,
                                                 _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate);
 
     // VPDPBSSD: signed × signed → i32
-    dot_i32x8 = _mm256_dpbssd_epi32(dot_i32x8, a_signed_i8x32, b_signed_i8x32);
+    ab_i32x8 = _mm256_dpbssd_epi32(ab_i32x8, a_signed_i8x32, b_signed_i8x32);
     a_norm_i32x8 = _mm256_dpbssd_epi32(a_norm_i32x8, a_signed_i8x32, a_signed_i8x32);
     b_norm_i32x8 = _mm256_dpbssd_epi32(b_norm_i32x8, b_signed_i8x32, b_signed_i8x32);
 
     if (count_scalars) goto nk_angular_e2m3_sierra_cycle;
 
-    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(dot_i32x8);
+    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(ab_i32x8);
     nk_i32_t a_norm_i32 = nk_reduce_add_i32x8_haswell_(a_norm_i32x8);
     nk_i32_t b_norm_i32 = nk_reduce_add_i32x8_haswell_(b_norm_i32x8);
     *result = nk_angular_normalize_f32_haswell_(dot_i32, a_norm_i32, b_norm_i32);
@@ -251,7 +255,7 @@ NK_PUBLIC void nk_sqeuclidean_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t 
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
     __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
-    __m256i dot_i32x8 = _mm256_setzero_si256();
+    __m256i ab_i32x8 = _mm256_setzero_si256();
     __m256i a_norm_i32x8 = _mm256_setzero_si256();
     __m256i b_norm_i32x8 = _mm256_setzero_si256();
     __m256i a_e2m3_u8x32, b_e2m3_u8x32;
@@ -273,31 +277,35 @@ nk_sqeuclidean_e2m3_sierra_cycle:
 
     // Decode a
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i a_shuffle_idx = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i a_upper_sel = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32), half_select_u8x32);
-    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_idx),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_idx), a_upper_sel);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
     __m256i a_negate = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i a_signed_i8x32 = _mm256_blendv_epi8(a_unsigned_u8x32,
                                                 _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate);
 
     // Decode b
     __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
-    __m256i b_shuffle_idx = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_upper_sel = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32), half_select_u8x32);
-    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_idx),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_idx), b_upper_sel);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
     __m256i b_negate = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32,
                                                 _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate);
 
-    dot_i32x8 = _mm256_dpbssd_epi32(dot_i32x8, a_signed_i8x32, b_signed_i8x32);
+    ab_i32x8 = _mm256_dpbssd_epi32(ab_i32x8, a_signed_i8x32, b_signed_i8x32);
     a_norm_i32x8 = _mm256_dpbssd_epi32(a_norm_i32x8, a_signed_i8x32, a_signed_i8x32);
     b_norm_i32x8 = _mm256_dpbssd_epi32(b_norm_i32x8, b_signed_i8x32, b_signed_i8x32);
 
     if (count_scalars) goto nk_sqeuclidean_e2m3_sierra_cycle;
 
-    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(dot_i32x8);
+    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(ab_i32x8);
     nk_i32_t a_norm_i32 = nk_reduce_add_i32x8_haswell_(a_norm_i32x8);
     nk_i32_t b_norm_i32 = nk_reduce_add_i32x8_haswell_(b_norm_i32x8);
     *result = (nk_f32_t)(a_norm_i32 + b_norm_i32 - 2 * dot_i32) / 256.0f;
@@ -306,6 +314,189 @@ nk_sqeuclidean_e2m3_sierra_cycle:
 NK_PUBLIC void nk_euclidean_e2m3_sierra(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_sierra(a, b, n, result);
     *result = nk_f32_sqrt_haswell(*result);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e3m2_sierra(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_f32_t *result) {
+    // E3M2 squared Euclidean distance via direct difference squaring.
+    __m256i const lut_lo_lower_u8x32 = _mm256_set_epi8(        //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m256i const lut_lo_upper_u8x32 = _mm256_set_epi8(                                                           //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const high_threshold_u8x32 = _mm256_set1_epi8(27);
+    __m256i const ones_u8x32 = _mm256_set1_epi8(1);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+    __m256i sum_i32x8 = _mm256_setzero_si256();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
+nk_sqeuclidean_e3m2_sierra_cycle:
+    if (count_scalars < 32) {
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_b8x32_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x32_serial_(b_scalars, &b_vec, count_scalars);
+        a_e3m2_u8x32 = a_vec.ymm;
+        b_e3m2_u8x32 = b_vec.ymm;
+        count_scalars = 0;
+    }
+    else {
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+
+    // Decode both to unsigned i16 via dual-VPSHUFB + interleave
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i a_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
+                                                   a_upper_select_u8x32);
+    __m256i b_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
+                                                   b_upper_select_u8x32);
+    __m256i a_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+    __m256i b_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+
+    // Interleave to i16 and apply signs
+    __m256i a_low_i16x16 = _mm256_unpacklo_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i a_high_i16x16 = _mm256_unpackhi_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i b_low_i16x16 = _mm256_unpacklo_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
+    __m256i b_high_i16x16 = _mm256_unpackhi_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
+
+    __m256i a_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i b_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i a_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i a_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i b_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i b_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i a_signed_low_i16x16 = _mm256_sign_epi16(a_low_i16x16, a_sign_low_i16x16);
+    __m256i a_signed_high_i16x16 = _mm256_sign_epi16(a_high_i16x16, a_sign_high_i16x16);
+    __m256i b_signed_low_i16x16 = _mm256_sign_epi16(b_low_i16x16, b_sign_low_i16x16);
+    __m256i b_signed_high_i16x16 = _mm256_sign_epi16(b_high_i16x16, b_sign_high_i16x16);
+
+    // Direct difference squaring: (a-b)² via VPMADDWD
+    __m256i diff_low_i16x16 = _mm256_sub_epi16(a_signed_low_i16x16, b_signed_low_i16x16);
+    __m256i diff_high_i16x16 = _mm256_sub_epi16(a_signed_high_i16x16, b_signed_high_i16x16);
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(diff_low_i16x16, diff_low_i16x16));
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(diff_high_i16x16, diff_high_i16x16));
+
+    if (count_scalars) goto nk_sqeuclidean_e3m2_sierra_cycle;
+    *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
+}
+
+NK_PUBLIC void nk_euclidean_e3m2_sierra(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e3m2_sierra(a, b, n, result);
+    *result = nk_f32_sqrt_haswell(*result);
+}
+
+NK_PUBLIC void nk_angular_e3m2_sierra(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
+                                      nk_f32_t *result) {
+    // E3M2 angular distance via VPMADDWD integer MAC.
+    __m256i const lut_lo_lower_u8x32 = _mm256_set_epi8(        //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m256i const lut_lo_upper_u8x32 = _mm256_set_epi8(                                                           //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const high_threshold_u8x32 = _mm256_set1_epi8(27);
+    __m256i const ones_u8x32 = _mm256_set1_epi8(1);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+    __m256i ab_i32x8 = _mm256_setzero_si256();
+    __m256i a_norm_i32x8 = _mm256_setzero_si256();
+    __m256i b_norm_i32x8 = _mm256_setzero_si256();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
+nk_angular_e3m2_sierra_cycle:
+    if (count_scalars < 32) {
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_b8x32_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x32_serial_(b_scalars, &b_vec, count_scalars);
+        a_e3m2_u8x32 = a_vec.ymm;
+        b_e3m2_u8x32 = b_vec.ymm;
+        count_scalars = 0;
+    }
+    else {
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+
+    // Decode both to unsigned i16
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i a_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
+                                                   a_upper_select_u8x32);
+    __m256i b_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
+                                                   b_upper_select_u8x32);
+    __m256i a_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+    __m256i b_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+    __m256i a_low_i16x16 = _mm256_unpacklo_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i a_high_i16x16 = _mm256_unpackhi_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i b_low_i16x16 = _mm256_unpacklo_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
+    __m256i b_high_i16x16 = _mm256_unpackhi_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
+
+    // Apply signs individually
+    __m256i a_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i b_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i a_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i a_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i b_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i b_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i a_signed_low_i16x16 = _mm256_sign_epi16(a_low_i16x16, a_sign_low_i16x16);
+    __m256i a_signed_high_i16x16 = _mm256_sign_epi16(a_high_i16x16, a_sign_high_i16x16);
+    __m256i b_signed_low_i16x16 = _mm256_sign_epi16(b_low_i16x16, b_sign_low_i16x16);
+    __m256i b_signed_high_i16x16 = _mm256_sign_epi16(b_high_i16x16, b_sign_high_i16x16);
+
+    // dot(a,b) + a² + b² via VPMADDWD
+    ab_i32x8 = _mm256_add_epi32(ab_i32x8, _mm256_madd_epi16(a_signed_low_i16x16, b_signed_low_i16x16));
+    ab_i32x8 = _mm256_add_epi32(ab_i32x8, _mm256_madd_epi16(a_signed_high_i16x16, b_signed_high_i16x16));
+    a_norm_i32x8 = _mm256_add_epi32(a_norm_i32x8, _mm256_madd_epi16(a_low_i16x16, a_low_i16x16));
+    a_norm_i32x8 = _mm256_add_epi32(a_norm_i32x8, _mm256_madd_epi16(a_high_i16x16, a_high_i16x16));
+    b_norm_i32x8 = _mm256_add_epi32(b_norm_i32x8, _mm256_madd_epi16(b_low_i16x16, b_low_i16x16));
+    b_norm_i32x8 = _mm256_add_epi32(b_norm_i32x8, _mm256_madd_epi16(b_high_i16x16, b_high_i16x16));
+
+    if (count_scalars) goto nk_angular_e3m2_sierra_cycle;
+
+    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(ab_i32x8);
+    nk_i32_t a_norm_i32 = nk_reduce_add_i32x8_haswell_(a_norm_i32x8);
+    nk_i32_t b_norm_i32 = nk_reduce_add_i32x8_haswell_(b_norm_i32x8);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_i32 / 256.0f, (nk_f32_t)a_norm_i32 / 256.0f,
+                                                (nk_f32_t)b_norm_i32 / 256.0f);
 }
 
 #if defined(__clang__)

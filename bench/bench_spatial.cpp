@@ -181,6 +181,9 @@ void bench_spatial() {
     run_dense<e2m3_k, f32_k>("angular_e2m3_sierra", nk_angular_e2m3_sierra);
     run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_sierra", nk_sqeuclidean_e2m3_sierra);
     run_dense<e2m3_k, f32_k>("euclidean_e2m3_sierra", nk_euclidean_e2m3_sierra);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_sierra", nk_angular_e3m2_sierra);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_sierra", nk_sqeuclidean_e3m2_sierra);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_sierra", nk_euclidean_e3m2_sierra);
     run_dense<i8_k, f32_k>("angular_i8_sierra", nk_angular_i8_sierra);
     run_dense<i8_k, u32_k>("sqeuclidean_i8_sierra", nk_sqeuclidean_i8_sierra);
     run_dense<i8_k, f32_k>("euclidean_i8_sierra", nk_euclidean_i8_sierra);
@@ -205,6 +208,12 @@ void bench_spatial() {
     run_dense<e4m3_k, f32_k>("angular_e4m3_icelake", nk_angular_e4m3_icelake);
     run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_icelake", nk_sqeuclidean_e4m3_icelake);
     run_dense<e4m3_k, f32_k>("euclidean_e4m3_icelake", nk_euclidean_e4m3_icelake);
+    run_dense<e2m3_k, f32_k>("angular_e2m3_icelake", nk_angular_e2m3_icelake);
+    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_icelake", nk_sqeuclidean_e2m3_icelake);
+    run_dense<e2m3_k, f32_k>("euclidean_e2m3_icelake", nk_euclidean_e2m3_icelake);
+    run_dense<e3m2_k, f32_k>("angular_e3m2_icelake", nk_angular_e3m2_icelake);
+    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_icelake", nk_sqeuclidean_e3m2_icelake);
+    run_dense<e3m2_k, f32_k>("euclidean_e3m2_icelake", nk_euclidean_e3m2_icelake);
 #endif
 
 #if NK_TARGET_GENOA
@@ -226,15 +235,6 @@ void bench_spatial() {
     run_dense<e5m2_k, f32_k>("angular_e5m2_diamond", nk_angular_e5m2_diamond);
     run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_diamond", nk_sqeuclidean_e5m2_diamond);
     run_dense<e5m2_k, f32_k>("euclidean_e5m2_diamond", nk_euclidean_e5m2_diamond);
-#endif
-
-#if NK_TARGET_SAPPHIRE
-    run_dense<e3m2_k, f32_k>("angular_e3m2_sapphire", nk_angular_e3m2_sapphire);
-    run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_sapphire", nk_sqeuclidean_e3m2_sapphire);
-    run_dense<e3m2_k, f32_k>("euclidean_e3m2_sapphire", nk_euclidean_e3m2_sapphire);
-    run_dense<e2m3_k, f32_k>("angular_e2m3_sapphire", nk_angular_e2m3_sapphire);
-    run_dense<e2m3_k, f32_k>("sqeuclidean_e2m3_sapphire", nk_sqeuclidean_e2m3_sapphire);
-    run_dense<e2m3_k, f32_k>("euclidean_e2m3_sapphire", nk_euclidean_e2m3_sapphire);
 #endif
 
 #if NK_TARGET_RVV

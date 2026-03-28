@@ -495,9 +495,9 @@ nk_angular_e3m2_alder_cycle:
 
 NK_PUBLIC void nk_sqeuclidean_e3m2_alder(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars,
                                          nk_size_t count_scalars, nk_f32_t *result) {
-    // Squared Euclidean distance for e3m2 using norm decomposition + VPDPWSSD:
-    // ||a-b||^2 = ||a||^2 + ||b||^2 - 2*dot(a,b)
-    // Each value × 16 is exact integer, so result = integer_result / 256.0f
+    // Squared Euclidean distance for e3m2 via direct difference squaring.
+    // Computes Σ(a_i − b_i)² using signed i16 subtraction + VPMADDWD self-multiply.
+    // 2 VPMADDWDs per 32 elements (one per i16 half). 0 ULP.
     //
     __m256i const lut_lo_lower_u8x32 = _mm256_set_epi8(        //
         28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0, //
@@ -512,9 +512,7 @@ NK_PUBLIC void nk_sqeuclidean_e3m2_alder(nk_e3m2_t const *a_scalars, nk_e3m2_t c
     __m256i const high_threshold_u8x32 = _mm256_set1_epi8(27);
     __m256i const ones_u8x32 = _mm256_set1_epi8(1);
     __m256i const ones_i16x16 = _mm256_set1_epi16(1);
-    __m256i dot_i32x8 = _mm256_setzero_si256();
-    __m256i a_norm_i32x8 = _mm256_setzero_si256();
-    __m256i b_norm_i32x8 = _mm256_setzero_si256();
+    __m256i sum_i32x8 = _mm256_setzero_si256();
     __m256i a_e3m2_u8x32, b_e3m2_u8x32;
 
 nk_sqeuclidean_e3m2_alder_cycle:
@@ -532,7 +530,7 @@ nk_sqeuclidean_e3m2_alder_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
 
-    // Extract 5-bit magnitude, split into low 4 bits and bit 4
+    // Decode both to unsigned i16 via dual-VPSHUFB + interleave
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e3m2_u8x32, magnitude_mask_u8x32);
     __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e3m2_u8x32, magnitude_mask_u8x32);
     __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
@@ -541,50 +539,45 @@ nk_sqeuclidean_e3m2_alder_cycle:
                                                      half_select_u8x32);
     __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
                                                      half_select_u8x32);
+    __m256i a_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
+                                                   a_upper_select_u8x32);
+    __m256i b_low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
+                                                   _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
+                                                   b_upper_select_u8x32);
+    __m256i a_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+    __m256i b_high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32),
+                                                  ones_u8x32);
+    __m256i a_low_i16x16 = _mm256_unpacklo_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i a_high_i16x16 = _mm256_unpackhi_epi8(a_low_bytes_u8x32, a_high_bytes_u8x32);
+    __m256i b_low_i16x16 = _mm256_unpacklo_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
+    __m256i b_high_i16x16 = _mm256_unpackhi_epi8(b_low_bytes_u8x32, b_high_bytes_u8x32);
 
-    // Dual VPSHUFB: lookup low bytes in both halves, blend based on bit 4
-    __m256i a_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
-                                                  a_upper_select_u8x32);
-    __m256i b_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
-                                                  b_upper_select_u8x32);
+    // Apply signs individually
+    __m256i a_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i b_negative_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e3m2_u8x32, sign_mask_u8x32), sign_mask_u8x32);
+    __m256i a_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i a_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(a_negative_mask_u8x32, a_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i b_sign_low_i16x16 = _mm256_or_si256(_mm256_unpacklo_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                ones_i16x16);
+    __m256i b_sign_high_i16x16 = _mm256_or_si256(_mm256_unpackhi_epi8(b_negative_mask_u8x32, b_negative_mask_u8x32),
+                                                 ones_i16x16);
+    __m256i a_signed_low_i16x16 = _mm256_sign_epi16(a_low_i16x16, a_sign_low_i16x16);
+    __m256i a_signed_high_i16x16 = _mm256_sign_epi16(a_high_i16x16, a_sign_high_i16x16);
+    __m256i b_signed_low_i16x16 = _mm256_sign_epi16(b_low_i16x16, b_sign_low_i16x16);
+    __m256i b_signed_high_i16x16 = _mm256_sign_epi16(b_high_i16x16, b_sign_high_i16x16);
 
-    // High byte: 1 iff magnitude >= 28
-    __m256i a_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
-    __m256i b_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
-
-    // Interleave low and high bytes into i16
-    __m256i a_lo_i16x16 = _mm256_unpacklo_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
-    __m256i a_hi_i16x16 = _mm256_unpackhi_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
-    __m256i b_lo_i16x16 = _mm256_unpacklo_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
-    __m256i b_hi_i16x16 = _mm256_unpackhi_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
-
-    // Combined sign for dot product
-    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e3m2_u8x32, b_e3m2_u8x32), sign_mask_u8x32);
-    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
-    __m256i negate_lo_i16x16 = _mm256_unpacklo_epi8(negate_mask_u8x32, negate_mask_u8x32);
-    __m256i negate_hi_i16x16 = _mm256_unpackhi_epi8(negate_mask_u8x32, negate_mask_u8x32);
-    __m256i sign_lo_i16x16 = _mm256_or_si256(negate_lo_i16x16, ones_i16x16);
-    __m256i sign_hi_i16x16 = _mm256_or_si256(negate_hi_i16x16, ones_i16x16);
-    __m256i b_signed_lo_i16x16 = _mm256_sign_epi16(b_lo_i16x16, sign_lo_i16x16);
-    __m256i b_signed_hi_i16x16 = _mm256_sign_epi16(b_hi_i16x16, sign_hi_i16x16);
-
-    // VPDPWSSD: i16×i16→i32 fused dot-product-accumulate
-    dot_i32x8 = _mm256_dpwssd_avx_epi32(dot_i32x8, a_lo_i16x16, b_signed_lo_i16x16);
-    dot_i32x8 = _mm256_dpwssd_avx_epi32(dot_i32x8, a_hi_i16x16, b_signed_hi_i16x16);
-    a_norm_i32x8 = _mm256_dpwssd_avx_epi32(a_norm_i32x8, a_lo_i16x16, a_lo_i16x16);
-    a_norm_i32x8 = _mm256_dpwssd_avx_epi32(a_norm_i32x8, a_hi_i16x16, a_hi_i16x16);
-    b_norm_i32x8 = _mm256_dpwssd_avx_epi32(b_norm_i32x8, b_lo_i16x16, b_lo_i16x16);
-    b_norm_i32x8 = _mm256_dpwssd_avx_epi32(b_norm_i32x8, b_hi_i16x16, b_hi_i16x16);
+    // Direct difference squaring: (a−b)² via VPMADDWD
+    __m256i diff_low_i16x16 = _mm256_sub_epi16(a_signed_low_i16x16, b_signed_low_i16x16);
+    __m256i diff_high_i16x16 = _mm256_sub_epi16(a_signed_high_i16x16, b_signed_high_i16x16);
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(diff_low_i16x16, diff_low_i16x16));
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(diff_high_i16x16, diff_high_i16x16));
 
     if (count_scalars) goto nk_sqeuclidean_e3m2_alder_cycle;
-
-    nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(dot_i32x8);
-    nk_i32_t a_norm_i32 = nk_reduce_add_i32x8_haswell_(a_norm_i32x8);
-    nk_i32_t b_norm_i32 = nk_reduce_add_i32x8_haswell_(b_norm_i32x8);
-    // ||a-b||^2 = ||a||^2 + ||b||^2 - 2*dot(a,b), scaled by 256
-    *result = (nk_f32_t)(a_norm_i32 + b_norm_i32 - 2 * dot_i32) / 256.0f;
+    *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
 }
 
 NK_PUBLIC void nk_euclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {

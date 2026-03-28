@@ -15,7 +15,6 @@
  *
  *  Ice Lake introduces AVX-512 VNNI for accelerated integer dot products. VNNI instructions bottleneck
  *  on port 0, limiting throughput to 1/cy. AMD Genoa dual-issues on ports 0-1, achieving 0.5/cy throughput.
- *  We use VPDPWSSD for signed i8 inputs after widening to i16, since VPDPBUSD is asymmetric (unsigned x signed).
  *
  *  @section dot_icelake_stateful Stateful Streaming Logic
  *
@@ -804,15 +803,11 @@ nk_dot_e3m2_icelake_cycle:
 
 #pragma region - Smaller Floats
 
-/** @brief E4M3 dot product via octave decomposition + VPDPBUSD integer MAC.
- *
- *  Decomposes each E4M3 into octave (top 2 exponent bits) and sub-index (low 2 exp + 3 mantissa).
- *  The sub-index maps via VPERMB to u8 integers [0, 120] — identical structure to E2M3 × 16.
- *  16 VPDPBUSD cross-products across 4×4 octave pairs accumulate into 7 i32 registers.
- *  Final: Σ acc[k] × 2^(4k − 20) for k = 0..6 (exact powers of 2, no rounding).
- *  Processes 64 elements per iteration in u8 — twice the density of BF16. */
 NK_PUBLIC void nk_dot_e4m3_icelake(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
+    // E4M3 dot product via octave decomposition + VPDPBUSD integer MAC.
+    // Splits 4-bit exponent into 2 octave bits + 2 remainder bits, maps low 5 bits via VPERMB
+    // to u8 integers [0, 120], then 16 VPDPBUSD cross-products across 4×4 octave pairs.
 
     __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
         120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //

@@ -559,6 +559,18 @@ NK_PUBLIC void nk_euclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b,
 NK_PUBLIC void nk_sqeuclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e2m3_icelake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_icelake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -597,21 +609,6 @@ NK_PUBLIC void nk_sqeuclidean_e5m2_diamond(nk_e5m2_t const *a, nk_e5m2_t const *
 NK_PUBLIC void nk_angular_e5m2_diamond(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_DIAMOND
 
-#if NK_TARGET_SAPPHIRE
-/** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_sqeuclidean_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_euclidean_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_euclidean_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_SAPPHIRE
-
 /*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
  *  The packs many "efficiency" cores into a single socket, avoiding heavy 512-bit operations, and focusing on
  *  256-bit ones.
@@ -635,6 +632,12 @@ NK_PUBLIC void nk_angular_e2m3_sierra(nk_e2m3_t const *a, nk_e2m3_t const *b, nk
 NK_PUBLIC void nk_euclidean_e2m3_sierra(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e2m3_sierra(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_sierra(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_sierra(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_sierra(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SIERRA
 
 #if NK_TARGET_ALDER
@@ -861,7 +864,6 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 #include "numkong/spatial/skylake.h"
 #include "numkong/spatial/genoa.h"
 #include "numkong/spatial/diamond.h"
-#include "numkong/spatial/sapphire.h"
 #include "numkong/spatial/icelake.h"
 #include "numkong/spatial/alder.h"
 #include "numkong/spatial/sierra.h"
@@ -1253,8 +1255,8 @@ NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_euclidean_e2m3_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_euclidean_e2m3_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_euclidean_e2m3_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1273,8 +1275,8 @@ NK_PUBLIC void nk_euclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_sqeuclidean_e2m3_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_sqeuclidean_e2m3_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_sqeuclidean_e2m3_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1293,8 +1295,8 @@ NK_PUBLIC void nk_sqeuclidean_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_si
 NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_angular_e2m3_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_angular_e2m3_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_angular_e2m3_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_SIERRA
@@ -1313,10 +1315,12 @@ NK_PUBLIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_euclidean_e3m2_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_euclidean_e3m2_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_euclidean_e3m2_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_euclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_euclidean_e3m2_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_euclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1331,10 +1335,12 @@ NK_PUBLIC void nk_euclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_sqeuclidean_e3m2_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_sqeuclidean_e3m2_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_sqeuclidean_e3m2_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_sqeuclidean_e3m2_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_sqeuclidean_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1349,10 +1355,12 @@ NK_PUBLIC void nk_sqeuclidean_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
 NK_PUBLIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_angular_e3m2_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_angular_e3m2_sapphire(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_angular_e3m2_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_angular_e3m2_sierra(a, b, n, result);
 #elif NK_TARGET_ALDER
     nk_angular_e3m2_alder(a, b, n, result);
 #elif NK_TARGET_HASWELL
