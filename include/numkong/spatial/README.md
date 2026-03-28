@@ -174,9 +174,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_sqeuclidean_e3m2_genoa`    |         8.79 gb/s, 0 ulp |         9.52 gb/s, 0 ulp |         10.6 gb/s, 0 ulp |
 | `nk_euclidean_e3m2_genoa`      |         8.68 gb/s, 0 ulp |         9.01 gb/s, 0 ulp |         12.8 gb/s, 0 ulp |
 | `nk_angular_e3m2_genoa`        |         6.89 gb/s, 0 ulp |         9.30 gb/s, 0 ulp |         10.3 gb/s, 0 ulp |
-| `nk_sqeuclidean_e3m2_sapphire` |     23.2 gb/s, 1.02K ulp |     18.9 gb/s, 1.04K ulp |     22.8 gb/s, 1.03K ulp |
-| `nk_euclidean_e3m2_sapphire`   |       21.0 gb/s, 564 ulp |       16.6 gb/s, 571 ulp |       21.7 gb/s, 569 ulp |
-| `nk_angular_e3m2_sapphire`     |        13.1 gb/s, 11 ulp |       16.8 gb/s, 5.8 ulp |       19.2 gb/s, 3.0 ulp |
+| `nk_sqeuclidean_e3m2_sapphire` |       19.6 gb/s, 1.0 ulp |       19.5 gb/s, 4.0 ulp |       18.6 gb/s, 3.0 ulp |
+| `nk_euclidean_e3m2_sapphire`   |       18.8 gb/s, 0.5 ulp |       19.7 gb/s, 2.0 ulp |       18.0 gb/s, 1.5 ulp |
+| `nk_angular_e3m2_sapphire`     |         11.0 gb/s, 0 ulp |         14.3 gb/s, 0 ulp |         14.9 gb/s, 0 ulp |
 | __e2m3__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_e2m3_serial`   |        0.964 gb/s, 0 ulp |        0.981 gb/s, 0 ulp |         1.03 gb/s, 0 ulp |
 | `nk_euclidean_e2m3_serial`     |      0.979 gb/s, 0.5 ulp |      0.966 gb/s, 0.5 ulp |       1.02 gb/s, 0.5 ulp |
@@ -187,9 +187,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_sqeuclidean_e2m3_genoa`    |         9.62 gb/s, 0 ulp |         10.9 gb/s, 0 ulp |         10.8 gb/s, 0 ulp |
 | `nk_euclidean_e2m3_genoa`      |         8.45 gb/s, 0 ulp |         9.80 gb/s, 0 ulp |         10.3 gb/s, 0 ulp |
 | `nk_angular_e2m3_genoa`        |         7.21 gb/s, 0 ulp |         10.1 gb/s, 0 ulp |         10.4 gb/s, 0 ulp |
-| `nk_sqeuclidean_e2m3_sapphire` |       21.8 gb/s, 354 ulp |       23.3 gb/s, 269 ulp |       22.5 gb/s, 253 ulp |
-| `nk_euclidean_e2m3_sapphire`   |       20.6 gb/s, 192 ulp |       21.9 gb/s, 148 ulp |       22.5 gb/s, 140 ulp |
-| `nk_angular_e2m3_sapphire`     |       13.1 gb/s, 2.8 ulp |       17.6 gb/s, 1.4 ulp |       18.5 gb/s, 0.7 ulp |
+| `nk_sqeuclidean_e2m3_sapphire` |       20.0 gb/s, 0.5 ulp |       19.7 gb/s, 1.0 ulp |       17.5 gb/s, 1.0 ulp |
+| `nk_euclidean_e2m3_sapphire`   |       19.3 gb/s, 0.5 ulp |       19.5 gb/s, 0.5 ulp |       17.7 gb/s, 0.5 ulp |
+| `nk_angular_e2m3_sapphire`     |         10.8 gb/s, 0 ulp |         14.2 gb/s, 0 ulp |         15.2 gb/s, 0 ulp |
 | __i8__                         | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_sqeuclidean_i8_serial`     |                34.0 gb/s |                18.4 gb/s |                16.5 gb/s |
 | `nk_euclidean_i8_serial`       |       29.0 gb/s, 0.4 ulp |       18.0 gb/s, 0.4 ulp |       15.6 gb/s, 0.4 ulp |

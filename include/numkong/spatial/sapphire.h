@@ -54,47 +54,20 @@ NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_
                                             nk_size_t count_scalars, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
 
-    // Main loop: 4-way unrolled, 128 elements per flush
-    while (count_scalars >= 128) {
-        __m512h acc_f16x32 = _mm512_setzero_ph();
-        __m512h a_f16x32, b_f16x32, diff_f16x32;
-        // Iteration 1
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 2
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 32));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 32));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 3
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 64));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 64));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 4
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 96));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 96));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Flush to F32
-        sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
-        a_scalars += 128, b_scalars += 128, count_scalars -= 128;
-    }
-
-    // Tail: remaining 0–127 elements, 32 at a time via masked loads
-    __m512h acc_f16x32 = _mm512_setzero_ph();
+    // No unrolling: flush every 32 elements.
+    // E2M3 max diff² = 225. Per-lane FMA ≤ 225 → F16 step = 0.125 → nearly exact.
     while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
-        __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        __m512h a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
-        __m512h b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, b_scalars));
+        __mmask32 const mask = n >= 32 ? (__mmask32)0xFFFFFFFF : (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        __m512h a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(n >= 32 ? _mm256_loadu_epi8(a_scalars)
+                                                                  : _mm256_maskz_loadu_epi8(mask, a_scalars));
+        __m512h b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(n >= 32 ? _mm256_loadu_epi8(b_scalars)
+                                                                  : _mm256_maskz_loadu_epi8(mask, b_scalars));
         __m512h diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
+        __m512h sq_f16x32 = _mm512_mul_ph(diff_f16x32, diff_f16x32);
+        sum_f32x16 = nk_flush_f16_to_f32_sapphire_(sq_f16x32, sum_f32x16);
         a_scalars += n, b_scalars += n, count_scalars -= n;
     }
-    sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
@@ -103,47 +76,21 @@ NK_PUBLIC void nk_sqeuclidean_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_
                                             nk_size_t count_scalars, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
 
-    // Main loop: 4-way unrolled, 128 elements per flush
-    while (count_scalars >= 128) {
-        __m512h acc_f16x32 = _mm512_setzero_ph();
-        __m512h a_f16x32, b_f16x32, diff_f16x32;
-        // Iteration 1
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 2
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 32));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 32));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 3
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 64));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 64));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Iteration 4
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 96));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 96));
-        diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
-        // Flush to F32
-        sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
-        a_scalars += 128, b_scalars += 128, count_scalars -= 128;
-    }
-
-    // Tail: remaining 0–127 elements, 32 at a time via masked loads
-    __m512h acc_f16x32 = _mm512_setzero_ph();
+    // No unrolling: flush every 32 elements.
+    // E3M2 max diff² = 3136. A single per-lane FMA ≤ 3136 → F16 step = 2 → rounding ±1.
+    // Unrolling further would push per-lane sums above 6272 where F16 step = 4 → ±2 error.
     while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
-        __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        __m512h a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
-        __m512h b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, b_scalars));
+        __mmask32 const mask = n >= 32 ? (__mmask32)0xFFFFFFFF : (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        __m512h a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(n >= 32 ? _mm256_loadu_epi8(a_scalars)
+                                                                  : _mm256_maskz_loadu_epi8(mask, a_scalars));
+        __m512h b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(n >= 32 ? _mm256_loadu_epi8(b_scalars)
+                                                                  : _mm256_maskz_loadu_epi8(mask, b_scalars));
         __m512h diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
-        acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
+        __m512h sq_f16x32 = _mm512_mul_ph(diff_f16x32, diff_f16x32);
+        sum_f32x16 = nk_flush_f16_to_f32_sapphire_(sq_f16x32, sum_f32x16);
         a_scalars += n, b_scalars += n, count_scalars -= n;
     }
-    sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
@@ -166,44 +113,30 @@ NK_PUBLIC void nk_angular_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_t co
     __m512 sum_a_f32x16 = _mm512_setzero_ps();
     __m512 sum_b_f32x16 = _mm512_setzero_ps();
 
-    // Main loop: 4-way unrolled, 128 elements per flush
-    while (count_scalars >= 128) {
+    // 2-way unrolled, 64 elements per flush.
+    // E2M3 max product a² = 56.25. Per-lane sum after 2 FMAs ≤ 112.5 → F16 step 0.0625 → near-exact.
+    while (count_scalars >= 64) {
         __m512h dot_acc = _mm512_setzero_ph();
         __m512h a_norm_acc = _mm512_setzero_ph();
         __m512h b_norm_acc = _mm512_setzero_ph();
         __m512h a_f16x32, b_f16x32;
-        // Iteration 1
         a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars));
         b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars));
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 2
         a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 32));
         b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 32));
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 3
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 64));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 64));
-        dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
-        a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
-        b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 4
-        a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 96));
-        b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 96));
-        dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
-        a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
-        b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Flush to F32
         sum_dot_f32x16 = nk_flush_f16_to_f32_sapphire_(dot_acc, sum_dot_f32x16);
         sum_a_f32x16 = nk_flush_f16_to_f32_sapphire_(a_norm_acc, sum_a_f32x16);
         sum_b_f32x16 = nk_flush_f16_to_f32_sapphire_(b_norm_acc, sum_b_f32x16);
-        a_scalars += 128, b_scalars += 128, count_scalars -= 128;
+        a_scalars += 64, b_scalars += 64, count_scalars -= 64;
     }
 
-    // Tail: remaining 0–127 elements, 32 at a time via masked loads
+    // Tail
     __m512h dot_acc = _mm512_setzero_ph();
     __m512h a_norm_acc = _mm512_setzero_ph();
     __m512h b_norm_acc = _mm512_setzero_ph();
@@ -233,44 +166,30 @@ NK_PUBLIC void nk_angular_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_t co
     __m512 sum_a_f32x16 = _mm512_setzero_ps();
     __m512 sum_b_f32x16 = _mm512_setzero_ps();
 
-    // Main loop: 4-way unrolled, 128 elements per flush
-    while (count_scalars >= 128) {
+    // 2-way unrolled, 64 elements per flush.
+    // E3M2 max product = 28² = 784. Per-lane sum after 2 FMAs ≤ 1568 → F16 step = 1 → exact.
+    while (count_scalars >= 64) {
         __m512h dot_acc = _mm512_setzero_ph();
         __m512h a_norm_acc = _mm512_setzero_ph();
         __m512h b_norm_acc = _mm512_setzero_ph();
         __m512h a_f16x32, b_f16x32;
-        // Iteration 1
         a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars));
         b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars));
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 2
         a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 32));
         b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 32));
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 3
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 64));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 64));
-        dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
-        a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
-        b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Iteration 4
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 96));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 96));
-        dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
-        a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
-        b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
-        // Flush to F32
         sum_dot_f32x16 = nk_flush_f16_to_f32_sapphire_(dot_acc, sum_dot_f32x16);
         sum_a_f32x16 = nk_flush_f16_to_f32_sapphire_(a_norm_acc, sum_a_f32x16);
         sum_b_f32x16 = nk_flush_f16_to_f32_sapphire_(b_norm_acc, sum_b_f32x16);
-        a_scalars += 128, b_scalars += 128, count_scalars -= 128;
+        a_scalars += 64, b_scalars += 64, count_scalars -= 64;
     }
 
-    // Tail: remaining 0–127 elements, 32 at a time via masked loads
+    // Tail
     __m512h dot_acc = _mm512_setzero_ph();
     __m512h a_norm_acc = _mm512_setzero_ph();
     __m512h b_norm_acc = _mm512_setzero_ph();
