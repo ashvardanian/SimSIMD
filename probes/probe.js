@@ -94,8 +94,8 @@ const PROBES = [
 ];
 
 function main() {
-    const buildDir = path.join(__dirname, "..");
-    fs.mkdirSync(buildDir, { recursive: true });
+    const pkgRoot = path.join(__dirname, "..");
+    fs.mkdirSync(pkgRoot, { recursive: true });
 
     const arch = process.arch; // 'x64', 'arm64', etc.
     const lines = [
@@ -107,7 +107,7 @@ function main() {
     let enabled = 0;
     for (const [define, probeFile, gccFlags, msvcFlags] of PROBES) {
         const flags = isWin ? msvcFlags : gccFlags;
-        const supported = probeIsa(probeFile, flags);
+        const supported = probeIsa(path.join(pkgRoot, probeFile), flags);
         lines.push(`#define ${define} ${supported ? 1 : 0}`);
         if (supported) {
             enabled++;
@@ -117,7 +117,7 @@ function main() {
 
     lines.push("");
     const header = lines.join("\n");
-    const outPath = path.join(buildDir, "nk_probes.h");
+    const outPath = path.join(pkgRoot, "nk_probes.h");
     fs.writeFileSync(outPath, header);
     console.log(
         `[NumKong] Wrote ${outPath} (${enabled} ISAs enabled out of ${PROBES.length})`,
