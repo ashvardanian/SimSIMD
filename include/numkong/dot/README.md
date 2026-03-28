@@ -97,9 +97,19 @@ For Int8 × Int8, one operand is XORed with `0x80` to shift to unsigned, and the
 For Int8 × Int8, the sign bit of $b$ is cleared to produce a 7-bit value, and a windowed correction $-128 \cdot \sum_{b_i < 0} a_i$ is accumulated in Int16 and flushed every 127 iterations to prevent overflow.
 For UInt8 × UInt8, $b$ is XORed with `0x80` to shift into signed range, same as Ice Lake, with the correction $128 \cdot \sum a_i$ computed via pairwise widening adds.
 
+### Octave Decomposition for E4M3 via VNNI
+
+`nk_dot_e4m3_icelake` splits the 4-bit E4M3 exponent into 2 "octave" bits (top) and 2 "remainder" bits (bottom).
+The bottom 5 bits (2 remainder + 3 mantissa) map via `VPERMB` to u8 integers in [0, 120] — identical structure to the E2M3 $\times 16$ LUT.
+A subnormal fixup replaces LUT entries for magnitude < 8 with $2 \times \text{mantissa}$ via a second masked `VPERMB`, avoiding `VPADDB` on the VPDPBUSD execution ports.
+Sign is computed via `VPTERNLOGD` with immediate 0x14, fusing `(a \oplus b) \wedge \lnot \text{0x7F}` in one instruction.
+The 4 octave bins per operand produce $4 \times 4 = 16$ `VPDPBUSD` cross-products accumulated into 7 registers grouped by octave sum $k = o_a + o_b \in [0, 6]$.
+Each accumulator is scaled by $2^{4k-20}$ — an exact power of two, introducing no rounding.
+This processes 64 E4M3 bytes per iteration in u8, doubling the element density of the BF16 upcast path.
+
 ### Widening Fusion Through BFloat16 on x86
 
-`nk_dot_e4m3_genoa`, `nk_dot_e5m2_genoa` convert FP8 values to BF16, then accumulate via `VDPBF16PS`, reusing Genoa's BF16 dot-product instruction for FP8 types.
+`nk_dot_e5m2_genoa` converts FP8 values to BF16, then accumulates via `VDPBF16PS`, reusing Genoa's BF16 dot-product instruction for FP8 types.
 Each `VDPBF16PS` fuses two BF16 multiply-adds per 32-bit lane at 6-cycle throughput.
 `nk_dot_bf16c_genoa` uses the same instruction for complex BF16, preparing operands with `VPSHUFB` for lane swapping and `VPXORD` with `0x80000000` for sign flips before feeding into `VDPBF16PS`.
 
@@ -196,7 +206,7 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_dot_e4m3_serial`    |        0.762 gb/s, 0 ulp |        0.424 gb/s, 0 ulp |        0.420 gb/s, 0 ulp |
 | `nk_dot_e4m3_haswell`   |         3.78 gb/s, 0 ulp |         3.77 gb/s, 0 ulp |         3.75 gb/s, 0 ulp |
 | `nk_dot_e4m3_skylake`   |         5.10 gb/s, 0 ulp |         5.16 gb/s, 0 ulp |         5.21 gb/s, 0 ulp |
-| `nk_dot_e4m3_genoa`     |         9.83 gb/s, 0 ulp |         7.62 gb/s, 0 ulp |         10.2 gb/s, 0 ulp |
+| `nk_dot_e4m3_icelake`   |         13.2 gb/s, 0 ulp |         14.9 gb/s, 0 ulp |         14.7 gb/s, 0 ulp |
 | __e3m2__                | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
 | `nk_dot_e3m2_serial`    |         1.47 gb/s, 0 ulp |         1.05 gb/s, 0 ulp |         1.04 gb/s, 0 ulp |
 | `nk_dot_e3m2_haswell`   |         12.0 gb/s, 0 ulp |         12.2 gb/s, 0 ulp |         12.2 gb/s, 0 ulp |

@@ -161,9 +161,9 @@ Workloads that significantly degrade CPU frequencies (Intel AMX, Apple SME) run 
 | `nk_sqeuclidean_e4m3_skylake`  |         3.84 gb/s, 0 ulp |         3.62 gb/s, 0 ulp |       3.95 gb/s, 0.2 ulp |
 | `nk_euclidean_e4m3_skylake`    |         3.48 gb/s, 0 ulp |         3.69 gb/s, 0 ulp |       3.33 gb/s, 0.2 ulp |
 | `nk_angular_e4m3_skylake`      |         4.22 gb/s, 0 ulp |         3.38 gb/s, 0 ulp |         4.54 gb/s, 0 ulp |
-| `nk_sqeuclidean_e4m3_genoa`    |         7.05 gb/s, 0 ulp |         9.87 gb/s, 0 ulp |       6.69 gb/s, 0.2 ulp |
-| `nk_euclidean_e4m3_genoa`      |         6.86 gb/s, 0 ulp |         9.64 gb/s, 0 ulp |       7.98 gb/s, 0.2 ulp |
-| `nk_angular_e4m3_genoa`        |         6.27 gb/s, 0 ulp |         7.10 gb/s, 0 ulp |         7.31 gb/s, 0 ulp |
+| `nk_sqeuclidean_e4m3_icelake`  |         10.2 gb/s, 0 ulp |         12.0 gb/s, 0 ulp |       12.0 gb/s, 0.2 ulp |
+| `nk_euclidean_e4m3_icelake`    |         10.3 gb/s, 0 ulp |         11.8 gb/s, 0 ulp |       11.9 gb/s, 0.2 ulp |
+| `nk_angular_e4m3_icelake`      |         8.78 gb/s, 0 ulp |         11.3 gb/s, 0 ulp |         11.9 gb/s, 0 ulp |
 | `nk_sqeuclidean_e4m3_sapphire` |         3.68 gb/s, 0 ulp |         5.09 gb/s, 0 ulp |       4.83 gb/s, 0.2 ulp |
 | `nk_euclidean_e4m3_sapphire`   |         3.47 gb/s, 0 ulp |         4.71 gb/s, 0 ulp |       4.62 gb/s, 0.2 ulp |
 | __e3m2__                       | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |

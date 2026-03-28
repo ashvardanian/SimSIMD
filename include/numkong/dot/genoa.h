@@ -208,32 +208,6 @@ nk_vdot_bf16c_genoa_cycle:
     result->imag = nk_reduce_add_f32x16_skylake_(sum_imag_f32x16);
 }
 
-NK_PUBLIC void nk_dot_e4m3_genoa(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
-    __m256i a_e4m3x32, b_e4m3x32;
-    __m512 sum_f32x16 = _mm512_setzero_ps();
-
-nk_dot_e4m3_genoa_cycle:
-    if (count_scalars < 32) {
-        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
-        a_e4m3x32 = _mm256_maskz_loadu_epi8(mask, a_scalars);
-        b_e4m3x32 = _mm256_maskz_loadu_epi8(mask, b_scalars);
-        count_scalars = 0;
-    }
-    else {
-        a_e4m3x32 = _mm256_loadu_epi8(a_scalars);
-        b_e4m3x32 = _mm256_loadu_epi8(b_scalars);
-        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
-    }
-    // Convert E4M3 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
-    sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, nk_m512bh_from_m512i_(a_bf16x32), nk_m512bh_from_m512i_(b_bf16x32));
-    if (count_scalars) goto nk_dot_e4m3_genoa_cycle;
-
-    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-}
-
 NK_PUBLIC void nk_dot_e5m2_genoa(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
     __m256i a_e5m2x32, b_e5m2x32;

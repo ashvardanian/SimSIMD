@@ -80,6 +80,7 @@
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -800,6 +801,123 @@ nk_dot_e3m2_icelake_cycle:
     if (count_scalars) goto nk_dot_e3m2_icelake_cycle;
     *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
+
+#pragma region - Smaller Floats
+
+/** @brief E4M3 dot product via octave decomposition + VPDPBUSD integer MAC.
+ *
+ *  Decomposes each E4M3 into octave (top 2 exponent bits) and sub-index (low 2 exp + 3 mantissa).
+ *  The sub-index maps via VPERMB to u8 integers [0, 120] — identical structure to E2M3 × 16.
+ *  16 VPDPBUSD cross-products across 4×4 octave pairs accumulate into 7 i32 registers.
+ *  Final: Σ acc[k] × 2^(4k − 20) for k = 0..6 (exact powers of 2, no rounding).
+ *  Processes 64 elements per iteration in u8 — twice the density of BF16. */
+NK_PUBLIC void nk_dot_e4m3_icelake(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+
+    __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8,      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8);     //
+    __m512i const lut_subnorm_u8x64 = _mm512_set_epi8(                     //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0,                 //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0);                //
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x7F);
+    __m512i const subnorm_threshold_u8x64 = _mm512_set1_epi8(0x08);
+    __m512i const oct_threshold_20_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i const oct_threshold_40_u8x64 = _mm512_set1_epi8(0x40);
+    __m512i const oct_threshold_60_u8x64 = _mm512_set1_epi8(0x60);
+
+    __m512i dot0_i32x16 = _mm512_setzero_si512();
+    __m512i dot1_i32x16 = _mm512_setzero_si512();
+    __m512i dot2_i32x16 = _mm512_setzero_si512();
+    __m512i dot3_i32x16 = _mm512_setzero_si512();
+    __m512i dot4_i32x16 = _mm512_setzero_si512();
+    __m512i dot5_i32x16 = _mm512_setzero_si512();
+    __m512i dot6_i32x16 = _mm512_setzero_si512();
+    __m512i a_e4m3_u8x64, b_e4m3_u8x64;
+
+nk_dot_e4m3_icelake_cycle:
+    if (count_scalars < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, count_scalars);
+        a_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a_scalars);
+        b_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_e4m3_u8x64 = _mm512_loadu_si512(a_scalars);
+        b_e4m3_u8x64 = _mm512_loadu_si512(b_scalars);
+        a_scalars += 64, b_scalars += 64, count_scalars -= 64;
+    }
+
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i a_base_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_normal_u8x64);
+    __m512i b_base_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_normal_u8x64);
+
+    // Subnormal fixup via VPERMB (avoids VPADDB on Zen 4 ports 8+9 / SPR port 0)
+    a_base_u8x64 = _mm512_mask_permutexvar_epi8(a_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(a_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                a_magnitude_u8x64, lut_subnorm_u8x64);
+    b_base_u8x64 = _mm512_mask_permutexvar_epi8(b_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(b_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                b_magnitude_u8x64, lut_subnorm_u8x64);
+
+    // Sign via ternary logic: (a ^ b) & ~0x7F in one VPTERNLOGD (imm 0x14)
+    __m512i sign_diff_u8x64 = _mm512_ternarylogic_epi64(a_e4m3_u8x64, b_e4m3_u8x64, magnitude_mask_u8x64, 0x14);
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_base_u8x64, _mm512_test_epi8_mask(sign_diff_u8x64, sign_diff_u8x64),
+                                                  _mm512_setzero_si512(), b_base_u8x64);
+
+    // Octave masks via cascaded range compares on magnitude
+    __mmask64 ka_lt20 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 ka_lt40 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 ka_lt60 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_60_u8x64);
+    __mmask64 kb_lt20 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 kb_lt40 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 kb_lt60 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_60_u8x64);
+
+    __m512i a0_u8x64 = _mm512_maskz_mov_epi8(ka_lt20, a_base_u8x64);
+    __m512i a1_u8x64 = _mm512_maskz_mov_epi8(ka_lt40 & ~ka_lt20, a_base_u8x64);
+    __m512i a2_u8x64 = _mm512_maskz_mov_epi8(ka_lt60 & ~ka_lt40, a_base_u8x64);
+    __m512i a3_u8x64 = _mm512_maskz_mov_epi8(~ka_lt60, a_base_u8x64);
+
+    __m512i b0_i8x64 = _mm512_maskz_mov_epi8(kb_lt20, b_signed_i8x64);
+    __m512i b1_i8x64 = _mm512_maskz_mov_epi8(kb_lt40 & ~kb_lt20, b_signed_i8x64);
+    __m512i b2_i8x64 = _mm512_maskz_mov_epi8(kb_lt60 & ~kb_lt40, b_signed_i8x64);
+    __m512i b3_i8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_signed_i8x64);
+
+    // 16 VPDPBUSD into 7 accumulators grouped by octave sum k = oa + ob
+    dot0_i32x16 = _mm512_dpbusd_epi32(dot0_i32x16, a0_u8x64, b0_i8x64);
+    dot1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
+    dot2_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
+        b0_i8x64);
+    dot3_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(
+            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
+            b1_i8x64),
+        a3_u8x64, b0_i8x64);
+    dot4_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
+        b1_i8x64);
+    dot5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
+    dot6_i32x16 = _mm512_dpbusd_epi32(dot6_i32x16, a3_u8x64, b3_i8x64);
+
+    if (count_scalars) goto nk_dot_e4m3_icelake_cycle;
+
+    __m512 sum_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(dot0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot1_i32x16), _mm512_set1_ps(1.52587890625e-05f), sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot2_i32x16), _mm512_set1_ps(2.44140625e-04f), sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot3_i32x16), _mm512_set1_ps(3.90625e-03f), sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot4_i32x16), _mm512_set1_ps(6.25e-02f), sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot5_i32x16), _mm512_set1_ps(1.0f), sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot6_i32x16), _mm512_set1_ps(16.0f), sum_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+}
+
+#pragma endregion - Smaller Floats
 
 #pragma region - Binary
 

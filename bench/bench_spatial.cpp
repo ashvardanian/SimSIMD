@@ -202,6 +202,9 @@ void bench_spatial() {
     run_dense<u4_k, f32_k>("angular_u4_icelake", nk_angular_u4_icelake);
     run_dense<u4_k, u32_k>("sqeuclidean_u4_icelake", nk_sqeuclidean_u4_icelake);
     run_dense<u4_k, f32_k>("euclidean_u4_icelake", nk_euclidean_u4_icelake);
+    run_dense<e4m3_k, f32_k>("angular_e4m3_icelake", nk_angular_e4m3_icelake);
+    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_icelake", nk_sqeuclidean_e4m3_icelake);
+    run_dense<e4m3_k, f32_k>("euclidean_e4m3_icelake", nk_euclidean_e4m3_icelake);
 #endif
 
 #if NK_TARGET_GENOA
@@ -211,9 +214,6 @@ void bench_spatial() {
     run_dense<e5m2_k, f32_k>("angular_e5m2_genoa", nk_angular_e5m2_genoa);
     run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_genoa", nk_sqeuclidean_e5m2_genoa);
     run_dense<e5m2_k, f32_k>("euclidean_e5m2_genoa", nk_euclidean_e5m2_genoa);
-    run_dense<e4m3_k, f32_k>("angular_e4m3_genoa", nk_angular_e4m3_genoa);
-    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_genoa", nk_sqeuclidean_e4m3_genoa);
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
 #endif
 
 #if NK_TARGET_DIAMOND

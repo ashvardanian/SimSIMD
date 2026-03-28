@@ -24,18 +24,21 @@
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
+#include "numkong/spatial/haswell.h" // `nk_angular_normalize_f32_haswell_`, `nk_f32_sqrt_haswell`
+#include "numkong/reduce/skylake.h"  // `nk_reduce_add_f32x16_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(                                                                        \
-    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+#pragma clang attribute push(                                                                                   \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,avx512vbmi,f16c,fma,bmi,bmi2"))), \
     apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "avx512vbmi", "f16c", "fma", \
+                   "bmi", "bmi2")
 #endif
 
 NK_PUBLIC void nk_sqeuclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -568,6 +571,283 @@ nk_angular_u4_icelake_cycle:
     nk_i64_t a2 = _mm512_reduce_add_epi64(a2_i64x8);
     nk_i64_t b2 = _mm512_reduce_add_epi64(b2_i64x8);
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
+}
+
+/** @brief E4M3 squared Euclidean distance via octave VNNI.
+ *  Computes ||a-b||² = ||a||² + ||b||² - 2·dot(a,b) using the octave decomposition.
+ *  16 VPDPBUSD for dot(a,b) + 4 for ||a||² + 4 for ||b||² = 24 per 64 elements. */
+NK_PUBLIC void nk_sqeuclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+
+    __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8,      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8);     //
+    __m512i const lut_subnorm_u8x64 = _mm512_set_epi8(                     //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0,                 //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0);                //
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x7F);
+    __m512i const subnorm_threshold_u8x64 = _mm512_set1_epi8(0x08);
+    __m512i const oct_threshold_20_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i const oct_threshold_40_u8x64 = _mm512_set1_epi8(0x40);
+    __m512i const oct_threshold_60_u8x64 = _mm512_set1_epi8(0x60);
+
+    __m512i dot0_i32x16 = _mm512_setzero_si512(), dot1_i32x16 = _mm512_setzero_si512();
+    __m512i dot2_i32x16 = _mm512_setzero_si512(), dot3_i32x16 = _mm512_setzero_si512();
+    __m512i dot4_i32x16 = _mm512_setzero_si512(), dot5_i32x16 = _mm512_setzero_si512();
+    __m512i dot6_i32x16 = _mm512_setzero_si512();
+    __m512i a2_0_i32x16 = _mm512_setzero_si512(), a2_2_i32x16 = _mm512_setzero_si512();
+    __m512i a2_4_i32x16 = _mm512_setzero_si512(), a2_6_i32x16 = _mm512_setzero_si512();
+    __m512i b2_0_i32x16 = _mm512_setzero_si512(), b2_2_i32x16 = _mm512_setzero_si512();
+    __m512i b2_4_i32x16 = _mm512_setzero_si512(), b2_6_i32x16 = _mm512_setzero_si512();
+    __m512i a_e4m3_u8x64, b_e4m3_u8x64;
+
+nk_sqeuclidean_e4m3_icelake_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e4m3_u8x64 = _mm512_loadu_si512(a);
+        b_e4m3_u8x64 = _mm512_loadu_si512(b);
+        a += 64, b += 64, n -= 64;
+    }
+
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i a_base_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_normal_u8x64);
+    __m512i b_base_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_normal_u8x64);
+    a_base_u8x64 = _mm512_mask_permutexvar_epi8(a_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(a_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                a_magnitude_u8x64, lut_subnorm_u8x64);
+    b_base_u8x64 = _mm512_mask_permutexvar_epi8(b_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(b_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                b_magnitude_u8x64, lut_subnorm_u8x64);
+
+    __m512i sign_diff_u8x64 = _mm512_ternarylogic_epi64(a_e4m3_u8x64, b_e4m3_u8x64, magnitude_mask_u8x64, 0x14);
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_base_u8x64, _mm512_test_epi8_mask(sign_diff_u8x64, sign_diff_u8x64),
+                                                  _mm512_setzero_si512(), b_base_u8x64);
+
+    __mmask64 ka_lt20 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 ka_lt40 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 ka_lt60 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_60_u8x64);
+    __mmask64 kb_lt20 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 kb_lt40 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 kb_lt60 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_60_u8x64);
+
+    __m512i a0_u8x64 = _mm512_maskz_mov_epi8(ka_lt20, a_base_u8x64);
+    __m512i a1_u8x64 = _mm512_maskz_mov_epi8(ka_lt40 & ~ka_lt20, a_base_u8x64);
+    __m512i a2_u8x64 = _mm512_maskz_mov_epi8(ka_lt60 & ~ka_lt40, a_base_u8x64);
+    __m512i a3_u8x64 = _mm512_maskz_mov_epi8(~ka_lt60, a_base_u8x64);
+
+    __m512i b0_i8x64 = _mm512_maskz_mov_epi8(kb_lt20, b_signed_i8x64);
+    __m512i b1_i8x64 = _mm512_maskz_mov_epi8(kb_lt40 & ~kb_lt20, b_signed_i8x64);
+    __m512i b2_i8x64 = _mm512_maskz_mov_epi8(kb_lt60 & ~kb_lt40, b_signed_i8x64);
+    __m512i b3_i8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_signed_i8x64);
+
+    // dot(a,b): 16 VPDPBUSD
+    dot0_i32x16 = _mm512_dpbusd_epi32(dot0_i32x16, a0_u8x64, b0_i8x64);
+    dot1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
+    dot2_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
+        b0_i8x64);
+    dot3_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(
+            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
+            b1_i8x64),
+        a3_u8x64, b0_i8x64);
+    dot4_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
+        b1_i8x64);
+    dot5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
+    dot6_i32x16 = _mm512_dpbusd_epi32(dot6_i32x16, a3_u8x64, b3_i8x64);
+
+    // ||a||²: 4 VPDPBUSD (self-dot, same-octave only)
+    a2_0_i32x16 = _mm512_dpbusd_epi32(a2_0_i32x16, a0_u8x64, a0_u8x64);
+    a2_2_i32x16 = _mm512_dpbusd_epi32(a2_2_i32x16, a1_u8x64, a1_u8x64);
+    a2_4_i32x16 = _mm512_dpbusd_epi32(a2_4_i32x16, a2_u8x64, a2_u8x64);
+    a2_6_i32x16 = _mm512_dpbusd_epi32(a2_6_i32x16, a3_u8x64, a3_u8x64);
+
+    // ||b||²: 4 VPDPBUSD (unsigned b, not signed)
+    __m512i b0_u8x64 = _mm512_maskz_mov_epi8(kb_lt20, b_base_u8x64);
+    __m512i b1_u8x64 = _mm512_maskz_mov_epi8(kb_lt40 & ~kb_lt20, b_base_u8x64);
+    __m512i b2_u8x64 = _mm512_maskz_mov_epi8(kb_lt60 & ~kb_lt40, b_base_u8x64);
+    __m512i b3_u8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_base_u8x64);
+    b2_0_i32x16 = _mm512_dpbusd_epi32(b2_0_i32x16, b0_u8x64, b0_u8x64);
+    b2_2_i32x16 = _mm512_dpbusd_epi32(b2_2_i32x16, b1_u8x64, b1_u8x64);
+    b2_4_i32x16 = _mm512_dpbusd_epi32(b2_4_i32x16, b2_u8x64, b2_u8x64);
+    b2_6_i32x16 = _mm512_dpbusd_epi32(b2_6_i32x16, b3_u8x64, b3_u8x64);
+
+    if (n) goto nk_sqeuclidean_e4m3_icelake_cycle;
+
+    // Reduce dot(a,b)
+    __m512 dot_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(dot0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot1_i32x16), _mm512_set1_ps(1.52587890625e-05f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot2_i32x16), _mm512_set1_ps(2.44140625e-04f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot3_i32x16), _mm512_set1_ps(3.90625e-03f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot4_i32x16), _mm512_set1_ps(6.25e-02f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot5_i32x16), _mm512_set1_ps(1.0f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot6_i32x16), _mm512_set1_ps(16.0f), dot_f32x16);
+
+    // Reduce ||a||² and ||b||² (even-k only: scale = 2^(8·oct − 20))
+    __m512 a2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(a2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_2_i32x16), _mm512_set1_ps(2.44140625e-04f), a2_f32x16);
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_4_i32x16), _mm512_set1_ps(6.25e-02f), a2_f32x16);
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_6_i32x16), _mm512_set1_ps(16.0f), a2_f32x16);
+
+    __m512 b2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(b2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_2_i32x16), _mm512_set1_ps(2.44140625e-04f), b2_f32x16);
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_4_i32x16), _mm512_set1_ps(6.25e-02f), b2_f32x16);
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_6_i32x16), _mm512_set1_ps(16.0f), b2_f32x16);
+
+    // (a-b)² = ||a||² + ||b||² - 2·dot(a,b)
+    __m512 sum_sq_f32x16 = _mm512_add_ps(a2_f32x16, b2_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(_mm512_fnmadd_ps(_mm512_set1_ps(2.0f), dot_f32x16, sum_sq_f32x16));
+}
+
+NK_PUBLIC void nk_euclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e4m3_icelake(a, b, n, result);
+    *result = nk_f32_sqrt_haswell(*result);
+}
+
+/** @brief E4M3 angular distance via octave VNNI.
+ *  Computes 1 - dot(a,b) / (||a|| × ||b||) using the octave decomposition.
+ *  16 VPDPBUSD for dot + 4 for ||a||² + 4 for ||b||² = 24 per 64 elements. */
+NK_PUBLIC void nk_angular_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+
+    __m512i const lut_normal_u8x64 = _mm512_set_epi8(                      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8,      //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        30, 28, 26, 24, 22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8);     //
+    __m512i const lut_subnorm_u8x64 = _mm512_set_epi8(                     //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0,                 //
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                    //
+        0, 0, 0, 0, 0, 0, 0, 0, 14, 12, 10, 8, 6, 4, 2, 0);                //
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x7F);
+    __m512i const subnorm_threshold_u8x64 = _mm512_set1_epi8(0x08);
+    __m512i const oct_threshold_20_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i const oct_threshold_40_u8x64 = _mm512_set1_epi8(0x40);
+    __m512i const oct_threshold_60_u8x64 = _mm512_set1_epi8(0x60);
+
+    __m512i dot0_i32x16 = _mm512_setzero_si512(), dot1_i32x16 = _mm512_setzero_si512();
+    __m512i dot2_i32x16 = _mm512_setzero_si512(), dot3_i32x16 = _mm512_setzero_si512();
+    __m512i dot4_i32x16 = _mm512_setzero_si512(), dot5_i32x16 = _mm512_setzero_si512();
+    __m512i dot6_i32x16 = _mm512_setzero_si512();
+    __m512i a2_0_i32x16 = _mm512_setzero_si512(), a2_2_i32x16 = _mm512_setzero_si512();
+    __m512i a2_4_i32x16 = _mm512_setzero_si512(), a2_6_i32x16 = _mm512_setzero_si512();
+    __m512i b2_0_i32x16 = _mm512_setzero_si512(), b2_2_i32x16 = _mm512_setzero_si512();
+    __m512i b2_4_i32x16 = _mm512_setzero_si512(), b2_6_i32x16 = _mm512_setzero_si512();
+    __m512i a_e4m3_u8x64, b_e4m3_u8x64;
+
+nk_angular_e4m3_icelake_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_e4m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e4m3_u8x64 = _mm512_loadu_si512(a);
+        b_e4m3_u8x64 = _mm512_loadu_si512(b);
+        a += 64, b += 64, n -= 64;
+    }
+
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e4m3_u8x64, magnitude_mask_u8x64);
+    __m512i a_base_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_normal_u8x64);
+    __m512i b_base_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_normal_u8x64);
+    a_base_u8x64 = _mm512_mask_permutexvar_epi8(a_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(a_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                a_magnitude_u8x64, lut_subnorm_u8x64);
+    b_base_u8x64 = _mm512_mask_permutexvar_epi8(b_base_u8x64,
+                                                _mm512_cmplt_epu8_mask(b_magnitude_u8x64, subnorm_threshold_u8x64),
+                                                b_magnitude_u8x64, lut_subnorm_u8x64);
+
+    __m512i sign_diff_u8x64 = _mm512_ternarylogic_epi64(a_e4m3_u8x64, b_e4m3_u8x64, magnitude_mask_u8x64, 0x14);
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_base_u8x64, _mm512_test_epi8_mask(sign_diff_u8x64, sign_diff_u8x64),
+                                                  _mm512_setzero_si512(), b_base_u8x64);
+
+    __mmask64 ka_lt20 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 ka_lt40 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 ka_lt60 = _mm512_cmplt_epu8_mask(a_magnitude_u8x64, oct_threshold_60_u8x64);
+    __mmask64 kb_lt20 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_20_u8x64);
+    __mmask64 kb_lt40 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_40_u8x64);
+    __mmask64 kb_lt60 = _mm512_cmplt_epu8_mask(b_magnitude_u8x64, oct_threshold_60_u8x64);
+
+    __m512i a0_u8x64 = _mm512_maskz_mov_epi8(ka_lt20, a_base_u8x64);
+    __m512i a1_u8x64 = _mm512_maskz_mov_epi8(ka_lt40 & ~ka_lt20, a_base_u8x64);
+    __m512i a2_u8x64 = _mm512_maskz_mov_epi8(ka_lt60 & ~ka_lt40, a_base_u8x64);
+    __m512i a3_u8x64 = _mm512_maskz_mov_epi8(~ka_lt60, a_base_u8x64);
+
+    __m512i b0_i8x64 = _mm512_maskz_mov_epi8(kb_lt20, b_signed_i8x64);
+    __m512i b1_i8x64 = _mm512_maskz_mov_epi8(kb_lt40 & ~kb_lt20, b_signed_i8x64);
+    __m512i b2_i8x64 = _mm512_maskz_mov_epi8(kb_lt60 & ~kb_lt40, b_signed_i8x64);
+    __m512i b3_i8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_signed_i8x64);
+
+    // dot(a,b): 16 VPDPBUSD
+    dot0_i32x16 = _mm512_dpbusd_epi32(dot0_i32x16, a0_u8x64, b0_i8x64);
+    dot1_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot1_i32x16, a0_u8x64, b1_i8x64), a1_u8x64, b0_i8x64);
+    dot2_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot2_i32x16, a0_u8x64, b2_i8x64), a1_u8x64, b1_i8x64), a2_u8x64,
+        b0_i8x64);
+    dot3_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(
+            _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot3_i32x16, a0_u8x64, b3_i8x64), a1_u8x64, b2_i8x64), a2_u8x64,
+            b1_i8x64),
+        a3_u8x64, b0_i8x64);
+    dot4_i32x16 = _mm512_dpbusd_epi32(
+        _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot4_i32x16, a1_u8x64, b3_i8x64), a2_u8x64, b2_i8x64), a3_u8x64,
+        b1_i8x64);
+    dot5_i32x16 = _mm512_dpbusd_epi32(_mm512_dpbusd_epi32(dot5_i32x16, a2_u8x64, b3_i8x64), a3_u8x64, b2_i8x64);
+    dot6_i32x16 = _mm512_dpbusd_epi32(dot6_i32x16, a3_u8x64, b3_i8x64);
+
+    // ||a||²: 4 VPDPBUSD
+    a2_0_i32x16 = _mm512_dpbusd_epi32(a2_0_i32x16, a0_u8x64, a0_u8x64);
+    a2_2_i32x16 = _mm512_dpbusd_epi32(a2_2_i32x16, a1_u8x64, a1_u8x64);
+    a2_4_i32x16 = _mm512_dpbusd_epi32(a2_4_i32x16, a2_u8x64, a2_u8x64);
+    a2_6_i32x16 = _mm512_dpbusd_epi32(a2_6_i32x16, a3_u8x64, a3_u8x64);
+
+    // ||b||²: 4 VPDPBUSD (unsigned b)
+    __m512i b0_u8x64 = _mm512_maskz_mov_epi8(kb_lt20, b_base_u8x64);
+    __m512i b1_u8x64 = _mm512_maskz_mov_epi8(kb_lt40 & ~kb_lt20, b_base_u8x64);
+    __m512i b2_u8x64 = _mm512_maskz_mov_epi8(kb_lt60 & ~kb_lt40, b_base_u8x64);
+    __m512i b3_u8x64 = _mm512_maskz_mov_epi8(~kb_lt60, b_base_u8x64);
+    b2_0_i32x16 = _mm512_dpbusd_epi32(b2_0_i32x16, b0_u8x64, b0_u8x64);
+    b2_2_i32x16 = _mm512_dpbusd_epi32(b2_2_i32x16, b1_u8x64, b1_u8x64);
+    b2_4_i32x16 = _mm512_dpbusd_epi32(b2_4_i32x16, b2_u8x64, b2_u8x64);
+    b2_6_i32x16 = _mm512_dpbusd_epi32(b2_6_i32x16, b3_u8x64, b3_u8x64);
+
+    if (n) goto nk_angular_e4m3_icelake_cycle;
+
+    // Reduce dot(a,b)
+    __m512 dot_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(dot0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot1_i32x16), _mm512_set1_ps(1.52587890625e-05f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot2_i32x16), _mm512_set1_ps(2.44140625e-04f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot3_i32x16), _mm512_set1_ps(3.90625e-03f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot4_i32x16), _mm512_set1_ps(6.25e-02f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot5_i32x16), _mm512_set1_ps(1.0f), dot_f32x16);
+    dot_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(dot6_i32x16), _mm512_set1_ps(16.0f), dot_f32x16);
+
+    __m512 a2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(a2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_2_i32x16), _mm512_set1_ps(2.44140625e-04f), a2_f32x16);
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_4_i32x16), _mm512_set1_ps(6.25e-02f), a2_f32x16);
+    a2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(a2_6_i32x16), _mm512_set1_ps(16.0f), a2_f32x16);
+
+    __m512 b2_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(b2_0_i32x16), _mm512_set1_ps(9.5367431640625e-07f));
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_2_i32x16), _mm512_set1_ps(2.44140625e-04f), b2_f32x16);
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_4_i32x16), _mm512_set1_ps(6.25e-02f), b2_f32x16);
+    b2_f32x16 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(b2_6_i32x16), _mm512_set1_ps(16.0f), b2_f32x16);
+
+    nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(a2_f32x16);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(b2_f32x16);
+    *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 #if defined(__clang__)

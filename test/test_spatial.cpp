@@ -285,6 +285,9 @@ void test_spatial() {
     check("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
     check("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
     check("euclidean_u4_icelake", test_euclidean<u4x2_t>, nk_euclidean_u4_icelake);
+    check("angular_e4m3_icelake", test_angular<e4m3_t>, nk_angular_e4m3_icelake);
+    check("sqeuclidean_e4m3_icelake", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_icelake);
+    check("euclidean_e4m3_icelake", test_euclidean<e4m3_t>, nk_euclidean_e4m3_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -294,9 +297,6 @@ void test_spatial() {
     check("angular_e5m2_genoa", test_angular<e5m2_t>, nk_angular_e5m2_genoa);
     check("sqeuclidean_e5m2_genoa", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_genoa);
     check("euclidean_e5m2_genoa", test_euclidean<e5m2_t>, nk_euclidean_e5m2_genoa);
-    check("angular_e4m3_genoa", test_angular<e4m3_t>, nk_angular_e4m3_genoa);
-    check("sqeuclidean_e4m3_genoa", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_genoa);
-    check("euclidean_e4m3_genoa", test_euclidean<e4m3_t>, nk_euclidean_e4m3_genoa);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_DIAMOND

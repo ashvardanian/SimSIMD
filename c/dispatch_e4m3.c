@@ -157,12 +157,17 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_ICELAKE
+    if (v & nk_cap_icelake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e4m3_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e4m3_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_icelake, *c = nk_cap_icelake_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_GENOA
     if (v & nk_cap_genoa_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_genoa, *c = nk_cap_genoa_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e4m3_genoa, *c = nk_cap_genoa_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e4m3_genoa, *c = nk_cap_genoa_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e4m3_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e4m3_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e4m3_genoa, *c = nk_cap_genoa_k; return;

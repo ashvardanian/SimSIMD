@@ -225,6 +225,7 @@ void bench_dot() {
     run_dense<i4_k, i32_k>("dot_i4_icelake", nk_dot_i4_icelake);
     run_dense<u4_k, u32_k>("dot_u4_icelake", nk_dot_u4_icelake);
     run_dense<u1_k, u32_k>("dot_u1_icelake", nk_dot_u1_icelake);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_icelake", nk_dot_e4m3_icelake);
 #endif
 
 #if NK_TARGET_ALDER
@@ -244,7 +245,6 @@ void bench_dot() {
     run_dense<bf16c_k, f32c_k>("vdot_bf16c_genoa", nk_vdot_bf16c_genoa);
     run_dense<bf16_k, f32_k>("dot_bf16_genoa", nk_dot_bf16_genoa);
     run_dense<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
-    run_dense<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
 #endif
 
 #if NK_TARGET_DIAMOND
