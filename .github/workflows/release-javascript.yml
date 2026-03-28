@@ -66,7 +66,11 @@ jobs:
           sudo apt install -y gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - name: Install Node.js Dependencies
-        run: npm install --ignore-scripts
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: npm install --ignore-scripts
 
       - name: Run ISA Probes
         run: node probes/probe.js
@@ -96,9 +100,14 @@ jobs:
       - name: Update Git Submodules
         run: git submodule update --init --recursive
       - name: Install Emscripten
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
-          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            rm -rf ~/emsdk
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
       - name: Set Up Node.js
         uses: actions/setup-node@v6
         with:
@@ -201,7 +210,11 @@ jobs:
           path: wasm
 
       - name: Install Node.js Dependencies
-        run: npm install --ignore-scripts
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: npm install --ignore-scripts
 
       - name: Build JavaScript from TypeScript
         run: npm run build-js

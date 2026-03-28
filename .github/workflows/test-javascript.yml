@@ -29,9 +29,13 @@ jobs:
           echo "::endgroup::"
 
       - name: Update compilers
-        run: |
-          sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            sudo apt update
+            sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -64,9 +68,14 @@ jobs:
           echo "::endgroup::"
 
       - name: Install Emscripten
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
-          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            rm -rf ~/emsdk
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
 
       - name: Build WASM
         run: |
@@ -105,9 +114,14 @@ jobs:
           echo "::endgroup::"
 
       - name: Install Emscripten
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
-          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            rm -rf ~/emsdk
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
 
       - name: Build WASM64
         run: |
@@ -146,10 +160,14 @@ jobs:
           echo "::endgroup::"
 
       - name: Install WASI-SDK
-        run: |
-          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
-          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
-          mv ~/wasi-sdk-* ~/wasi-sdk
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+            tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+            mv ~/wasi-sdk-* ~/wasi-sdk
 
       - name: Build WASI
         run: |
@@ -183,9 +201,14 @@ jobs:
           echo "::endgroup::"
 
       - name: Install Emscripten
-        run: |
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
-          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            rm -rf ~/emsdk
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
 
       - name: Build WASM
         run: |
@@ -211,7 +234,11 @@ jobs:
             --outfile=build-wasm/numkong-bundle.js
 
       - name: Install Playwright
-        run: npx playwright install --with-deps chromium
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: npx playwright install --with-deps chromium
 
       - name: Test Browser runtime
         run: npx playwright test --config test/playwright.config.ts
@@ -245,10 +272,14 @@ jobs:
         uses: moonrepo/setup-rust@v1
 
       - name: Install WASI-SDK
-        run: |
-          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
-          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
-          mv ~/wasi-sdk-* ~/wasi-sdk
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+            tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+            mv ~/wasi-sdk-* ~/wasi-sdk
 
       - name: Build WASI
         run: |
@@ -257,7 +288,12 @@ jobs:
           cmake --build build-wasi
 
       - name: Install Wasmer (HEAD for relaxed-SIMD support, not yet in stable)
-        run: cargo install wasmer-cli --git https://github.com/wasmerio/wasmer.git --branch main --features cranelift
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 2
+          retry_wait_seconds: 30
+          timeout_minutes: 30
+          command: cargo install wasmer-cli --git https://github.com/wasmerio/wasmer.git --branch main --features cranelift
 
       - name: Test Wasmer runtime
         run: wasmer run --enable-simd --enable-relaxed-simd ./build-wasi/nk_test.wasm
@@ -283,10 +319,14 @@ jobs:
         uses: moonrepo/setup-rust@v1
 
       - name: Install WASI-SDK
-        run: |
-          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
-          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
-          mv ~/wasi-sdk-* ~/wasi-sdk
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: |
+            wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+            tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+            mv ~/wasi-sdk-* ~/wasi-sdk
 
       - name: Build WASI
         run: |
@@ -321,9 +361,13 @@ jobs:
           echo "::endgroup::"
 
       - name: Update compilers
-        run: |
-          sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            sudo apt update
+            sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -368,9 +412,13 @@ jobs:
           echo "::endgroup::"
 
       - name: Update compilers
-        run: |
-          sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
+        uses: nick-fields/retry@v4
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            sudo apt update
+            sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
