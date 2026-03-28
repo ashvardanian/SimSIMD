@@ -13,7 +13,7 @@
 #
 {
     "variables": {
-        "numkong_root%": "<!(node -p \"require('path').dirname(require.resolve('numkong/package.json'))\")",
+        "numkong_root%": "<!(node -e \"try{console.log(require('path').dirname(require.resolve('numkong/package.json')))}catch{console.log('numkong')}\")",
     },
     "targets": [
         {

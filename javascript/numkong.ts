@@ -26,18 +26,30 @@
  */
 
 import build from "node-gyp-build";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
 import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, DType, dtypeToString, outputDtype, KernelFamily } from "./types.js";
 
-let compiled: any;
+function loadNativeAddon(): any {
+  // Tier 1: platform-specific optional dependency (@numkong/<os>-<arch>)
+  try {
+    const req = createRequire(path.join(getDirName(), "noop.js"));
+    return req(`@numkong/${process.platform}-${process.arch}`);
+  } catch {}
 
-try {
-  let builddir = getBuildDir(getDirName());
-  compiled = build(builddir);
+  // Tier 2: node-gyp-build fallback (local dev, unsupported platform, build-from-source)
+  try {
+    return build(getBuildDir(getDirName()));
+  } catch {}
 
-  // Initialize conversion functions for types.ts
+  return null;
+}
+
+let compiled: any = loadNativeAddon();
+
+if (compiled) {
   setConversionFunctions({
     castF16ToF32: compiled.castF16ToF32,
     castF32ToF16: compiled.castF32ToF16,
@@ -49,12 +61,11 @@ try {
     castF32ToE5M2: compiled.castF32ToE5M2,
     cast: compiled.cast,
   });
-} catch (e) {
-  // Native addon not available
-  // For WASM usage, import the Emscripten module directly (see test/test-wasm.mjs)
+} else {
   throw new Error(
-    "NumKong native addon not found. Build with `npm run build` or use WASM " +
-    "by importing the Emscripten module directly. See test/test-wasm.mjs for examples."
+    "NumKong native addon not found. Install with `npm install numkong` (which fetches " +
+    "the prebuilt binary), or build from source with `npm run install`. " +
+    "For WASM, import from 'numkong/wasm' instead."
   );
 }
 

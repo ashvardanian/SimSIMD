@@ -80,11 +80,8 @@ let isMemory64 = false;
 let resultPtr: number = 0;
 
 // Heap views (created from wasmMemory buffer)
-let HEAP8: Int8Array;
-let HEAP16: Int16Array;
 let HEAP32: Int32Array;
 let HEAPU8: Uint8Array;
-let HEAPU16: Uint16Array;
 let HEAPU32: Uint32Array;
 let HEAPF32: Float32Array;
 let HEAPF64: Float64Array;
@@ -106,11 +103,8 @@ export function initWasm(wasmModule: EmscriptenModule): void {
 
   // Create heap views from the WASM memory buffer
   const buffer = wasmModule.wasmMemory.buffer;
-  HEAP8 = new Int8Array(buffer);
-  HEAP16 = new Int16Array(buffer);
   HEAP32 = new Int32Array(buffer);
   HEAPU8 = new Uint8Array(buffer);
-  HEAPU16 = new Uint16Array(buffer);
   HEAPU32 = new Uint32Array(buffer);
   HEAPF32 = new Float32Array(buffer);
   HEAPF64 = new Float64Array(buffer);
@@ -139,7 +133,7 @@ export function initWasm(wasmModule: EmscriptenModule): void {
 interface TypeInfo {
   dtype: DType;
   bytesPerElement: number;
-  heapView: 'HEAP8' | 'HEAP16' | 'HEAP32' | 'HEAPU8' | 'HEAPU16' | 'HEAPU32' | 'HEAPF32' | 'HEAPF64';
+  heapView: 'HEAP32' | 'HEAPU8' | 'HEAPU32' | 'HEAPF32' | 'HEAPF64';
   resultType: 'f32' | 'f64' | 'i32' | 'u32';
 }
 
@@ -152,7 +146,7 @@ function detectType(arr: any): TypeInfo {
   } else if (arr instanceof Float32Array) {
     return { dtype: DType.F32, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f64' };
   } else if (arr instanceof Int8Array) {
-    return { dtype: DType.I8, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
+    return { dtype: DType.I8, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'i32' };
   } else if (arr instanceof Uint8Array) {
     return { dtype: DType.U8, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
   }
@@ -161,9 +155,9 @@ function detectType(arr: any): TypeInfo {
   const constructorName = arr.constructor.name;
 
   if (constructorName === 'Float16Array') {
-    return { dtype: DType.F16, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    return { dtype: DType.F16, bytesPerElement: 2, heapView: 'HEAPU8', resultType: 'f32' };
   } else if (constructorName === 'BFloat16Array') {
-    return { dtype: DType.BF16, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    return { dtype: DType.BF16, bytesPerElement: 2, heapView: 'HEAPU8', resultType: 'f32' };
   } else if (constructorName === 'E4M3Array') {
     throw new Error('E4M3 not yet supported in WASM backend');
   } else if (constructorName === 'E5M2Array') {
@@ -182,9 +176,9 @@ function typeInfoFromDtype(dtype: DType): TypeInfo {
   switch (dtype) {
     case DType.F64: return { dtype, bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
     case DType.F32: return { dtype, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f64' };
-    case DType.F16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
-    case DType.BF16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
-    case DType.I8: return { dtype, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
+    case DType.F16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU8', resultType: 'f32' };
+    case DType.BF16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU8', resultType: 'f32' };
+    case DType.I8: return { dtype, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'i32' };
     case DType.U8: return { dtype, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
     case DType.U1: return { dtype, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
     default: throw new Error(`Unsupported dtype: ${dtype}`);

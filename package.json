@@ -24,9 +24,6 @@
   "scripts": {
     "preinstall": "node probes/probe.js",
     "install": "node-gyp-build",
-    "prebuild-single": "prebuildify --napi --strip --target=22.0.0",
-    "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=22.0.0",
-    "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=22.0.0",
     "build-js": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
     "build-browser": "esbuild javascript/dist/esm/numkong-browser.js --bundle --format=esm --platform=browser --target=es2022 --outfile=build-wasm/numkong-bundle.js",
     "test": "node --test ./test/test.mjs",
@@ -55,7 +52,9 @@
     "./wasm": {
       "import": "./wasm/numkong.js",
       "types": "./wasm/numkong.d.ts"
-    }
+    },
+    "./numkong.gypi": "./numkong.gypi",
+    "./package.json": "./package.json"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -71,15 +70,20 @@
     "@types/node": "^24.10.0",
     "node-gyp": "^11.5.0",
     "playwright": "^1.58.0",
-    "prebuildify": "^6.0.1",
     "http-server": "^14.1.1",
     "esbuild": "^0.25.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "benchmark": "^2.1.4",
+    "mathjs": "^14.9.0",
+    "usearch": "^2.21.0"
   },
   "files": [
     "c/",
     "include/",
-    "javascript/",
+    "javascript/dist/",
+    "javascript/*.ts",
+    "javascript/*.json",
+    "javascript/*.c",
     "probes/",
     "wasm/",
     "binding.gyp",
@@ -90,8 +94,11 @@
     "printWidth": 120
   },
   "optionalDependencies": {
-    "benchmark": "^2.1.4",
-    "mathjs": "^14.9.0",
-    "usearch": "^2.21.0"
+    "@numkong/darwin-arm64": "7.2.0",
+    "@numkong/darwin-x64": "7.2.0",
+    "@numkong/linux-arm64": "7.2.0",
+    "@numkong/linux-x64": "7.2.0",
+    "@numkong/win32-arm64": "7.2.0",
+    "@numkong/win32-x64": "7.2.0"
   }
 }

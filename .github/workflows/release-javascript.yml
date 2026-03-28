@@ -9,22 +9,42 @@ permissions:
   id-token: write
 
 jobs:
-  build_javascript:
-    name: Build JavaScript Native Modules
+  build_native:
+    name: Build ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, x86]
-        os: [macos-15, ubuntu-24.04]
-        exclude:
-          - arch: x86
-            os: macos-15
-          - arch: x86
+        include:
+          - platform: linux-x64
             os: ubuntu-24.04
+            cc: gcc-14
+            cxx: g++-14
+            node-gyp-args: ""
+          - platform: linux-arm64
+            os: ubuntu-24.04
+            cc: aarch64-linux-gnu-gcc-14
+            cxx: aarch64-linux-gnu-g++-14
+            node-gyp-args: "--arch=arm64"
+          - platform: darwin-arm64
+            os: macos-15
+            cc: clang
+            cxx: clang++
+            node-gyp-args: ""
+          - platform: darwin-x64
+            os: macos-15
+            cc: clang
+            cxx: clang++
+            node-gyp-args: "--arch=x64"
+          - platform: win32-x64
+            os: windows-latest
+            cc: cl.exe
+            cxx: cl.exe
+            node-gyp-args: ""
     runs-on: ${{ matrix.os }}
     env:
-      CC: gcc-14
-      CXX: g++-14
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -32,42 +52,38 @@ jobs:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
+
       - name: Set Up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "22"
-          architecture: ${{ matrix.arch }}
-      - name: Update System Compilers (Ubuntu Only)
-        if: matrix.os == 'ubuntu-24.04'
+
+      - name: Install System Dependencies (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          echo "Updating compilers and installing build dependencies on Ubuntu"
           sudo apt update
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
-          sudo apt install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt install -y gcc-14-aarch64-linux-gnu g++-14-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
       - name: Install Node.js Dependencies
         run: npm install --ignore-scripts
-      - name: Prebuild Native Modules (Linux / Non-Darwin)
-        if: matrix.os != 'macos-15'
-        run: npm run prebuild-single
-      - name: Prebuild Native Modules for macOS
-        if: matrix.os == 'macos-15'
-        env:
-          CC: clang
-          CXX: clang++
-        run: npm run prebuild-darwin-x64+arm64
-      - name: Validate macOS Prebuild Artifacts
-        if: matrix.os == 'macos-15'
-        run: file prebuilds/*/*
-      - name: Cross-Build for ARM64 on Ubuntu
-        if: matrix.os == 'ubuntu-24.04'
-        run: npm run prebuild-arm64
-      - name: Upload Prebuild Artifacts
+
+      - name: Run ISA Probes
+        run: node probes/probe.js
+
+      - name: Build Native Module
+        run: npx node-gyp rebuild ${{ matrix.node-gyp-args }}
+
+      - name: Copy Binary to Platform Package
+        shell: bash
+        run: cp build/Release/numkong.node javascript/@numkong-${{ matrix.platform }}/numkong.node
+
+      - name: Upload Platform Package
         uses: actions/upload-artifact@v7
         with:
-          name: prebuilds-${{ matrix.os }}
-          path: prebuilds
+          name: numkong-${{ matrix.platform }}
+          path: javascript/@numkong-${{ matrix.platform }}/
           retention-days: 1
-          overwrite: true
 
   build_wasm:
     name: Build WASM Bundle
@@ -114,9 +130,51 @@ jobs:
           retention-days: 1
           overwrite: true
 
-  publish_javascript_npm:
-    name: Publish JavaScript to NPM
-    needs: [build_javascript, build_wasm]
+  publish_platform_packages:
+    name: Publish Platform Packages
+    needs: [build_native]
+    if: always()
+    runs-on: ubuntu-24.04
+    environment:
+      name: npm-numkong
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux-x64, linux-arm64, darwin-x64, darwin-arm64, win32-x64]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: "main"
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download Platform Artifact
+        id: download
+        uses: actions/download-artifact@v8
+        with:
+          name: numkong-${{ matrix.platform }}
+          path: javascript/@numkong-${{ matrix.platform }}/
+        continue-on-error: true
+
+      - name: Publish @numkong/${{ matrix.platform }}
+        if: steps.download.outcome == 'success'
+        working-directory: javascript/@numkong-${{ matrix.platform }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish_main:
+    name: Publish Main Package to NPM
+    needs: [publish_platform_packages, build_wasm]
+    if: always() && needs.build_wasm.result == 'success'
     runs-on: ubuntu-24.04
     environment:
       name: npm-numkong
@@ -131,30 +189,28 @@ jobs:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
+
       - name: Set Up Node.js Environment
         uses: actions/setup-node@v6
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      - name: Download Prebuild Artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: prebuilds-*
-          path: prebuilds
-          merge-multiple: true
+
       - name: Download WASM Bundle
         uses: actions/download-artifact@v8
         with:
           name: wasm-bundle
           path: wasm
-      - name: Verify File Hard Links (Optional)
-        run: find . -type f -links +1
+
       - name: Install Node.js Dependencies
         run: npm install --ignore-scripts
+
       - name: Build JavaScript from TypeScript
         run: npm run build-js
-      - name: Run Final Tests with Prebuild Artifacts
+
+      - name: Run Tests
         run: npm run test
+
       - name: Publish to NPM
         run: npm publish --provenance --access public
         env:
