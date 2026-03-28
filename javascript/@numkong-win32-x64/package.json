@@ -1,6 +1,6 @@
 {
   "name": "@numkong/win32-x64",
-  "version": "7.2.0",
+  "version": "7.2.1",
   "description": "Windows x64 native binary for NumKong",
   "repository": {
     "type": "git",
