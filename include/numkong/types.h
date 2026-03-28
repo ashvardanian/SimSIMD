@@ -272,12 +272,12 @@
 
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
-#if defined(__ARM_NEON)
+#if defined(__ARM_NEON) || (defined(_MSC_VER) && defined(_M_ARM64))
 #define NK_TARGET_NEON 1
 #else
 #undef NK_TARGET_NEON
 #define NK_TARGET_NEON 0
-#endif // defined(__ARM_NEON)
+#endif // defined(__ARM_NEON) || ...
 #endif // !defined(NK_TARGET_NEON) || ...
 
 // Compiling for Arm: NK_TARGET_NEONSDOT (FEAT_DotProd, optional from ARMv8.1, mandatory at ARMv8.4 with AdvSIMD)
