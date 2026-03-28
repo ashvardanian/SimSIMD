@@ -229,8 +229,6 @@ void bench_spatial() {
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_sapphire", nk_sqeuclidean_e4m3_sapphire);
-    run_dense<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
     run_dense<e3m2_k, f32_k>("angular_e3m2_sapphire", nk_angular_e3m2_sapphire);
     run_dense<e3m2_k, f32_k>("sqeuclidean_e3m2_sapphire", nk_sqeuclidean_e3m2_sapphire);
     run_dense<e3m2_k, f32_k>("euclidean_e3m2_sapphire", nk_euclidean_e3m2_sapphire);

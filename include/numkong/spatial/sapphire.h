@@ -50,40 +50,6 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
-                                            nk_size_t count_scalars, nk_f32_t *result) {
-    __m512 sum_f32x16 = _mm512_setzero_ps();
-
-    while (count_scalars > 0) {
-        nk_size_t const n = count_scalars < 16 ? count_scalars : 16;
-        __mmask16 const mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        __m128i a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a_scalars);
-        __m128i b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b_scalars);
-
-        // Convert e4m3 → f16
-        __m256h a_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(a_e4m3x16);
-        __m256h b_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(b_e4m3x16);
-
-        // Subtract in F16 − differences fit (max 896 < 65504)
-        __m256h diff_f16x16 = _mm256_sub_ph(a_f16x16, b_f16x16);
-
-        // Convert to F32 before squaring (896² = 802816 overflows F16!)
-        __m512 diff_f32x16 = _mm512_cvtph_ps(_mm256_castph_si256(diff_f16x16));
-
-        // Square and accumulate in F32
-        sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
-        a_scalars += n, b_scalars += n, count_scalars -= n;
-    }
-
-    *result = _mm512_reduce_add_ps(sum_f32x16);
-}
-
-NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
-                                          nk_size_t count_scalars, nk_f32_t *result) {
-    nk_sqeuclidean_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
-    *result = nk_f32_sqrt_haswell(*result);
-}
-
 NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars,
                                             nk_size_t count_scalars, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();

@@ -599,10 +599,6 @@ NK_PUBLIC void nk_angular_e5m2_diamond(nk_e5m2_t const *a, nk_e5m2_t const *b, n
 
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
@@ -1161,8 +1157,6 @@ NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_euclidean_e4m3_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_euclidean_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_DIAMOND
     nk_euclidean_e4m3_diamond(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1179,8 +1173,6 @@ NK_PUBLIC void nk_euclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
 NK_PUBLIC void nk_sqeuclidean_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONFP8
     nk_sqeuclidean_e4m3_neonfp8(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_sqeuclidean_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_DIAMOND
     nk_sqeuclidean_e4m3_diamond(a, b, n, result);
 #elif NK_TARGET_ICELAKE

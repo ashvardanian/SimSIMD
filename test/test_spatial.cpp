@@ -345,8 +345,6 @@ void test_spatial() {
     check("angular_e3m2_sapphire", test_angular<e3m2_t>, nk_angular_e3m2_sapphire);
     check("sqeuclidean_e3m2_sapphire", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_sapphire);
     check("euclidean_e3m2_sapphire", test_euclidean<e3m2_t>, nk_euclidean_e3m2_sapphire);
-    check("sqeuclidean_e4m3_sapphire", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_sapphire);
-    check("euclidean_e4m3_sapphire", test_euclidean<e4m3_t>, nk_euclidean_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
