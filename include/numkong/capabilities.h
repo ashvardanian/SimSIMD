@@ -511,8 +511,64 @@ static void nk_mrs_test_sigill_handler_(int sig) {
 #endif
 
 NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
+#if defined(_MSC_VER)
     nk_unused_(capabilities);
     return 1;
+#else
+    // FPCR.EBF (bit 13) — requires FEAT_EBF16:
+    //   Enables fused BF16 dot-product semantics for BFDOT/BFMOPA/BFMMLA.
+    //   Without it, each bf16×bf16 product is individually rounded (Round-to-Odd) before
+    //   summation (3-way rounding). With EBF=1, intermediates are summed before rounding,
+    //   matching x86 VDPBF16PS (Genoa/Sapphire Rapids) precision.
+    //
+    // FPCR.AH (bit 1) — requires FEAT_AFP:
+    //   Enables alternate floating-point behavior. Among other things, this activates
+    //   FEAT_RPRES: 12-bit mantissa accuracy for f32 FRECPE/FRSQRTE (up from 8-bit),
+    //   potentially saving a Newton-Raphson iteration in spatial distance kernels.
+    //
+    // Both bits default to 0 on process creation (kernel zeroes FPCR). Setting them is
+    // ABI-legal per AAPCS64. Writing these bits on hardware without the corresponding
+    // feature is unsafe (they are RES0), so we gate on feature detection.
+    unsigned long fpcr_desired = 0;
+
+#if defined(NK_DEFINED_APPLE_)
+    nk_unused_(capabilities);
+    size_t sysctl_size = sizeof(unsigned);
+    unsigned has_ebf16 = 0, has_afp = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_EBF16", &has_ebf16, &sysctl_size, NULL, 0) != 0) has_ebf16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_AFP", &has_afp, &sysctl_size, NULL, 0) != 0) has_afp = 0;
+    if (has_ebf16) fpcr_desired |= (1UL << 13);
+    if (has_afp) fpcr_desired |= (1UL << 1);
+
+#elif defined(NK_DEFINED_LINUX_) || defined(NK_DEFINED_FREEBSD_)
+    // Read ID registers via MRS. Only safe if MRS is known to work — indicated by
+    // capabilities beyond basic NEON (nk_capabilities_arm_ validated MRS via sigaction probe).
+    if (capabilities & ~(nk_cap_neon_k | nk_cap_serial_k)) {
+        // FEAT_EBF16: ID_AA64ISAR1_EL1.BF16 bits [47:44] >= 0b0010
+        register unsigned long isar1_val __asm__("x0");
+        __asm__ __volatile__(".inst 0xD5380620" : "=r"(isar1_val)); // MRS x0, ID_AA64ISAR1_EL1
+        if (((isar1_val >> 44) & 0xF) >= 2) fpcr_desired |= (1UL << 13);
+
+        // FEAT_AFP: ID_AA64MMFR1_EL1.AFP bits [47:44] >= 0b0001
+        register unsigned long mmfr1_val __asm__("x0");
+        __asm__ __volatile__(".inst 0xD5380720" : "=r"(mmfr1_val)); // MRS x0, ID_AA64MMFR1_EL1
+        if (((mmfr1_val >> 44) & 0xF) >= 1) fpcr_desired |= (1UL << 1);
+    }
+    else { nk_unused_(capabilities); }
+#else
+    nk_unused_(capabilities);
+#endif
+
+    if (fpcr_desired) {
+        unsigned long fpcr_val;
+        __asm__ __volatile__("mrs %0, fpcr" : "=r"(fpcr_val));
+        if ((fpcr_val & fpcr_desired) != fpcr_desired) {
+            fpcr_val |= fpcr_desired;
+            __asm__ __volatile__("msr fpcr, %0" : : "r"(fpcr_val));
+        }
+    }
+    return 1;
+#endif // _MSC_VER
 }
 
 NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
