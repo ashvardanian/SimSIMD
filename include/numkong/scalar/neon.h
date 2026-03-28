@@ -98,8 +98,8 @@ NK_PUBLIC nk_u64_t nk_u64_saturating_mul_neon(nk_u64_t a, nk_u64_t b) {
 }
 NK_PUBLIC nk_i64_t nk_i64_saturating_mul_neon(nk_i64_t a, nk_i64_t b) {
     int sign = (a < 0) ^ (b < 0);
-    nk_u64_t abs_a = a < 0 ? -(nk_u64_t)a : (nk_u64_t)a;
-    nk_u64_t abs_b = b < 0 ? -(nk_u64_t)b : (nk_u64_t)b;
+    nk_u64_t abs_a = a < 0 ? (0u - (nk_u64_t)a) : (nk_u64_t)a;
+    nk_u64_t abs_b = b < 0 ? (0u - (nk_u64_t)b) : (nk_u64_t)b;
     nk_u64_t high = nk_u64_mulhigh_neon_(abs_a, abs_b);
     nk_u64_t low = abs_a * abs_b;
     if (high || (sign && low > 9223372036854775808ull) || (!sign && low > 9223372036854775807ull))

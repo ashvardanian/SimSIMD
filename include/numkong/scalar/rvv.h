@@ -185,8 +185,8 @@ NK_PUBLIC nk_u64_t nk_u64_saturating_mul_rvv(nk_u64_t a, nk_u64_t b) {
 }
 NK_PUBLIC nk_i64_t nk_i64_saturating_mul_rvv(nk_i64_t a, nk_i64_t b) {
     int sign = (a < 0) ^ (b < 0);
-    nk_u64_t abs_a = a < 0 ? -(nk_u64_t)a : (nk_u64_t)a;
-    nk_u64_t abs_b = b < 0 ? -(nk_u64_t)b : (nk_u64_t)b;
+    nk_u64_t abs_a = a < 0 ? (0u - (nk_u64_t)a) : (nk_u64_t)a;
+    nk_u64_t abs_b = b < 0 ? (0u - (nk_u64_t)b) : (nk_u64_t)b;
     vuint64m1_t a_u64m1 = __riscv_vmv_v_x_u64m1(abs_a, 1);
     vuint64m1_t b_u64m1 = __riscv_vmv_v_x_u64m1(abs_b, 1);
     nk_u64_t high = __riscv_vmv_x_s_u64m1_u64(__riscv_vmulhu_vv_u64m1(a_u64m1, b_u64m1, 1));

@@ -238,8 +238,8 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_mul_serial(nk_i64_t a, nk_i64_t b) {
     int sign = ((a < 0) ^ (b < 0)) ? -1 : 1; // Track the sign of the result
 
     // Take absolute values for easy multiplication and overflow detection
-    nk_u64_t abs_a = (a < 0) ? -(nk_u64_t)a : (nk_u64_t)a;
-    nk_u64_t abs_b = (b < 0) ? -(nk_u64_t)b : (nk_u64_t)b;
+    nk_u64_t abs_a = (a < 0) ? (0u - (nk_u64_t)a) : (nk_u64_t)a;
+    nk_u64_t abs_b = (b < 0) ? (0u - (nk_u64_t)b) : (nk_u64_t)b;
 
     // Split the absolute values into high and low 32-bit parts
     nk_u64_t a_high = abs_a >> 32;

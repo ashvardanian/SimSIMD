@@ -89,8 +89,8 @@ NK_PUBLIC nk_u64_t nk_u64_saturating_mul_haswell(nk_u64_t a, nk_u64_t b) {
 }
 NK_PUBLIC nk_i64_t nk_i64_saturating_mul_haswell(nk_i64_t a, nk_i64_t b) {
     int sign = (a < 0) ^ (b < 0);
-    nk_u64_t abs_a = a < 0 ? -(nk_u64_t)a : (nk_u64_t)a;
-    nk_u64_t abs_b = b < 0 ? -(nk_u64_t)b : (nk_u64_t)b;
+    nk_u64_t abs_a = a < 0 ? (0u - (nk_u64_t)a) : (nk_u64_t)a;
+    nk_u64_t abs_b = b < 0 ? (0u - (nk_u64_t)b) : (nk_u64_t)b;
     unsigned long long high;
     unsigned long long low = _mulx_u64(abs_a, abs_b, &high);
     if (high || (sign && low > 9223372036854775808ull) || (!sign && low > 9223372036854775807ull))
