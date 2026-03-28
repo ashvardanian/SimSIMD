@@ -168,8 +168,6 @@ jobs:
         if: steps.download.outcome == 'success'
         working-directory: javascript/@numkong-${{ matrix.platform }}
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish_main:
     name: Publish Main Package to NPM
@@ -213,5 +211,3 @@ jobs:
 
       - name: Publish to NPM
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
