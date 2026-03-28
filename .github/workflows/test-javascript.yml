@@ -33,6 +33,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
+          timeout_minutes: 120
           command: |
             sudo apt update
             sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
@@ -72,6 +73,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             rm -rf ~/emsdk
             git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
@@ -118,6 +120,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             rm -rf ~/emsdk
             git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
@@ -164,6 +167,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
             tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
@@ -205,6 +209,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             rm -rf ~/emsdk
             git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
@@ -238,6 +243,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: npx playwright install --with-deps chromium
 
       - name: Test Browser runtime
@@ -276,6 +282,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
             tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
@@ -323,6 +330,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
+          timeout_minutes: 120
           command: |
             wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
             tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
@@ -365,6 +373,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
+          timeout_minutes: 120
           command: |
             sudo apt update
             sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
@@ -416,6 +425,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
+          timeout_minutes: 120
           command: |
             sudo apt update
             sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev

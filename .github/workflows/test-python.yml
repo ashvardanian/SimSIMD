@@ -44,6 +44,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
+          timeout_minutes: 120
           command: |
             python -m pip install --no-cache-dir --upgrade pip
             pip install --no-cache-dir py-cpuinfo pytest pytest-repeat pytest-randomly numpy scipy tabulate
@@ -55,6 +56,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
+          timeout_minutes: 120
           command: |
             sudo apt-get update
             gcc --version
