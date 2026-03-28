@@ -855,9 +855,71 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 #endif
 }
 
+/**
+ *  @brief  Returns a bitmask of all capabilities the library was compiled with,
+ *          regardless of whether the current CPU supports them at runtime.
+ */
+NK_PUBLIC nk_capability_t nk_capabilities_compiled_(void) {
+    nk_capability_t caps = nk_cap_serial_k;
+#if NK_TARGET_X86_
+    caps |= nk_cap_haswell_k * NK_TARGET_HASWELL;
+    caps |= nk_cap_skylake_k * NK_TARGET_SKYLAKE;
+    caps |= nk_cap_icelake_k * NK_TARGET_ICELAKE;
+    caps |= nk_cap_genoa_k * NK_TARGET_GENOA;
+    caps |= nk_cap_sapphire_k * NK_TARGET_SAPPHIRE;
+    caps |= nk_cap_sapphireamx_k * NK_TARGET_SAPPHIREAMX;
+    caps |= nk_cap_graniteamx_k * NK_TARGET_GRANITEAMX;
+    caps |= nk_cap_diamond_k * NK_TARGET_DIAMOND;
+    caps |= nk_cap_turin_k * NK_TARGET_TURIN;
+    caps |= nk_cap_alder_k * NK_TARGET_ALDER;
+    caps |= nk_cap_sierra_k * NK_TARGET_SIERRA;
+#endif
+#if NK_TARGET_ARM_
+    caps |= nk_cap_neon_k * NK_TARGET_NEON;
+    caps |= nk_cap_neonhalf_k * NK_TARGET_NEONHALF;
+    caps |= nk_cap_neonsdot_k * NK_TARGET_NEONSDOT;
+    caps |= nk_cap_neonbfdot_k * NK_TARGET_NEONBFDOT;
+    caps |= nk_cap_neonfhm_k * NK_TARGET_NEONFHM;
+    caps |= nk_cap_neonfp8_k * NK_TARGET_NEONFP8;
+    caps |= nk_cap_sve_k * NK_TARGET_SVE;
+    caps |= nk_cap_svehalf_k * NK_TARGET_SVEHALF;
+    caps |= nk_cap_svesdot_k * NK_TARGET_SVESDOT;
+    caps |= nk_cap_svebfdot_k * NK_TARGET_SVEBFDOT;
+    caps |= nk_cap_sve2_k * NK_TARGET_SVE2;
+    caps |= nk_cap_sve2p1_k * NK_TARGET_SVE2P1;
+    caps |= nk_cap_sme_k * NK_TARGET_SME;
+    caps |= nk_cap_sme2_k * NK_TARGET_SME2;
+    caps |= nk_cap_sme2p1_k * NK_TARGET_SME2P1;
+    caps |= nk_cap_smef64_k * NK_TARGET_SMEF64;
+    caps |= nk_cap_smehalf_k * NK_TARGET_SMEHALF;
+    caps |= nk_cap_smebf16_k * NK_TARGET_SMEBF16;
+    caps |= nk_cap_smebi32_k * NK_TARGET_SMEBI32;
+    caps |= nk_cap_smelut2_k * NK_TARGET_SMELUT2;
+    caps |= nk_cap_smefa64_k * NK_TARGET_SMEFA64;
+#endif
+#if NK_TARGET_RISCV_
+    caps |= nk_cap_rvv_k * NK_TARGET_RVV;
+    caps |= nk_cap_rvvhalf_k * NK_TARGET_RVVHALF;
+    caps |= nk_cap_rvvbf16_k * NK_TARGET_RVVBF16;
+    caps |= nk_cap_rvvbb_k * NK_TARGET_RVVBB;
+#endif
+#if NK_TARGET_LOONGARCH_
+    caps |= nk_cap_loongsonasx_k * NK_TARGET_LOONGSONASX;
+#endif
+#if NK_TARGET_POWER_
+    caps |= nk_cap_powervsx_k * NK_TARGET_POWERVSX;
+#endif
+#if NK_TARGET_WASM_
+    caps |= nk_cap_v128relaxed_k * NK_TARGET_V128RELAXED;
+#endif
+    return caps;
+}
+
 #if NK_DYNAMIC_DISPATCH
 
 NK_DYNAMIC nk_capability_t nk_capabilities(void);
+NK_DYNAMIC nk_capability_t nk_capabilities_available(void);
+NK_DYNAMIC nk_capability_t nk_capabilities_compiled(void);
 NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void);
 NK_DYNAMIC void nk_dispatch_table_update(nk_capability_t);
@@ -869,6 +931,8 @@ NK_DYNAMIC void nk_find_kernel_punned(nk_kernel_kind_t kind, nk_dtype_t dtype, n
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
+NK_PUBLIC nk_capability_t nk_capabilities_available(void) { return nk_capabilities_() & nk_capabilities_compiled_(); }
+NK_PUBLIC nk_capability_t nk_capabilities_compiled(void) { return nk_capabilities_compiled_(); }
 NK_PUBLIC void nk_dispatch_table_update(nk_capability_t caps) { nk_unused_(caps); }
 
 #endif

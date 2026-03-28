@@ -842,6 +842,9 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     return static_capabilities;
 }
 
+NK_DYNAMIC nk_capability_t nk_capabilities_available(void) { return nk_capabilities() & nk_capabilities_compiled_(); }
+NK_DYNAMIC nk_capability_t nk_capabilities_compiled(void) { return nk_capabilities_compiled_(); }
+
 NK_DYNAMIC void nk_find_kernel_punned( //
     nk_kernel_kind_t kind,             //
     nk_dtype_t dtype,                  //
