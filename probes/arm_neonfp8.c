@@ -1,7 +1,4 @@
 /* NumKong ISA probe: NEON FP8 (fp8dot4) */
-#if !defined(__ARM_NEON)
-#error "Feature not available"
-#endif
 #include <arm_neon.h>
 int test_neonfp8(void) {
     mfloat8x16_t a = vreinterpretq_mf8_u8(vdupq_n_u8(0));

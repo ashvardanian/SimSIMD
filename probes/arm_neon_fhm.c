@@ -1,7 +1,4 @@
 /* NumKong ISA probe: NEON FHM (ARMv8.2-A FP16 fused multiply-add) */
-#if !defined(__ARM_FEATURE_FP16_FML) && !(defined(__ARM_ARCH) && __ARM_ARCH >= 804)
-#error "NEON FHM not available"
-#endif
 #include <arm_neon.h>
 int main(void) {
     float16x8_t a = vdupq_n_f16(1.0f);

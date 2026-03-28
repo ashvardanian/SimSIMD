@@ -1,7 +1,4 @@
 /* NumKong ISA probe: NEON SDOT (ARMv8.2-A dot product) */
-#if !defined(__ARM_FEATURE_DOTPROD) && !(defined(__ARM_ARCH) && __ARM_ARCH >= 804)
-#error "NEON SDOT not available"
-#endif
 #include <arm_neon.h>
 int main(void) {
     int8x16_t a = vdupq_n_s8(1);

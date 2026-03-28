@@ -1,7 +1,4 @@
 /* NumKong ISA probe: NEON BF16 (ARMv8.6-A bfloat16 dot product) */
-#if !defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) && !(defined(__ARM_ARCH) && __ARM_ARCH >= 806)
-#error "NEON BF16 not available"
-#endif
 #include <arm_neon.h>
 int main(void) {
     bfloat16x8_t a = vdupq_n_bf16(1.0f);

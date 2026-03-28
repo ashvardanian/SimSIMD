@@ -1,7 +1,4 @@
 /* NumKong ISA probe: NEON (AArch64 baseline SIMD) */
-#if !defined(__ARM_NEON)
-#error "NEON not available"
-#endif
 #include <arm_neon.h>
 int main(void) {
     float32x4_t a = vdupq_n_f32(1.0f);
