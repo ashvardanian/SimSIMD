@@ -1541,6 +1541,12 @@ NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
     return c.bf;
 }
 
+NK_INTERNAL void nk_f64_from_i64_(nk_i64_t const *src, nk_f64_t *dest) { *dest = (nk_f64_t)*src; }
+NK_INTERNAL void nk_f64_from_u64_(nk_u64_t const *src, nk_f64_t *dest) { *dest = (nk_f64_t)*src; }
+NK_INTERNAL void nk_f32_from_i32_(nk_i32_t const *src, nk_f32_t *dest) { *dest = (nk_f32_t)*src; }
+NK_INTERNAL void nk_f32_from_u32_(nk_u32_t const *src, nk_f32_t *dest) { *dest = (nk_f32_t)*src; }
+NK_INTERNAL void nk_f32_from_f64_(nk_f64_t const *src, nk_f32_t *dest) { *dest = (nk_f32_t)*src; }
+
 /** @brief E4M3: NaN when (raw & 0x7F) == 0x7F  (two NaN values: 0x7F, 0xFF). */
 NK_INTERNAL int nk_e4m3_is_nan_(nk_e4m3_t x) { return (x & 0x7F) == 0x7F; }
 

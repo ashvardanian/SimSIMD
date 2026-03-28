@@ -436,7 +436,7 @@ nk_define_det3x3_(f64)
             rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;                                                     \
             rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;                                                     \
         }                                                                                                          \
-        if (scale) *scale = 1.0;                                                                                   \
+        if (scale) *scale = (nk_##output_type##_t)1;                                                               \
         nk_##accumulator_type##_t sum_squared = 0, sum_squared_compensation = 0;                                   \
         for (nk_size_t i = 0; i < n; ++i) {                                                                        \
             load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);                  \
@@ -534,7 +534,7 @@ nk_define_det3x3_(f64)
         if (rotation) {                                                                                              \
             for (int j = 0; j < 9; ++j) rotation[j] = (nk_##output_type##_t)rotation_matrix[j];                      \
         }                                                                                                            \
-        if (scale) *scale = 1.0;                                                                                     \
+        if (scale) *scale = (nk_##output_type##_t)1;                                                                 \
         /* Step 5: Compute RMSD after rotation */                                                                    \
         nk_##accumulator_type##_t sum_squared = 0, sum_squared_compensation = 0;                                     \
         for (nk_size_t i = 0; i < n; ++i) {                                                                          \
@@ -652,7 +652,7 @@ nk_define_det3x3_(f64)
         nk_##svd_type##_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                                 \
         nk_##accumulator_type##_t scale_factor = (nk_##accumulator_type##_t)trace_scaled_s /                          \
                                                  ((nk_##accumulator_type##_t)n * variance_a);                         \
-        if (scale) *scale = scale_factor;                                                                             \
+        if (scale) *scale = (nk_##output_type##_t)scale_factor;                                                       \
         if (rotation_det < 0) {                                                                                       \
             svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                                         \
             nk_rotation_from_svd_##svd_type##_serial_(svd_u, svd_v, rotation_matrix);                                 \

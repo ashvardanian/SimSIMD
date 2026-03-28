@@ -101,8 +101,8 @@ extern "C" {
         if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }                                                    \
         else if (dot_product == 0) { *result = 1; }                                                               \
         else {                                                                                                    \
-            nk_##output_type##_t unclipped_distance = 1 - dot_product * compute_rsqrt(a_norm_sq) *                \
-                                                              compute_rsqrt(b_norm_sq);                           \
+            nk_##output_type##_t unclipped_distance = (nk_##output_type##_t)(                                     \
+                1 - dot_product * compute_rsqrt(a_norm_sq) * compute_rsqrt(b_norm_sq));                           \
             *result = unclipped_distance > 0 ? unclipped_distance : 0;                                            \
         }                                                                                                         \
     }
