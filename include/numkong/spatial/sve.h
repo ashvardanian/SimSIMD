@@ -219,8 +219,8 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
         ab_compensation_f64x = svadd_f64_x(predicate_f64x, ab_compensation_f64x,
                                            svadd_f64_x(predicate_f64x, sum_error_f64x, product_error_f64x));
         // Simple FMA for self-products (no cancellation)
-        a2_f64x = svmla_f64_x(predicate_f64x, a2_f64x, a_f64x, a_f64x);
-        b2_f64x = svmla_f64_x(predicate_f64x, b2_f64x, b_f64x, b_f64x);
+        a2_f64x = svmla_f64_m(predicate_f64x, a2_f64x, a_f64x, a_f64x);
+        b2_f64x = svmla_f64_m(predicate_f64x, b2_f64x, b_f64x, b_f64x);
         i += svcntd();
     } while (i < n);
 
