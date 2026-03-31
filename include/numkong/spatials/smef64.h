@@ -37,11 +37,11 @@ NK_PUBLIC nk_f64_t nk_dots_reduce_sumsq_f32_ssve_(nk_f32_t const *data, nk_size_
 
         svbool_t predicate_lo_f64x = svwhilelt_b64_u64(i, count);
         svfloat64_t values_lo_f64x = svcvt_f64_f32_x(predicate_lo_f64x, values_f32x);
-        accumulator_lo_f64x = svmla_f64_x(predicate_lo_f64x, accumulator_lo_f64x, values_lo_f64x, values_lo_f64x);
+        accumulator_lo_f64x = svmla_f64_m(predicate_lo_f64x, accumulator_lo_f64x, values_lo_f64x, values_lo_f64x);
 
         svbool_t predicate_hi_f64x = svwhilelt_b64_u64(i + half_vector_length, count);
         svfloat64_t values_hi_f64x = svcvtlt_f64_f32_x(predicate_hi_f64x, values_f32x);
-        accumulator_hi_f64x = svmla_f64_x(predicate_hi_f64x, accumulator_hi_f64x, values_hi_f64x, values_hi_f64x);
+        accumulator_hi_f64x = svmla_f64_m(predicate_hi_f64x, accumulator_hi_f64x, values_hi_f64x, values_hi_f64x);
     }
     return svaddv_f64(svptrue_b64(), accumulator_lo_f64x) + svaddv_f64(svptrue_b64(), accumulator_hi_f64x);
 }
@@ -52,7 +52,7 @@ NK_PUBLIC nk_f64_t nk_dots_reduce_sumsq_f64_ssve_(nk_f64_t const *data, nk_size_
     for (nk_size_t i = 0; i < count; i += vector_length) {
         svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);
         svfloat64_t values_f64x = svld1_f64(predicate_f64x, data + i);
-        accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
+        accumulator_f64x = svmla_f64_m(predicate_f64x, accumulator_f64x, values_f64x, values_f64x);
     }
     return svaddv_f64(svptrue_b64(), accumulator_f64x);
 }

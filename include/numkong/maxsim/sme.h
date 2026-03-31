@@ -635,7 +635,7 @@ NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                         //
         svbool_t predicate_f64x = svwhilelt_b64_u64(i, count);
         svfloat64_t a_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(svwhilelt_b32_u64(i, count), a + i));
         svfloat64_t b_f64x = svcvt_f64_f32_x(predicate_f64x, svld1_f32(svwhilelt_b32_u64(i, count), b + i));
-        accumulator_f64x = svmla_f64_x(predicate_f64x, accumulator_f64x, a_f64x, b_f64x);
+        accumulator_f64x = svmla_f64_m(predicate_f64x, accumulator_f64x, a_f64x, b_f64x);
     }
     return svaddv_f64(svptrue_b64(), accumulator_f64x);
 }
@@ -839,7 +839,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                 svfloat64_t document_values_0_f64x = svcvt_f64_f32_x(
                     predicate_depth_f64x,
                     svld1_f32(predicate_depth_f32x, document_original_ptrs[row_batch_start + 0] + depth_index));
-                accumulator_0_f64x = svmla_f64_x(predicate_depth_f64x, accumulator_0_f64x, query_values_0_f64x,
+                accumulator_0_f64x = svmla_f64_m(predicate_depth_f64x, accumulator_0_f64x, query_values_0_f64x,
                                                  document_values_0_f64x);
 
                 svfloat64_t query_values_1_f64x = svcvt_f64_f32_x(
@@ -848,7 +848,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                 svfloat64_t document_values_1_f64x = svcvt_f64_f32_x(
                     predicate_depth_f64x,
                     svld1_f32(predicate_depth_f32x, document_original_ptrs[row_batch_start + 1] + depth_index));
-                accumulator_1_f64x = svmla_f64_x(predicate_depth_f64x, accumulator_1_f64x, query_values_1_f64x,
+                accumulator_1_f64x = svmla_f64_m(predicate_depth_f64x, accumulator_1_f64x, query_values_1_f64x,
                                                  document_values_1_f64x);
 
                 svfloat64_t query_values_2_f64x = svcvt_f64_f32_x(
@@ -857,7 +857,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                 svfloat64_t document_values_2_f64x = svcvt_f64_f32_x(
                     predicate_depth_f64x,
                     svld1_f32(predicate_depth_f32x, document_original_ptrs[row_batch_start + 2] + depth_index));
-                accumulator_2_f64x = svmla_f64_x(predicate_depth_f64x, accumulator_2_f64x, query_values_2_f64x,
+                accumulator_2_f64x = svmla_f64_m(predicate_depth_f64x, accumulator_2_f64x, query_values_2_f64x,
                                                  document_values_2_f64x);
 
                 svfloat64_t query_values_3_f64x = svcvt_f64_f32_x(
@@ -866,7 +866,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                 svfloat64_t document_values_3_f64x = svcvt_f64_f32_x(
                     predicate_depth_f64x,
                     svld1_f32(predicate_depth_f32x, document_original_ptrs[row_batch_start + 3] + depth_index));
-                accumulator_3_f64x = svmla_f64_x(predicate_depth_f64x, accumulator_3_f64x, query_values_3_f64x,
+                accumulator_3_f64x = svmla_f64_m(predicate_depth_f64x, accumulator_3_f64x, query_values_3_f64x,
                                                  document_values_3_f64x);
             }
 

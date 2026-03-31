@@ -76,14 +76,14 @@ NK_PUBLIC void nk_dot2_f64_sve_accumulate_(svbool_t predicate_f64x, svfloat64_t 
     svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
     svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                  svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
-    svfloat64_t running_sum_f64x = svadd_f64_x(predicate_f64x, *sum, product_f64x);
+    svfloat64_t running_sum_f64x = svadd_f64_m(predicate_f64x, *sum, product_f64x);
     svfloat64_t recovered_addend_f64x = svsub_f64_x(predicate_f64x, running_sum_f64x, *sum);
     svfloat64_t sum_error_f64x = svadd_f64_x(
         predicate_f64x,
         svsub_f64_x(predicate_f64x, *sum, svsub_f64_x(predicate_f64x, running_sum_f64x, recovered_addend_f64x)),
         svsub_f64_x(predicate_f64x, product_f64x, recovered_addend_f64x));
     *sum = running_sum_f64x;
-    *comp = svadd_f64_x(predicate_f64x, *comp, svadd_f64_x(predicate_f64x, sum_error_f64x, product_error_f64x));
+    *comp = svadd_f64_m(predicate_f64x, *comp, svadd_f64_x(predicate_f64x, sum_error_f64x, product_error_f64x));
 }
 
 /**

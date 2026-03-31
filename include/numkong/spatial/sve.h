@@ -168,7 +168,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_s
         svfloat64_t diff_f64x = svsub_f64_x(predicate_f64x, a_f64x, b_f64x);
         svfloat64_t diff_sq_f64x = svmul_f64_x(predicate_f64x, diff_f64x, diff_f64x);
         // Neumaier: t = sum + x
-        svfloat64_t t_f64x = svadd_f64_x(predicate_f64x, sum_f64x, diff_sq_f64x);
+        svfloat64_t t_f64x = svadd_f64_m(predicate_f64x, sum_f64x, diff_sq_f64x);
         svfloat64_t abs_sum_f64x = svabs_f64_x(predicate_f64x, sum_f64x);
         // diff_sq is already non-negative (it's a square), so svabs is unnecessary
         svbool_t sum_ge_x_f64x = svcmpge_f64(predicate_f64x, abs_sum_f64x, diff_sq_f64x);
@@ -178,7 +178,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_s
         svfloat64_t comp_x_large_f64x = svadd_f64_x(predicate_f64x, svsub_f64_x(predicate_f64x, diff_sq_f64x, t_f64x),
                                                     sum_f64x);
         svfloat64_t comp_update_f64x = svsel_f64(sum_ge_x_f64x, comp_sum_large_f64x, comp_x_large_f64x);
-        compensation_f64x = svadd_f64_x(predicate_f64x, compensation_f64x, comp_update_f64x);
+        compensation_f64x = svadd_f64_m(predicate_f64x, compensation_f64x, comp_update_f64x);
         sum_f64x = t_f64x;
         i += svcntd();
     } while (i < n);
@@ -208,7 +208,7 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
         svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
                                                      svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
         // TwoSum: (tentative_sum, sum_error) = TwoSum(sum, product)
-        svfloat64_t tentative_sum_f64x = svadd_f64_x(predicate_f64x, ab_sum_f64x, product_f64x);
+        svfloat64_t tentative_sum_f64x = svadd_f64_m(predicate_f64x, ab_sum_f64x, product_f64x);
         svfloat64_t virtual_addend_f64x = svsub_f64_x(predicate_f64x, tentative_sum_f64x, ab_sum_f64x);
         svfloat64_t sum_error_f64x = svadd_f64_x(
             predicate_f64x,
@@ -216,7 +216,7 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
                         svsub_f64_x(predicate_f64x, tentative_sum_f64x, virtual_addend_f64x)),
             svsub_f64_x(predicate_f64x, product_f64x, virtual_addend_f64x));
         ab_sum_f64x = tentative_sum_f64x;
-        ab_compensation_f64x = svadd_f64_x(predicate_f64x, ab_compensation_f64x,
+        ab_compensation_f64x = svadd_f64_m(predicate_f64x, ab_compensation_f64x,
                                            svadd_f64_x(predicate_f64x, sum_error_f64x, product_error_f64x));
         // Simple FMA for self-products (no cancellation)
         a2_f64x = svmla_f64_m(predicate_f64x, a2_f64x, a_f64x, a_f64x);
