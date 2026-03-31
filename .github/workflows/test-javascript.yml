@@ -47,7 +47,7 @@ jobs:
         run: |
           npm install --ignore-scripts
           node probes/probe.js
-          npm run prebuild-single
+          npx node-gyp rebuild
           npm run build-js
           npm test
 
@@ -387,7 +387,7 @@ jobs:
         run: |
           npm install --ignore-scripts
           node probes/probe.js
-          npm run prebuild-single
+          npx node-gyp rebuild
           npm run build-js
           npm test
 
@@ -439,7 +439,7 @@ jobs:
         run: |
           npm install --ignore-scripts
           node probes/probe.js
-          npm run prebuild-single
+          npx node-gyp rebuild
           npm run build-js
 
       - name: Test with Node
