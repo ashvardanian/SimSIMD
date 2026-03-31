@@ -100,11 +100,11 @@ NK_PUBLIC void nk_dot_f32_sve(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
         nk_size_t remaining = count_scalars - idx_scalars < svcntw() ? count_scalars - idx_scalars : svcntw();
 
         // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0u, (remaining + 1) / 2);
         ab_f64x = svmla_f64_m(pred_even_f64x, ab_f64x, svcvt_f64_f32_x(pred_even_f64x, a_f32x),
                               svcvt_f64_f32_x(pred_even_f64x, b_f32x));
 
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0u, remaining / 2);
         ab_f64x = svmla_f64_m(pred_odd_f64x, ab_f64x, svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1)),
                               svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1)));
     }
@@ -127,7 +127,7 @@ NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
         nk_size_t remaining = count_pairs - idx_pairs < svcntw() ? count_pairs - idx_pairs : svcntw();
 
         // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0u, (remaining + 1) / 2);
         svfloat64_t a_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_real_f32x);
         svfloat64_t a_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_imag_f32x);
         svfloat64_t b_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_real_f32x);
@@ -137,7 +137,7 @@ NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
         ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_real_even_f64x, b_imag_even_f64x);
         ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_imag_even_f64x, b_real_even_f64x);
 
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0u, remaining / 2);
         svfloat64_t a_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_real_f32x, a_real_f32x, 1));
         svfloat64_t a_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_imag_f32x, a_imag_f32x, 1));
         svfloat64_t b_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_real_f32x, b_real_f32x, 1));
@@ -167,7 +167,7 @@ NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         nk_size_t remaining = count_pairs - idx_pairs < svcntw() ? count_pairs - idx_pairs : svcntw();
 
         // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0u, (remaining + 1) / 2);
         svfloat64_t a_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_real_f32x);
         svfloat64_t a_imag_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_imag_f32x);
         svfloat64_t b_real_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_real_f32x);
@@ -177,7 +177,7 @@ NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         ab_imag_f64x = svmla_f64_m(pred_even_f64x, ab_imag_f64x, a_real_even_f64x, b_imag_even_f64x);
         ab_imag_f64x = svmls_f64_m(pred_even_f64x, ab_imag_f64x, a_imag_even_f64x, b_real_even_f64x);
 
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0u, remaining / 2);
         svfloat64_t a_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_real_f32x, a_real_f32x, 1));
         svfloat64_t a_imag_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_imag_f32x, a_imag_f32x, 1));
         svfloat64_t b_real_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_real_f32x, b_real_f32x, 1));

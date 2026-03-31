@@ -221,7 +221,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_sve2( //
         // Use SVE2 svcompact to compress matching elements and store to result buffer
         if (result) {
             svuint32_t compacted = svcompact_u32(equal_mask, a_u32x);
-            svbool_t store_predicate = svwhilelt_b32_u64(0, equal_count);
+            svbool_t store_predicate = svwhilelt_b32_u64(0u, equal_count);
             svst1_u32(store_predicate, result + c, compacted);
         }
 
@@ -294,7 +294,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_sve2( //
         // Use SVE2 svcompact to compress matching elements and store to result buffer
         if (result) {
             svuint64_t compacted = svcompact_u64(equal_mask, a_u64x);
-            svbool_t store_predicate = svwhilelt_b64_u64(0, equal_count);
+            svbool_t store_predicate = svwhilelt_b64_u64(0u, equal_count);
             svst1_u64(store_predicate, result + c, compacted);
         }
 
@@ -384,8 +384,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
         // Widen to f64 and accumulate. svcvt_f64_f32 converts even-indexed f32
         // elements; svcvtlt_f64_f32 converts odd-indexed f32 elements.
         nk_size_t match_count = svcntp_b32(a_progress_u32x, a_overlap_mask_u32x);
-        svbool_t pred_even_f64x = svwhilelt_b64_u64((nk_u64_t)0, (match_count + 1) / 2);
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64((nk_u64_t)0, match_count / 2);
+        svbool_t pred_even_f64x = svwhilelt_b64_u64(0u, (match_count + 1) / 2);
+        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0u, match_count / 2);
         product_f64x = svmla_f64_x(pred_even_f64x, product_f64x, svcvt_f64_f32_x(pred_even_f64x, a_matched_f32x),
                                    svcvt_f64_f32_x(pred_even_f64x, b_matched_f32x));
         product_f64x = svmla_f64_x(pred_odd_f64x, product_f64x, svcvtlt_f64_f32_x(pred_odd_f64x, a_matched_f32x),
