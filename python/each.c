@@ -88,7 +88,7 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -126,13 +126,13 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
     {
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
         if (alpha_obj) {
-            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&alpha_buf, 1.0, scalar_dtype);
         if (beta_obj) {
-            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&beta_buf, 1.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&beta_buf, 1.0, scalar_dtype);
     }
 
     // Look up the kernel and the capability
@@ -144,9 +144,9 @@ PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
-            kernel_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            kernel_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -254,7 +254,7 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -289,13 +289,13 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     {
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
         if (alpha_obj) {
-            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&alpha_buf, 1.0, scalar_dtype);
         if (beta_obj) {
-            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&beta_buf, 1.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&beta_buf, 1.0, scalar_dtype);
     }
 
     // Look up the kernel and the capability
@@ -307,9 +307,9 @@ PyObject *api_blend(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
-            kernel_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            kernel_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -412,7 +412,7 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -444,13 +444,13 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
     {
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
         if (alpha_obj) {
-            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&alpha_buf, 1.0, scalar_dtype);
         if (beta_obj) {
-            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+            if (!py_number_to_nk_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
         }
-        else nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+        else nk_scalar_buffer_from_f64(&beta_buf, 0.0, scalar_dtype);
     }
 
     // Look up the kernel and the capability
@@ -462,9 +462,9 @@ PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const posi
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported kernel '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
-            kernel_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            kernel_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -531,8 +531,8 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
-    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
+    nk_dtype_t dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
+    if (out_dtype_obj) { dtype = py_object_to_nk_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_scale_punned_t scale_kernel = NULL;
@@ -540,16 +540,16 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, (nk_kernel_punned_t *)&scale_kernel,
                           &capability);
     if (!scale_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", nk_dtype_name(dtype));
         goto cleanup;
     }
 
     nk_scalar_buffer_t alpha_buf, beta_buf;
     nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
-    nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
-    if (!py_number_to_scalar_buffer(scalar_obj, &beta_buf, scalar_dtype)) goto cleanup;
+    nk_scalar_buffer_from_f64(&alpha_buf, 1.0, scalar_dtype);
+    if (!py_number_to_nk_scalar_buffer(scalar_obj, &beta_buf, scalar_dtype)) goto cleanup;
 
-    size_t const element_size = bytes_per_dtype(dtype);
+    size_t const element_size = nk_dtype_bytes_per_value(dtype);
     size_t total_elements = 1;
     for (int dim = 0; dim < a_buffer.ndim; dim++) total_elements *= (size_t)a_buffer.shape[dim];
 
@@ -569,7 +569,8 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     }
     // nk.add(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
     // → kernel computes int16, then casts int16→float64 into output buffer
-    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+    else if ((out_buf_dtype = resolve_nk_dtype_in_py_buffer(&out_buffer)) != nk_dtype_unknown_k &&
+             out_buf_dtype != dtype) {
         cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
@@ -631,8 +632,8 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t a_dtype = dtype_from_buffer(&a_buffer);
-    nk_dtype_t b_dtype = dtype_from_buffer(&b_buffer);
+    nk_dtype_t a_dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
+    nk_dtype_t b_dtype = resolve_nk_dtype_in_py_buffer(&b_buffer);
     if (a_dtype == nk_dtype_unknown_k || b_dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_TypeError, "Unsupported input dtype");
         goto cleanup;
@@ -641,15 +642,15 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     nk_dtype_t dtype;
     if (a_dtype == b_dtype) { dtype = a_dtype; }
     else {
-        dtype = promote_dtypes(a_dtype, b_dtype);
+        dtype = nk_dtype_promote(a_dtype, b_dtype);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_TypeError, "Cannot promote dtypes '%s' and '%s'", dtype_to_string(a_dtype),
-                         dtype_to_string(b_dtype));
+            PyErr_Format(PyExc_TypeError, "Cannot promote dtypes '%s' and '%s'", nk_dtype_name(a_dtype),
+                         nk_dtype_name(b_dtype));
             goto cleanup;
         }
     }
 
-    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
+    if (out_dtype_obj) { dtype = py_object_to_nk_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_sum_punned_t sum_kernel = NULL;
@@ -657,7 +658,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     nk_find_kernel_punned(nk_kernel_each_sum_k, dtype, static_capabilities, (nk_kernel_punned_t *)&sum_kernel,
                           &capability);
     if (!sum_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", nk_dtype_name(dtype));
         goto cleanup;
     }
 
@@ -672,7 +673,7 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
                                           total_elements, &b_needs_free);
     if (!b_promoted) goto cleanup;
 
-    size_t const element_size = bytes_per_dtype(dtype);
+    size_t const element_size = nk_dtype_bytes_per_value(dtype);
     Py_ssize_t promoted_strides[NK_TENSOR_MAX_RANK];
     compute_contiguous_strides((size_t)num_dims, a_buffer.shape, element_size, promoted_strides);
 
@@ -692,7 +693,8 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     }
     // nk.add(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
     // → kernel computes int32, then casts int32→float64 into output buffer
-    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+    else if ((out_buf_dtype = resolve_nk_dtype_in_py_buffer(&out_buffer)) != nk_dtype_unknown_k &&
+             out_buf_dtype != dtype) {
         cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
@@ -765,8 +767,8 @@ PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positi
         }
     }
 
-    int a_is_scalar = is_scalar(a_obj);
-    int b_is_scalar = is_scalar(b_obj);
+    int a_is_scalar = py_object_is_scalar(a_obj);
+    int b_is_scalar = py_object_is_scalar(b_obj);
 
     if (a_is_scalar && b_is_scalar) {
         PyErr_SetString(PyExc_TypeError, "At least one argument must be an array");
@@ -819,8 +821,8 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     if (out_obj && !nk_get_buffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT, &out_backing)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
-    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
+    nk_dtype_t dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
+    if (out_dtype_obj) { dtype = py_object_to_nk_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_scale_punned_t scale_kernel = NULL;
@@ -828,16 +830,16 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, (nk_kernel_punned_t *)&scale_kernel,
                           &capability);
     if (!scale_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", nk_dtype_name(dtype));
         goto cleanup;
     }
 
     nk_scalar_buffer_t alpha_buf, beta_buf;
     nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
-    if (!py_number_to_scalar_buffer(scalar_obj, &alpha_buf, scalar_dtype)) goto cleanup;
-    nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+    if (!py_number_to_nk_scalar_buffer(scalar_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+    nk_scalar_buffer_from_f64(&beta_buf, 0.0, scalar_dtype);
 
-    size_t const element_size = bytes_per_dtype(dtype);
+    size_t const element_size = nk_dtype_bytes_per_value(dtype);
     size_t total_elements = 1;
     for (int dim = 0; dim < a_buffer.ndim; dim++) total_elements *= (size_t)a_buffer.shape[dim];
 
@@ -857,7 +859,8 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     }
     // nk.multiply(np.int16([1,2,3]), 5, out=np.zeros(3, dtype=np.float64))
     // → kernel computes int16, then casts int16→float64 into output buffer
-    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+    else if ((out_buf_dtype = resolve_nk_dtype_in_py_buffer(&out_buffer)) != nk_dtype_unknown_k &&
+             out_buf_dtype != dtype) {
         cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
@@ -919,8 +922,8 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t a_dtype = dtype_from_buffer(&a_buffer);
-    nk_dtype_t b_dtype = dtype_from_buffer(&b_buffer);
+    nk_dtype_t a_dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
+    nk_dtype_t b_dtype = resolve_nk_dtype_in_py_buffer(&b_buffer);
     if (a_dtype == nk_dtype_unknown_k || b_dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_TypeError, "Unsupported input dtype");
         goto cleanup;
@@ -929,15 +932,15 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     nk_dtype_t dtype;
     if (a_dtype == b_dtype) { dtype = a_dtype; }
     else {
-        dtype = promote_dtypes(a_dtype, b_dtype);
+        dtype = nk_dtype_promote(a_dtype, b_dtype);
         if (dtype == nk_dtype_unknown_k) {
-            PyErr_Format(PyExc_TypeError, "Cannot promote dtypes '%s' and '%s'", dtype_to_string(a_dtype),
-                         dtype_to_string(b_dtype));
+            PyErr_Format(PyExc_TypeError, "Cannot promote dtypes '%s' and '%s'", nk_dtype_name(a_dtype),
+                         nk_dtype_name(b_dtype));
             goto cleanup;
         }
     }
 
-    if (out_dtype_obj) { dtype = python_arg_to_dtype(out_dtype_obj); }
+    if (out_dtype_obj) { dtype = py_object_to_nk_dtype(out_dtype_obj); }
     if (dtype == nk_dtype_unknown_k) goto cleanup;
 
     nk_each_fma_punned_t fma_kernel = NULL;
@@ -945,14 +948,14 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     nk_find_kernel_punned(nk_kernel_each_fma_k, dtype, static_capabilities, (nk_kernel_punned_t *)&fma_kernel,
                           &capability);
     if (!fma_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", nk_dtype_name(dtype));
         goto cleanup;
     }
 
     nk_scalar_buffer_t alpha_buf, beta_buf;
     nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
-    nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
-    nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+    nk_scalar_buffer_from_f64(&alpha_buf, 1.0, scalar_dtype);
+    nk_scalar_buffer_from_f64(&beta_buf, 0.0, scalar_dtype);
 
     int const num_dims = a_buffer.ndim;
     size_t total_elements = 1;
@@ -965,7 +968,7 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
                                           total_elements, &b_needs_free);
     if (!b_promoted) goto cleanup;
 
-    size_t const element_size = bytes_per_dtype(dtype);
+    size_t const element_size = nk_dtype_bytes_per_value(dtype);
     Py_ssize_t promoted_strides[NK_TENSOR_MAX_RANK];
     compute_contiguous_strides((size_t)num_dims, a_buffer.shape, element_size, promoted_strides);
 
@@ -986,7 +989,8 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     }
     // nk.multiply(np.int16([1,2,3]), np.uint16([4,5,6]), out=np.zeros(3, dtype=np.float64))
     // → kernel computes int32, then casts int32→float64 into output buffer
-    else if ((out_buf_dtype = dtype_from_buffer(&out_buffer)) != nk_dtype_unknown_k && out_buf_dtype != dtype) {
+    else if ((out_buf_dtype = resolve_nk_dtype_in_py_buffer(&out_buffer)) != nk_dtype_unknown_k &&
+             out_buf_dtype != dtype) {
         cast_staging = PyMem_Malloc(total_elements * element_size + NK_TENSOR_PADDING_);
         if (!cast_staging) {
             PyErr_NoMemory();
@@ -1061,8 +1065,8 @@ PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const p
         }
     }
 
-    int a_is_scalar = is_scalar(a_obj);
-    int b_is_scalar = is_scalar(b_obj);
+    int a_is_scalar = py_object_is_scalar(a_obj);
+    int b_is_scalar = py_object_is_scalar(b_obj);
 
     if (a_is_scalar && b_is_scalar) {
         PyErr_SetString(PyExc_TypeError, "At least one argument must be an array");
@@ -1167,7 +1171,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -1202,9 +1206,9 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t kernel_kind, PyObject *
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported kernel '%c' and dtype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            kernel_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 

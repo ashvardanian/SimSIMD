@@ -37,7 +37,7 @@ static PyObject *PackedMatrix_repr(PyObject *self) {
     PackedMatrix *mm = (PackedMatrix *)self;
     size_t packed_size = packed_matrix_nbytes(mm);
     return PyUnicode_FromFormat("<PackedMatrix width=%zu depth=%zu dtype='%s' nbytes=%zu>", (size_t)mm->width,
-                                (size_t)mm->depth, dtype_to_string(mm->dtype), packed_size);
+                                (size_t)mm->depth, nk_dtype_name(mm->dtype), packed_size);
 }
 
 static PyObject *PackedMatrix_get_width(PyObject *self, void *closure) {
@@ -52,7 +52,7 @@ static PyObject *PackedMatrix_get_depth(PyObject *self, void *closure) {
 
 static PyObject *PackedMatrix_get_dtype(PyObject *self, void *closure) {
     nk_unused_(closure);
-    return PyUnicode_FromString(dtype_to_string(((PackedMatrix *)self)->dtype));
+    return PyUnicode_FromString(nk_dtype_name(((PackedMatrix *)self)->dtype));
 }
 
 static PyObject *PackedMatrix_get_nbytes(PyObject *self, void *closure) {
@@ -110,7 +110,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     nk_size_t depth = (nk_size_t)PyLong_AsSize_t(depth_obj);
     if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
-    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    nk_dtype_t dtype = py_object_to_nk_dtype(dtype_obj);
     if (dtype == nk_dtype_unknown_k) return NULL;
 
     nk_dots_packed_size_punned_t size_fn = NULL;
@@ -118,7 +118,7 @@ static PyObject *PackedMatrix_packed_size(PyObject *cls, PyObject *const *args, 
     nk_find_kernel_punned(nk_kernel_dots_packed_size_k, dtype, static_capabilities, (nk_kernel_punned_t *)&size_fn,
                           &cap);
     if (!size_fn || !cap) {
-        PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", dtype_to_python_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No packed_size kernel for dtype '%s'", nk_dtype_to_pybuffer_typestr(dtype));
         return NULL;
     }
 
@@ -183,11 +183,11 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     if (a->dtype != packed->dtype) {
         PyErr_Format(PyExc_TypeError,
                      "dtype mismatch: tensor is '%s' but packed matrix is '%s'. " "Use .astype('%s') to convert first.",
-                     dtype_to_python_string(a->dtype), dtype_to_python_string(packed->dtype),
-                     dtype_to_python_string(packed->dtype));
+                     nk_dtype_to_pybuffer_typestr(a->dtype), nk_dtype_to_pybuffer_typestr(packed->dtype),
+                     nk_dtype_to_pybuffer_typestr(packed->dtype));
         return NULL;
     }
-    if (col_stride != (nk_size_t)bytes_per_dtype(packed->dtype)) {
+    if (col_stride != (nk_size_t)nk_dtype_bytes_per_value(packed->dtype)) {
         PyErr_SetString(PyExc_ValueError, "matmul requires row-contiguous left operand");
         return NULL;
     }
@@ -214,7 +214,7 @@ PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     Tensor *result = Tensor_new(out_dtype, 2, out_shape);
     if (!result) return NULL;
 
-    nk_size_t c_stride = n * bytes_per_dtype(out_dtype);
+    nk_size_t c_stride = n * nk_dtype_bytes_per_value(out_dtype);
     PyThreadState *save = PyEval_SaveThread();
     matmul_fn(a->data, packed->start, result->data, height, n, k, row_stride, c_stride);
     PyEval_RestoreThread(save);
@@ -290,11 +290,11 @@ static int resolve_output_tensor(                                            //
 
         if ((*result)->dtype != out_dtype) {
             PyErr_Format(PyExc_TypeError, "out dtype '%s' does not match expected '%s'",
-                         dtype_to_python_string((*result)->dtype), dtype_to_python_string(out_dtype));
+                         nk_dtype_to_pybuffer_typestr((*result)->dtype), nk_dtype_to_pybuffer_typestr(out_dtype));
             return 0;
         }
 
-        size_t out_item_size = bytes_per_dtype(out_dtype);
+        size_t out_item_size = nk_dtype_bytes_per_value(out_dtype);
         if ((*result)->strides[1] != (Py_ssize_t)out_item_size ||
             (*result)->strides[0] != (Py_ssize_t)(cols * out_item_size)) {
             PyErr_SetString(PyExc_ValueError, "out must be C-contiguous");
@@ -312,7 +312,7 @@ static int resolve_output_tensor(                                            //
     if (!*result) return 0;
 
     *out_data = (*result)->data;
-    *row_stride = cols * bytes_per_dtype(out_dtype);
+    *row_stride = cols * nk_dtype_bytes_per_value(out_dtype);
     *owns_result = 1;
     return 1;
 }
@@ -371,7 +371,7 @@ static PyObject *api_packed_common( //
         return NULL;
     }
 
-    nk_dtype_t src_dtype = dtype_from_buffer(&a_buffer);
+    nk_dtype_t src_dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
     if (src_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", a_buffer.format);
         PyBuffer_Release(&a_buffer);
@@ -387,8 +387,8 @@ static PyObject *api_packed_common( //
     nk_size_t depth = (nk_size_t)a_buffer.shape[1];
     nk_size_t input_row_stride = (nk_size_t)a_buffer.strides[0];
     nk_size_t input_col_stride = (nk_size_t)a_buffer.strides[1];
-    int is_subbyte = nk_dtype_dimensions_per_value(packed->dtype) > 1;
-    if (is_subbyte) depth *= nk_dtype_dimensions_per_value(packed->dtype);
+    int is_subbyte = nk_dimensions_per_value(packed->dtype) > 1;
+    if (is_subbyte) depth *= nk_dimensions_per_value(packed->dtype);
 
     if (depth != packed->depth) {
         PyBuffer_Release(&a_buffer);
@@ -400,7 +400,7 @@ static PyObject *api_packed_common( //
     if (src_dtype != packed->dtype && !(is_subbyte && src_dtype == nk_u8_k)) {
         PyBuffer_Release(&a_buffer);
         PyErr_Format(PyExc_TypeError, "dtype mismatch: input is '%s' but packed matrix is '%s'",
-                     dtype_to_python_string(src_dtype), dtype_to_python_string(packed->dtype));
+                     nk_dtype_to_pybuffer_typestr(src_dtype), nk_dtype_to_pybuffer_typestr(packed->dtype));
         return NULL;
     }
 
@@ -518,14 +518,14 @@ static PyObject *api_symmetric_common( //
         goto cleanup;
     }
 
-    nk_dtype_t dtype = dtype_from_buffer(&vec_buf);
+    nk_dtype_t dtype = resolve_nk_dtype_in_py_buffer(&vec_buf);
     if (dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", vec_buf.format);
         goto cleanup;
     }
 
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) goto cleanup;
     }
 
@@ -534,7 +534,7 @@ static PyObject *api_symmetric_common( //
     nk_find_kernel_punned(spec->symmetric_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
     if (!kernel || !cap) {
         PyErr_Format(PyExc_LookupError, "No %s_symmetric kernel for dtype '%s'", spec->name,
-                     dtype_to_python_string(dtype));
+                     nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -546,7 +546,7 @@ static PyObject *api_symmetric_common( //
 
     nk_size_t n_vectors = (nk_size_t)vec_buf.shape[0];
     nk_size_t depth = (nk_size_t)vec_buf.shape[1];
-    depth *= nk_dtype_dimensions_per_value(dtype);
+    depth *= nk_dimensions_per_value(dtype);
     nk_size_t stride = (nk_size_t)vec_buf.strides[0];
 
     Tensor *result = NULL;
@@ -630,7 +630,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     }
     if (nargs >= 2) dtype_obj = args[1];
 
-    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : default_dtype;
+    nk_dtype_t target_dtype = dtype_obj ? py_object_to_nk_dtype(dtype_obj) : default_dtype;
     if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
 
     Py_buffer b_buffer;
@@ -646,7 +646,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
         return NULL;
     }
 
-    nk_dtype_t src_dtype = dtype_from_buffer(&b_buffer);
+    nk_dtype_t src_dtype = resolve_nk_dtype_in_py_buffer(&b_buffer);
     if (src_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", b_buffer.format);
         PyBuffer_Release(&b_buffer);
@@ -663,16 +663,16 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     nk_size_t width = (nk_size_t)b_buffer.shape[0];
     nk_size_t depth = (nk_size_t)b_buffer.shape[1];
     // For sub-byte types (e.g. uint1), shape[1] is in bytes but kernels expect logical dimensions
-    depth *= nk_dtype_dimensions_per_value(target_dtype);
+    depth *= nk_dimensions_per_value(target_dtype);
     nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
     nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
     // Allow uint8 input when target is a sub-byte type like uint1 (bits stored as uint8 bytes)
-    int is_subbyte = nk_dtype_dimensions_per_value(target_dtype) > 1;
+    int is_subbyte = nk_dimensions_per_value(target_dtype) > 1;
     if (src_dtype != target_dtype && !(is_subbyte && src_dtype == nk_u8_k)) {
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'.",
-                     dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
+                     nk_dtype_to_pybuffer_typestr(src_dtype), nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
     if (col_stride != (nk_size_t)b_buffer.itemsize) {
@@ -688,7 +688,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
                           (nk_kernel_punned_t *)&size_fn, &cap);
     if (!size_fn || !cap) {
         PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_LookupError, "No packing kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_LookupError, "No packing kernel for dtype '%s'", nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
     nk_size_t packed_size = size_fn(width, depth);
@@ -711,7 +711,7 @@ static PyObject *api_pack_common(PyObject *const *args, Py_ssize_t nargs, PyObje
     if (!pack_fn || !cap) {
         Py_DECREF(packed);
         PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_LookupError, "No pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_LookupError, "No pack kernel for dtype '%s'", nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
 

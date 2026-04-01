@@ -993,7 +993,7 @@ NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
 /** @brief Returns how many logical dimensions are packed into one storage value.
  *  For sub-byte types multiple dimensions share a single byte container.
  *  For byte-or-larger types this is always 1. */
-NK_PUBLIC nk_size_t nk_dtype_dimensions_per_value(nk_dtype_t dtype) {
+NK_PUBLIC nk_size_t nk_dimensions_per_value(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_u1_k: return 8;
     case nk_i4_k: return 2;

@@ -102,180 +102,166 @@
 
 nk_capability_t static_capabilities = 0;
 
-double nk_scalar_buffer_get_f64(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: return buf->f64;
-    case nk_f32_k: return (double)buf->f32;
-    case nk_f16_k: {
-        nk_f32_t f32_tmp;
-        nk_f16_to_f32(&buf->f16, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    case nk_bf16_k: {
-        nk_f32_t f32_tmp;
-        nk_bf16_to_f32(&buf->bf16, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    case nk_f64c_k: return buf->f64c.real;
-    case nk_f32c_k: return (double)buf->f32c.real;
-    case nk_i64_k: return (double)buf->i64;
-    case nk_u64_k: return (double)buf->u64;
-    case nk_i32_k: return (double)buf->i32;
-    case nk_u32_k: return (double)buf->u32;
-    case nk_i16_k: return (double)buf->i16;
-    case nk_u16_k: return (double)buf->u16;
-    case nk_i8_k: return (double)buf->i8;
-    case nk_u8_k: return (double)buf->u8;
-    case nk_e4m3_k: {
-        nk_f32_t f32_tmp;
-        nk_e4m3_to_f32(&buf->u8, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    case nk_e5m2_k: {
-        nk_f32_t f32_tmp;
-        nk_e5m2_to_f32(&buf->u8, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    case nk_e2m3_k: {
-        nk_f32_t f32_tmp;
-        nk_e2m3_to_f32(&buf->u8, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    case nk_e3m2_k: {
-        nk_f32_t f32_tmp;
-        nk_e3m2_to_f32(&buf->u8, &f32_tmp);
-        return (double)f32_tmp;
-    }
-    default: return 0.0;
-    }
-}
-
-void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, double value, nk_dtype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: buf->f64 = value; break;
-    case nk_f32_k: buf->f32 = (float)value; break;
-    case nk_f16_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_f16(&f32_tmp, &buf->f16);
-        break;
-    }
-    case nk_bf16_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_bf16(&f32_tmp, &buf->bf16);
-        break;
-    }
-    case nk_f64c_k:
-        buf->f64c.real = value;
-        buf->f64c.imag = 0;
-        break;
-    case nk_f32c_k:
-        buf->f32c.real = (nk_f32_t)value;
-        buf->f32c.imag = 0;
-        break;
-    case nk_i64_k: nk_f64_to_i64_serial(&value, &buf->i64); break;
-    case nk_u64_k: nk_f64_to_u64_serial(&value, &buf->u64); break;
-    case nk_i32_k: nk_f64_to_i32_serial(&value, &buf->i32); break;
-    case nk_u32_k: nk_f64_to_u32_serial(&value, &buf->u32); break;
-    case nk_i16_k: nk_f64_to_i16_serial(&value, &buf->i16); break;
-    case nk_u16_k: nk_f64_to_u16_serial(&value, &buf->u16); break;
-    case nk_i8_k: nk_f64_to_i8_serial(&value, &buf->i8); break;
-    case nk_u8_k: nk_f64_to_u8_serial(&value, &buf->u8); break;
-    case nk_e4m3_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_e4m3(&f32_tmp, &buf->u8);
-        break;
-    }
-    case nk_e5m2_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_e5m2(&f32_tmp, &buf->u8);
-        break;
-    }
-    case nk_e2m3_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_e2m3(&f32_tmp, &buf->u8);
-        break;
-    }
-    case nk_e3m2_k: {
-        nk_f32_t f32_tmp = (nk_f32_t)value;
-        nk_f32_to_e3m2(&f32_tmp, &buf->u8);
-        break;
-    }
-    default: break;
-    }
-}
-
-nk_dtype_info_t const nk_dtype_table[] = {
-    {nk_f64_k, "float64", "d", "<f8", sizeof(nk_f64_t), 0},
-    {nk_f32_k, "float32", "f", "<f4", sizeof(nk_f32_t), 0},
-    {nk_f16_k, "float16", "e", "<f2", sizeof(nk_f16_t), 0},
-    {nk_bf16_k, "bfloat16", "bf16", "<V2", sizeof(nk_bf16_t), 0},
-    {nk_e4m3_k, "e4m3", "e4m3", "|V1", sizeof(nk_e4m3_t), 0},
-    {nk_e5m2_k, "e5m2", "e5m2", "|V1", sizeof(nk_e5m2_t), 0},
-    {nk_e2m3_k, "e2m3", "e2m3", "|V1", sizeof(nk_e2m3_t), 0},
-    {nk_e3m2_k, "e3m2", "e3m2", "|V1", sizeof(nk_e3m2_t), 0},
-    {nk_i4_k, "int4", "i4", "|V1", sizeof(nk_i4x2_t), 0},
-    {nk_u4_k, "uint4", "u4", "|V1", sizeof(nk_u4x2_t), 0},
-    {nk_f64c_k, "complex128", "Zd", "<c16", sizeof(nk_f64_t) * 2, 1},
-    {nk_f32c_k, "complex64", "Zf", "<c8", sizeof(nk_f32_t) * 2, 1},
-    {nk_f16c_k, "complex32", "Ze", "|V4", sizeof(nk_f16_t) * 2, 1},
-    {nk_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(nk_bf16_t) * 2, 1},
-    {nk_u1_k, "uint1", "?", "|V1", sizeof(nk_u1x8_t), 0},
-    {nk_i8_k, "int8", "b", "|i1", sizeof(nk_i8_t), 0},
-    {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
-    {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
-    {nk_u16_k, "uint16", "H", "<u2", sizeof(nk_u16_t), 0},
+nk_dtype_conversion_info_t const nk_dtype_conversion_infos[] = {
+    {nk_f64_k, "float64", "d", "<f8", sizeof(nk_f64_t)},
+    {nk_f32_k, "float32", "f", "<f4", sizeof(nk_f32_t)},
+    {nk_f16_k, "float16", "e", "<f2", sizeof(nk_f16_t)},
+    {nk_bf16_k, "bfloat16", "bf16", "<V2", sizeof(nk_bf16_t)},
+    {nk_e4m3_k, "e4m3", "e4m3", "|V1", sizeof(nk_e4m3_t)},
+    {nk_e5m2_k, "e5m2", "e5m2", "|V1", sizeof(nk_e5m2_t)},
+    {nk_e2m3_k, "e2m3", "e2m3", "|V1", sizeof(nk_e2m3_t)},
+    {nk_e3m2_k, "e3m2", "e3m2", "|V1", sizeof(nk_e3m2_t)},
+    {nk_i4_k, "int4", "i4", "|V1", sizeof(nk_i4x2_t)},
+    {nk_u4_k, "uint4", "u4", "|V1", sizeof(nk_u4x2_t)},
+    {nk_f64c_k, "complex128", "Zd", "<c16", sizeof(nk_f64_t) * 2},
+    {nk_f32c_k, "complex64", "Zf", "<c8", sizeof(nk_f32_t) * 2},
+    {nk_f16c_k, "complex32", "Ze", "|V4", sizeof(nk_f16_t) * 2},
+    {nk_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(nk_bf16_t) * 2},
+    {nk_u1_k, "uint1", "?", "|V1", sizeof(nk_u1x8_t)},
+    {nk_i8_k, "int8", "b", "|i1", sizeof(nk_i8_t)},
+    {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t)},
+    {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t)},
+    {nk_u16_k, "uint16", "H", "<u2", sizeof(nk_u16_t)},
 #if SIZEOF_LONG == 4
     // PEP 3118 format characters for integers depend on sizeof(long):
     //   ILP32 / LLP64 (Windows, i386, WASM): long = 4 bytes → 'l'/'L' = int32/uint32
     //   LP64 (Linux x86_64, macOS arm64):    long = 8 bytes → 'l'/'L' = int64/uint64
     // CPython's pyconfig.h provides SIZEOF_LONG on all platforms.
-    // These must match `python_string_to_dtype` so round-tripping through
+    // These must match `py_string_to_nk_dtype` so round-tripping through
     // the buffer protocol works correctly.
-    {nk_i32_k, "int32", "l", "<i4", sizeof(nk_i32_t), 0},
-    {nk_u32_k, "uint32", "L", "<u4", sizeof(nk_u32_t), 0},
-    {nk_i64_k, "int64", "q", "<i8", sizeof(nk_i64_t), 0},
-    {nk_u64_k, "uint64", "Q", "<u8", sizeof(nk_u64_t), 0},
+    {nk_i32_k, "int32", "l", "<i4", sizeof(nk_i32_t)},
+    {nk_u32_k, "uint32", "L", "<u4", sizeof(nk_u32_t)},
+    {nk_i64_k, "int64", "q", "<i8", sizeof(nk_i64_t)},
+    {nk_u64_k, "uint64", "Q", "<u8", sizeof(nk_u64_t)},
 #else
-    {nk_i32_k, "int32", "i", "<i4", sizeof(nk_i32_t), 0},
-    {nk_u32_k, "uint32", "I", "<u4", sizeof(nk_u32_t), 0},
-    {nk_i64_k, "int64", "l", "<i8", sizeof(nk_i64_t), 0},
-    {nk_u64_k, "uint64", "L", "<u8", sizeof(nk_u64_t), 0},
+    {nk_i32_k, "int32", "i", "<i4", sizeof(nk_i32_t)},
+    {nk_u32_k, "uint32", "I", "<u4", sizeof(nk_u32_t)},
+    {nk_i64_k, "int64", "l", "<i8", sizeof(nk_i64_t)},
+    {nk_u64_k, "uint64", "L", "<u8", sizeof(nk_u64_t)},
 #endif
 };
 
-size_t const nk_dtype_table_size = sizeof(nk_dtype_table) / sizeof(nk_dtype_table[0]);
+size_t const nk_dtype_table_size = sizeof(nk_dtype_conversion_infos) / sizeof(nk_dtype_conversion_infos[0]);
 
-nk_dtype_info_t const *dtype_info(nk_dtype_t dtype) {
+nk_dtype_conversion_info_t const *nk_dtype_conversion_info(nk_dtype_t dtype) {
     for (size_t i = 0; i < nk_dtype_table_size; i++) {
-        if (nk_dtype_table[i].dtype == dtype) return &nk_dtype_table[i];
+        if (nk_dtype_conversion_infos[i].dtype == dtype) return &nk_dtype_conversion_infos[i];
     }
     return NULL;
 }
 
-size_t bytes_per_dtype(nk_dtype_t dtype) {
-    nk_dtype_info_t const *info = dtype_info(dtype);
+size_t nk_dtype_bytes_per_value(nk_dtype_t dtype) {
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(dtype);
     return info ? info->item_size : 0;
 }
 
-char const *dtype_to_string(nk_dtype_t dtype) {
-    nk_dtype_info_t const *info = dtype_info(dtype);
+char const *nk_dtype_name(nk_dtype_t dtype) {
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(dtype);
     return info ? info->name : "unknown";
 }
 
-char const *dtype_to_array_typestr(nk_dtype_t dtype) {
-    nk_dtype_info_t const *info = dtype_info(dtype);
-    return info ? info->array_typestr : "|V1";
+char const *nk_dtype_to_numpy_typestr(nk_dtype_t dtype) {
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(dtype);
+    return info ? info->numpy_typestr : "|V1";
 }
 
-char const *dtype_to_python_string(nk_dtype_t dtype) {
-    nk_dtype_info_t const *info = dtype_info(dtype);
-    return info ? info->buffer_format : "unknown";
+char const *nk_dtype_to_pybuffer_typestr(nk_dtype_t dtype) {
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(dtype);
+    return info ? info->pybuffer_typestr : "unknown";
 }
 
-nk_dtype_t dtype_from_buffer(Py_buffer const *buffer) {
+nk_dtype_t resolve_nk_dtype_in_py_buffer(Py_buffer const *buffer) {
     if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) return ((Tensor *)buffer->obj)->dtype;
-    return buffer->format ? python_string_to_dtype(buffer->format, (Py_ssize_t)strlen(buffer->format))
+    return buffer->format ? py_string_to_nk_dtype(buffer->format, (Py_ssize_t)strlen(buffer->format))
                           : nk_dtype_unknown_k;
+}
+
+/** @brief Per-component bit width: for complex types returns the width of one component. */
+nk_size_t nk_dtype_component_bits_(nk_dtype_t dtype) {
+    nk_size_t bits = nk_dtype_bits(dtype);
+    if (nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) bits /= 2;
+    return bits;
+}
+
+/** @brief Returns the signed integer dtype at the given bit width, or nk_dtype_unknown_k. */
+nk_dtype_t nk_signed_int_at_bits_(nk_size_t bits) {
+    switch (bits) {
+    case 4: return nk_i4_k;
+    case 8: return nk_i8_k;
+    case 16: return nk_i16_k;
+    case 32: return nk_i32_k;
+    case 64: return nk_i64_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/** @brief Returns the unsigned integer dtype at the given bit width, or nk_dtype_unknown_k. */
+nk_dtype_t nk_unsigned_int_at_bits_(nk_size_t bits) {
+    switch (bits) {
+    case 4: return nk_u4_k;
+    case 8: return nk_u8_k;
+    case 16: return nk_u16_k;
+    case 32: return nk_u32_k;
+    case 64: return nk_u64_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/** @brief Returns the next power-of-two bit width, doubling from the given width. */
+nk_size_t nk_next_int_bits_(nk_size_t bits) {
+    if (bits < 8) return 8;
+    if (bits < 16) return 16;
+    if (bits < 32) return 32;
+    if (bits < 64) return 64;
+    return 0; // overflow
+}
+
+nk_dtype_t nk_dtype_promote(nk_dtype_t a, nk_dtype_t b) {
+    if (a == b) return a;
+
+    nk_dtype_family_t family_a = nk_dtype_family(a), family_b = nk_dtype_family(b);
+    nk_size_t bits_a = nk_dtype_component_bits_(a), bits_b = nk_dtype_component_bits_(b);
+    if (bits_a == 0 || bits_b == 0) return nk_dtype_unknown_k;
+
+    // Same family: return wider
+    if (family_a == family_b) {
+        if (family_a == nk_dtype_family_float_k) {
+            // Exotic floats (e4m3, e5m2, bf16) mixed with standard floats → promote through f32
+            if (bits_a <= 8 || bits_b <= 8 || a == nk_bf16_k || b == nk_bf16_k) {
+                if (bits_a <= 16 && bits_b <= 16) return nk_f32_k;
+            }
+            return bits_a >= bits_b ? a : b;
+        }
+        if (family_a == nk_dtype_family_int_k) return nk_signed_int_at_bits_(bits_a >= bits_b ? bits_a : bits_b);
+        if (family_a == nk_dtype_family_uint_k) return nk_unsigned_int_at_bits_(bits_a >= bits_b ? bits_a : bits_b);
+        if (family_a == nk_dtype_family_complex_float_k) return bits_a >= bits_b ? a : b;
+    }
+
+    // Signed + unsigned → next wider signed if needed
+    if ((family_a == nk_dtype_family_int_k && family_b == nk_dtype_family_uint_k) ||
+        (family_a == nk_dtype_family_uint_k && family_b == nk_dtype_family_int_k)) {
+        nk_size_t unsigned_bits = (family_a == nk_dtype_family_uint_k) ? bits_a : bits_b;
+        nk_size_t signed_bits = (family_a == nk_dtype_family_int_k) ? bits_a : bits_b;
+        if (unsigned_bits >= signed_bits) return nk_signed_int_at_bits_(nk_next_int_bits_(unsigned_bits));
+        return nk_signed_int_at_bits_(signed_bits >= unsigned_bits ? signed_bits : unsigned_bits);
+    }
+
+    // Int + float → float wide enough
+    if ((family_a == nk_dtype_family_float_k && family_b != nk_dtype_family_float_k) ||
+        (family_b == nk_dtype_family_float_k && family_a != nk_dtype_family_float_k)) {
+        nk_size_t int_bits = (family_a == nk_dtype_family_float_k) ? bits_b : bits_a;
+        if (int_bits >= 32) return nk_f64_k;
+        if (int_bits >= 8) return nk_f32_k;
+        return nk_f32_k;
+    }
+
+    // Complex + real → complex with promoted component
+    if (family_a == nk_dtype_family_complex_float_k || family_b == nk_dtype_family_complex_float_k) {
+        nk_size_t max_bits = bits_a >= bits_b ? bits_a : bits_b;
+        return max_bits >= 64 ? nk_f64c_k : nk_f32c_k;
+    }
+
+    return nk_dtype_unknown_k;
 }
 
 int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
@@ -284,15 +270,10 @@ int same_string_n(char const *input, Py_ssize_t input_len, char const *literal, 
     return input_len == literal_len && memcmp(input, literal, (size_t)input_len) == 0;
 }
 
-int is_complex(nk_dtype_t dtype) {
-    nk_dtype_info_t const *info = dtype_info(dtype);
-    return info ? info->is_complex : 0;
-}
-
 /** @brief Convenience macro: compare input of known length against a string literal. */
 #define same_literal_(input, len, literal) same_string_n((input), (len), (literal), (Py_ssize_t)(sizeof(literal) - 1))
 
-nk_dtype_t python_string_to_dtype(char const *name, Py_ssize_t len) {
+nk_dtype_t py_string_to_nk_dtype(char const *name, Py_ssize_t len) {
     switch (len) {
     case 1:
         switch (name[0]) {
@@ -499,7 +480,7 @@ nk_dtype_t python_string_to_dtype(char const *name, Py_ssize_t len) {
     return nk_dtype_unknown_k;
 }
 
-nk_dtype_t python_arg_to_dtype(PyObject *obj) {
+nk_dtype_t py_object_to_nk_dtype(PyObject *obj) {
     if (PyType_Check(obj)) {
         PyTypeObject *type = (PyTypeObject *)obj;
         if (type == &NkBFloat16Scalar_Type) return nk_bf16_k;
@@ -514,7 +495,7 @@ nk_dtype_t python_arg_to_dtype(PyObject *obj) {
     if (PyUnicode_Check(obj)) {
         Py_ssize_t s_len = 0;
         char const *s = PyUnicode_AsUTF8AndSize(obj, &s_len);
-        nk_dtype_t dtype = s ? python_string_to_dtype(s, s_len) : nk_dtype_unknown_k;
+        nk_dtype_t dtype = s ? py_string_to_nk_dtype(s, s_len) : nk_dtype_unknown_k;
         if (dtype == nk_dtype_unknown_k) PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", s ? s : "");
         return dtype;
     }
@@ -522,7 +503,7 @@ nk_dtype_t python_arg_to_dtype(PyObject *obj) {
     return nk_dtype_unknown_k;
 }
 
-nk_kernel_kind_t python_string_to_metric_kind(char const *name, Py_ssize_t len) {
+nk_kernel_kind_t py_string_to_nk_kernel_kind(char const *name, Py_ssize_t len) {
     switch (len) {
     case 3:
         if (same_literal_(name, len, "dot")) return nk_kernel_dot_k;
@@ -562,52 +543,7 @@ nk_kernel_kind_t python_string_to_metric_kind(char const *name, Py_ssize_t len) 
     return nk_kernel_unknown_k;
 }
 
-int cast_distance(nk_f64_t distance, nk_dtype_t target_dtype, void *target_ptr, size_t offset) {
-    nk_f32_t f32_val;
-    switch (target_dtype) {
-    case nk_f64c_k: // fallthrough
-    case nk_f64_k: ((nk_f64_t *)target_ptr)[offset] = distance; return 1;
-    case nk_f32c_k: // fallthrough
-    case nk_f32_k: ((nk_f32_t *)target_ptr)[offset] = (nk_f32_t)distance; return 1;
-    case nk_f16c_k: // fallthrough
-    case nk_f16_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_f16(&f32_val, (nk_f16_t *)target_ptr + offset);
-        return 1;
-    case nk_bf16c_k: // fallthrough
-    case nk_bf16_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_bf16(&f32_val, (nk_bf16_t *)target_ptr + offset);
-        return 1;
-    case nk_e4m3_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_e4m3(&f32_val, (nk_e4m3_t *)target_ptr + offset);
-        return 1;
-    case nk_e5m2_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_e5m2(&f32_val, (nk_e5m2_t *)target_ptr + offset);
-        return 1;
-    case nk_e2m3_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_e2m3(&f32_val, (nk_e2m3_t *)target_ptr + offset);
-        return 1;
-    case nk_e3m2_k:
-        f32_val = (nk_f32_t)distance;
-        nk_f32_to_e3m2(&f32_val, (nk_e3m2_t *)target_ptr + offset);
-        return 1;
-    case nk_i8_k: nk_f64_to_i8_serial(&distance, (nk_i8_t *)target_ptr + offset); return 1;
-    case nk_u8_k: nk_f64_to_u8_serial(&distance, (nk_u8_t *)target_ptr + offset); return 1;
-    case nk_i16_k: nk_f64_to_i16_serial(&distance, (nk_i16_t *)target_ptr + offset); return 1;
-    case nk_u16_k: nk_f64_to_u16_serial(&distance, (nk_u16_t *)target_ptr + offset); return 1;
-    case nk_i32_k: nk_f64_to_i32_serial(&distance, (nk_i32_t *)target_ptr + offset); return 1;
-    case nk_u32_k: nk_f64_to_u32_serial(&distance, (nk_u32_t *)target_ptr + offset); return 1;
-    case nk_i64_k: nk_f64_to_i64_serial(&distance, (nk_i64_t *)target_ptr + offset); return 1;
-    case nk_u64_k: nk_f64_to_u64_serial(&distance, (nk_u64_t *)target_ptr + offset); return 1;
-    default: return 0;
-    }
-}
-
-PyObject *scalar_to_py_number(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
+PyObject *nk_scalar_buffer_to_py_number(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return PyFloat_FromDouble(buf->f64);
     case nk_f32_k: return PyFloat_FromDouble((double)buf->f32);
@@ -655,11 +591,11 @@ PyObject *scalar_to_py_number(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
     }
 }
 
-int get_scalar_value(PyObject *obj, double *value); // forward declaration
+int py_number_to_f64(PyObject *obj, nk_f64_t *value); // forward declaration
 
-int py_number_to_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_t dtype) {
+int py_number_to_nk_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_t dtype) {
     memset(buf, 0, sizeof(*buf));
-    if (is_complex(dtype) && PyComplex_Check(obj)) {
+    if ((nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) && PyComplex_Check(obj)) {
         Py_complex py_complex = PyComplex_AsCComplex(obj);
         switch (dtype) {
         case nk_f64c_k:
@@ -673,41 +609,32 @@ int py_number_to_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_
         default: break;
         }
     }
-    double value;
-    if (!get_scalar_value(obj, &value)) return 0;
-    nk_scalar_buffer_set_f64(buf, value, dtype);
+    nk_f64_t value;
+    if (!py_number_to_f64(obj, &value)) return 0;
+    nk_scalar_buffer_from_f64(buf, value, dtype);
     return 1;
 }
 
-int cast_scalar_buffer(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_dtype_t dst_dtype, void *target) {
-    if (is_complex(src_dtype)) {
-        double real, imag;
-        switch (src_dtype) {
-        case nk_f64c_k:
-            real = buf->f64c.real;
-            imag = buf->f64c.imag;
-            break;
-        case nk_f32c_k:
-            real = (double)buf->f32c.real;
-            imag = (double)buf->f32c.imag;
-            break;
-        default: return 0;
-        }
-        if (!cast_distance(real, dst_dtype, target, 0)) return 0;
-        return cast_distance(imag, dst_dtype, target, 1);
-    }
-    return cast_distance(nk_scalar_buffer_get_f64(buf, src_dtype), dst_dtype, target, 0);
+int nk_scalar_buffer_export(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_dtype_t dst_dtype, void *target) {
+    nk_f64c_t v;
+    if (!nk_scalar_buffer_to_f64c(buf, src_dtype, &v)) return 0;
+    nk_scalar_buffer_t dst;
+    if (!nk_scalar_buffer_from_f64c(v, &dst, dst_dtype)) return 0;
+    nk_size_t stride = nk_dtype_bits(dst_dtype) / NK_BITS_PER_BYTE;
+    nk_copy_bytes_(target, &dst, stride);
+    return 1;
 }
 
-int kernel_is_commutative(nk_kernel_kind_t kind) {
+int nk_kernel_is_commutative(nk_kernel_kind_t kind) {
     switch (kind) {
     case nk_kernel_kld_k: return 0;
+    case nk_kernel_vdot_k: return 0;
     case nk_kernel_bilinear_k: return 0;
     default: return 1;
     }
 }
 
-int is_scalar(PyObject *obj) {
+int py_object_is_scalar(PyObject *obj) {
     if (PyFloat_Check(obj) || PyLong_Check(obj)) return 1;
     // Check for NumPy scalar types (0D arrays or numpy.generic subclasses)
     if (PyNumber_Check(obj)) {
@@ -724,7 +651,7 @@ int is_scalar(PyObject *obj) {
     return 0;
 }
 
-int get_scalar_value(PyObject *obj, double *value) {
+int py_number_to_f64(PyObject *obj, nk_f64_t *value) {
     if (PyFloat_Check(obj)) {
         *value = PyFloat_AsDouble(obj);
         return !PyErr_Occurred();
@@ -798,7 +725,7 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
         if (name_attr) {
             Py_ssize_t name_len = 0;
             char const *name_str = PyUnicode_AsUTF8AndSize(name_attr, &name_len);
-            if (name_str) dtype = python_string_to_dtype(name_str, name_len);
+            if (name_str) dtype = py_string_to_nk_dtype(name_str, name_len);
             Py_DECREF(name_attr);
         }
         else { PyErr_Clear(); }
@@ -811,7 +738,7 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
         if (typestr_obj) {
             Py_ssize_t typestr_len = 0;
             char const *typestr = PyUnicode_AsUTF8AndSize(typestr_obj, &typestr_len);
-            if (typestr) dtype = python_string_to_dtype(typestr, typestr_len);
+            if (typestr) dtype = py_string_to_nk_dtype(typestr, typestr_len);
         }
     }
     if (dtype == nk_dtype_unknown_k) {
@@ -820,7 +747,7 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
         return 0;
     }
 
-    nk_dtype_info_t const *info = dtype_info(dtype);
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(dtype);
     if (!info) {
         Py_DECREF(iface);
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype from __array_interface__");
@@ -853,7 +780,7 @@ static int nk_get_buffer_via_array_interface(PyObject *obj, Py_buffer *buffer, n
     memset(buffer, 0, sizeof(*buffer));
     buffer->buf = data_ptr;
     buffer->itemsize = itemsize;
-    buffer->format = (char *)info->buffer_format;
+    buffer->format = (char *)info->pybuffer_typestr;
     buffer->ndim = (int)rank;
     buffer->len = itemsize;
     for (Py_ssize_t i = 0; i < rank; i++) buffer->len *= backing->shape[i];
@@ -886,7 +813,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
     parsed->data = buffer->buf;
     if (dtype_hint != nk_dtype_unknown_k) { parsed->dtype = dtype_hint; }
     else {
-        parsed->dtype = dtype_from_buffer(buffer);
+        parsed->dtype = resolve_nk_dtype_in_py_buffer(buffer);
         if (parsed->dtype == nk_dtype_unknown_k) {
             PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
             PyBuffer_Release(buffer);
@@ -935,7 +862,7 @@ int parse_tensor_nd(PyObject *obj, Py_buffer *buffer, TensorView *view, nk_buffe
     view->data = buffer->buf;
     if (dtype_hint != nk_dtype_unknown_k) { view->dtype = dtype_hint; }
     else {
-        view->dtype = dtype_from_buffer(buffer);
+        view->dtype = resolve_nk_dtype_in_py_buffer(buffer);
         if (view->dtype == nk_dtype_unknown_k) {
             PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
             PyBuffer_Release(buffer);
@@ -1000,7 +927,7 @@ static struct {
     {"powervsx", nk_cap_powervsx_k},
     // WASM
     {"v128relaxed", nk_cap_v128relaxed_k},
-    {NULL, 0},
+    {NULL},
 };
 
 char const doc_enable_capability[] =                                                         //
@@ -1076,12 +1003,14 @@ char const doc_get_capabilities[] =                                             
     "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n\n"            //
     "The dictionary maps capability names to booleans. Available capabilities (beyond serial):\n" //
     "  x86 AVX2: haswell, alder, sierra.\n"                                                       //
-    "  x86 AVX512: skylake, icelake, genoa, sapphire, turin.\n"                                   //
+    "  x86 AVX512: skylake, icelake, genoa, sapphire, turin, diamond.\n"                          //
     "  x86 AMX: sapphireamx, graniteamx.\n"                                                       //
-    "  ARM NEON: neon, neonhalf, neonfhm, neonbfdot, neonsdot.\n"                                 //
+    "  ARM NEON: neon, neonhalf, neonfhm, neonbfdot, neonsdot, neonfp8.\n"                        //
     "  ARM SVE: sve, svehalf, svebfdot, svesdot, sve2, sve2p1.\n"                                 //
-    "  ARM SME: sme, sme2, sme2p1, smef64, smehalf, smebf16, smelut2, smefa64.\n"                 //
+    "  ARM SME: sme, sme2, sme2p1, smef64, smehalf, smebf16, smebi32, smelut2, smefa64.\n"        //
     "  RISC-V: rvv, rvvhalf, rvvbf16, rvvbb.\n"                                                   //
+    "  LoongArch: loongsonasx.\n"                                                                 //
+    "  Power: powervsx.\n"                                                                        //
     "  WASM: v128relaxed.\n";
 
 PyObject *api_get_capabilities(PyObject *self) {
@@ -1100,112 +1029,6 @@ PyObject *api_get_capabilities(PyObject *self) {
     }
 
     return cap_dict;
-}
-
-nk_dtype_t promote_dtypes(nk_dtype_t a, nk_dtype_t b) {
-    if (a == b) return a;
-
-    // Classify dtype into class (1=float, 2=signed int, 3=unsigned int, 4=complex) and rank
-    // using library helpers nk_dtype_family() and nk_dtype_bits().
-    int class_a = 0, class_b = 0;
-    int rank_a = 0, rank_b = 0;
-
-    // Helper: classify a single dtype
-#define CLASSIFY_DTYPE(dt, cls, rnk)                                                   \
-    do {                                                                               \
-        nk_dtype_family_t fam = nk_dtype_family(dt);                                   \
-        nk_size_t bits = nk_dtype_bits(dt);                                            \
-        if (fam == nk_dtype_family_float_k) {                                          \
-            cls = 1;                                                                   \
-            rnk = bits <= 8 ? 1 : bits <= 16 ? 2 : bits <= 32 ? 3 : 4;                 \
-        }                                                                              \
-        else if (fam == nk_dtype_family_int_k) {                                       \
-            cls = 2;                                                                   \
-            rnk = bits <= 4 ? 0 : bits <= 8 ? 1 : bits <= 16 ? 2 : bits <= 32 ? 3 : 4; \
-        }                                                                              \
-        else if (fam == nk_dtype_family_uint_k) {                                      \
-            cls = 3;                                                                   \
-            rnk = bits <= 4 ? 0 : bits <= 8 ? 1 : bits <= 16 ? 2 : bits <= 32 ? 3 : 4; \
-        }                                                                              \
-        else if (fam == nk_dtype_family_complex_float_k) {                             \
-            cls = 4;                                                                   \
-            rnk = bits <= 32 ? 2 : bits <= 64 ? 3 : 4;                                 \
-        }                                                                              \
-        else { return nk_dtype_unknown_k; }                                            \
-    } while (0)
-
-    CLASSIFY_DTYPE(a, class_a, rank_a);
-    CLASSIFY_DTYPE(b, class_b, rank_b);
-
-#undef CLASSIFY_DTYPE
-
-    // Same class: return wider
-    if (class_a == class_b) {
-        // Float + float -> wider
-        if (class_a == 1) {
-            // Exotic floats (e4m3, e5m2, bf16) mixed with standard floats -> promote through f32
-            if (rank_a == 1 || rank_b == 1 || a == nk_bf16_k || b == nk_bf16_k) {
-                // If both are exotic rank-1, promote to f32
-                if (rank_a <= 2 && rank_b <= 2) return nk_f32_k;
-                // Otherwise take the wider standard float
-                return rank_a >= rank_b ? a : b;
-            }
-            return rank_a >= rank_b ? a : b;
-        }
-        // Signed int + signed int -> wider
-        if (class_a == 2) {
-            static nk_dtype_t const signed_ints[] = {nk_i4_k, nk_i8_k, nk_i16_k, nk_i32_k, nk_i64_k};
-            return signed_ints[rank_a >= rank_b ? rank_a : rank_b];
-        }
-        // Unsigned int + unsigned int -> wider
-        if (class_a == 3) {
-            static nk_dtype_t const unsigned_ints[] = {nk_u4_k, nk_u8_k, nk_u16_k, nk_u32_k, nk_u64_k};
-            return unsigned_ints[rank_a >= rank_b ? rank_a : rank_b];
-        }
-        // Complex + complex -> wider
-        if (class_a == 4) { return rank_a >= rank_b ? a : b; }
-    }
-
-    // Signed + unsigned -> next wider signed
-    if ((class_a == 2 && class_b == 3) || (class_a == 3 && class_b == 2)) {
-        int max_rank = rank_a >= rank_b ? rank_a : rank_b;
-        // Need one rank wider than the unsigned to accommodate all values
-        int unsigned_rank = (class_a == 3) ? rank_a : rank_b;
-        int signed_rank = (class_a == 2) ? rank_a : rank_b;
-        // If unsigned rank >= signed rank, need next wider signed
-        if (unsigned_rank >= signed_rank) {
-            int target_rank = unsigned_rank + 1;
-            if (target_rank > 4) return nk_dtype_unknown_k; // overflow
-            static nk_dtype_t const signed_ints[] = {nk_i4_k, nk_i8_k, nk_i16_k, nk_i32_k, nk_i64_k};
-            return signed_ints[target_rank];
-        }
-        // Signed is already wider
-        static nk_dtype_t const signed_ints[] = {nk_i4_k, nk_i8_k, nk_i16_k, nk_i32_k, nk_i64_k};
-        return signed_ints[max_rank];
-    }
-
-    // Int + float -> float wide enough
-    if ((class_a == 1 && (class_b == 2 || class_b == 3)) || ((class_a == 2 || class_a == 3) && class_b == 1)) {
-        int float_rank = (class_a == 1) ? rank_a : rank_b;
-        int int_rank = (class_a == 1) ? rank_b : rank_a;
-        // i8/u8 + f32 -> f32, i32/u32 + f32 -> f64, i64/u64 + f32 -> f64
-        int target_float_rank = float_rank;
-        if (int_rank >= 3 && float_rank <= 3) target_float_rank = 4;      // promote to f64
-        else if (int_rank >= 1 && float_rank <= 2) target_float_rank = 3; // promote to f32
-        static nk_dtype_t const floats[] = {0, nk_f32_k, nk_f32_k, nk_f32_k, nk_f64_k};
-        return floats[target_float_rank];
-    }
-
-    // Complex + real -> complex with promoted component
-    if (class_a == 4 || class_b == 4) {
-        int complex_rank = (class_a == 4) ? rank_a : rank_b;
-        int other_rank = (class_a == 4) ? rank_b : rank_a;
-        int target_rank = complex_rank >= other_rank ? complex_rank : other_rank;
-        if (target_rank >= 4) return nk_f64c_k;
-        return nk_f32c_k;
-    }
-
-    return nk_dtype_unknown_k;
 }
 
 static PyMethodDef nk_methods[] = {

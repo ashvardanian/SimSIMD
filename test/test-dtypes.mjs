@@ -48,7 +48,7 @@ const TEST_MATRIX = {
   dimensions: CONFIG.dimensions,
 };
 
-// Sub-byte packing ratio — mirrors nk_dtype_dimensions_per_value in types.h.
+// Sub-byte packing ratio — mirrors nk_dimensions_per_value in types.h.
 // A single storage byte holds this many logical elements for the given dtype.
 function dimensionsPerValue(dtype) {
   switch (dtype) {

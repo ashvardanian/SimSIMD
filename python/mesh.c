@@ -228,7 +228,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     // Check data types and get kernel
-    nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
+    nk_dtype_t dtype = resolve_nk_dtype_in_py_buffer(&a_buffer);
     if (dtype != nk_f64_k && dtype != nk_f32_k && dtype != nk_f16_k && dtype != nk_bf16_k) {
         PyErr_SetString(PyExc_TypeError, "Point clouds must be float16, bfloat16, float32, or float64");
         goto cleanup;
@@ -244,7 +244,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     // Check contiguity - we need row-major contiguous data for the innermost 2 dimensions
-    Py_ssize_t const elem_size = (Py_ssize_t)bytes_per_dtype(dtype);
+    Py_ssize_t const elem_size = (Py_ssize_t)nk_dtype_bytes_per_value(dtype);
     Py_ssize_t const inner_stride_a = is_batched ? a_buffer.strides[2] : a_buffer.strides[1];
     Py_ssize_t const inner_stride_b = is_batched ? b_buffer.strides[2] : b_buffer.strides[1];
     if (inner_stride_a != elem_size || inner_stride_b != elem_size) {
@@ -292,8 +292,8 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
 
         char *a_ptr = (char *)a_buffer.buf;
         char *b_ptr = (char *)b_buffer.buf;
-        size_t const transform_bytes = bytes_per_dtype(transform_dtype);
-        size_t const metric_bytes = bytes_per_dtype(metric_dtype);
+        size_t const transform_bytes = nk_dtype_bytes_per_value(transform_dtype);
+        size_t const metric_bytes = nk_dtype_bytes_per_value(metric_dtype);
 
         for (Py_ssize_t batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
             kernel(a_ptr + batch_idx * batch_stride_a, b_ptr + batch_idx * batch_stride_b, num_points,
