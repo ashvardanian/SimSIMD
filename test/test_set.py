@@ -13,13 +13,19 @@ Matches C++ suite: test_set.cpp.
 
 import array
 import atexit
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (

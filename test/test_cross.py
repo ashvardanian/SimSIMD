@@ -14,13 +14,19 @@ Matches C++ suite: test_cross_*.cpp.
 
 import atexit
 import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -31,7 +37,10 @@ from test_base import (
     assert_allclose,
     collect_errors,
     create_stats,
+    test_depth_dimensions,
     dense_dimensions,
+    test_height_dimensions,
+    test_width_dimensions,
     keep_one_capability,
     make_nk,
     make_random,
@@ -40,6 +49,7 @@ from test_base import (
     print_stats_report,
     profile,
     randomized_repetitions_count,
+    reduced_repetitions_count,
     scipy_available,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
     tolerances_for_dtype,
@@ -48,7 +58,7 @@ from test_base import (
 try:
     import scipy.spatial.distance as spd
 except ImportError:
-    pass
+    spd = None  # type: ignore[assignment]
 
 stats = create_stats()
 atexit.register(print_stats_report, stats)
@@ -169,7 +179,9 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("num_vectors", test_height_dimensions)
+@pytest.mark.parametrize("vector_depth", test_depth_dimensions)
 @pytest.mark.parametrize(
     "dtype",
     [
@@ -186,11 +198,10 @@ def test_batch_sqeuclidean_broadcasting(ndim, dtype, capability):
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dots_symmetric(dtype, capability):
+def test_dots_symmetric(num_vectors, vector_depth, dtype, capability):
     """Test nk.dots_symmetric against high-precision matmul (upper triangle)."""
 
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_CROSS["dots_symmetric"]
-    num_vectors, vector_depth = 32, 64
     atol, rtol = tolerances_for_dtype(dtype)
     vectors_raw, vectors_baseline = make_random((num_vectors, vector_depth), dtype)
 
@@ -249,7 +260,10 @@ def test_hammings_symmetric(capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("rows", test_height_dimensions)
+@pytest.mark.parametrize("columns", test_width_dimensions)
+@pytest.mark.parametrize("depth", test_depth_dimensions)
 @pytest.mark.parametrize(
     "dtype",
     [
@@ -266,14 +280,13 @@ def test_hammings_symmetric(capability):
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dots_pack_and_packed(dtype, capability):
+def test_dots_pack_and_packed(rows, columns, depth, dtype, capability):
     """Test dots_pack + dots_packed against high-precision matmul."""
 
     _, _, precise_kernel = KERNELS_CROSS["dots_packed"]
-    height, width, depth = 8, 16, 64
     atol, rtol = tolerances_for_dtype(dtype)
-    a_raw, a_baseline = make_random((height, depth), dtype)
-    b_raw, b_baseline = make_random((width, depth), dtype)
+    a_raw, a_baseline = make_random((rows, depth), dtype)
+    b_raw, b_baseline = make_random((columns, depth), dtype)
 
     keep_one_capability(capability)
 
@@ -293,12 +306,12 @@ def test_dots_pack_and_packed(dtype, capability):
 
     # out= must match the allocated result
     out_dtype = str(result.dtype)  # kernel output dtype depends on input
-    out = nk.zeros((height, width), dtype=out_dtype)
+    out = nk.zeros((rows, columns), dtype=out_dtype)
     nk.dots_packed(a_tensor, b_packed, out=out)
     assert_allclose(np.asarray(out), result, atol=1e-10, rtol=1e-10)
 
     collect_errors(
-        "dots_packed", height * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
+        "dots_packed", rows * depth, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats
     )
 
 

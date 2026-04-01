@@ -18,13 +18,19 @@ Matches C++ suite: test_dot.cpp.
 
 import atexit
 import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -124,11 +130,7 @@ def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
 
     err_msg = LazyFormat(
-        lambda: (
-            f"\ninner({dtype}, ndim={ndim}):"
-            f"\n  Accurate:  {accurate}"
-            f"\n  Got:       {result}"
-        )
+        lambda: (f"\ninner({dtype}, ndim={ndim}):" f"\n  Accurate:  {accurate}" f"\n  Got:       {result}")
     )
 
     assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)

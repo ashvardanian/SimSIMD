@@ -12,16 +12,24 @@ Matches C++ suite: test_probability.cpp.
 """
 
 import atexit
+import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
+    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
     assert_allclose,
@@ -43,8 +51,10 @@ atexit.register(print_stats_report, stats)
 
 try:
     import scipy.spatial.distance as spd
+    from scipy.special import rel_entr
 
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y)
+    baseline_kullbackleibler = lambda p, q: float(np.sum(rel_entr(p, q)))
 except ImportError:
 
     def fallback_jensenshannon(p, q):
@@ -54,10 +64,53 @@ except ImportError:
         right = np.sum(np.where(q > 0, q * np.log(q / m), 0.0))
         return np.sqrt(np.clip(0.5 * (left + right), 0.0, None))
 
+    def fallback_kullbackleibler(p, q):
+        """KL divergence — fallback when SciPy is unavailable."""
+        return float(np.sum(np.where(p > 0, p * np.log(p / q), 0.0)))
+
     baseline_jensenshannon = fallback_jensenshannon
+    baseline_kullbackleibler = fallback_kullbackleibler
+
+
+def precise_jensenshannon(p, q):
+    """High-precision Jensen-Shannon distance via Python Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = DECIMAL_PRECISION
+        D = decimal.Decimal
+        n = len(p)
+        first_distribution = [D.from_float(float(p[i])) for i in range(n)]
+        second_distribution = [D.from_float(float(q[i])) for i in range(n)]
+        midpoint = [(first_distribution[i] + second_distribution[i]) / 2 for i in range(n)]
+        divergence_first = D(0)
+        divergence_second = D(0)
+        for i in range(n):
+            if first_distribution[i] > 0 and midpoint[i] > 0:
+                divergence_first += first_distribution[i] * (first_distribution[i] / midpoint[i]).ln()
+            if second_distribution[i] > 0 and midpoint[i] > 0:
+                divergence_second += second_distribution[i] * (second_distribution[i] / midpoint[i]).ln()
+        jensen_shannon_divergence = (divergence_first + divergence_second) / 2
+        if jensen_shannon_divergence < 0:
+            jensen_shannon_divergence = D(0)
+        return float(jensen_shannon_divergence.sqrt())
+
+
+def precise_kullbackleibler(p, q):
+    """High-precision KL divergence via Python Decimal."""
+    with decimal.localcontext() as ctx:
+        ctx.prec = DECIMAL_PRECISION
+        D = decimal.Decimal
+        total = D(0)
+        for i in range(len(p)):
+            first_value = D.from_float(float(p[i]))
+            second_value = D.from_float(float(q[i]))
+            if first_value > 0 and second_value > 0:
+                total += first_value * (first_value / second_value).ln()
+        return float(total)
+
 
 KERNELS_PROBABILITY = {
-    "jensenshannon": (baseline_jensenshannon, nk.jensenshannon, None),
+    "jensenshannon": (baseline_jensenshannon, nk.jensenshannon, precise_jensenshannon),
+    "kullbackleibler": (baseline_kullbackleibler, nk.kullbackleibler, precise_kullbackleibler),
 }
 
 

@@ -17,13 +17,19 @@ import atexit
 import decimal
 import math
 import warnings
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -151,11 +157,7 @@ def test_spatial_random_accuracy(ndim, dtype, metric, capability, nk_seed):
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
 
     err_msg = LazyFormat(
-        lambda: (
-            f"\n{metric}({dtype}, ndim={ndim}):"
-            f"\n  Accurate:  {accurate}"
-            f"\n  Got:       {result}"
-        )
+        lambda: (f"\n{metric}({dtype}, ndim={ndim}):" f"\n  Accurate:  {accurate}" f"\n  Got:       {result}")
     )
 
     assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)

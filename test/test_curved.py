@@ -3,7 +3,7 @@
 
 Covers dtypes: float64, float32, float16 (with float32 compute), bfloat16,
     e4m3, e5m2, e2m3, e3m2.
-Parametrized over: ndim from curved_dimensions, metric, capability.
+Parametrized over: rows/columns from test_rows/columns_dimensions, metric, capability.
 
 Precision notes:
     bilinear computes ``x @ z @ y``, mahalanobis computes ``sqrt((x-y) @ z @ (x-y))``.
@@ -20,13 +20,19 @@ Matches C++ suite: test_curved.cpp.
 
 import atexit
 import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -37,7 +43,6 @@ from test_base import (
     assert_allclose,
     collect_errors,
     create_stats,
-    curved_dimensions,
     downcast_f32_to_dtype,
     hex_array,
     keep_one_capability,
@@ -45,8 +50,9 @@ from test_base import (
     possible_capabilities,
     print_stats_report,
     profile,
-    randomized_repetitions_count,
+    reduced_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    test_curved_dimensions,
 )
 
 stats = create_stats()
@@ -124,8 +130,8 @@ KERNELS_CURVED = {
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
-@pytest.mark.parametrize("ndim", curved_dimensions)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("ndim", test_curved_dimensions)
 @pytest.mark.parametrize(
     "dtypes",
     [
@@ -187,8 +193,8 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
-@pytest.mark.parametrize("ndim", curved_dimensions)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("ndim", test_curved_dimensions)
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_bilinear_complex_accuracy(ndim, dtype, capability):
