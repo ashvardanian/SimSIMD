@@ -56,14 +56,14 @@ extern "C" {
 NK_INTERNAL void nk_deinterleave_bf16x4_to_f32x4_neonbfdot_(nk_bf16_t const *ptr, float32x4_t *x_out,
                                                             float32x4_t *y_out, float32x4_t *z_out) {
     // Load 12 bf16 values and de-interleave into x, y, z components
-    uint16x4x3_t xyz = vld3_u16((uint16_t const *)ptr);
+    uint16x4x3_t xyz_u16x4x3 = vld3_u16((uint16_t const *)ptr);
     // Convert bf16 to f32 by zero-extending to lower 16 bits, then shifting left by 16
-    uint32x4_t x_u32 = vshll_n_u16(xyz.val[0], 16);
-    uint32x4_t y_u32 = vshll_n_u16(xyz.val[1], 16);
-    uint32x4_t z_u32 = vshll_n_u16(xyz.val[2], 16);
-    *x_out = vreinterpretq_f32_u32(x_u32);
-    *y_out = vreinterpretq_f32_u32(y_u32);
-    *z_out = vreinterpretq_f32_u32(z_u32);
+    uint32x4_t x_u32x4 = vshll_n_u16(xyz_u16x4x3.val[0], 16);
+    uint32x4_t y_u32x4 = vshll_n_u16(xyz_u16x4x3.val[1], 16);
+    uint32x4_t z_u32x4 = vshll_n_u16(xyz_u16x4x3.val[2], 16);
+    *x_out = vreinterpretq_f32_u32(x_u32x4);
+    *y_out = vreinterpretq_f32_u32(y_u32x4);
+    *z_out = vreinterpretq_f32_u32(z_u32x4);
 }
 
 NK_INTERNAL void nk_partial_deinterleave_bf16_to_f32x4_neonbfdot_(nk_bf16_t const *ptr, nk_size_t n_points,

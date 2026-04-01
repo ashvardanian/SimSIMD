@@ -120,43 +120,43 @@ typedef struct {
  *  @param x Input vector (16 floats)
  *  @return exp(x) for each element
  */
-NK_INTERNAL __m512 nk_exp_ps_avx512_(__m512 x) {
+NK_INTERNAL __m512 nk_exp_ps_avx512_(__m512 x_f32x16) {
     // Constants for Cody-Waite range reduction
-    const __m512 log2e = _mm512_set1_ps(1.4426950408889634f);
-    const __m512 ln2_hi = _mm512_set1_ps(0.693145751953125f);
-    const __m512 ln2_lo = _mm512_set1_ps(1.42860682030941723212e-6f);
+    const __m512 log2e_f32x16 = _mm512_set1_ps(1.4426950408889634f);
+    const __m512 ln2_high_f32x16 = _mm512_set1_ps(0.693145751953125f);
+    const __m512 ln2_low_f32x16 = _mm512_set1_ps(1.42860682030941723212e-6f);
 
     // Clamp to avoid overflow/underflow
-    const __m512 max_x = _mm512_set1_ps(88.3762626647949f);
-    const __m512 min_x = _mm512_set1_ps(-87.3365447504021f);
-    x = _mm512_max_ps(_mm512_min_ps(x, max_x), min_x);
+    const __m512 max_x_f32x16 = _mm512_set1_ps(88.3762626647949f);
+    const __m512 min_x_f32x16 = _mm512_set1_ps(-87.3365447504021f);
+    x_f32x16 = _mm512_max_ps(_mm512_min_ps(x_f32x16, max_x_f32x16), min_x_f32x16);
 
-    // n = round(x / ln(2))
-    __m512 n = _mm512_roundscale_ps(_mm512_mul_ps(x, log2e), _MM_FROUND_TO_NEAREST_INT);
+    // n_f32x16 = round(x / ln(2))
+    __m512 n_f32x16 = _mm512_roundscale_ps(_mm512_mul_ps(x_f32x16, log2e_f32x16), _MM_FROUND_TO_NEAREST_INT);
 
-    // r = x - n × ln(2) using Cody-Waite for precision
-    __m512 r = _mm512_fnmadd_ps(n, ln2_hi, x);
-    r = _mm512_fnmadd_ps(n, ln2_lo, r);
+    // r_f32x16 = x - n_f32x16 × ln(2) using Cody-Waite for precision
+    __m512 r_f32x16 = _mm512_fnmadd_ps(n_f32x16, ln2_high_f32x16, x_f32x16);
+    r_f32x16 = _mm512_fnmadd_ps(n_f32x16, ln2_low_f32x16, r_f32x16);
 
-    // Polynomial approximation for exp(r): Remez minimax degree 6
+    // Polynomial approximation for exp(r_f32x16): Remez minimax degree 6
     // Coefficients optimized for [-ln(2)/2, ln(2)/2]
-    __m512 p = _mm512_set1_ps(1.9875691500e-4f);
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.3981999507e-3f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(8.3334519073e-3f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(4.1665858030e-2f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.6666665459e-1f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(5.0000001201e-1f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
+    __m512 p_f32x16 = _mm512_set1_ps(1.9875691500e-4f);
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.3981999507e-3f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(8.3334519073e-3f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(4.1665858030e-2f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.6666665459e-1f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(5.0000001201e-1f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.0f));
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.0f));
 
-    // Reconstruct: exp(x) = 2ⁿ × exp(r)
+    // Reconstruct: exp(x) = 2ⁿ × exp(r_f32x16)
     // 2ⁿ via IEEE 754 exponent manipulation
-    __m512i ni = _mm512_cvtps_epi32(n);
-    ni = _mm512_add_epi32(ni, _mm512_set1_epi32(127));
-    ni = _mm512_slli_epi32(ni, 23);
-    __m512 pow2n = _mm512_castsi512_ps(ni);
+    __m512i ni_i32x16 = _mm512_cvtps_epi32(n_f32x16);
+    ni_i32x16 = _mm512_add_epi32(ni_i32x16, _mm512_set1_epi32(127));
+    ni_i32x16 = _mm512_slli_epi32(ni_i32x16, 23);
+    __m512 pow2n_f32x16 = _mm512_castsi512_ps(ni_i32x16);
 
-    return _mm512_mul_ps(p, pow2n);
+    return _mm512_mul_ps(p_f32x16, pow2n_f32x16);
 }
 
 /**
@@ -172,41 +172,41 @@ NK_INTERNAL __m512 nk_exp_ps_avx512_(__m512 x) {
  *  @param x Input vector (16 floats)
  *  @return exp(x) approximation
  */
-NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x) {
+NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x_f32x16) {
     // Constants for Cody-Waite range reduction
-    const __m512 log2e = _mm512_set1_ps(1.4426950408889634f);
-    const __m512 ln2_hi = _mm512_set1_ps(0.693145751953125f);
-    const __m512 ln2_lo = _mm512_set1_ps(1.42860682030941723212e-6f);
+    const __m512 log2e_f32x16 = _mm512_set1_ps(1.4426950408889634f);
+    const __m512 ln2_high_f32x16 = _mm512_set1_ps(0.693145751953125f);
+    const __m512 ln2_low_f32x16 = _mm512_set1_ps(1.42860682030941723212e-6f);
 
     // Clamp to avoid overflow/underflow (same as accurate version)
-    const __m512 max_x = _mm512_set1_ps(88.3762626647949f);
-    const __m512 min_x = _mm512_set1_ps(-87.3365447504021f);
-    x = _mm512_max_ps(_mm512_min_ps(x, max_x), min_x);
+    const __m512 max_x_f32x16 = _mm512_set1_ps(88.3762626647949f);
+    const __m512 min_x_f32x16 = _mm512_set1_ps(-87.3365447504021f);
+    x_f32x16 = _mm512_max_ps(_mm512_min_ps(x_f32x16, max_x_f32x16), min_x_f32x16);
 
-    // n = round(x / ln(2))
-    __m512 n = _mm512_roundscale_ps(_mm512_mul_ps(x, log2e), _MM_FROUND_TO_NEAREST_INT);
+    // n_f32x16 = round(x / ln(2))
+    __m512 n_f32x16 = _mm512_roundscale_ps(_mm512_mul_ps(x_f32x16, log2e_f32x16), _MM_FROUND_TO_NEAREST_INT);
 
-    // r = x - n × ln(2) using Cody-Waite for precision
-    __m512 r = _mm512_fnmadd_ps(n, ln2_hi, x);
-    r = _mm512_fnmadd_ps(n, ln2_lo, r);
+    // r_f32x16 = x - n_f32x16 × ln(2) using Cody-Waite for precision
+    __m512 r_f32x16 = _mm512_fnmadd_ps(n_f32x16, ln2_high_f32x16, x_f32x16);
+    r_f32x16 = _mm512_fnmadd_ps(n_f32x16, ln2_low_f32x16, r_f32x16);
 
-    // Polynomial approximation for exp(r): degree 4
+    // Polynomial approximation for exp(r_f32x16): degree 4
     // Optimized coefficients for [-ln(2)/2, ln(2)/2]
-    // exp(r) ≈ 1 + r + r²/2 + r³/6 + r⁴/24
-    // Using Horner form: ((c₄ × r + c₃) × r + c₂) × r + c₁) × r + c₀
-    __m512 p = _mm512_set1_ps(4.1666666667e-2f);                 // 1/24
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.6666666667e-1f)); // 1/6
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(5.0000000000e-1f)); // 1/2
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));             // 1
-    p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));             // 1
+    // exp(r_f32x16) ≈ 1 + r_f32x16 + r²/2 + r³/6 + r⁴/24
+    // Using Horner form: ((c₄ × r_f32x16 + c₃) × r_f32x16 + c₂) × r_f32x16 + c₁) × r_f32x16 + c₀
+    __m512 p_f32x16 = _mm512_set1_ps(4.1666666667e-2f);                               // 1/24
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.6666666667e-1f)); // 1/6
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(5.0000000000e-1f)); // 1/2
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.0f));             // 1
+    p_f32x16 = _mm512_fmadd_ps(p_f32x16, r_f32x16, _mm512_set1_ps(1.0f));             // 1
 
-    // Reconstruct: exp(x) = 2ⁿ × exp(r)
-    __m512i ni = _mm512_cvtps_epi32(n);
-    ni = _mm512_add_epi32(ni, _mm512_set1_epi32(127));
-    ni = _mm512_slli_epi32(ni, 23);
-    __m512 pow2n = _mm512_castsi512_ps(ni);
+    // Reconstruct: exp(x) = 2ⁿ × exp(r_f32x16)
+    __m512i ni_i32x16 = _mm512_cvtps_epi32(n_f32x16);
+    ni_i32x16 = _mm512_add_epi32(ni_i32x16, _mm512_set1_epi32(127));
+    ni_i32x16 = _mm512_slli_epi32(ni_i32x16, 23);
+    __m512 pow2n_f32x16 = _mm512_castsi512_ps(ni_i32x16);
 
-    return _mm512_mul_ps(p, pow2n);
+    return _mm512_mul_ps(p_f32x16, pow2n_f32x16);
 }
 
 /**
@@ -228,8 +228,8 @@ NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x) {
  *  Tracks per-row running maximum and sum for 16 rows.
  */
 typedef struct {
-    __m512 row_max; ///< Running max per row (16 values)
-    __m512 row_sum; ///< Running sum of exp(x - max) per row
+    __m512 row_max_f32x16; ///< Running max per row (16 values)
+    __m512 row_sum_f32x16; ///< Running sum of exp(x - max) per row
 } nk_attention_softmax_row_state_t;
 
 /**
@@ -246,80 +246,80 @@ NK_INTERNAL void nk_attention_softmax_update_bc32_(nk_attention_softmax_row_stat
                                                    nk_f32_t scale,
                                                    nk_f32_t *weights_out) { // [16, 32] output weights
 
-    __m512 scale_v = _mm512_set1_ps(scale);
+    __m512 scale_v_f32x16 = _mm512_set1_ps(scale);
 
     // Load and scale all scores, compute per-row max
     // Store in temporary arrays to avoid register pressure
-    __m512 s_scaled[16][2];
+    __m512 s_scaled_f32x16[16][2];
     NK_ALIGN64 float row_maxes[16];
 
     // Process 4 rows at a time for ILP
     for (int i = 0; i < 16; i += 4) {
         // Row i
-        s_scaled[i][0] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 0), scale_v);
-        s_scaled[i][1] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 16), scale_v);
-        __m512 m0 = _mm512_max_ps(s_scaled[i][0], s_scaled[i][1]);
+        s_scaled_f32x16[i][0] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i][1] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 16), scale_v_f32x16);
+        __m512 m0_f32x16 = _mm512_max_ps(s_scaled_f32x16[i][0], s_scaled_f32x16[i][1]);
 
         // Row i+1
-        s_scaled[i + 1][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 0), scale_v);
-        s_scaled[i + 1][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 16), scale_v);
-        __m512 m1 = _mm512_max_ps(s_scaled[i + 1][0], s_scaled[i + 1][1]);
+        s_scaled_f32x16[i + 1][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 1][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 16), scale_v_f32x16);
+        __m512 m1_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 1][0], s_scaled_f32x16[i + 1][1]);
 
         // Row i+2
-        s_scaled[i + 2][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 0), scale_v);
-        s_scaled[i + 2][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 16), scale_v);
-        __m512 m2 = _mm512_max_ps(s_scaled[i + 2][0], s_scaled[i + 2][1]);
+        s_scaled_f32x16[i + 2][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 2][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 16), scale_v_f32x16);
+        __m512 m2_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 2][0], s_scaled_f32x16[i + 2][1]);
 
         // Row i+3
-        s_scaled[i + 3][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 0), scale_v);
-        s_scaled[i + 3][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 16), scale_v);
-        __m512 m3 = _mm512_max_ps(s_scaled[i + 3][0], s_scaled[i + 3][1]);
+        s_scaled_f32x16[i + 3][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 3][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 16), scale_v_f32x16);
+        __m512 m3_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 3][0], s_scaled_f32x16[i + 3][1]);
 
         // Reduce to scalar max
-        row_maxes[i] = _mm512_reduce_max_ps(m0);
-        row_maxes[i + 1] = _mm512_reduce_max_ps(m1);
-        row_maxes[i + 2] = _mm512_reduce_max_ps(m2);
-        row_maxes[i + 3] = _mm512_reduce_max_ps(m3);
+        row_maxes[i] = _mm512_reduce_max_ps(m0_f32x16);
+        row_maxes[i + 1] = _mm512_reduce_max_ps(m1_f32x16);
+        row_maxes[i + 2] = _mm512_reduce_max_ps(m2_f32x16);
+        row_maxes[i + 3] = _mm512_reduce_max_ps(m3_f32x16);
     }
 
-    __m512 row_max_new = _mm512_load_ps(row_maxes);
-    __m512 old_max = state->row_max;
-    __m512 new_max = _mm512_max_ps(old_max, row_max_new);
+    __m512 row_max_new_f32x16 = _mm512_load_ps(row_maxes);
+    __m512 old_max_f32x16 = state->row_max_f32x16;
+    __m512 new_max_f32x16 = _mm512_max_ps(old_max_f32x16, row_max_new_f32x16);
 
     // Rescale old sum
-    __m512 correction = nk_exp_ps_avx512_(_mm512_sub_ps(old_max, new_max));
-    __m512 new_sum = _mm512_mul_ps(state->row_sum, correction);
+    __m512 correction_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(old_max_f32x16, new_max_f32x16));
+    __m512 new_sum_f32x16 = _mm512_mul_ps(state->row_sum_f32x16, correction_f32x16);
 
-    // Compute P = exp(S - new_max) and accumulate sums
+    // Compute P = exp(S - new_max_f32x16) and accumulate sums
     NK_ALIGN64 float new_max_arr[16];
     NK_ALIGN64 float row_sums[16];
-    _mm512_store_ps(new_max_arr, new_max);
+    _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     // Process rows
     for (int i = 0; i < 16; i += 2) {
-        __m512 max_i = _mm512_set1_ps(new_max_arr[i]);
-        __m512 max_i1 = _mm512_set1_ps(new_max_arr[i + 1]);
+        __m512 max_i_f32x16 = _mm512_set1_ps(new_max_arr[i]);
+        __m512 max_i1_f32x16 = _mm512_set1_ps(new_max_arr[i + 1]);
 
         // Row i
-        __m512 p0_i = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled[i][0], max_i));
-        __m512 p1_i = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled[i][1], max_i));
-        _mm512_store_ps(weights_out + i * 32 + 0, p0_i);
-        _mm512_store_ps(weights_out + i * 32 + 16, p1_i);
-        row_sums[i] = _mm512_reduce_add_ps(p0_i) + _mm512_reduce_add_ps(p1_i);
+        __m512 p0_i_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled_f32x16[i][0], max_i_f32x16));
+        __m512 p1_i_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled_f32x16[i][1], max_i_f32x16));
+        _mm512_store_ps(weights_out + i * 32 + 0, p0_i_f32x16);
+        _mm512_store_ps(weights_out + i * 32 + 16, p1_i_f32x16);
+        row_sums[i] = _mm512_reduce_add_ps(p0_i_f32x16) + _mm512_reduce_add_ps(p1_i_f32x16);
 
         // Row i+1
-        __m512 p0_i1 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled[i + 1][0], max_i1));
-        __m512 p1_i1 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled[i + 1][1], max_i1));
-        _mm512_store_ps(weights_out + (i + 1) * 32 + 0, p0_i1);
-        _mm512_store_ps(weights_out + (i + 1) * 32 + 16, p1_i1);
-        row_sums[i + 1] = _mm512_reduce_add_ps(p0_i1) + _mm512_reduce_add_ps(p1_i1);
+        __m512 p0_i1_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled_f32x16[i + 1][0], max_i1_f32x16));
+        __m512 p1_i1_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(s_scaled_f32x16[i + 1][1], max_i1_f32x16));
+        _mm512_store_ps(weights_out + (i + 1) * 32 + 0, p0_i1_f32x16);
+        _mm512_store_ps(weights_out + (i + 1) * 32 + 16, p1_i1_f32x16);
+        row_sums[i + 1] = _mm512_reduce_add_ps(p0_i1_f32x16) + _mm512_reduce_add_ps(p1_i1_f32x16);
     }
 
     // Add row sums to running sum vectorially
-    new_sum = _mm512_add_ps(new_sum, _mm512_load_ps(row_sums));
+    new_sum_f32x16 = _mm512_add_ps(new_sum_f32x16, _mm512_load_ps(row_sums));
 
-    state->row_max = new_max;
-    state->row_sum = new_sum;
+    state->row_max_f32x16 = new_max_f32x16;
+    state->row_sum_f32x16 = new_sum_f32x16;
 }
 
 /**
@@ -335,81 +335,81 @@ NK_INTERNAL void nk_attention_softmax_update_bc32_fast_(nk_attention_softmax_row
                                                         nk_f32_t scale,
                                                         nk_f32_t *weights_out) { // [16, 32] output weights
 
-    __m512 scale_v = _mm512_set1_ps(scale);
+    __m512 scale_v_f32x16 = _mm512_set1_ps(scale);
 
     // Load and scale all scores, compute per-row max
-    __m512 s_scaled[16][2];
+    __m512 s_scaled_f32x16[16][2];
     NK_ALIGN64 float row_maxes[16];
 
     // Process 4 rows at a time for ILP
     for (int i = 0; i < 16; i += 4) {
-        s_scaled[i][0] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 0), scale_v);
-        s_scaled[i][1] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 16), scale_v);
-        __m512 m0 = _mm512_max_ps(s_scaled[i][0], s_scaled[i][1]);
+        s_scaled_f32x16[i][0] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i][1] = _mm512_mul_ps(_mm512_load_ps(scores + i * 32 + 16), scale_v_f32x16);
+        __m512 m0_f32x16 = _mm512_max_ps(s_scaled_f32x16[i][0], s_scaled_f32x16[i][1]);
 
-        s_scaled[i + 1][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 0), scale_v);
-        s_scaled[i + 1][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 16), scale_v);
-        __m512 m1 = _mm512_max_ps(s_scaled[i + 1][0], s_scaled[i + 1][1]);
+        s_scaled_f32x16[i + 1][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 1][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 1) * 32 + 16), scale_v_f32x16);
+        __m512 m1_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 1][0], s_scaled_f32x16[i + 1][1]);
 
-        s_scaled[i + 2][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 0), scale_v);
-        s_scaled[i + 2][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 16), scale_v);
-        __m512 m2 = _mm512_max_ps(s_scaled[i + 2][0], s_scaled[i + 2][1]);
+        s_scaled_f32x16[i + 2][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 2][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 2) * 32 + 16), scale_v_f32x16);
+        __m512 m2_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 2][0], s_scaled_f32x16[i + 2][1]);
 
-        s_scaled[i + 3][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 0), scale_v);
-        s_scaled[i + 3][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 16), scale_v);
-        __m512 m3 = _mm512_max_ps(s_scaled[i + 3][0], s_scaled[i + 3][1]);
+        s_scaled_f32x16[i + 3][0] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 0), scale_v_f32x16);
+        s_scaled_f32x16[i + 3][1] = _mm512_mul_ps(_mm512_load_ps(scores + (i + 3) * 32 + 16), scale_v_f32x16);
+        __m512 m3_f32x16 = _mm512_max_ps(s_scaled_f32x16[i + 3][0], s_scaled_f32x16[i + 3][1]);
 
-        row_maxes[i] = _mm512_reduce_max_ps(m0);
-        row_maxes[i + 1] = _mm512_reduce_max_ps(m1);
-        row_maxes[i + 2] = _mm512_reduce_max_ps(m2);
-        row_maxes[i + 3] = _mm512_reduce_max_ps(m3);
+        row_maxes[i] = _mm512_reduce_max_ps(m0_f32x16);
+        row_maxes[i + 1] = _mm512_reduce_max_ps(m1_f32x16);
+        row_maxes[i + 2] = _mm512_reduce_max_ps(m2_f32x16);
+        row_maxes[i + 3] = _mm512_reduce_max_ps(m3_f32x16);
     }
 
-    __m512 row_max_new = _mm512_load_ps(row_maxes);
-    __m512 old_max = state->row_max;
-    __m512 new_max = _mm512_max_ps(old_max, row_max_new);
+    __m512 row_max_new_f32x16 = _mm512_load_ps(row_maxes);
+    __m512 old_max_f32x16 = state->row_max_f32x16;
+    __m512 new_max_f32x16 = _mm512_max_ps(old_max_f32x16, row_max_new_f32x16);
 
     // Rescale old sum using fast exp
-    __m512 correction = nk_exp_ps_fast_avx512_(_mm512_sub_ps(old_max, new_max));
-    __m512 new_sum = _mm512_mul_ps(state->row_sum, correction);
+    __m512 correction_f32x16 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(old_max_f32x16, new_max_f32x16));
+    __m512 new_sum_f32x16 = _mm512_mul_ps(state->row_sum_f32x16, correction_f32x16);
 
-    // Compute P = exp(S - new_max) using fast exp
+    // Compute P = exp(S - new_max_f32x16) using fast exp
     NK_ALIGN64 float new_max_arr[16];
     NK_ALIGN64 float row_sums[16];
-    _mm512_store_ps(new_max_arr, new_max);
+    _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     // Process rows with fast exp
     for (int i = 0; i < 16; i += 2) {
-        __m512 max_i = _mm512_set1_ps(new_max_arr[i]);
-        __m512 max_i1 = _mm512_set1_ps(new_max_arr[i + 1]);
+        __m512 max_i_f32x16 = _mm512_set1_ps(new_max_arr[i]);
+        __m512 max_i1_f32x16 = _mm512_set1_ps(new_max_arr[i + 1]);
 
         // Row i
-        __m512 p0_i = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled[i][0], max_i));
-        __m512 p1_i = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled[i][1], max_i));
-        _mm512_store_ps(weights_out + i * 32 + 0, p0_i);
-        _mm512_store_ps(weights_out + i * 32 + 16, p1_i);
-        row_sums[i] = _mm512_reduce_add_ps(p0_i) + _mm512_reduce_add_ps(p1_i);
+        __m512 p0_i_f32x16 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled_f32x16[i][0], max_i_f32x16));
+        __m512 p1_i_f32x16 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled_f32x16[i][1], max_i_f32x16));
+        _mm512_store_ps(weights_out + i * 32 + 0, p0_i_f32x16);
+        _mm512_store_ps(weights_out + i * 32 + 16, p1_i_f32x16);
+        row_sums[i] = _mm512_reduce_add_ps(p0_i_f32x16) + _mm512_reduce_add_ps(p1_i_f32x16);
 
         // Row i+1
-        __m512 p0_i1 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled[i + 1][0], max_i1));
-        __m512 p1_i1 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled[i + 1][1], max_i1));
-        _mm512_store_ps(weights_out + (i + 1) * 32 + 0, p0_i1);
-        _mm512_store_ps(weights_out + (i + 1) * 32 + 16, p1_i1);
-        row_sums[i + 1] = _mm512_reduce_add_ps(p0_i1) + _mm512_reduce_add_ps(p1_i1);
+        __m512 p0_i1_f32x16 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled_f32x16[i + 1][0], max_i1_f32x16));
+        __m512 p1_i1_f32x16 = nk_exp_ps_fast_avx512_(_mm512_sub_ps(s_scaled_f32x16[i + 1][1], max_i1_f32x16));
+        _mm512_store_ps(weights_out + (i + 1) * 32 + 0, p0_i1_f32x16);
+        _mm512_store_ps(weights_out + (i + 1) * 32 + 16, p1_i1_f32x16);
+        row_sums[i + 1] = _mm512_reduce_add_ps(p0_i1_f32x16) + _mm512_reduce_add_ps(p1_i1_f32x16);
     }
 
-    new_sum = _mm512_add_ps(new_sum, _mm512_load_ps(row_sums));
+    new_sum_f32x16 = _mm512_add_ps(new_sum_f32x16, _mm512_load_ps(row_sums));
 
-    state->row_max = new_max;
-    state->row_sum = new_sum;
+    state->row_max_f32x16 = new_max_f32x16;
+    state->row_sum_f32x16 = new_sum_f32x16;
 }
 
 /**
  *  @brief Initialize online softmax state.
  */
 NK_INTERNAL void nk_attention_softmax_init_(nk_attention_softmax_row_state_t *state) {
-    state->row_max = _mm512_set1_ps(NK_F32_MIN);
-    state->row_sum = _mm512_setzero_ps();
+    state->row_max_f32x16 = _mm512_set1_ps(NK_F32_MIN);
+    state->row_sum_f32x16 = _mm512_setzero_ps();
 }
 
 /**
@@ -430,43 +430,43 @@ NK_INTERNAL void nk_attention_softmax_init_(nk_attention_softmax_row_state_t *st
 NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *state, nk_f32_t const *scores,
                                               nk_f32_t scale, nk_f32_t *weights_out) {
 
-    __m512 scale_v = _mm512_set1_ps(scale);
+    __m512 scale_v_f32x16 = _mm512_set1_ps(scale);
 
     // Load scores into 16 ZMM registers (one per row)
-    __m512 s[16];
-    for (int i = 0; i < 16; i++) { s[i] = _mm512_mul_ps(_mm512_load_ps(scores + i * 16), scale_v); }
+    __m512 s_f32x16[16];
+    for (int i = 0; i < 16; i++) { s_f32x16[i] = _mm512_mul_ps(_mm512_load_ps(scores + i * 16), scale_v_f32x16); }
 
     // Per-row max (each row has 16 elements, we need max across those 16)
     // _mm512_reduce_max_ps returns a float scalar
     NK_ALIGN64 float row_maxes[16];
-    for (int i = 0; i < 16; i++) { row_maxes[i] = _mm512_reduce_max_ps(s[i]); }
-    __m512 row_max_new = _mm512_load_ps(row_maxes);
+    for (int i = 0; i < 16; i++) { row_maxes[i] = _mm512_reduce_max_ps(s_f32x16[i]); }
+    __m512 row_max_new_f32x16 = _mm512_load_ps(row_maxes);
 
     // Update running max
-    __m512 old_max = state->row_max;
-    __m512 new_max = _mm512_max_ps(old_max, row_max_new);
+    __m512 old_max_f32x16 = state->row_max_f32x16;
+    __m512 new_max_f32x16 = _mm512_max_ps(old_max_f32x16, row_max_new_f32x16);
 
     // Rescale old sum: l = l × exp(oldₘₐₓ - newₘₐₓ)
-    __m512 correction = nk_exp_ps_avx512_(_mm512_sub_ps(old_max, new_max));
-    __m512 old_sum_rescaled = _mm512_mul_ps(state->row_sum, correction);
+    __m512 correction_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(old_max_f32x16, new_max_f32x16));
+    __m512 old_sum_rescaled_f32x16 = _mm512_mul_ps(state->row_sum_f32x16, correction_f32x16);
 
     // Compute P = exp(S - newₘₐₓ) for each row, accumulate sum
-    __m512 new_sum = old_sum_rescaled;
+    __m512 new_sum_f32x16 = old_sum_rescaled_f32x16;
     float new_max_arr[16];
-    _mm512_store_ps(new_max_arr, new_max);
+    _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     for (int i = 0; i < 16; i++) {
-        __m512 max_broadcast = _mm512_set1_ps(new_max_arr[i]);
-        __m512 p = nk_exp_ps_avx512_(_mm512_sub_ps(s[i], max_broadcast));
-        _mm512_store_ps(weights_out + i * 16, p);
+        __m512 max_broadcast_f32x16 = _mm512_set1_ps(new_max_arr[i]);
+        __m512 p_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(s_f32x16[i], max_broadcast_f32x16));
+        _mm512_store_ps(weights_out + i * 16, p_f32x16);
 
         // Add row sum to running sum (at position i)
-        float row_sum = _mm512_reduce_add_ps(p);
-        new_sum = _mm512_mask_add_ps(new_sum, 1u << i, new_sum, _mm512_set1_ps(row_sum));
+        float row_sum = _mm512_reduce_add_ps(p_f32x16);
+        new_sum_f32x16 = _mm512_mask_add_ps(new_sum_f32x16, 1u << i, new_sum_f32x16, _mm512_set1_ps(row_sum));
     }
 
-    state->row_max = new_max;
-    state->row_sum = new_sum;
+    state->row_max_f32x16 = new_max_f32x16;
+    state->row_sum_f32x16 = new_sum_f32x16;
 }
 
 /**
@@ -480,18 +480,19 @@ NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *
  *  @param old_max      Previous running max per row (16 values)
  *  @param new_max      New running max per row (16 values)
  */
-NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_dim, __m512 old_max, __m512 new_max) {
+NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_dim, __m512 old_max_f32x16,
+                                              __m512 new_max_f32x16) {
 
-    __m512 correction = nk_exp_ps_avx512_(_mm512_sub_ps(old_max, new_max));
+    __m512 correction_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(old_max_f32x16, new_max_f32x16));
     float corr_arr[16];
-    _mm512_store_ps(corr_arr, correction);
+    _mm512_store_ps(corr_arr, correction_f32x16);
 
     for (nk_size_t row = 0; row < 16; row++) {
-        __m512 corr_v = _mm512_set1_ps(corr_arr[row]);
+        __m512 corr_v_f32x16 = _mm512_set1_ps(corr_arr[row]);
         for (nk_size_t col = 0; col < head_dim; col += 16) {
-            __m512 o = _mm512_load_ps(output + row * head_dim + col);
-            o = _mm512_mul_ps(o, corr_v);
-            _mm512_store_ps(output + row * head_dim + col, o);
+            __m512 o_f32x16 = _mm512_load_ps(output + row * head_dim + col);
+            o_f32x16 = _mm512_mul_ps(o_f32x16, corr_v_f32x16);
+            _mm512_store_ps(output + row * head_dim + col, o_f32x16);
         }
     }
 }
@@ -790,22 +791,22 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
                 // Phase 1: Compute S = Q × Kᵀ using AVX-512 FMA
                 for (nk_size_t qi = 0; qi < valid_q; qi++) {
                     for (nk_size_t ki = 0; ki < valid_kv; ki++) {
-                        __m512 sum_v = _mm512_setzero_ps();
+                        __m512 sum_v_f32x16 = _mm512_setzero_ps();
                         nk_size_t d = 0;
                         // Vectorized loop over head_dim
                         for (; d + 16 <= head_dim; d += 16) {
-                            __m512 q_v = _mm512_loadu_ps(&q_block[qi * head_dim + d]);
+                            __m512 q_v_f32x16 = _mm512_loadu_ps(&q_block[qi * head_dim + d]);
                             // Kᵀ is stored as [head_dim, kv], gather is slow, use scalar for now
-                            __m512 k_v = _mm512_set_ps(
+                            __m512 k_v_f32x16 = _mm512_set_ps(
                                 k_block[(d + 15) * 16 + ki], k_block[(d + 14) * 16 + ki], k_block[(d + 13) * 16 + ki],
                                 k_block[(d + 12) * 16 + ki], k_block[(d + 11) * 16 + ki], k_block[(d + 10) * 16 + ki],
                                 k_block[(d + 9) * 16 + ki], k_block[(d + 8) * 16 + ki], k_block[(d + 7) * 16 + ki],
                                 k_block[(d + 6) * 16 + ki], k_block[(d + 5) * 16 + ki], k_block[(d + 4) * 16 + ki],
                                 k_block[(d + 3) * 16 + ki], k_block[(d + 2) * 16 + ki], k_block[(d + 1) * 16 + ki],
                                 k_block[(d + 0) * 16 + ki]);
-                            sum_v = _mm512_fmadd_ps(q_v, k_v, sum_v);
+                            sum_v_f32x16 = _mm512_fmadd_ps(q_v_f32x16, k_v_f32x16, sum_v_f32x16);
                         }
-                        nk_f32_t sum = _mm512_reduce_add_ps(sum_v);
+                        nk_f32_t sum = _mm512_reduce_add_ps(sum_v_f32x16);
                         // Scalar tail
                         for (; d < head_dim; d++) { sum += q_block[qi * head_dim + d] * k_block[d * 16 + ki]; }
                         scores[qi * 16 + ki] = sum;
@@ -819,11 +820,11 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
                 }
 
                 // Phase 2: Online softmax update
-                __m512 old_max = softmax_state.row_max;
+                __m512 old_max_f32x16 = softmax_state.row_max_f32x16;
                 nk_attention_softmax_update_(&softmax_state, scores, scale, weights);
 
                 // Rescale output accumulator if max changed
-                nk_attention_rescale_output_(o_acc, head_dim_padded, old_max, softmax_state.row_max);
+                nk_attention_rescale_output_(o_acc, head_dim_padded, old_max_f32x16, softmax_state.row_max_f32x16);
 
                 // Extract V block: V[valid_kv, head_dim] using bulk extraction
                 nk_attention_extract_v_block_(v_packed, v_block, kv_h, kvb, valid_kv, head_dim, kv_len);
@@ -833,13 +834,13 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
                     nk_size_t d = 0;
                     // Vectorized loop over head_dim
                     for (; d + 16 <= head_dim; d += 16) {
-                        __m512 acc_v = _mm512_loadu_ps(&o_acc[qi * head_dim_padded + d]);
+                        __m512 acc_v_f32x16 = _mm512_loadu_ps(&o_acc[qi * head_dim_padded + d]);
                         for (nk_size_t ki = 0; ki < valid_kv; ki++) {
-                            __m512 p_v = _mm512_set1_ps(weights[qi * 16 + ki]);
-                            __m512 v_v = _mm512_loadu_ps(&v_block[ki * head_dim + d]);
-                            acc_v = _mm512_fmadd_ps(p_v, v_v, acc_v);
+                            __m512 p_v_f32x16 = _mm512_set1_ps(weights[qi * 16 + ki]);
+                            __m512 v_v_f32x16 = _mm512_loadu_ps(&v_block[ki * head_dim + d]);
+                            acc_v_f32x16 = _mm512_fmadd_ps(p_v_f32x16, v_v_f32x16, acc_v_f32x16);
                         }
-                        _mm512_storeu_ps(&o_acc[qi * head_dim_padded + d], acc_v);
+                        _mm512_storeu_ps(&o_acc[qi * head_dim_padded + d], acc_v_f32x16);
                     }
                     // Scalar tail
                     for (; d < head_dim; d++) {
@@ -854,7 +855,7 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
 
             // Finalize: normalize O by row sums
             float row_sums[16];
-            _mm512_store_ps(row_sums, softmax_state.row_sum);
+            _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
 
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
                 nk_f32_t inv_sum = 1.0f / row_sums[qi];
@@ -918,12 +919,12 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
             nk_attention_softmax_init_(&softmax_state);
 
             // Zero output accumulator using SIMD
-            __m512 zero = _mm512_setzero_ps();
+            __m512 zero_f32x16 = _mm512_setzero_ps();
             for (nk_size_t i = 0; i < 16 * head_dim_padded; i += 64) {
-                _mm512_store_ps(&o_acc[i], zero);
-                _mm512_store_ps(&o_acc[i + 16], zero);
-                _mm512_store_ps(&o_acc[i + 32], zero);
-                _mm512_store_ps(&o_acc[i + 48], zero);
+                _mm512_store_ps(&o_acc[i], zero_f32x16);
+                _mm512_store_ps(&o_acc[i + 16], zero_f32x16);
+                _mm512_store_ps(&o_acc[i + 32], zero_f32x16);
+                _mm512_store_ps(&o_acc[i + 48], zero_f32x16);
             }
 
             // Process KV blocks in chunks of 32
@@ -949,10 +950,10 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
                         for (nk_size_t row = 0; row < valid_q; row++) {
                             nk_bf16_t const *q_row = q_head + (qb + row) * head_dim + depth_start;
                             // Load 32 BF16 values (64 bytes) using two 256-bit loads
-                            __m256i q0 = _mm256_loadu_si256((__m256i const *)q_row);
-                            __m256i q1 = _mm256_loadu_si256((__m256i const *)(q_row + 16));
-                            _mm256_store_si256((__m256i *)&q_tile[row][0], q0);
-                            _mm256_store_si256((__m256i *)&q_tile[row][16], q1);
+                            __m256i q0_bf16x16 = _mm256_loadu_si256((__m256i const *)q_row);
+                            __m256i q1_bf16x16 = _mm256_loadu_si256((__m256i const *)(q_row + 16));
+                            _mm256_store_si256((__m256i *)&q_tile[row][0], q0_bf16x16);
+                            _mm256_store_si256((__m256i *)&q_tile[row][16], q1_bf16x16);
                         }
                     }
                     else {
@@ -990,23 +991,23 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
                 // Use SIMD for fast extraction
                 _tile_stored(0, s_tile, 64);
 
-                __m512 neg_inf = _mm512_set1_ps(NK_F32_MIN);
+                __m512 neg_inf_f32x16 = _mm512_set1_ps(NK_F32_MIN);
 
                 if (valid_q == 16 && valid_kv >= 16) {
                     // Fast path: full first half, just copy
                     for (nk_size_t qi = 0; qi < 16; qi++) {
-                        __m512 s0 = _mm512_load_ps(&s_tile[qi][0]);
-                        _mm512_store_ps(&scores[qi * 32], s0);
+                        __m512 s0_f32x16 = _mm512_load_ps(&s_tile[qi][0]);
+                        _mm512_store_ps(&scores[qi * 32], s0_f32x16);
                     }
                 }
                 else {
                     // Partial - need masking
                     __mmask16 kv_mask = (1u << valid_kv) - 1;
                     for (nk_size_t qi = 0; qi < 16; qi++) {
-                        __m512 s0 = _mm512_load_ps(&s_tile[qi][0]);
-                        if (qi < valid_q) { s0 = _mm512_mask_blend_ps(kv_mask, neg_inf, s0); }
-                        else { s0 = neg_inf; }
-                        _mm512_store_ps(&scores[qi * 32], s0);
+                        __m512 s0_f32x16 = _mm512_load_ps(&s_tile[qi][0]);
+                        if (qi < valid_q) { s0_f32x16 = _mm512_mask_blend_ps(kv_mask, neg_inf_f32x16, s0_f32x16); }
+                        else { s0_f32x16 = neg_inf_f32x16; }
+                        _mm512_store_ps(&scores[qi * 32], s0_f32x16);
                     }
                 }
 
@@ -1018,36 +1019,36 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
                     if (valid_q == 16 && valid_kv2 >= 16) {
                         // Fast path
                         for (nk_size_t qi = 0; qi < 16; qi++) {
-                            __m512 s1 = _mm512_load_ps(&s_tile[qi][0]);
-                            _mm512_store_ps(&scores[qi * 32 + 16], s1);
+                            __m512 s1_f32x16 = _mm512_load_ps(&s_tile[qi][0]);
+                            _mm512_store_ps(&scores[qi * 32 + 16], s1_f32x16);
                         }
                     }
                     else {
                         __mmask16 kv_mask2 = (valid_kv2 >= 16) ? 0xFFFF : ((1u << valid_kv2) - 1);
                         for (nk_size_t qi = 0; qi < 16; qi++) {
-                            __m512 s1 = _mm512_load_ps(&s_tile[qi][0]);
-                            if (qi < valid_q) { s1 = _mm512_mask_blend_ps(kv_mask2, neg_inf, s1); }
-                            else { s1 = neg_inf; }
-                            _mm512_store_ps(&scores[qi * 32 + 16], s1);
+                            __m512 s1_f32x16 = _mm512_load_ps(&s_tile[qi][0]);
+                            if (qi < valid_q) { s1_f32x16 = _mm512_mask_blend_ps(kv_mask2, neg_inf_f32x16, s1_f32x16); }
+                            else { s1_f32x16 = neg_inf_f32x16; }
+                            _mm512_store_ps(&scores[qi * 32 + 16], s1_f32x16);
                         }
                     }
                 }
                 else {
                     // Mask out second half entirely
-                    for (nk_size_t qi = 0; qi < 16; qi++) { _mm512_store_ps(&scores[qi * 32 + 16], neg_inf); }
+                    for (nk_size_t qi = 0; qi < 16; qi++) { _mm512_store_ps(&scores[qi * 32 + 16], neg_inf_f32x16); }
                 }
 
                 // Phase 2: online softmax (fast degree-4 exp)
-                __m512 old_max = softmax_state.row_max;
+                __m512 old_max_f32x16 = softmax_state.row_max_f32x16;
                 nk_attention_softmax_update_bc32_fast_(&softmax_state, scores, scale, weights);
-                nk_attention_rescale_output_(o_acc, head_dim_padded, old_max, softmax_state.row_max);
+                nk_attention_rescale_output_(o_acc, head_dim_padded, old_max_f32x16, softmax_state.row_max_f32x16);
 
                 // Phase 3: O += P × V using AMX
                 // Convert P[16, 32] from F32 to BF16 and pack as A-tile
                 for (nk_size_t qi = 0; qi < 16; qi++) {
                     for (nk_size_t ki = 0; ki < 32; ki += 16) {
-                        __m512 p_f32 = _mm512_loadu_ps(&weights[qi * 32 + ki]);
-                        __m256bh p_bf16 = _mm512_cvtneps_pbh(p_f32);
+                        __m512 p_f32_f32x16 = _mm512_loadu_ps(&weights[qi * 32 + ki]);
+                        __m256bh p_bf16 = _mm512_cvtneps_pbh(p_f32_f32x16);
                         // Store BF16 vector - cast through union or memory
                         *(__m256bh *)&p_tile[qi][ki] = p_bf16;
                     }
@@ -1079,29 +1080,29 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
                     _tile_stored(5, o_tile, 64);
 
                     // Add to output accumulator - unrolled for all 16 rows
-                    // Even if valid_q < 16, we accumulate all (padded rows have zero weights)
+                    // Even if valid_q < 16, we accumulate all (padded rows have zero_f32x16 weights)
                     for (nk_size_t qi = 0; qi < 16; qi += 4) {
-                        __m512 acc0 = _mm512_load_ps(&o_acc[(qi + 0) * head_dim_padded + head_start]);
-                        __m512 acc1 = _mm512_load_ps(&o_acc[(qi + 1) * head_dim_padded + head_start]);
-                        __m512 acc2 = _mm512_load_ps(&o_acc[(qi + 2) * head_dim_padded + head_start]);
-                        __m512 acc3 = _mm512_load_ps(&o_acc[(qi + 3) * head_dim_padded + head_start]);
+                        __m512 acc0_f32x16 = _mm512_load_ps(&o_acc[(qi + 0) * head_dim_padded + head_start]);
+                        __m512 acc1_f32x16 = _mm512_load_ps(&o_acc[(qi + 1) * head_dim_padded + head_start]);
+                        __m512 acc2_f32x16 = _mm512_load_ps(&o_acc[(qi + 2) * head_dim_padded + head_start]);
+                        __m512 acc3_f32x16 = _mm512_load_ps(&o_acc[(qi + 3) * head_dim_padded + head_start]);
 
-                        acc0 = _mm512_add_ps(acc0, _mm512_load_ps(&o_tile[qi + 0][0]));
-                        acc1 = _mm512_add_ps(acc1, _mm512_load_ps(&o_tile[qi + 1][0]));
-                        acc2 = _mm512_add_ps(acc2, _mm512_load_ps(&o_tile[qi + 2][0]));
-                        acc3 = _mm512_add_ps(acc3, _mm512_load_ps(&o_tile[qi + 3][0]));
+                        acc0_f32x16 = _mm512_add_ps(acc0_f32x16, _mm512_load_ps(&o_tile[qi + 0][0]));
+                        acc1_f32x16 = _mm512_add_ps(acc1_f32x16, _mm512_load_ps(&o_tile[qi + 1][0]));
+                        acc2_f32x16 = _mm512_add_ps(acc2_f32x16, _mm512_load_ps(&o_tile[qi + 2][0]));
+                        acc3_f32x16 = _mm512_add_ps(acc3_f32x16, _mm512_load_ps(&o_tile[qi + 3][0]));
 
-                        _mm512_store_ps(&o_acc[(qi + 0) * head_dim_padded + head_start], acc0);
-                        _mm512_store_ps(&o_acc[(qi + 1) * head_dim_padded + head_start], acc1);
-                        _mm512_store_ps(&o_acc[(qi + 2) * head_dim_padded + head_start], acc2);
-                        _mm512_store_ps(&o_acc[(qi + 3) * head_dim_padded + head_start], acc3);
+                        _mm512_store_ps(&o_acc[(qi + 0) * head_dim_padded + head_start], acc0_f32x16);
+                        _mm512_store_ps(&o_acc[(qi + 1) * head_dim_padded + head_start], acc1_f32x16);
+                        _mm512_store_ps(&o_acc[(qi + 2) * head_dim_padded + head_start], acc2_f32x16);
+                        _mm512_store_ps(&o_acc[(qi + 3) * head_dim_padded + head_start], acc3_f32x16);
                     }
                 }
             }
 
             // Finalize: normalize O by row sums
             float row_sums[16];
-            _mm512_store_ps(row_sums, softmax_state.row_sum);
+            _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
                 nk_f32_t inv_sum = 1.0f / row_sums[qi];
                 for (nk_size_t d = 0; d < head_dim; d++) {
@@ -1149,7 +1150,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
     NK_ALIGN64 nk_f32_t o_tile[16][16];      // Output tile buffer
     NK_ALIGN64 nk_f32_t o_acc[16][256];      // Output accumulator (max d=256)
 
-    __m512 neg_inf = _mm512_set1_ps(NK_F32_MIN);
+    __m512 neg_inf_f32x16 = _mm512_set1_ps(NK_F32_MIN);
 
     for (nk_size_t h = 0; h < num_heads; h++) {
         nk_size_t kv_h = h / gqa_ratio;
@@ -1169,10 +1170,10 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
                     // Full tile - fast SIMD copy
                     for (nk_size_t row = 0; row < valid_q; row++) {
                         nk_bf16_t const *q_row = q_head + (qb + row) * head_dim + depth_start;
-                        __m256i q0 = _mm256_loadu_si256((__m256i const *)q_row);
-                        __m256i q1 = _mm256_loadu_si256((__m256i const *)(q_row + 16));
-                        _mm256_store_si256((__m256i *)&q_tiles[dt][row][0], q0);
-                        _mm256_store_si256((__m256i *)&q_tiles[dt][row][16], q1);
+                        __m256i q0_bf16x16 = _mm256_loadu_si256((__m256i const *)q_row);
+                        __m256i q1_bf16x16 = _mm256_loadu_si256((__m256i const *)(q_row + 16));
+                        _mm256_store_si256((__m256i *)&q_tiles[dt][row][0], q0_bf16x16);
+                        _mm256_store_si256((__m256i *)&q_tiles[dt][row][16], q1_bf16x16);
                     }
                     // Zero remaining rows
                     for (nk_size_t row = valid_q; row < 16; row++) {
@@ -1198,12 +1199,12 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
             nk_attention_softmax_row_state_t softmax_state;
             nk_attention_softmax_init_(&softmax_state);
 
-            __m512 zero = _mm512_setzero_ps();
+            __m512 zero_f32x16 = _mm512_setzero_ps();
             for (nk_size_t i = 0; i < 16 * head_dim_padded; i += 64) {
-                _mm512_store_ps(&o_acc[0][i], zero);
-                _mm512_store_ps(&o_acc[0][i + 16], zero);
-                _mm512_store_ps(&o_acc[0][i + 32], zero);
-                _mm512_store_ps(&o_acc[0][i + 48], zero);
+                _mm512_store_ps(&o_acc[0][i], zero_f32x16);
+                _mm512_store_ps(&o_acc[0][i + 16], zero_f32x16);
+                _mm512_store_ps(&o_acc[0][i + 32], zero_f32x16);
+                _mm512_store_ps(&o_acc[0][i + 48], zero_f32x16);
             }
 
             // Process KV blocks
@@ -1239,7 +1240,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
                 if (kvb + 16 < kv_len) { _tile_stored(3, &scores[0][16], 128); }
                 else {
                     // Mask out second half
-                    for (nk_size_t qi = 0; qi < 16; qi++) { _mm512_store_ps(&scores[qi][16], neg_inf); }
+                    for (nk_size_t qi = 0; qi < 16; qi++) { _mm512_store_ps(&scores[qi][16], neg_inf_f32x16); }
                 }
 
                 // Apply masking for invalid positions (only on boundaries)
@@ -1250,30 +1251,31 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
 
                     for (nk_size_t qi = 0; qi < 16; qi++) {
                         if (qi >= valid_q) {
-                            _mm512_store_ps(&scores[qi][0], neg_inf);
-                            _mm512_store_ps(&scores[qi][16], neg_inf);
+                            _mm512_store_ps(&scores[qi][0], neg_inf_f32x16);
+                            _mm512_store_ps(&scores[qi][16], neg_inf_f32x16);
                         }
                         else {
-                            __m512 s0 = _mm512_load_ps(&scores[qi][0]);
-                            __m512 s1 = _mm512_load_ps(&scores[qi][16]);
-                            _mm512_store_ps(&scores[qi][0], _mm512_mask_blend_ps(kv_mask0, neg_inf, s0));
-                            _mm512_store_ps(&scores[qi][16], _mm512_mask_blend_ps(kv_mask1, neg_inf, s1));
+                            __m512 s0_f32x16 = _mm512_load_ps(&scores[qi][0]);
+                            __m512 s1_f32x16 = _mm512_load_ps(&scores[qi][16]);
+                            _mm512_store_ps(&scores[qi][0], _mm512_mask_blend_ps(kv_mask0, neg_inf_f32x16, s0_f32x16));
+                            _mm512_store_ps(&scores[qi][16], _mm512_mask_blend_ps(kv_mask1, neg_inf_f32x16, s1_f32x16));
                         }
                     }
                 }
 
                 // Phase 2: online softmax (fast degree-4 exp)
-                __m512 old_max = softmax_state.row_max;
+                __m512 old_max_f32x16 = softmax_state.row_max_f32x16;
                 nk_attention_softmax_update_bc32_fast_(&softmax_state, &scores[0][0], scale, &weights[0][0]);
-                nk_attention_rescale_output_(&o_acc[0][0], head_dim_padded, old_max, softmax_state.row_max);
+                nk_attention_rescale_output_(&o_acc[0][0], head_dim_padded, old_max_f32x16,
+                                             softmax_state.row_max_f32x16);
 
                 // Phase 3: O += P × V with hoisted P tile load
                 // Convert F32 weights to BF16 P tile (once per KV block)
                 for (nk_size_t qi = 0; qi < 16; qi++) {
-                    __m512 p0 = _mm512_load_ps(&weights[qi][0]);
-                    __m512 p1 = _mm512_load_ps(&weights[qi][16]);
-                    __m256bh pb0 = _mm512_cvtneps_pbh(p0);
-                    __m256bh pb1 = _mm512_cvtneps_pbh(p1);
+                    __m512 p0_f32x16 = _mm512_load_ps(&weights[qi][0]);
+                    __m512 p1_f32x16 = _mm512_load_ps(&weights[qi][16]);
+                    __m256bh pb0 = _mm512_cvtneps_pbh(p0_f32x16);
+                    __m256bh pb1 = _mm512_cvtneps_pbh(p1_f32x16);
                     *(__m256bh *)&p_tile[qi][0] = pb0;
                     *(__m256bh *)&p_tile[qi][16] = pb1;
                 }
@@ -1299,33 +1301,33 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
 
                     // Accumulate into output (unrolled)
                     for (nk_size_t qi = 0; qi < 16; qi += 4) {
-                        __m512 acc0 = _mm512_load_ps(&o_acc[qi + 0][head_start]);
-                        __m512 acc1 = _mm512_load_ps(&o_acc[qi + 1][head_start]);
-                        __m512 acc2 = _mm512_load_ps(&o_acc[qi + 2][head_start]);
-                        __m512 acc3 = _mm512_load_ps(&o_acc[qi + 3][head_start]);
+                        __m512 acc0_f32x16 = _mm512_load_ps(&o_acc[qi + 0][head_start]);
+                        __m512 acc1_f32x16 = _mm512_load_ps(&o_acc[qi + 1][head_start]);
+                        __m512 acc2_f32x16 = _mm512_load_ps(&o_acc[qi + 2][head_start]);
+                        __m512 acc3_f32x16 = _mm512_load_ps(&o_acc[qi + 3][head_start]);
 
-                        acc0 = _mm512_add_ps(acc0, _mm512_load_ps(&o_tile[qi + 0][0]));
-                        acc1 = _mm512_add_ps(acc1, _mm512_load_ps(&o_tile[qi + 1][0]));
-                        acc2 = _mm512_add_ps(acc2, _mm512_load_ps(&o_tile[qi + 2][0]));
-                        acc3 = _mm512_add_ps(acc3, _mm512_load_ps(&o_tile[qi + 3][0]));
+                        acc0_f32x16 = _mm512_add_ps(acc0_f32x16, _mm512_load_ps(&o_tile[qi + 0][0]));
+                        acc1_f32x16 = _mm512_add_ps(acc1_f32x16, _mm512_load_ps(&o_tile[qi + 1][0]));
+                        acc2_f32x16 = _mm512_add_ps(acc2_f32x16, _mm512_load_ps(&o_tile[qi + 2][0]));
+                        acc3_f32x16 = _mm512_add_ps(acc3_f32x16, _mm512_load_ps(&o_tile[qi + 3][0]));
 
-                        _mm512_store_ps(&o_acc[qi + 0][head_start], acc0);
-                        _mm512_store_ps(&o_acc[qi + 1][head_start], acc1);
-                        _mm512_store_ps(&o_acc[qi + 2][head_start], acc2);
-                        _mm512_store_ps(&o_acc[qi + 3][head_start], acc3);
+                        _mm512_store_ps(&o_acc[qi + 0][head_start], acc0_f32x16);
+                        _mm512_store_ps(&o_acc[qi + 1][head_start], acc1_f32x16);
+                        _mm512_store_ps(&o_acc[qi + 2][head_start], acc2_f32x16);
+                        _mm512_store_ps(&o_acc[qi + 3][head_start], acc3_f32x16);
                     }
                 }
             }
 
             // Finalize: normalize O by row sums
             float row_sums[16];
-            _mm512_store_ps(row_sums, softmax_state.row_sum);
+            _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
-                __m512 inv_sum = _mm512_set1_ps(1.0f / row_sums[qi]);
+                __m512 inv_sum_f32x16 = _mm512_set1_ps(1.0f / row_sums[qi]);
                 for (nk_size_t d = 0; d < head_dim; d += 16) {
-                    __m512 o = _mm512_load_ps(&o_acc[qi][d]);
-                    o = _mm512_mul_ps(o, inv_sum);
-                    _mm512_storeu_ps(&o_head[(qb + qi) * head_dim + d], o);
+                    __m512 o_f32x16 = _mm512_load_ps(&o_acc[qi][d]);
+                    o_f32x16 = _mm512_mul_ps(o_f32x16, inv_sum_f32x16);
+                    _mm512_storeu_ps(&o_head[(qb + qi) * head_dim + d], o_f32x16);
                 }
             }
         }

@@ -203,10 +203,10 @@ NK_PUBLIC void nk_reduce_moments_u8_sierra(                       //
 NK_INTERNAL void nk_reduce_moments_e2m3_sierra_contiguous_( //
     nk_e2m3_t const *data, nk_size_t count,                 //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
-                                                    30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
-                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const lut_low_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
+                                                  30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_high_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                   120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -221,8 +221,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_contiguous_( //
         __m256i shuffle_idx_u8x32 = _mm256_and_si256(magnitude_u8x32, nibble_mask_u8x32);
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
-        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_upper_u8x32, shuffle_idx_u8x32),
+        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, shuffle_idx_u8x32),
+                                                    _mm256_shuffle_epi8(lut_high_u8x32, shuffle_idx_u8x32),
                                                     upper_select_u8x32);
         __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(data_u8x32, sign_mask_u8x32), sign_mask_u8x32);
         __m256i signed_i8x32 = _mm256_blendv_epi8(
@@ -241,8 +241,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_contiguous_( //
         __m256i shuffle_idx_u8x32 = _mm256_and_si256(magnitude_u8x32, nibble_mask_u8x32);
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
-        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_upper_u8x32, shuffle_idx_u8x32),
+        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, shuffle_idx_u8x32),
+                                                    _mm256_shuffle_epi8(lut_high_u8x32, shuffle_idx_u8x32),
                                                     upper_select_u8x32);
         __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(data_u8x32, sign_mask_u8x32), sign_mask_u8x32);
         __m256i signed_i8x32 = _mm256_blendv_epi8(
@@ -258,10 +258,10 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_strided_(               //
     nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     __m256i stride_mask_u8x32 = nk_stride_blend_u1x32_(stride_elements);
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
-                                                    30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
-                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const lut_low_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
+                                                  30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_high_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                   120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -279,8 +279,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_strided_(               //
         __m256i shuffle_idx_u8x32 = _mm256_and_si256(magnitude_u8x32, nibble_mask_u8x32);
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
-        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_upper_u8x32, shuffle_idx_u8x32),
+        __m256i unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, shuffle_idx_u8x32),
+                                                    _mm256_shuffle_epi8(lut_high_u8x32, shuffle_idx_u8x32),
                                                     upper_select_u8x32);
         __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(data_u8x32, sign_mask_u8x32), sign_mask_u8x32);
         __m256i signed_i8x32 = _mm256_blendv_epi8(

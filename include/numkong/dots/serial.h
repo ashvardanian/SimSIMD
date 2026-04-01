@@ -1253,9 +1253,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                     nk_##packed_value_type##_t const *bp5 = packed_data + (tc + 5) * depth_padded;                     \
                     nk_##packed_value_type##_t const *bp6 = packed_data + (tc + 6) * depth_padded;                     \
                     nk_##packed_value_type##_t const *bp7 = packed_data + (tc + 7) * depth_padded;                     \
-                    result_vec_type b_sum_lo, b_sum_hi;                                                                \
-                    load_sum_fn(b_sums + tc, &b_sum_lo);                                                               \
-                    load_sum_fn(b_sums + tc + 4, &b_sum_hi);                                                           \
+                    result_vec_type b_sum_low, b_sum_high;                                                             \
+                    load_sum_fn(b_sums + tc, &b_sum_low);                                                              \
+                    load_sum_fn(b_sums + tc + 4, &b_sum_high);                                                         \
                     for (nk_size_t ri = rb2; ri < re2; ++ri) {                                                         \
                         state_type s0, s1, s2, s3, s4, s5, s6, s7;                                                     \
                         init_accumulator_fn(&s0), init_accumulator_fn(&s1), init_accumulator_fn(&s2),                  \
@@ -1284,9 +1284,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         result_vec_type rv;                                                                            \
                         nk_##result_value_type##_t *c_row = (nk_##result_value_type##_t *)((char *)c_matrix +          \
                                                                                            ri * c_stride_in_bytes);    \
-                        compensated_finalize_fn(&s0, &s1, &s2, &s3, depth, a_sum_val, b_sum_lo, &rv);                  \
+                        compensated_finalize_fn(&s0, &s1, &s2, &s3, depth, a_sum_val, b_sum_low, &rv);                 \
                         store_fn(&rv, c_row + tc);                                                                     \
-                        compensated_finalize_fn(&s4, &s5, &s6, &s7, depth, a_sum_val, b_sum_hi, &rv);                  \
+                        compensated_finalize_fn(&s4, &s5, &s6, &s7, depth, a_sum_val, b_sum_high, &rv);                \
                         store_fn(&rv, c_row + tc + 4);                                                                 \
                     }                                                                                                  \
                 }                                                                                                      \

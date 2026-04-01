@@ -116,9 +116,9 @@ NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 f32x8) {
     __m256i rounded_i32x8 = _mm256_add_epi32(bits_i32x8, _mm256_add_epi32(_mm256_set1_epi32(0x7FFF), lsb_i32x8));
     __m256i bf16_i32x8 = _mm256_srli_epi32(rounded_i32x8, 16);
     // Pack 8x i32 to 8x i16
-    __m128i lo_i32x4 = _mm256_castsi256_si128(bf16_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(bf16_i32x8, 1);
-    return _mm_packus_epi32(lo_i32x4, hi_i32x4);
+    __m128i low_i32x4 = _mm256_castsi256_si128(bf16_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(bf16_i32x8, 1);
+    return _mm_packus_epi32(low_i32x4, high_i32x4);
 }
 
 /** @brief Integer upcasts to f32x8 (AVX2). */
@@ -132,10 +132,10 @@ NK_INTERNAL __m256 nk_u16x8_to_f32x8_haswell_(__m128i u16x8) {
 }
 NK_INTERNAL __m256 nk_i32x8_to_f32x8_haswell_(__m256i i32x8) { return _mm256_cvtepi32_ps(i32x8); }
 NK_INTERNAL __m256 nk_u32x8_to_f32x8_haswell_(__m256i u32x8) {
-    __m256i lo_i32x8 = _mm256_and_si256(u32x8, _mm256_set1_epi32(0xFFFF));
-    __m256i hi_i32x8 = _mm256_srli_epi32(u32x8, 16);
-    return _mm256_add_ps(_mm256_cvtepi32_ps(lo_i32x8),
-                         _mm256_mul_ps(_mm256_cvtepi32_ps(hi_i32x8), _mm256_set1_ps(65536.0f)));
+    __m256i low_i32x8 = _mm256_and_si256(u32x8, _mm256_set1_epi32(0xFFFF));
+    __m256i high_i32x8 = _mm256_srli_epi32(u32x8, 16);
+    return _mm256_add_ps(_mm256_cvtepi32_ps(low_i32x8),
+                         _mm256_mul_ps(_mm256_cvtepi32_ps(high_i32x8), _mm256_set1_ps(65536.0f)));
 }
 
 /** @brief Saturating f32x8 downcasts to integers (AVX2). */

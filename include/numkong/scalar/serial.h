@@ -74,16 +74,16 @@ NK_PUBLIC nk_f64_t nk_f64_fma_serial(nk_f64_t multiplicand, nk_f64_t multiplier,
     nk_f64_t product = multiplicand * multiplier;
     // Dekker splitting: break each operand into non-overlapping high and low halves
     nk_f64_t const dekker_split = 134217729.0; // 2^27 + 1 for double precision
-    nk_f64_t multiplicand_hi = dekker_split * multiplicand;
-    nk_f64_t multiplicand_lo = multiplicand - (multiplicand_hi - (multiplicand_hi - multiplicand));
-    multiplicand_hi = multiplicand_hi - (multiplicand_hi - multiplicand);
-    nk_f64_t multiplier_hi = dekker_split * multiplier;
-    nk_f64_t multiplier_lo = multiplier - (multiplier_hi - (multiplier_hi - multiplier));
-    multiplier_hi = multiplier_hi - (multiplier_hi - multiplier);
+    nk_f64_t multiplicand_high = dekker_split * multiplicand;
+    nk_f64_t multiplicand_low = multiplicand - (multiplicand_high - (multiplicand_high - multiplicand));
+    multiplicand_high = multiplicand_high - (multiplicand_high - multiplicand);
+    nk_f64_t multiplier_high = dekker_split * multiplier;
+    nk_f64_t multiplier_low = multiplier - (multiplier_high - (multiplier_high - multiplier));
+    multiplier_high = multiplier_high - (multiplier_high - multiplier);
     // Exact multiplication error from the four cross-products
-    nk_f64_t product_error = ((multiplicand_hi * multiplier_hi - product) + multiplicand_hi * multiplier_lo +
-                              multiplicand_lo * multiplier_hi) +
-                             multiplicand_lo * multiplier_lo;
+    nk_f64_t product_error = ((multiplicand_high * multiplier_high - product) + multiplicand_high * multiplier_low +
+                              multiplicand_low * multiplier_high) +
+                             multiplicand_low * multiplier_low;
     // Knuth TwoSum: add the addend with error tracking
     nk_f64_t result = product + addend;
     nk_f64_t addend_recovered = result - product;
@@ -102,16 +102,16 @@ NK_PUBLIC nk_f32_t nk_f32_fma_serial(nk_f32_t multiplicand, nk_f32_t multiplier,
     nk_f32_t product = multiplicand * multiplier;
     // Dekker splitting: break each operand into non-overlapping high and low halves
     nk_f32_t const dekker_split = 4097.0f; // 2^12 + 1 for single precision
-    nk_f32_t multiplicand_hi = dekker_split * multiplicand;
-    nk_f32_t multiplicand_lo = multiplicand - (multiplicand_hi - (multiplicand_hi - multiplicand));
-    multiplicand_hi = multiplicand_hi - (multiplicand_hi - multiplicand);
-    nk_f32_t multiplier_hi = dekker_split * multiplier;
-    nk_f32_t multiplier_lo = multiplier - (multiplier_hi - (multiplier_hi - multiplier));
-    multiplier_hi = multiplier_hi - (multiplier_hi - multiplier);
+    nk_f32_t multiplicand_high = dekker_split * multiplicand;
+    nk_f32_t multiplicand_low = multiplicand - (multiplicand_high - (multiplicand_high - multiplicand));
+    multiplicand_high = multiplicand_high - (multiplicand_high - multiplicand);
+    nk_f32_t multiplier_high = dekker_split * multiplier;
+    nk_f32_t multiplier_low = multiplier - (multiplier_high - (multiplier_high - multiplier));
+    multiplier_high = multiplier_high - (multiplier_high - multiplier);
     // Exact multiplication error from the four cross-products
-    nk_f32_t product_error = ((multiplicand_hi * multiplier_hi - product) + multiplicand_hi * multiplier_lo +
-                              multiplicand_lo * multiplier_hi) +
-                             multiplicand_lo * multiplier_lo;
+    nk_f32_t product_error = ((multiplicand_high * multiplier_high - product) + multiplicand_high * multiplier_low +
+                              multiplicand_low * multiplier_high) +
+                             multiplicand_low * multiplier_low;
     // Knuth TwoSum: add the addend with error tracking
     nk_f32_t result = product + addend;
     nk_f32_t addend_recovered = result - product;

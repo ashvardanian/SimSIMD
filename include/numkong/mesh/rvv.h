@@ -105,20 +105,22 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f32_rvv_( //
     nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,         //
     nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z,         //
     nk_f64_t h[9]) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -151,18 +153,18 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f32_rvv_( //
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     // Compute centroids
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
+    nk_f64_t ca_x_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_y_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_z_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_x_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_y_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_z_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
     *ca_x = ca_x_;
     *ca_y = ca_y_;
     *ca_z = ca_z_;
@@ -171,23 +173,23 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f32_rvv_( //
     *cb_z = cb_z_;
     // Fix up: H[i][j] = raw[i][j] - n * ca[i] * cb[j]
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) -
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) -
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) -
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) -
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) -
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) -
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) -
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) -
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) -
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_z_;
 }
 
@@ -202,35 +204,37 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f64_rvv_( //
     nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,         //
     nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z,         //
     nk_f64_t h[9]) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
-    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -301,21 +305,23 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_rvv_( //
     nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,                      //
     nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z,                      //
     nk_f64_t h[9], nk_f64_t *variance_a) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
-                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_norm_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length),
+                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_norm_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -353,18 +359,18 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_rvv_( //
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
-    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, vlmax)) *
-                     inv_n;
+    nk_f64_t ca_x_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_y_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_z_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_x_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_y_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_z_ =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
     *ca_x = ca_x_;
     *ca_y = ca_y_;
     *ca_z = ca_z_;
@@ -372,27 +378,27 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_rvv_( //
     *cb_y = cb_y_;
     *cb_z = cb_z_;
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) -
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) -
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) -
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) -
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) -
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) -
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) -
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) -
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) -
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, max_vector_length)) -
            n_f64 * ca_z_ * cb_z_;
     // variance_a = (1/n) * (Σ ||a[i]||² - n * ||ca||²)
     *variance_a = __riscv_vfmv_f_s_f64m1_f64(
-                      __riscv_vfredusum_vs_f64m2_f64m1(sum_norm_squared_f64m2, zero_f64m1, vlmax)) *
+                      __riscv_vfredusum_vs_f64m2_f64m1(sum_norm_squared_f64m2, zero_f64m1, max_vector_length)) *
                       inv_n -
                   (ca_x_ * ca_x_ + ca_y_ * ca_y_ + ca_z_ * ca_z_);
 }
@@ -408,37 +414,39 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f64_rvv_( //
     nk_f64_t *ca_x, nk_f64_t *ca_y, nk_f64_t *ca_z,                      //
     nk_f64_t *cb_x, nk_f64_t *cb_y, nk_f64_t *cb_z,                      //
     nk_f64_t h[9], nk_f64_t *variance_a) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
-    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
-                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length),
+                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -508,8 +516,8 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_rvv_(      //
     nk_f64_t scaled_rotation_x_x = scale * r[0], scaled_rotation_x_y = scale * r[1], scaled_rotation_x_z = scale * r[2];
     nk_f64_t scaled_rotation_y_x = scale * r[3], scaled_rotation_y_y = scale * r[4], scaled_rotation_y_z = scale * r[5];
     nk_f64_t scaled_rotation_z_x = scale * r[6], scaled_rotation_z_y = scale * r[7], scaled_rotation_z_z = scale * r[8];
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_distance_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_distance_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
@@ -555,7 +563,8 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_rvv_(      //
         sum_distance_squared_f64m2 = __riscv_vfmacc_vv_f64m2_tu(sum_distance_squared_f64m2, delta_z_f64m2,
                                                                 delta_z_f64m2, vector_length);
     }
-    return __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_distance_squared_f64m2, zero_f64m1, vlmax));
+    return __riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_distance_squared_f64m2, zero_f64m1, max_vector_length));
 }
 
 NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_rvv_(      //
@@ -566,9 +575,9 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_rvv_(      //
     nk_f64_t scaled_rotation_x_x = scale * r[0], scaled_rotation_x_y = scale * r[1], scaled_rotation_x_z = scale * r[2];
     nk_f64_t scaled_rotation_y_x = scale * r[3], scaled_rotation_y_y = scale * r[4], scaled_rotation_y_z = scale * r[5];
     nk_f64_t scaled_rotation_z_x = scale * r[6], scaled_rotation_z_y = scale * r[7], scaled_rotation_z_z = scale * r[8];
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
-    vfloat64m1_t sum_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -658,14 +667,14 @@ NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
     // Fused single-pass: accumulate centroids and squared differences simultaneously.
     // RMSD = √(E[(a−b)²] − (ā − b̄)²)
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t sum_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_a_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_a_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_a_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_x_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_y_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t sum_squared_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;
@@ -703,23 +712,23 @@ NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t ca_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
-    nk_f64_t ca_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
-    nk_f64_t ca_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
-    nk_f64_t cb_x = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
-    nk_f64_t cb_y = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
-    nk_f64_t cb_z = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, vlmax)) *
-                    inv_n;
+    nk_f64_t ca_x =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_y =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t ca_z =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_a_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_x =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_x_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_y =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_y_f64m2, zero_f64m1, max_vector_length)) * inv_n;
+    nk_f64_t cb_z =
+        __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_b_z_f64m2, zero_f64m1, max_vector_length)) * inv_n;
     if (a_centroid) a_centroid[0] = (nk_f32_t)ca_x, a_centroid[1] = (nk_f32_t)ca_y, a_centroid[2] = (nk_f32_t)ca_z;
     if (b_centroid) b_centroid[0] = (nk_f32_t)cb_x, b_centroid[1] = (nk_f32_t)cb_y, b_centroid[2] = (nk_f32_t)cb_z;
 
     nk_f64_t sum_squared = __riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(sum_squared_f64m2, zero_f64m1, vlmax));
+        __riscv_vfredusum_vs_f64m2_f64m1(sum_squared_f64m2, zero_f64m1, max_vector_length));
     nk_f64_t mean_diff_x = ca_x - cb_x, mean_diff_y = ca_y - cb_y, mean_diff_z = ca_z - cb_z;
     nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
     *result = nk_f64_sqrt_rvv(sum_squared * inv_n - mean_diff_sq);
@@ -736,21 +745,21 @@ NK_PUBLIC void nk_rmsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n
 
     // Fused single-pass: accumulate centroids and squared differences simultaneously.
     // RMSD = √(E[(a−b)²] − (ā − b̄)²)
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
-    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t sum_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t compensation_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m1();
+    vfloat64m1_t sum_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t sum_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
+    vfloat64m1_t compensation_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, max_vector_length);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
     for (nk_size_t vector_length; remaining > 0;

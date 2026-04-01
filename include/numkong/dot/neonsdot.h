@@ -207,7 +207,7 @@ NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_siz
     n = nk_size_round_up_to_multiple_(n, 2);
     nk_size_t n_bytes = n / 2;
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
-    uint8x16_t a_i4x32, b_i4x32;
+    uint8x16_t a_i4x32_u8x16, b_i4x32_u8x16;
 
 nk_dot_i4_neonsdot_cycle:
     if (n_bytes < 16) {
@@ -219,26 +219,26 @@ nk_dot_i4_neonsdot_cycle:
             a_vec.u8s[i] = a_ptr[i];
             b_vec.u8s[i] = b_ptr[i];
         }
-        a_i4x32 = a_vec.u8x16;
-        b_i4x32 = b_vec.u8x16;
+        a_i4x32_u8x16 = a_vec.u8x16;
+        b_i4x32_u8x16 = b_vec.u8x16;
         n_bytes = 0;
     }
     else {
-        a_i4x32 = vld1q_u8((nk_u8_t const *)a);
-        b_i4x32 = vld1q_u8((nk_u8_t const *)b);
+        a_i4x32_u8x16 = vld1q_u8((nk_u8_t const *)a);
+        b_i4x32_u8x16 = vld1q_u8((nk_u8_t const *)b);
         a += 16, b += 16, n_bytes -= 16;
     }
 
     // Sign-extend low nibbles: SHL 4 discards high nibble, arithmetic SHR 4 sign-extends
-    int8x16_t a_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_i4x32), 4), 4);
-    int8x16_t b_lo_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_i4x32), 4), 4);
+    int8x16_t a_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(a_i4x32_u8x16), 4), 4);
+    int8x16_t b_low_i8x16 = vshrq_n_s8(vshlq_n_s8(vreinterpretq_s8_u8(b_i4x32_u8x16), 4), 4);
     // Sign-extend high nibbles: arithmetic SHR 4 directly sign-extends
-    int8x16_t a_hi_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(a_i4x32), 4);
-    int8x16_t b_hi_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(b_i4x32), 4);
+    int8x16_t a_high_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(a_i4x32_u8x16), 4);
+    int8x16_t b_high_i8x16 = vshrq_n_s8(vreinterpretq_s8_u8(b_i4x32_u8x16), 4);
 
     // SDOT for signed dot product - no correction needed!
-    sum_i32x4 = vdotq_s32(sum_i32x4, a_lo_i8x16, b_lo_i8x16);
-    sum_i32x4 = vdotq_s32(sum_i32x4, a_hi_i8x16, b_hi_i8x16);
+    sum_i32x4 = vdotq_s32(sum_i32x4, a_low_i8x16, b_low_i8x16);
+    sum_i32x4 = vdotq_s32(sum_i32x4, a_high_i8x16, b_high_i8x16);
 
     if (n_bytes) goto nk_dot_i4_neonsdot_cycle;
 
@@ -254,7 +254,7 @@ NK_PUBLIC void nk_dot_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_siz
     nk_size_t n_bytes = n / 2;
     uint8x16_t const nibble_mask_u8x16 = vdupq_n_u8(0x0F);
     uint32x4_t sum_u32x4 = vdupq_n_u32(0);
-    uint8x16_t a_u4x32, b_u4x32;
+    uint8x16_t a_u4x32_u8x16, b_u4x32_u8x16;
 
 nk_dot_u4_neonsdot_cycle:
     if (n_bytes < 16) {
@@ -266,25 +266,25 @@ nk_dot_u4_neonsdot_cycle:
             a_vec.u8s[i] = a_ptr[i];
             b_vec.u8s[i] = b_ptr[i];
         }
-        a_u4x32 = a_vec.u8x16;
-        b_u4x32 = b_vec.u8x16;
+        a_u4x32_u8x16 = a_vec.u8x16;
+        b_u4x32_u8x16 = b_vec.u8x16;
         n_bytes = 0;
     }
     else {
-        a_u4x32 = vld1q_u8((nk_u8_t const *)a);
-        b_u4x32 = vld1q_u8((nk_u8_t const *)b);
+        a_u4x32_u8x16 = vld1q_u8((nk_u8_t const *)a);
+        b_u4x32_u8x16 = vld1q_u8((nk_u8_t const *)b);
         a += 16, b += 16, n_bytes -= 16;
     }
 
     // Extract low and high nibbles - values in [0,15] work directly with UDOT
-    uint8x16_t a_lo_u8x16 = vandq_u8(a_u4x32, nibble_mask_u8x16);
-    uint8x16_t a_hi_u8x16 = vshrq_n_u8(a_u4x32, 4);
-    uint8x16_t b_lo_u8x16 = vandq_u8(b_u4x32, nibble_mask_u8x16);
-    uint8x16_t b_hi_u8x16 = vshrq_n_u8(b_u4x32, 4);
+    uint8x16_t a_low_u8x16 = vandq_u8(a_u4x32_u8x16, nibble_mask_u8x16);
+    uint8x16_t a_high_u8x16 = vshrq_n_u8(a_u4x32_u8x16, 4);
+    uint8x16_t b_low_u8x16 = vandq_u8(b_u4x32_u8x16, nibble_mask_u8x16);
+    uint8x16_t b_high_u8x16 = vshrq_n_u8(b_u4x32_u8x16, 4);
 
     // UDOT directly on unsigned nibbles
-    sum_u32x4 = vdotq_u32(sum_u32x4, a_lo_u8x16, b_lo_u8x16);
-    sum_u32x4 = vdotq_u32(sum_u32x4, a_hi_u8x16, b_hi_u8x16);
+    sum_u32x4 = vdotq_u32(sum_u32x4, a_low_u8x16, b_low_u8x16);
+    sum_u32x4 = vdotq_u32(sum_u32x4, a_high_u8x16, b_high_u8x16);
 
     if (n_bytes) goto nk_dot_u4_neonsdot_cycle;
 
@@ -432,7 +432,7 @@ NK_PUBLIC void nk_dot_e3m2_neonsdot(nk_e3m2_t const *a_scalars, nk_e3m2_t const 
     // High byte is 1 only for indices 28-31 (values 256-448), replaced by a >= 28 comparison.
     static nk_u8_t const lut_data[32] = {0,  1,  2,  3,  4,  5,  6,  7,   8,   10,  12,  14,  16, 20, 24,  28,
                                          32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0,  64, 128, 192};
-    uint8x16x2_t lut = vld1q_u8_x2(lut_data);
+    uint8x16x2_t lut_u8x16x2 = vld1q_u8_x2(lut_data);
     uint8x16_t high_threshold_u8x16 = vdupq_n_u8(28);
     uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
     uint8x16_t sign_mask_u8x16 = vdupq_n_u8(0x20);
@@ -460,16 +460,16 @@ nk_dot_e3m2_neonsdot_cycle:
     uint8x16_t b_mag_u8x16 = vandq_u8(b_e3m2_u8x16, magnitude_mask_u8x16);
 
     // LUT lookup for low bytes; high byte via comparison (1 iff index >= 28)
-    uint8x16_t a_lo_u8x16 = vqtbl2q_u8(lut, a_mag_u8x16);
-    uint8x16_t b_lo_u8x16 = vqtbl2q_u8(lut, b_mag_u8x16);
-    uint8x16_t a_hi_u8x16 = vandq_u8(vcgeq_u8(a_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
-    uint8x16_t b_hi_u8x16 = vandq_u8(vcgeq_u8(b_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+    uint8x16_t a_low_u8x16 = vqtbl2q_u8(lut_u8x16x2, a_mag_u8x16);
+    uint8x16_t b_low_u8x16 = vqtbl2q_u8(lut_u8x16x2, b_mag_u8x16);
+    uint8x16_t a_high_u8x16 = vandq_u8(vcgeq_u8(a_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+    uint8x16_t b_high_u8x16 = vandq_u8(vcgeq_u8(b_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
 
     // Combine low and high bytes into i16 via byte interleave (little-endian: low byte first)
-    int16x8_t a_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(a_lo_u8x16, a_hi_u8x16));
-    int16x8_t a_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(a_lo_u8x16, a_hi_u8x16));
-    int16x8_t b_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(b_lo_u8x16, b_hi_u8x16));
-    int16x8_t b_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(b_lo_u8x16, b_hi_u8x16));
+    int16x8_t a_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(a_low_u8x16, a_high_u8x16));
+    int16x8_t a_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(a_low_u8x16, a_high_u8x16));
+    int16x8_t b_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(b_low_u8x16, b_high_u8x16));
+    int16x8_t b_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(b_low_u8x16, b_high_u8x16));
 
     // Combined sign: XOR sign bits, negate only b (saves ~15 ops vs independent negation)
     uint8x16_t sign_combined_u8x16 = vandq_u8(veorq_u8(a_e3m2_u8x16, b_e3m2_u8x16), sign_mask_u8x16);

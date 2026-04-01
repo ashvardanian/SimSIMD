@@ -54,10 +54,10 @@ extern "C" {
  *  Much faster than `vsqrtq_f32` (2 cy vs 9-12 cy latency, 2/cy vs 0.25/cy throughput).
  */
 NK_INTERNAL float32x4_t nk_rsqrt_f32x4_neon_(float32x4_t x) {
-    float32x4_t rsqrt = vrsqrteq_f32(x);
-    rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(x, rsqrt), rsqrt));
-    return rsqrt;
+    float32x4_t rsqrt_f32x4 = vrsqrteq_f32(x);
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(x, rsqrt_f32x4), rsqrt_f32x4));
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(x, rsqrt_f32x4), rsqrt_f32x4));
+    return rsqrt_f32x4;
 }
 
 /**
@@ -69,29 +69,29 @@ NK_INTERNAL float32x4_t nk_rsqrt_f32x4_neon_(float32x4_t x) {
  *  prefer `vsqrtq_f64` instead.
  */
 NK_INTERNAL float64x2_t nk_rsqrt_f64x2_neon_(float64x2_t x) {
-    float64x2_t rsqrt = vrsqrteq_f64(x);
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    return rsqrt;
+    float64x2_t rsqrt_f64x2 = vrsqrteq_f64(x);
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    return rsqrt_f64x2;
 }
 
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f32_t squares_arr[2] = {a2, b2};
-    float32x2_t squares = vld1_f32(squares_arr);
+    float32x2_t squares_f32x2 = vld1_f32(squares_arr);
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
     // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    float32x2_t rsqrts = vrsqrte_f32(squares);
+    float32x2_t rsqrts_f32x2 = vrsqrte_f32(squares_f32x2);
     // Perform two rounds of Newton-Raphson refinement:
     // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
-    rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
-    vst1_f32(squares_arr, rsqrts);
+    rsqrts_f32x2 = vmul_f32(rsqrts_f32x2, vrsqrts_f32(vmul_f32(squares_f32x2, rsqrts_f32x2), rsqrts_f32x2));
+    rsqrts_f32x2 = vmul_f32(rsqrts_f32x2, vrsqrts_f32(vmul_f32(squares_f32x2, rsqrts_f32x2), rsqrts_f32x2));
+    vst1_f32(squares_arr, rsqrts_f32x2);
     nk_f32_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
@@ -100,19 +100,19 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f64_t squares_arr[2] = {a2, b2};
-    float64x2_t squares = vld1q_f64(squares_arr);
+    float64x2_t squares_f64x2 = vld1q_f64(squares_arr);
 
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
     // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    float64x2_t rsqrts_f64x2 = vrsqrteq_f64(squares);
+    float64x2_t rsqrts_f64x2 = vrsqrteq_f64(squares_f64x2);
     // Perform three rounds of Newton-Raphson refinement for f64 precision (~48 bits):
     // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
     vst1q_f64(squares_arr, rsqrts_f64x2);
     nk_f64_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;

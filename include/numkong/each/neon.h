@@ -144,10 +144,10 @@ NK_PUBLIC void nk_each_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_siz
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        int16x8_t a_s16x8 = vld1q_s16(a + i);
-        int16x8_t b_s16x8 = vld1q_s16(b + i);
-        int16x8_t sum_s16x8 = vqaddq_s16(a_s16x8, b_s16x8);
-        vst1q_s16(result + i, sum_s16x8);
+        int16x8_t a_i16x8 = vld1q_s16(a + i);
+        int16x8_t b_i16x8 = vld1q_s16(b + i);
+        int16x8_t sum_i16x8 = vqaddq_s16(a_i16x8, b_i16x8);
+        vst1q_s16(result + i, sum_i16x8);
     }
 
     // The tail:
@@ -290,10 +290,10 @@ NK_PUBLIC void nk_each_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_siz
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        int32x4_t a_s32x4 = vld1q_s32(a + i);
-        int32x4_t b_s32x4 = vld1q_s32(b + i);
-        int32x4_t sum_s32x4 = vqaddq_s32(a_s32x4, b_s32x4);
-        vst1q_s32(result + i, sum_s32x4);
+        int32x4_t a_i32x4 = vld1q_s32(a + i);
+        int32x4_t b_i32x4 = vld1q_s32(b + i);
+        int32x4_t sum_i32x4 = vqaddq_s32(a_i32x4, b_i32x4);
+        vst1q_s32(result + i, sum_i32x4);
     }
 
     // The tail:
@@ -436,10 +436,10 @@ NK_PUBLIC void nk_each_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_siz
     // The main loop:
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
-        int64x2_t a_s64x2 = vld1q_s64(a + i);
-        int64x2_t b_s64x2 = vld1q_s64(b + i);
-        int64x2_t sum_s64x2 = vqaddq_s64(a_s64x2, b_s64x2);
-        vst1q_s64(result + i, sum_s64x2);
+        int64x2_t a_i64x2 = vld1q_s64(a + i);
+        int64x2_t b_i64x2 = vld1q_s64(b + i);
+        int64x2_t sum_i64x2 = vqaddq_s64(a_i64x2, b_i64x2);
+        vst1q_s64(result + i, sum_i64x2);
     }
 
     // The tail:

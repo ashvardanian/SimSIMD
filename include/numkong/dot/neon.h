@@ -303,11 +303,11 @@ nk_dot_f64c_neon_cycle:
         nk_b128_vec_t a_tail, b_tail;
         nk_partial_load_b64x2_serial_(a_pairs, &a_tail, count_pairs * 2);
         nk_partial_load_b64x2_serial_(b_pairs, &b_tail, count_pairs * 2);
-        float64x2_t zeros = vdupq_n_f64(0);
-        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros);
-        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros);
-        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros);
-        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros);
+        float64x2_t zeros_f64x2 = vdupq_n_f64(0);
+        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros_f64x2);
+        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros_f64x2);
+        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros_f64x2);
+        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros_f64x2);
         count_pairs = 0;
     }
     else {
@@ -386,11 +386,11 @@ nk_vdot_f64c_neon_cycle:
         nk_b128_vec_t a_tail, b_tail;
         nk_partial_load_b64x2_serial_(a_pairs, &a_tail, count_pairs * 2);
         nk_partial_load_b64x2_serial_(b_pairs, &b_tail, count_pairs * 2);
-        float64x2_t zeros = vdupq_n_f64(0);
-        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros);
-        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros);
-        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros);
-        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros);
+        float64x2_t zeros_f64x2 = vdupq_n_f64(0);
+        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros_f64x2);
+        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros_f64x2);
+        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros_f64x2);
+        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros_f64x2);
         count_pairs = 0;
     }
     else {

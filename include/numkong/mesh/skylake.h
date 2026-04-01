@@ -276,70 +276,70 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t
     for (; index + 16 <= n; index += 16) {
         nk_deinterleave_f32x16_skylake_(a + index * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16),
             nk_deinterleave_f32x16_skylake_(b + index * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        __m512d centered_a_x_lower_f64x8 = _mm512_sub_pd(a_x_lower_f64x8, centroid_a_x_f64x8);
-        __m512d centered_a_x_upper_f64x8 = _mm512_sub_pd(a_x_upper_f64x8, centroid_a_x_f64x8);
-        __m512d centered_a_y_lower_f64x8 = _mm512_sub_pd(a_y_lower_f64x8, centroid_a_y_f64x8);
-        __m512d centered_a_y_upper_f64x8 = _mm512_sub_pd(a_y_upper_f64x8, centroid_a_y_f64x8);
-        __m512d centered_a_z_lower_f64x8 = _mm512_sub_pd(a_z_lower_f64x8, centroid_a_z_f64x8);
-        __m512d centered_a_z_upper_f64x8 = _mm512_sub_pd(a_z_upper_f64x8, centroid_a_z_f64x8);
-        __m512d centered_b_x_lower_f64x8 = _mm512_sub_pd(b_x_lower_f64x8, centroid_b_x_f64x8);
-        __m512d centered_b_x_upper_f64x8 = _mm512_sub_pd(b_x_upper_f64x8, centroid_b_x_f64x8);
-        __m512d centered_b_y_lower_f64x8 = _mm512_sub_pd(b_y_lower_f64x8, centroid_b_y_f64x8);
-        __m512d centered_b_y_upper_f64x8 = _mm512_sub_pd(b_y_upper_f64x8, centroid_b_y_f64x8);
-        __m512d centered_b_z_lower_f64x8 = _mm512_sub_pd(b_z_lower_f64x8, centroid_b_z_f64x8);
-        __m512d centered_b_z_upper_f64x8 = _mm512_sub_pd(b_z_upper_f64x8, centroid_b_z_f64x8);
+        __m512d centered_a_x_low_f64x8 = _mm512_sub_pd(a_x_low_f64x8, centroid_a_x_f64x8);
+        __m512d centered_a_x_high_f64x8 = _mm512_sub_pd(a_x_high_f64x8, centroid_a_x_f64x8);
+        __m512d centered_a_y_low_f64x8 = _mm512_sub_pd(a_y_low_f64x8, centroid_a_y_f64x8);
+        __m512d centered_a_y_high_f64x8 = _mm512_sub_pd(a_y_high_f64x8, centroid_a_y_f64x8);
+        __m512d centered_a_z_low_f64x8 = _mm512_sub_pd(a_z_low_f64x8, centroid_a_z_f64x8);
+        __m512d centered_a_z_high_f64x8 = _mm512_sub_pd(a_z_high_f64x8, centroid_a_z_f64x8);
+        __m512d centered_b_x_low_f64x8 = _mm512_sub_pd(b_x_low_f64x8, centroid_b_x_f64x8);
+        __m512d centered_b_x_high_f64x8 = _mm512_sub_pd(b_x_high_f64x8, centroid_b_x_f64x8);
+        __m512d centered_b_y_low_f64x8 = _mm512_sub_pd(b_y_low_f64x8, centroid_b_y_f64x8);
+        __m512d centered_b_y_high_f64x8 = _mm512_sub_pd(b_y_high_f64x8, centroid_b_y_f64x8);
+        __m512d centered_b_z_low_f64x8 = _mm512_sub_pd(b_z_low_f64x8, centroid_b_z_f64x8);
+        __m512d centered_b_z_high_f64x8 = _mm512_sub_pd(b_z_high_f64x8, centroid_b_z_f64x8);
 
-        __m512d rotated_a_x_lower_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_x_z_f64x8, centered_a_z_lower_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_x_y_f64x8, centered_a_y_lower_f64x8,
-                            _mm512_mul_pd(scaled_rotation_x_x_f64x8, centered_a_x_lower_f64x8)));
-        __m512d rotated_a_x_upper_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_x_z_f64x8, centered_a_z_upper_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_x_y_f64x8, centered_a_y_upper_f64x8,
-                            _mm512_mul_pd(scaled_rotation_x_x_f64x8, centered_a_x_upper_f64x8)));
-        __m512d rotated_a_y_lower_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_y_z_f64x8, centered_a_z_lower_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_y_y_f64x8, centered_a_y_lower_f64x8,
-                            _mm512_mul_pd(scaled_rotation_y_x_f64x8, centered_a_x_lower_f64x8)));
-        __m512d rotated_a_y_upper_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_y_z_f64x8, centered_a_z_upper_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_y_y_f64x8, centered_a_y_upper_f64x8,
-                            _mm512_mul_pd(scaled_rotation_y_x_f64x8, centered_a_x_upper_f64x8)));
-        __m512d rotated_a_z_lower_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_z_z_f64x8, centered_a_z_lower_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_z_y_f64x8, centered_a_y_lower_f64x8,
-                            _mm512_mul_pd(scaled_rotation_z_x_f64x8, centered_a_x_lower_f64x8)));
-        __m512d rotated_a_z_upper_f64x8 = _mm512_fmadd_pd(
-            scaled_rotation_z_z_f64x8, centered_a_z_upper_f64x8,
-            _mm512_fmadd_pd(scaled_rotation_z_y_f64x8, centered_a_y_upper_f64x8,
-                            _mm512_mul_pd(scaled_rotation_z_x_f64x8, centered_a_x_upper_f64x8)));
+        __m512d rotated_a_x_low_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_x_z_f64x8, centered_a_z_low_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_x_y_f64x8, centered_a_y_low_f64x8,
+                            _mm512_mul_pd(scaled_rotation_x_x_f64x8, centered_a_x_low_f64x8)));
+        __m512d rotated_a_x_high_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_x_z_f64x8, centered_a_z_high_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_x_y_f64x8, centered_a_y_high_f64x8,
+                            _mm512_mul_pd(scaled_rotation_x_x_f64x8, centered_a_x_high_f64x8)));
+        __m512d rotated_a_y_low_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_y_z_f64x8, centered_a_z_low_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_y_y_f64x8, centered_a_y_low_f64x8,
+                            _mm512_mul_pd(scaled_rotation_y_x_f64x8, centered_a_x_low_f64x8)));
+        __m512d rotated_a_y_high_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_y_z_f64x8, centered_a_z_high_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_y_y_f64x8, centered_a_y_high_f64x8,
+                            _mm512_mul_pd(scaled_rotation_y_x_f64x8, centered_a_x_high_f64x8)));
+        __m512d rotated_a_z_low_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_z_z_f64x8, centered_a_z_low_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_z_y_f64x8, centered_a_y_low_f64x8,
+                            _mm512_mul_pd(scaled_rotation_z_x_f64x8, centered_a_x_low_f64x8)));
+        __m512d rotated_a_z_high_f64x8 = _mm512_fmadd_pd(
+            scaled_rotation_z_z_f64x8, centered_a_z_high_f64x8,
+            _mm512_fmadd_pd(scaled_rotation_z_y_f64x8, centered_a_y_high_f64x8,
+                            _mm512_mul_pd(scaled_rotation_z_x_f64x8, centered_a_x_high_f64x8)));
 
-        __m512d delta_x_lower_f64x8 = _mm512_sub_pd(rotated_a_x_lower_f64x8, centered_b_x_lower_f64x8);
-        __m512d delta_x_upper_f64x8 = _mm512_sub_pd(rotated_a_x_upper_f64x8, centered_b_x_upper_f64x8);
-        __m512d delta_y_lower_f64x8 = _mm512_sub_pd(rotated_a_y_lower_f64x8, centered_b_y_lower_f64x8);
-        __m512d delta_y_upper_f64x8 = _mm512_sub_pd(rotated_a_y_upper_f64x8, centered_b_y_upper_f64x8);
-        __m512d delta_z_lower_f64x8 = _mm512_sub_pd(rotated_a_z_lower_f64x8, centered_b_z_lower_f64x8);
-        __m512d delta_z_upper_f64x8 = _mm512_sub_pd(rotated_a_z_upper_f64x8, centered_b_z_upper_f64x8);
+        __m512d delta_x_low_f64x8 = _mm512_sub_pd(rotated_a_x_low_f64x8, centered_b_x_low_f64x8);
+        __m512d delta_x_high_f64x8 = _mm512_sub_pd(rotated_a_x_high_f64x8, centered_b_x_high_f64x8);
+        __m512d delta_y_low_f64x8 = _mm512_sub_pd(rotated_a_y_low_f64x8, centered_b_y_low_f64x8);
+        __m512d delta_y_high_f64x8 = _mm512_sub_pd(rotated_a_y_high_f64x8, centered_b_y_high_f64x8);
+        __m512d delta_z_low_f64x8 = _mm512_sub_pd(rotated_a_z_low_f64x8, centered_b_z_low_f64x8);
+        __m512d delta_z_high_f64x8 = _mm512_sub_pd(rotated_a_z_high_f64x8, centered_b_z_high_f64x8);
 
-        __m512d batch_sum_squared_f64x8 = _mm512_add_pd(_mm512_mul_pd(delta_x_lower_f64x8, delta_x_lower_f64x8),
-                                                        _mm512_mul_pd(delta_x_upper_f64x8, delta_x_upper_f64x8));
-        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_lower_f64x8, delta_y_lower_f64x8, batch_sum_squared_f64x8);
-        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_upper_f64x8, delta_y_upper_f64x8, batch_sum_squared_f64x8);
-        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_lower_f64x8, delta_z_lower_f64x8, batch_sum_squared_f64x8);
-        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_upper_f64x8, delta_z_upper_f64x8, batch_sum_squared_f64x8);
+        __m512d batch_sum_squared_f64x8 = _mm512_add_pd(_mm512_mul_pd(delta_x_low_f64x8, delta_x_low_f64x8),
+                                                        _mm512_mul_pd(delta_x_high_f64x8, delta_x_high_f64x8));
+        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_low_f64x8, delta_y_low_f64x8, batch_sum_squared_f64x8);
+        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_high_f64x8, delta_y_high_f64x8, batch_sum_squared_f64x8);
+        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_low_f64x8, delta_z_low_f64x8, batch_sum_squared_f64x8);
+        batch_sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_high_f64x8, delta_z_high_f64x8, batch_sum_squared_f64x8);
         sum_squared_f64x8 = _mm512_add_pd(sum_squared_f64x8, batch_sum_squared_f64x8);
     }
 
@@ -663,112 +663,112 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
         // Iteration 0: points i..i+15
         nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
         nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        __m512d delta_x_lower_f64x8 = _mm512_sub_pd(a_x_lower_f64x8, b_x_lower_f64x8);
-        __m512d delta_x_upper_f64x8 = _mm512_sub_pd(a_x_upper_f64x8, b_x_upper_f64x8);
-        __m512d delta_y_lower_f64x8 = _mm512_sub_pd(a_y_lower_f64x8, b_y_lower_f64x8);
-        __m512d delta_y_upper_f64x8 = _mm512_sub_pd(a_y_upper_f64x8, b_y_upper_f64x8);
-        __m512d delta_z_lower_f64x8 = _mm512_sub_pd(a_z_lower_f64x8, b_z_lower_f64x8);
-        __m512d delta_z_upper_f64x8 = _mm512_sub_pd(a_z_upper_f64x8, b_z_upper_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_lower_f64x8, delta_x_lower_f64x8, sum_squared_x_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_upper_f64x8, delta_x_upper_f64x8, sum_squared_x_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_lower_f64x8, delta_y_lower_f64x8, sum_squared_y_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_upper_f64x8, delta_y_upper_f64x8, sum_squared_y_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_lower_f64x8, delta_z_lower_f64x8, sum_squared_z_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_upper_f64x8, delta_z_upper_f64x8, sum_squared_z_f64x8);
+        __m512d delta_x_low_f64x8 = _mm512_sub_pd(a_x_low_f64x8, b_x_low_f64x8);
+        __m512d delta_x_high_f64x8 = _mm512_sub_pd(a_x_high_f64x8, b_x_high_f64x8);
+        __m512d delta_y_low_f64x8 = _mm512_sub_pd(a_y_low_f64x8, b_y_low_f64x8);
+        __m512d delta_y_high_f64x8 = _mm512_sub_pd(a_y_high_f64x8, b_y_high_f64x8);
+        __m512d delta_z_low_f64x8 = _mm512_sub_pd(a_z_low_f64x8, b_z_low_f64x8);
+        __m512d delta_z_high_f64x8 = _mm512_sub_pd(a_z_high_f64x8, b_z_high_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_low_f64x8, delta_x_low_f64x8, sum_squared_x_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_high_f64x8, delta_x_high_f64x8, sum_squared_x_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_low_f64x8, delta_y_low_f64x8, sum_squared_y_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_high_f64x8, delta_y_high_f64x8, sum_squared_y_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_low_f64x8, delta_z_low_f64x8, sum_squared_z_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_high_f64x8, delta_z_high_f64x8, sum_squared_z_f64x8);
 
         // Iteration 1: points i+16..i+31
         nk_deinterleave_f32x16_skylake_(a + (i + 16) * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
         nk_deinterleave_f32x16_skylake_(b + (i + 16) * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        delta_x_lower_f64x8 = _mm512_sub_pd(a_x_lower_f64x8, b_x_lower_f64x8);
-        delta_x_upper_f64x8 = _mm512_sub_pd(a_x_upper_f64x8, b_x_upper_f64x8);
-        delta_y_lower_f64x8 = _mm512_sub_pd(a_y_lower_f64x8, b_y_lower_f64x8);
-        delta_y_upper_f64x8 = _mm512_sub_pd(a_y_upper_f64x8, b_y_upper_f64x8);
-        delta_z_lower_f64x8 = _mm512_sub_pd(a_z_lower_f64x8, b_z_lower_f64x8);
-        delta_z_upper_f64x8 = _mm512_sub_pd(a_z_upper_f64x8, b_z_upper_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_lower_f64x8, delta_x_lower_f64x8, sum_squared_x_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_upper_f64x8, delta_x_upper_f64x8, sum_squared_x_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_lower_f64x8, delta_y_lower_f64x8, sum_squared_y_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_upper_f64x8, delta_y_upper_f64x8, sum_squared_y_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_lower_f64x8, delta_z_lower_f64x8, sum_squared_z_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_upper_f64x8, delta_z_upper_f64x8, sum_squared_z_f64x8);
+        delta_x_low_f64x8 = _mm512_sub_pd(a_x_low_f64x8, b_x_low_f64x8);
+        delta_x_high_f64x8 = _mm512_sub_pd(a_x_high_f64x8, b_x_high_f64x8);
+        delta_y_low_f64x8 = _mm512_sub_pd(a_y_low_f64x8, b_y_low_f64x8);
+        delta_y_high_f64x8 = _mm512_sub_pd(a_y_high_f64x8, b_y_high_f64x8);
+        delta_z_low_f64x8 = _mm512_sub_pd(a_z_low_f64x8, b_z_low_f64x8);
+        delta_z_high_f64x8 = _mm512_sub_pd(a_z_high_f64x8, b_z_high_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_low_f64x8, delta_x_low_f64x8, sum_squared_x_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_high_f64x8, delta_x_high_f64x8, sum_squared_x_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_low_f64x8, delta_y_low_f64x8, sum_squared_y_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_high_f64x8, delta_y_high_f64x8, sum_squared_y_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_low_f64x8, delta_z_low_f64x8, sum_squared_z_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_high_f64x8, delta_z_high_f64x8, sum_squared_z_f64x8);
     }
 
     // Handle 16-point remainder
     for (; i + 16 <= n; i += 16) {
         nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
         nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        __m512d delta_x_lower_f64x8 = _mm512_sub_pd(a_x_lower_f64x8, b_x_lower_f64x8);
-        __m512d delta_x_upper_f64x8 = _mm512_sub_pd(a_x_upper_f64x8, b_x_upper_f64x8);
-        __m512d delta_y_lower_f64x8 = _mm512_sub_pd(a_y_lower_f64x8, b_y_lower_f64x8);
-        __m512d delta_y_upper_f64x8 = _mm512_sub_pd(a_y_upper_f64x8, b_y_upper_f64x8);
-        __m512d delta_z_lower_f64x8 = _mm512_sub_pd(a_z_lower_f64x8, b_z_lower_f64x8);
-        __m512d delta_z_upper_f64x8 = _mm512_sub_pd(a_z_upper_f64x8, b_z_upper_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_lower_f64x8, delta_x_lower_f64x8, sum_squared_x_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_upper_f64x8, delta_x_upper_f64x8, sum_squared_x_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_lower_f64x8, delta_y_lower_f64x8, sum_squared_y_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_upper_f64x8, delta_y_upper_f64x8, sum_squared_y_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_lower_f64x8, delta_z_lower_f64x8, sum_squared_z_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_upper_f64x8, delta_z_upper_f64x8, sum_squared_z_f64x8);
+        __m512d delta_x_low_f64x8 = _mm512_sub_pd(a_x_low_f64x8, b_x_low_f64x8);
+        __m512d delta_x_high_f64x8 = _mm512_sub_pd(a_x_high_f64x8, b_x_high_f64x8);
+        __m512d delta_y_low_f64x8 = _mm512_sub_pd(a_y_low_f64x8, b_y_low_f64x8);
+        __m512d delta_y_high_f64x8 = _mm512_sub_pd(a_y_high_f64x8, b_y_high_f64x8);
+        __m512d delta_z_low_f64x8 = _mm512_sub_pd(a_z_low_f64x8, b_z_low_f64x8);
+        __m512d delta_z_high_f64x8 = _mm512_sub_pd(a_z_high_f64x8, b_z_high_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_low_f64x8, delta_x_low_f64x8, sum_squared_x_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_high_f64x8, delta_x_high_f64x8, sum_squared_x_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_low_f64x8, delta_y_low_f64x8, sum_squared_y_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_high_f64x8, delta_y_high_f64x8, sum_squared_y_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_low_f64x8, delta_z_low_f64x8, sum_squared_z_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_high_f64x8, delta_z_high_f64x8, sum_squared_z_f64x8);
     }
 
     // Tail: use masked gather for remaining < 16 points
@@ -787,38 +787,38 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
         b_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 1, 4);
         b_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 2, 4);
 
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        __m512d delta_x_lower_f64x8 = _mm512_sub_pd(a_x_lower_f64x8, b_x_lower_f64x8);
-        __m512d delta_x_upper_f64x8 = _mm512_sub_pd(a_x_upper_f64x8, b_x_upper_f64x8);
-        __m512d delta_y_lower_f64x8 = _mm512_sub_pd(a_y_lower_f64x8, b_y_lower_f64x8);
-        __m512d delta_y_upper_f64x8 = _mm512_sub_pd(a_y_upper_f64x8, b_y_upper_f64x8);
-        __m512d delta_z_lower_f64x8 = _mm512_sub_pd(a_z_lower_f64x8, b_z_lower_f64x8);
-        __m512d delta_z_upper_f64x8 = _mm512_sub_pd(a_z_upper_f64x8, b_z_upper_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_lower_f64x8, delta_x_lower_f64x8, sum_squared_x_f64x8);
-        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_upper_f64x8, delta_x_upper_f64x8, sum_squared_x_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_lower_f64x8, delta_y_lower_f64x8, sum_squared_y_f64x8);
-        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_upper_f64x8, delta_y_upper_f64x8, sum_squared_y_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_lower_f64x8, delta_z_lower_f64x8, sum_squared_z_f64x8);
-        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_upper_f64x8, delta_z_upper_f64x8, sum_squared_z_f64x8);
+        __m512d delta_x_low_f64x8 = _mm512_sub_pd(a_x_low_f64x8, b_x_low_f64x8);
+        __m512d delta_x_high_f64x8 = _mm512_sub_pd(a_x_high_f64x8, b_x_high_f64x8);
+        __m512d delta_y_low_f64x8 = _mm512_sub_pd(a_y_low_f64x8, b_y_low_f64x8);
+        __m512d delta_y_high_f64x8 = _mm512_sub_pd(a_y_high_f64x8, b_y_high_f64x8);
+        __m512d delta_z_low_f64x8 = _mm512_sub_pd(a_z_low_f64x8, b_z_low_f64x8);
+        __m512d delta_z_high_f64x8 = _mm512_sub_pd(a_z_high_f64x8, b_z_high_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_low_f64x8, delta_x_low_f64x8, sum_squared_x_f64x8);
+        sum_squared_x_f64x8 = _mm512_fmadd_pd(delta_x_high_f64x8, delta_x_high_f64x8, sum_squared_x_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_low_f64x8, delta_y_low_f64x8, sum_squared_y_f64x8);
+        sum_squared_y_f64x8 = _mm512_fmadd_pd(delta_y_high_f64x8, delta_y_high_f64x8, sum_squared_y_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_low_f64x8, delta_z_low_f64x8, sum_squared_z_f64x8);
+        sum_squared_z_f64x8 = _mm512_fmadd_pd(delta_z_high_f64x8, delta_z_high_f64x8, sum_squared_z_f64x8);
     }
 
     // Reduce and compute centroids
@@ -864,44 +864,44 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
     for (; i + 16 <= n; i += 16) {
         nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
         nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_x_upper_f64x8)));
-        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_y_upper_f64x8)));
-        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_z_upper_f64x8)));
-        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_x_upper_f64x8)));
-        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_y_upper_f64x8)));
-        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_z_upper_f64x8)));
-        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_x_upper_f64x8)));
-        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_y_upper_f64x8)));
-        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_z_upper_f64x8)));
+        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_x_high_f64x8)));
+        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_y_high_f64x8)));
+        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_z_high_f64x8)));
+        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_x_high_f64x8)));
+        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_y_high_f64x8)));
+        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_z_high_f64x8)));
+        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_x_high_f64x8)));
+        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_y_high_f64x8)));
+        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_z_high_f64x8)));
     }
 
     // Tail: use masked gather for remaining < 16 points
@@ -920,44 +920,44 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
         b_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 1, 4);
         b_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 2, 4);
 
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_x_upper_f64x8)));
-        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_y_upper_f64x8)));
-        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_z_upper_f64x8)));
-        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_x_upper_f64x8)));
-        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_y_upper_f64x8)));
-        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_z_upper_f64x8)));
-        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_x_upper_f64x8)));
-        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_y_upper_f64x8)));
-        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_z_upper_f64x8)));
+        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_x_high_f64x8)));
+        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_y_high_f64x8)));
+        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_z_high_f64x8)));
+        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_x_high_f64x8)));
+        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_y_high_f64x8)));
+        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_z_high_f64x8)));
+        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_x_high_f64x8)));
+        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_y_high_f64x8)));
+        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_z_high_f64x8)));
     }
 
     nk_f64_t sum_a_x = _mm512_reduce_add_pd(sum_a_x_f64x8), sum_a_y = _mm512_reduce_add_pd(sum_a_y_f64x8),
@@ -1361,54 +1361,54 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
     for (; i + 16 <= n; i += 16) {
         nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
         nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_x_upper_f64x8)));
-        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_y_upper_f64x8)));
-        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_z_upper_f64x8)));
-        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_x_upper_f64x8)));
-        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_y_upper_f64x8)));
-        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_z_upper_f64x8)));
-        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_x_upper_f64x8)));
-        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_y_upper_f64x8)));
-        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_z_upper_f64x8)));
+        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_x_high_f64x8)));
+        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_y_high_f64x8)));
+        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_z_high_f64x8)));
+        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_x_high_f64x8)));
+        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_y_high_f64x8)));
+        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_z_high_f64x8)));
+        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_x_high_f64x8)));
+        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_y_high_f64x8)));
+        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_z_high_f64x8)));
 
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, a_x_lower_f64x8),
-                                                       _mm512_mul_pd(a_x_upper_f64x8, a_x_upper_f64x8)));
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, a_y_lower_f64x8),
-                                                       _mm512_mul_pd(a_y_upper_f64x8, a_y_upper_f64x8)));
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, a_z_lower_f64x8),
-                                                       _mm512_mul_pd(a_z_upper_f64x8, a_z_upper_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, a_x_low_f64x8), _mm512_mul_pd(a_x_high_f64x8, a_x_high_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, a_y_low_f64x8), _mm512_mul_pd(a_y_high_f64x8, a_y_high_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, a_z_low_f64x8), _mm512_mul_pd(a_z_high_f64x8, a_z_high_f64x8)));
     }
 
     // Tail: use masked gather for remaining < 16 points
@@ -1427,54 +1427,54 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
         b_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 1, 4);
         b_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 2, 4);
 
-        __m512d a_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
-        __m512d a_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
-        __m512d a_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
-        __m512d a_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
-        __m512d a_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
-        __m512d a_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
-        __m512d b_x_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
-        __m512d b_x_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
-        __m512d b_y_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
-        __m512d b_y_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
-        __m512d b_z_lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
-        __m512d b_z_upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
+        __m512d a_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_f32x16));
+        __m512d a_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_f32x16, 1));
+        __m512d a_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_f32x16));
+        __m512d a_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_f32x16, 1));
+        __m512d a_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_f32x16));
+        __m512d a_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_f32x16, 1));
+        __m512d b_x_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_f32x16));
+        __m512d b_x_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_f32x16, 1));
+        __m512d b_y_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_f32x16));
+        __m512d b_y_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_f32x16, 1));
+        __m512d b_z_low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_f32x16));
+        __m512d b_z_high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_f32x16, 1));
 
-        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_lower_f64x8, a_x_upper_f64x8));
-        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_lower_f64x8, a_y_upper_f64x8));
-        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_lower_f64x8, a_z_upper_f64x8));
-        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_lower_f64x8, b_x_upper_f64x8));
-        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_lower_f64x8, b_y_upper_f64x8));
-        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_lower_f64x8, b_z_upper_f64x8));
+        sum_a_x_f64x8 = _mm512_add_pd(sum_a_x_f64x8, _mm512_add_pd(a_x_low_f64x8, a_x_high_f64x8));
+        sum_a_y_f64x8 = _mm512_add_pd(sum_a_y_f64x8, _mm512_add_pd(a_y_low_f64x8, a_y_high_f64x8));
+        sum_a_z_f64x8 = _mm512_add_pd(sum_a_z_f64x8, _mm512_add_pd(a_z_low_f64x8, a_z_high_f64x8));
+        sum_b_x_f64x8 = _mm512_add_pd(sum_b_x_f64x8, _mm512_add_pd(b_x_low_f64x8, b_x_high_f64x8));
+        sum_b_y_f64x8 = _mm512_add_pd(sum_b_y_f64x8, _mm512_add_pd(b_y_low_f64x8, b_y_high_f64x8));
+        sum_b_z_f64x8 = _mm512_add_pd(sum_b_z_f64x8, _mm512_add_pd(b_z_low_f64x8, b_z_high_f64x8));
 
-        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_x_upper_f64x8)));
-        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_y_upper_f64x8)));
-        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_x_upper_f64x8, b_z_upper_f64x8)));
-        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_x_upper_f64x8)));
-        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_y_upper_f64x8)));
-        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_y_upper_f64x8, b_z_upper_f64x8)));
-        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_x_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_x_upper_f64x8)));
-        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_y_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_y_upper_f64x8)));
-        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, b_z_lower_f64x8),
-                                                                 _mm512_mul_pd(a_z_upper_f64x8, b_z_upper_f64x8)));
+        cov_xx_f64x8 = _mm512_add_pd(cov_xx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_x_high_f64x8)));
+        cov_xy_f64x8 = _mm512_add_pd(cov_xy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_y_high_f64x8)));
+        cov_xz_f64x8 = _mm512_add_pd(cov_xz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_x_high_f64x8, b_z_high_f64x8)));
+        cov_yx_f64x8 = _mm512_add_pd(cov_yx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_x_high_f64x8)));
+        cov_yy_f64x8 = _mm512_add_pd(cov_yy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_y_high_f64x8)));
+        cov_yz_f64x8 = _mm512_add_pd(cov_yz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_y_high_f64x8, b_z_high_f64x8)));
+        cov_zx_f64x8 = _mm512_add_pd(cov_zx_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_x_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_x_high_f64x8)));
+        cov_zy_f64x8 = _mm512_add_pd(cov_zy_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_y_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_y_high_f64x8)));
+        cov_zz_f64x8 = _mm512_add_pd(cov_zz_f64x8, _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, b_z_low_f64x8),
+                                                                 _mm512_mul_pd(a_z_high_f64x8, b_z_high_f64x8)));
 
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_x_lower_f64x8, a_x_lower_f64x8),
-                                                       _mm512_mul_pd(a_x_upper_f64x8, a_x_upper_f64x8)));
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_y_lower_f64x8, a_y_lower_f64x8),
-                                                       _mm512_mul_pd(a_y_upper_f64x8, a_y_upper_f64x8)));
-        variance_a_f64x8 = _mm512_add_pd(variance_a_f64x8,
-                                         _mm512_add_pd(_mm512_mul_pd(a_z_lower_f64x8, a_z_lower_f64x8),
-                                                       _mm512_mul_pd(a_z_upper_f64x8, a_z_upper_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_x_low_f64x8, a_x_low_f64x8), _mm512_mul_pd(a_x_high_f64x8, a_x_high_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_y_low_f64x8, a_y_low_f64x8), _mm512_mul_pd(a_y_high_f64x8, a_y_high_f64x8)));
+        variance_a_f64x8 = _mm512_add_pd(
+            variance_a_f64x8,
+            _mm512_add_pd(_mm512_mul_pd(a_z_low_f64x8, a_z_low_f64x8), _mm512_mul_pd(a_z_high_f64x8, a_z_high_f64x8)));
     }
 
     nk_f64_t sum_a_x = _mm512_reduce_add_pd(sum_a_x_f64x8), sum_a_y = _mm512_reduce_add_pd(sum_a_y_f64x8),

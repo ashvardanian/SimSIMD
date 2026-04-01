@@ -53,10 +53,10 @@ NK_INTERNAL void nk_deinterleave_f32x4_neon_(nk_f32_t const *ptr, float32x4_t *x
     //
     // Input: 12 contiguous floats [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
     // Output: x[4], y[4], z[4] vectors
-    float32x4x3_t xyz = vld3q_f32(ptr);
-    *x_out = xyz.val[0];
-    *y_out = xyz.val[1];
-    *z_out = xyz.val[2];
+    float32x4x3_t xyz_f32x4x3 = vld3q_f32(ptr);
+    *x_out = xyz_f32x4x3.val[0];
+    *y_out = xyz_f32x4x3.val[1];
+    *z_out = xyz_f32x4x3.val[2];
 }
 
 NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x_out, float64x2_t *y_out,
@@ -72,7 +72,7 @@ NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x
     *z_out = vcombine_f64(vld1_f64(&ptr[2]), vld1_f64(&ptr[5]));
 }
 
-NK_INTERNAL float64x2_t nk_promote_upper_f32x4_to_f64x2_neon_(float32x4_t values_f32x4) {
+NK_INTERNAL float64x2_t nk_promote_high_f32x4_to_f64x2_neon_(float32x4_t values_f32x4) {
     return vcvt_f64_f32(vget_high_f32(values_f32x4));
 }
 
@@ -116,7 +116,7 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_neon_( //
     float64x2_t centroid_a_x_f64x2 = vdupq_n_f64(centroid_a_x), centroid_a_y_f64x2 = vdupq_n_f64(centroid_a_y);
     float64x2_t centroid_a_z_f64x2 = vdupq_n_f64(centroid_a_z), centroid_b_x_f64x2 = vdupq_n_f64(centroid_b_x);
     float64x2_t centroid_b_y_f64x2 = vdupq_n_f64(centroid_b_y), centroid_b_z_f64x2 = vdupq_n_f64(centroid_b_z);
-    float64x2_t sum_squared_lower_f64x2 = vdupq_n_f64(0.0), sum_squared_upper_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t sum_squared_low_f64x2 = vdupq_n_f64(0.0), sum_squared_high_f64x2 = vdupq_n_f64(0.0);
     nk_size_t index = 0;
 
     for (; index + 4 <= n; index += 4) {
@@ -124,66 +124,66 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_neon_( //
         nk_deinterleave_f32x4_neon_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4),
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        float64x2_t centered_a_x_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_x_f32x4)), centroid_a_x_f64x2);
-        float64x2_t centered_a_x_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(a_x_f32x4),
-                                                         centroid_a_x_f64x2);
-        float64x2_t centered_a_y_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_y_f32x4)), centroid_a_y_f64x2);
-        float64x2_t centered_a_y_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(a_y_f32x4),
-                                                         centroid_a_y_f64x2);
-        float64x2_t centered_a_z_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_z_f32x4)), centroid_a_z_f64x2);
-        float64x2_t centered_a_z_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(a_z_f32x4),
-                                                         centroid_a_z_f64x2);
-        float64x2_t centered_b_x_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_x_f32x4)), centroid_b_x_f64x2);
-        float64x2_t centered_b_x_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(b_x_f32x4),
-                                                         centroid_b_x_f64x2);
-        float64x2_t centered_b_y_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_y_f32x4)), centroid_b_y_f64x2);
-        float64x2_t centered_b_y_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(b_y_f32x4),
-                                                         centroid_b_y_f64x2);
-        float64x2_t centered_b_z_lower_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_z_f32x4)), centroid_b_z_f64x2);
-        float64x2_t centered_b_z_upper_f64x2 = vsubq_f64(nk_promote_upper_f32x4_to_f64x2_neon_(b_z_f32x4),
-                                                         centroid_b_z_f64x2);
+        float64x2_t centered_a_x_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_x_f32x4)), centroid_a_x_f64x2);
+        float64x2_t centered_a_x_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4),
+                                                        centroid_a_x_f64x2);
+        float64x2_t centered_a_y_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_y_f32x4)), centroid_a_y_f64x2);
+        float64x2_t centered_a_y_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4),
+                                                        centroid_a_y_f64x2);
+        float64x2_t centered_a_z_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_z_f32x4)), centroid_a_z_f64x2);
+        float64x2_t centered_a_z_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4),
+                                                        centroid_a_z_f64x2);
+        float64x2_t centered_b_x_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_x_f32x4)), centroid_b_x_f64x2);
+        float64x2_t centered_b_x_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4),
+                                                        centroid_b_x_f64x2);
+        float64x2_t centered_b_y_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_y_f32x4)), centroid_b_y_f64x2);
+        float64x2_t centered_b_y_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4),
+                                                        centroid_b_y_f64x2);
+        float64x2_t centered_b_z_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_z_f32x4)), centroid_b_z_f64x2);
+        float64x2_t centered_b_z_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4),
+                                                        centroid_b_z_f64x2);
 
-        float64x2_t rotated_a_x_lower_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_lower_f64x2), scaled_rotation_x_y_f64x2,
-                      centered_a_y_lower_f64x2),
-            scaled_rotation_x_z_f64x2, centered_a_z_lower_f64x2);
-        float64x2_t rotated_a_x_upper_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_upper_f64x2), scaled_rotation_x_y_f64x2,
-                      centered_a_y_upper_f64x2),
-            scaled_rotation_x_z_f64x2, centered_a_z_upper_f64x2);
-        float64x2_t rotated_a_y_lower_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a_x_lower_f64x2), scaled_rotation_y_y_f64x2,
-                      centered_a_y_lower_f64x2),
-            scaled_rotation_y_z_f64x2, centered_a_z_lower_f64x2);
-        float64x2_t rotated_a_y_upper_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a_x_upper_f64x2), scaled_rotation_y_y_f64x2,
-                      centered_a_y_upper_f64x2),
-            scaled_rotation_y_z_f64x2, centered_a_z_upper_f64x2);
-        float64x2_t rotated_a_z_lower_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a_x_lower_f64x2), scaled_rotation_z_y_f64x2,
-                      centered_a_y_lower_f64x2),
-            scaled_rotation_z_z_f64x2, centered_a_z_lower_f64x2);
-        float64x2_t rotated_a_z_upper_f64x2 = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a_x_upper_f64x2), scaled_rotation_z_y_f64x2,
-                      centered_a_y_upper_f64x2),
-            scaled_rotation_z_z_f64x2, centered_a_z_upper_f64x2);
+        float64x2_t rotated_a_x_low_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_low_f64x2), scaled_rotation_x_y_f64x2,
+                      centered_a_y_low_f64x2),
+            scaled_rotation_x_z_f64x2, centered_a_z_low_f64x2);
+        float64x2_t rotated_a_x_high_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_high_f64x2), scaled_rotation_x_y_f64x2,
+                      centered_a_y_high_f64x2),
+            scaled_rotation_x_z_f64x2, centered_a_z_high_f64x2);
+        float64x2_t rotated_a_y_low_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a_x_low_f64x2), scaled_rotation_y_y_f64x2,
+                      centered_a_y_low_f64x2),
+            scaled_rotation_y_z_f64x2, centered_a_z_low_f64x2);
+        float64x2_t rotated_a_y_high_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a_x_high_f64x2), scaled_rotation_y_y_f64x2,
+                      centered_a_y_high_f64x2),
+            scaled_rotation_y_z_f64x2, centered_a_z_high_f64x2);
+        float64x2_t rotated_a_z_low_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a_x_low_f64x2), scaled_rotation_z_y_f64x2,
+                      centered_a_y_low_f64x2),
+            scaled_rotation_z_z_f64x2, centered_a_z_low_f64x2);
+        float64x2_t rotated_a_z_high_f64x2 = vfmaq_f64(
+            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a_x_high_f64x2), scaled_rotation_z_y_f64x2,
+                      centered_a_y_high_f64x2),
+            scaled_rotation_z_z_f64x2, centered_a_z_high_f64x2);
 
-        float64x2_t delta_x_lower_f64x2 = vsubq_f64(rotated_a_x_lower_f64x2, centered_b_x_lower_f64x2);
-        float64x2_t delta_x_upper_f64x2 = vsubq_f64(rotated_a_x_upper_f64x2, centered_b_x_upper_f64x2);
-        float64x2_t delta_y_lower_f64x2 = vsubq_f64(rotated_a_y_lower_f64x2, centered_b_y_lower_f64x2);
-        float64x2_t delta_y_upper_f64x2 = vsubq_f64(rotated_a_y_upper_f64x2, centered_b_y_upper_f64x2);
-        float64x2_t delta_z_lower_f64x2 = vsubq_f64(rotated_a_z_lower_f64x2, centered_b_z_lower_f64x2);
-        float64x2_t delta_z_upper_f64x2 = vsubq_f64(rotated_a_z_upper_f64x2, centered_b_z_upper_f64x2);
+        float64x2_t delta_x_low_f64x2 = vsubq_f64(rotated_a_x_low_f64x2, centered_b_x_low_f64x2);
+        float64x2_t delta_x_high_f64x2 = vsubq_f64(rotated_a_x_high_f64x2, centered_b_x_high_f64x2);
+        float64x2_t delta_y_low_f64x2 = vsubq_f64(rotated_a_y_low_f64x2, centered_b_y_low_f64x2);
+        float64x2_t delta_y_high_f64x2 = vsubq_f64(rotated_a_y_high_f64x2, centered_b_y_high_f64x2);
+        float64x2_t delta_z_low_f64x2 = vsubq_f64(rotated_a_z_low_f64x2, centered_b_z_low_f64x2);
+        float64x2_t delta_z_high_f64x2 = vsubq_f64(rotated_a_z_high_f64x2, centered_b_z_high_f64x2);
 
-        sum_squared_lower_f64x2 = vfmaq_f64(sum_squared_lower_f64x2, delta_x_lower_f64x2, delta_x_lower_f64x2),
-        sum_squared_upper_f64x2 = vfmaq_f64(sum_squared_upper_f64x2, delta_x_upper_f64x2, delta_x_upper_f64x2);
-        sum_squared_lower_f64x2 = vfmaq_f64(sum_squared_lower_f64x2, delta_y_lower_f64x2, delta_y_lower_f64x2),
-        sum_squared_upper_f64x2 = vfmaq_f64(sum_squared_upper_f64x2, delta_y_upper_f64x2, delta_y_upper_f64x2);
-        sum_squared_lower_f64x2 = vfmaq_f64(sum_squared_lower_f64x2, delta_z_lower_f64x2, delta_z_lower_f64x2),
-        sum_squared_upper_f64x2 = vfmaq_f64(sum_squared_upper_f64x2, delta_z_upper_f64x2, delta_z_upper_f64x2);
+        sum_squared_low_f64x2 = vfmaq_f64(sum_squared_low_f64x2, delta_x_low_f64x2, delta_x_low_f64x2),
+        sum_squared_high_f64x2 = vfmaq_f64(sum_squared_high_f64x2, delta_x_high_f64x2, delta_x_high_f64x2);
+        sum_squared_low_f64x2 = vfmaq_f64(sum_squared_low_f64x2, delta_y_low_f64x2, delta_y_low_f64x2),
+        sum_squared_high_f64x2 = vfmaq_f64(sum_squared_high_f64x2, delta_y_high_f64x2, delta_y_high_f64x2);
+        sum_squared_low_f64x2 = vfmaq_f64(sum_squared_low_f64x2, delta_z_low_f64x2, delta_z_low_f64x2),
+        sum_squared_high_f64x2 = vfmaq_f64(sum_squared_high_f64x2, delta_z_high_f64x2, delta_z_high_f64x2);
     }
 
-    nk_f64_t sum_squared = vaddvq_f64(vaddq_f64(sum_squared_lower_f64x2, sum_squared_upper_f64x2));
+    nk_f64_t sum_squared = vaddvq_f64(vaddq_f64(sum_squared_low_f64x2, sum_squared_high_f64x2));
     for (; index < n; ++index) {
         nk_f64_t centered_a_x = (nk_f64_t)a[index * 3 + 0] - centroid_a_x;
         nk_f64_t centered_a_y = (nk_f64_t)a[index * 3 + 1] - centroid_a_y;
@@ -237,100 +237,100 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_neon_(nk_f64_t const *a, nk_f64_t co
     // Main loop: process 4 points per iteration (2x unrolled, 2 points per batch)
     for (; j + 4 <= n; j += 4) {
         // First batch of 2 points
-        float64x2_t a1_x, a1_y, a1_z, b1_x, b1_y, b1_z;
-        nk_deinterleave_f64x2_neon_(a + j * 3, &a1_x, &a1_y, &a1_z);
-        nk_deinterleave_f64x2_neon_(b + j * 3, &b1_x, &b1_y, &b1_z);
+        float64x2_t a1_x_f64x2, a1_y_f64x2, a1_z_f64x2, b1_x_f64x2, b1_y_f64x2, b1_z_f64x2;
+        nk_deinterleave_f64x2_neon_(a + j * 3, &a1_x_f64x2, &a1_y_f64x2, &a1_z_f64x2);
+        nk_deinterleave_f64x2_neon_(b + j * 3, &b1_x_f64x2, &b1_y_f64x2, &b1_z_f64x2);
 
         // Second batch of 2 points
-        float64x2_t a2_x, a2_y, a2_z, b2_x, b2_y, b2_z;
-        nk_deinterleave_f64x2_neon_(a + (j + 2) * 3, &a2_x, &a2_y, &a2_z);
-        nk_deinterleave_f64x2_neon_(b + (j + 2) * 3, &b2_x, &b2_y, &b2_z);
+        float64x2_t a2_x_f64x2, a2_y_f64x2, a2_z_f64x2, b2_x_f64x2, b2_y_f64x2, b2_z_f64x2;
+        nk_deinterleave_f64x2_neon_(a + (j + 2) * 3, &a2_x_f64x2, &a2_y_f64x2, &a2_z_f64x2);
+        nk_deinterleave_f64x2_neon_(b + (j + 2) * 3, &b2_x_f64x2, &b2_y_f64x2, &b2_z_f64x2);
 
         // Center first batch
-        float64x2_t pa1_x = vsubq_f64(a1_x, centroid_a_x_f64x2);
-        float64x2_t pa1_y = vsubq_f64(a1_y, centroid_a_y_f64x2);
-        float64x2_t pa1_z = vsubq_f64(a1_z, centroid_a_z_f64x2);
-        float64x2_t pb1_x = vsubq_f64(b1_x, centroid_b_x_f64x2);
-        float64x2_t pb1_y = vsubq_f64(b1_y, centroid_b_y_f64x2);
-        float64x2_t pb1_z = vsubq_f64(b1_z, centroid_b_z_f64x2);
+        float64x2_t centered_a1_x_f64x2 = vsubq_f64(a1_x_f64x2, centroid_a_x_f64x2);
+        float64x2_t centered_a1_y_f64x2 = vsubq_f64(a1_y_f64x2, centroid_a_y_f64x2);
+        float64x2_t centered_a1_z_f64x2 = vsubq_f64(a1_z_f64x2, centroid_a_z_f64x2);
+        float64x2_t centered_b1_x_f64x2 = vsubq_f64(b1_x_f64x2, centroid_b_x_f64x2);
+        float64x2_t centered_b1_y_f64x2 = vsubq_f64(b1_y_f64x2, centroid_b_y_f64x2);
+        float64x2_t centered_b1_z_f64x2 = vsubq_f64(b1_z_f64x2, centroid_b_z_f64x2);
 
         // Center second batch
-        float64x2_t pa2_x = vsubq_f64(a2_x, centroid_a_x_f64x2);
-        float64x2_t pa2_y = vsubq_f64(a2_y, centroid_a_y_f64x2);
-        float64x2_t pa2_z = vsubq_f64(a2_z, centroid_a_z_f64x2);
-        float64x2_t pb2_x = vsubq_f64(b2_x, centroid_b_x_f64x2);
-        float64x2_t pb2_y = vsubq_f64(b2_y, centroid_b_y_f64x2);
-        float64x2_t pb2_z = vsubq_f64(b2_z, centroid_b_z_f64x2);
+        float64x2_t centered_a2_x_f64x2 = vsubq_f64(a2_x_f64x2, centroid_a_x_f64x2);
+        float64x2_t centered_a2_y_f64x2 = vsubq_f64(a2_y_f64x2, centroid_a_y_f64x2);
+        float64x2_t centered_a2_z_f64x2 = vsubq_f64(a2_z_f64x2, centroid_a_z_f64x2);
+        float64x2_t centered_b2_x_f64x2 = vsubq_f64(b2_x_f64x2, centroid_b_x_f64x2);
+        float64x2_t centered_b2_y_f64x2 = vsubq_f64(b2_y_f64x2, centroid_b_y_f64x2);
+        float64x2_t centered_b2_z_f64x2 = vsubq_f64(b2_z_f64x2, centroid_b_z_f64x2);
 
         // Rotate and scale first batch
-        float64x2_t ra1_x = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, pa1_x), scaled_rotation_x_y_f64x2, pa1_y),
-            scaled_rotation_x_z_f64x2, pa1_z);
-        float64x2_t ra1_y = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, pa1_x), scaled_rotation_y_y_f64x2, pa1_y),
-            scaled_rotation_y_z_f64x2, pa1_z);
-        float64x2_t ra1_z = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, pa1_x), scaled_rotation_z_y_f64x2, pa1_y),
-            scaled_rotation_z_z_f64x2, pa1_z);
+        float64x2_t rotated_a1_x_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a1_x_f64x2),
+                                                             scaled_rotation_x_y_f64x2, centered_a1_y_f64x2),
+                                                   scaled_rotation_x_z_f64x2, centered_a1_z_f64x2);
+        float64x2_t rotated_a1_y_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a1_x_f64x2),
+                                                             scaled_rotation_y_y_f64x2, centered_a1_y_f64x2),
+                                                   scaled_rotation_y_z_f64x2, centered_a1_z_f64x2);
+        float64x2_t rotated_a1_z_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a1_x_f64x2),
+                                                             scaled_rotation_z_y_f64x2, centered_a1_y_f64x2),
+                                                   scaled_rotation_z_z_f64x2, centered_a1_z_f64x2);
 
         // Rotate and scale second batch
-        float64x2_t ra2_x = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, pa2_x), scaled_rotation_x_y_f64x2, pa2_y),
-            scaled_rotation_x_z_f64x2, pa2_z);
-        float64x2_t ra2_y = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, pa2_x), scaled_rotation_y_y_f64x2, pa2_y),
-            scaled_rotation_y_z_f64x2, pa2_z);
-        float64x2_t ra2_z = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, pa2_x), scaled_rotation_z_y_f64x2, pa2_y),
-            scaled_rotation_z_z_f64x2, pa2_z);
+        float64x2_t rotated_a2_x_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a2_x_f64x2),
+                                                             scaled_rotation_x_y_f64x2, centered_a2_y_f64x2),
+                                                   scaled_rotation_x_z_f64x2, centered_a2_z_f64x2);
+        float64x2_t rotated_a2_y_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a2_x_f64x2),
+                                                             scaled_rotation_y_y_f64x2, centered_a2_y_f64x2),
+                                                   scaled_rotation_y_z_f64x2, centered_a2_z_f64x2);
+        float64x2_t rotated_a2_z_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a2_x_f64x2),
+                                                             scaled_rotation_z_y_f64x2, centered_a2_y_f64x2),
+                                                   scaled_rotation_z_z_f64x2, centered_a2_z_f64x2);
 
         // Deltas
-        float64x2_t delta1_x = vsubq_f64(ra1_x, pb1_x);
-        float64x2_t delta1_y = vsubq_f64(ra1_y, pb1_y);
-        float64x2_t delta1_z = vsubq_f64(ra1_z, pb1_z);
-        float64x2_t delta2_x = vsubq_f64(ra2_x, pb2_x);
-        float64x2_t delta2_y = vsubq_f64(ra2_y, pb2_y);
-        float64x2_t delta2_z = vsubq_f64(ra2_z, pb2_z);
+        float64x2_t delta1_x_f64x2 = vsubq_f64(rotated_a1_x_f64x2, centered_b1_x_f64x2);
+        float64x2_t delta1_y_f64x2 = vsubq_f64(rotated_a1_y_f64x2, centered_b1_y_f64x2);
+        float64x2_t delta1_z_f64x2 = vsubq_f64(rotated_a1_z_f64x2, centered_b1_z_f64x2);
+        float64x2_t delta2_x_f64x2 = vsubq_f64(rotated_a2_x_f64x2, centered_b2_x_f64x2);
+        float64x2_t delta2_y_f64x2 = vsubq_f64(rotated_a2_y_f64x2, centered_b2_y_f64x2);
+        float64x2_t delta2_z_f64x2 = vsubq_f64(rotated_a2_z_f64x2, centered_b2_z_f64x2);
 
         // Accumulate to independent accumulators (interleaved for latency hiding)
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_x);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_x);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_y);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_y);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_z);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_z);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_x_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_x_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_y_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_y_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta1_z_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_b_f64x2, &sum_squared_b_compensation_f64x2, delta2_z_f64x2);
     }
 
     // Handle remaining 2 points
     if (j + 2 <= n) {
-        float64x2_t a_x, a_y, a_z, b_x, b_y, b_z;
-        nk_deinterleave_f64x2_neon_(a + j * 3, &a_x, &a_y, &a_z);
-        nk_deinterleave_f64x2_neon_(b + j * 3, &b_x, &b_y, &b_z);
+        float64x2_t a_x_f64x2, a_y_f64x2, a_z_f64x2, b_x_f64x2, b_y_f64x2, b_z_f64x2;
+        nk_deinterleave_f64x2_neon_(a + j * 3, &a_x_f64x2, &a_y_f64x2, &a_z_f64x2);
+        nk_deinterleave_f64x2_neon_(b + j * 3, &b_x_f64x2, &b_y_f64x2, &b_z_f64x2);
 
-        float64x2_t pa_x = vsubq_f64(a_x, centroid_a_x_f64x2);
-        float64x2_t pa_y = vsubq_f64(a_y, centroid_a_y_f64x2);
-        float64x2_t pa_z = vsubq_f64(a_z, centroid_a_z_f64x2);
-        float64x2_t pb_x = vsubq_f64(b_x, centroid_b_x_f64x2);
-        float64x2_t pb_y = vsubq_f64(b_y, centroid_b_y_f64x2);
-        float64x2_t pb_z = vsubq_f64(b_z, centroid_b_z_f64x2);
+        float64x2_t centered_a_x_f64x2 = vsubq_f64(a_x_f64x2, centroid_a_x_f64x2);
+        float64x2_t centered_a_y_f64x2 = vsubq_f64(a_y_f64x2, centroid_a_y_f64x2);
+        float64x2_t centered_a_z_f64x2 = vsubq_f64(a_z_f64x2, centroid_a_z_f64x2);
+        float64x2_t centered_b_x_f64x2 = vsubq_f64(b_x_f64x2, centroid_b_x_f64x2);
+        float64x2_t centered_b_y_f64x2 = vsubq_f64(b_y_f64x2, centroid_b_y_f64x2);
+        float64x2_t centered_b_z_f64x2 = vsubq_f64(b_z_f64x2, centroid_b_z_f64x2);
 
-        float64x2_t ra_x = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, pa_x), scaled_rotation_x_y_f64x2, pa_y),
-            scaled_rotation_x_z_f64x2, pa_z);
-        float64x2_t ra_y = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, pa_x), scaled_rotation_y_y_f64x2, pa_y),
-            scaled_rotation_y_z_f64x2, pa_z);
-        float64x2_t ra_z = vfmaq_f64(
-            vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, pa_x), scaled_rotation_z_y_f64x2, pa_y),
-            scaled_rotation_z_z_f64x2, pa_z);
+        float64x2_t rotated_a_x_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_f64x2),
+                                                            scaled_rotation_x_y_f64x2, centered_a_y_f64x2),
+                                                  scaled_rotation_x_z_f64x2, centered_a_z_f64x2);
+        float64x2_t rotated_a_y_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_y_x_f64x2, centered_a_x_f64x2),
+                                                            scaled_rotation_y_y_f64x2, centered_a_y_f64x2),
+                                                  scaled_rotation_y_z_f64x2, centered_a_z_f64x2);
+        float64x2_t rotated_a_z_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(scaled_rotation_z_x_f64x2, centered_a_x_f64x2),
+                                                            scaled_rotation_z_y_f64x2, centered_a_y_f64x2),
+                                                  scaled_rotation_z_z_f64x2, centered_a_z_f64x2);
 
-        float64x2_t delta_x = vsubq_f64(ra_x, pb_x);
-        float64x2_t delta_y = vsubq_f64(ra_y, pb_y);
-        float64x2_t delta_z = vsubq_f64(ra_z, pb_z);
+        float64x2_t delta_x_f64x2 = vsubq_f64(rotated_a_x_f64x2, centered_b_x_f64x2);
+        float64x2_t delta_y_f64x2 = vsubq_f64(rotated_a_y_f64x2, centered_b_y_f64x2);
+        float64x2_t delta_z_f64x2 = vsubq_f64(rotated_a_z_f64x2, centered_b_z_f64x2);
 
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_x);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_y);
-        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_z);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_x_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_y_f64x2);
+        nk_accumulate_square_f64x2_neon_(&sum_squared_a_f64x2, &sum_squared_a_compensation_f64x2, delta_z_f64x2);
         j += 2;
     }
 
@@ -375,15 +375,15 @@ NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
     if (scale) *scale = 1.0f;
 
     float64x2_t zero_f64x2 = vdupq_n_f64(0.0);
-    float64x2_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_squared_x_lower_f64x2 = zero_f64x2, sum_squared_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_squared_y_lower_f64x2 = zero_f64x2, sum_squared_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_squared_z_lower_f64x2 = zero_f64x2, sum_squared_z_upper_f64x2 = zero_f64x2;
+    float64x2_t sum_a_x_low_f64x2 = zero_f64x2, sum_a_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_y_low_f64x2 = zero_f64x2, sum_a_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_z_low_f64x2 = zero_f64x2, sum_a_z_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_x_low_f64x2 = zero_f64x2, sum_b_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_y_low_f64x2 = zero_f64x2, sum_b_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_z_low_f64x2 = zero_f64x2, sum_b_z_high_f64x2 = zero_f64x2;
+    float64x2_t sum_squared_x_low_f64x2 = zero_f64x2, sum_squared_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_squared_y_low_f64x2 = zero_f64x2, sum_squared_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_squared_z_low_f64x2 = zero_f64x2, sum_squared_z_high_f64x2 = zero_f64x2;
     nk_size_t index = 0;
 
     for (; index + 4 <= n; index += 4) {
@@ -391,56 +391,56 @@ NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
         nk_deinterleave_f32x4_neon_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4),
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        float64x2_t a_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_x_f32x4);
-        float64x2_t a_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_y_f32x4);
-        float64x2_t a_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_z_f32x4);
-        float64x2_t b_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_x_f32x4);
-        float64x2_t b_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_y_f32x4);
-        float64x2_t b_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
+        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
+        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
+        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
+        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
+        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
+        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
 
-        sum_a_x_lower_f64x2 = vaddq_f64(sum_a_x_lower_f64x2, a_x_lower_f64x2),
-        sum_a_x_upper_f64x2 = vaddq_f64(sum_a_x_upper_f64x2, a_x_upper_f64x2);
-        sum_a_y_lower_f64x2 = vaddq_f64(sum_a_y_lower_f64x2, a_y_lower_f64x2),
-        sum_a_y_upper_f64x2 = vaddq_f64(sum_a_y_upper_f64x2, a_y_upper_f64x2);
-        sum_a_z_lower_f64x2 = vaddq_f64(sum_a_z_lower_f64x2, a_z_lower_f64x2),
-        sum_a_z_upper_f64x2 = vaddq_f64(sum_a_z_upper_f64x2, a_z_upper_f64x2);
-        sum_b_x_lower_f64x2 = vaddq_f64(sum_b_x_lower_f64x2, b_x_lower_f64x2),
-        sum_b_x_upper_f64x2 = vaddq_f64(sum_b_x_upper_f64x2, b_x_upper_f64x2);
-        sum_b_y_lower_f64x2 = vaddq_f64(sum_b_y_lower_f64x2, b_y_lower_f64x2),
-        sum_b_y_upper_f64x2 = vaddq_f64(sum_b_y_upper_f64x2, b_y_upper_f64x2);
-        sum_b_z_lower_f64x2 = vaddq_f64(sum_b_z_lower_f64x2, b_z_lower_f64x2),
-        sum_b_z_upper_f64x2 = vaddq_f64(sum_b_z_upper_f64x2, b_z_upper_f64x2);
+        sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
+        sum_a_x_high_f64x2 = vaddq_f64(sum_a_x_high_f64x2, a_x_high_f64x2);
+        sum_a_y_low_f64x2 = vaddq_f64(sum_a_y_low_f64x2, a_y_low_f64x2),
+        sum_a_y_high_f64x2 = vaddq_f64(sum_a_y_high_f64x2, a_y_high_f64x2);
+        sum_a_z_low_f64x2 = vaddq_f64(sum_a_z_low_f64x2, a_z_low_f64x2),
+        sum_a_z_high_f64x2 = vaddq_f64(sum_a_z_high_f64x2, a_z_high_f64x2);
+        sum_b_x_low_f64x2 = vaddq_f64(sum_b_x_low_f64x2, b_x_low_f64x2),
+        sum_b_x_high_f64x2 = vaddq_f64(sum_b_x_high_f64x2, b_x_high_f64x2);
+        sum_b_y_low_f64x2 = vaddq_f64(sum_b_y_low_f64x2, b_y_low_f64x2),
+        sum_b_y_high_f64x2 = vaddq_f64(sum_b_y_high_f64x2, b_y_high_f64x2);
+        sum_b_z_low_f64x2 = vaddq_f64(sum_b_z_low_f64x2, b_z_low_f64x2),
+        sum_b_z_high_f64x2 = vaddq_f64(sum_b_z_high_f64x2, b_z_high_f64x2);
 
-        float64x2_t delta_x_lower_f64x2 = vsubq_f64(a_x_lower_f64x2, b_x_lower_f64x2);
-        float64x2_t delta_x_upper_f64x2 = vsubq_f64(a_x_upper_f64x2, b_x_upper_f64x2);
-        float64x2_t delta_y_lower_f64x2 = vsubq_f64(a_y_lower_f64x2, b_y_lower_f64x2);
-        float64x2_t delta_y_upper_f64x2 = vsubq_f64(a_y_upper_f64x2, b_y_upper_f64x2);
-        float64x2_t delta_z_lower_f64x2 = vsubq_f64(a_z_lower_f64x2, b_z_lower_f64x2);
-        float64x2_t delta_z_upper_f64x2 = vsubq_f64(a_z_upper_f64x2, b_z_upper_f64x2);
+        float64x2_t delta_x_low_f64x2 = vsubq_f64(a_x_low_f64x2, b_x_low_f64x2);
+        float64x2_t delta_x_high_f64x2 = vsubq_f64(a_x_high_f64x2, b_x_high_f64x2);
+        float64x2_t delta_y_low_f64x2 = vsubq_f64(a_y_low_f64x2, b_y_low_f64x2);
+        float64x2_t delta_y_high_f64x2 = vsubq_f64(a_y_high_f64x2, b_y_high_f64x2);
+        float64x2_t delta_z_low_f64x2 = vsubq_f64(a_z_low_f64x2, b_z_low_f64x2);
+        float64x2_t delta_z_high_f64x2 = vsubq_f64(a_z_high_f64x2, b_z_high_f64x2);
 
-        sum_squared_x_lower_f64x2 = vfmaq_f64(sum_squared_x_lower_f64x2, delta_x_lower_f64x2, delta_x_lower_f64x2),
-        sum_squared_x_upper_f64x2 = vfmaq_f64(sum_squared_x_upper_f64x2, delta_x_upper_f64x2, delta_x_upper_f64x2);
-        sum_squared_y_lower_f64x2 = vfmaq_f64(sum_squared_y_lower_f64x2, delta_y_lower_f64x2, delta_y_lower_f64x2),
-        sum_squared_y_upper_f64x2 = vfmaq_f64(sum_squared_y_upper_f64x2, delta_y_upper_f64x2, delta_y_upper_f64x2);
-        sum_squared_z_lower_f64x2 = vfmaq_f64(sum_squared_z_lower_f64x2, delta_z_lower_f64x2, delta_z_lower_f64x2),
-        sum_squared_z_upper_f64x2 = vfmaq_f64(sum_squared_z_upper_f64x2, delta_z_upper_f64x2, delta_z_upper_f64x2);
+        sum_squared_x_low_f64x2 = vfmaq_f64(sum_squared_x_low_f64x2, delta_x_low_f64x2, delta_x_low_f64x2),
+        sum_squared_x_high_f64x2 = vfmaq_f64(sum_squared_x_high_f64x2, delta_x_high_f64x2, delta_x_high_f64x2);
+        sum_squared_y_low_f64x2 = vfmaq_f64(sum_squared_y_low_f64x2, delta_y_low_f64x2, delta_y_low_f64x2),
+        sum_squared_y_high_f64x2 = vfmaq_f64(sum_squared_y_high_f64x2, delta_y_high_f64x2, delta_y_high_f64x2);
+        sum_squared_z_low_f64x2 = vfmaq_f64(sum_squared_z_low_f64x2, delta_z_low_f64x2, delta_z_low_f64x2),
+        sum_squared_z_high_f64x2 = vfmaq_f64(sum_squared_z_high_f64x2, delta_z_high_f64x2, delta_z_high_f64x2);
     }
 
-    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
-    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
-    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
-    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
-    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
-    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
-    nk_f64_t sum_squared_x = vaddvq_f64(vaddq_f64(sum_squared_x_lower_f64x2, sum_squared_x_upper_f64x2));
-    nk_f64_t sum_squared_y = vaddvq_f64(vaddq_f64(sum_squared_y_lower_f64x2, sum_squared_y_upper_f64x2));
-    nk_f64_t sum_squared_z = vaddvq_f64(vaddq_f64(sum_squared_z_lower_f64x2, sum_squared_z_upper_f64x2));
+    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_low_f64x2, sum_a_x_high_f64x2));
+    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_low_f64x2, sum_a_y_high_f64x2));
+    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_low_f64x2, sum_a_z_high_f64x2));
+    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_low_f64x2, sum_b_x_high_f64x2));
+    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_low_f64x2, sum_b_y_high_f64x2));
+    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_low_f64x2, sum_b_z_high_f64x2));
+    nk_f64_t sum_squared_x = vaddvq_f64(vaddq_f64(sum_squared_x_low_f64x2, sum_squared_x_high_f64x2));
+    nk_f64_t sum_squared_y = vaddvq_f64(vaddq_f64(sum_squared_y_low_f64x2, sum_squared_y_high_f64x2));
+    nk_f64_t sum_squared_z = vaddvq_f64(vaddq_f64(sum_squared_z_low_f64x2, sum_squared_z_high_f64x2));
 
     for (; index < n; ++index) {
         nk_f64_t a_x = a[index * 3 + 0], a_y = a[index * 3 + 1], a_z = a[index * 3 + 2];
@@ -562,23 +562,23 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     float64x2_t zero_f64x2 = vdupq_n_f64(0.0);
 
     // Centroid accumulators (f64, lower/upper halves of f32x4)
-    float64x2_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
+    float64x2_t sum_a_x_low_f64x2 = zero_f64x2, sum_a_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_y_low_f64x2 = zero_f64x2, sum_a_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_z_low_f64x2 = zero_f64x2, sum_a_z_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_x_low_f64x2 = zero_f64x2, sum_b_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_y_low_f64x2 = zero_f64x2, sum_b_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_z_low_f64x2 = zero_f64x2, sum_b_z_high_f64x2 = zero_f64x2;
 
     // Covariance accumulators (f64, lower/upper halves)
-    float64x2_t cov_xx_lower_f64x2 = zero_f64x2, cov_xx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_xy_lower_f64x2 = zero_f64x2, cov_xy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_xz_lower_f64x2 = zero_f64x2, cov_xz_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yx_lower_f64x2 = zero_f64x2, cov_yx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yy_lower_f64x2 = zero_f64x2, cov_yy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yz_lower_f64x2 = zero_f64x2, cov_yz_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zx_lower_f64x2 = zero_f64x2, cov_zx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zy_lower_f64x2 = zero_f64x2, cov_zy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zz_lower_f64x2 = zero_f64x2, cov_zz_upper_f64x2 = zero_f64x2;
+    float64x2_t cov_xx_low_f64x2 = zero_f64x2, cov_xx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_xy_low_f64x2 = zero_f64x2, cov_xy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_xz_low_f64x2 = zero_f64x2, cov_xz_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yx_low_f64x2 = zero_f64x2, cov_yx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yy_low_f64x2 = zero_f64x2, cov_yy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yz_low_f64x2 = zero_f64x2, cov_yz_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zx_low_f64x2 = zero_f64x2, cov_zx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zy_low_f64x2 = zero_f64x2, cov_zy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zz_low_f64x2 = zero_f64x2, cov_zz_high_f64x2 = zero_f64x2;
 
     nk_size_t index = 0;
     for (; index + 4 <= n; index += 4) {
@@ -586,72 +586,72 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
         nk_deinterleave_f32x4_neon_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4),
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        float64x2_t a_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_x_f32x4);
-        float64x2_t a_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_y_f32x4);
-        float64x2_t a_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_z_f32x4);
-        float64x2_t b_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_x_f32x4);
-        float64x2_t b_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_y_f32x4);
-        float64x2_t b_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
+        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
+        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
+        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
+        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
+        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
+        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
 
         // Accumulate centroids
-        sum_a_x_lower_f64x2 = vaddq_f64(sum_a_x_lower_f64x2, a_x_lower_f64x2),
-        sum_a_x_upper_f64x2 = vaddq_f64(sum_a_x_upper_f64x2, a_x_upper_f64x2);
-        sum_a_y_lower_f64x2 = vaddq_f64(sum_a_y_lower_f64x2, a_y_lower_f64x2),
-        sum_a_y_upper_f64x2 = vaddq_f64(sum_a_y_upper_f64x2, a_y_upper_f64x2);
-        sum_a_z_lower_f64x2 = vaddq_f64(sum_a_z_lower_f64x2, a_z_lower_f64x2),
-        sum_a_z_upper_f64x2 = vaddq_f64(sum_a_z_upper_f64x2, a_z_upper_f64x2);
-        sum_b_x_lower_f64x2 = vaddq_f64(sum_b_x_lower_f64x2, b_x_lower_f64x2),
-        sum_b_x_upper_f64x2 = vaddq_f64(sum_b_x_upper_f64x2, b_x_upper_f64x2);
-        sum_b_y_lower_f64x2 = vaddq_f64(sum_b_y_lower_f64x2, b_y_lower_f64x2),
-        sum_b_y_upper_f64x2 = vaddq_f64(sum_b_y_upper_f64x2, b_y_upper_f64x2);
-        sum_b_z_lower_f64x2 = vaddq_f64(sum_b_z_lower_f64x2, b_z_lower_f64x2),
-        sum_b_z_upper_f64x2 = vaddq_f64(sum_b_z_upper_f64x2, b_z_upper_f64x2);
+        sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
+        sum_a_x_high_f64x2 = vaddq_f64(sum_a_x_high_f64x2, a_x_high_f64x2);
+        sum_a_y_low_f64x2 = vaddq_f64(sum_a_y_low_f64x2, a_y_low_f64x2),
+        sum_a_y_high_f64x2 = vaddq_f64(sum_a_y_high_f64x2, a_y_high_f64x2);
+        sum_a_z_low_f64x2 = vaddq_f64(sum_a_z_low_f64x2, a_z_low_f64x2),
+        sum_a_z_high_f64x2 = vaddq_f64(sum_a_z_high_f64x2, a_z_high_f64x2);
+        sum_b_x_low_f64x2 = vaddq_f64(sum_b_x_low_f64x2, b_x_low_f64x2),
+        sum_b_x_high_f64x2 = vaddq_f64(sum_b_x_high_f64x2, b_x_high_f64x2);
+        sum_b_y_low_f64x2 = vaddq_f64(sum_b_y_low_f64x2, b_y_low_f64x2),
+        sum_b_y_high_f64x2 = vaddq_f64(sum_b_y_high_f64x2, b_y_high_f64x2);
+        sum_b_z_low_f64x2 = vaddq_f64(sum_b_z_low_f64x2, b_z_low_f64x2),
+        sum_b_z_high_f64x2 = vaddq_f64(sum_b_z_high_f64x2, b_z_high_f64x2);
 
         // Accumulate raw outer products (uncentered)
-        cov_xx_lower_f64x2 = vfmaq_f64(cov_xx_lower_f64x2, a_x_lower_f64x2, b_x_lower_f64x2),
-        cov_xx_upper_f64x2 = vfmaq_f64(cov_xx_upper_f64x2, a_x_upper_f64x2, b_x_upper_f64x2);
-        cov_xy_lower_f64x2 = vfmaq_f64(cov_xy_lower_f64x2, a_x_lower_f64x2, b_y_lower_f64x2),
-        cov_xy_upper_f64x2 = vfmaq_f64(cov_xy_upper_f64x2, a_x_upper_f64x2, b_y_upper_f64x2);
-        cov_xz_lower_f64x2 = vfmaq_f64(cov_xz_lower_f64x2, a_x_lower_f64x2, b_z_lower_f64x2),
-        cov_xz_upper_f64x2 = vfmaq_f64(cov_xz_upper_f64x2, a_x_upper_f64x2, b_z_upper_f64x2);
-        cov_yx_lower_f64x2 = vfmaq_f64(cov_yx_lower_f64x2, a_y_lower_f64x2, b_x_lower_f64x2),
-        cov_yx_upper_f64x2 = vfmaq_f64(cov_yx_upper_f64x2, a_y_upper_f64x2, b_x_upper_f64x2);
-        cov_yy_lower_f64x2 = vfmaq_f64(cov_yy_lower_f64x2, a_y_lower_f64x2, b_y_lower_f64x2),
-        cov_yy_upper_f64x2 = vfmaq_f64(cov_yy_upper_f64x2, a_y_upper_f64x2, b_y_upper_f64x2);
-        cov_yz_lower_f64x2 = vfmaq_f64(cov_yz_lower_f64x2, a_y_lower_f64x2, b_z_lower_f64x2),
-        cov_yz_upper_f64x2 = vfmaq_f64(cov_yz_upper_f64x2, a_y_upper_f64x2, b_z_upper_f64x2);
-        cov_zx_lower_f64x2 = vfmaq_f64(cov_zx_lower_f64x2, a_z_lower_f64x2, b_x_lower_f64x2),
-        cov_zx_upper_f64x2 = vfmaq_f64(cov_zx_upper_f64x2, a_z_upper_f64x2, b_x_upper_f64x2);
-        cov_zy_lower_f64x2 = vfmaq_f64(cov_zy_lower_f64x2, a_z_lower_f64x2, b_y_lower_f64x2),
-        cov_zy_upper_f64x2 = vfmaq_f64(cov_zy_upper_f64x2, a_z_upper_f64x2, b_y_upper_f64x2);
-        cov_zz_lower_f64x2 = vfmaq_f64(cov_zz_lower_f64x2, a_z_lower_f64x2, b_z_lower_f64x2),
-        cov_zz_upper_f64x2 = vfmaq_f64(cov_zz_upper_f64x2, a_z_upper_f64x2, b_z_upper_f64x2);
+        cov_xx_low_f64x2 = vfmaq_f64(cov_xx_low_f64x2, a_x_low_f64x2, b_x_low_f64x2),
+        cov_xx_high_f64x2 = vfmaq_f64(cov_xx_high_f64x2, a_x_high_f64x2, b_x_high_f64x2);
+        cov_xy_low_f64x2 = vfmaq_f64(cov_xy_low_f64x2, a_x_low_f64x2, b_y_low_f64x2),
+        cov_xy_high_f64x2 = vfmaq_f64(cov_xy_high_f64x2, a_x_high_f64x2, b_y_high_f64x2);
+        cov_xz_low_f64x2 = vfmaq_f64(cov_xz_low_f64x2, a_x_low_f64x2, b_z_low_f64x2),
+        cov_xz_high_f64x2 = vfmaq_f64(cov_xz_high_f64x2, a_x_high_f64x2, b_z_high_f64x2);
+        cov_yx_low_f64x2 = vfmaq_f64(cov_yx_low_f64x2, a_y_low_f64x2, b_x_low_f64x2),
+        cov_yx_high_f64x2 = vfmaq_f64(cov_yx_high_f64x2, a_y_high_f64x2, b_x_high_f64x2);
+        cov_yy_low_f64x2 = vfmaq_f64(cov_yy_low_f64x2, a_y_low_f64x2, b_y_low_f64x2),
+        cov_yy_high_f64x2 = vfmaq_f64(cov_yy_high_f64x2, a_y_high_f64x2, b_y_high_f64x2);
+        cov_yz_low_f64x2 = vfmaq_f64(cov_yz_low_f64x2, a_y_low_f64x2, b_z_low_f64x2),
+        cov_yz_high_f64x2 = vfmaq_f64(cov_yz_high_f64x2, a_y_high_f64x2, b_z_high_f64x2);
+        cov_zx_low_f64x2 = vfmaq_f64(cov_zx_low_f64x2, a_z_low_f64x2, b_x_low_f64x2),
+        cov_zx_high_f64x2 = vfmaq_f64(cov_zx_high_f64x2, a_z_high_f64x2, b_x_high_f64x2);
+        cov_zy_low_f64x2 = vfmaq_f64(cov_zy_low_f64x2, a_z_low_f64x2, b_y_low_f64x2),
+        cov_zy_high_f64x2 = vfmaq_f64(cov_zy_high_f64x2, a_z_high_f64x2, b_y_high_f64x2);
+        cov_zz_low_f64x2 = vfmaq_f64(cov_zz_low_f64x2, a_z_low_f64x2, b_z_low_f64x2),
+        cov_zz_high_f64x2 = vfmaq_f64(cov_zz_high_f64x2, a_z_high_f64x2, b_z_high_f64x2);
     }
 
     // Reduce centroid accumulators
-    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
-    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
-    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
-    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
-    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
-    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
+    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_low_f64x2, sum_a_x_high_f64x2));
+    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_low_f64x2, sum_a_y_high_f64x2));
+    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_low_f64x2, sum_a_z_high_f64x2));
+    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_low_f64x2, sum_b_x_high_f64x2));
+    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_low_f64x2, sum_b_y_high_f64x2));
+    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_low_f64x2, sum_b_z_high_f64x2));
 
     // Reduce covariance accumulators
-    nk_f64_t covariance_x_x = vaddvq_f64(vaddq_f64(cov_xx_lower_f64x2, cov_xx_upper_f64x2));
-    nk_f64_t covariance_x_y = vaddvq_f64(vaddq_f64(cov_xy_lower_f64x2, cov_xy_upper_f64x2));
-    nk_f64_t covariance_x_z = vaddvq_f64(vaddq_f64(cov_xz_lower_f64x2, cov_xz_upper_f64x2));
-    nk_f64_t covariance_y_x = vaddvq_f64(vaddq_f64(cov_yx_lower_f64x2, cov_yx_upper_f64x2));
-    nk_f64_t covariance_y_y = vaddvq_f64(vaddq_f64(cov_yy_lower_f64x2, cov_yy_upper_f64x2));
-    nk_f64_t covariance_y_z = vaddvq_f64(vaddq_f64(cov_yz_lower_f64x2, cov_yz_upper_f64x2));
-    nk_f64_t covariance_z_x = vaddvq_f64(vaddq_f64(cov_zx_lower_f64x2, cov_zx_upper_f64x2));
-    nk_f64_t covariance_z_y = vaddvq_f64(vaddq_f64(cov_zy_lower_f64x2, cov_zy_upper_f64x2));
-    nk_f64_t covariance_z_z = vaddvq_f64(vaddq_f64(cov_zz_lower_f64x2, cov_zz_upper_f64x2));
+    nk_f64_t covariance_x_x = vaddvq_f64(vaddq_f64(cov_xx_low_f64x2, cov_xx_high_f64x2));
+    nk_f64_t covariance_x_y = vaddvq_f64(vaddq_f64(cov_xy_low_f64x2, cov_xy_high_f64x2));
+    nk_f64_t covariance_x_z = vaddvq_f64(vaddq_f64(cov_xz_low_f64x2, cov_xz_high_f64x2));
+    nk_f64_t covariance_y_x = vaddvq_f64(vaddq_f64(cov_yx_low_f64x2, cov_yx_high_f64x2));
+    nk_f64_t covariance_y_y = vaddvq_f64(vaddq_f64(cov_yy_low_f64x2, cov_yy_high_f64x2));
+    nk_f64_t covariance_y_z = vaddvq_f64(vaddq_f64(cov_yz_low_f64x2, cov_yz_high_f64x2));
+    nk_f64_t covariance_z_x = vaddvq_f64(vaddq_f64(cov_zx_low_f64x2, cov_zx_high_f64x2));
+    nk_f64_t covariance_z_y = vaddvq_f64(vaddq_f64(cov_zy_low_f64x2, cov_zy_high_f64x2));
+    nk_f64_t covariance_z_z = vaddvq_f64(vaddq_f64(cov_zz_low_f64x2, cov_zz_high_f64x2));
 
     // Scalar tail
     for (; index < n; ++index) {
@@ -922,26 +922,26 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     float64x2_t zero_f64x2 = vdupq_n_f64(0.0);
 
     // Centroid accumulators (f64, lower/upper halves of f32x4)
-    float64x2_t sum_a_x_lower_f64x2 = zero_f64x2, sum_a_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_y_lower_f64x2 = zero_f64x2, sum_a_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_a_z_lower_f64x2 = zero_f64x2, sum_a_z_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_x_lower_f64x2 = zero_f64x2, sum_b_x_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_y_lower_f64x2 = zero_f64x2, sum_b_y_upper_f64x2 = zero_f64x2;
-    float64x2_t sum_b_z_lower_f64x2 = zero_f64x2, sum_b_z_upper_f64x2 = zero_f64x2;
+    float64x2_t sum_a_x_low_f64x2 = zero_f64x2, sum_a_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_y_low_f64x2 = zero_f64x2, sum_a_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_a_z_low_f64x2 = zero_f64x2, sum_a_z_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_x_low_f64x2 = zero_f64x2, sum_b_x_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_y_low_f64x2 = zero_f64x2, sum_b_y_high_f64x2 = zero_f64x2;
+    float64x2_t sum_b_z_low_f64x2 = zero_f64x2, sum_b_z_high_f64x2 = zero_f64x2;
 
     // Covariance accumulators (f64, lower/upper halves)
-    float64x2_t cov_xx_lower_f64x2 = zero_f64x2, cov_xx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_xy_lower_f64x2 = zero_f64x2, cov_xy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_xz_lower_f64x2 = zero_f64x2, cov_xz_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yx_lower_f64x2 = zero_f64x2, cov_yx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yy_lower_f64x2 = zero_f64x2, cov_yy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_yz_lower_f64x2 = zero_f64x2, cov_yz_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zx_lower_f64x2 = zero_f64x2, cov_zx_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zy_lower_f64x2 = zero_f64x2, cov_zy_upper_f64x2 = zero_f64x2;
-    float64x2_t cov_zz_lower_f64x2 = zero_f64x2, cov_zz_upper_f64x2 = zero_f64x2;
+    float64x2_t cov_xx_low_f64x2 = zero_f64x2, cov_xx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_xy_low_f64x2 = zero_f64x2, cov_xy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_xz_low_f64x2 = zero_f64x2, cov_xz_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yx_low_f64x2 = zero_f64x2, cov_yx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yy_low_f64x2 = zero_f64x2, cov_yy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_yz_low_f64x2 = zero_f64x2, cov_yz_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zx_low_f64x2 = zero_f64x2, cov_zx_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zy_low_f64x2 = zero_f64x2, cov_zy_high_f64x2 = zero_f64x2;
+    float64x2_t cov_zz_low_f64x2 = zero_f64x2, cov_zz_high_f64x2 = zero_f64x2;
 
     // Variance of A accumulator
-    float64x2_t variance_lower_f64x2 = zero_f64x2, variance_upper_f64x2 = zero_f64x2;
+    float64x2_t variance_low_f64x2 = zero_f64x2, variance_high_f64x2 = zero_f64x2;
 
     nk_size_t index = 0;
     for (; index + 4 <= n; index += 4) {
@@ -949,81 +949,81 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
         nk_deinterleave_f32x4_neon_(a + index * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4),
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        float64x2_t a_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_x_f32x4);
-        float64x2_t a_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_y_f32x4);
-        float64x2_t a_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(a_z_f32x4);
-        float64x2_t b_x_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_x_f32x4);
-        float64x2_t b_y_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_y_f32x4);
-        float64x2_t b_z_lower_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_upper_f64x2 = nk_promote_upper_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
+        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
+        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
+        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
+        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
+        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
+        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
 
         // Accumulate centroids
-        sum_a_x_lower_f64x2 = vaddq_f64(sum_a_x_lower_f64x2, a_x_lower_f64x2),
-        sum_a_x_upper_f64x2 = vaddq_f64(sum_a_x_upper_f64x2, a_x_upper_f64x2);
-        sum_a_y_lower_f64x2 = vaddq_f64(sum_a_y_lower_f64x2, a_y_lower_f64x2),
-        sum_a_y_upper_f64x2 = vaddq_f64(sum_a_y_upper_f64x2, a_y_upper_f64x2);
-        sum_a_z_lower_f64x2 = vaddq_f64(sum_a_z_lower_f64x2, a_z_lower_f64x2),
-        sum_a_z_upper_f64x2 = vaddq_f64(sum_a_z_upper_f64x2, a_z_upper_f64x2);
-        sum_b_x_lower_f64x2 = vaddq_f64(sum_b_x_lower_f64x2, b_x_lower_f64x2),
-        sum_b_x_upper_f64x2 = vaddq_f64(sum_b_x_upper_f64x2, b_x_upper_f64x2);
-        sum_b_y_lower_f64x2 = vaddq_f64(sum_b_y_lower_f64x2, b_y_lower_f64x2),
-        sum_b_y_upper_f64x2 = vaddq_f64(sum_b_y_upper_f64x2, b_y_upper_f64x2);
-        sum_b_z_lower_f64x2 = vaddq_f64(sum_b_z_lower_f64x2, b_z_lower_f64x2),
-        sum_b_z_upper_f64x2 = vaddq_f64(sum_b_z_upper_f64x2, b_z_upper_f64x2);
+        sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
+        sum_a_x_high_f64x2 = vaddq_f64(sum_a_x_high_f64x2, a_x_high_f64x2);
+        sum_a_y_low_f64x2 = vaddq_f64(sum_a_y_low_f64x2, a_y_low_f64x2),
+        sum_a_y_high_f64x2 = vaddq_f64(sum_a_y_high_f64x2, a_y_high_f64x2);
+        sum_a_z_low_f64x2 = vaddq_f64(sum_a_z_low_f64x2, a_z_low_f64x2),
+        sum_a_z_high_f64x2 = vaddq_f64(sum_a_z_high_f64x2, a_z_high_f64x2);
+        sum_b_x_low_f64x2 = vaddq_f64(sum_b_x_low_f64x2, b_x_low_f64x2),
+        sum_b_x_high_f64x2 = vaddq_f64(sum_b_x_high_f64x2, b_x_high_f64x2);
+        sum_b_y_low_f64x2 = vaddq_f64(sum_b_y_low_f64x2, b_y_low_f64x2),
+        sum_b_y_high_f64x2 = vaddq_f64(sum_b_y_high_f64x2, b_y_high_f64x2);
+        sum_b_z_low_f64x2 = vaddq_f64(sum_b_z_low_f64x2, b_z_low_f64x2),
+        sum_b_z_high_f64x2 = vaddq_f64(sum_b_z_high_f64x2, b_z_high_f64x2);
 
         // Accumulate raw outer products (uncentered)
-        cov_xx_lower_f64x2 = vfmaq_f64(cov_xx_lower_f64x2, a_x_lower_f64x2, b_x_lower_f64x2),
-        cov_xx_upper_f64x2 = vfmaq_f64(cov_xx_upper_f64x2, a_x_upper_f64x2, b_x_upper_f64x2);
-        cov_xy_lower_f64x2 = vfmaq_f64(cov_xy_lower_f64x2, a_x_lower_f64x2, b_y_lower_f64x2),
-        cov_xy_upper_f64x2 = vfmaq_f64(cov_xy_upper_f64x2, a_x_upper_f64x2, b_y_upper_f64x2);
-        cov_xz_lower_f64x2 = vfmaq_f64(cov_xz_lower_f64x2, a_x_lower_f64x2, b_z_lower_f64x2),
-        cov_xz_upper_f64x2 = vfmaq_f64(cov_xz_upper_f64x2, a_x_upper_f64x2, b_z_upper_f64x2);
-        cov_yx_lower_f64x2 = vfmaq_f64(cov_yx_lower_f64x2, a_y_lower_f64x2, b_x_lower_f64x2),
-        cov_yx_upper_f64x2 = vfmaq_f64(cov_yx_upper_f64x2, a_y_upper_f64x2, b_x_upper_f64x2);
-        cov_yy_lower_f64x2 = vfmaq_f64(cov_yy_lower_f64x2, a_y_lower_f64x2, b_y_lower_f64x2),
-        cov_yy_upper_f64x2 = vfmaq_f64(cov_yy_upper_f64x2, a_y_upper_f64x2, b_y_upper_f64x2);
-        cov_yz_lower_f64x2 = vfmaq_f64(cov_yz_lower_f64x2, a_y_lower_f64x2, b_z_lower_f64x2),
-        cov_yz_upper_f64x2 = vfmaq_f64(cov_yz_upper_f64x2, a_y_upper_f64x2, b_z_upper_f64x2);
-        cov_zx_lower_f64x2 = vfmaq_f64(cov_zx_lower_f64x2, a_z_lower_f64x2, b_x_lower_f64x2),
-        cov_zx_upper_f64x2 = vfmaq_f64(cov_zx_upper_f64x2, a_z_upper_f64x2, b_x_upper_f64x2);
-        cov_zy_lower_f64x2 = vfmaq_f64(cov_zy_lower_f64x2, a_z_lower_f64x2, b_y_lower_f64x2),
-        cov_zy_upper_f64x2 = vfmaq_f64(cov_zy_upper_f64x2, a_z_upper_f64x2, b_y_upper_f64x2);
-        cov_zz_lower_f64x2 = vfmaq_f64(cov_zz_lower_f64x2, a_z_lower_f64x2, b_z_lower_f64x2),
-        cov_zz_upper_f64x2 = vfmaq_f64(cov_zz_upper_f64x2, a_z_upper_f64x2, b_z_upper_f64x2);
+        cov_xx_low_f64x2 = vfmaq_f64(cov_xx_low_f64x2, a_x_low_f64x2, b_x_low_f64x2),
+        cov_xx_high_f64x2 = vfmaq_f64(cov_xx_high_f64x2, a_x_high_f64x2, b_x_high_f64x2);
+        cov_xy_low_f64x2 = vfmaq_f64(cov_xy_low_f64x2, a_x_low_f64x2, b_y_low_f64x2),
+        cov_xy_high_f64x2 = vfmaq_f64(cov_xy_high_f64x2, a_x_high_f64x2, b_y_high_f64x2);
+        cov_xz_low_f64x2 = vfmaq_f64(cov_xz_low_f64x2, a_x_low_f64x2, b_z_low_f64x2),
+        cov_xz_high_f64x2 = vfmaq_f64(cov_xz_high_f64x2, a_x_high_f64x2, b_z_high_f64x2);
+        cov_yx_low_f64x2 = vfmaq_f64(cov_yx_low_f64x2, a_y_low_f64x2, b_x_low_f64x2),
+        cov_yx_high_f64x2 = vfmaq_f64(cov_yx_high_f64x2, a_y_high_f64x2, b_x_high_f64x2);
+        cov_yy_low_f64x2 = vfmaq_f64(cov_yy_low_f64x2, a_y_low_f64x2, b_y_low_f64x2),
+        cov_yy_high_f64x2 = vfmaq_f64(cov_yy_high_f64x2, a_y_high_f64x2, b_y_high_f64x2);
+        cov_yz_low_f64x2 = vfmaq_f64(cov_yz_low_f64x2, a_y_low_f64x2, b_z_low_f64x2),
+        cov_yz_high_f64x2 = vfmaq_f64(cov_yz_high_f64x2, a_y_high_f64x2, b_z_high_f64x2);
+        cov_zx_low_f64x2 = vfmaq_f64(cov_zx_low_f64x2, a_z_low_f64x2, b_x_low_f64x2),
+        cov_zx_high_f64x2 = vfmaq_f64(cov_zx_high_f64x2, a_z_high_f64x2, b_x_high_f64x2);
+        cov_zy_low_f64x2 = vfmaq_f64(cov_zy_low_f64x2, a_z_low_f64x2, b_y_low_f64x2),
+        cov_zy_high_f64x2 = vfmaq_f64(cov_zy_high_f64x2, a_z_high_f64x2, b_y_high_f64x2);
+        cov_zz_low_f64x2 = vfmaq_f64(cov_zz_low_f64x2, a_z_low_f64x2, b_z_low_f64x2),
+        cov_zz_high_f64x2 = vfmaq_f64(cov_zz_high_f64x2, a_z_high_f64x2, b_z_high_f64x2);
 
         // Accumulate variance of A (sum of squared coordinates)
-        variance_lower_f64x2 = vfmaq_f64(variance_lower_f64x2, a_x_lower_f64x2, a_x_lower_f64x2),
-        variance_upper_f64x2 = vfmaq_f64(variance_upper_f64x2, a_x_upper_f64x2, a_x_upper_f64x2);
-        variance_lower_f64x2 = vfmaq_f64(variance_lower_f64x2, a_y_lower_f64x2, a_y_lower_f64x2),
-        variance_upper_f64x2 = vfmaq_f64(variance_upper_f64x2, a_y_upper_f64x2, a_y_upper_f64x2);
-        variance_lower_f64x2 = vfmaq_f64(variance_lower_f64x2, a_z_lower_f64x2, a_z_lower_f64x2),
-        variance_upper_f64x2 = vfmaq_f64(variance_upper_f64x2, a_z_upper_f64x2, a_z_upper_f64x2);
+        variance_low_f64x2 = vfmaq_f64(variance_low_f64x2, a_x_low_f64x2, a_x_low_f64x2),
+        variance_high_f64x2 = vfmaq_f64(variance_high_f64x2, a_x_high_f64x2, a_x_high_f64x2);
+        variance_low_f64x2 = vfmaq_f64(variance_low_f64x2, a_y_low_f64x2, a_y_low_f64x2),
+        variance_high_f64x2 = vfmaq_f64(variance_high_f64x2, a_y_high_f64x2, a_y_high_f64x2);
+        variance_low_f64x2 = vfmaq_f64(variance_low_f64x2, a_z_low_f64x2, a_z_low_f64x2),
+        variance_high_f64x2 = vfmaq_f64(variance_high_f64x2, a_z_high_f64x2, a_z_high_f64x2);
     }
 
     // Reduce centroid accumulators
-    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_lower_f64x2, sum_a_x_upper_f64x2));
-    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_lower_f64x2, sum_a_y_upper_f64x2));
-    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_lower_f64x2, sum_a_z_upper_f64x2));
-    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_lower_f64x2, sum_b_x_upper_f64x2));
-    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_lower_f64x2, sum_b_y_upper_f64x2));
-    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_lower_f64x2, sum_b_z_upper_f64x2));
+    nk_f64_t sum_a_x = vaddvq_f64(vaddq_f64(sum_a_x_low_f64x2, sum_a_x_high_f64x2));
+    nk_f64_t sum_a_y = vaddvq_f64(vaddq_f64(sum_a_y_low_f64x2, sum_a_y_high_f64x2));
+    nk_f64_t sum_a_z = vaddvq_f64(vaddq_f64(sum_a_z_low_f64x2, sum_a_z_high_f64x2));
+    nk_f64_t sum_b_x = vaddvq_f64(vaddq_f64(sum_b_x_low_f64x2, sum_b_x_high_f64x2));
+    nk_f64_t sum_b_y = vaddvq_f64(vaddq_f64(sum_b_y_low_f64x2, sum_b_y_high_f64x2));
+    nk_f64_t sum_b_z = vaddvq_f64(vaddq_f64(sum_b_z_low_f64x2, sum_b_z_high_f64x2));
 
     // Reduce covariance accumulators
-    nk_f64_t covariance_x_x = vaddvq_f64(vaddq_f64(cov_xx_lower_f64x2, cov_xx_upper_f64x2));
-    nk_f64_t covariance_x_y = vaddvq_f64(vaddq_f64(cov_xy_lower_f64x2, cov_xy_upper_f64x2));
-    nk_f64_t covariance_x_z = vaddvq_f64(vaddq_f64(cov_xz_lower_f64x2, cov_xz_upper_f64x2));
-    nk_f64_t covariance_y_x = vaddvq_f64(vaddq_f64(cov_yx_lower_f64x2, cov_yx_upper_f64x2));
-    nk_f64_t covariance_y_y = vaddvq_f64(vaddq_f64(cov_yy_lower_f64x2, cov_yy_upper_f64x2));
-    nk_f64_t covariance_y_z = vaddvq_f64(vaddq_f64(cov_yz_lower_f64x2, cov_yz_upper_f64x2));
-    nk_f64_t covariance_z_x = vaddvq_f64(vaddq_f64(cov_zx_lower_f64x2, cov_zx_upper_f64x2));
-    nk_f64_t covariance_z_y = vaddvq_f64(vaddq_f64(cov_zy_lower_f64x2, cov_zy_upper_f64x2));
-    nk_f64_t covariance_z_z = vaddvq_f64(vaddq_f64(cov_zz_lower_f64x2, cov_zz_upper_f64x2));
-    nk_f64_t sum_sq_a = vaddvq_f64(vaddq_f64(variance_lower_f64x2, variance_upper_f64x2));
+    nk_f64_t covariance_x_x = vaddvq_f64(vaddq_f64(cov_xx_low_f64x2, cov_xx_high_f64x2));
+    nk_f64_t covariance_x_y = vaddvq_f64(vaddq_f64(cov_xy_low_f64x2, cov_xy_high_f64x2));
+    nk_f64_t covariance_x_z = vaddvq_f64(vaddq_f64(cov_xz_low_f64x2, cov_xz_high_f64x2));
+    nk_f64_t covariance_y_x = vaddvq_f64(vaddq_f64(cov_yx_low_f64x2, cov_yx_high_f64x2));
+    nk_f64_t covariance_y_y = vaddvq_f64(vaddq_f64(cov_yy_low_f64x2, cov_yy_high_f64x2));
+    nk_f64_t covariance_y_z = vaddvq_f64(vaddq_f64(cov_yz_low_f64x2, cov_yz_high_f64x2));
+    nk_f64_t covariance_z_x = vaddvq_f64(vaddq_f64(cov_zx_low_f64x2, cov_zx_high_f64x2));
+    nk_f64_t covariance_z_y = vaddvq_f64(vaddq_f64(cov_zy_low_f64x2, cov_zy_high_f64x2));
+    nk_f64_t covariance_z_z = vaddvq_f64(vaddq_f64(cov_zz_low_f64x2, cov_zz_high_f64x2));
+    nk_f64_t sum_sq_a = vaddvq_f64(vaddq_f64(variance_low_f64x2, variance_high_f64x2));
 
     // Scalar tail
     for (; index < n; ++index) {

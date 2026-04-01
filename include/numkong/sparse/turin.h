@@ -243,8 +243,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
     // Native VP2INTERSECTD works directly on u32 - no conversion needed!
     nk_u32_t const *const a_end = a + a_length;
     nk_u32_t const *const b_end = b + b_length;
-    __m512d product_lower_f64x8 = _mm512_setzero_pd();
-    __m512d product_upper_f64x8 = _mm512_setzero_pd();
+    __m512d product_low_f64x8 = _mm512_setzero_pd();
+    __m512d product_high_f64x8 = _mm512_setzero_pd();
     nk_b512_vec_t a_vec, b_vec;
 
     while (a + 16 <= a_end && b + 16 <= b_end) {
@@ -281,15 +281,15 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
             __m512 b_weights_f32x16 = _mm512_loadu_ps(b_weights);
             __m512 a_matched_f32x16 = _mm512_maskz_compress_ps(a_matches, a_weights_f32x16);
             __m512 b_matched_f32x16 = _mm512_maskz_compress_ps(b_matches, b_weights_f32x16);
-            __m256 a_matched_lower_f32x8 = _mm512_castps512_ps256(a_matched_f32x16);
-            __m256 a_matched_upper_f32x8 = _mm512_extractf32x8_ps(a_matched_f32x16, 1);
-            __m256 b_matched_lower_f32x8 = _mm512_castps512_ps256(b_matched_f32x16);
-            __m256 b_matched_upper_f32x8 = _mm512_extractf32x8_ps(b_matched_f32x16, 1);
+            __m256 a_matched_low_f32x8 = _mm512_castps512_ps256(a_matched_f32x16);
+            __m256 a_matched_high_f32x8 = _mm512_extractf32x8_ps(a_matched_f32x16, 1);
+            __m256 b_matched_low_f32x8 = _mm512_castps512_ps256(b_matched_f32x16);
+            __m256 b_matched_high_f32x8 = _mm512_extractf32x8_ps(b_matched_f32x16, 1);
 
-            product_lower_f64x8 = _mm512_fmadd_pd(_mm512_cvtps_pd(a_matched_lower_f32x8),
-                                                  _mm512_cvtps_pd(b_matched_lower_f32x8), product_lower_f64x8);
-            product_upper_f64x8 = _mm512_fmadd_pd(_mm512_cvtps_pd(a_matched_upper_f32x8),
-                                                  _mm512_cvtps_pd(b_matched_upper_f32x8), product_upper_f64x8);
+            product_low_f64x8 = _mm512_fmadd_pd(_mm512_cvtps_pd(a_matched_low_f32x8),
+                                                _mm512_cvtps_pd(b_matched_low_f32x8), product_low_f64x8);
+            product_high_f64x8 = _mm512_fmadd_pd(_mm512_cvtps_pd(a_matched_high_f32x8),
+                                                 _mm512_cvtps_pd(b_matched_high_f32x8), product_high_f64x8);
         }
 
         __m512i a_max_u32x16 = _mm512_set1_epi32(*(int const *)&a_max);
@@ -304,7 +304,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
 
     nk_f64_t tail_product = 0;
     nk_sparse_dot_u32f32_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, &tail_product);
-    *product = _mm512_reduce_add_pd(product_lower_f64x8) + _mm512_reduce_add_pd(product_upper_f64x8) + tail_product;
+    *product = _mm512_reduce_add_pd(product_low_f64x8) + _mm512_reduce_add_pd(product_high_f64x8) + tail_product;
 }
 
 #if defined(__clang__)

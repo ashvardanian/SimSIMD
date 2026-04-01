@@ -289,9 +289,9 @@ nk_each_blend_i8_sapphire_cycle:
 
 NK_PUBLIC void nk_each_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
     __m256i a_e4m3x32, b_e4m3x32;
-    __m256h a_lo_f16x16, a_hi_f16x16, b_lo_f16x16, b_hi_f16x16;
-    __m256h sum_lo_f16x16, sum_hi_f16x16;
-    __m128i result_lo_e4m3x16, result_hi_e4m3x16;
+    __m256h a_low_f16x16, a_high_f16x16, b_low_f16x16, b_high_f16x16;
+    __m256h sum_low_f16x16, sum_high_f16x16;
+    __m128i result_low_e4m3x16, result_high_e4m3x16;
     __mmask32 mask = 0xFFFFFFFF;
 nk_each_sum_e4m3_sapphire_cycle:
     if (n < 32) {
@@ -307,21 +307,22 @@ nk_each_sum_e4m3_sapphire_cycle:
     }
 
     // Convert e4m3x16 → f16x16 (two halves)
-    a_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(a_e4m3x32));
-    a_hi_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(a_e4m3x32, 1));
-    b_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(b_e4m3x32));
-    b_hi_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(b_e4m3x32, 1));
+    a_low_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(a_e4m3x32));
+    a_high_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(a_e4m3x32, 1));
+    b_low_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(b_e4m3x32));
+    b_high_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(b_e4m3x32, 1));
 
     // Add in F16 - e4m3 sum is safe (max 896 < 65504)
-    sum_lo_f16x16 = _mm256_add_ph(a_lo_f16x16, b_lo_f16x16);
-    sum_hi_f16x16 = _mm256_add_ph(a_hi_f16x16, b_hi_f16x16);
+    sum_low_f16x16 = _mm256_add_ph(a_low_f16x16, b_low_f16x16);
+    sum_high_f16x16 = _mm256_add_ph(a_high_f16x16, b_high_f16x16);
 
     // Convert f16x16 → e4m3x16
-    result_lo_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_lo_f16x16);
-    result_hi_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_hi_f16x16);
+    result_low_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_low_f16x16);
+    result_high_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_high_f16x16);
 
     // Pack and store
-    __m256i result_e4m3x32 = _mm256_inserti128_si256(_mm256_castsi128_si256(result_lo_e4m3x16), result_hi_e4m3x16, 1);
+    __m256i result_e4m3x32 = _mm256_inserti128_si256(_mm256_castsi128_si256(result_low_e4m3x16), result_high_e4m3x16,
+                                                     1);
     _mm256_mask_storeu_epi8(result, mask, result_e4m3x32);
     result += 32;
     if (n) goto nk_each_sum_e4m3_sapphire_cycle;

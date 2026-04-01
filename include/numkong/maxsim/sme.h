@@ -112,8 +112,8 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
     nk_f32_t const *document_inverse_norms = (nk_f32_t const *)((char const *)document_packed +
                                                                 document_header->norms_offset);
 
-    svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_b16x = svptrue_b16();
+    svbool_t const predicate_all_b32x = svptrue_b32();
 
     nk_f32_t total_angular_distance = 0.0f;
 
@@ -121,10 +121,10 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= query_count) ? tile_dimension
                                                                                      : (query_count - row_start);
-        svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
+        svbool_t const row_predicate_b16x = (rows_remaining == tile_dimension)
                                                 ? svptrue_b16()
                                                 : svwhilelt_b16_u64(0u, rows_remaining * 2);
-        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension) ? svptrue_b32()
+        svbool_t const row_predicate_b32x = (rows_remaining == tile_dimension) ? svptrue_b32()
                                                                                : svwhilelt_b32_u64(0u, rows_remaining);
 
         // Running max + argmax vectors for angular distance finalization
@@ -140,29 +140,29 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
             // Accumulate: for each depth step, load Q vector and 4 D vectors, issue 4 FMOPAs
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svfloat16_t query_packed_f16x = svld1_f16(
-                    row_predicate_f16x,
+                    row_predicate_b16x,
                     (float16_t const *)(query_vecs +
                                         (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svfloat16_t document_packed_0_f16x = svld1_f16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (float16_t const *)(document_vecs +
                                         ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
                 svfloat16_t document_packed_1_f16x = svld1_f16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (float16_t const *)(document_vecs +
                                         ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
                 svfloat16_t document_packed_2_f16x = svld1_f16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (float16_t const *)(document_vecs +
                                         ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
                 svfloat16_t document_packed_3_f16x = svld1_f16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (float16_t const *)(document_vecs +
                                         ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_f16_m(0, row_predicate_f16x, predicate_all_f16x, query_packed_f16x, document_packed_0_f16x);
-                svmopa_za32_f16_m(1, row_predicate_f16x, predicate_all_f16x, query_packed_f16x, document_packed_1_f16x);
-                svmopa_za32_f16_m(2, row_predicate_f16x, predicate_all_f16x, query_packed_f16x, document_packed_2_f16x);
-                svmopa_za32_f16_m(3, row_predicate_f16x, predicate_all_f16x, query_packed_f16x, document_packed_3_f16x);
+                svmopa_za32_f16_m(0, row_predicate_b16x, predicate_all_b16x, query_packed_f16x, document_packed_0_f16x);
+                svmopa_za32_f16_m(1, row_predicate_b16x, predicate_all_b16x, query_packed_f16x, document_packed_1_f16x);
+                svmopa_za32_f16_m(2, row_predicate_b16x, predicate_all_b16x, query_packed_f16x, document_packed_2_f16x);
+                svmopa_za32_f16_m(3, row_predicate_b16x, predicate_all_b16x, query_packed_f16x, document_packed_3_f16x);
             }
 
             // Vertical column extraction + argmax update (manually unrolled over 4 tiles)
@@ -170,36 +170,36 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
                 // Tile 0
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 0) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 0,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 1
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 1) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 1,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 1,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 2
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 2) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 2,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 2,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 3
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 3) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 3,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 3,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
@@ -212,7 +212,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
             nk_size_t const cols_remaining = (col_start + tile_dimension <= document_count)
                                                  ? tile_dimension
                                                  : (document_count - col_start);
-            svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
+            svbool_t const column_predicate_b16x = (cols_remaining == tile_dimension)
                                                        ? svptrue_b16()
                                                        : svwhilelt_b16_u64(0u, cols_remaining * 2);
 
@@ -220,23 +220,23 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svfloat16_t query_packed_f16x = svld1_f16(
-                    row_predicate_f16x,
+                    row_predicate_b16x,
                     (float16_t const *)(query_vecs +
                                         (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svfloat16_t document_packed_f16x = svld1_f16(
-                    column_predicate_f16x,
+                    column_predicate_b16x,
                     (float16_t const *)(document_vecs +
                                         (column_tile_index * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_f16_m(0, row_predicate_f16x, column_predicate_f16x, query_packed_f16x,
+                svmopa_za32_f16_m(0, row_predicate_b16x, column_predicate_b16x, query_packed_f16x,
                                   document_packed_f16x);
             }
 
             // Vertical column extraction from ZA0 + argmax update
             for (nk_size_t column_within_tile = 0; column_within_tile < cols_remaining; column_within_tile++) {
                 nk_u32_t document_index = (nk_u32_t)(col_start + column_within_tile);
-                svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 0,
                                                                      column_within_tile);
-                svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                 running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                 running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
             }
@@ -246,19 +246,19 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
         // Gather document inverse norms via argmax indices (no SVE gather in streaming mode)
         nk_u32_t best_document_indices[64];
         nk_f32_t document_inverse_norms_gathered[64];
-        svst1_u32(row_predicate_f32x, best_document_indices, running_argmax_u32x);
+        svst1_u32(row_predicate_b32x, best_document_indices, running_argmax_u32x);
         for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++)
             document_inverse_norms_gathered[row_in_tile] = document_inverse_norms[best_document_indices[row_in_tile]];
 
         // SVE-width: cosine = dot * inv_norm_q * inv_norm_d, angular = max(1 - cosine, 0)
-        svfloat32_t query_inverse_norms_f32x = svld1_f32(row_predicate_f32x, query_inverse_norms + row_start);
-        svfloat32_t document_inverse_norms_f32x = svld1_f32(row_predicate_f32x, document_inverse_norms_gathered);
+        svfloat32_t query_inverse_norms_f32x = svld1_f32(row_predicate_b32x, query_inverse_norms + row_start);
+        svfloat32_t document_inverse_norms_f32x = svld1_f32(row_predicate_b32x, document_inverse_norms_gathered);
         svfloat32_t cosine_f32x = svmul_f32_x(
-            row_predicate_f32x, svmul_f32_x(row_predicate_f32x, running_maximum_f32x, query_inverse_norms_f32x),
+            row_predicate_b32x, svmul_f32_x(row_predicate_b32x, running_maximum_f32x, query_inverse_norms_f32x),
             document_inverse_norms_f32x);
         svfloat32_t angular_distance_f32x = svmax_f32_x(
-            row_predicate_f32x, svsub_f32_x(row_predicate_f32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
-        total_angular_distance += svaddv_f32(row_predicate_f32x, angular_distance_f32x);
+            row_predicate_b32x, svsub_f32_x(row_predicate_b32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
+        total_angular_distance += svaddv_f32(row_predicate_b32x, angular_distance_f32x);
     }
 
     *result = total_angular_distance;
@@ -304,8 +304,8 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
     nk_f32_t const *document_inverse_norms = (nk_f32_t const *)((char const *)document_packed +
                                                                 document_header->norms_offset);
 
-    svbool_t const predicate_all_f16x = svptrue_b16();
-    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_b16x = svptrue_b16();
+    svbool_t const predicate_all_b32x = svptrue_b32();
 
     nk_f32_t total_angular_distance = 0.0f;
 
@@ -313,10 +313,10 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= query_count) ? tile_dimension
                                                                                      : (query_count - row_start);
-        svbool_t const row_predicate_f16x = (rows_remaining == tile_dimension)
+        svbool_t const row_predicate_b16x = (rows_remaining == tile_dimension)
                                                 ? svptrue_b16()
                                                 : svwhilelt_b16_u64(0u, rows_remaining * 2);
-        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension) ? svptrue_b32()
+        svbool_t const row_predicate_b32x = (rows_remaining == tile_dimension) ? svptrue_b32()
                                                                                : svwhilelt_b32_u64(0u, rows_remaining);
 
         // Running max + argmax vectors for angular distance finalization
@@ -332,32 +332,32 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
             // Accumulate: for each depth step, load Q vector and 4 D vectors, issue 4 BFMOPAs
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svbfloat16_t query_packed_bf16x = svld1_bf16(
-                    row_predicate_f16x,
+                    row_predicate_b16x,
                     (bfloat16_t const *)(query_vecs +
                                          (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svbfloat16_t document_packed_0_bf16x = svld1_bf16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (bfloat16_t const *)(document_vecs +
                                          ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
                 svbfloat16_t document_packed_1_bf16x = svld1_bf16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (bfloat16_t const *)(document_vecs +
                                          ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
                 svbfloat16_t document_packed_2_bf16x = svld1_bf16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (bfloat16_t const *)(document_vecs +
                                          ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
                 svbfloat16_t document_packed_3_bf16x = svld1_bf16(
-                    predicate_all_f16x,
+                    predicate_all_b16x,
                     (bfloat16_t const *)(document_vecs +
                                          ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_bf16_m(0, row_predicate_f16x, predicate_all_f16x, query_packed_bf16x,
+                svmopa_za32_bf16_m(0, row_predicate_b16x, predicate_all_b16x, query_packed_bf16x,
                                    document_packed_0_bf16x);
-                svmopa_za32_bf16_m(1, row_predicate_f16x, predicate_all_f16x, query_packed_bf16x,
+                svmopa_za32_bf16_m(1, row_predicate_b16x, predicate_all_b16x, query_packed_bf16x,
                                    document_packed_1_bf16x);
-                svmopa_za32_bf16_m(2, row_predicate_f16x, predicate_all_f16x, query_packed_bf16x,
+                svmopa_za32_bf16_m(2, row_predicate_b16x, predicate_all_b16x, query_packed_bf16x,
                                    document_packed_2_bf16x);
-                svmopa_za32_bf16_m(3, row_predicate_f16x, predicate_all_f16x, query_packed_bf16x,
+                svmopa_za32_bf16_m(3, row_predicate_b16x, predicate_all_b16x, query_packed_bf16x,
                                    document_packed_3_bf16x);
             }
 
@@ -366,36 +366,36 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
                 // Tile 0
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 0) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 0,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 1
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 1) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 1,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 1,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 2
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 2) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 2,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 2,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 3
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 3) * tile_dimension + column_within_tile);
-                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 3,
+                    svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 3,
                                                                          column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                    svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                     running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
@@ -408,7 +408,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
             nk_size_t const cols_remaining = (col_start + tile_dimension <= document_count)
                                                  ? tile_dimension
                                                  : (document_count - col_start);
-            svbool_t const column_predicate_f16x = (cols_remaining == tile_dimension)
+            svbool_t const column_predicate_b16x = (cols_remaining == tile_dimension)
                                                        ? svptrue_b16()
                                                        : svwhilelt_b16_u64(0u, cols_remaining * 2);
 
@@ -416,23 +416,23 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svbfloat16_t query_packed_bf16x = svld1_bf16(
-                    row_predicate_f16x,
+                    row_predicate_b16x,
                     (bfloat16_t const *)(query_vecs +
                                          (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svbfloat16_t document_packed_bf16x = svld1_bf16(
-                    column_predicate_f16x,
+                    column_predicate_b16x,
                     (bfloat16_t const *)(document_vecs +
                                          (column_tile_index * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_bf16_m(0, row_predicate_f16x, column_predicate_f16x, query_packed_bf16x,
+                svmopa_za32_bf16_m(0, row_predicate_b16x, column_predicate_b16x, query_packed_bf16x,
                                    document_packed_bf16x);
             }
 
             // Vertical column extraction from ZA0 + argmax update
             for (nk_size_t column_within_tile = 0; column_within_tile < cols_remaining; column_within_tile++) {
                 nk_u32_t document_index = (nk_u32_t)(col_start + column_within_tile);
-                svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_f32x, 0,
+                svfloat32_t column_dots_f32x = svread_ver_za32_f32_m(svdup_f32(NK_F32_MIN), predicate_all_b32x, 0,
                                                                      column_within_tile);
-                svbool_t is_better_bx = svcmpgt_f32(predicate_all_f32x, column_dots_f32x, running_maximum_f32x);
+                svbool_t is_better_bx = svcmpgt_f32(predicate_all_b32x, column_dots_f32x, running_maximum_f32x);
                 running_maximum_f32x = svsel_f32(is_better_bx, column_dots_f32x, running_maximum_f32x);
                 running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
             }
@@ -442,19 +442,19 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
         // Gather document inverse norms via argmax indices (no SVE gather in streaming mode)
         nk_u32_t best_document_indices[64];
         nk_f32_t document_inverse_norms_gathered[64];
-        svst1_u32(row_predicate_f32x, best_document_indices, running_argmax_u32x);
+        svst1_u32(row_predicate_b32x, best_document_indices, running_argmax_u32x);
         for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++)
             document_inverse_norms_gathered[row_in_tile] = document_inverse_norms[best_document_indices[row_in_tile]];
 
         // SVE-width: cosine = dot * inv_norm_q * inv_norm_d, angular = max(1 - cosine, 0)
-        svfloat32_t query_inverse_norms_f32x = svld1_f32(row_predicate_f32x, query_inverse_norms + row_start);
-        svfloat32_t document_inverse_norms_f32x = svld1_f32(row_predicate_f32x, document_inverse_norms_gathered);
+        svfloat32_t query_inverse_norms_f32x = svld1_f32(row_predicate_b32x, query_inverse_norms + row_start);
+        svfloat32_t document_inverse_norms_f32x = svld1_f32(row_predicate_b32x, document_inverse_norms_gathered);
         svfloat32_t cosine_f32x = svmul_f32_x(
-            row_predicate_f32x, svmul_f32_x(row_predicate_f32x, running_maximum_f32x, query_inverse_norms_f32x),
+            row_predicate_b32x, svmul_f32_x(row_predicate_b32x, running_maximum_f32x, query_inverse_norms_f32x),
             document_inverse_norms_f32x);
         svfloat32_t angular_distance_f32x = svmax_f32_x(
-            row_predicate_f32x, svsub_f32_x(row_predicate_f32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
-        total_angular_distance += svaddv_f32(row_predicate_f32x, angular_distance_f32x);
+            row_predicate_b32x, svsub_f32_x(row_predicate_b32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
+        total_angular_distance += svaddv_f32(row_predicate_b32x, angular_distance_f32x);
     }
 
     *result = total_angular_distance;
@@ -635,19 +635,19 @@ NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                         //
     nk_size_t const vector_length = svcntw();
     nk_size_t const half_vector_length = svcntd();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, count);
-        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
-        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
+        svbool_t predicate_b32x = svwhilelt_b32_u64(i, count);
+        svfloat32_t a_f32x = svld1_f32(predicate_b32x, a + i);
+        svfloat32_t b_f32x = svld1_f32(predicate_b32x, b + i);
 
-        svbool_t predicate_even_f64x = svwhilelt_b64_u64(i, count);
-        svfloat64_t a_even_f64x = svcvt_f64_f32_x(predicate_even_f64x, a_f32x);
-        svfloat64_t b_even_f64x = svcvt_f64_f32_x(predicate_even_f64x, b_f32x);
-        accumulator_even_f64x = svmla_f64_m(predicate_even_f64x, accumulator_even_f64x, a_even_f64x, b_even_f64x);
+        svbool_t predicate_even_b64x = svwhilelt_b64_u64(i, count);
+        svfloat64_t a_even_f64x = svcvt_f64_f32_x(predicate_even_b64x, a_f32x);
+        svfloat64_t b_even_f64x = svcvt_f64_f32_x(predicate_even_b64x, b_f32x);
+        accumulator_even_f64x = svmla_f64_m(predicate_even_b64x, accumulator_even_f64x, a_even_f64x, b_even_f64x);
 
-        svbool_t predicate_odd_f64x = svwhilelt_b64_u64(i + half_vector_length, count);
-        svfloat64_t a_odd_f64x = svcvtlt_f64_f32_x(predicate_odd_f64x, a_f32x);
-        svfloat64_t b_odd_f64x = svcvtlt_f64_f32_x(predicate_odd_f64x, b_f32x);
-        accumulator_odd_f64x = svmla_f64_m(predicate_odd_f64x, accumulator_odd_f64x, a_odd_f64x, b_odd_f64x);
+        svbool_t predicate_odd_b64x = svwhilelt_b64_u64(i + half_vector_length, count);
+        svfloat64_t a_odd_f64x = svcvtlt_f64_f32_x(predicate_odd_b64x, a_f32x);
+        svfloat64_t b_odd_f64x = svcvtlt_f64_f32_x(predicate_odd_b64x, b_f32x);
+        accumulator_odd_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_odd_f64x, a_odd_f64x, b_odd_f64x);
     }
     return svaddv_f64(svptrue_b64(), accumulator_even_f64x) + svaddv_f64(svptrue_b64(), accumulator_odd_f64x);
 }
@@ -692,8 +692,8 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
 
     nk_size_t const expansion = 4; // i8->i32 SMOPA
 
-    svbool_t const predicate_all_i8x = svptrue_b8();
-    svbool_t const predicate_all_f32x = svptrue_b32();
+    svbool_t const predicate_all_b8x = svptrue_b8();
+    svbool_t const predicate_all_b32x = svptrue_b32();
 
     nk_f64_t total_angular_distance_f64 = 0.0;
 
@@ -701,10 +701,10 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= query_count) ? tile_dimension
                                                                                      : (query_count - row_start);
-        svbool_t const row_predicate_i8x = (rows_remaining == tile_dimension)
+        svbool_t const row_predicate_b8x = (rows_remaining == tile_dimension)
                                                ? svptrue_b8()
                                                : svwhilelt_b8_u64(0u, rows_remaining * expansion);
-        svbool_t const row_predicate_f32x = (rows_remaining == tile_dimension) ? svptrue_b32()
+        svbool_t const row_predicate_b32x = (rows_remaining == tile_dimension) ? svptrue_b32()
                                                                                : svwhilelt_b32_u64(0u, rows_remaining);
 
         svint32_t running_max_i32x = svdup_s32(NK_I32_MIN);
@@ -718,28 +718,28 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svint8_t query_packed_i8x = svld1_s8(
-                    row_predicate_i8x,
+                    row_predicate_b8x,
                     (int8_t const *)(query_tiles + (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_0_i8x = svld1_s8(
-                    predicate_all_i8x,
+                    predicate_all_b8x,
                     (int8_t const *)(document_tiles +
                                      ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_1_i8x = svld1_s8(
-                    predicate_all_i8x,
+                    predicate_all_b8x,
                     (int8_t const *)(document_tiles +
                                      ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_2_i8x = svld1_s8(
-                    predicate_all_i8x,
+                    predicate_all_b8x,
                     (int8_t const *)(document_tiles +
                                      ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_3_i8x = svld1_s8(
-                    predicate_all_i8x,
+                    predicate_all_b8x,
                     (int8_t const *)(document_tiles +
                                      ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_s8_m(0, row_predicate_i8x, predicate_all_i8x, query_packed_i8x, document_packed_0_i8x);
-                svmopa_za32_s8_m(1, row_predicate_i8x, predicate_all_i8x, query_packed_i8x, document_packed_1_i8x);
-                svmopa_za32_s8_m(2, row_predicate_i8x, predicate_all_i8x, query_packed_i8x, document_packed_2_i8x);
-                svmopa_za32_s8_m(3, row_predicate_i8x, predicate_all_i8x, query_packed_i8x, document_packed_3_i8x);
+                svmopa_za32_s8_m(0, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_0_i8x);
+                svmopa_za32_s8_m(1, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_1_i8x);
+                svmopa_za32_s8_m(2, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_2_i8x);
+                svmopa_za32_s8_m(3, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_3_i8x);
             }
 
             // Vertical column extraction + argmax update (manually unrolled over 4 tiles)
@@ -747,36 +747,36 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                 // Tile 0
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 0) * tile_dimension + column_within_tile);
-                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_f32x, 0,
+                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_b32x, 0,
                                                                        column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_f32x, column_dots_i32x, running_max_i32x);
+                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_b32x, column_dots_i32x, running_max_i32x);
                     running_max_i32x = svsel_s32(is_better_bx, column_dots_i32x, running_max_i32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 1
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 1) * tile_dimension + column_within_tile);
-                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_f32x, 1,
+                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_b32x, 1,
                                                                        column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_f32x, column_dots_i32x, running_max_i32x);
+                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_b32x, column_dots_i32x, running_max_i32x);
                     running_max_i32x = svsel_s32(is_better_bx, column_dots_i32x, running_max_i32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 2
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 2) * tile_dimension + column_within_tile);
-                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_f32x, 2,
+                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_b32x, 2,
                                                                        column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_f32x, column_dots_i32x, running_max_i32x);
+                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_b32x, column_dots_i32x, running_max_i32x);
                     running_max_i32x = svsel_s32(is_better_bx, column_dots_i32x, running_max_i32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
                 // Tile 3
                 {
                     nk_u32_t document_index = (nk_u32_t)((column_tile_index + 3) * tile_dimension + column_within_tile);
-                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_f32x, 3,
+                    svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_b32x, 3,
                                                                        column_within_tile);
-                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_f32x, column_dots_i32x, running_max_i32x);
+                    svbool_t is_better_bx = svcmpgt_s32(predicate_all_b32x, column_dots_i32x, running_max_i32x);
                     running_max_i32x = svsel_s32(is_better_bx, column_dots_i32x, running_max_i32x);
                     running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
                 }
@@ -789,7 +789,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
             nk_size_t const cols_remaining = (col_start + tile_dimension <= document_count)
                                                  ? tile_dimension
                                                  : (document_count - col_start);
-            svbool_t const column_predicate_i8x = (cols_remaining == tile_dimension)
+            svbool_t const column_predicate_b8x = (cols_remaining == tile_dimension)
                                                       ? svptrue_b8()
                                                       : svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -797,20 +797,20 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
 
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svint8_t query_packed_i8x = svld1_s8(
-                    row_predicate_i8x,
+                    row_predicate_b8x,
                     (int8_t const *)(query_tiles + (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_i8x = svld1_s8(
-                    column_predicate_i8x,
+                    column_predicate_b8x,
                     (int8_t const *)(document_tiles +
                                      (column_tile_index * depth_step_count + depth_step) * vector_elements));
-                svmopa_za32_s8_m(0, row_predicate_i8x, column_predicate_i8x, query_packed_i8x, document_packed_i8x);
+                svmopa_za32_s8_m(0, row_predicate_b8x, column_predicate_b8x, query_packed_i8x, document_packed_i8x);
             }
 
             for (nk_size_t column_within_tile = 0; column_within_tile < cols_remaining; column_within_tile++) {
                 nk_u32_t document_index = (nk_u32_t)(col_start + column_within_tile);
-                svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_f32x, 0,
+                svint32_t column_dots_i32x = svread_ver_za32_s32_m(svdup_s32(NK_I32_MIN), predicate_all_b32x, 0,
                                                                    column_within_tile);
-                svbool_t is_better_bx = svcmpgt_s32(predicate_all_f32x, column_dots_i32x, running_max_i32x);
+                svbool_t is_better_bx = svcmpgt_s32(predicate_all_b32x, column_dots_i32x, running_max_i32x);
                 running_max_i32x = svsel_s32(is_better_bx, column_dots_i32x, running_max_i32x);
                 running_argmax_u32x = svsel_u32(is_better_bx, svdup_u32(document_index), running_argmax_u32x);
             }
@@ -818,7 +818,7 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
 
         // Refinement: tile-wide interleaved f64 dot products
         nk_u32_t best_document_indices[64]; // max tile_dimension across all SVL values
-        svst1_u32(row_predicate_f32x, best_document_indices, running_argmax_u32x);
+        svst1_u32(row_predicate_b32x, best_document_indices, running_argmax_u32x);
 
         // Pointer setup: one (query, document) pair per row in the tile
         nk_f32_t const *query_original_ptrs[64];
@@ -844,53 +844,53 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
             nk_size_t const depth_half_length = svcntd();
 
             for (nk_size_t depth_index = 0; depth_index < depth; depth_index += depth_vector_length) {
-                svbool_t predicate_depth_f32x = svwhilelt_b32_u64(depth_index, depth);
-                svbool_t predicate_even_f64x = svwhilelt_b64_u64(depth_index, depth);
-                svbool_t predicate_odd_f64x = svwhilelt_b64_u64(depth_index + depth_half_length, depth);
+                svbool_t predicate_depth_b32x = svwhilelt_b32_u64(depth_index, depth);
+                svbool_t predicate_even_b64x = svwhilelt_b64_u64(depth_index, depth);
+                svbool_t predicate_odd_b64x = svwhilelt_b64_u64(depth_index + depth_half_length, depth);
 
-                svfloat32_t query_values_0_f32x = svld1_f32(predicate_depth_f32x,
+                svfloat32_t query_values_0_f32x = svld1_f32(predicate_depth_b32x,
                                                             query_original_ptrs[row_batch_start + 0] + depth_index);
                 svfloat32_t document_values_0_f32x = svld1_f32(
-                    predicate_depth_f32x, document_original_ptrs[row_batch_start + 0] + depth_index);
-                accumulator_0_f64x = svmla_f64_m(predicate_even_f64x, accumulator_0_f64x,
-                                                 svcvt_f64_f32_x(predicate_even_f64x, query_values_0_f32x),
-                                                 svcvt_f64_f32_x(predicate_even_f64x, document_values_0_f32x));
-                accumulator_0_f64x = svmla_f64_m(predicate_odd_f64x, accumulator_0_f64x,
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, query_values_0_f32x),
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, document_values_0_f32x));
+                    predicate_depth_b32x, document_original_ptrs[row_batch_start + 0] + depth_index);
+                accumulator_0_f64x = svmla_f64_m(predicate_even_b64x, accumulator_0_f64x,
+                                                 svcvt_f64_f32_x(predicate_even_b64x, query_values_0_f32x),
+                                                 svcvt_f64_f32_x(predicate_even_b64x, document_values_0_f32x));
+                accumulator_0_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_0_f64x,
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, query_values_0_f32x),
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, document_values_0_f32x));
 
-                svfloat32_t query_values_1_f32x = svld1_f32(predicate_depth_f32x,
+                svfloat32_t query_values_1_f32x = svld1_f32(predicate_depth_b32x,
                                                             query_original_ptrs[row_batch_start + 1] + depth_index);
                 svfloat32_t document_values_1_f32x = svld1_f32(
-                    predicate_depth_f32x, document_original_ptrs[row_batch_start + 1] + depth_index);
-                accumulator_1_f64x = svmla_f64_m(predicate_even_f64x, accumulator_1_f64x,
-                                                 svcvt_f64_f32_x(predicate_even_f64x, query_values_1_f32x),
-                                                 svcvt_f64_f32_x(predicate_even_f64x, document_values_1_f32x));
-                accumulator_1_f64x = svmla_f64_m(predicate_odd_f64x, accumulator_1_f64x,
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, query_values_1_f32x),
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, document_values_1_f32x));
+                    predicate_depth_b32x, document_original_ptrs[row_batch_start + 1] + depth_index);
+                accumulator_1_f64x = svmla_f64_m(predicate_even_b64x, accumulator_1_f64x,
+                                                 svcvt_f64_f32_x(predicate_even_b64x, query_values_1_f32x),
+                                                 svcvt_f64_f32_x(predicate_even_b64x, document_values_1_f32x));
+                accumulator_1_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_1_f64x,
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, query_values_1_f32x),
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, document_values_1_f32x));
 
-                svfloat32_t query_values_2_f32x = svld1_f32(predicate_depth_f32x,
+                svfloat32_t query_values_2_f32x = svld1_f32(predicate_depth_b32x,
                                                             query_original_ptrs[row_batch_start + 2] + depth_index);
                 svfloat32_t document_values_2_f32x = svld1_f32(
-                    predicate_depth_f32x, document_original_ptrs[row_batch_start + 2] + depth_index);
-                accumulator_2_f64x = svmla_f64_m(predicate_even_f64x, accumulator_2_f64x,
-                                                 svcvt_f64_f32_x(predicate_even_f64x, query_values_2_f32x),
-                                                 svcvt_f64_f32_x(predicate_even_f64x, document_values_2_f32x));
-                accumulator_2_f64x = svmla_f64_m(predicate_odd_f64x, accumulator_2_f64x,
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, query_values_2_f32x),
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, document_values_2_f32x));
+                    predicate_depth_b32x, document_original_ptrs[row_batch_start + 2] + depth_index);
+                accumulator_2_f64x = svmla_f64_m(predicate_even_b64x, accumulator_2_f64x,
+                                                 svcvt_f64_f32_x(predicate_even_b64x, query_values_2_f32x),
+                                                 svcvt_f64_f32_x(predicate_even_b64x, document_values_2_f32x));
+                accumulator_2_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_2_f64x,
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, query_values_2_f32x),
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, document_values_2_f32x));
 
-                svfloat32_t query_values_3_f32x = svld1_f32(predicate_depth_f32x,
+                svfloat32_t query_values_3_f32x = svld1_f32(predicate_depth_b32x,
                                                             query_original_ptrs[row_batch_start + 3] + depth_index);
                 svfloat32_t document_values_3_f32x = svld1_f32(
-                    predicate_depth_f32x, document_original_ptrs[row_batch_start + 3] + depth_index);
-                accumulator_3_f64x = svmla_f64_m(predicate_even_f64x, accumulator_3_f64x,
-                                                 svcvt_f64_f32_x(predicate_even_f64x, query_values_3_f32x),
-                                                 svcvt_f64_f32_x(predicate_even_f64x, document_values_3_f32x));
-                accumulator_3_f64x = svmla_f64_m(predicate_odd_f64x, accumulator_3_f64x,
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, query_values_3_f32x),
-                                                 svcvtlt_f64_f32_x(predicate_odd_f64x, document_values_3_f32x));
+                    predicate_depth_b32x, document_original_ptrs[row_batch_start + 3] + depth_index);
+                accumulator_3_f64x = svmla_f64_m(predicate_even_b64x, accumulator_3_f64x,
+                                                 svcvt_f64_f32_x(predicate_even_b64x, query_values_3_f32x),
+                                                 svcvt_f64_f32_x(predicate_even_b64x, document_values_3_f32x));
+                accumulator_3_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_3_f64x,
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, query_values_3_f32x),
+                                                 svcvtlt_f64_f32_x(predicate_odd_b64x, document_values_3_f32x));
             }
 
             // Reduce accumulators and compute angular distance per row

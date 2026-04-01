@@ -173,21 +173,23 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     else if (ab == 0.0f) return 1.0f;
 
     // Load the squares into an __m128 register for single-precision floating-point operations
-    __m128 squares = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
+    __m128 squares_f32x4 = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
 
     // Compute the reciprocal square root of the squares using `_mm_rsqrt_ps` (single-precision)
-    __m128 rsqrts = _mm_rsqrt_ps(squares);
+    __m128 rsqrts_f32x4 = _mm_rsqrt_ps(squares_f32x4);
 
     // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:
     // Formula: y' = y × (1.5 - 0.5 × x × y × y)
-    __m128 half = _mm_set1_ps(0.5f);
-    __m128 three_halves = _mm_set1_ps(1.5f);
-    rsqrts = _mm_mul_ps(rsqrts,
-                        _mm_sub_ps(three_halves, _mm_mul_ps(half, _mm_mul_ps(squares, _mm_mul_ps(rsqrts, rsqrts)))));
+    __m128 half_f32x4 = _mm_set1_ps(0.5f);
+    __m128 three_halves_f32x4 = _mm_set1_ps(1.5f);
+    rsqrts_f32x4 = _mm_mul_ps(
+        rsqrts_f32x4,
+        _mm_sub_ps(three_halves_f32x4,
+                   _mm_mul_ps(half_f32x4, _mm_mul_ps(squares_f32x4, _mm_mul_ps(rsqrts_f32x4, rsqrts_f32x4)))));
 
     // Extract the reciprocal square roots of a2 and b2 from the __m128 register
-    nk_f32_t a2_reciprocal = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    nk_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts);
+    nk_f32_t a2_reciprocal = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts_f32x4, rsqrts_f32x4, _MM_SHUFFLE(0, 0, 0, 1)));
+    nk_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts_f32x4);
 
     // Calculate the angular distance: 1 - dot_product × a2_reciprocal × b2_reciprocal
     nk_f32_t result = 1.0f - ab * a2_reciprocal * b2_reciprocal;
@@ -257,7 +259,7 @@ nk_angular_f16_haswell_cycle:
 }
 
 NK_PUBLIC void nk_sqeuclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    __m256i a_bf16x16, b_bf16x16;
+    __m256i a_bf16_i16x16, b_bf16_i16x16;
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
     __m256i mask_high_u32x8 = _mm256_set1_epi32((int)0xFFFF0000);
 
@@ -266,21 +268,21 @@ nk_sqeuclidean_bf16_haswell_cycle:
         nk_b256_vec_t a_vec, b_vec;
         nk_partial_load_b16x16_serial_(a, &a_vec, n);
         nk_partial_load_b16x16_serial_(b, &b_vec, n);
-        a_bf16x16 = a_vec.ymm;
-        b_bf16x16 = b_vec.ymm;
+        a_bf16_i16x16 = a_vec.ymm;
+        b_bf16_i16x16 = b_vec.ymm;
         n = 0;
     }
     else {
-        a_bf16x16 = _mm256_loadu_si256((__m256i const *)a);
-        b_bf16x16 = _mm256_loadu_si256((__m256i const *)b);
+        a_bf16_i16x16 = _mm256_loadu_si256((__m256i const *)a);
+        b_bf16_i16x16 = _mm256_loadu_si256((__m256i const *)b);
         n -= 16, a += 16, b += 16;
     }
-    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a_bf16x16, 16));
-    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b_bf16x16, 16));
+    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a_bf16_i16x16, 16));
+    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b_bf16_i16x16, 16));
     __m256 diff_even_f32x8 = _mm256_sub_ps(a_even_f32x8, b_even_f32x8);
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_even_f32x8, diff_even_f32x8, distance_sq_f32x8);
-    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a_bf16x16, mask_high_u32x8));
-    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b_bf16x16, mask_high_u32x8));
+    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a_bf16_i16x16, mask_high_u32x8));
+    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b_bf16_i16x16, mask_high_u32x8));
     __m256 diff_odd_f32x8 = _mm256_sub_ps(a_odd_f32x8, b_odd_f32x8);
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_odd_f32x8, diff_odd_f32x8, distance_sq_f32x8);
     if (n) goto nk_sqeuclidean_bf16_haswell_cycle;
@@ -294,7 +296,7 @@ NK_PUBLIC void nk_euclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b,
 }
 
 NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    __m256i a_bf16x16, b_bf16x16;
+    __m256i a_bf16_i16x16, b_bf16_i16x16;
     __m256 dot_product_f32x8 = _mm256_setzero_ps(), a_norm_sq_f32x8 = _mm256_setzero_ps(),
            b_norm_sq_f32x8 = _mm256_setzero_ps();
     __m256i mask_high_u32x8 = _mm256_set1_epi32((int)0xFFFF0000);
@@ -304,22 +306,22 @@ nk_angular_bf16_haswell_cycle:
         nk_b256_vec_t a_vec, b_vec;
         nk_partial_load_b16x16_serial_(a, &a_vec, n);
         nk_partial_load_b16x16_serial_(b, &b_vec, n);
-        a_bf16x16 = a_vec.ymm;
-        b_bf16x16 = b_vec.ymm;
+        a_bf16_i16x16 = a_vec.ymm;
+        b_bf16_i16x16 = b_vec.ymm;
         n = 0;
     }
     else {
-        a_bf16x16 = _mm256_loadu_si256((__m256i const *)a);
-        b_bf16x16 = _mm256_loadu_si256((__m256i const *)b);
+        a_bf16_i16x16 = _mm256_loadu_si256((__m256i const *)a);
+        b_bf16_i16x16 = _mm256_loadu_si256((__m256i const *)b);
         n -= 16, a += 16, b += 16;
     }
-    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a_bf16x16, 16));
-    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b_bf16x16, 16));
+    __m256 a_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(a_bf16_i16x16, 16));
+    __m256 b_even_f32x8 = _mm256_castsi256_ps(_mm256_slli_epi32(b_bf16_i16x16, 16));
     dot_product_f32x8 = _mm256_fmadd_ps(a_even_f32x8, b_even_f32x8, dot_product_f32x8);
     a_norm_sq_f32x8 = _mm256_fmadd_ps(a_even_f32x8, a_even_f32x8, a_norm_sq_f32x8);
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_even_f32x8, b_even_f32x8, b_norm_sq_f32x8);
-    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a_bf16x16, mask_high_u32x8));
-    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b_bf16x16, mask_high_u32x8));
+    __m256 a_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(a_bf16_i16x16, mask_high_u32x8));
+    __m256 b_odd_f32x8 = _mm256_castsi256_ps(_mm256_and_si256(b_bf16_i16x16, mask_high_u32x8));
     dot_product_f32x8 = _mm256_fmadd_ps(a_odd_f32x8, b_odd_f32x8, dot_product_f32x8);
     a_norm_sq_f32x8 = _mm256_fmadd_ps(a_odd_f32x8, a_odd_f32x8, a_norm_sq_f32x8);
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_odd_f32x8, b_odd_f32x8, b_norm_sq_f32x8);

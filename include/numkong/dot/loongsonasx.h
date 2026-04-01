@@ -41,8 +41,8 @@ extern "C" {
 /** @brief Horizontal sum of 4 f64 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256d sum_f64x4) {
     // Add high 128-bit lane to low 128-bit lane
-    __m256d hi_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)sum_f64x4, (__m256i)sum_f64x4, 0x11);
-    __m256d sum_f64x2 = __lasx_xvfadd_d(sum_f64x4, hi_f64x4);
+    __m256d high_f64x4 = (__m256d)__lasx_xvpermi_q((__m256i)sum_f64x4, (__m256i)sum_f64x4, 0x11);
+    __m256d sum_f64x2 = __lasx_xvfadd_d(sum_f64x4, high_f64x4);
     // Swap lanes 0↔1, add to reduce to 1 value, then extract
     __m256d swapped_f64x2 = (__m256d)__lasx_xvshuf4i_d((__m256i)sum_f64x2, (__m256i)sum_f64x2, 0b0001);
     __m256d reduced_f64x2 = __lasx_xvfadd_d(sum_f64x2, swapped_f64x2);
@@ -53,8 +53,8 @@ NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256d sum_f64x4) {
 
 /** @brief Horizontal sum of 8 i32 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_i32_t nk_reduce_add_i32x8_loongsonasx_(__m256i sum_i32x8) {
-    __m256i hi_i32x8 = __lasx_xvpermi_q(sum_i32x8, sum_i32x8, 0x11);
-    __m256i sum_i32x4 = __lasx_xvadd_w(sum_i32x8, hi_i32x8);
+    __m256i high_i32x8 = __lasx_xvpermi_q(sum_i32x8, sum_i32x8, 0x11);
+    __m256i sum_i32x4 = __lasx_xvadd_w(sum_i32x8, high_i32x8);
     // Pairwise widen i32 → i64, then extract and add
     __m256i sum_i64x2 = __lasx_xvhaddw_d_w(sum_i32x4, sum_i32x4);
     return (nk_i32_t)(__lasx_xvpickve2gr_d(sum_i64x2, 0) + __lasx_xvpickve2gr_d(sum_i64x2, 1));

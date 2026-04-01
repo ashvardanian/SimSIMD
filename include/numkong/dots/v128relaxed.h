@@ -7,7 +7,7 @@
  *  @sa include/numkong/dots.h
  *
  *  Uses relaxed SIMD dot products for integer GEMM. I8 uses 2×relaxed_dot with
- *  bit-split (b_lo + (-128)·b_hi). U8 uses 2×relaxed_dot with signed reinterpretation
+ *  bit-split (b_low + (-128)·b_high). U8 uses 2×relaxed_dot with signed reinterpretation
  *  and b_sums compensation. E2M3 uses standard single-register state (no correction).
  */
 #ifndef NK_DOTS_V128RELAXED_H

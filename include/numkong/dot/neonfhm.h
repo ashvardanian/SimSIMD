@@ -220,58 +220,58 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b
 
 NK_PUBLIC void nk_dot_e4m3_neonfhm(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    float16x8_t a_low, a_high, b_low, b_high;
+    float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_e4m3_neonfhm_cycle:
     if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
-        nk_e4m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
-        nk_e4m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
+        nk_e4m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low_f16x8, &a_high_f16x8);
+        nk_e4m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low_f16x8, &b_high_f16x8);
         count_scalars = 0;
     }
     else {
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low, &a_high);
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low, &b_high);
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low_f16x8, &a_high_f16x8);
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low_f16x8, &b_high_f16x8);
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
     if (count_scalars) goto nk_dot_e4m3_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e5m2_neonfhm(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    float16x8_t a_low, a_high, b_low, b_high;
+    float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_e5m2_neonfhm_cycle:
     if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
-        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
-        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
-        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
-        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
+        a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
+        b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
         count_scalars = 0;
     }
     else {
         uint8x16_t a_u8x16 = vld1q_u8(a_scalars);
         uint8x16_t b_u8x16 = vld1q_u8(b_scalars);
-        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
-        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
-        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
-        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
+        a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
+        b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
     if (count_scalars) goto nk_dot_e5m2_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }

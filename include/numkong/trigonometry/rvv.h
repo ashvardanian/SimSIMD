@@ -59,18 +59,18 @@ extern "C" {
  *  Internal helpers return vector register groups for use by geospatial/rvv.h.
  */
 
-NK_INTERNAL vfloat32m4_t nk_f32m4_sin_rvv_(vfloat32m4_t angles, nk_size_t vl) {
+NK_INTERNAL vfloat32m4_t nk_f32m4_sin_rvv_(vfloat32m4_t angles_f32m4, nk_size_t vl) {
     nk_f32_t const pi = 3.14159265358979323846f;
     nk_f32_t const pi_recip = 0.31830988618379067154f;
 
     // Range reduce: round(angle / pi)
-    vfloat32m4_t quotients_f32m4 = __riscv_vfmul_vf_f32m4(angles, pi_recip, vl);
+    vfloat32m4_t quotients_f32m4 = __riscv_vfmul_vf_f32m4(angles_f32m4, pi_recip, vl);
     // vfcvt_x_f rounds to nearest integer by default (RNE)
     vint32m4_t rounded_i32m4 = __riscv_vfcvt_x_f_v_i32m4(quotients_f32m4, vl);
     vfloat32m4_t rounded_f32m4 = __riscv_vfcvt_f_x_v_f32m4(rounded_i32m4, vl);
 
     // reduced = angle - rounded * pi
-    vfloat32m4_t reduced_f32m4 = __riscv_vfnmsac_vf_f32m4(angles, pi, rounded_f32m4, vl);
+    vfloat32m4_t reduced_f32m4 = __riscv_vfnmsac_vf_f32m4(angles_f32m4, pi, rounded_f32m4, vl);
 
     // Polynomial: sin(x) ~ x + x^3 * (c1 + x^2 * (c3 + x^2 * c5))
     vfloat32m4_t squared_f32m4 = __riscv_vfmul_vv_f32m4(reduced_f32m4, reduced_f32m4, vl);
@@ -88,19 +88,19 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_sin_rvv_(vfloat32m4_t angles, nk_size_t vl) {
     return __riscv_vreinterpret_v_u32m4_f32m4(result_bits_u32m4);
 }
 
-NK_INTERNAL vfloat32m4_t nk_f32m4_cos_rvv_(vfloat32m4_t angles, nk_size_t vl) {
+NK_INTERNAL vfloat32m4_t nk_f32m4_cos_rvv_(vfloat32m4_t angles_f32m4, nk_size_t vl) {
     nk_f32_t const pi = 3.14159265358979323846f;
     nk_f32_t const pi_half = 1.57079632679489661923f;
     nk_f32_t const pi_recip = 0.31830988618379067154f;
 
     // Compute round((angle / pi) - 0.5)
-    vfloat32m4_t quotients_f32m4 = __riscv_vfsub_vf_f32m4(__riscv_vfmul_vf_f32m4(angles, pi_recip, vl), 0.5f, vl);
+    vfloat32m4_t quotients_f32m4 = __riscv_vfsub_vf_f32m4(__riscv_vfmul_vf_f32m4(angles_f32m4, pi_recip, vl), 0.5f, vl);
     vint32m4_t rounded_i32m4 = __riscv_vfcvt_x_f_v_i32m4(quotients_f32m4, vl);
     vfloat32m4_t rounded_f32m4 = __riscv_vfcvt_f_x_v_f32m4(rounded_i32m4, vl);
 
     // Reduce: angle - (rounded * pi + pi/2)
     vfloat32m4_t offset_f32m4 = __riscv_vfmacc_vf_f32m4(__riscv_vfmv_v_f_f32m4(pi_half, vl), pi, rounded_f32m4, vl);
-    vfloat32m4_t reduced_f32m4 = __riscv_vfsub_vv_f32m4(angles, offset_f32m4, vl);
+    vfloat32m4_t reduced_f32m4 = __riscv_vfsub_vv_f32m4(angles_f32m4, offset_f32m4, vl);
 
     // Polynomial: same 3-term approximation
     vfloat32m4_t squared_f32m4 = __riscv_vfmul_vv_f32m4(reduced_f32m4, reduced_f32m4, vl);
@@ -118,7 +118,7 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_cos_rvv_(vfloat32m4_t angles, nk_size_t vl) {
     return result_f32m4;
 }
 
-NK_INTERNAL vfloat32m4_t nk_f32m4_atan_rvv_(vfloat32m4_t inputs, nk_size_t vl) {
+NK_INTERNAL vfloat32m4_t nk_f32m4_atan_rvv_(vfloat32m4_t inputs_f32m4, nk_size_t vl) {
     // 8-term polynomial coefficients for atan approximation
     nk_f32_t const c8 = -0.333331018686294555664062f;
     nk_f32_t const c7 = +0.199926957488059997558594f;
@@ -130,8 +130,8 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan_rvv_(vfloat32m4_t inputs, nk_size_t vl) {
     nk_f32_t const c1 = +0.00282363896258175373077393f;
 
     // Detect negative values
-    vbool8_t negative_mask_b8 = __riscv_vmflt_vf_f32m4_b8(inputs, 0.0f, vl);
-    vfloat32m4_t values_f32m4 = __riscv_vfabs_v_f32m4(inputs, vl);
+    vbool8_t negative_mask_b8 = __riscv_vmflt_vf_f32m4_b8(inputs_f32m4, 0.0f, vl);
+    vfloat32m4_t values_f32m4 = __riscv_vfabs_v_f32m4(inputs_f32m4, vl);
 
     // Check if values > 1 (need reciprocal)
     vbool8_t reciprocal_mask_b8 = __riscv_vmfgt_vf_f32m4_b8(values_f32m4, 1.0f, vl);
@@ -163,7 +163,7 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan_rvv_(vfloat32m4_t inputs, nk_size_t vl) {
     return result_f32m4;
 }
 
-NK_INTERNAL vfloat32m4_t nk_f32m4_atan2_rvv_(vfloat32m4_t ys_inputs, vfloat32m4_t xs_inputs, nk_size_t vl) {
+NK_INTERNAL vfloat32m4_t nk_f32m4_atan2_rvv_(vfloat32m4_t ys_inputs_f32m4, vfloat32m4_t xs_inputs_f32m4, nk_size_t vl) {
     // 8-term polynomial coefficients (same as atan)
     nk_f32_t const c8 = -0.333331018686294555664062f;
     nk_f32_t const c7 = +0.199926957488059997558594f;
@@ -175,9 +175,9 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan2_rvv_(vfloat32m4_t ys_inputs, vfloat32m4_
     nk_f32_t const c1 = +0.00282363896258175373077393f;
 
     // Quadrant adjustments - take absolute values
-    vbool8_t xs_negative_mask_b8 = __riscv_vmflt_vf_f32m4_b8(xs_inputs, 0.0f, vl);
-    vfloat32m4_t xs_f32m4 = __riscv_vfabs_v_f32m4(xs_inputs, vl);
-    vfloat32m4_t ys_f32m4 = __riscv_vfabs_v_f32m4(ys_inputs, vl);
+    vbool8_t xs_negative_mask_b8 = __riscv_vmflt_vf_f32m4_b8(xs_inputs_f32m4, 0.0f, vl);
+    vfloat32m4_t xs_f32m4 = __riscv_vfabs_v_f32m4(xs_inputs_f32m4, vl);
+    vfloat32m4_t ys_f32m4 = __riscv_vfabs_v_f32m4(ys_inputs_f32m4, vl);
 
     // Ensure proper fraction where numerator < denominator
     vbool8_t swap_mask_b8 = __riscv_vmfgt_vv_f32m4_b8(ys_f32m4, xs_f32m4, vl);
@@ -214,22 +214,22 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan2_rvv_(vfloat32m4_t ys_inputs, vfloat32m4_
     // Adjust for quadrant: result += quadrant * pi/2
     results_f32m4 = __riscv_vfmacc_vf_f32m4(results_f32m4, 1.5707963267948966f, quadrant_f32m4, vl);
 
-    // Transfer sign from x (XOR with sign bit of xs_inputs)
+    // Transfer sign from x (XOR with sign bit of xs_inputs_f32m4)
     vuint32m4_t sign_mask_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(__riscv_vfmv_v_f_f32m4(-0.0f, vl));
-    vuint32m4_t xs_sign_bits_u32m4 = __riscv_vand_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(xs_inputs),
+    vuint32m4_t xs_sign_bits_u32m4 = __riscv_vand_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(xs_inputs_f32m4),
                                                            sign_mask_u32m4, vl);
     vuint32m4_t result_bits_u32m4 = __riscv_vxor_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(results_f32m4),
                                                           xs_sign_bits_u32m4, vl);
 
-    // Transfer sign from y (XOR with sign bit of ys_inputs)
-    vuint32m4_t ys_sign_bits_u32m4 = __riscv_vand_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(ys_inputs),
+    // Transfer sign from y (XOR with sign bit of ys_inputs_f32m4)
+    vuint32m4_t ys_sign_bits_u32m4 = __riscv_vand_vv_u32m4(__riscv_vreinterpret_v_f32m4_u32m4(ys_inputs_f32m4),
                                                            sign_mask_u32m4, vl);
     result_bits_u32m4 = __riscv_vxor_vv_u32m4(result_bits_u32m4, ys_sign_bits_u32m4, vl);
 
     return __riscv_vreinterpret_v_u32m4_f32m4(result_bits_u32m4);
 }
 
-NK_INTERNAL vfloat64m4_t nk_f64m4_sin_rvv_(vfloat64m4_t angles_radians, nk_size_t vl) {
+NK_INTERNAL vfloat64m4_t nk_f64m4_sin_rvv_(vfloat64m4_t angles_radians_f64m4, nk_size_t vl) {
     // Constants for two-step Cody-Waite range reduction
     nk_f64_t const pi_high = 3.141592653589793116;
     nk_f64_t const pi_low = 1.2246467991473532072e-16;
@@ -247,13 +247,13 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_sin_rvv_(vfloat64m4_t angles_radians, nk_size_
     nk_f64_t const c8 = -0.166666666666666657414808;
 
     // Compute round(angle / pi)
-    vfloat64m4_t quotients_f64m4 = __riscv_vfmul_vf_f64m4(angles_radians, pi_recip, vl);
+    vfloat64m4_t quotients_f64m4 = __riscv_vfmul_vf_f64m4(angles_radians_f64m4, pi_recip, vl);
     // Round to nearest: vfcvt_x_f rounds to nearest (RNE), then convert back
     vint64m4_t rounded_i64m4 = __riscv_vfcvt_x_f_v_i64m4(quotients_f64m4, vl);
     vfloat64m4_t rounded_f64m4 = __riscv_vfcvt_f_x_v_f64m4(rounded_i64m4, vl);
 
     // Two-step Cody-Waite reduction: angle - rounded * pi_high - rounded * pi_low
-    vfloat64m4_t angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_radians, pi_high, rounded_f64m4, vl);
+    vfloat64m4_t angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_radians_f64m4, pi_high, rounded_f64m4, vl);
     angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_f64m4, pi_low, rounded_f64m4, vl);
 
     // If rounded is odd, negate the angle
@@ -289,13 +289,13 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_sin_rvv_(vfloat64m4_t angles_radians, nk_size_
     results_f64m4 = __riscv_vfmacc_vv_f64m4(angles_f64m4, cubed_f64m4, results_f64m4, vl);
 
     // Handle zero input (preserve sign of zero)
-    vbool16_t non_zero_mask_b16 = __riscv_vmfne_vf_f64m4_b16(angles_radians, 0.0, vl);
+    vbool16_t non_zero_mask_b16 = __riscv_vmfne_vf_f64m4_b16(angles_radians_f64m4, 0.0, vl);
     vfloat64m4_t zeros_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vl);
     results_f64m4 = __riscv_vmerge_vvm_f64m4(zeros_f64m4, results_f64m4, non_zero_mask_b16, vl);
     return results_f64m4;
 }
 
-NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians, nk_size_t vl) {
+NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians_f64m4, nk_size_t vl) {
     // Constants for two-step Cody-Waite range reduction
     nk_f64_t const pi_high_half = 3.141592653589793116 * 0.5;
     nk_f64_t const pi_low_half = 1.2246467991473532072e-16 * 0.5;
@@ -313,8 +313,8 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians, nk_size_
     nk_f64_t const c8 = -0.166666666666666657414808;
 
     // Compute 2 * round(angle / pi - 0.5) + 1
-    vfloat64m4_t quotients_f64m4 = __riscv_vfsub_vf_f64m4(__riscv_vfmul_vf_f64m4(angles_radians, pi_recip, vl), 0.5,
-                                                          vl);
+    vfloat64m4_t quotients_f64m4 = __riscv_vfsub_vf_f64m4(__riscv_vfmul_vf_f64m4(angles_radians_f64m4, pi_recip, vl),
+                                                          0.5, vl);
     vint64m4_t rounded_i64m4 = __riscv_vfcvt_x_f_v_i64m4(quotients_f64m4, vl);
     vfloat64m4_t rounded_f64m4 = __riscv_vfcvt_f_x_v_f64m4(rounded_i64m4, vl);
     // rounded_quotients = 2 * rounded + 1
@@ -322,7 +322,8 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians, nk_size_
                                                                    vl);
 
     // Two-step Cody-Waite reduction: angle - rounded_quotients * pi_high_half - rounded_quotients * pi_low_half
-    vfloat64m4_t angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_radians, pi_high_half, rounded_quotients_f64m4, vl);
+    vfloat64m4_t angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_radians_f64m4, pi_high_half, rounded_quotients_f64m4,
+                                                         vl);
     angles_f64m4 = __riscv_vfnmsac_vf_f64m4(angles_f64m4, pi_low_half, rounded_quotients_f64m4, vl);
 
     // If (rounded_quotients & 2) == 0, negate the angle
@@ -352,7 +353,7 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians, nk_size_
     return results_f64m4;
 }
 
-NK_INTERNAL vfloat64m4_t nk_f64m4_atan_rvv_(vfloat64m4_t inputs, nk_size_t vl) {
+NK_INTERNAL vfloat64m4_t nk_f64m4_atan_rvv_(vfloat64m4_t inputs_f64m4, nk_size_t vl) {
     // 19-term polynomial coefficients
     nk_f64_t const c19 = -1.88796008463073496563746e-05;
     nk_f64_t const c18 = +0.000209850076645816976906797;
@@ -375,8 +376,8 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan_rvv_(vfloat64m4_t inputs, nk_size_t vl) {
     nk_f64_t const c1 = -0.333333333333311110369124;
 
     // Detect negative values
-    vbool16_t negative_mask_b16 = __riscv_vmflt_vf_f64m4_b16(inputs, 0.0, vl);
-    vfloat64m4_t values_f64m4 = __riscv_vfabs_v_f64m4(inputs, vl);
+    vbool16_t negative_mask_b16 = __riscv_vmflt_vf_f64m4_b16(inputs_f64m4, 0.0, vl);
+    vfloat64m4_t values_f64m4 = __riscv_vfabs_v_f64m4(inputs_f64m4, vl);
 
     // Check if values > 1 (need reciprocal)
     vbool16_t reciprocal_mask_b16 = __riscv_vmfgt_vf_f64m4_b16(values_f64m4, 1.0, vl);
@@ -419,7 +420,7 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan_rvv_(vfloat64m4_t inputs, nk_size_t vl) {
     return result_f64m4;
 }
 
-NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs, vfloat64m4_t xs_inputs, nk_size_t vl) {
+NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs_f64m4, vfloat64m4_t xs_inputs_f64m4, nk_size_t vl) {
     // 19-term polynomial coefficients (same as atan)
     nk_f64_t const c19 = -1.88796008463073496563746e-05;
     nk_f64_t const c18 = +0.000209850076645816976906797;
@@ -442,9 +443,9 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs, vfloat64m4_
     nk_f64_t const c1 = -0.333333333333311110369124;
 
     // Quadrant adjustments - take absolute values
-    vbool16_t xs_negative_mask_b16 = __riscv_vmflt_vf_f64m4_b16(xs_inputs, 0.0, vl);
-    vfloat64m4_t xs_f64m4 = __riscv_vfabs_v_f64m4(xs_inputs, vl);
-    vfloat64m4_t ys_f64m4 = __riscv_vfabs_v_f64m4(ys_inputs, vl);
+    vbool16_t xs_negative_mask_b16 = __riscv_vmflt_vf_f64m4_b16(xs_inputs_f64m4, 0.0, vl);
+    vfloat64m4_t xs_f64m4 = __riscv_vfabs_v_f64m4(xs_inputs_f64m4, vl);
+    vfloat64m4_t ys_f64m4 = __riscv_vfabs_v_f64m4(ys_inputs_f64m4, vl);
 
     // Ensure proper fraction where numerator < denominator
     vbool16_t swap_mask_b16 = __riscv_vmfgt_vv_f64m4_b16(ys_f64m4, xs_f64m4, vl);
@@ -492,15 +493,15 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs, vfloat64m4_
     // Adjust for quadrant: result += quadrant * pi/2
     results_f64m4 = __riscv_vfmacc_vf_f64m4(results_f64m4, 1.5707963267948966, quadrant_f64m4, vl);
 
-    // Transfer sign from x (XOR with sign bit of xs_inputs)
+    // Transfer sign from x (XOR with sign bit of xs_inputs_f64m4)
     vuint64m4_t sign_mask_u64m4 = __riscv_vreinterpret_v_f64m4_u64m4(__riscv_vfmv_v_f_f64m4(-0.0, vl));
-    vuint64m4_t xs_sign_bits_u64m4 = __riscv_vand_vv_u64m4(__riscv_vreinterpret_v_f64m4_u64m4(xs_inputs),
+    vuint64m4_t xs_sign_bits_u64m4 = __riscv_vand_vv_u64m4(__riscv_vreinterpret_v_f64m4_u64m4(xs_inputs_f64m4),
                                                            sign_mask_u64m4, vl);
     vuint64m4_t result_bits_u64m4 = __riscv_vxor_vv_u64m4(__riscv_vreinterpret_v_f64m4_u64m4(results_f64m4),
                                                           xs_sign_bits_u64m4, vl);
 
-    // Transfer sign from y (XOR with sign bit of ys_inputs)
-    vuint64m4_t ys_sign_bits_u64m4 = __riscv_vand_vv_u64m4(__riscv_vreinterpret_v_f64m4_u64m4(ys_inputs),
+    // Transfer sign from y (XOR with sign bit of ys_inputs_f64m4)
+    vuint64m4_t ys_sign_bits_u64m4 = __riscv_vand_vv_u64m4(__riscv_vreinterpret_v_f64m4_u64m4(ys_inputs_f64m4),
                                                            sign_mask_u64m4, vl);
     result_bits_u64m4 = __riscv_vxor_vv_u64m4(result_bits_u64m4, ys_sign_bits_u64m4, vl);
 
@@ -511,15 +512,15 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs, vfloat64m4_
  *  f16 data is loaded as m1 (16-bit), widened to f32 m2, computed, then narrowed back.
  */
 
-NK_INTERNAL vfloat32m2_t nk_f32m2_sin_rvv_(vfloat32m2_t angles, nk_size_t vl) {
+NK_INTERNAL vfloat32m2_t nk_f32m2_sin_rvv_(vfloat32m2_t angles_f32m2, nk_size_t vl) {
     nk_f32_t const pi = 3.14159265358979323846f;
     nk_f32_t const pi_recip = 0.31830988618379067154f;
 
-    vfloat32m2_t quotients_f32m2 = __riscv_vfmul_vf_f32m2(angles, pi_recip, vl);
+    vfloat32m2_t quotients_f32m2 = __riscv_vfmul_vf_f32m2(angles_f32m2, pi_recip, vl);
     vint32m2_t rounded_i32m2 = __riscv_vfcvt_x_f_v_i32m2(quotients_f32m2, vl);
     vfloat32m2_t rounded_f32m2 = __riscv_vfcvt_f_x_v_f32m2(rounded_i32m2, vl);
 
-    vfloat32m2_t reduced_f32m2 = __riscv_vfnmsac_vf_f32m2(angles, pi, rounded_f32m2, vl);
+    vfloat32m2_t reduced_f32m2 = __riscv_vfnmsac_vf_f32m2(angles_f32m2, pi, rounded_f32m2, vl);
     vfloat32m2_t squared_f32m2 = __riscv_vfmul_vv_f32m2(reduced_f32m2, reduced_f32m2, vl);
     vfloat32m2_t cubed_f32m2 = __riscv_vfmul_vv_f32m2(reduced_f32m2, squared_f32m2, vl);
 
@@ -534,17 +535,17 @@ NK_INTERNAL vfloat32m2_t nk_f32m2_sin_rvv_(vfloat32m2_t angles, nk_size_t vl) {
     return __riscv_vreinterpret_v_u32m2_f32m2(result_bits_u32m2);
 }
 
-NK_INTERNAL vfloat32m2_t nk_f32m2_cos_rvv_(vfloat32m2_t angles, nk_size_t vl) {
+NK_INTERNAL vfloat32m2_t nk_f32m2_cos_rvv_(vfloat32m2_t angles_f32m2, nk_size_t vl) {
     nk_f32_t const pi = 3.14159265358979323846f;
     nk_f32_t const pi_half = 1.57079632679489661923f;
     nk_f32_t const pi_recip = 0.31830988618379067154f;
 
-    vfloat32m2_t quotients_f32m2 = __riscv_vfsub_vf_f32m2(__riscv_vfmul_vf_f32m2(angles, pi_recip, vl), 0.5f, vl);
+    vfloat32m2_t quotients_f32m2 = __riscv_vfsub_vf_f32m2(__riscv_vfmul_vf_f32m2(angles_f32m2, pi_recip, vl), 0.5f, vl);
     vint32m2_t rounded_i32m2 = __riscv_vfcvt_x_f_v_i32m2(quotients_f32m2, vl);
     vfloat32m2_t rounded_f32m2 = __riscv_vfcvt_f_x_v_f32m2(rounded_i32m2, vl);
 
     vfloat32m2_t offset_f32m2 = __riscv_vfmacc_vf_f32m2(__riscv_vfmv_v_f_f32m2(pi_half, vl), pi, rounded_f32m2, vl);
-    vfloat32m2_t reduced_f32m2 = __riscv_vfsub_vv_f32m2(angles, offset_f32m2, vl);
+    vfloat32m2_t reduced_f32m2 = __riscv_vfsub_vv_f32m2(angles_f32m2, offset_f32m2, vl);
 
     vfloat32m2_t squared_f32m2 = __riscv_vfmul_vv_f32m2(reduced_f32m2, reduced_f32m2, vl);
     vfloat32m2_t cubed_f32m2 = __riscv_vfmul_vv_f32m2(reduced_f32m2, squared_f32m2, vl);
@@ -560,7 +561,7 @@ NK_INTERNAL vfloat32m2_t nk_f32m2_cos_rvv_(vfloat32m2_t angles, nk_size_t vl) {
     return result_f32m2;
 }
 
-NK_INTERNAL vfloat32m2_t nk_f32m2_atan_rvv_(vfloat32m2_t inputs, nk_size_t vl) {
+NK_INTERNAL vfloat32m2_t nk_f32m2_atan_rvv_(vfloat32m2_t inputs_f32m2, nk_size_t vl) {
     nk_f32_t const c8 = -0.333331018686294555664062f;
     nk_f32_t const c7 = +0.199926957488059997558594f;
     nk_f32_t const c6 = -0.142027363181114196777344f;
@@ -570,8 +571,8 @@ NK_INTERNAL vfloat32m2_t nk_f32m2_atan_rvv_(vfloat32m2_t inputs, nk_size_t vl) {
     nk_f32_t const c2 = -0.0159569028764963150024414f;
     nk_f32_t const c1 = +0.00282363896258175373077393f;
 
-    vbool16_t negative_mask_b16 = __riscv_vmflt_vf_f32m2_b16(inputs, 0.0f, vl);
-    vfloat32m2_t values_f32m2 = __riscv_vfabs_v_f32m2(inputs, vl);
+    vbool16_t negative_mask_b16 = __riscv_vmflt_vf_f32m2_b16(inputs_f32m2, 0.0f, vl);
+    vfloat32m2_t values_f32m2 = __riscv_vfabs_v_f32m2(inputs_f32m2, vl);
 
     vbool16_t reciprocal_mask_b16 = __riscv_vmfgt_vf_f32m2_b16(values_f32m2, 1.0f, vl);
     vfloat32m2_t reciprocal_values_f32m2 = nk_f32m2_reciprocal_rvv_(values_f32m2, vl);
@@ -657,8 +658,8 @@ NK_PUBLIC void nk_each_sin_f16_rvv(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
         vuint16m1_t f16_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)ins, vector_length);
         vfloat32m2_t values_f32m2 = nk_f16m1_to_f32m2_rvv_(f16_u16m1, vector_length);
         vfloat32m2_t results_f32m2 = nk_f32m2_sin_rvv_(values_f32m2, vector_length);
-        vuint16m1_t f16_results = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
-        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results, vector_length);
+        vuint16m1_t f16_results_u16m1 = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
+        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results_u16m1, vector_length);
     }
 }
 
@@ -668,8 +669,8 @@ NK_PUBLIC void nk_each_cos_f16_rvv(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
         vuint16m1_t f16_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)ins, vector_length);
         vfloat32m2_t values_f32m2 = nk_f16m1_to_f32m2_rvv_(f16_u16m1, vector_length);
         vfloat32m2_t results_f32m2 = nk_f32m2_cos_rvv_(values_f32m2, vector_length);
-        vuint16m1_t f16_results = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
-        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results, vector_length);
+        vuint16m1_t f16_results_u16m1 = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
+        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results_u16m1, vector_length);
     }
 }
 
@@ -679,8 +680,8 @@ NK_PUBLIC void nk_each_atan_f16_rvv(nk_f16_t const *ins, nk_size_t n, nk_f16_t *
         vuint16m1_t f16_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)ins, vector_length);
         vfloat32m2_t values_f32m2 = nk_f16m1_to_f32m2_rvv_(f16_u16m1, vector_length);
         vfloat32m2_t results_f32m2 = nk_f32m2_atan_rvv_(values_f32m2, vector_length);
-        vuint16m1_t f16_results = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
-        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results, vector_length);
+        vuint16m1_t f16_results_u16m1 = nk_f32m2_to_f16m1_rvv_(results_f32m2, vector_length);
+        __riscv_vse16_v_u16m1((nk_u16_t *)outs, f16_results_u16m1, vector_length);
     }
 }
 
