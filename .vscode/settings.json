@@ -252,7 +252,7 @@
         "vector": "cpp"
     },
     "python.testing.pytestArgs": [
-        "scripts/test.py"
+        "test"
     ],
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
