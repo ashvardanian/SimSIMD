@@ -36,6 +36,7 @@ jobs:
             javascript/@numkong-win32-x64/package.json:"version": "(\d+\.\d+\.\d+)"
             javascript/@numkong-win32-arm64/package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
+            CITATION.cff:^version: (\d+\.\d+\.\d+)
           update-major-version-in: |
             include/numkong/capabilities.h:^#define NK_VERSION_MAJOR (\d+)
           update-minor-version-in: |
