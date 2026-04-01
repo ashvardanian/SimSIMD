@@ -52,8 +52,9 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64m1_rvv_(vfloat64m1_t sum_f64m1, vfloat
     vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_f64m1, compensation_f64m1, max_vector_length);
     vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_f64m1, max_vector_length);
     vfloat64m1_t accumulated_error_f64m1 = __riscv_vfadd_vv_f64m1(
-        __riscv_vfsub_vv_f64m1(
-            sum_f64m1, __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, max_vector_length), max_vector_length),
+        __riscv_vfsub_vv_f64m1(sum_f64m1,
+                               __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, max_vector_length),
+                               max_vector_length),
         __riscv_vfsub_vv_f64m1(compensation_f64m1, virtual_addend_f64m1, max_vector_length), max_vector_length);
     // Tree reduction: TwoSum halving at each level
     for (nk_size_t half = max_vector_length / 2; half > 0; half >>= 1) {

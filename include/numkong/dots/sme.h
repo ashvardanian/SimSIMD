@@ -120,39 +120,41 @@ enum {
  */
 #pragma region Half Precision Floats
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const expansion = 2;                    // FMOPA f16 → f32: 2 f16 pairs per f32 output
     nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
     nk_size_t const vector_elements = nk_sme_cnth_(); // f16 elements per SVE vector: 32
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
 
     nk_size_t size = sizeof(nk_dots_sme_packed_header_t);
     size += column_tile_count * depth_step_count * vector_elements * sizeof(nk_f16_t);
-    size += n * sizeof(nk_f32_t); // per-column squared norms
+    size += columns * sizeof(nk_f32_t); // per-column squared norms
     return size;
 }
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sme(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_f16_sme(n, k); }
+NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sme(nk_size_t columns, nk_size_t depth) {
+    return nk_dots_packed_size_f16_sme(columns, depth);
+}
 
-NK_PUBLIC void nk_dots_pack_f16_sme(             //
-    nk_f16_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_f16_sme(                       //
+    nk_f16_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 2;                    // FMOPA f16 → f32: 2 f16 pairs per f32 output
     nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
     nk_size_t const vector_elements = nk_sme_cnth_(); // f16 per SVE vector: 32 = tile_dimension * expansion
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_f16_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_f16_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -171,12 +173,13 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         vec_output[expansion * column_in_tile + sub_element] = b[src_idx];
                     }
@@ -189,30 +192,30 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_f16_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_f16_t const *col_data = (nk_f16_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_f16_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_f16_t const *col_data = (nk_f16_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_f16_(col_data, depth);
     }
 }
 
-NK_PUBLIC void nk_dots_pack_bf16_sme(             //
-    nk_bf16_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_bf16_sme(                       //
+    nk_bf16_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 2;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cnth_();
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_bf16_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_bf16_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -227,12 +230,13 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         vec_output[expansion * column_in_tile + sub_element] = b[src_idx];
                     }
@@ -245,9 +249,9 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_bf16_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_bf16_t const *col_data = (nk_bf16_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_bf16_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_bf16_t const *col_data = (nk_bf16_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_bf16_(col_data, depth);
     }
 }
 
@@ -563,10 +567,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_stre
 NK_PUBLIC void nk_dots_packed_f16_sme(                    //
     nk_f16_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,   //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_f16_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f16_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_f16_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -574,10 +578,10 @@ NK_PUBLIC void nk_dots_packed_f16_sme(                    //
 NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
     nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_bf16_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_bf16_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_bf16_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -589,7 +593,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
  *   per column tile. Eliminates all scalar B-packing loops.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_streaming_(
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 2;
@@ -609,14 +613,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b16x = svwhilelt_b16_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -664,7 +669,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -689,7 +694,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -714,7 +719,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -749,9 +754,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
         // Remainder: 1 column tile at a time
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b16x = svwhilelt_b16_u64(0u, cols_remaining * expansion);
 
@@ -793,7 +798,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -824,18 +829,18 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_st
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_f16_sme(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_f16_sme(nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                         nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                          nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_f16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                          row_start, row_count);
 }
 
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_streaming_(
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 2;
@@ -855,14 +860,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b16x = svwhilelt_b16_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -906,7 +912,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -930,7 +936,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -954,7 +960,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -987,9 +993,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b16x = svwhilelt_b16_u64(0u, cols_remaining * expansion);
 
@@ -1029,7 +1035,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -1060,14 +1066,14 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_s
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_bf16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_bf16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_bf16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion
@@ -1088,37 +1094,37 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t n_
 
 #pragma region Signed 8-bit Integers
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const expansion = 4;                    // SMOPA i8→i32: 4 i8 pairs per i32 output
     nk_size_t const tile_dimension = nk_sme_cntw_();  // ZA32 tile dim: 16
     nk_size_t const vector_elements = nk_sme_cntb_(); // i8 elements per SVE vector: 64
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
 
     nk_size_t size = sizeof(nk_dots_sme_packed_header_t);
     size += column_tile_count * depth_step_count * vector_elements * sizeof(nk_i8_t);
-    size += n * sizeof(nk_u32_t); // per-column squared norms
+    size += columns * sizeof(nk_u32_t); // per-column squared norms
     return size;
 }
 
-NK_PUBLIC void nk_dots_pack_i8_sme(             //
-    nk_i8_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_i8_sme(                       //
+    nk_i8_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 4;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_(); // 64 = tile_dimension * expansion
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_i8_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_i8_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -1133,12 +1139,13 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         vec_output[expansion * column_in_tile + sub_element] = b[src_idx];
                     }
@@ -1151,9 +1158,9 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_i8_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_u32_t *norms_ptr = (nk_u32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_i8_t const *col_data = (nk_i8_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_i8_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_i8_t const *col_data = (nk_i8_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_i8_(col_data, depth);
     }
 }
 
@@ -1309,17 +1316,17 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_stream
 NK_PUBLIC void nk_dots_packed_i8_sme(                    //
     nk_i8_t const *a, void const *b_packed, nk_i32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,  //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_i8_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_i32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_i8_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_i32_t);
 
     nk_dots_packed_i8_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
 // expansion=4: each i32 word packs 4 i8 values
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_streaming_(
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_i32_t *result,
+    nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_i32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 4;
@@ -1339,14 +1346,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
     NK_ALIGN64 nk_i32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -1390,7 +1398,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -1412,7 +1420,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -1434,7 +1442,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -1465,9 +1473,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b8x = svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -1507,7 +1515,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -1536,13 +1544,13 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_str
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
-                                        nk_i32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_i32_t *result, nk_size_t result_stride_in_bytes,
+                                        nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_i8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
-    nk_dots_symmetric_i8_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_i32_t);
+    nk_dots_symmetric_i8_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                         row_start, row_count);
 }
 
@@ -1796,29 +1804,29 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     }
 }
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sme(nk_size_t columns, nk_size_t depth) {
     // Uses `f16` format for packed data
-    return nk_dots_packed_size_f16_sme(n, k);
+    return nk_dots_packed_size_f16_sme(columns, depth);
 }
 
-NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
-    nk_e4m3_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_e4m3_sme(                       //
+    nk_e4m3_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 2;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cnth_();
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_e4m3_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_e4m3_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -1833,12 +1841,13 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         nk_e4m3_to_f16_serial(&b[src_idx], &vec_output[expansion * column_in_tile + sub_element]);
                     }
@@ -1851,19 +1860,19 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_f16_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_e4m3_t const *col_data = (nk_e4m3_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_e4m3_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_e4m3_t const *col_data = (nk_e4m3_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_e4m3_(col_data, depth);
     }
 }
 
 NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
     nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_e4m3_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_e4m3_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_e4m3_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -1875,7 +1884,7 @@ NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
  *  per column tile. Eliminates all scalar B-packing loops.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_streaming_(
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 2;
@@ -1898,14 +1907,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_clamped = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                     : (row_end - row_tile_start);
-        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= n_vectors) ? rows_clamped
-                                                                                   : (n_vectors - row_tile_start);
+        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= vectors_count)
+                                          ? rows_clamped
+                                          : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_actual);
 
@@ -1955,7 +1965,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x,
@@ -1981,7 +1991,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x,
@@ -2007,7 +2017,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x,
@@ -2041,9 +2051,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b16x = svwhilelt_b16_u64(0u, cols_remaining * expansion);
 
@@ -2088,7 +2098,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x,
@@ -2120,14 +2130,14 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_s
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_e4m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e4m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e4m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e4m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion
@@ -2295,24 +2305,27 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     }
 }
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sme(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_f16_sme(n, k); }
+NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sme(nk_size_t columns, nk_size_t depth) {
+    return nk_dots_packed_size_f16_sme(columns, depth);
+}
 
-NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t columns, nk_size_t depth,
+                                     nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 2;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cnth_();
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_e5m2_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_e5m2_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -2327,12 +2340,13 @@ NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t 
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         nk_e5m2_to_f16_serial(&b[src_idx], &vec_output[expansion * column_in_tile + sub_element]);
                     }
@@ -2345,9 +2359,9 @@ NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t 
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_f16_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_e5m2_t const *col_data = (nk_e5m2_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_e5m2_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_e5m2_t const *col_data = (nk_e5m2_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_e5m2_(col_data, depth);
     }
 }
 
@@ -2357,10 +2371,10 @@ NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t 
 NK_PUBLIC void nk_dots_packed_e5m2_sme(                    //
     nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_e5m2_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_e5m2_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_e5m2_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -2372,7 +2386,7 @@ NK_PUBLIC void nk_dots_packed_e5m2_sme(                    //
  *  per column tile. Eliminates all scalar B-packing loops.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_streaming_(
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 2;
@@ -2392,14 +2406,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_clamped = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                     : (row_end - row_tile_start);
-        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= n_vectors) ? rows_clamped
-                                                                                   : (n_vectors - row_tile_start);
+        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= vectors_count)
+                                          ? rows_clamped
+                                          : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_actual);
 
@@ -2447,7 +2462,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -2472,7 +2487,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -2497,7 +2512,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -2530,9 +2545,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b16x = svwhilelt_b16_u64(0u, cols_remaining * expansion);
 
@@ -2575,7 +2590,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -2606,14 +2621,14 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_s
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_e5m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e5m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e5m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e5m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion
@@ -2831,29 +2846,29 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     }
 }
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_sme(nk_size_t columns, nk_size_t depth) {
     // Uses `i8` format for packed data (same tile geometry as i8)
-    return nk_dots_packed_size_i8_sme(n, k);
+    return nk_dots_packed_size_i8_sme(columns, depth);
 }
 
-NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
-    nk_e2m3_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_e2m3_sme(                       //
+    nk_e2m3_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 4;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_(); // 64 = tile_dimension * expansion
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_e2m3_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_e2m3_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -2874,12 +2889,13 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         nk_u8_t raw = b[src_idx];
                         nk_i8_t val = (nk_i8_t)lut_magnitude[raw & 0x1F];
@@ -2895,19 +2911,19 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_i8_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_e2m3_t const *col_data = (nk_e2m3_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_e2m3_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_e2m3_t const *col_data = (nk_e2m3_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_e2m3_(col_data, depth);
     }
 }
 
 NK_PUBLIC void nk_dots_packed_e2m3_sme(                    //
     nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_e2m3_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_e2m3_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_e2m3_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -2919,7 +2935,7 @@ NK_PUBLIC void nk_dots_packed_e2m3_sme(                    //
  *  per column tile. Accumulates in i32, converts to f32 with 1/256 scaling.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_streaming_(
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 4;
@@ -2939,14 +2955,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
     NK_ALIGN64 nk_i32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_clamped = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                     : (row_end - row_tile_start);
-        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= n_vectors) ? rows_clamped
-                                                                                   : (n_vectors - row_tile_start);
+        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= vectors_count)
+                                          ? rows_clamped
+                                          : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b8x = svwhilelt_b8_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_actual);
 
@@ -2994,7 +3011,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8x, raw_u8x);
@@ -3017,7 +3034,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8x, raw_u8x);
@@ -3040,7 +3057,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8x, raw_u8x);
@@ -3082,9 +3099,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b8x = svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -3127,7 +3144,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svint8_t converted_i8x = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8x, raw_u8x);
@@ -3160,14 +3177,14 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_s
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_e2m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e2m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e2m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e2m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion
@@ -3374,24 +3391,27 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     }
 }
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_sme(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_f16_sme(n, k); }
+NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_sme(nk_size_t columns, nk_size_t depth) {
+    return nk_dots_packed_size_f16_sme(columns, depth);
+}
 
-NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t columns, nk_size_t depth,
+                                     nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 2;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cnth_();
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_e3m2_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_e3m2_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_f16_t *tiles_ptr = (nk_f16_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -3406,12 +3426,13 @@ NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t 
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         nk_f32_t temp_f32;
                         nk_e3m2_to_f32_serial(&b[src_idx], &temp_f32);
@@ -3426,9 +3447,9 @@ NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t 
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_f16_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f32_t *norms_ptr = (nk_f32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_e3m2_t const *col_data = (nk_e3m2_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_e3m2_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_e3m2_t const *col_data = (nk_e3m2_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_e3m2_(col_data, depth);
     }
 }
 
@@ -3438,10 +3459,10 @@ NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t 
 NK_PUBLIC void nk_dots_packed_e3m2_sme(                    //
     nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_e3m2_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_e3m2_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_dots_packed_e3m2_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -3453,7 +3474,7 @@ NK_PUBLIC void nk_dots_packed_e3m2_sme(                    //
  *  per column tile. Eliminates all scalar B-packing loops.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_streaming_(
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
+    nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 2;
@@ -3473,14 +3494,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_clamped = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                     : (row_end - row_tile_start);
-        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= n_vectors) ? rows_clamped
-                                                                                   : (n_vectors - row_tile_start);
+        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= vectors_count)
+                                          ? rows_clamped
+                                          : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b16x = svwhilelt_b16_u64(0u, rows_actual * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_actual);
 
@@ -3528,7 +3550,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -3553,7 +3575,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -3578,7 +3600,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -3611,9 +3633,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b16x = svwhilelt_b16_u64(0u, cols_remaining * expansion);
 
@@ -3656,7 +3678,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw_u8x = svld1_u8(depth_predicate_b8x, (uint8_t const *)src);
                         svfloat16_t converted_f16x = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16x, raw_u8x);
@@ -3687,14 +3709,14 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_s
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_e3m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e3m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e3m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e3m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion // Signed 8-bit Integers
@@ -3713,26 +3735,28 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t n_
 
 #pragma region Unsigned 8-bit Integers
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_u8_sme(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_i8_sme(n, k); }
+NK_PUBLIC nk_size_t nk_dots_packed_size_u8_sme(nk_size_t columns, nk_size_t depth) {
+    return nk_dots_packed_size_i8_sme(columns, depth);
+}
 
-NK_PUBLIC void nk_dots_pack_u8_sme(             //
-    nk_u8_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_u8_sme(                       //
+    nk_u8_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const expansion = 4;
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_();
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_u8_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_u8_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_u32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -3747,12 +3771,13 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub_element = 0; sub_element < expansion; sub_element++) {
                     nk_size_t const depth_idx = depth_base + sub_element;
-                    if (depth_idx < k) {
+                    if (depth_idx < depth) {
                         nk_size_t const src_idx = (b_row_start + column_in_tile) * b_stride_elements + depth_idx;
                         vec_output[expansion * column_in_tile + sub_element] = b[src_idx];
                     }
@@ -3765,9 +3790,9 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
     nk_size_t const data_size = total_vectors * vector_elements * sizeof(nk_u8_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_u32_t *norms_ptr = (nk_u32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_u8_t const *col_data = (nk_u8_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_u8_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_u8_t const *col_data = (nk_u8_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_u8_(col_data, depth);
     }
 }
 
@@ -3918,17 +3943,17 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u8_sme_stream
 NK_PUBLIC void nk_dots_packed_u8_sme(                    //
     nk_u8_t const *a, void const *b_packed, nk_u32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,  //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_u8_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_u32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_u8_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_u32_t);
 
     nk_dots_packed_u8_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
 // expansion=4: each u32 word packs 4 u8 values
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_streaming_(
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_u32_t *result,
+    nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_u32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 4;
@@ -3948,14 +3973,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
     NK_ALIGN64 nk_u32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -3999,7 +4025,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -4021,7 +4047,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -4043,7 +4069,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -4074,9 +4100,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b8x = svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -4116,7 +4142,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
                         if (clean_last_word) {
@@ -4146,13 +4172,13 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_str
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_u32_t *result, nk_size_t result_stride_in_bytes,
+                                        nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_u8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_u32_t);
-    nk_dots_symmetric_u8_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_u32_t);
+    nk_dots_symmetric_u8_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                         row_start, row_count);
 }
 
@@ -4176,37 +4202,37 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t n_vect
 
 #pragma region Nibble Unsigned Integers
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_u4_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_u4_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_();
-    nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
+    nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const vector_pair_stride = 2 * vector_elements;
     nk_size_t size = sizeof(nk_dots_sme_packed_header_t);
     size += column_tile_count * depth_step_count * vector_pair_stride * sizeof(nk_u8_t);
-    size += n * sizeof(nk_u32_t); // per-column squared norms
+    size += columns * sizeof(nk_u32_t); // per-column squared norms
     return size;
 }
 
-NK_PUBLIC void nk_dots_pack_u4_sme(               //
-    nk_u4x2_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_u4_sme(                         //
+    nk_u4x2_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const vector_pair_stride = 2 * vector_elements;
-    nk_size_t const b_stride_bytes = b_stride / sizeof(nk_u4x2_t);
-    nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
+    nk_size_t const b_stride_bytes = b_stride_in_bytes / sizeof(nk_u4x2_t);
+    nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_u32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -4221,7 +4247,8 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_byte_base = depth_step * 4;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub = 0; sub < 4; sub++) {
@@ -4231,7 +4258,7 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
                         nk_u8_t val = ((nk_u8_t const *)b)[src_idx];
                         nk_u8_t low_nibble = val & 0x0F;
                         nk_u8_t high_nibble = val >> 4;
-                        if (byte_idx == packed_depth - 1 && (k & 1)) high_nibble = 0;
+                        if (byte_idx == packed_depth - 1 && (depth & 1)) high_nibble = 0;
                         nk_size_t const slot = 4 * column_in_tile + sub;
                         vec_low[slot] = low_nibble;
                         vec_high[slot] = high_nibble;
@@ -4245,9 +4272,9 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
     nk_size_t const data_size = total_vectors * vector_pair_stride * sizeof(nk_u8_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_u32_t *norms_ptr = (nk_u32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_u4x2_t const *col_data = (nk_u4x2_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_u4_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_u4x2_t const *col_data = (nk_u4x2_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_u4_(col_data, depth);
     }
 }
 
@@ -4450,10 +4477,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_stream
 NK_PUBLIC void nk_dots_packed_u4_sme(                      //
     nk_u4x2_t const *a, void const *b_packed, nk_u32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_u4x2_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_u32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_u4x2_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_u32_t);
     nk_dots_packed_u4_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
@@ -4461,37 +4488,37 @@ NK_PUBLIC void nk_dots_packed_u4_sme(                      //
 
 #pragma region Nibble Signed Integers
 
-NK_PUBLIC nk_size_t nk_dots_packed_size_i4_sme(nk_size_t n, nk_size_t k) {
+NK_PUBLIC nk_size_t nk_dots_packed_size_i4_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_();
-    nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
+    nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const vector_pair_stride = 2 * vector_elements;
     nk_size_t size = sizeof(nk_dots_sme_packed_header_t);
     size += column_tile_count * depth_step_count * vector_pair_stride * sizeof(nk_u8_t);
-    size += n * sizeof(nk_u32_t); // per-column squared norms
+    size += columns * sizeof(nk_u32_t); // per-column squared norms
     return size;
 }
 
-NK_PUBLIC void nk_dots_pack_i4_sme(               //
-    nk_i4x2_t const *b, nk_size_t n, nk_size_t k, //
-    nk_size_t b_stride, void *b_packed) {
+NK_PUBLIC void nk_dots_pack_i4_sme(                         //
+    nk_i4x2_t const *b, nk_size_t columns, nk_size_t depth, //
+    nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const tile_dimension = nk_sme_cntw_();
     nk_size_t const vector_elements = nk_sme_cntb_();
     nk_size_t const vector_pair_stride = 2 * vector_elements;
-    nk_size_t const b_stride_bytes = b_stride / sizeof(nk_i4x2_t);
-    nk_size_t const packed_depth = nk_size_divide_round_up_(k, 2);
+    nk_size_t const b_stride_bytes = b_stride_in_bytes / sizeof(nk_i4x2_t);
+    nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
     nk_size_t const depth_step_count = nk_size_divide_round_up_(packed_depth, 4);
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
 
     nk_dots_sme_packed_header_t *header = (nk_dots_sme_packed_header_t *)b_packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_i32_t));
 
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + sizeof(nk_dots_sme_packed_header_t));
@@ -4506,7 +4533,8 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
 
             nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_byte_base = depth_step * 4;
-            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
+            nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= columns) ? tile_dimension
+                                                                                     : (columns - b_row_start);
 
             for (nk_size_t column_in_tile = 0; column_in_tile < rows_to_pack; column_in_tile++) {
                 for (nk_size_t sub = 0; sub < 4; sub++) {
@@ -4516,7 +4544,7 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
                         nk_u8_t val = ((nk_u8_t const *)b)[src_idx];
                         nk_u8_t low_nibble = val & 0x0F;
                         nk_u8_t high_nibble = (val >> 4) & 0x0F;
-                        if (byte_idx == packed_depth - 1 && (k & 1)) high_nibble = 0;
+                        if (byte_idx == packed_depth - 1 && (depth & 1)) high_nibble = 0;
                         // Sign-extend 4-bit to 8-bit: (nibble ^ 8) - 8
                         nk_i8_t low_extended = (nk_i8_t)((low_nibble ^ 8) - 8);
                         nk_i8_t high_extended = (nk_i8_t)((high_nibble ^ 8) - 8);
@@ -4533,9 +4561,9 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
     nk_size_t const data_size = total_vectors * vector_pair_stride * sizeof(nk_u8_t);
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_u32_t *norms_ptr = (nk_u32_t *)((char *)b_packed + header->norms_offset);
-    for (nk_size_t col = 0; col < n; col++) {
-        nk_i4x2_t const *col_data = (nk_i4x2_t const *)((char const *)b + col * b_stride);
-        norms_ptr[col] = nk_dots_reduce_sumsq_i4_(col_data, k);
+    for (nk_size_t col = 0; col < columns; col++) {
+        nk_i4x2_t const *col_data = (nk_i4x2_t const *)((char const *)b + col * b_stride_in_bytes);
+        norms_ptr[col] = nk_dots_reduce_sumsq_i4_(col_data, depth);
     }
 }
 
@@ -4744,10 +4772,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_stream
 NK_PUBLIC void nk_dots_packed_i4_sme(                      //
     nk_i4x2_t const *a, void const *b_packed, nk_i32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
-    nk_size_t a_stride, nk_size_t c_stride) {
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_i4x2_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_i32_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_i4x2_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_i32_t);
     nk_dots_packed_i4_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
@@ -4757,7 +4785,7 @@ NK_PUBLIC void nk_dots_packed_i4_sme(                      //
  *  issues 2 UMOPAs per depth step. ZA0 = staging tile, ZA1-ZA3 = accumulators.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_streaming_(
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_u32_t *result,
+    nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_u32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 4;
@@ -4772,14 +4800,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
     NK_ALIGN64 nk_u32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -4836,7 +4865,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -4872,7 +4901,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -4908,7 +4937,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -4952,9 +4981,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b8x = svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -5004,7 +5033,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -5049,13 +5078,13 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_str
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                        nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_u32_t *result, nk_size_t result_stride_in_bytes,
                                         nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_u4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_u32_t);
-    nk_dots_symmetric_u4_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_u32_t);
+    nk_dots_symmetric_u4_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                         row_start, row_count);
 }
 
@@ -5065,7 +5094,7 @@ NK_PUBLIC void nk_dots_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_t n_ve
  *  issues 2 SMOPAs per depth step. ZA0 = staging tile, ZA1-ZA3 = accumulators.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_streaming_(
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_i32_t *result,
+    nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_i32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const expansion = 4;
@@ -5080,14 +5109,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
     NK_ALIGN64 nk_u32_t a_buffer[16][16];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b8x = svwhilelt_b8_u64(0u, rows_clamped * expansion);
         svbool_t const row_predicate_b32x = svwhilelt_b32_u64(0u, rows_clamped);
 
@@ -5144,7 +5174,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -5180,7 +5210,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -5216,7 +5246,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -5260,9 +5290,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - column_tile_start);
+                                                 : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b32x = svwhilelt_b32_u64(0u, cols_remaining);
             svbool_t const column_predicate_b8x = svwhilelt_b8_u64(0u, cols_remaining * expansion);
 
@@ -5312,7 +5342,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors) {
+                    if (column_abs < vectors_count) {
                         nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
                         svld1_hor_za32(0, column, batch_predicate_b32x, (nk_f32_t const *)src);
                     }
@@ -5356,13 +5386,13 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_str
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_i4_sme(nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                        nk_size_t stride, nk_i32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_i4_sme(nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_i32_t *result, nk_size_t result_stride_in_bytes,
                                         nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_i4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
-    nk_dots_symmetric_i4_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_i32_t);
+    nk_dots_symmetric_i4_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                         row_start, row_count);
 }
 

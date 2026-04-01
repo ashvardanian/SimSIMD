@@ -285,7 +285,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
  *     causing conflict misses. Padding to 8200 → stride = 32,800 bytes (non-power-of-2) distributes
  *     accesses across more cache sets.
  *
- *  Input layout: B[column_count, depth] stored row-major with b_stride_in_bytes between rows
+ *  Input layout: B[column_count, depth] stored row-major with b_stride between rows
  *  Output layout: B_packed[column_count, depth_padded] - simple column-major, no grouping
  *  Addressing: B_packed[j, k] = packed_data[j × depth_padded + k]
  *
@@ -1900,8 +1900,9 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         }                                                                                                              \
     }                                                                                                                  \
     NK_PUBLIC void nk_##api_name##_symmetric_##input_type_name##_##isa_suffix(                                         \
-        nk_##input_value_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,              \
-        nk_##result_value_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {       \
+        nk_##input_value_type##_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, \
+        nk_##result_value_type##_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start,                     \
+        nk_size_t row_count) {                                                                                         \
         nk_size_t const macro_tile_size = 32;                                                                          \
         nk_size_t const row_block_size = 128;     /* L2 cache blocking */                                              \
         nk_size_t const column_block_size = 2048; /* L3 cache blocking */                                              \
@@ -1911,13 +1912,13 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                             \
         nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                       \
         nk_size_t const depth_step = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);            \
-        nk_size_t const result_stride_values = result_stride / sizeof(nk_##result_value_type##_t);                     \
-        nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;           \
+        nk_size_t const result_stride_values = result_stride_in_bytes / sizeof(nk_##result_value_type##_t);            \
+        nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;   \
                                                                                                                        \
         /* Process upper triangle with L3/L2/L1 blocking (column blocks → row blocks → 32×32 macro-tiles) */           \
-        for (nk_size_t j_block = 0; j_block < n_vectors; j_block += column_block_size) {                               \
-            nk_size_t j_block_end = (j_block + column_block_size < n_vectors) ? j_block + column_block_size            \
-                                                                              : n_vectors;                             \
+        for (nk_size_t j_block = 0; j_block < vectors_count; j_block += column_block_size) {                           \
+            nk_size_t j_block_end = (j_block + column_block_size < vectors_count) ? j_block + column_block_size        \
+                                                                                  : vectors_count;                     \
                                                                                                                        \
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
@@ -1940,7 +1941,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                         nk_##input_value_type##_t const *vec_ptrs_j[32];                                               \
                         for (nk_size_t k = 0; k < macro_i_size; k++)                                                   \
                             vec_ptrs_i[k] = (nk_##input_value_type##_t const *)((char const *)vectors +                \
-                                                                                (i_macro + k) * stride);               \
+                                                                                (i_macro + k) * stride_in_bytes);      \
                         for (nk_size_t k = macro_i_size; k < 32; k++) vec_ptrs_i[k] = vec_ptrs_i[0];                   \
                                                                                                                        \
                         if (i_macro == j_macro && macro_i_size == macro_j_size) {                                      \
@@ -1954,7 +1955,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                             /* Off-diagonal macro-tile */                                                              \
                             for (nk_size_t k = 0; k < macro_j_size; k++)                                               \
                                 vec_ptrs_j[k] = (nk_##input_value_type##_t const *)((char const *)vectors +            \
-                                                                                    (j_macro + k) * stride);           \
+                                                                                    (j_macro + k) * stride_in_bytes);  \
                             for (nk_size_t k = macro_j_size; k < 32; k++) vec_ptrs_j[k] = vec_ptrs_j[0];               \
                             nk_##api_name##_symmetric_offdiagonal_##input_type_name##_##isa_suffix##_(                 \
                                 vec_ptrs_i, vec_ptrs_j, i_macro, j_macro, macro_i_size, macro_j_size, aligned_depth,   \
@@ -2372,28 +2373,29 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         }                                                                                                              \
     }                                                                                                                  \
     NK_PUBLIC void nk_##api_name##_symmetric_##input_type_name##_##isa_suffix(                                         \
-        nk_##input_value_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,              \
-        nk_##result_value_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {       \
+        nk_##input_value_type##_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, \
+        nk_##result_value_type##_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start,                     \
+        nk_size_t row_count) {                                                                                         \
         nk_size_t const macro_tile_size = 32;                                                                          \
         nk_size_t const finalizer_batch_size = 4;                                                                      \
         nk_size_t const row_block_size = 128;     /* L2 cache blocking */                                              \
         nk_size_t const column_block_size = 2048; /* L3 cache blocking */                                              \
                                                                                                                        \
         /* Stride and depth calculations */                                                                            \
-        nk_size_t const vectors_stride_values = stride / sizeof(nk_##input_value_type##_t);                            \
-        nk_size_t const result_stride_values = result_stride / sizeof(nk_##result_value_type##_t);                     \
+        nk_size_t const vectors_stride_values = stride_in_bytes / sizeof(nk_##input_value_type##_t);                   \
+        nk_size_t const result_stride_values = result_stride_in_bytes / sizeof(nk_##result_value_type##_t);            \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
         nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
         nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                       \
         nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                             \
         nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                       \
         nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);     \
-        nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;           \
+        nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;   \
                                                                                                                        \
         /* Process upper triangle with L3/L2/L1 blocking (column blocks → row blocks → 32×32 macro-tiles) */           \
-        for (nk_size_t j_block = 0; j_block < n_vectors; j_block += column_block_size) {                               \
-            nk_size_t j_block_end = (j_block + column_block_size < n_vectors) ? j_block + column_block_size            \
-                                                                              : n_vectors;                             \
+        for (nk_size_t j_block = 0; j_block < vectors_count; j_block += column_block_size) {                           \
+            nk_size_t j_block_end = (j_block + column_block_size < vectors_count) ? j_block + column_block_size        \
+                                                                                  : vectors_count;                     \
                                                                                                                        \
             for (nk_size_t i_block = row_start; i_block < row_end; i_block += row_block_size) {                        \
                 nk_size_t i_block_end = (i_block + row_block_size < row_end) ? i_block + row_block_size : row_end;     \
@@ -2681,7 +2683,7 @@ nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot
 #endif
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
- *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride = column_count × sizeof(bf16)).
+ *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count × sizeof(bf16)).
  */
 NK_PUBLIC void nk_dots_compact_bf16_serial(void *c, nk_size_t row_count, nk_size_t column_count,
                                            nk_size_t c_stride_in_bytes) {
@@ -2775,74 +2777,76 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
         }                                                                                                             \
     }
 
-#define nk_define_cross_normalized_symmetric_(metric_name, input_type_name, isa_suffix, input_value_type,             \
-                                              dot_result_type, norm_value_type, final_result_type, vec_type,          \
-                                              dots_symmetric_fn, from_dot_fn, compute_norm_fn, load_fn,               \
-                                              partial_load_fn, store_fn, partial_store_fn, dimensions_per_value)      \
-    NK_PUBLIC void nk_##metric_name##s_symmetric_##input_type_name##_##isa_suffix(                                    \
-        nk_##input_value_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,             \
-        nk_##final_result_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
-                                                                                                                      \
-        dots_symmetric_fn(vectors, n_vectors, depth, stride, (nk_##dot_result_type##_t *)result, result_stride,       \
-                          row_start, row_count);                                                                      \
-                                                                                                                      \
-        /* Phase 1 — cache row norms in the result diagonal (O(row_count) calls) */                                   \
-        for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                       \
-            nk_##input_value_type##_t const *row_vector = (nk_##input_value_type##_t const *)((char const *)vectors + \
-                                                                                              row_index * stride);    \
-            nk_##norm_value_type##_t *row_diag = (nk_##norm_value_type##_t *)((char *)result +                        \
-                                                                              row_index * result_stride);             \
-            row_diag[row_index] = compute_norm_fn(row_vector, depth);                                                 \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Phase 2 — column-first post-processing with 256-element norm cache */                                      \
-        nk_##norm_value_type##_t column_norms[256];                                                                   \
-        for (nk_size_t column_chunk_start = 0; column_chunk_start < n_vectors; column_chunk_start += 256) {           \
-            nk_size_t column_chunk_end = column_chunk_start + 256 < n_vectors ? column_chunk_start + 256 : n_vectors; \
-                                                                                                                      \
-            /* Pre-compute norms for this column chunk — each column visited exactly once */                          \
-            for (nk_size_t col = column_chunk_start; col < column_chunk_end; ++col) {                                 \
-                nk_##input_value_type##_t const *column_vector =                                                      \
-                    (nk_##input_value_type##_t const *)((char const *)vectors + col * stride);                        \
-                column_norms[col - column_chunk_start] = compute_norm_fn(column_vector, depth);                       \
-            }                                                                                                         \
-                                                                                                                      \
-            /* Sweep assigned rows against this column chunk */                                                       \
-            for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                   \
-                nk_size_t j_start = row_index + 1 > column_chunk_start ? row_index + 1 : column_chunk_start;          \
-                if (j_start >= column_chunk_end) continue;                                                            \
-                char *row_ptr = (char *)result + row_index * result_stride;                                           \
-                nk_##norm_value_type##_t sumsq_i = ((nk_##norm_value_type##_t *)row_ptr)[row_index];                  \
-                nk_##dot_result_type##_t *r_dots = (nk_##dot_result_type##_t *)row_ptr;                               \
-                nk_##final_result_type##_t *r_out = (nk_##final_result_type##_t *)row_ptr;                            \
-                                                                                                                      \
-                /* 4-wide vectorized loop */                                                                          \
-                nk_size_t j = j_start;                                                                                \
-                for (; j + 4 <= column_chunk_end; j += 4) {                                                           \
-                    vec_type target_norms_vec;                                                                        \
-                    load_fn(&column_norms[j - column_chunk_start], &target_norms_vec);                                \
-                    vec_type dots_vec, results_vec;                                                                   \
-                    load_fn(r_dots + j, &dots_vec);                                                                   \
-                    from_dot_fn(dots_vec, sumsq_i, target_norms_vec, &results_vec);                                   \
-                    store_fn(&results_vec, r_out + j);                                                                \
-                }                                                                                                     \
-                /* Remainder */                                                                                       \
-                if (j < column_chunk_end) {                                                                           \
-                    vec_type dots_vec = {0}, norms_vec = {0}, results_vec;                                            \
-                    partial_load_fn(r_dots + j, &dots_vec, column_chunk_end - j);                                     \
-                    partial_load_fn(&column_norms[j - column_chunk_start], &norms_vec, column_chunk_end - j);         \
-                    from_dot_fn(dots_vec, sumsq_i, norms_vec, &results_vec);                                          \
-                    partial_store_fn(&results_vec, r_out + j, column_chunk_end - j);                                  \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Phase 3 — zero diagonals */                                                                                \
-        for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                       \
-            nk_##final_result_type##_t *r_out = (nk_##final_result_type##_t *)((char *)result +                       \
-                                                                               row_index * result_stride);            \
-            r_out[row_index] = 0;                                                                                     \
-        }                                                                                                             \
+#define nk_define_cross_normalized_symmetric_(metric_name, input_type_name, isa_suffix, input_value_type,              \
+                                              dot_result_type, norm_value_type, final_result_type, vec_type,           \
+                                              dots_symmetric_fn, from_dot_fn, compute_norm_fn, load_fn,                \
+                                              partial_load_fn, store_fn, partial_store_fn, dimensions_per_value)       \
+    NK_PUBLIC void nk_##metric_name##s_symmetric_##input_type_name##_##isa_suffix(                                     \
+        nk_##input_value_type##_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, \
+        nk_##final_result_type##_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start,                     \
+        nk_size_t row_count) {                                                                                         \
+                                                                                                                       \
+        dots_symmetric_fn(vectors, vectors_count, depth, stride_in_bytes, (nk_##dot_result_type##_t *)result,          \
+                          result_stride_in_bytes, row_start, row_count);                                               \
+                                                                                                                       \
+        /* Phase 1 — cache row norms in the result diagonal (O(row_count) calls) */                                    \
+        for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                        \
+            nk_##input_value_type##_t const *row_vector =                                                              \
+                (nk_##input_value_type##_t const *)((char const *)vectors + row_index * stride_in_bytes);              \
+            nk_##norm_value_type##_t *row_diag = (nk_##norm_value_type##_t *)((char *)result +                         \
+                                                                              row_index * result_stride_in_bytes);     \
+            row_diag[row_index] = compute_norm_fn(row_vector, depth);                                                  \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Phase 2 — column-first post-processing with 256-element norm cache */                                       \
+        nk_##norm_value_type##_t column_norms[256];                                                                    \
+        for (nk_size_t column_chunk_start = 0; column_chunk_start < vectors_count; column_chunk_start += 256) {        \
+            nk_size_t column_chunk_end = column_chunk_start + 256 < vectors_count ? column_chunk_start + 256           \
+                                                                                  : vectors_count;                     \
+                                                                                                                       \
+            /* Pre-compute norms for this column chunk — each column visited exactly once */                           \
+            for (nk_size_t col = column_chunk_start; col < column_chunk_end; ++col) {                                  \
+                nk_##input_value_type##_t const *column_vector =                                                       \
+                    (nk_##input_value_type##_t const *)((char const *)vectors + col * stride_in_bytes);                \
+                column_norms[col - column_chunk_start] = compute_norm_fn(column_vector, depth);                        \
+            }                                                                                                          \
+                                                                                                                       \
+            /* Sweep assigned rows against this column chunk */                                                        \
+            for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                    \
+                nk_size_t j_start = row_index + 1 > column_chunk_start ? row_index + 1 : column_chunk_start;           \
+                if (j_start >= column_chunk_end) continue;                                                             \
+                char *row_ptr = (char *)result + row_index * result_stride_in_bytes;                                   \
+                nk_##norm_value_type##_t sumsq_i = ((nk_##norm_value_type##_t *)row_ptr)[row_index];                   \
+                nk_##dot_result_type##_t *r_dots = (nk_##dot_result_type##_t *)row_ptr;                                \
+                nk_##final_result_type##_t *r_out = (nk_##final_result_type##_t *)row_ptr;                             \
+                                                                                                                       \
+                /* 4-wide vectorized loop */                                                                           \
+                nk_size_t j = j_start;                                                                                 \
+                for (; j + 4 <= column_chunk_end; j += 4) {                                                            \
+                    vec_type target_norms_vec;                                                                         \
+                    load_fn(&column_norms[j - column_chunk_start], &target_norms_vec);                                 \
+                    vec_type dots_vec, results_vec;                                                                    \
+                    load_fn(r_dots + j, &dots_vec);                                                                    \
+                    from_dot_fn(dots_vec, sumsq_i, target_norms_vec, &results_vec);                                    \
+                    store_fn(&results_vec, r_out + j);                                                                 \
+                }                                                                                                      \
+                /* Remainder */                                                                                        \
+                if (j < column_chunk_end) {                                                                            \
+                    vec_type dots_vec = {0}, norms_vec = {0}, results_vec;                                             \
+                    partial_load_fn(r_dots + j, &dots_vec, column_chunk_end - j);                                      \
+                    partial_load_fn(&column_norms[j - column_chunk_start], &norms_vec, column_chunk_end - j);          \
+                    from_dot_fn(dots_vec, sumsq_i, norms_vec, &results_vec);                                           \
+                    partial_store_fn(&results_vec, r_out + j, column_chunk_end - j);                                   \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Phase 3 — zero diagonals */                                                                                 \
+        for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {                        \
+            nk_##final_result_type##_t *r_out = (nk_##final_result_type##_t *)((char *)result +                        \
+                                                                               row_index * result_stride_in_bytes);    \
+            r_out[row_index] = 0;                                                                                      \
+        }                                                                                                              \
     }
 
 #if defined(__cplusplus)

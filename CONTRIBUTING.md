@@ -206,6 +206,14 @@ Useful breakpoints for debugging:
 
 See [test/README.md](test/README.md) for test framework details and [bench/README.md](bench/README.md) for benchmark configuration.
 
+### Static Analysis & Formatting
+
+Once done editing the code, please run analyzers and formatters:
+
+```bash
+git ls-files '*.h' '*.c' '*.hpp' '*.cpp' | xargs clang-format -i # Use Clang Format 21 or newer
+```
+
 ## Python
 
 Python bindings are implemented using pure CPython, so you wouldn't need to install SWIG, PyBind11, or any other third-party library.
@@ -373,3 +381,69 @@ There are two intentional exceptions:
 
 - `cast`: the family-level `nk_cast_*` kernels follow the same header/dispatch/test/bench rule, but scalar conversion helpers are wired through `c/dispatch_other.c` and are covered through `test/test_cast.cpp` and `bench/bench_cast.cpp`.
 - `scalar`: scalar helpers are centrally declared in `include/numkong/scalar.h`, wired through `c/dispatch_other.c`, and currently do not follow the per-helper `nk_test` and `nk_bench` registration pattern.
+
+## Wording & Styling
+
+A lot of effort goes into keeping the wording and styling of the code consistent.
+Variable names must reflect the __semantic operation__, not just the intrinsic name.
+
+### Variable Names & Type Suffixes
+
+Reading mixed-precision kernels can be very confusing when different wide registers encode numbers differently.
+So most of the kernel code encodes the inner register representation into the symbol name:
+
+- Fixed-width ISAs (NEON, x86, WASM) use `<name>_<dtype>x<count>` variable naming convention — e.g. `sum_f32x4`, `a_f64x2`, `query_f64x8`.
+- SVE uses `<name>_<dtype>x` with no count, since VL is runtime — e.g. `a_f32x`, `accumulator_f64x`.
+- RVV uses `<name>_<dtype>m<lmul>` for the LMUL register-group multiplier — e.g. `a_f32m1`, `sum_f64m2`.
+
+For the `<name>` part, prefer full words over abbreviations: `accumulator` instead of `acc`, `sum` instead of `s`, `low` & `high` instead of `lo` & `hi`.
+Regardless of the intrinsic name used to produce a value, the variable name should reflect its relation to surrounding code.
+
+> A good example is naming upcasted register halves.
+> With `svunpklo` & `svunpkhi` in SVE, `vget_low` & `vget_high` in NEON, or `_mm256_extractf128` in x86, the values are contiguous halves of the register — so we call them `low` and `high`:
+>
+> ```c
+> svfloat32_t values_low_f32x  = svreinterpret_f32_u32(svlsl_n_u32_x(p, svunpklo_u32(raw), 16));
+> svfloat32_t values_high_f32x = svreinterpret_f32_u32(svlsl_n_u32_x(p, svunpkhi_u32(raw), 16));
+> ```
+>
+> But `svcvt` & `svcvtlt` in SVE select interleaved even/odd elements, not contiguous halves.
+> Using `low` & `high` here would mislead reviewers into assuming a different control flow.
+> So we compensate the non-expressive intrinsic name with a more accurate variable name:
+>
+> ```c
+> svfloat32_t values_even_f32x = svcvt_f32_f16_x(pred_even_b32x, values_f16x);   // elements 0,2,4,...
+> svfloat32_t values_odd_f32x  = svcvtlt_f32_f16_x(pred_odd_b32x, values_f16x);  // elements 1,3,5,...
+> ```
+
+For the `<dtype>` part, values like `u8`, `bf16`, `f64c`, `i4`, and `e3m2` are used — except where the type doesn't matter, such as predicate masks, loads, and stores.
+Those use `b32` or `b8`, reflecting the number of bits in each mask element.
+
+---
+
+For scalar variables, similar preferences for cleaner and longer variable names apply:
+
+- Loop variables use `i` for simple loops; `row_tile_index`, `column_tile_index`, `depth_step` for nested tile loops.
+- Matrix / GEMM dimensions use `rows`, `columns`, `depth` — never single-letter `m`, `n`, `k`.
+- Tile terminology is descriptive: `tile_dimension`, `row_in_tile`, `column_within_tile`.
+- Element counts are explicit about what's counted: `count_scalars`, `count_pairs`.
+- Strides explicitly mention the units: `a_stride_in_bytes`, `a_stride_elements = a_stride_in_bytes / sizeof(nk_f16_t)`.
+
+### Intrinsic Style
+
+Prefer explicit named intrinsics over implicit syntax or manual bit manipulation.
+Power VSX uses `vec_xl()`, `vec_xst()` — never implicit Altivec vector operators.
+x86 AVX-512 uses `_mm512_mask_*` K-mask intrinsics — never manual bitwise ops on `__mmask16`.
+When hardware has no intrinsic, wrap raw assembly in an `NK_INTERNAL` helper and document the instruction mnemonic:
+
+```c
+NK_INTERNAL void nk_sme_start_streaming_(void) {
+    __asm__ __volatile__("smstart sm" ::: "memory");
+}
+```
+
+### Function Naming
+
+Public API: `nk_<operation>_<dtype>_<isa>` — e.g. `nk_dot_f32_sve`, `nk_angular_f16_sme`.
+Internal helpers use a trailing underscore: `nk_reduce_add_f32x16_skylake_`.
+Conversions: `nk_<src>x<count>_to_<dst>x<count>_<isa>_` — e.g. `nk_e4m3x8_to_f32x8_haswell_`.

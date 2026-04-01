@@ -97,9 +97,12 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
 
     // Single horizontal reduction after the loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, max_vector_length));
-    nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(a_sq_f32m2, zero_f32m1, max_vector_length));
-    nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(b_sq_f32m2, zero_f32m1, max_vector_length));
+    nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, max_vector_length));
+    nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m2_f32m1(a_sq_f32m2, zero_f32m1, max_vector_length));
+    nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m2_f32m1(b_sq_f32m2, zero_f32m1, max_vector_length));
 
     // Normalize: 1 − dot / sqrt(‖a‖² × ‖b‖²)
     if (a_sq == 0.0f && b_sq == 0.0f) { *result = 0.0f; }

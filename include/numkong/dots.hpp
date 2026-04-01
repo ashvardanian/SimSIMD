@@ -160,7 +160,7 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_
 /**
  *  @brief Symmetric dot products: C = A × Aᵀ where C[i,j] = ⟨A[i], A[j]⟩
  *  @param[in] a Matrix A [n x k] (n vectors of dimension k)
- *  @param[in] n_vectors Number of vectors (n)
+ *  @param[in] vectors_count Number of vectors (n)
  *  @param[in] depth Dimension of each vector (k)
  *  @param[in] a_stride_in_bytes Stride between vectors in A
  *  @param[out] c Output matrix C [n x n]
@@ -172,59 +172,59 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_
  */
 template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+void dots_symmetric(in_type_ const *a, std::size_t vectors_count, std::size_t depth, std::size_t a_stride_in_bytes,
                     result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                     std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
-    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
+    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = vectors_count;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
-        nk_dots_symmetric_f64(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f64(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, f32_t> && dispatch)
-        nk_dots_symmetric_f32(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f32(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, f16_t> && dispatch)
-        nk_dots_symmetric_f16(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_f16(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                               row_count);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && dispatch)
-        nk_dots_symmetric_bf16(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                               row_count);
+        nk_dots_symmetric_bf16(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                               row_start, row_count);
     else if constexpr (std::is_same_v<in_type_, i8_t> && dispatch)
-        nk_dots_symmetric_i8(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_i8(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                              row_count);
     else if constexpr (std::is_same_v<in_type_, u8_t> && dispatch)
-        nk_dots_symmetric_u8(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_u8(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                              row_count);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && dispatch)
-        nk_dots_symmetric_e4m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                               row_count);
+        nk_dots_symmetric_e4m3(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                               row_start, row_count);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
-        nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                               row_count);
+        nk_dots_symmetric_e5m2(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                               row_start, row_count);
     else if constexpr (std::is_same_v<in_type_, e2m3_t> && dispatch)
-        nk_dots_symmetric_e2m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                               row_count);
+        nk_dots_symmetric_e2m3(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                               row_start, row_count);
     else if constexpr (std::is_same_v<in_type_, e3m2_t> && dispatch)
-        nk_dots_symmetric_e3m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                               row_count);
+        nk_dots_symmetric_e3m2(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                               row_start, row_count);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
-        nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_u4(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                              row_count);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
-        nk_dots_symmetric_i4(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+        nk_dots_symmetric_i4(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                              row_count);
     else {
         std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
-        std::size_t row_end = row_start + row_count < n_vectors ? row_start + row_count : n_vectors;
+        std::size_t row_end = row_start + row_count < vectors_count ? row_start + row_count : vectors_count;
 
         for (std::size_t i = row_start; i < row_end; i++) {
             in_type_ const *a_i = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
             result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
-            for (std::size_t j = 0; j < n_vectors; j++) {
+            for (std::size_t j = 0; j < vectors_count; j++) {
                 in_type_ const *a_j = reinterpret_cast<in_type_ const *>(a_bytes + j * a_stride_in_bytes);
                 result_type_ sum {};
                 for (std::size_t l = 0; l < depth_values; l++) sum = fma(a_i[l], a_j[l], sum);
@@ -236,11 +236,11 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
 
 /**
  *  @brief Symmetric Hamming distance matrix: C[i,j] = hamming(A[i], A[j])
- *  @param[in] a Input matrix (n_vectors x depth)
- *  @param[in] n_vectors Number of vectors
+ *  @param[in] a Input matrix (vectors_count x depth)
+ *  @param[in] vectors_count Number of vectors
  *  @param[in] depth Number of dimensions per vector
  *  @param[in] a_stride_in_bytes Row stride in bytes
- *  @param[out] c Output matrix (n_vectors x n_vectors)
+ *  @param[out] c Output matrix (vectors_count x vectors_count)
  *  @param[in] c_stride_in_bytes Output row stride in bytes
  *  @param[in] row_start Starting row index (default 0)
  *  @param[in] row_count Number of rows to compute (default all)
@@ -254,28 +254,28 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
  */
 template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::hamming_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+void hammings_symmetric(in_type_ const *a, std::size_t vectors_count, std::size_t depth, std::size_t a_stride_in_bytes,
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                         std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
-    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
+    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = vectors_count;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
 
     if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
-        nk_hammings_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                                 row_count);
+        nk_hammings_symmetric_u1(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                                 row_start, row_count);
     else {
         using raw_t = typename in_type_::raw_t;
         std::size_t depth_bytes = divide_round_up(depth, 8);
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
-        std::size_t row_end = row_start + row_count < n_vectors ? row_start + row_count : n_vectors;
+        std::size_t row_end = row_start + row_count < vectors_count ? row_start + row_count : vectors_count;
 
         for (std::size_t i = row_start; i < row_end; i++) {
             raw_t const *a_i = reinterpret_cast<raw_t const *>(a_bytes + i * a_stride_in_bytes);
             result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
 
-            for (std::size_t j = 0; j < n_vectors; j++) {
+            for (std::size_t j = 0; j < vectors_count; j++) {
                 raw_t const *a_j = reinterpret_cast<raw_t const *>(a_bytes + j * a_stride_in_bytes);
                 typename result_type_::raw_t distance = 0;
                 for (std::size_t b = 0; b < depth_bytes; b++) {
@@ -362,28 +362,28 @@ void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
  */
 template <numeric_dtype in_type_, numeric_dtype result_type_ = typename in_type_::jaccard_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+void jaccards_symmetric(in_type_ const *a, std::size_t vectors_count, std::size_t depth, std::size_t a_stride_in_bytes,
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                         std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
-    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
+    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = vectors_count;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
 
     if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
-        nk_jaccards_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
-                                 row_count);
+        nk_jaccards_symmetric_u1(&a->raw_, vectors_count, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes,
+                                 row_start, row_count);
     else {
         using raw_t = typename in_type_::raw_t;
         std::size_t depth_bytes = divide_round_up(depth, 8);
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
-        std::size_t row_end = row_start + row_count < n_vectors ? row_start + row_count : n_vectors;
+        std::size_t row_end = row_start + row_count < vectors_count ? row_start + row_count : vectors_count;
 
         for (std::size_t i = row_start; i < row_end; i++) {
             raw_t const *a_i = reinterpret_cast<raw_t const *>(a_bytes + i * a_stride_in_bytes);
             result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
 
-            for (std::size_t j = 0; j < n_vectors; j++) {
+            for (std::size_t j = 0; j < vectors_count; j++) {
                 raw_t const *a_j = reinterpret_cast<raw_t const *>(a_bytes + j * a_stride_in_bytes);
                 unsigned intersection = 0, union_ = 0;
                 for (std::size_t b = 0; b < depth_bytes; b++) {

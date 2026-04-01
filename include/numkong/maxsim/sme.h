@@ -468,20 +468,20 @@ NK_PUBLIC void nk_maxsim_packed_bf16_sme(                             //
     nk_maxsim_packed_bf16_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
 }
 
-NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sme(nk_size_t n, nk_size_t k) { //
-    return nk_dots_packed_size_bf16_sme(n, k);
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sme(nk_size_t columns, nk_size_t depth) { //
+    return nk_dots_packed_size_bf16_sme(columns, depth);
 }
 
-NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_sme(nk_size_t n, nk_size_t k) { //
-    return nk_dots_packed_size_f16_sme(n, k);
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_sme(nk_size_t columns, nk_size_t depth) { //
+    return nk_dots_packed_size_f16_sme(columns, depth);
 }
 
-NK_PUBLIC void nk_maxsim_pack_bf16_sme(                                                   //
-    nk_bf16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) { //
+NK_PUBLIC void nk_maxsim_pack_bf16_sme(                                                                      //
+    nk_bf16_t const *vectors, nk_size_t columns, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) { //
 
     // Delegate tile interleaving and squared norms computation to dots pack.
     // Both headers are 64 bytes with identical layout for the first 6 fields.
-    nk_dots_pack_bf16_sme(vectors, n, k, stride, packed);
+    nk_dots_pack_bf16_sme(vectors, columns, depth, stride_in_bytes, packed);
 
     // Set maxsim-specific header fields (overlaps dots reserved area)
     nk_maxsim_sme_packed_header_t *header = (nk_maxsim_sme_packed_header_t *)packed;
@@ -491,18 +491,18 @@ NK_PUBLIC void nk_maxsim_pack_bf16_sme(                                         
 
     // Convert squared norms → inverse norms in-place
     nk_f32_t *norms = (nk_f32_t *)((char *)packed + header->norms_offset);
-    for (nk_size_t i = 0; i < n; i++) {
+    for (nk_size_t i = 0; i < columns; i++) {
         nk_f32_t norm_sq = norms[i];
         norms[i] = (norm_sq > 0.0f) ? (nk_f32_t)nk_f64_rsqrt_neon((nk_f64_t)norm_sq) : 0.0f;
     }
 }
 
-NK_PUBLIC void nk_maxsim_pack_f16_sme(                                                   //
-    nk_f16_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) { //
+NK_PUBLIC void nk_maxsim_pack_f16_sme(                                                                      //
+    nk_f16_t const *vectors, nk_size_t columns, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) { //
 
     // Delegate tile interleaving and squared norms computation to dots pack.
     // Both headers are 64 bytes with identical layout for the first 6 fields.
-    nk_dots_pack_f16_sme(vectors, n, k, stride, packed);
+    nk_dots_pack_f16_sme(vectors, columns, depth, stride_in_bytes, packed);
 
     // Set maxsim-specific header fields (overlaps dots reserved area)
     nk_maxsim_sme_packed_header_t *header = (nk_maxsim_sme_packed_header_t *)packed;
@@ -512,7 +512,7 @@ NK_PUBLIC void nk_maxsim_pack_f16_sme(                                          
 
     // Convert squared norms → inverse norms in-place
     nk_f32_t *norms = (nk_f32_t *)((char *)packed + header->norms_offset);
-    for (nk_size_t i = 0; i < n; i++) {
+    for (nk_size_t i = 0; i < columns; i++) {
         nk_f32_t norm_sq = norms[i];
         norms[i] = (norm_sq > 0.0f) ? (nk_f32_t)nk_f64_rsqrt_neon((nk_f64_t)norm_sq) : 0.0f;
     }
@@ -527,45 +527,45 @@ NK_PUBLIC void nk_maxsim_pack_f16_sme(                                          
  *  Refinement: tile-wide interleaved f64 dot products for the winning (query, document) pairs.
  *  Angular distance: 1 - dot / sqrt(||q||^2 * ||d||^2), accumulated with f64.
  */
-NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sme(nk_size_t n, nk_size_t k) { //
-    nk_size_t const expansion = 4;                                            // i8->i32 SMOPA
-    nk_size_t const tile_dimension = nk_sme_cntw_();                          // 16 for SVL=512
-    nk_size_t const vector_elements = nk_sme_cntb_();                         // 64 for SVL=512
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
-    nk_size_t const original_stride = nk_size_round_up_to_multiple_(k * sizeof(nk_f32_t), 64);
+NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sme(nk_size_t columns, nk_size_t depth) { //
+    nk_size_t const expansion = 4;                                                      // i8->i32 SMOPA
+    nk_size_t const tile_dimension = nk_sme_cntw_();                                    // 16 for SVL=512
+    nk_size_t const vector_elements = nk_sme_cntb_();                                   // 64 for SVL=512
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
+    nk_size_t const original_stride = nk_size_round_up_to_multiple_(depth * sizeof(nk_f32_t), 64);
 
     nk_size_t size = sizeof(nk_maxsim_sme_packed_header_t);         // 64 B header
     size += column_tile_count * depth_step_count * vector_elements; // i8 tiles
-    size += n * sizeof(nk_f32_t);                                   // f32 squared norms
-    size += n * original_stride;                                    // f32 originals
+    size += columns * sizeof(nk_f32_t);                             // f32 squared norms
+    size += columns * original_stride;                              // f32 originals
     return size;
 }
 
-NK_PUBLIC void nk_maxsim_pack_f32_sme(                                                   //
-    nk_f32_t const *vectors, nk_size_t n, nk_size_t k, nk_size_t stride, void *packed) { //
+NK_PUBLIC void nk_maxsim_pack_f32_sme(                                                                      //
+    nk_f32_t const *vectors, nk_size_t columns, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) { //
 
     nk_size_t const expansion = 4;                    // i8->i32 SMOPA
     nk_size_t const tile_dimension = nk_sme_cntw_();  // 16 for SVL=512
     nk_size_t const vector_elements = nk_sme_cntb_(); // 64 for SVL=512
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
 
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n, tile_dimension);
-    nk_size_t const depth_step_count = nk_size_divide_round_up_(k, expansion);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
+    nk_size_t const depth_step_count = nk_size_divide_round_up_(depth, expansion);
     nk_size_t const total_vectors = column_tile_count * depth_step_count;
-    nk_size_t const original_stride = nk_size_round_up_to_multiple_(k * sizeof(nk_f32_t), 64);
+    nk_size_t const original_stride = nk_size_round_up_to_multiple_(depth * sizeof(nk_f32_t), 64);
 
     // Set up header
     nk_maxsim_sme_packed_header_t *header = (nk_maxsim_sme_packed_header_t *)packed;
     header->column_tile_count = (nk_u32_t)column_tile_count;
     header->depth_tile_count = (nk_u32_t)depth_step_count;
-    header->columns = (nk_u32_t)n;
-    header->depth = (nk_u32_t)k;
+    header->columns = (nk_u32_t)columns;
+    header->depth = (nk_u32_t)depth;
     header->svl_bytes = (nk_u32_t)(tile_dimension * sizeof(nk_f32_t));
 
     nk_size_t const tiles_size = total_vectors * vector_elements;
     nk_size_t const norms_offset = sizeof(nk_maxsim_sme_packed_header_t) + tiles_size;
-    nk_size_t const originals_offset = norms_offset + n * sizeof(nk_f32_t);
+    nk_size_t const originals_offset = norms_offset + columns * sizeof(nk_f32_t);
 
     header->norms_offset = (nk_u32_t)norms_offset;
     header->originals_offset = (nk_u32_t)originals_offset;
@@ -580,13 +580,13 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
     for (nk_size_t i = 0; i < tiles_size; i++) tiles[i] = 0;
 
     // For each vector: quantize metadata, quantize+interleave into tiles, copy originals
-    for (nk_size_t vector_index = 0; vector_index < n; vector_index++) {
-        nk_f32_t const *source = (nk_f32_t const *)((char const *)vectors + vector_index * stride);
+    for (nk_size_t vector_index = 0; vector_index < columns; vector_index++) {
+        nk_f32_t const *source = (nk_f32_t const *)((char const *)vectors + vector_index * stride_in_bytes);
 
         // Pass 1: Compute absmax and norm_sq simultaneously
         nk_f32_t absmax = 0.0f;
         nk_f32_t norm_sq = 0.0f;
-        for (nk_size_t dim = 0; dim < k; dim++) {
+        for (nk_size_t dim = 0; dim < depth; dim++) {
             nk_f32_t val = source[dim];
             nk_f32_t abs_val = nk_f32_abs_(val);
             if (abs_val > absmax) absmax = abs_val;
@@ -601,7 +601,7 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
         nk_size_t const column_tile = vector_index / tile_dimension;
         nk_size_t const column_in_tile = vector_index % tile_dimension;
 
-        for (nk_size_t dim = 0; dim < k; dim++) {
+        for (nk_size_t dim = 0; dim < depth; dim++) {
             nk_size_t const depth_step = dim / expansion;
             nk_size_t const sub_element = dim % expansion;
             nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
@@ -619,8 +619,8 @@ NK_PUBLIC void nk_maxsim_pack_f32_sme(                                          
 
         // Pass 3: Copy originals (64B-aligned stride, zero-pad tail)
         char *dest_original = originals + vector_index * original_stride;
-        nk_copy_bytes_(dest_original, source, k * sizeof(nk_f32_t));
-        for (nk_size_t byte = k * sizeof(nk_f32_t); byte < original_stride; byte++) dest_original[byte] = 0;
+        nk_copy_bytes_(dest_original, source, depth * sizeof(nk_f32_t));
+        for (nk_size_t byte = depth * sizeof(nk_f32_t); byte < original_stride; byte++) dest_original[byte] = 0;
     }
 }
 

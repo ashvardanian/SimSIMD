@@ -317,7 +317,8 @@ NK_PUBLIC void nk_jsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     // JSD = sqrt((sum_a + sum_b) * ln(2) / 2)
     nk_f64_t sum = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m4_f64m1(
-                       __riscv_vfadd_vv_f64m4(sum_a_f64m4, sum_b_f64m4, max_vector_length), zero_f64m1, max_vector_length)) *
+                       __riscv_vfadd_vv_f64m4(sum_a_f64m4, sum_b_f64m4, max_vector_length), zero_f64m1,
+                       max_vector_length)) *
                    0.6931471805599453 / 2;
     *result = sum > 0 ? nk_f64_sqrt_rvv(sum) : 0;
 }
@@ -353,7 +354,8 @@ NK_PUBLIC void nk_jsd_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
+    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(
+                       __riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
                    0.693147181f / 2;
     *result = sum > 0 ? nk_f32_sqrt_rvv(sum) : 0;
 }
@@ -389,7 +391,8 @@ NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
+    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(
+                       __riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
                    0.693147181f / 2;
     *result = sum > 0 ? nk_f32_sqrt_rvv(sum) : 0;
 }

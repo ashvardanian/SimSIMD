@@ -88,13 +88,13 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f32_smef64(nk_size_t columns, nk_size_t 
     return size;
 }
 
-NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_size_t depth, nk_size_t b_stride,
-                                       void *b_packed) {
+NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_size_t depth,
+                                       nk_size_t b_stride_in_bytes, void *b_packed) {
 
     nk_size_t const tile_dimension = nk_sme_cntd_();                  // rows per `ZA64` tile (8 for SVL=512)
     nk_size_t const depth_tile_size = nk_sme_cntw_();                 // `f32` depth elements per tile (16 for SVL=512)
     nk_size_t const tile_elements = tile_dimension * depth_tile_size; // 128
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_f32_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_f32_t);
 
     nk_size_t const column_tile_count = nk_size_divide_round_up_(columns, tile_dimension);
     nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth, depth_tile_size);
@@ -148,7 +148,7 @@ NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f64_t *norms_ptr = (nk_f64_t *)((char *)b_packed + header->norms_offset);
     for (nk_size_t col = 0; col < columns; col++) {
-        nk_f32_t const *col_data = (nk_f32_t const *)((char const *)b + col * b_stride);
+        nk_f32_t const *col_data = (nk_f32_t const *)((char const *)b + col * b_stride_in_bytes);
         norms_ptr[col] = nk_dots_reduce_sumsq_f32_(col_data, depth);
     }
 }
@@ -393,10 +393,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
 }
 
 NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
-                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride) {
+                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                         nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_f32_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f64_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
 
     nk_dots_packed_f32_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
@@ -408,7 +409,7 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
  *  per column tile. Eliminates all scalar B-packing loops.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64_streaming_(
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const tile_dimension = svcntd();              // 8 for SVL=512
@@ -420,15 +421,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
     NK_ALIGN64 nk_f64_t a_buffer[8][8];
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
     nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth, depth_tile_size);
 
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_clamped = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                     : (row_end - row_tile_start);
-        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= n_vectors) ? rows_clamped
-                                                                                   : (n_vectors - row_tile_start);
+        nk_size_t const rows_actual = (row_tile_start + rows_clamped <= vectors_count)
+                                          ? rows_clamped
+                                          : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b64x = svwhilelt_b64_u64(0u, rows_actual);
 
         // Upper triangle: start from this row tile's column
@@ -475,7 +477,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -495,7 +497,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -515,7 +517,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -535,7 +537,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 3) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -555,7 +557,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 4) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -575,7 +577,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 5) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -595,7 +597,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = (column_tile_index + 6) * tile_dimension + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -617,9 +619,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
             svbool_t const predicate_tile_b64x = svwhilelt_b64_u64(0u, tile_dimension);
             // The 7th tile (index 6) may be partial when it's the last column tile
             nk_size_t const last_fast_col_start = (column_tile_index + 6) * tile_dimension;
-            nk_size_t const last_fast_cols = (last_fast_col_start + tile_dimension <= n_vectors)
+            nk_size_t const last_fast_cols = (last_fast_col_start + tile_dimension <= vectors_count)
                                                  ? tile_dimension
-                                                 : (n_vectors - last_fast_col_start);
+                                                 : (vectors_count - last_fast_col_start);
             svbool_t const last_tile_pred_b64x = svwhilelt_b64_u64(0u, last_fast_cols);
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
@@ -651,9 +653,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
         // Remainder: 1 column tile at a time
         for (; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                     ? tile_dimension
-                                                    : (n_vectors - column_tile_start);
+                                                    : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b64x = svwhilelt_b64_u64(0u, columns_remaining);
 
             svzero_mask_za(nk_sme_zero_za64_tile_1_);
@@ -693,7 +695,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t column = 0; column < tile_dimension; column++) {
                         nk_size_t const column_abs = column_tile_start + column;
-                        if (column_abs < n_vectors) {
+                        if (column_abs < vectors_count) {
                             svfloat64_t widened_f64x = svcvt_f64_f32_x(
                                 batch_predicate_b64x,
                                 svreinterpret_f32_u64(svld1uw_u64(
@@ -723,14 +725,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                            nk_size_t stride_in_bytes, nk_f64_t *result,
+                                            nk_size_t result_stride_in_bytes, nk_size_t row_start,
+                                            nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
-    nk_dots_symmetric_f32_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_dots_symmetric_f32_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
 }
 
 #pragma endregion // Single Precision Floats
@@ -807,7 +810,7 @@ NK_PUBLIC void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, n
 }
 
 __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64_streaming_(
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const tile_dimension = svcntd();
@@ -820,24 +823,25 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
     NK_ALIGN64 nk_f64_t a_buffer[8][8]; // save A columns before reusing ZA0 for B
 
     nk_size_t const row_end = row_start + row_count;
-    nk_size_t const column_tile_count = nk_size_divide_round_up_(n_vectors, tile_dimension);
+    nk_size_t const column_tile_count = nk_size_divide_round_up_(vectors_count, tile_dimension);
 
     // ZA0.D = staging (A then B), ZA1-3.D = merged Ozaki accumulators (i+j=0,1,2)
-    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < n_vectors;
+    for (nk_size_t row_tile_start = row_start; row_tile_start < row_end && row_tile_start < vectors_count;
          row_tile_start += tile_dimension) {
         nk_size_t const rows_remaining = (row_tile_start + tile_dimension <= row_end) ? tile_dimension
                                                                                       : (row_end - row_tile_start);
-        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= n_vectors) ? rows_remaining
-                                                                                      : (n_vectors - row_tile_start);
+        nk_size_t const rows_clamped = (row_tile_start + rows_remaining <= vectors_count)
+                                           ? rows_remaining
+                                           : (vectors_count - row_tile_start);
         svbool_t const row_predicate_b64x = svwhilelt_b64_u64(0u, rows_clamped);
 
         // Upper triangle: start from this row tile's column
         for (nk_size_t column_tile_index = row_tile_start / tile_dimension; column_tile_index < column_tile_count;
              column_tile_index++) {
             nk_size_t const column_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const columns_remaining = (column_tile_start + tile_dimension <= vectors_count)
                                                     ? tile_dimension
-                                                    : (n_vectors - column_tile_start);
+                                                    : (vectors_count - column_tile_start);
             svbool_t const column_predicate_b64x = svwhilelt_b64_u64(0u, columns_remaining);
 
             // Zero ZA1-3 (3 merged Ozaki accumulators)
@@ -868,7 +872,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
                 svzero_mask_za(nk_sme_zero_za64_tile_0_);
                 for (nk_size_t column = 0; column < tile_dimension; column++) {
                     nk_size_t const column_abs = column_tile_start + column;
-                    if (column_abs < n_vectors)
+                    if (column_abs < vectors_count)
                         svld1_hor_za64(0, column, batch_predicate_b64x,
                                        vectors + column_abs * stride_elements + depth_batch_start);
                 }
@@ -929,14 +933,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                            nk_size_t stride_in_bytes, nk_f64_t *result,
+                                            nk_size_t result_stride_in_bytes, nk_size_t row_start,
+                                            nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
-    nk_dots_symmetric_f64_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_dots_symmetric_f64_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t depth) {
@@ -951,10 +956,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t 
     return size;
 }
 
-NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_size_t depth, nk_size_t b_stride,
-                                       void *b_packed) {
+NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_size_t depth,
+                                       nk_size_t b_stride_in_bytes, void *b_packed) {
 
-    nk_size_t const b_stride_elements = b_stride / sizeof(nk_f64_t);
+    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_f64_t);
 
     nk_size_t const tile_dimension = nk_sme_cntd_();
     nk_size_t const depth_tile_size = nk_sme_cntw_();
@@ -1012,7 +1017,7 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
     header->norms_offset = (nk_u32_t)(sizeof(nk_dots_sme_packed_header_t) + data_size);
     nk_f64_t *norms_ptr = (nk_f64_t *)((char *)b_packed + header->norms_offset);
     for (nk_size_t col = 0; col < columns; col++) {
-        nk_f64_t const *col_data = (nk_f64_t const *)((char const *)b + col * b_stride);
+        nk_f64_t const *col_data = (nk_f64_t const *)((char const *)b + col * b_stride_in_bytes);
         norms_ptr[col] = nk_dots_reduce_sumsq_f64_(col_data, depth);
     }
 }
@@ -1296,10 +1301,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_st
 }
 
 NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
-                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride) {
+                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                         nk_size_t c_stride_in_bytes) {
 
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_f64_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f64_t);
+    nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
 
     nk_dots_packed_f64_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }

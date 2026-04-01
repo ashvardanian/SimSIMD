@@ -293,8 +293,8 @@ NK_PUBLIC void nk_euclideans_packed_f16_sme(              //
                                                      c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_streaming_(        //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_streaming_(            //
+    nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -303,8 +303,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_strea
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_f16_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -327,19 +327,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_f16_sme_finalize_strea
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_f16_sme(                                        //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+NK_PUBLIC void nk_angulars_symmetric_f16_sme(                                                     //
+    nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_f16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                          row_start, row_count);
-    nk_angulars_symmetric_f16_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_angulars_symmetric_f16_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                       result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_streaming_(      //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_streaming_(          //
+    nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -348,8 +348,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_str
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_f16_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -372,14 +372,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f16_sme_finalize_str
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_f16_sme(                                      //
-    nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+NK_PUBLIC void nk_euclideans_symmetric_f16_sme(                                                   //
+    nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_f16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result, result_stride_elements,
                                          row_start, row_count);
-    nk_euclideans_symmetric_f16_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_euclideans_symmetric_f16_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                         result_stride_elements, row_start, row_count);
 }
 
@@ -453,8 +453,8 @@ NK_PUBLIC void nk_euclideans_packed_bf16_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_streaming_(        //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_streaming_(            //
+    nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -463,8 +463,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_bf16_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -487,19 +487,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_bf16_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_bf16_sme(                                        //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_bf16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_angulars_symmetric_bf16_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_angulars_symmetric_bf16_sme(                                                     //
+    nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_bf16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_bf16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_bf16_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_streaming_(      //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_streaming_(          //
+    nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -508,8 +508,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_st
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_bf16_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -532,14 +532,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_bf16_sme_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_bf16_sme(                                      //
-    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_bf16_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_euclideans_symmetric_bf16_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_euclideans_symmetric_bf16_sme(                                                   //
+    nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_bf16_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_bf16_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_bf16_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
@@ -613,8 +613,8 @@ NK_PUBLIC void nk_euclideans_packed_e4m3_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_streaming_(        //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_streaming_(            //
+    nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -623,8 +623,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e4m3_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -647,19 +647,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_e4m3_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_e4m3_sme(                                        //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e4m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e4m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_angulars_symmetric_e4m3_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_angulars_symmetric_e4m3_sme(                                                     //
+    nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e4m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e4m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_e4m3_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_streaming_(      //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_streaming_(          //
+    nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -668,8 +668,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_st
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e4m3_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -692,14 +692,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e4m3_sme_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_e4m3_sme(                                      //
-    nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e4m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e4m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_euclideans_symmetric_e4m3_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_euclideans_symmetric_e4m3_sme(                                                   //
+    nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e4m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e4m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_e4m3_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
@@ -773,8 +773,8 @@ NK_PUBLIC void nk_euclideans_packed_e5m2_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_streaming_(        //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_streaming_(            //
+    nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -783,8 +783,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e5m2_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -807,19 +807,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_e5m2_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_e5m2_sme(                                        //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e5m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e5m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_angulars_symmetric_e5m2_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_angulars_symmetric_e5m2_sme(                                                     //
+    nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e5m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e5m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_e5m2_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_streaming_(      //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_streaming_(          //
+    nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -828,8 +828,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_st
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e5m2_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -852,14 +852,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e5m2_sme_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_e5m2_sme(                                      //
-    nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e5m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e5m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_euclideans_symmetric_e5m2_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_euclideans_symmetric_e5m2_sme(                                                   //
+    nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e5m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e5m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_e5m2_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
@@ -933,8 +933,8 @@ NK_PUBLIC void nk_euclideans_packed_e2m3_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_streaming_(        //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_streaming_(            //
+    nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -943,8 +943,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e2m3_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -967,19 +967,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_e2m3_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_e2m3_sme(                                        //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e2m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e2m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_angulars_symmetric_e2m3_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_angulars_symmetric_e2m3_sme(                                                     //
+    nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e2m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e2m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_e2m3_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_streaming_(      //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_streaming_(          //
+    nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -988,8 +988,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_st
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e2m3_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1012,14 +1012,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e2m3_sme_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_e2m3_sme(                                      //
-    nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e2m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e2m3_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_euclideans_symmetric_e2m3_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_euclideans_symmetric_e2m3_sme(                                                   //
+    nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e2m3_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e2m3_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_e2m3_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
@@ -1093,8 +1093,8 @@ NK_PUBLIC void nk_euclideans_packed_e3m2_sme(              //
                                                       c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_streaming_(        //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_streaming_(            //
+    nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1103,8 +1103,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e3m2_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1127,19 +1127,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_e3m2_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_e3m2_sme(                                        //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e3m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e3m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_angulars_symmetric_e3m2_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_angulars_symmetric_e3m2_sme(                                                     //
+    nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e3m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e3m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_e3m2_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_streaming_(      //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_streaming_(          //
+    nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1148,8 +1148,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_st
     }
     // Phase 2: column-first post-processing
     nk_f32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_e3m2_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1172,14 +1172,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_e3m2_sme_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_e3m2_sme(                                      //
-    nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_e3m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e3m2_sme_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                          row_start, row_count);
-    nk_euclideans_symmetric_e3m2_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+NK_PUBLIC void nk_euclideans_symmetric_e3m2_sme(                                                   //
+    nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_e3m2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_e3m2_sme_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                          result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_e3m2_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
@@ -1258,8 +1258,8 @@ NK_PUBLIC void nk_euclideans_packed_i8_sme(              //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_streaming_(        //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_streaming_(            //
+    nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1268,8 +1268,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_stream
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_i8_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1295,19 +1295,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_i8_sme_finalize_stream
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_i8_sme(                                        //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_i8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_i8_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_i32_t *)result,
+NK_PUBLIC void nk_angulars_symmetric_i8_sme(                                                     //
+    nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_i8_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_i32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_angulars_symmetric_i8_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_angulars_symmetric_i8_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_streaming_(      //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_streaming_(          //
+    nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1316,8 +1316,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_i8_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1343,14 +1343,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i8_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_i8_sme(                                      //
-    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_i8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_i8_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_i32_t *)result,
+NK_PUBLIC void nk_euclideans_symmetric_i8_sme(                                                   //
+    nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_i8_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_i32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_euclideans_symmetric_i8_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_euclideans_symmetric_i8_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
@@ -1430,8 +1430,8 @@ NK_PUBLIC void nk_euclideans_packed_u8_sme(              //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_streaming_(        //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_streaming_(            //
+    nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1440,8 +1440,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_stream
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_u8_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1467,19 +1467,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_u8_sme_finalize_stream
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_u8_sme(                                        //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_u8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_u8_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_u32_t *)result,
+NK_PUBLIC void nk_angulars_symmetric_u8_sme(                                                     //
+    nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_u8_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_u32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_angulars_symmetric_u8_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_angulars_symmetric_u8_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_streaming_(      //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_streaming_(          //
+    nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1488,8 +1488,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_u8_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1515,14 +1515,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u8_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_u8_sme(                                      //
-    nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_u8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_u8_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_u32_t *)result,
+NK_PUBLIC void nk_euclideans_symmetric_u8_sme(                                                   //
+    nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u8_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_u8_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_u32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_euclideans_symmetric_u8_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_euclideans_symmetric_u8_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
@@ -1602,8 +1602,8 @@ NK_PUBLIC void nk_euclideans_packed_i4_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_streaming_(          //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_streaming_(              //
+    nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1612,8 +1612,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_stream
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_i4_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1639,19 +1639,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_i4_sme_finalize_stream
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_i4_sme(                                          //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_i4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_i4_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_i32_t *)result,
+NK_PUBLIC void nk_angulars_symmetric_i4_sme(                                                       //
+    nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_i4_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_i32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_angulars_symmetric_i4_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_angulars_symmetric_i4_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_streaming_(        //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_streaming_(            //
+    nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1660,8 +1660,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_i4_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1687,14 +1687,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_i4_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_i4_sme(                                        //
-    nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_i4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_i4_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_i32_t *)result,
+NK_PUBLIC void nk_euclideans_symmetric_i4_sme(                                                     //
+    nk_i4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_i4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_i4_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_i32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_euclideans_symmetric_i4_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_euclideans_symmetric_i4_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 
@@ -1774,8 +1774,8 @@ NK_PUBLIC void nk_euclideans_packed_u4_sme(                //
                                                     c_stride_elements);
 }
 
-__arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_streaming_(          //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_streaming_(              //
+    nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1784,8 +1784,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_stream
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_u4_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1811,19 +1811,19 @@ __arm_locally_streaming static void nk_angulars_symmetric_u4_sme_finalize_stream
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_u4_sme(                                          //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_u4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_u4_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_u32_t *)result,
+NK_PUBLIC void nk_angulars_symmetric_u4_sme(                                                       //
+    nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_u4_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_u32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_angulars_symmetric_u4_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_angulars_symmetric_u4_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                      result_stride_elements, row_start, row_count);
 }
 
-__arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_streaming_(        //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_streaming_(            //
+    nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f32_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal (store as u32 in f32 slot)
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1832,8 +1832,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_stre
     }
     // Phase 2: column-first post-processing
     nk_u32_t norms_cache[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col)
             norms_cache[col - chunk_start] = nk_dots_reduce_sumsq_u4_ssve_(vectors + col * stride_elements, depth);
         for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -1859,14 +1859,14 @@ __arm_locally_streaming static void nk_euclideans_symmetric_u4_sme_finalize_stre
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_u4_sme(                                        //
-    nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_u4x2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_u4_sme_streaming_(vectors, n_vectors, depth, stride_elements, (nk_u32_t *)result,
+NK_PUBLIC void nk_euclideans_symmetric_u4_sme(                                                     //
+    nk_u4x2_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_u4x2_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_dots_symmetric_u4_sme_streaming_(vectors, vectors_count, depth, stride_elements, (nk_u32_t *)result,
                                         result_stride_elements, row_start, row_count);
-    nk_euclideans_symmetric_u4_sme_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_euclideans_symmetric_u4_sme_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                        result_stride_elements, row_start, row_count);
 }
 

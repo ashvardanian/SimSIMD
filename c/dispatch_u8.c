@@ -233,9 +233,13 @@ void nk_dispatch_u8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_u8_powervsx, *c = nk_cap_powervsx_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_u8_powervsx, *c = nk_cap_powervsx_k; return;
         case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_u8_powervsx, *c = nk_cap_powervsx_k; return;
-        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_u8_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_u8_powervsx, *c = nk_cap_powervsx_k;
+            return;
         case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_u8_powervsx, *c = nk_cap_powervsx_k; return;
-        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_u8_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_u8_powervsx, *c = nk_cap_powervsx_k;
+            return;
         default: break;
         }
 #endif
@@ -246,14 +250,24 @@ void nk_dispatch_u8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_u8_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_u8_loongsonasx, *c = nk_cap_loongsonasx_k; return;
+        case nk_kernel_angulars_packed_k:
+            *m = (m_t)&nk_angulars_packed_u8_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_u8_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
+        case nk_kernel_euclideans_packed_k:
+            *m = (m_t)&nk_euclideans_packed_u8_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_u8_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
         default: break;
         }
 #endif

@@ -345,9 +345,10 @@ NK_INTERNAL void nk_reduce_moments_e3m2_alder_contiguous_( //
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
         __m256i low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_byte_first_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
-                                                    upper_select_u8x32);
-        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+                                                     _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
+                                                     upper_select_u8x32);
+        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32),
+                                                    ones_u8x32);
         __m256i unsigned_low_i16x16 = _mm256_unpacklo_epi8(low_bytes_u8x32, high_bytes_u8x32);
         __m256i unsigned_high_i16x16 = _mm256_unpackhi_epi8(low_bytes_u8x32, high_bytes_u8x32);
         // Sign handling: extract sign bit, widen to i16, create +1/-1, apply via VPSIGNW
@@ -376,9 +377,10 @@ NK_INTERNAL void nk_reduce_moments_e3m2_alder_contiguous_( //
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
         __m256i low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_byte_first_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
-                                                    upper_select_u8x32);
-        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+                                                     _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
+                                                     upper_select_u8x32);
+        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32),
+                                                    ones_u8x32);
         __m256i unsigned_low_i16x16 = _mm256_unpacklo_epi8(low_bytes_u8x32, high_bytes_u8x32);
         __m256i unsigned_high_i16x16 = _mm256_unpackhi_epi8(low_bytes_u8x32, high_bytes_u8x32);
         __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(data_u8x32, sign_mask_u8x32), sign_mask_u8x32);
@@ -430,9 +432,10 @@ NK_INTERNAL void nk_reduce_moments_e3m2_alder_strided_(                //
         __m256i upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(magnitude_u8x32, half_select_u8x32),
                                                        half_select_u8x32);
         __m256i low_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_byte_first_u8x32, shuffle_idx_u8x32),
-                                                    _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
-                                                    upper_select_u8x32);
-        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+                                                     _mm256_shuffle_epi8(lut_low_byte_second_u8x32, shuffle_idx_u8x32),
+                                                     upper_select_u8x32);
+        __m256i high_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(magnitude_u8x32, high_threshold_u8x32),
+                                                    ones_u8x32);
         __m256i unsigned_low_i16x16 = _mm256_unpacklo_epi8(low_bytes_u8x32, high_bytes_u8x32);
         __m256i unsigned_high_i16x16 = _mm256_unpackhi_epi8(low_bytes_u8x32, high_bytes_u8x32);
         __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(data_u8x32, sign_mask_u8x32), sign_mask_u8x32);

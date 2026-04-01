@@ -165,8 +165,8 @@ NK_PUBLIC void nk_euclideans_packed_f32_smef64(           //
 
 #pragma region Single Precision Symmetric Angular
 
-__arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_streaming_(     //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_streaming_(         //
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -176,8 +176,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_st
     }
     // Phase 2: column-chunked post-processing
     nk_f64_t column_norms[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col) {
             nk_f32_t const *col_vector = vectors + col * stride_elements;
             column_norms[col - chunk_start] = nk_dots_reduce_sumsq_f32_ssve_(col_vector, depth);
@@ -202,23 +202,23 @@ __arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_f32_smef64(                                     //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_angulars_symmetric_f32_smef64(                                                  //
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f64_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
 
-    nk_dots_symmetric_f32_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
-    nk_angulars_symmetric_f32_smef64_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_dots_symmetric_f32_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_f32_smef64_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma region Single Precision Symmetric Euclidean
 
-__arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_streaming_(   //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_streaming_(       //
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -228,8 +228,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_
     }
     // Phase 2: column-chunked post-processing
     nk_f64_t column_norms[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col) {
             nk_f32_t const *col_vector = vectors + col * stride_elements;
             column_norms[col - chunk_start] = nk_dots_reduce_sumsq_f32_ssve_(col_vector, depth);
@@ -254,16 +254,16 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_f32_smef64(                                   //
-    nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_euclideans_symmetric_f32_smef64(                                                //
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f64_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
 
-    nk_dots_symmetric_f32_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
-    nk_euclideans_symmetric_f32_smef64_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_dots_symmetric_f32_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_f32_smef64_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                            result_stride_elements, row_start, row_count);
 }
 
@@ -349,8 +349,8 @@ NK_PUBLIC void nk_euclideans_packed_f64_smef64(           //
 
 #pragma region Double Precision Symmetric Angular
 
-__arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_streaming_(     //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_streaming_(         //
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -360,8 +360,8 @@ __arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_st
     }
     // Phase 2: column-chunked post-processing
     nk_f64_t column_norms[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col) {
             nk_f64_t const *col_vector = vectors + col * stride_elements;
             column_norms[col - chunk_start] = nk_dots_reduce_sumsq_f64_ssve_(col_vector, depth);
@@ -386,23 +386,23 @@ __arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_st
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_angulars_symmetric_f64_smef64(                                     //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_angulars_symmetric_f64_smef64(                                                  //
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f64_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
 
-    nk_dots_symmetric_f64_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
-    nk_angulars_symmetric_f64_smef64_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_dots_symmetric_f64_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
+    nk_angulars_symmetric_f64_smef64_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                          result_stride_elements, row_start, row_count);
 }
 
 #pragma region Double Precision Symmetric Euclidean
 
-__arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_streaming_(   //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, //
+__arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_streaming_(       //
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
     nk_f64_t *result, nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
     // Phase 1: cache row norms on diagonal
     for (nk_size_t row_index = row_start; row_index < row_start + row_count; ++row_index) {
@@ -412,8 +412,8 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_
     }
     // Phase 2: column-chunked post-processing
     nk_f64_t column_norms[256];
-    for (nk_size_t chunk_start = 0; chunk_start < n_vectors; chunk_start += 256) {
-        nk_size_t chunk_end = chunk_start + 256 < n_vectors ? chunk_start + 256 : n_vectors;
+    for (nk_size_t chunk_start = 0; chunk_start < vectors_count; chunk_start += 256) {
+        nk_size_t chunk_end = chunk_start + 256 < vectors_count ? chunk_start + 256 : vectors_count;
         for (nk_size_t col = chunk_start; col < chunk_end; ++col) {
             nk_f64_t const *col_vector = vectors + col * stride_elements;
             column_norms[col - chunk_start] = nk_dots_reduce_sumsq_f64_ssve_(col_vector, depth);
@@ -438,16 +438,16 @@ __arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_
         result[row_index * result_stride_elements + row_index] = 0;
 }
 
-NK_PUBLIC void nk_euclideans_symmetric_f64_smef64(                                   //
-    nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, //
-    nk_f64_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+NK_PUBLIC void nk_euclideans_symmetric_f64_smef64(                                                //
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, //
+    nk_f64_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
 
-    nk_dots_symmetric_f64_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                            row_start, row_count);
-    nk_euclideans_symmetric_f64_smef64_finalize_streaming_(vectors, n_vectors, depth, stride_elements, result,
+    nk_dots_symmetric_f64_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
+                                            result_stride_elements, row_start, row_count);
+    nk_euclideans_symmetric_f64_smef64_finalize_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                                            result_stride_elements, row_start, row_count);
 }
 

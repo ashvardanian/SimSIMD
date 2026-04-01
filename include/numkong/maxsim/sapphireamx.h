@@ -108,7 +108,7 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sapphireamx(nk_size_t vector_count
 }
 
 NK_PUBLIC void nk_maxsim_pack_f32_sapphireamx( //
-    nk_f32_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride, void *packed) {
+    nk_f32_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) {
 
     nk_size_t column_tile_count = nk_size_divide_round_up_(vector_count, 16);
     nk_size_t depth_tile_count = nk_size_divide_round_up_(depth, 64);
@@ -363,7 +363,7 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_sapphireamx(nk_size_t vector_count
 }
 
 NK_PUBLIC void nk_maxsim_pack_f16_sapphireamx( //
-    nk_f16_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride, void *packed) {
+    nk_f16_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) {
 
     nk_size_t column_tile_count = nk_size_divide_round_up_(vector_count, 16);
     nk_size_t depth_tile_count = nk_size_divide_round_up_(depth, 64);
@@ -635,7 +635,7 @@ NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sapphireamx(nk_size_t vector_coun
 }
 
 NK_PUBLIC void nk_maxsim_pack_bf16_sapphireamx( //
-    nk_bf16_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride, void *packed) {
+    nk_bf16_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) {
 
     nk_size_t const tile_bytes = 1024;
     nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
