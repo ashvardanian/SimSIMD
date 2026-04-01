@@ -37,12 +37,12 @@ function loadNativeAddon(): any {
   try {
     const req = createRequire(path.join(getDirName(), "noop.js"));
     return req(`@numkong/${process.platform}-${process.arch}`);
-  } catch {}
+  } catch { }
 
   // Tier 2: node-gyp-build fallback (local dev, unsupported platform, build-from-source)
   try {
     return build(getBuildDir(getDirName()));
-  } catch {}
+  } catch { }
 
   return null;
 }
@@ -587,6 +587,14 @@ function getBuildDir(dir: string) {
 function getDirName() {
   try {
     if (__dirname) return __dirname;
+  } catch (e) { }
+  // Fall back to cwd, which is typically the project root in dev and CI.
+  // This helps runtimes like Deno and Bun where the `bindings` module's
+  // V8 stack-trace hack may not resolve correctly.
+  try {
+    const cwd = process.cwd();
+    if (existsSync(path.join(cwd, "build")) || existsSync(path.join(cwd, "prebuilds")))
+      return cwd;
   } catch (e) { }
   return getRoot(getFileName());
 }
