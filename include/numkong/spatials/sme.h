@@ -27,41 +27,40 @@ extern "C" {
 #endif
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_f16_ssve_(nk_f16_t const *data, nk_size_t count) NK_STREAMING_ {
-    svfloat32_t accumulator_low_f32x = svdup_f32(0.0f);
-    svfloat32_t accumulator_high_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_even_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_odd_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcnth();
     nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_f16x = svwhilelt_b16_u64(i, count);
-        svfloat16_t values_f16x = svld1_f16(predicate_f16x, (nk_f16_for_arm_simd_t const *)(data + i));
+        svbool_t predicate_b16x = svwhilelt_b16_u64(i, count);
+        svfloat16_t values_f16x = svld1_f16(predicate_b16x, (nk_f16_for_arm_simd_t const *)(data + i));
 
-        svbool_t predicate_low_b32x = svwhilelt_b32_u64(i, count);
-        svfloat32_t values_low_f32x = svcvt_f32_f16_x(predicate_low_b32x, values_f16x);
-        accumulator_low_f32x = svmla_f32_m(predicate_low_b32x, accumulator_low_f32x, values_low_f32x, values_low_f32x);
+        svbool_t predicate_even_b32x = svwhilelt_b32_u64(i, count);
+        svfloat32_t values_even_f32x = svcvt_f32_f16_x(predicate_even_b32x, values_f16x);
+        accumulator_even_f32x = svmla_f32_m(predicate_even_b32x, accumulator_even_f32x, values_even_f32x,
+                                            values_even_f32x);
 
-        svbool_t predicate_high_b32x = svwhilelt_b32_u64(i + half_vector_length, count);
-        svfloat32_t values_high_f32x = svcvtlt_f32_f16_x(predicate_high_b32x, values_f16x);
-        accumulator_high_f32x = svmla_f32_m(predicate_high_b32x, accumulator_high_f32x, values_high_f32x,
-                                            values_high_f32x);
+        svbool_t predicate_odd_b32x = svwhilelt_b32_u64(i + half_vector_length, count);
+        svfloat32_t values_odd_f32x = svcvtlt_f32_f16_x(predicate_odd_b32x, values_f16x);
+        accumulator_odd_f32x = svmla_f32_m(predicate_odd_b32x, accumulator_odd_f32x, values_odd_f32x, values_odd_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_low_f32x) + svaddv_f32(svptrue_b32(), accumulator_high_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_even_f32x) + svaddv_f32(svptrue_b32(), accumulator_odd_f32x);
 }
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data, nk_size_t count) NK_STREAMING_ {
     svfloat32_t accumulator_f32x = svdup_f32(0.0f);
-    nk_size_t const vector_length = svcntw();
+    nk_size_t const vector_length = svcnth();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_b32x = svwhilelt_b32_u64(i, count);
-        svuint16_t raw_u16x = svld1_u16(svwhilelt_b16_u64(i, count), (nk_u16_t const *)data + i);
-        svfloat32_t values_f32x = svreinterpret_f32_u32(svlsl_n_u32_x(predicate_b32x, svunpklo_u32(raw_u16x), 16));
-        accumulator_f32x = svmla_f32_m(predicate_b32x, accumulator_f32x, values_f32x, values_f32x);
+        svbool_t predicate_b16x = svwhilelt_b16_u64(i, count);
+        svbfloat16_t values_bf16x = svld1_bf16(predicate_b16x, (nk_bf16_for_arm_simd_t const *)(data + i));
+        accumulator_f32x = svbfdot_f32(accumulator_f32x, values_bf16x, values_bf16x);
     }
     return svaddv_f32(svptrue_b32(), accumulator_f32x);
 }
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data, nk_size_t count) NK_STREAMING_ {
-    svfloat32_t accumulator_low_f32x = svdup_f32(0.0f);
-    svfloat32_t accumulator_high_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_even_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_odd_f32x = svdup_f32(0.0f);
     svuint16_t subnorm_lut_u16x = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
     nk_size_t const vector_length = svcnth();
     nk_size_t const half_vector_length = svcntw();
@@ -72,21 +71,21 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data, nk_siz
         svuint8_t raw_u8x = svld1_u8(predicate_b8x, (nk_u8_t const *)data + i);
         svfloat16_t values_f16x = nk_e4m3x_to_f16x_ssve_(predicate_b16x, raw_u8x, subnorm_lut_u16x);
 
-        svbool_t predicate_low_b32x = svwhilelt_b32_u64(0u, batch_size);
-        svfloat32_t values_low_f32x = svcvt_f32_f16_x(predicate_low_b32x, values_f16x);
-        accumulator_low_f32x = svmla_f32_m(predicate_low_b32x, accumulator_low_f32x, values_low_f32x, values_low_f32x);
+        svbool_t predicate_even_b32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_even_f32x = svcvt_f32_f16_x(predicate_even_b32x, values_f16x);
+        accumulator_even_f32x = svmla_f32_m(predicate_even_b32x, accumulator_even_f32x, values_even_f32x,
+                                            values_even_f32x);
 
-        svbool_t predicate_high_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
-        svfloat32_t values_high_f32x = svcvtlt_f32_f16_x(predicate_high_b32x, values_f16x);
-        accumulator_high_f32x = svmla_f32_m(predicate_high_b32x, accumulator_high_f32x, values_high_f32x,
-                                            values_high_f32x);
+        svbool_t predicate_odd_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_odd_f32x = svcvtlt_f32_f16_x(predicate_odd_b32x, values_f16x);
+        accumulator_odd_f32x = svmla_f32_m(predicate_odd_b32x, accumulator_odd_f32x, values_odd_f32x, values_odd_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_low_f32x) + svaddv_f32(svptrue_b32(), accumulator_high_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_even_f32x) + svaddv_f32(svptrue_b32(), accumulator_odd_f32x);
 }
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data, nk_size_t count) NK_STREAMING_ {
-    svfloat32_t accumulator_low_f32x = svdup_f32(0.0f);
-    svfloat32_t accumulator_high_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_even_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_odd_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcnth();
     nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -96,36 +95,33 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e5m2_ssve_(nk_e5m2_t const *data, nk_siz
         svuint8_t raw_u8x = svld1_u8(predicate_b8x, (nk_u8_t const *)data + i);
         svfloat16_t values_f16x = nk_e5m2x_to_f16x_ssve_(predicate_b16x, raw_u8x);
 
-        svbool_t predicate_low_b32x = svwhilelt_b32_u64(0u, batch_size);
-        svfloat32_t values_low_f32x = svcvt_f32_f16_x(predicate_low_b32x, values_f16x);
-        accumulator_low_f32x = svmla_f32_m(predicate_low_b32x, accumulator_low_f32x, values_low_f32x, values_low_f32x);
+        svbool_t predicate_even_b32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_even_f32x = svcvt_f32_f16_x(predicate_even_b32x, values_f16x);
+        accumulator_even_f32x = svmla_f32_m(predicate_even_b32x, accumulator_even_f32x, values_even_f32x,
+                                            values_even_f32x);
 
-        svbool_t predicate_high_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
-        svfloat32_t values_high_f32x = svcvtlt_f32_f16_x(predicate_high_b32x, values_f16x);
-        accumulator_high_f32x = svmla_f32_m(predicate_high_b32x, accumulator_high_f32x, values_high_f32x,
-                                            values_high_f32x);
+        svbool_t predicate_odd_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_odd_f32x = svcvtlt_f32_f16_x(predicate_odd_b32x, values_f16x);
+        accumulator_odd_f32x = svmla_f32_m(predicate_odd_b32x, accumulator_odd_f32x, values_odd_f32x, values_odd_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_low_f32x) + svaddv_f32(svptrue_b32(), accumulator_high_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_even_f32x) + svaddv_f32(svptrue_b32(), accumulator_odd_f32x);
 }
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e2m3_ssve_(nk_e2m3_t const *data, nk_size_t count) NK_STREAMING_ {
-    svint64_t accumulator_i64x = svdup_s64(0);
-    nk_size_t const vector_length = svcntd();
+    svint32_t accumulator_i32x = svdup_s32(0);
+    nk_size_t const vector_length = svcntb();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_b64x = svwhilelt_b64_u64(i, count);
-        svuint8_t raw_u8x = svld1_u8(svwhilelt_b8_u64(i, count), (nk_u8_t const *)data + i);
-        svint8_t values_i8x = nk_e2m3x_to_i8x_ssve_(svwhilelt_b8_u64(i, count), raw_u8x);
-        svint16_t values_i16x = svunpklo_s16(values_i8x);
-        svint16_t squares_i16x = svmul_s16_z(svwhilelt_b16_u64(i, count), values_i16x, values_i16x);
-        svint64_t squares_i64x = svunpklo_s64(svunpklo_s32(squares_i16x));
-        accumulator_i64x = svadd_s64_m(predicate_b64x, accumulator_i64x, squares_i64x);
+        svbool_t predicate_b8x = svwhilelt_b8_u64(i, count);
+        svuint8_t raw_u8x = svld1_u8(predicate_b8x, (nk_u8_t const *)data + i);
+        svint8_t values_i8x = nk_e2m3x_to_i8x_ssve_(predicate_b8x, raw_u8x);
+        accumulator_i32x = svdot_s32(accumulator_i32x, values_i8x, values_i8x);
     }
-    return (nk_f32_t)svaddv_s64(svptrue_b64(), accumulator_i64x) / 256.0f;
+    return (nk_f32_t)svaddv_s32(svptrue_b32(), accumulator_i32x) / 256.0f;
 }
 
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data, nk_size_t count) NK_STREAMING_ {
-    svfloat32_t accumulator_low_f32x = svdup_f32(0.0f);
-    svfloat32_t accumulator_high_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_even_f32x = svdup_f32(0.0f);
+    svfloat32_t accumulator_odd_f32x = svdup_f32(0.0f);
     nk_size_t const vector_length = svcnth();
     nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -135,51 +131,45 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e3m2_ssve_(nk_e3m2_t const *data, nk_siz
         svuint8_t raw_u8x = svld1_u8(predicate_b8x, (nk_u8_t const *)data + i);
         svfloat16_t values_f16x = nk_e3m2x_to_f16x_ssve_(predicate_b16x, raw_u8x);
 
-        svbool_t predicate_low_b32x = svwhilelt_b32_u64(0u, batch_size);
-        svfloat32_t values_low_f32x = svcvt_f32_f16_x(predicate_low_b32x, values_f16x);
-        accumulator_low_f32x = svmla_f32_m(predicate_low_b32x, accumulator_low_f32x, values_low_f32x, values_low_f32x);
+        svbool_t predicate_even_b32x = svwhilelt_b32_u64(0u, batch_size);
+        svfloat32_t values_even_f32x = svcvt_f32_f16_x(predicate_even_b32x, values_f16x);
+        accumulator_even_f32x = svmla_f32_m(predicate_even_b32x, accumulator_even_f32x, values_even_f32x,
+                                            values_even_f32x);
 
-        svbool_t predicate_high_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
-        svfloat32_t values_high_f32x = svcvtlt_f32_f16_x(predicate_high_b32x, values_f16x);
-        accumulator_high_f32x = svmla_f32_m(predicate_high_b32x, accumulator_high_f32x, values_high_f32x,
-                                            values_high_f32x);
+        svbool_t predicate_odd_b32x = svwhilelt_b32_u64(half_vector_length, batch_size);
+        svfloat32_t values_odd_f32x = svcvtlt_f32_f16_x(predicate_odd_b32x, values_f16x);
+        accumulator_odd_f32x = svmla_f32_m(predicate_odd_b32x, accumulator_odd_f32x, values_odd_f32x, values_odd_f32x);
     }
-    return svaddv_f32(svptrue_b32(), accumulator_low_f32x) + svaddv_f32(svptrue_b32(), accumulator_high_f32x);
+    return svaddv_f32(svptrue_b32(), accumulator_even_f32x) + svaddv_f32(svptrue_b32(), accumulator_odd_f32x);
 }
 
 NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i8_ssve_(nk_i8_t const *data, nk_size_t count) NK_STREAMING_ {
-    svint64_t accumulator_i64x = svdup_s64(0);
-    nk_size_t const vector_length = svcntd();
+    svint32_t accumulator_i32x = svdup_s32(0);
+    nk_size_t const vector_length = svcntb();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_b64x = svwhilelt_b64_u64(i, count);
-        svint8_t loaded_i8x = svld1_s8(svwhilelt_b8_u64(i, count), data + i);
-        svint16_t values_i16x = svunpklo_s16(loaded_i8x);
-        svint16_t squares_i16x = svmul_s16_z(svwhilelt_b16_u64(i, count), values_i16x, values_i16x);
-        svint64_t squares_i64x = svunpklo_s64(svunpklo_s32(squares_i16x));
-        accumulator_i64x = svadd_s64_m(predicate_b64x, accumulator_i64x, squares_i64x);
+        svbool_t predicate_b8x = svwhilelt_b8_u64(i, count);
+        svint8_t loaded_i8x = svld1_s8(predicate_b8x, data + i);
+        accumulator_i32x = svdot_s32(accumulator_i32x, loaded_i8x, loaded_i8x);
     }
-    return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
+    return (nk_u32_t)svaddv_s32(svptrue_b32(), accumulator_i32x);
 }
 
 NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u8_ssve_(nk_u8_t const *data, nk_size_t count) NK_STREAMING_ {
-    svuint64_t accumulator_u64x = svdup_u64(0);
-    nk_size_t const vector_length = svcntd();
+    svuint32_t accumulator_u32x = svdup_u32(0);
+    nk_size_t const vector_length = svcntb();
     for (nk_size_t i = 0; i < count; i += vector_length) {
-        svbool_t predicate_b64x = svwhilelt_b64_u64(i, count);
-        svuint8_t raw_u8x = svld1_u8(svwhilelt_b8_u64(i, count), data + i);
-        svuint16_t values_u16x = svunpklo_u16(raw_u8x);
-        svuint16_t squares_u16x = svmul_u16_z(svwhilelt_b16_u64(i, count), values_u16x, values_u16x);
-        svuint64_t squares_u64x = svunpklo_u64(svunpklo_u32(squares_u16x));
-        accumulator_u64x = svadd_u64_m(predicate_b64x, accumulator_u64x, squares_u64x);
+        svbool_t predicate_b8x = svwhilelt_b8_u64(i, count);
+        svuint8_t loaded_u8x = svld1_u8(predicate_b8x, data + i);
+        accumulator_u32x = svdot_u32(accumulator_u32x, loaded_u8x, loaded_u8x);
     }
-    return (nk_u32_t)svaddv_u64(svptrue_b64(), accumulator_u64x);
+    return (nk_u32_t)svaddv_u32(svptrue_b32(), accumulator_u32x);
 }
 
 NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_t count) NK_STREAMING_ {
-    svint64_t accumulator_i64x = svdup_s64(0);
+    svint32_t accumulator_i32x = svdup_s32(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;
-    nk_size_t const vector_length = svcntd();
+    nk_size_t const vector_length = svcntb();
     for (nk_size_t i = 0; i < byte_count; i += vector_length) {
         svbool_t predicate_b8x = svwhilelt_b8_u64(i, byte_count);
         svuint8_t packed_u8x = svld1_u8(predicate_b8x, bytes + i);
@@ -189,42 +179,26 @@ NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_i4_ssve_(nk_i4x2_t const *data, nk_size_
         svint8_t low_i8x = svasr_n_s8_x(predicate_b8x, svreinterpret_s8_u8(svlsl_n_u8_x(predicate_b8x, low_u8x, 4)), 4);
         svint8_t high_i8x = svasr_n_s8_x(predicate_b8x, svreinterpret_s8_u8(svlsl_n_u8_x(predicate_b8x, high_u8x, 4)),
                                          4);
-        // Widen to i16, square, sum per byte
-        svbool_t predicate_b16x = svwhilelt_b16_u64(i, byte_count);
-        svint16_t low_i16x = svunpklo_s16(low_i8x);
-        svint16_t high_i16x = svunpklo_s16(high_i8x);
-        svint16_t squares_low_i16x = svmul_s16_z(predicate_b16x, low_i16x, low_i16x);
-        svint16_t squares_high_i16x = svmul_s16_z(predicate_b16x, high_i16x, high_i16x);
-        svint16_t sum_i16x = svadd_s16_z(predicate_b16x, squares_low_i16x, squares_high_i16x);
-        svbool_t predicate_b64x = svwhilelt_b64_u64(i, byte_count);
-        svint64_t sum_i64x = svunpklo_s64(svunpklo_s32(sum_i16x));
-        accumulator_i64x = svadd_s64_m(predicate_b64x, accumulator_i64x, sum_i64x);
+        accumulator_i32x = svdot_s32(accumulator_i32x, low_i8x, low_i8x);
+        accumulator_i32x = svdot_s32(accumulator_i32x, high_i8x, high_i8x);
     }
-    return (nk_u32_t)svaddv_s64(svptrue_b64(), accumulator_i64x);
+    return (nk_u32_t)svaddv_s32(svptrue_b32(), accumulator_i32x);
 }
 
 NK_PUBLIC nk_u32_t nk_dots_reduce_sumsq_u4_ssve_(nk_u4x2_t const *data, nk_size_t count) NK_STREAMING_ {
-    svuint64_t accumulator_u64x = svdup_u64(0);
+    svuint32_t accumulator_u32x = svdup_u32(0);
     nk_u8_t const *bytes = (nk_u8_t const *)data;
     nk_size_t const byte_count = (count + 1) / 2;
-    nk_size_t const vector_length = svcntd();
+    nk_size_t const vector_length = svcntb();
     for (nk_size_t i = 0; i < byte_count; i += vector_length) {
         svbool_t predicate_b8x = svwhilelt_b8_u64(i, byte_count);
         svuint8_t packed_u8x = svld1_u8(predicate_b8x, bytes + i);
         svuint8_t low_u8x = svand_n_u8_x(predicate_b8x, packed_u8x, 0x0F);
         svuint8_t high_u8x = svlsr_n_u8_x(predicate_b8x, packed_u8x, 4);
-        // Widen to u16, square, sum per byte
-        svbool_t predicate_b16x = svwhilelt_b16_u64(i, byte_count);
-        svuint16_t low_u16x = svunpklo_u16(low_u8x);
-        svuint16_t high_u16x = svunpklo_u16(high_u8x);
-        svuint16_t squares_low_u16x = svmul_u16_z(predicate_b16x, low_u16x, low_u16x);
-        svuint16_t squares_high_u16x = svmul_u16_z(predicate_b16x, high_u16x, high_u16x);
-        svuint16_t sum_u16x = svadd_u16_z(predicate_b16x, squares_low_u16x, squares_high_u16x);
-        svbool_t predicate_b64x = svwhilelt_b64_u64(i, byte_count);
-        svuint64_t sum_u64x = svunpklo_u64(svunpklo_u32(sum_u16x));
-        accumulator_u64x = svadd_u64_m(predicate_b64x, accumulator_u64x, sum_u64x);
+        accumulator_u32x = svdot_u32(accumulator_u32x, low_u8x, low_u8x);
+        accumulator_u32x = svdot_u32(accumulator_u32x, high_u8x, high_u8x);
     }
-    return (nk_u32_t)svaddv_u64(svptrue_b64(), accumulator_u64x);
+    return (nk_u32_t)svaddv_u32(svptrue_b32(), accumulator_u32x);
 }
 
 NK_PUBLIC svfloat32_t nk_angulars_from_dot_f32x_ssve_(svbool_t predicate_b32x, svfloat32_t dots_f32x,
