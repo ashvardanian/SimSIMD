@@ -111,6 +111,8 @@ void test_reduce() {
           nk_reduce_moments_f32_serial);
     check("reduce_moments_f64_neon", test_reduce_moments<f64_t>, nk_reduce_moments_f64_neon,
           nk_reduce_moments_f64_serial);
+    check("reduce_moments_f16_neon", test_reduce_moments<f16_t>, nk_reduce_moments_f16_neon,
+          nk_reduce_moments_f16_serial);
     check("reduce_moments_i8_neon", test_reduce_moments<i8_t>, nk_reduce_moments_i8_neon, nk_reduce_moments_i8_serial);
     check("reduce_moments_u8_neon", test_reduce_moments<u8_t>, nk_reduce_moments_u8_neon, nk_reduce_moments_u8_serial);
     check("reduce_moments_i16_neon", test_reduce_moments<i16_t>, nk_reduce_moments_i16_neon,
@@ -152,11 +154,6 @@ void test_reduce() {
     check("reduce_minmax_e3m2_neon", test_reduce_minmax<e3m2_t>, nk_reduce_minmax_e3m2_neon,
           nk_reduce_minmax_e3m2_serial);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("reduce_moments_f16_neonhalf", test_reduce_moments<f16_t>, nk_reduce_moments_f16_neonhalf,
-          nk_reduce_moments_f16_serial);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     check("reduce_moments_bf16_neonbfdot", test_reduce_moments<bf16_t>, nk_reduce_moments_bf16_neonbfdot,

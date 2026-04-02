@@ -134,21 +134,21 @@ nk_jsd_f32_neon_cycle:
 #endif
 #endif // NK_TARGET_NEON
 
-#if NK_TARGET_NEONHALF
+#if NK_TARGET_NEON
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd+fp16")
+#pragma GCC target("arch=armv8.2-a+simd")
 #endif
 
-NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_kld_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_f32_t epsilon = NK_F32_DIVISION_EPSILON;
     float32x4_t epsilon_f32x4 = vdupq_n_f32(epsilon);
     float32x4_t a_f32x4, b_f32x4;
 
-nk_kld_f16_neonhalf_cycle:
+nk_kld_f16_neon_cycle:
     if (n < 4) {
         nk_b64_vec_t a_vec, b_vec;
         nk_partial_load_b16x4_serial_(a, &a_vec, n);
@@ -167,20 +167,20 @@ nk_kld_f16_neonhalf_cycle:
     float32x4_t log_ratio_f32x4 = nk_log2_f32x4_neon_(ratio_f32x4);
     float32x4_t contribution_f32x4 = vmulq_f32(a_f32x4, log_ratio_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, contribution_f32x4);
-    if (n) goto nk_kld_f16_neonhalf_cycle;
+    if (n) goto nk_kld_f16_neon_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer;
     *result = sum;
 }
 
-NK_PUBLIC void nk_jsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_f32_t epsilon = NK_F32_DIVISION_EPSILON;
     float32x4_t epsilon_f32x4 = vdupq_n_f32(epsilon);
     float32x4_t a_f32x4, b_f32x4;
 
-nk_jsd_f16_neonhalf_cycle:
+nk_jsd_f16_neon_cycle:
     if (n < 4) {
         nk_b64_vec_t a_vec, b_vec;
         nk_partial_load_b16x4_serial_(a, &a_vec, n);
@@ -203,7 +203,7 @@ nk_jsd_f16_neonhalf_cycle:
     float32x4_t contribution_a_f32x4 = vmulq_f32(a_f32x4, log_ratio_a_f32x4);
     float32x4_t contribution_b_f32x4 = vmulq_f32(b_f32x4, log_ratio_b_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, vaddq_f32(contribution_a_f32x4, contribution_b_f32x4));
-    if (n) goto nk_jsd_f16_neonhalf_cycle;
+    if (n) goto nk_jsd_f16_neon_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
@@ -215,7 +215,7 @@ nk_jsd_f16_neonhalf_cycle:
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONHALF
+#endif // NK_TARGET_NEON
 
 #if defined(__cplusplus)
 } // extern "C"

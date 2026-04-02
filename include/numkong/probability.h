@@ -201,14 +201,11 @@ NK_PUBLIC void nk_jsd_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_siz
 NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f32 */
 NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-#endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
 /** @copydoc nk_kld_f16 */
-NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f16 */
-NK_PUBLIC void nk_jsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_NEONHALF
+NK_PUBLIC void nk_jsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_kld_f64 */
@@ -283,8 +280,8 @@ extern "C" {
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_kld_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_NEONHALF
-    nk_kld_f16_neonhalf(a, b, n, result);
+#if NK_TARGET_NEON
+    nk_kld_f16_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_kld_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -329,8 +326,8 @@ NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
 }
 
 NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_NEONHALF
-    nk_jsd_f16_neonhalf(a, b, n, result);
+#if NK_TARGET_NEON
+    nk_jsd_f16_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_jsd_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL

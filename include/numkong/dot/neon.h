@@ -808,6 +808,52 @@ NK_INTERNAL void nk_dot_u1x128_finalize_neon( //
 
 #pragma endregion - Binary
 
+NK_PUBLIC void nk_dot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                nk_f32c_t *result) {
+    float32x4_t sum_real_f32x4 = vdupq_n_f32(0);
+    float32x4_t sum_imag_f32x4 = vdupq_n_f32(0);
+    while (count_pairs >= 4) {
+        int16x4x2_t a_i16x4x2 = vld2_s16((short *)a_pairs);
+        int16x4x2_t b_i16x4x2 = vld2_s16((short *)b_pairs);
+        float32x4_t a_real_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(a_i16x4x2.val[0]));
+        float32x4_t a_imag_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(a_i16x4x2.val[1]));
+        float32x4_t b_real_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(b_i16x4x2.val[0]));
+        float32x4_t b_imag_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(b_i16x4x2.val[1]));
+        sum_real_f32x4 = vfmaq_f32(sum_real_f32x4, a_real_f32x4, b_real_f32x4);
+        sum_real_f32x4 = vfmsq_f32(sum_real_f32x4, a_imag_f32x4, b_imag_f32x4);
+        sum_imag_f32x4 = vfmaq_f32(sum_imag_f32x4, a_real_f32x4, b_imag_f32x4);
+        sum_imag_f32x4 = vfmaq_f32(sum_imag_f32x4, a_imag_f32x4, b_real_f32x4);
+        count_pairs -= 4, a_pairs += 4, b_pairs += 4;
+    }
+    nk_f32c_t tail_result;
+    nk_dot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
+    result->real = tail_result.real + vaddvq_f32(sum_real_f32x4);
+    result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
+}
+
+NK_PUBLIC void nk_vdot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                 nk_f32c_t *result) {
+    float32x4_t sum_real_f32x4 = vdupq_n_f32(0);
+    float32x4_t sum_imag_f32x4 = vdupq_n_f32(0);
+    while (count_pairs >= 4) {
+        int16x4x2_t a_i16x4x2 = vld2_s16((short *)a_pairs);
+        int16x4x2_t b_i16x4x2 = vld2_s16((short *)b_pairs);
+        float32x4_t a_real_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(a_i16x4x2.val[0]));
+        float32x4_t a_imag_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(a_i16x4x2.val[1]));
+        float32x4_t b_real_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(b_i16x4x2.val[0]));
+        float32x4_t b_imag_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(b_i16x4x2.val[1]));
+        sum_real_f32x4 = vfmaq_f32(sum_real_f32x4, a_real_f32x4, b_real_f32x4);
+        sum_real_f32x4 = vfmaq_f32(sum_real_f32x4, a_imag_f32x4, b_imag_f32x4);
+        sum_imag_f32x4 = vfmaq_f32(sum_imag_f32x4, a_real_f32x4, b_imag_f32x4);
+        sum_imag_f32x4 = vfmsq_f32(sum_imag_f32x4, a_imag_f32x4, b_real_f32x4);
+        count_pairs -= 4, a_pairs += 4, b_pairs += 4;
+    }
+    nk_f32c_t tail_result;
+    nk_vdot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
+    result->real = tail_result.real + vaddvq_f32(sum_real_f32x4);
+    result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

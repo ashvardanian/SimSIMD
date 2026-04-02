@@ -75,19 +75,17 @@ void bench_cross_arm() {
                               nk_jaccards_packed_u1_neon);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_neon", nk_jaccards_symmetric_u1_neon);
 
-#endif
+    run_dots_packed<f16_k>("dots_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                           nk_dots_packed_f16_neon);
+    run_dots_symmetric<f16_k>("dots_symmetric_f16_neon", nk_dots_symmetric_f16_neon);
 
-#if NK_TARGET_NEONHALF
-    run_dots_packed<f16_k>("dots_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
-                           nk_dots_packed_f16_neonhalf);
-    run_dots_symmetric<f16_k>("dots_symmetric_f16_neonhalf", nk_dots_symmetric_f16_neonhalf);
+    run_angulars_packed<f16_k>("angulars_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                               nk_angulars_packed_f16_neon);
+    run_angulars_symmetric<f16_k>("angulars_symmetric_f16_neon", nk_angulars_symmetric_f16_neon);
+    run_euclideans_packed<f16_k>("euclideans_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                                 nk_euclideans_packed_f16_neon);
+    run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_neon", nk_euclideans_symmetric_f16_neon);
 
-    run_angulars_packed<f16_k>("angulars_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf,
-                               nk_dots_pack_f16_neonhalf, nk_angulars_packed_f16_neonhalf);
-    run_angulars_symmetric<f16_k>("angulars_symmetric_f16_neonhalf", nk_angulars_symmetric_f16_neonhalf);
-    run_euclideans_packed<f16_k>("euclideans_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf,
-                                 nk_dots_pack_f16_neonhalf, nk_euclideans_packed_f16_neonhalf);
-    run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_neonhalf", nk_euclideans_symmetric_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM

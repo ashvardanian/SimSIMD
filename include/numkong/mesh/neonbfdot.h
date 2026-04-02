@@ -12,8 +12,8 @@
  *      vld3_u16     LD3 (V.4H x 3)           4cy @ 1p  4cy @ 1p
  *      vshll_n_u16  USHLL (V.4S, V.4H, #16)  2cy @ 2p  2cy @ 4p
  *      vfmaq_f32    FMLA (V.4S, V.4S, V.4S)  4cy @ 2p  3cy @ 4p
- *      vaddq_f32    FADD (V.4S, V.4S, V.4S)  3cy @ 2p  2cy @ 4p
- *      vsubq_f32    FSUB (V.4S, V.4S, V.4S)  3cy @ 2p  2cy @ 4p
+ *      vaddq_f32    FADD (V.4S, V.4S, V.4S)  2cy @ 2p  2cy @ 4p
+ *      vsubq_f32    FSUB (V.4S, V.4S, V.4S)  2cy @ 2p  2cy @ 4p
  *      vmulq_f32    FMUL (V.4S, V.4S, V.4S)  3cy @ 2p  3cy @ 4p
  *      vdupq_n_f32  DUP (V.4S, scalar)       2cy @ 2p  2cy @ 4p
  *      vaddvq_f32   FADDP+FADDP (V.4S)       5cy @ 1p  8cy @ 1p

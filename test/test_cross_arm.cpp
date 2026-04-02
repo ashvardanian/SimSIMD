@@ -48,6 +48,18 @@ void test_cross_arm() {
     check("euclideans_symmetric_f32_neon", test_euclideans_symmetric<f32_t>, nk_euclideans_symmetric_f32_neon);
     check("euclideans_symmetric_bf16_neon", test_euclideans_symmetric<bf16_t>, nk_euclideans_symmetric_bf16_neon);
 
+    check("dots_packed_f16_neon", test_dots_packed<f16_t>, nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+          nk_dots_packed_f16_neon);
+    check("dots_symmetric_f16_neon", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_neon);
+
+    check("angulars_packed_f16_neon", test_angulars_packed<f16_t>, nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+          nk_angulars_packed_f16_neon);
+    check("angulars_symmetric_f16_neon", test_angulars_symmetric<f16_t>, nk_angulars_symmetric_f16_neon);
+
+    check("euclideans_packed_f16_neon", test_euclideans_packed<f16_t>, nk_dots_packed_size_f16_neon,
+          nk_dots_pack_f16_neon, nk_euclideans_packed_f16_neon);
+    check("euclideans_symmetric_f16_neon", test_euclideans_symmetric<f16_t>, nk_euclideans_symmetric_f16_neon);
+
     check("hammings_packed_u1_neon", test_hammings_packed<u1x8_t>, nk_dots_packed_size_u1_serial,
           nk_dots_pack_u1_serial, nk_hammings_packed_u1_neon);
     check("hammings_symmetric_u1_neon", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_neon);
@@ -70,20 +82,6 @@ void test_cross_arm() {
           nk_dots_pack_bf16_neonbfdot, nk_euclideans_packed_bf16_neonbfdot);
     check("euclideans_symmetric_bf16_neonbfdot", test_euclideans_symmetric<bf16_t>,
           nk_euclideans_symmetric_bf16_neonbfdot);
-#endif
-
-#if NK_TARGET_NEONHALF
-    check("dots_packed_f16_neonhalf", test_dots_packed<f16_t>, nk_dots_packed_size_f16_neonhalf,
-          nk_dots_pack_f16_neonhalf, nk_dots_packed_f16_neonhalf);
-    check("dots_symmetric_f16_neonhalf", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_neonhalf);
-
-    check("angulars_packed_f16_neonhalf", test_angulars_packed<f16_t>, nk_dots_packed_size_f16_neonhalf,
-          nk_dots_pack_f16_neonhalf, nk_angulars_packed_f16_neonhalf);
-    check("angulars_symmetric_f16_neonhalf", test_angulars_symmetric<f16_t>, nk_angulars_symmetric_f16_neonhalf);
-
-    check("euclideans_packed_f16_neonhalf", test_euclideans_packed<f16_t>, nk_dots_packed_size_f16_neonhalf,
-          nk_dots_pack_f16_neonhalf, nk_euclideans_packed_f16_neonhalf);
-    check("euclideans_symmetric_f16_neonhalf", test_euclideans_symmetric<f16_t>, nk_euclideans_symmetric_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM

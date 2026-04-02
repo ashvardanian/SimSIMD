@@ -18,11 +18,8 @@ void bench_probability() {
 #if NK_TARGET_NEON
     run_dense<f32_k, f64_k>("kld_f32_neon", nk_kld_f32_neon);
     run_dense<f32_k, f64_k>("jsd_f32_neon", nk_jsd_f32_neon);
-#endif
-
-#if NK_TARGET_NEONHALF
-    run_dense<f16_k, f32_k>("kld_f16_neonhalf", nk_kld_f16_neonhalf);
-    run_dense<f16_k, f32_k>("jsd_f16_neonhalf", nk_jsd_f16_neonhalf);
+    run_dense<f16_k, f32_k>("kld_f16_neon", nk_kld_f16_neon);
+    run_dense<f16_k, f32_k>("jsd_f16_neon", nk_jsd_f16_neon);
 #endif
 
 #if NK_TARGET_HASWELL

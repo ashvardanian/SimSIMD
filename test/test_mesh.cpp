@@ -126,13 +126,10 @@ void test_mesh() {
     check("kabsch_f32_neon", test_kabsch<f32_t>, nk_kabsch_f32_neon);
     check("umeyama_f64_neon", test_umeyama<f64_t>, nk_umeyama_f64_neon);
     check("umeyama_f32_neon", test_umeyama<f32_t>, nk_umeyama_f32_neon);
+    check("rmsd_f16_neon", test_rmsd<f16_t>, nk_rmsd_f16_neon);
+    check("kabsch_f16_neon", test_kabsch<f16_t>, nk_kabsch_f16_neon);
+    check("umeyama_f16_neon", test_umeyama<f16_t>, nk_umeyama_f16_neon);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("rmsd_f16_neonhalf", test_rmsd<f16_t>, nk_rmsd_f16_neonhalf);
-    check("kabsch_f16_neonhalf", test_kabsch<f16_t>, nk_kabsch_f16_neonhalf);
-    check("umeyama_f16_neonhalf", test_umeyama<f16_t>, nk_umeyama_f16_neonhalf);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     check("rmsd_bf16_neonbfdot", test_rmsd<bf16_t>, nk_rmsd_bf16_neonbfdot);

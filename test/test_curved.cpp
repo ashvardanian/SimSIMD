@@ -120,13 +120,10 @@ void test_curved() {
     check("bilinear_f32_neon", test_bilinear<f32_t>, nk_bilinear_f32_neon);
     check("bilinear_f32c_neon", test_bilinear<f32c_t>, nk_bilinear_f32c_neon);
     check("mahalanobis_f32_neon", test_mahalanobis<f32_t>, nk_mahalanobis_f32_neon);
+    check("bilinear_f16_neon", test_bilinear<f16_t>, nk_bilinear_f16_neon);
+    check("bilinear_f16c_neon", test_bilinear<f16c_t>, nk_bilinear_f16c_neon);
+    check("mahalanobis_f16_neon", test_mahalanobis<f16_t>, nk_mahalanobis_f16_neon);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("bilinear_f16_neonhalf", test_bilinear<f16_t>, nk_bilinear_f16_neonhalf);
-    check("bilinear_f16c_neonhalf", test_bilinear<f16c_t>, nk_bilinear_f16c_neonhalf);
-    check("mahalanobis_f16_neonhalf", test_mahalanobis<f16_t>, nk_mahalanobis_f16_neonhalf);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     check("bilinear_bf16_neonbfdot", test_bilinear<bf16_t>, nk_bilinear_bf16_neonbfdot);

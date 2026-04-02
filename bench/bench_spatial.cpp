@@ -34,6 +34,9 @@ void bench_spatial() {
     run_dense<bf16_k, f32_k>("angular_bf16_neon", nk_angular_bf16_neon);
     run_dense<bf16_k, f32_k>("sqeuclidean_bf16_neon", nk_sqeuclidean_bf16_neon);
     run_dense<bf16_k, f32_k>("euclidean_bf16_neon", nk_euclidean_bf16_neon);
+    run_dense<f16_k, f32_k>("angular_f16_neon", nk_angular_f16_neon);
+    run_dense<f16_k, f32_k>("sqeuclidean_f16_neon", nk_sqeuclidean_f16_neon);
+    run_dense<f16_k, f32_k>("euclidean_f16_neon", nk_euclidean_f16_neon);
     run_dense<e5m2_k, f32_k>("angular_e5m2_neon", nk_angular_e5m2_neon);
     run_dense<e5m2_k, f32_k>("sqeuclidean_e5m2_neon", nk_sqeuclidean_e5m2_neon);
     run_dense<e5m2_k, f32_k>("euclidean_e5m2_neon", nk_euclidean_e5m2_neon);
@@ -61,12 +64,6 @@ void bench_spatial() {
     run_dense<u4_k, f32_k>("angular_u4_neonsdot", nk_angular_u4_neonsdot);
     run_dense<u4_k, u32_k>("sqeuclidean_u4_neonsdot", nk_sqeuclidean_u4_neonsdot);
     run_dense<u4_k, f32_k>("euclidean_u4_neonsdot", nk_euclidean_u4_neonsdot);
-#endif
-
-#if NK_TARGET_NEONHALF
-    run_dense<f16_k, f32_k>("angular_f16_neonhalf", nk_angular_f16_neonhalf);
-    run_dense<f16_k, f32_k>("sqeuclidean_f16_neonhalf", nk_sqeuclidean_f16_neonhalf);
-    run_dense<f16_k, f32_k>("euclidean_f16_neonhalf", nk_euclidean_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT

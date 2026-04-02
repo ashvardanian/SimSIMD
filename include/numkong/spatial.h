@@ -332,16 +332,13 @@ NK_PUBLIC void nk_euclidean_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk
 NK_PUBLIC void nk_sqeuclidean_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
 /** @copydoc nk_euclidean_f64 */
-NK_PUBLIC void nk_euclidean_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_euclidean_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_sqeuclidean_f64 */
-NK_PUBLIC void nk_sqeuclidean_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_sqeuclidean_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_NEONHALF
+NK_PUBLIC void nk_angular_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_euclidean_f64 */
@@ -865,7 +862,6 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 
 #include "numkong/spatial/serial.h"
 #include "numkong/spatial/neon.h"
-#include "numkong/spatial/neonhalf.h"
 #include "numkong/spatial/neonbfdot.h"
 #include "numkong/spatial/neonsdot.h"
 #include "numkong/spatial/sve.h"
@@ -1035,8 +1031,8 @@ NK_PUBLIC void nk_euclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t 
     nk_euclidean_f16_rvv(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_euclidean_f16_svehalf(a, b, n, result);
-#elif NK_TARGET_NEONHALF
-    nk_euclidean_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_euclidean_f16_neon(a, b, n, result);
 #elif NK_TARGET_DIAMOND
     nk_euclidean_f16_diamond(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -1059,8 +1055,8 @@ NK_PUBLIC void nk_sqeuclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     nk_sqeuclidean_f16_rvv(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_sqeuclidean_f16_svehalf(a, b, n, result);
-#elif NK_TARGET_NEONHALF
-    nk_sqeuclidean_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_sqeuclidean_f16_neon(a, b, n, result);
 #elif NK_TARGET_DIAMOND
     nk_sqeuclidean_f16_diamond(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -1083,8 +1079,8 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     nk_angular_f16_rvv(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_angular_f16_svehalf(a, b, n, result);
-#elif NK_TARGET_NEONHALF
-    nk_angular_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_angular_f16_neon(a, b, n, result);
 #elif NK_TARGET_DIAMOND
     nk_angular_f16_diamond(a, b, n, result);
 #elif NK_TARGET_SKYLAKE

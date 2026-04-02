@@ -653,6 +653,11 @@ NK_PUBLIC void nk_each_fma_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
 /** @copydoc nk_each_fma_f64 */
 NK_PUBLIC void nk_each_fma_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
                                      nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result);
+
+/** @copydoc nk_each_sum_i8 */
+NK_PUBLIC void nk_each_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_u8 */
+NK_PUBLIC void nk_each_sum_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
@@ -682,10 +687,6 @@ NK_PUBLIC void nk_each_blend_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, 
 NK_PUBLIC void nk_each_fma_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                         nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 
-/** @copydoc nk_each_sum_i8 */
-NK_PUBLIC void nk_each_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_each_sum_u8 */
-NK_PUBLIC void nk_each_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
 /** @copydoc nk_each_scale_i8 */
 NK_PUBLIC void nk_each_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_i8_t *result);
@@ -1292,8 +1293,8 @@ NK_PUBLIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
     nk_each_sum_i8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_i8_haswell(a, b, n, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_sum_i8_neonhalf(a, b, n, r);
+#elif NK_TARGET_NEON
+    nk_each_sum_i8_neon(a, b, n, r);
 #elif NK_TARGET_RVV
     nk_each_sum_i8_rvv(a, b, n, r);
 #else
@@ -1306,8 +1307,8 @@ NK_PUBLIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, n
     nk_each_sum_u8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_u8_haswell(a, b, n, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_sum_u8_neonhalf(a, b, n, r);
+#elif NK_TARGET_NEON
+    nk_each_sum_u8_neon(a, b, n, r);
 #elif NK_TARGET_RVV
     nk_each_sum_u8_rvv(a, b, n, r);
 #else
