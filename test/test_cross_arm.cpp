@@ -156,6 +156,29 @@ void test_cross_arm() {
     check("euclideans_symmetric_u8_neonsdot", test_euclideans_symmetric<u8_t>, nk_euclideans_symmetric_u8_neonsdot);
     check("euclideans_symmetric_i4_neonsdot", test_euclideans_symmetric<i4x2_t>, nk_euclideans_symmetric_i4_neonsdot);
     check("euclideans_symmetric_u4_neonsdot", test_euclideans_symmetric<u4x2_t>, nk_euclideans_symmetric_u4_neonsdot);
+
+    check("dots_packed_e2m3_neonsdot", test_dots_packed<e2m3_t>, nk_dots_packed_size_e2m3_neonsdot,
+          nk_dots_pack_e2m3_neonsdot, nk_dots_packed_e2m3_neonsdot);
+    check("dots_packed_e3m2_neonsdot", test_dots_packed<e3m2_t>, nk_dots_packed_size_e3m2_neonsdot,
+          nk_dots_pack_e3m2_neonsdot, nk_dots_packed_e3m2_neonsdot);
+    check("dots_symmetric_e2m3_neonsdot", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_neonsdot);
+    check("dots_symmetric_e3m2_neonsdot", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_neonsdot);
+
+    check("angulars_packed_e2m3_neonsdot", test_angulars_packed<e2m3_t>, nk_dots_packed_size_e2m3_neonsdot,
+          nk_dots_pack_e2m3_neonsdot, nk_angulars_packed_e2m3_neonsdot);
+    check("angulars_packed_e3m2_neonsdot", test_angulars_packed<e3m2_t>, nk_dots_packed_size_e3m2_neonsdot,
+          nk_dots_pack_e3m2_neonsdot, nk_angulars_packed_e3m2_neonsdot);
+    check("angulars_symmetric_e2m3_neonsdot", test_angulars_symmetric<e2m3_t>, nk_angulars_symmetric_e2m3_neonsdot);
+    check("angulars_symmetric_e3m2_neonsdot", test_angulars_symmetric<e3m2_t>, nk_angulars_symmetric_e3m2_neonsdot);
+
+    check("euclideans_packed_e2m3_neonsdot", test_euclideans_packed<e2m3_t>, nk_dots_packed_size_e2m3_neonsdot,
+          nk_dots_pack_e2m3_neonsdot, nk_euclideans_packed_e2m3_neonsdot);
+    check("euclideans_packed_e3m2_neonsdot", test_euclideans_packed<e3m2_t>, nk_dots_packed_size_e3m2_neonsdot,
+          nk_dots_pack_e3m2_neonsdot, nk_euclideans_packed_e3m2_neonsdot);
+    check("euclideans_symmetric_e2m3_neonsdot", test_euclideans_symmetric<e2m3_t>,
+          nk_euclideans_symmetric_e2m3_neonsdot);
+    check("euclideans_symmetric_e3m2_neonsdot", test_euclideans_symmetric<e3m2_t>,
+          nk_euclideans_symmetric_e3m2_neonsdot);
 #endif
 
 #if NK_TARGET_NEONFP8

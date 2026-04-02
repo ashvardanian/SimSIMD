@@ -490,6 +490,125 @@ nk_dot_e3m2_neonsdot_cycle:
     *result = (nk_f32_t)vaddvq_s32(total_i32x4) / 256.0f;
 }
 
+/**
+ *  @brief Running state for 128-bit dot accumulation over e2m3 scalars on NEON SDOT.
+ *
+ *  Uses SDOT on LUT-mapped magnitudes. Every e2m3 value × 16 is an exact integer in [-120, +120],
+ *  fitting i8. Accumulator is i32; finalize divides by 256.0f.
+ */
+typedef struct nk_dot_e2m3x16_state_neonsdot_t {
+    int32x4_t sum_i32x4;
+} nk_dot_e2m3x16_state_neonsdot_t;
+
+NK_INTERNAL void nk_dot_e2m3x16_init_neonsdot(nk_dot_e2m3x16_state_neonsdot_t *state) {
+    state->sum_i32x4 = vdupq_n_s32(0);
+}
+
+NK_INTERNAL void nk_dot_e2m3x16_update_neonsdot(nk_dot_e2m3x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    static nk_u8_t const lut_data[32] = {0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,
+                                         32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120};
+    uint8x16x2_t lut_magnitude_u8x16x2 = vld1q_u8_x2(lut_data);
+    uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
+    uint8x16_t sign_mask_u8x16 = vdupq_n_u8(0x20);
+
+    uint8x16_t a_u8x16 = a.u8x16;
+    uint8x16_t b_u8x16 = b.u8x16;
+
+    uint8x16_t a_unsigned_u8x16 = vqtbl2q_u8(lut_magnitude_u8x16x2, vandq_u8(a_u8x16, magnitude_mask_u8x16));
+    uint8x16_t b_unsigned_u8x16 = vqtbl2q_u8(lut_magnitude_u8x16x2, vandq_u8(b_u8x16, magnitude_mask_u8x16));
+
+    uint8x16_t sign_combined_u8x16 = vandq_u8(veorq_u8(a_u8x16, b_u8x16), sign_mask_u8x16);
+    uint8x16_t negate_mask_u8x16 = vceqq_u8(sign_combined_u8x16, sign_mask_u8x16);
+    int8x16_t b_signed_i8x16 = vbslq_s8(negate_mask_u8x16, vnegq_s8(vreinterpretq_s8_u8(b_unsigned_u8x16)),
+                                        vreinterpretq_s8_u8(b_unsigned_u8x16));
+
+    state->sum_i32x4 = vdotq_s32(state->sum_i32x4, vreinterpretq_s8_u8(a_unsigned_u8x16), b_signed_i8x16);
+}
+
+NK_INTERNAL void nk_dot_e2m3x16_finalize_neonsdot(                                                  //
+    nk_dot_e2m3x16_state_neonsdot_t const *state_a, nk_dot_e2m3x16_state_neonsdot_t const *state_b, //
+    nk_dot_e2m3x16_state_neonsdot_t const *state_c, nk_dot_e2m3x16_state_neonsdot_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    nk_f32_t const scale = 1.0f / 256.0f;
+    result->f32s[0] = (nk_f32_t)vaddvq_s32(state_a->sum_i32x4) * scale;
+    result->f32s[1] = (nk_f32_t)vaddvq_s32(state_b->sum_i32x4) * scale;
+    result->f32s[2] = (nk_f32_t)vaddvq_s32(state_c->sum_i32x4) * scale;
+    result->f32s[3] = (nk_f32_t)vaddvq_s32(state_d->sum_i32x4) * scale;
+}
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over e3m2 scalars on NEON SMLAL.
+ *
+ *  Uses i16 widening multiply (SMLAL) since e3m2 magnitudes reach 448, exceeding i8 range.
+ *  Two i32x4 accumulators handle the low and high halves from interleaved i16 pairs.
+ *  Finalize divides by 256.0f.
+ */
+typedef struct nk_dot_e3m2x16_state_neonsdot_t {
+    int32x4_t sum_i32x4;
+} nk_dot_e3m2x16_state_neonsdot_t;
+
+NK_INTERNAL void nk_dot_e3m2x16_init_neonsdot(nk_dot_e3m2x16_state_neonsdot_t *state) {
+    state->sum_i32x4 = vdupq_n_s32(0);
+}
+
+NK_INTERNAL void nk_dot_e3m2x16_update_neonsdot(nk_dot_e3m2x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    static nk_u8_t const lut_data[32] = {0,  1,  2,  3,  4,  5,  6,  7,   8,   10,  12,  14,  16, 20, 24,  28,
+                                         32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0,  64, 128, 192};
+    uint8x16x2_t lut_u8x16x2 = vld1q_u8_x2(lut_data);
+    uint8x16_t high_threshold_u8x16 = vdupq_n_u8(28);
+    uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
+    uint8x16_t sign_mask_u8x16 = vdupq_n_u8(0x20);
+
+    uint8x16_t a_u8x16 = a.u8x16;
+    uint8x16_t b_u8x16 = b.u8x16;
+
+    uint8x16_t a_mag_u8x16 = vandq_u8(a_u8x16, magnitude_mask_u8x16);
+    uint8x16_t b_mag_u8x16 = vandq_u8(b_u8x16, magnitude_mask_u8x16);
+
+    uint8x16_t a_low_u8x16 = vqtbl2q_u8(lut_u8x16x2, a_mag_u8x16);
+    uint8x16_t b_low_u8x16 = vqtbl2q_u8(lut_u8x16x2, b_mag_u8x16);
+    uint8x16_t a_high_u8x16 = vandq_u8(vcgeq_u8(a_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+    uint8x16_t b_high_u8x16 = vandq_u8(vcgeq_u8(b_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+
+    int16x8_t a_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(a_low_u8x16, a_high_u8x16));
+    int16x8_t a_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(a_low_u8x16, a_high_u8x16));
+    int16x8_t b_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(b_low_u8x16, b_high_u8x16));
+    int16x8_t b_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(b_low_u8x16, b_high_u8x16));
+
+    uint8x16_t sign_combined_u8x16 = vandq_u8(veorq_u8(a_u8x16, b_u8x16), sign_mask_u8x16);
+    uint8x16_t negate_mask_u8x16 = vceqq_u8(sign_combined_u8x16, sign_mask_u8x16);
+    uint16x8_t negate_low_u16x8 = vreinterpretq_u16_u8(vzip1q_u8(negate_mask_u8x16, negate_mask_u8x16));
+    uint16x8_t negate_high_u16x8 = vreinterpretq_u16_u8(vzip2q_u8(negate_mask_u8x16, negate_mask_u8x16));
+    b_unsigned_low_i16x8 = vbslq_s16(negate_low_u16x8, vnegq_s16(b_unsigned_low_i16x8), b_unsigned_low_i16x8);
+    b_unsigned_high_i16x8 = vbslq_s16(negate_high_u16x8, vnegq_s16(b_unsigned_high_i16x8), b_unsigned_high_i16x8);
+
+    state->sum_i32x4 = vmlal_s16(state->sum_i32x4, vget_low_s16(a_unsigned_low_i16x8),
+                                 vget_low_s16(b_unsigned_low_i16x8));
+    state->sum_i32x4 = vmlal_high_s16(state->sum_i32x4, a_unsigned_low_i16x8, b_unsigned_low_i16x8);
+    state->sum_i32x4 = vmlal_s16(state->sum_i32x4, vget_low_s16(a_unsigned_high_i16x8),
+                                 vget_low_s16(b_unsigned_high_i16x8));
+    state->sum_i32x4 = vmlal_high_s16(state->sum_i32x4, a_unsigned_high_i16x8, b_unsigned_high_i16x8);
+}
+
+NK_INTERNAL void nk_dot_e3m2x16_finalize_neonsdot(                                                  //
+    nk_dot_e3m2x16_state_neonsdot_t const *state_a, nk_dot_e3m2x16_state_neonsdot_t const *state_b, //
+    nk_dot_e3m2x16_state_neonsdot_t const *state_c, nk_dot_e3m2x16_state_neonsdot_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    nk_f32_t const scale = 1.0f / 256.0f;
+    result->f32s[0] = (nk_f32_t)vaddvq_s32(state_a->sum_i32x4) * scale;
+    result->f32s[1] = (nk_f32_t)vaddvq_s32(state_b->sum_i32x4) * scale;
+    result->f32s[2] = (nk_f32_t)vaddvq_s32(state_c->sum_i32x4) * scale;
+    result->f32s[3] = (nk_f32_t)vaddvq_s32(state_d->sum_i32x4) * scale;
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

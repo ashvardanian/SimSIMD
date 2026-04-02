@@ -177,6 +177,12 @@ void test_spatial() {
     check("angular_u8_neonsdot", test_angular<u8_t>, nk_angular_u8_neonsdot);
     check("sqeuclidean_u8_neonsdot", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_neonsdot);
     check("euclidean_u8_neonsdot", test_euclidean<u8_t>, nk_euclidean_u8_neonsdot);
+    check("angular_i4_neonsdot", test_angular<i4x2_t>, nk_angular_i4_neonsdot);
+    check("sqeuclidean_i4_neonsdot", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_neonsdot);
+    check("euclidean_i4_neonsdot", test_euclidean<i4x2_t>, nk_euclidean_i4_neonsdot);
+    check("angular_u4_neonsdot", test_angular<u4x2_t>, nk_angular_u4_neonsdot);
+    check("sqeuclidean_u4_neonsdot", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_neonsdot);
+    check("euclidean_u4_neonsdot", test_euclidean<u4x2_t>, nk_euclidean_u4_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_NEONFP8

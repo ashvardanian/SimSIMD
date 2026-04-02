@@ -55,6 +55,12 @@ void bench_spatial() {
     run_dense<u8_k, f32_k>("angular_u8_neonsdot", nk_angular_u8_neonsdot);
     run_dense<u8_k, u32_k>("sqeuclidean_u8_neonsdot", nk_sqeuclidean_u8_neonsdot);
     run_dense<u8_k, f32_k>("euclidean_u8_neonsdot", nk_euclidean_u8_neonsdot);
+    run_dense<i4_k, f32_k>("angular_i4_neonsdot", nk_angular_i4_neonsdot);
+    run_dense<i4_k, u32_k>("sqeuclidean_i4_neonsdot", nk_sqeuclidean_i4_neonsdot);
+    run_dense<i4_k, f32_k>("euclidean_i4_neonsdot", nk_euclidean_i4_neonsdot);
+    run_dense<u4_k, f32_k>("angular_u4_neonsdot", nk_angular_u4_neonsdot);
+    run_dense<u4_k, u32_k>("sqeuclidean_u4_neonsdot", nk_sqeuclidean_u4_neonsdot);
+    run_dense<u4_k, f32_k>("euclidean_u4_neonsdot", nk_euclidean_u4_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
