@@ -205,7 +205,8 @@ int py_number_to_nk_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dty
  *  @brief Write a scalar buffer result (including complex) to a numpy output array element.
  *  @return 1 on success, 0 on error.
  */
-int nk_scalar_buffer_export(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_dtype_t dst_dtype, void *target);
+int nk_scalar_buffer_export(nk_scalar_buffer_t const *source, nk_dtype_t source_dtype, void *target,
+                            nk_dtype_t target_dtype);
 
 /**
  *  @brief Acquire a Py_buffer, falling back to __array_interface__ if needed.

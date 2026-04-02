@@ -140,8 +140,8 @@ static PyObject *implement_dense_metric( //
     // Check if the downcasting to provided dtype is supported
     {
         nk_scalar_buffer_t probe;
-        nk_f64c_t zero = {0, 0};
-        if (!nk_scalar_buffer_from_f64c(zero, &probe, out_dtype)) {
+        probe.f64c.real = 0, probe.f64c.imag = 0;
+        if (!nk_scalar_buffer_from_f64c(&probe.f64c, &probe, out_dtype)) {
             PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }
@@ -221,7 +221,7 @@ static PyObject *implement_dense_metric( //
             &result);
 
         // Export out:
-        nk_scalar_buffer_export(&result, kernel_out_dtype, out_dtype, distances_start + i * distances_stride_bytes);
+        nk_scalar_buffer_export(&result, kernel_out_dtype, distances_start + i * distances_stride_bytes, out_dtype);
     }
 
     PyEval_RestoreThread(save);
@@ -599,10 +599,10 @@ static void cdist_pairwise_loop(                          //
             nk_scalar_buffer_t result;
             metric(a_start + i * a_stride, b_start + j * b_stride, dimensions, &result);
             char *ptr_ij = out + i * out_row_stride + j * out_col_stride;
-            nk_scalar_buffer_export(&result, kernel_out_dtype, out_dtype, ptr_ij);
+            nk_scalar_buffer_export(&result, kernel_out_dtype, ptr_ij, out_dtype);
             if (is_symmetric) {
                 char *ptr_ji = out + j * out_row_stride + i * out_col_stride;
-                nk_scalar_buffer_export(&result, kernel_out_dtype, out_dtype, ptr_ji);
+                nk_scalar_buffer_export(&result, kernel_out_dtype, ptr_ji, out_dtype);
             }
         }
 }
@@ -739,8 +739,8 @@ static PyObject *implement_cdist(                        //
     // Check if the downcasting to provided dtype is supported
     {
         nk_scalar_buffer_t probe;
-        nk_f64c_t zero = {0, 0};
-        if (!nk_scalar_buffer_from_f64c(zero, &probe, out_dtype)) {
+        probe.f64c.real = 0, probe.f64c.imag = 0;
+        if (!nk_scalar_buffer_from_f64c(&probe.f64c, &probe, out_dtype)) {
             PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }

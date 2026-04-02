@@ -611,17 +611,19 @@ int py_number_to_nk_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dty
     }
     nk_f64_t value;
     if (!py_number_to_f64(obj, &value)) return 0;
-    nk_scalar_buffer_from_f64(buf, value, dtype);
+    buf->f64 = value;
+    nk_scalar_buffer_from_f64(&buf->f64, buf, dtype);
     return 1;
 }
 
-int nk_scalar_buffer_export(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_dtype_t dst_dtype, void *target) {
-    nk_f64c_t v;
-    if (!nk_scalar_buffer_to_f64c(buf, src_dtype, &v)) return 0;
-    nk_scalar_buffer_t dst;
-    if (!nk_scalar_buffer_from_f64c(v, &dst, dst_dtype)) return 0;
-    nk_size_t stride = nk_dtype_bits(dst_dtype) / NK_BITS_PER_BYTE;
-    nk_copy_bytes_(target, &dst, stride);
+int nk_scalar_buffer_export(                                   //
+    nk_scalar_buffer_t const *source, nk_dtype_t source_dtype, //
+    void *target, nk_dtype_t target_dtype) {                   //
+    nk_scalar_buffer_t converted;
+    if (!nk_scalar_buffer_to_f64c(source, source_dtype, &converted.f64c)) return 0;
+    if (!nk_scalar_buffer_from_f64c(&converted.f64c, &converted, target_dtype)) return 0;
+    nk_size_t target_size = nk_dtype_bits(target_dtype) / NK_BITS_PER_BYTE;
+    nk_copy_bytes_(target, &converted, target_size);
     return 1;
 }
 
