@@ -18,6 +18,8 @@
  *      vmulq_f64     FMUL (V.2D, V.2D, V.2D)      3cy @ 2p  3cy @ 4p
  *      vaddvq_f32    FADDP+FADDP (reduce)         5cy @ 1p  8cy @ 1p
  *      vaddvq_f64    FADDP (V.2D to scalar)       3cy @ 1p  3cy @ 1p
+ *      vpaddq_f32    FADDP (V.4S, V.4S, V.4S)     2cy @ 2p  3cy @ 4p
+ *      vpaddq_f64    FADDP (V.2D, V.2D, V.2D)     2cy @ 2p  3cy @ 4p
  *      vcvt_f64_f32  FCVTL (V.2D, V.2S)           3cy @ 2p  3cy @ 2p
  *      vld2_f32      LD2 ({Vt.2S, Vt2.2S}, [Xn])  4cy @ 1p  4cy @ 1p
  *
@@ -248,10 +250,10 @@ NK_INTERNAL void nk_dot_f32x2_finalize_neon(                                    
     nk_dot_f32x2_state_neon_t const *state_c, nk_dot_f32x2_state_neon_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f64s[0] = vaddvq_f64(state_a->sum_f64x2);
-    result->f64s[1] = vaddvq_f64(state_b->sum_f64x2);
-    result->f64s[2] = vaddvq_f64(state_c->sum_f64x2);
-    result->f64s[3] = vaddvq_f64(state_d->sum_f64x2);
+    float64x2_t ab_f64x2 = vpaddq_f64(state_a->sum_f64x2, state_b->sum_f64x2);
+    float64x2_t cd_f64x2 = vpaddq_f64(state_c->sum_f64x2, state_d->sum_f64x2);
+    vst1q_f64(&result->f64s[0], ab_f64x2);
+    vst1q_f64(&result->f64s[2], cd_f64x2);
 }
 
 NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -572,10 +574,9 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neon(                                   
     nk_dot_bf16x8_state_neon_t const *state_c, nk_dot_bf16x8_state_neon_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -611,8 +612,8 @@ nk_dot_f16_neon_cycle:
 /**
  *  @brief Running state for 128-bit dot accumulation over f16 scalars on plain NEON.
  *
- *  Processes 8 f16 values at a time (128 bits), converting to f32 via integer bit
- *  manipulation for accumulation without requiring the ARMv8.2-A FP16 extension.
+ *  Processes 8 f16 values at a time (128 bits), converting to f32 via FCVTL
+ *  for accumulation without requiring the ARMv8.2-A FP16 arithmetic extension.
  */
 typedef struct nk_dot_f16x8_state_neon_t {
     float32x4_t sum_f32x4;
@@ -640,10 +641,9 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neon(                                    
     nk_dot_f16x8_state_neon_t const *state_c, nk_dot_f16x8_state_neon_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,

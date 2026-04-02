@@ -15,6 +15,7 @@
  *      vfmlslq_high_f16  FMLSL2 (V.4S, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
  *      vld1q_f16         LD1 (V.8H)                 4cy @ 2p  4cy @ 3p
  *      vaddvq_f32        FADDP+FADDP (V.4S)         4cy @ 1p  8cy @ 1p
+ *      vpaddq_f32        FADDP (V.4S, V.4S, V.4S)   2cy @ 2p  3cy @ 4p
  *      vshll_n_u8        SHLL (V.8H, V.8B, #8)      2cy @ 2p  2cy @ 4p
  *
  *  The ARMv8.4-FHM extension (FEAT_FHM) provides FMLAL/FMLSL instructions that fuse FP16 to FP32
@@ -124,10 +125,9 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                 
     nk_dot_f16x8_state_neonfhm_t const *state_c, nk_dot_f16x8_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
@@ -304,10 +304,9 @@ NK_INTERNAL void nk_dot_e4m3x16_finalize_neonfhm(                               
     nk_dot_e4m3x16_state_neonfhm_t const *state_c, nk_dot_e4m3x16_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 typedef struct nk_dot_e5m2x16_state_neonfhm_t {
@@ -339,10 +338,9 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_neonfhm(                               
     nk_dot_e5m2x16_state_neonfhm_t const *state_c, nk_dot_e5m2x16_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 #if defined(__clang__)

@@ -13,6 +13,7 @@
  *      vcvt_f32_f16  FCVTL (V.4S, V.4H)       3cy @ 2p  3cy @ 4p
  *      vld1q_f16     LD1 (V.8H)               4cy @ 2p  4cy @ 3p
  *      vaddvq_f32    FADDP+FADDP (V.4S)       4cy @ 1p  8cy @ 1p
+ *      vpaddq_f32    FADDP (V.4S, V.4S, V.4S) 2cy @ 2p  3cy @ 4p
  *      vfmsq_f16     FMLS (V.8H, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
  *      vfmaq_f32     FMLA (V.4S, V.4S, V.4S)  4cy @ 2p  3cy @ 4p
  *
@@ -72,29 +73,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
-
-NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    float32x4_t a_f32x4, b_f32x4;
-    float32x4_t sum_f32x4 = vdupq_n_f32(0);
-nk_dot_f16_neonhalf_cycle:
-    if (count_scalars < 4) {
-        nk_b64_vec_t a_vec, b_vec;
-        nk_partial_load_b16x4_serial_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_b16x4_serial_(b_scalars, &b_vec, count_scalars);
-        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
-        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
-        count_scalars = 0;
-    }
-    else {
-        a_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)a_scalars));
-        b_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)b_scalars));
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
-    }
-    sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
-    if (count_scalars) goto nk_dot_f16_neonhalf_cycle;
-    *result = vaddvq_f32(sum_f32x4);
-}
 
 NK_PUBLIC void nk_dot_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                     nk_f32c_t *result) {
@@ -177,10 +155,9 @@ NK_INTERNAL void nk_dot_f16x4_finalize_neonhalf(                                
     nk_dot_f16x4_state_neonhalf_t const *state_c, nk_dot_f16x4_state_neonhalf_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 #if defined(__clang__)

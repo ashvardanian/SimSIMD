@@ -15,6 +15,8 @@
  *      vld1q_u8    LD1 (V.16B)                4cy @ 2p    4cy @ 3p
  *      vaddvq_s32  ADDV (V.4S)                4cy @ 1p    5cy @ 1p
  *      vaddvq_u32  ADDV (V.4S)                4cy @ 1p    5cy @ 1p
+ *      vpaddq_s32  ADDP (V.4S, V.4S, V.4S)    2cy @ 2p    2cy @ 4p
+ *      vpaddq_u32  ADDP (V.4S, V.4S, V.4S)    2cy @ 2p    2cy @ 4p
  *
  *  Extraction ops used for i4/u4 nibble unpacking and e2m3/e3m2 LUT conversion:
  *
@@ -161,10 +163,9 @@ NK_INTERNAL void nk_dot_i8x16_finalize_neonsdot(                                
     nk_dot_i8x16_state_neonsdot_t const *state_c, nk_dot_i8x16_state_neonsdot_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->i32s[0] = vaddvq_s32(state_a->sum_i32x4);
-    result->i32s[1] = vaddvq_s32(state_b->sum_i32x4);
-    result->i32s[2] = vaddvq_s32(state_c->sum_i32x4);
-    result->i32s[3] = vaddvq_s32(state_d->sum_i32x4);
+    int32x4_t ab_i32x4 = vpaddq_s32(state_a->sum_i32x4, state_b->sum_i32x4);
+    int32x4_t cd_i32x4 = vpaddq_s32(state_c->sum_i32x4, state_d->sum_i32x4);
+    result->i32x4 = vpaddq_s32(ab_i32x4, cd_i32x4);
 }
 
 /**
@@ -190,10 +191,9 @@ NK_INTERNAL void nk_dot_u8x16_finalize_neonsdot(                                
     nk_dot_u8x16_state_neonsdot_t const *state_c, nk_dot_u8x16_state_neonsdot_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->u32s[0] = vaddvq_u32(state_a->sum_u32x4);
-    result->u32s[1] = vaddvq_u32(state_b->sum_u32x4);
-    result->u32s[2] = vaddvq_u32(state_c->sum_u32x4);
-    result->u32s[3] = vaddvq_u32(state_d->sum_u32x4);
+    uint32x4_t ab_u32x4 = vpaddq_u32(state_a->sum_u32x4, state_b->sum_u32x4);
+    uint32x4_t cd_u32x4 = vpaddq_u32(state_c->sum_u32x4, state_d->sum_u32x4);
+    result->u32x4 = vpaddq_u32(ab_u32x4, cd_u32x4);
 }
 
 NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
@@ -325,10 +325,9 @@ NK_INTERNAL void nk_dot_i4x32_finalize_neonsdot(                                
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Simple reduction - no correction formula needed with sign-extension approach!
-    result->i32s[0] = vaddvq_s32(state_a->product_sum_i32x4);
-    result->i32s[1] = vaddvq_s32(state_b->product_sum_i32x4);
-    result->i32s[2] = vaddvq_s32(state_c->product_sum_i32x4);
-    result->i32s[3] = vaddvq_s32(state_d->product_sum_i32x4);
+    int32x4_t ab_i32x4 = vpaddq_s32(state_a->product_sum_i32x4, state_b->product_sum_i32x4);
+    int32x4_t cd_i32x4 = vpaddq_s32(state_c->product_sum_i32x4, state_d->product_sum_i32x4);
+    result->i32x4 = vpaddq_s32(ab_i32x4, cd_i32x4);
 }
 
 typedef struct nk_dot_u4x32_state_neonsdot_t {
@@ -365,10 +364,9 @@ NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(                                
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Simple reduction - no correction formula needed!
-    result->u32s[0] = vaddvq_u32(state_a->product_sum_u32x4);
-    result->u32s[1] = vaddvq_u32(state_b->product_sum_u32x4);
-    result->u32s[2] = vaddvq_u32(state_c->product_sum_u32x4);
-    result->u32s[3] = vaddvq_u32(state_d->product_sum_u32x4);
+    uint32x4_t ab_u32x4 = vpaddq_u32(state_a->product_sum_u32x4, state_b->product_sum_u32x4);
+    uint32x4_t cd_u32x4 = vpaddq_u32(state_c->product_sum_u32x4, state_d->product_sum_u32x4);
+    result->u32x4 = vpaddq_u32(ab_u32x4, cd_u32x4);
 }
 
 NK_PUBLIC void nk_dot_e2m3_neonsdot(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
@@ -534,10 +532,10 @@ NK_INTERNAL void nk_dot_e2m3x16_finalize_neonsdot(                              
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     nk_f32_t const scale = 1.0f / 256.0f;
-    result->f32s[0] = (nk_f32_t)vaddvq_s32(state_a->sum_i32x4) * scale;
-    result->f32s[1] = (nk_f32_t)vaddvq_s32(state_b->sum_i32x4) * scale;
-    result->f32s[2] = (nk_f32_t)vaddvq_s32(state_c->sum_i32x4) * scale;
-    result->f32s[3] = (nk_f32_t)vaddvq_s32(state_d->sum_i32x4) * scale;
+    int32x4_t ab_i32x4 = vpaddq_s32(state_a->sum_i32x4, state_b->sum_i32x4);
+    int32x4_t cd_i32x4 = vpaddq_s32(state_c->sum_i32x4, state_d->sum_i32x4);
+    int32x4_t sums_i32x4 = vpaddq_s32(ab_i32x4, cd_i32x4);
+    result->f32x4 = vmulq_n_f32(vcvtq_f32_s32(sums_i32x4), scale);
 }
 
 /**
@@ -603,10 +601,10 @@ NK_INTERNAL void nk_dot_e3m2x16_finalize_neonsdot(                              
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     nk_f32_t const scale = 1.0f / 256.0f;
-    result->f32s[0] = (nk_f32_t)vaddvq_s32(state_a->sum_i32x4) * scale;
-    result->f32s[1] = (nk_f32_t)vaddvq_s32(state_b->sum_i32x4) * scale;
-    result->f32s[2] = (nk_f32_t)vaddvq_s32(state_c->sum_i32x4) * scale;
-    result->f32s[3] = (nk_f32_t)vaddvq_s32(state_d->sum_i32x4) * scale;
+    int32x4_t ab_i32x4 = vpaddq_s32(state_a->sum_i32x4, state_b->sum_i32x4);
+    int32x4_t cd_i32x4 = vpaddq_s32(state_c->sum_i32x4, state_d->sum_i32x4);
+    int32x4_t sums_i32x4 = vpaddq_s32(ab_i32x4, cd_i32x4);
+    result->f32x4 = vmulq_n_f32(vcvtq_f32_s32(sums_i32x4), scale);
 }
 
 #if defined(__clang__)
