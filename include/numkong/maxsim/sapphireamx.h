@@ -147,7 +147,7 @@ NK_PUBLIC void nk_maxsim_pack_f32_sapphireamx( //
 
     // Quantize vectors and scatter into A-side tiles, copy originals, compute inverse norms
     for (nk_size_t vector_index = 0; vector_index < vector_count; vector_index++) {
-        nk_f32_t const *source_vector = (nk_f32_t const *)((char const *)vectors + vector_index * stride);
+        nk_f32_t const *source_vector = (nk_f32_t const *)((char const *)vectors + vector_index * stride_in_bytes);
 
         // Pass 1: find absmax and norm_squared
         nk_f32_t absmax_f32 = 0.0f;
@@ -401,7 +401,7 @@ NK_PUBLIC void nk_maxsim_pack_f16_sapphireamx( //
     }
 
     // Quantize vectors and scatter into A-side tiles, copy originals, compute inverse norms
-    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f16_t);
     for (nk_size_t vector_index = 0; vector_index < vector_count; vector_index++) {
         nk_f16_t const *source_vector = vectors + vector_index * stride_elements;
 
@@ -638,7 +638,7 @@ NK_PUBLIC void nk_maxsim_pack_bf16_sapphireamx( //
     nk_bf16_t const *vectors, nk_size_t vector_count, nk_size_t depth, nk_size_t stride_in_bytes, void *packed) {
 
     nk_size_t const tile_bytes = 1024;
-    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_bf16_t);
     nk_size_t column_tile_count = nk_size_divide_round_up_(vector_count, 16);
     nk_size_t depth_tile_count = nk_size_divide_round_up_(depth, 32);
 

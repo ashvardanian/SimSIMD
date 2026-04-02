@@ -415,6 +415,16 @@ Regardless of the intrinsic name used to produce a value, the variable name shou
 > svfloat32_t values_even_f32x = svcvt_f32_f16_x(pred_even_b32x, values_f16x);   // elements 0,2,4,...
 > svfloat32_t values_odd_f32x  = svcvtlt_f32_f16_x(pred_odd_b32x, values_f16x);  // elements 1,3,5,...
 > ```
+>
+> Similarly, in AMX tile-based GEMMs, the A matrix is split into a top half and a bottom half, while B tiles cover left and right halfs.
+> Using `high` & `low` would suggest register halves; `top` & `bottom` reflects the spatial role in the matrix multiplication:
+>
+> ```c
+> _tile_loadd(0, a_tile_top, a_stride_bytes);         // A top rows
+> _tile_loadd(1, a_tile_bottom, a_stride_bytes);      // A bottom rows
+> _tile_loadd(2, b_tile_left, 64);                    // B left columns
+> _tile_loadd(3, b_tile_right, 64);                   // B right columns
+> ```
 
 For the `<dtype>` part, values like `u8`, `bf16`, `f64c`, `i4`, and `e3m2` are used — except where the type doesn't matter, such as predicate masks, loads, and stores.
 Those use `b32` or `b8`, reflecting the number of bits in each mask element.
