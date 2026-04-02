@@ -150,12 +150,9 @@ void bench_curved() {
     run_curved<f32_k>("bilinear_f32_neon", nk_bilinear_f32_neon);
     run_curved<f32_k>("mahalanobis_f32_neon", nk_mahalanobis_f32_neon);
     run_curved<f32c_k>("bilinear_f32c_neon", nk_bilinear_f32c_neon);
-#endif
-
-#if NK_TARGET_NEONHALF
-    run_curved<f16_k>("bilinear_f16_neonhalf", nk_bilinear_f16_neonhalf);
-    run_curved<f16_k>("mahalanobis_f16_neonhalf", nk_mahalanobis_f16_neonhalf);
-    run_curved<f16c_k>("bilinear_f16c_neonhalf", nk_bilinear_f16c_neonhalf);
+    run_curved<f16_k>("bilinear_f16_neon", nk_bilinear_f16_neon);
+    run_curved<f16_k>("mahalanobis_f16_neon", nk_mahalanobis_f16_neon);
+    run_curved<f16c_k>("bilinear_f16c_neon", nk_bilinear_f16c_neon);
 #endif
 
 #if NK_TARGET_NEONBFDOT

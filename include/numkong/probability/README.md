@@ -153,25 +153,25 @@ Measured with Wasmtime v42 (Cranelift backend).
 | `nk_kld_f16_serial`  |    0.118 gb/s, 1.04K ulp |    0.127 gb/s, 4.53K ulp |    0.111 gb/s, 18.3K ulp |
 | `nk_jsd_f16_serial`  |     0.0748 gb/s, 1.4 ulp |     0.0681 gb/s, 2.6 ulp |     0.0857 gb/s, 9.7 ulp |
 
-### Apple M4
+### Apple M5
 
 #### Native
 
 | Kernel                |                      256 |                     1024 |                     4096 |
 | :-------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f64_serial`   |      2.21 gb/s, 5.6K ulp |       2.22 gb/s, 25K ulp |       2.18 gb/s, 99K ulp |
-| `nk_jsd_f64_serial`   |       1.40 gb/s, 0.4 ulp |       1.45 gb/s, 0.4 ulp |       1.45 gb/s, 0.5 ulp |
+| `nk_kld_f64_serial`   |      3.22 gb/s, 5.6K ulp |       3.36 gb/s, 25K ulp |       3.32 gb/s, 99K ulp |
+| `nk_jsd_f64_serial`   |       2.06 gb/s, 0.4 ulp |       2.17 gb/s, 0.4 ulp |       2.17 gb/s, 0.5 ulp |
 | __f32__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f32_serial`   |      6.29 gb/s, 1.0K ulp |      6.35 gb/s, 4.5K ulp |       6.22 gb/s, 18K ulp |
-| `nk_jsd_f32_serial`   |       1.21 gb/s, 0.4 ulp |       1.20 gb/s, 0.4 ulp |       1.20 gb/s, 4.6 ulp |
-| `nk_kld_f32_neon`     |      14.5 gb/s, 1.0K ulp |      14.4 gb/s, 4.5K ulp |       12.8 gb/s, 18K ulp |
-| `nk_jsd_f32_neon`     |        6.81 gb/s, 15 ulp |        7.04 gb/s, 14 ulp |       6.78 gb/s, 9.9 ulp |
+| `nk_kld_f32_serial`   |      9.26 gb/s, 1.0K ulp |      8.73 gb/s, 4.5K ulp |       9.10 gb/s, 18K ulp |
+| `nk_jsd_f32_serial`   |       2.08 gb/s, 0.4 ulp |       2.16 gb/s, 0.4 ulp |       2.13 gb/s, 4.6 ulp |
+| `nk_kld_f32_neon`     |      19.0 gb/s, 1.0K ulp |      17.4 gb/s, 4.5K ulp |       18.1 gb/s, 18K ulp |
+| `nk_jsd_f32_neon`     |        9.75 gb/s, 15 ulp |        9.32 gb/s, 14 ulp |       9.62 gb/s, 9.9 ulp |
 | __bf16__              | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_bf16_serial`  |      3.16 gb/s, 1.0K ulp |      2.96 gb/s, 4.5K ulp |       3.16 gb/s, 18K ulp |
-| `nk_jsd_bf16_serial`  |      0.611 gb/s, 1.4 ulp |      0.595 gb/s, 2.9 ulp |      0.613 gb/s, 9.7 ulp |
+| `nk_kld_bf16_serial`  |      4.58 gb/s, 1.0K ulp |      4.47 gb/s, 4.5K ulp |       4.65 gb/s, 18K ulp |
+| `nk_jsd_bf16_serial`  |       1.08 gb/s, 1.4 ulp |       1.07 gb/s, 2.9 ulp |       1.09 gb/s, 9.7 ulp |
 | __f16__               | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_kld_f16_serial`   |      3.15 gb/s, 1.0K ulp |      3.14 gb/s, 4.5K ulp |       2.81 gb/s, 18K ulp |
-| `nk_jsd_f16_serial`   |      0.610 gb/s, 1.4 ulp |      0.611 gb/s, 2.7 ulp |      0.602 gb/s, 8.7 ulp |
-| `nk_kld_f16_neonhalf` |      6.78 gb/s, 1.0K ulp |      6.72 gb/s, 4.5K ulp |       6.09 gb/s, 18K ulp |
-| `nk_jsd_f16_neonhalf` |        3.42 gb/s, 15 ulp |        3.40 gb/s, 14 ulp |       3.14 gb/s, 9.9 ulp |
+| `nk_kld_f16_serial`   |      4.63 gb/s, 1.0K ulp |      4.45 gb/s, 4.5K ulp |       4.55 gb/s, 18K ulp |
+| `nk_jsd_f16_serial`   |       1.03 gb/s, 1.4 ulp |      0.962 gb/s, 2.7 ulp |      0.976 gb/s, 8.7 ulp |
+| `nk_kld_f16_neonhalf` |      10.2 gb/s, 1.0K ulp |      9.67 gb/s, 4.5K ulp |       9.99 gb/s, 18K ulp |
+| `nk_jsd_f16_neonhalf` |        5.00 gb/s, 15 ulp |        4.79 gb/s, 14 ulp |       4.94 gb/s, 9.9 ulp |

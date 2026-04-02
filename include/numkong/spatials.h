@@ -1661,28 +1661,6 @@ NK_PUBLIC void nk_euclideans_symmetric_f16_neon(nk_f16_t const *vectors, nk_size
                                                 nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_NEON
 
-/*  ARM NEON with F16 arithmetic (ARMv8.2-A FP16).
- *  Provides native F16 FMLA for half-precision dot products.
- */
-#if NK_TARGET_NEONHALF
-/** @copydoc nk_angulars_packed_f16 */
-NK_PUBLIC void nk_angulars_packed_f16_neonhalf(nk_f16_t const *a, void const *b_packed, nk_f32_t *result,
-                                               nk_size_t rows, nk_size_t cols, nk_size_t depth,
-                                               nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
-/** @copydoc nk_angulars_symmetric_f16 */
-NK_PUBLIC void nk_angulars_symmetric_f16_neonhalf(nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
-                                                  nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                  nk_size_t row_start, nk_size_t row_count);
-/** @copydoc nk_euclideans_packed_f16 */
-NK_PUBLIC void nk_euclideans_packed_f16_neonhalf(nk_f16_t const *a, void const *b_packed, nk_f32_t *result,
-                                                 nk_size_t rows, nk_size_t cols, nk_size_t depth,
-                                                 nk_size_t a_stride_in_bytes, nk_size_t r_stride_in_bytes);
-/** @copydoc nk_euclideans_symmetric_f16 */
-NK_PUBLIC void nk_euclideans_symmetric_f16_neonhalf(nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
-                                                    nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                                    nk_size_t row_start, nk_size_t row_count);
-#endif // NK_TARGET_NEONHALF
-
 /*  ARM NEON with BF16 dot product (ARMv8.6-A BF16).
  *  Uses BFDOT/BFMMLA for efficient BF16 matrix operations.
  */
@@ -2088,7 +2066,6 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t 
 
 #include "numkong/spatials/serial.h"
 #include "numkong/spatials/neon.h"
-#include "numkong/spatials/neonhalf.h"
 #include "numkong/spatials/neonfhm.h"
 #include "numkong/spatials/neonfp8.h"
 #include "numkong/spatials/neonbfdot.h"
@@ -2317,8 +2294,6 @@ NK_PUBLIC void nk_angulars_packed_f16(nk_f16_t const *a, void const *b_packed, n
     nk_angulars_packed_f16_sme(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEONFHM
     nk_angulars_packed_f16_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_NEONHALF
-    nk_angulars_packed_f16_neonhalf(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEON
     nk_angulars_packed_f16_neon(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
@@ -2341,9 +2316,6 @@ NK_PUBLIC void nk_angulars_symmetric_f16(nk_f16_t const *vectors, nk_size_t vect
 #elif NK_TARGET_NEONFHM
     nk_angulars_symmetric_f16_neonfhm(vectors, vectors_count, depth, stride, result, result_stride, row_start,
                                       row_count);
-#elif NK_TARGET_NEONHALF
-    nk_angulars_symmetric_f16_neonhalf(vectors, vectors_count, depth, stride, result, result_stride, row_start,
-                                       row_count);
 #elif NK_TARGET_NEON
     nk_angulars_symmetric_f16_neon(vectors, vectors_count, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
@@ -2369,8 +2341,6 @@ NK_PUBLIC void nk_euclideans_packed_f16(nk_f16_t const *a, void const *b_packed,
     nk_euclideans_packed_f16_sme(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEONFHM
     nk_euclideans_packed_f16_neonfhm(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_NEONHALF
-    nk_euclideans_packed_f16_neonhalf(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEON
     nk_euclideans_packed_f16_neon(a, b_packed, result, rows, cols, depth, a_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_SKYLAKE
@@ -2393,9 +2363,6 @@ NK_PUBLIC void nk_euclideans_symmetric_f16(nk_f16_t const *vectors, nk_size_t ve
 #elif NK_TARGET_NEONFHM
     nk_euclideans_symmetric_f16_neonfhm(vectors, vectors_count, depth, stride, result, result_stride, row_start,
                                         row_count);
-#elif NK_TARGET_NEONHALF
-    nk_euclideans_symmetric_f16_neonhalf(vectors, vectors_count, depth, stride, result, result_stride, row_start,
-                                         row_count);
 #elif NK_TARGET_NEON
     nk_euclideans_symmetric_f16_neon(vectors, vectors_count, depth, stride, result, result_stride, row_start,
                                      row_count);

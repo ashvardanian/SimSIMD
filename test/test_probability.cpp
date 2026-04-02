@@ -91,12 +91,9 @@ void test_probability() {
 #if NK_TARGET_NEON
     check("kld_f32_neon", test_kld<f32_t>, nk_kld_f32_neon);
     check("jsd_f32_neon", test_jsd<f32_t>, nk_jsd_f32_neon);
+    check("kld_f16_neon", test_kld<f16_t>, nk_kld_f16_neon);
+    check("jsd_f16_neon", test_jsd<f16_t>, nk_jsd_f16_neon);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("kld_f16_neonhalf", test_kld<f16_t>, nk_kld_f16_neonhalf);
-    check("jsd_f16_neonhalf", test_jsd<f16_t>, nk_jsd_f16_neonhalf);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
     check("kld_f16_haswell", test_kld<f16_t>, nk_kld_f16_haswell);

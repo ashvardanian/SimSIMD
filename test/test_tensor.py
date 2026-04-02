@@ -39,7 +39,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
     assert_allclose,
@@ -49,6 +48,7 @@ from test_base import (
     ml_dtypes_available,
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
+    precise_decimal,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
     to_array,
@@ -63,10 +63,8 @@ except ImportError:
 
 def precise_sum(a):
     """High-precision sum via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        return float(sum(D.from_float(float(x)) for x in np.asarray(a).flat))
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) for x in np.asarray(a).flat))
 
 
 def precise_min(a):
@@ -81,33 +79,27 @@ def precise_max(a):
 
 def precise_add(a, b):
     """High-precision element-wise add via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         return [
-            float(D.from_float(float(x)) + D.from_float(float(y)))
+            float(d.from_float(float(x)) + d.from_float(float(y)))
             for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
         ]
 
 
 def precise_subtract(a, b):
     """High-precision element-wise subtract via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         return [
-            float(D.from_float(float(x)) - D.from_float(float(y)))
+            float(d.from_float(float(x)) - d.from_float(float(y)))
             for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
         ]
 
 
 def precise_multiply(a, b):
     """High-precision element-wise multiply via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         return [
-            float(D.from_float(float(x)) * D.from_float(float(y)))
+            float(d.from_float(float(x)) * d.from_float(float(y)))
             for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
         ]
 

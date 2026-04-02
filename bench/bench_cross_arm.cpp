@@ -75,19 +75,17 @@ void bench_cross_arm() {
                               nk_jaccards_packed_u1_neon);
     run_jaccards_symmetric<u1_k>("jaccards_symmetric_u1_neon", nk_jaccards_symmetric_u1_neon);
 
-#endif
+    run_dots_packed<f16_k>("dots_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                           nk_dots_packed_f16_neon);
+    run_dots_symmetric<f16_k>("dots_symmetric_f16_neon", nk_dots_symmetric_f16_neon);
 
-#if NK_TARGET_NEONHALF
-    run_dots_packed<f16_k>("dots_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
-                           nk_dots_packed_f16_neonhalf);
-    run_dots_symmetric<f16_k>("dots_symmetric_f16_neonhalf", nk_dots_symmetric_f16_neonhalf);
+    run_angulars_packed<f16_k>("angulars_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                               nk_angulars_packed_f16_neon);
+    run_angulars_symmetric<f16_k>("angulars_symmetric_f16_neon", nk_angulars_symmetric_f16_neon);
+    run_euclideans_packed<f16_k>("euclideans_packed_f16_neon", nk_dots_packed_size_f16_neon, nk_dots_pack_f16_neon,
+                                 nk_euclideans_packed_f16_neon);
+    run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_neon", nk_euclideans_symmetric_f16_neon);
 
-    run_angulars_packed<f16_k>("angulars_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf,
-                               nk_dots_pack_f16_neonhalf, nk_angulars_packed_f16_neonhalf);
-    run_angulars_symmetric<f16_k>("angulars_symmetric_f16_neonhalf", nk_angulars_symmetric_f16_neonhalf);
-    run_euclideans_packed<f16_k>("euclideans_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf,
-                                 nk_dots_pack_f16_neonhalf, nk_euclideans_packed_f16_neonhalf);
-    run_euclideans_symmetric<f16_k>("euclideans_symmetric_f16_neonhalf", nk_euclideans_symmetric_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM
@@ -180,6 +178,27 @@ void bench_cross_arm() {
     run_euclideans_symmetric<u8_k>("euclideans_symmetric_u8_neonsdot", nk_euclideans_symmetric_u8_neonsdot);
     run_euclideans_symmetric<i4_k>("euclideans_symmetric_i4_neonsdot", nk_euclideans_symmetric_i4_neonsdot);
     run_euclideans_symmetric<u4_k>("euclideans_symmetric_u4_neonsdot", nk_euclideans_symmetric_u4_neonsdot);
+
+    run_dots_packed<e2m3_k>("dots_packed_e2m3_neonsdot", nk_dots_packed_size_e2m3_neonsdot, nk_dots_pack_e2m3_neonsdot,
+                            nk_dots_packed_e2m3_neonsdot);
+    run_dots_packed<e3m2_k>("dots_packed_e3m2_neonsdot", nk_dots_packed_size_e3m2_neonsdot, nk_dots_pack_e3m2_neonsdot,
+                            nk_dots_packed_e3m2_neonsdot);
+    run_dots_symmetric<e2m3_k>("dots_symmetric_e2m3_neonsdot", nk_dots_symmetric_e2m3_neonsdot);
+    run_dots_symmetric<e3m2_k>("dots_symmetric_e3m2_neonsdot", nk_dots_symmetric_e3m2_neonsdot);
+
+    run_angulars_packed<e2m3_k>("angulars_packed_e2m3_neonsdot", nk_dots_packed_size_e2m3_neonsdot,
+                                nk_dots_pack_e2m3_neonsdot, nk_angulars_packed_e2m3_neonsdot);
+    run_angulars_packed<e3m2_k>("angulars_packed_e3m2_neonsdot", nk_dots_packed_size_e3m2_neonsdot,
+                                nk_dots_pack_e3m2_neonsdot, nk_angulars_packed_e3m2_neonsdot);
+    run_angulars_symmetric<e2m3_k>("angulars_symmetric_e2m3_neonsdot", nk_angulars_symmetric_e2m3_neonsdot);
+    run_angulars_symmetric<e3m2_k>("angulars_symmetric_e3m2_neonsdot", nk_angulars_symmetric_e3m2_neonsdot);
+
+    run_euclideans_packed<e2m3_k>("euclideans_packed_e2m3_neonsdot", nk_dots_packed_size_e2m3_neonsdot,
+                                  nk_dots_pack_e2m3_neonsdot, nk_euclideans_packed_e2m3_neonsdot);
+    run_euclideans_packed<e3m2_k>("euclideans_packed_e3m2_neonsdot", nk_dots_packed_size_e3m2_neonsdot,
+                                  nk_dots_pack_e3m2_neonsdot, nk_euclideans_packed_e3m2_neonsdot);
+    run_euclideans_symmetric<e2m3_k>("euclideans_symmetric_e2m3_neonsdot", nk_euclideans_symmetric_e2m3_neonsdot);
+    run_euclideans_symmetric<e3m2_k>("euclideans_symmetric_e3m2_neonsdot", nk_euclideans_symmetric_e3m2_neonsdot);
 
 #endif
 

@@ -332,21 +332,16 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 /** @copydoc nk_umeyama_f64 */
 NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                    nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
-#endif // NK_TARGET_NEON
-
-/*  SIMD-powered backends for Arm NEON FP16 CPUs.
- */
-#if NK_TARGET_NEONHALF
 /** @copydoc nk_rmsd_f16 */
-NK_PUBLIC void nk_rmsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
-                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+NK_PUBLIC void nk_rmsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
 /** @copydoc nk_kabsch_f16 */
-NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
-                                      nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+NK_PUBLIC void nk_kabsch_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                  nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
 /** @copydoc nk_umeyama_f16 */
-NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
-                                       nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
-#endif // NK_TARGET_NEONHALF
+NK_PUBLIC void nk_umeyama_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+#endif // NK_TARGET_NEON
 
 /*  SIMD-powered backends for Arm NEON BF16 CPUs.
  */
@@ -458,7 +453,6 @@ NK_INTERNAL nk_dtype_t nk_mesh_transform_dtype(nk_dtype_t dtype) {
 
 #include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
-#include "numkong/mesh/neonhalf.h"
 #include "numkong/mesh/neonbfdot.h"
 #include "numkong/mesh/haswell.h"
 #include "numkong/mesh/skylake.h"
@@ -511,8 +505,8 @@ NK_PUBLIC void nk_rmsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
     nk_rmsd_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_rmsd_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
-#elif NK_TARGET_NEONHALF
-    nk_rmsd_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_rmsd_f16_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_rmsd_f16_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
@@ -575,8 +569,8 @@ NK_PUBLIC void nk_kabsch_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, 
     nk_kabsch_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_kabsch_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
-#elif NK_TARGET_NEONHALF
-    nk_kabsch_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_kabsch_f16_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_kabsch_f16_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
@@ -639,8 +633,8 @@ NK_PUBLIC void nk_umeyama_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     nk_umeyama_f16_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_umeyama_f16_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
-#elif NK_TARGET_NEONHALF
-    nk_umeyama_f16_neonhalf(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_umeyama_f16_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_RVV
     nk_umeyama_f16_rvv(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else

@@ -59,7 +59,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_contiguous_( //
     for (; idx + 4 <= count; idx += 4) {
         float32x4_t data_f32x4 = vld1q_f32(data_ptr + idx);
         float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(data_f32x4));
-        float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(data_f32x4));
+        float64x2_t data_high_f64x2 = vcvt_high_f64_f32(data_f32x4);
         sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
         sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
         sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -82,7 +82,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 < count; idx += 4) {
             float32x4x2_t loaded_f32x4x2 = vld2q_f32(data_ptr + idx * 2);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x2.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x2.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x2.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -93,7 +93,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 < count; idx += 4) {
             float32x4x3_t loaded_f32x4x3 = vld3q_f32(data_ptr + idx * 3);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x3.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x3.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x3.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -104,7 +104,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 < count; idx += 4) {
             float32x4x4_t loaded_f32x4x4 = vld4q_f32(data_ptr + idx * 4);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x4.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x4.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x4.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -3832,6 +3832,108 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_neon(                              //
     else
         nk_reduce_minmax_e5m2_serial(data_ptr, count, stride_bytes, min_value_ptr, min_index_ptr, max_value_ptr,
                                      max_index_ptr);
+}
+
+NK_INTERNAL void nk_reduce_moments_f16_neon_contiguous_( //
+    nk_f16_t const *data_ptr, nk_size_t count,           //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+
+    for (; idx + 8 <= count; idx += 8) {
+        float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data_ptr + idx));
+        float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
+        float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
+        sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
+        sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
+        sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
+        sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, high_f32x4, high_f32x4);
+    }
+
+    nk_f32_t sum = vaddvq_f32(sum_f32x4);
+    nk_f32_t sumsq = vaddvq_f32(sumsq_f32x4);
+    for (; idx < count; ++idx) {
+        nk_f32_t value_f32;
+        nk_f16_to_f32_serial(data_ptr + idx, &value_f32);
+        sum += value_f32, sumsq += value_f32 * value_f32;
+    }
+    *sum_ptr = sum, *sumsq_ptr = sumsq;
+}
+
+NK_INTERNAL void nk_reduce_moments_f16_neon_strided_(                     //
+    nk_f16_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    float32x4_t sumsq_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+
+    if (stride_elements == 2) {
+        for (; idx + 8 < count; idx += 8) {
+            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((uint16_t const *)(data_ptr + idx * 2));
+            float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x2.val[0]);
+            float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
+            sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
+            sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, high_f32x4, high_f32x4);
+        }
+    }
+    else if (stride_elements == 3) {
+        for (; idx + 8 < count; idx += 8) {
+            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((uint16_t const *)(data_ptr + idx * 3));
+            float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x3.val[0]);
+            float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
+            sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
+            sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, high_f32x4, high_f32x4);
+        }
+    }
+    else if (stride_elements == 4) {
+        for (; idx + 8 < count; idx += 8) {
+            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((uint16_t const *)(data_ptr + idx * 4));
+            float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x4.val[0]);
+            float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
+            sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
+            sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
+            sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, high_f32x4, high_f32x4);
+        }
+    }
+
+    nk_f32_t sum = vaddvq_f32(sum_f32x4);
+    nk_f32_t sumsq = vaddvq_f32(sumsq_f32x4);
+    for (; idx < count; ++idx) {
+        nk_f32_t value_f32;
+        nk_f16_to_f32_serial((nk_f16_t const *)(data_ptr + idx * stride_elements), &value_f32);
+        sum += value_f32, sumsq += value_f32 * value_f32;
+    }
+    *sum_ptr = sum, *sumsq_ptr = sumsq;
+}
+
+NK_PUBLIC void nk_reduce_moments_f16_neon(                             //
+    nk_f16_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
+    int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_f16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
+    else if (count > (nk_size_t)(NK_U16_MAX + 1) * 8) {
+        nk_size_t left_count = count / 2;
+        nk_f32_t left_sum_value, left_sumsq_value, right_sum_value, right_sumsq_value;
+        nk_reduce_moments_f16_neon(data_ptr, left_count, stride_bytes, &left_sum_value, &left_sumsq_value);
+        nk_reduce_moments_f16_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                   &right_sum_value, &right_sumsq_value);
+        *sum_ptr = left_sum_value + right_sum_value, *sumsq_ptr = left_sumsq_value + right_sumsq_value;
+    }
+    else if (stride_elements == 1) nk_reduce_moments_f16_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else if (stride_elements <= 4)
+        nk_reduce_moments_f16_neon_strided_(data_ptr, count, stride_elements, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_f16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 #if defined(__clang__)

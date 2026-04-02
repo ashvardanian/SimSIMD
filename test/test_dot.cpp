@@ -112,15 +112,11 @@ void test_dot() {
     check("dot_e5m2_neon", test_dot<e5m2_t>, nk_dot_e5m2_neon);
     check("dot_e2m3_neon", test_dot<e2m3_t>, nk_dot_e2m3_neon);
     check("dot_e3m2_neon", test_dot<e3m2_t>, nk_dot_e3m2_neon);
-    check("dot_u1_neon", test_dot<u1x8_t>, nk_dot_u1_neon);
     check("dot_f16_neon", test_dot<f16_t>, nk_dot_f16_neon);
+    check("dot_f16c_neon", test_dot<f16c_t>, nk_dot_f16c_neon);
+    check("vdot_f16c_neon", test_vdot<f16c_t>, nk_vdot_f16c_neon);
+    check("dot_u1_neon", test_dot<u1x8_t>, nk_dot_u1_neon);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("dot_f16_neonhalf", test_dot<f16_t>, nk_dot_f16_neonhalf);
-    check("dot_f16c_neonhalf", test_dot<f16c_t>, nk_dot_f16c_neonhalf);
-    check("vdot_f16c_neonhalf", test_vdot<f16c_t>, nk_vdot_f16c_neonhalf);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONSDOT
     check("dot_i8_neonsdot", test_dot<i8_t>, nk_dot_i8_neonsdot);

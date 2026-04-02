@@ -28,7 +28,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     assert_allclose,
     collect_warnings,
     create_stats,
@@ -38,6 +37,7 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     reduced_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -71,25 +71,23 @@ def baseline_maxsim(queries, documents):
 
 def precise_maxsim(queries, documents):
     """High-precision MaxSim via Python Decimal: sum of per-query min angular distances."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        total = D(0)
+    with precise_decimal() as d:
+        total = d(0)
         for query_vector in queries:
-            query_decimal = [D.from_float(float(value)) for value in query_vector]
+            query_decimal = [d.from_float(float(value)) for value in query_vector]
             norm_query = sum(value * value for value in query_decimal).sqrt()
             min_angular = None
             for document_vector in documents:
-                document_decimal = [D.from_float(float(value)) for value in document_vector]
+                document_decimal = [d.from_float(float(value)) for value in document_vector]
                 norm_document = sum(value * value for value in document_decimal).sqrt()
                 dot_product = sum(
                     query_value * document_value for query_value, document_value in zip(query_decimal, document_decimal)
                 )
                 if norm_query > 0 and norm_document > 0:
                     cosine_similarity = dot_product / (norm_query * norm_document)
-                    angular = max(D(0), D(1) - cosine_similarity)
+                    angular = max(d(0), d(1) - cosine_similarity)
                 else:
-                    angular = D(1)
+                    angular = d(1)
                 if min_angular is None or angular < min_angular:
                     min_angular = angular
             total += min_angular

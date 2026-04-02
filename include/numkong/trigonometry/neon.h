@@ -13,8 +13,8 @@
  *      vfmaq_f32       FMLA (V.4S, V.4S, V.4S)    4cy @ 2p   3cy @ 4p
  *      vfmsq_f32       FMLS (V.4S, V.4S, V.4S)    4cy @ 2p   3cy @ 4p
  *      vmulq_f32       FMUL (V.4S, V.4S, V.4S)    3cy @ 2p   3cy @ 4p
- *      vaddq_f32       FADD (V.4S, V.4S, V.4S)    3cy @ 2p   2cy @ 4p
- *      vsubq_f32       FSUB (V.4S, V.4S, V.4S)    3cy @ 2p   2cy @ 4p
+ *      vaddq_f32       FADD (V.4S, V.4S, V.4S)    2cy @ 2p   2cy @ 4p
+ *      vsubq_f32       FSUB (V.4S, V.4S, V.4S)    2cy @ 2p   2cy @ 4p
  *      vcvtnq_s32_f32  FCVTNS (V.4S, V.4S)        3cy @ 2p   3cy @ 4p
  *      vcvtq_f32_s32   SCVTF (V.4S, V.4S)         3cy @ 2p   3cy @ 4p
  *      vbslq_f32       BSL (V.16B, V.16B, V.16B)  1cy @ 2p   2cy @ 4p

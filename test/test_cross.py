@@ -30,7 +30,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     NK_ATOL,
     NK_RTOL,
@@ -46,6 +45,7 @@ from test_base import (
     make_random,
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     profile,
     randomized_repetitions_count,
@@ -68,17 +68,15 @@ baseline_dots_packed = lambda A, B: A @ B.T
 
 
 def precise_matmul(A, B_T):
-    """High-precision A @ B^T via Decimal. Returns 2D numpy array."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    """High-precision A @ Bᵀ via Decimal. Returns 2D numpy array."""
+    with precise_decimal() as d:
         m, _k = A.shape
         n = B_T.shape[0]
         result = np.empty((m, n), dtype=np.float64)
         for i in range(m):
-            da = [D.from_float(float(x)) for x in A[i]]
+            da = [d.from_float(float(x)) for x in A[i]]
             for j in range(n):
-                db = [D.from_float(float(x)) for x in B_T[j]]
+                db = [d.from_float(float(x)) for x in B_T[j]]
                 result[i, j] = float(sum(x * y for x, y in zip(da, db)))
         return result
 

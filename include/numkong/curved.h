@@ -173,19 +173,16 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
 /** @copydoc nk_mahalanobis_f32 */
 NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                        nk_f64_t *result);
-#endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
 /** @copydoc nk_bilinear_f16 */
-NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                        nk_f32_t *result);
+NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                    nk_f32_t *result);
 /** @copydoc nk_bilinear_f16c */
-NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
-                                         nk_f32c_t *results);
+NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
+                                     nk_f32c_t *results);
 /** @copydoc nk_mahalanobis_f16 */
-NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                           nk_f32_t *result);
-#endif // NK_TARGET_NEONHALF
+NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                       nk_f32_t *result);
+#endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_bilinear_bf16 */
@@ -337,7 +334,6 @@ NK_INTERNAL nk_dtype_t nk_mahalanobis_output_dtype(nk_dtype_t dtype) {
 
 #include "numkong/curved/serial.h"
 #include "numkong/curved/neon.h"
-#include "numkong/curved/neonhalf.h"
 #include "numkong/curved/neonbfdot.h"
 #include "numkong/curved/smef64.h"
 #include "numkong/curved/haswell.h"
@@ -382,8 +378,8 @@ NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t co
 NK_PUBLIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_HASWELL
     nk_bilinear_f16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEONHALF
-    nk_bilinear_f16_neonhalf(a, b, c, n, result);
+#elif NK_TARGET_NEON
+    nk_bilinear_f16_neon(a, b, c, n, result);
 #elif NK_TARGET_RVV
     nk_bilinear_f16_rvv(a, b, c, n, result);
 #else
@@ -432,8 +428,8 @@ NK_PUBLIC void nk_bilinear_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_
 
 NK_PUBLIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
                                 nk_f32c_t *results) {
-#if NK_TARGET_NEONHALF
-    nk_bilinear_f16c_neonhalf(a, b, c, n, results);
+#if NK_TARGET_NEON
+    nk_bilinear_f16c_neon(a, b, c, n, results);
 #else
     nk_bilinear_f16c_serial(a, b, c, n, results);
 #endif
@@ -484,8 +480,8 @@ NK_PUBLIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t
                                   nk_f32_t *result) {
 #if NK_TARGET_HASWELL
     nk_mahalanobis_f16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEONHALF
-    nk_mahalanobis_f16_neonhalf(a, b, c, n, result);
+#elif NK_TARGET_NEON
+    nk_mahalanobis_f16_neon(a, b, c, n, result);
 #elif NK_TARGET_RVV
     nk_mahalanobis_f16_rvv(a, b, c, n, result);
 #else

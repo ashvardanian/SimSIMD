@@ -148,6 +148,43 @@ void bench_cast() {
     run_cast<nk_f32_k, nk_i8_k>("cast_f32_to_i8_sapphire", nk_cast_sapphire);
 #endif
 
+#if NK_TARGET_NEON
+    // NEON — float ↔ half/brain/MX
+    run_cast<nk_f32_k, nk_f16_k>("cast_f32_to_f16_neon", nk_cast_neon);
+    run_cast<nk_f16_k, nk_f32_k>("cast_f16_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_neon", nk_cast_neon);
+    run_cast<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_neon", nk_cast_neon);
+    run_cast<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_neon", nk_cast_neon);
+    run_cast<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_e2m3_k>("cast_f32_to_e2m3_neon", nk_cast_neon);
+    run_cast<nk_e2m3_k, nk_f32_k>("cast_e2m3_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_e3m2_k>("cast_f32_to_e3m2_neon", nk_cast_neon);
+    run_cast<nk_e3m2_k, nk_f32_k>("cast_e3m2_to_f32_neon", nk_cast_neon);
+    // NEON — float ↔ double
+    run_cast<nk_f64_k, nk_f32_k>("cast_f64_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_f64_k>("cast_f32_to_f64_neon", nk_cast_neon);
+    // NEON — integer ↔ float
+    run_cast<nk_i8_k, nk_f32_k>("cast_i8_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_i8_k>("cast_f32_to_i8_neon", nk_cast_neon);
+    run_cast<nk_u8_k, nk_f32_k>("cast_u8_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_u8_k>("cast_f32_to_u8_neon", nk_cast_neon);
+    run_cast<nk_i16_k, nk_f32_k>("cast_i16_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_i16_k>("cast_f32_to_i16_neon", nk_cast_neon);
+    run_cast<nk_u16_k, nk_f32_k>("cast_u16_to_f32_neon", nk_cast_neon);
+    run_cast<nk_f32_k, nk_u16_k>("cast_f32_to_u16_neon", nk_cast_neon);
+    // NEON — integer ↔ double
+    run_cast<nk_i32_k, nk_f64_k>("cast_i32_to_f64_neon", nk_cast_neon);
+    run_cast<nk_f64_k, nk_i32_k>("cast_f64_to_i32_neon", nk_cast_neon);
+    run_cast<nk_u32_k, nk_f64_k>("cast_u32_to_f64_neon", nk_cast_neon);
+    run_cast<nk_f64_k, nk_u32_k>("cast_f64_to_u32_neon", nk_cast_neon);
+    run_cast<nk_i64_k, nk_f64_k>("cast_i64_to_f64_neon", nk_cast_neon);
+    run_cast<nk_f64_k, nk_i64_k>("cast_f64_to_i64_neon", nk_cast_neon);
+    run_cast<nk_u64_k, nk_f64_k>("cast_u64_to_f64_neon", nk_cast_neon);
+    run_cast<nk_f64_k, nk_u64_k>("cast_f64_to_u64_neon", nk_cast_neon);
+#endif
+
     // Serial — float ↔ half/brain/MX
     run_cast<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
     run_cast<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);

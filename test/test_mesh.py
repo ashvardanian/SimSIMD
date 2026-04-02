@@ -30,7 +30,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     assert_allclose,
     create_stats,
     downcast_f32_to_dtype,
@@ -38,6 +37,7 @@ from test_base import (
     make_nk,
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     scipy_available,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -189,11 +189,9 @@ def _decimal_determinant_3x3(matrix):
 
 def precise_rmsd(source, target):
     """High-precision RMSD via Python Decimal. No SVD needed."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         source_centered, target_centered, _, n_points = _decimal_center_and_covariance(source, target)
-        total = D(0)
+        total = d(0)
         for i in range(n_points):
             for j in range(3):
                 difference = source_centered[i][j] - target_centered[i][j]
@@ -203,12 +201,10 @@ def precise_rmsd(source, target):
 
 def precise_kabsch(source, target):
     """High-precision Kabsch via Decimal Jacobi SVD. Returns RMSD after optimal rotation."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         source_centered, target_centered, cross_covariance, n_points = _decimal_center_and_covariance(source, target)
         left_vectors, _, right_vectors = _decimal_jacobi_svd_3x3(cross_covariance)
-        # R = V U^T, fix reflection if det(R) < 0
+        # R = V Uᵀ, fix reflection if det(R) < 0
         rotation = [
             [sum(right_vectors[r][k] * left_vectors[c][k] for k in range(3)) for c in range(3)] for r in range(3)
         ]
@@ -219,7 +215,7 @@ def precise_kabsch(source, target):
                 [sum(right_vectors[r][k] * left_vectors[c][k] for k in range(3)) for c in range(3)] for r in range(3)
             ]
         # RMSD after rotation
-        total = D(0)
+        total = d(0)
         for i in range(n_points):
             rotated = [sum(rotation[r][k] * source_centered[i][k] for k in range(3)) for r in range(3)]
             for j in range(3):
@@ -229,15 +225,13 @@ def precise_kabsch(source, target):
 
 def precise_umeyama(source, target):
     """High-precision Umeyama via Decimal Jacobi SVD. Returns scale factor."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    with precise_decimal() as d:
         source_centered, target_centered, cross_covariance, n_points = _decimal_center_and_covariance(source, target)
         left_vectors, singular_values, right_vectors = _decimal_jacobi_svd_3x3(cross_covariance)
         rotation = [
             [sum(right_vectors[r][k] * left_vectors[c][k] for k in range(3)) for c in range(3)] for r in range(3)
         ]
-        determinant_sign = D(1) if _decimal_determinant_3x3(rotation) >= 0 else D(-1)
+        determinant_sign = d(1) if _decimal_determinant_3x3(rotation) >= 0 else d(-1)
         if determinant_sign < 0:
             for r in range(3):
                 right_vectors[r][2] = -right_vectors[r][2]

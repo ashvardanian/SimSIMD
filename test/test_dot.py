@@ -34,7 +34,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     NK_ATOL,
     NK_RTOL,
@@ -51,6 +50,7 @@ from test_base import (
     numpy_available,
     possible_capabilities,
     print_stats_report,
+    precise_decimal,
     profile,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -69,11 +69,9 @@ baseline_inner = np.inner if numpy_available else None
 
 def precise_inner(a, b):
     """High-precision inner product via Python Decimal, exceeding f118 accuracy."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
+    with precise_decimal() as d:
+        da = [d.from_float(float(x)) for x in a]
+        db = [d.from_float(float(x)) for x in b]
         return float(sum(x * y for x, y in zip(da, db)))
 
 
