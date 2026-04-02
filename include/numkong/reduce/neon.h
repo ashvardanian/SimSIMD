@@ -79,7 +79,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
     float64x2_t sum_f64x2 = vdupq_n_f64(0), sumsq_f64x2 = vdupq_n_f64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             float32x4x2_t loaded_f32x4x2 = vld2q_f32(data_ptr + idx * 2);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x2.val[0]));
             float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x2.val[0]));
@@ -90,7 +90,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             float32x4x3_t loaded_f32x4x3 = vld3q_f32(data_ptr + idx * 3);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x3.val[0]));
             float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x3.val[0]));
@@ -101,7 +101,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             float32x4x4_t loaded_f32x4x4 = vld4q_f32(data_ptr + idx * 4);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x4.val[0]));
             float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x4.val[0]));
@@ -219,19 +219,19 @@ NK_INTERNAL void nk_reduce_minmax_f32_neon_strided_(                      //
     float32x4_t data_for_min_f32x4, data_for_max_f32x4;
 
 nk_reduce_minmax_f32_neon_cycle:
-    if (stride_elements == 2 && idx + 4 <= count) {
+    if (stride_elements == 2 && idx + 4 < count) {
         float32x4x2_t loaded = vld2q_f32(data_ptr + idx * 2);
         data_for_min_f32x4 = loaded.val[0];
         data_for_max_f32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 3 && idx + 4 <= count) {
+    else if (stride_elements == 3 && idx + 4 < count) {
         float32x4x3_t loaded = vld3q_f32(data_ptr + idx * 3);
         data_for_min_f32x4 = loaded.val[0];
         data_for_max_f32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 4 && idx + 4 <= count) {
+    else if (stride_elements == 4 && idx + 4 < count) {
         float32x4x4_t loaded = vld4q_f32(data_ptr + idx * 4);
         data_for_min_f32x4 = loaded.val[0];
         data_for_max_f32x4 = loaded.val[0];
@@ -487,7 +487,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x2_t loaded_i8x16x2 = vld2q_s8(data_ptr + idx * 2);
             int8x16_t data_i8x16 = loaded_i8x16x2.val[0];
             int16x8_t pairwise_i16x8 = vpaddlq_s8(data_i8x16);
@@ -499,7 +499,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x3_t loaded_i8x16x3 = vld3q_s8(data_ptr + idx * 3);
             int8x16_t data_i8x16 = loaded_i8x16x3.val[0];
             int16x8_t pairwise_i16x8 = vpaddlq_s8(data_i8x16);
@@ -511,7 +511,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x4_t loaded_i8x16x4 = vld4q_s8(data_ptr + idx * 4);
             int8x16_t data_i8x16 = loaded_i8x16x4.val[0];
             int16x8_t pairwise_i16x8 = vpaddlq_s8(data_i8x16);
@@ -624,19 +624,19 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_strided_(                      //
     int8x16_t data_for_min_i8x16, data_for_max_i8x16;
 
 nk_reduce_minmax_i8_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         int8x16x2_t loaded = vld2q_s8(data_ptr + idx * 2);
         data_for_min_i8x16 = loaded.val[0];
         data_for_max_i8x16 = loaded.val[0];
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         int8x16x3_t loaded = vld3q_s8(data_ptr + idx * 3);
         data_for_min_i8x16 = loaded.val[0];
         data_for_max_i8x16 = loaded.val[0];
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         int8x16x4_t loaded_i8x16x4 = vld4q_s8(data_ptr + idx * 4);
         data_for_min_i8x16 = loaded_i8x16x4.val[0];
         data_for_max_i8x16 = loaded_i8x16x4.val[0];
@@ -755,7 +755,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded_u8x16x2 = vld2q_u8(data_ptr + idx * 2);
             uint8x16_t data_u8x16 = loaded_u8x16x2.val[0];
             uint16x8_t pairwise_u16x8 = vpaddlq_u8(data_u8x16);
@@ -767,7 +767,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded_u8x16x3 = vld3q_u8(data_ptr + idx * 3);
             uint8x16_t data_u8x16 = loaded_u8x16x3.val[0];
             uint16x8_t pairwise_u16x8 = vpaddlq_u8(data_u8x16);
@@ -779,7 +779,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded_u8x16x4 = vld4q_u8(data_ptr + idx * 4);
             uint8x16_t data_u8x16 = loaded_u8x16x4.val[0];
             uint16x8_t pairwise_u16x8 = vpaddlq_u8(data_u8x16);
@@ -891,19 +891,19 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     uint8x16_t data_for_min_u8x16, data_for_max_u8x16;
 
 nk_reduce_minmax_u8_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         uint8x16x2_t loaded = vld2q_u8((nk_u8_t const *)data_ptr + idx * 2);
         data_for_min_u8x16 = loaded.val[0];
         data_for_max_u8x16 = loaded.val[0];
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         uint8x16x3_t loaded = vld3q_u8((nk_u8_t const *)data_ptr + idx * 3);
         data_for_min_u8x16 = loaded.val[0];
         data_for_max_u8x16 = loaded.val[0];
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)data_ptr + idx * 4);
         data_for_min_u8x16 = loaded_u8x16x4.val[0];
         data_for_max_u8x16 = loaded_u8x16x4.val[0];
@@ -1022,7 +1022,7 @@ NK_INTERNAL void nk_reduce_moments_i16_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             int16x8x2_t loaded_i16x8x2 = vld2q_s16(data_ptr + idx * 2);
             int16x8_t data_i16x8 = loaded_i16x8x2.val[0];
             int32x4_t pairwise_i32x4 = vpaddlq_s16(data_i16x8);
@@ -1034,7 +1034,7 @@ NK_INTERNAL void nk_reduce_moments_i16_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             int16x8x3_t loaded_i16x8x3 = vld3q_s16(data_ptr + idx * 3);
             int16x8_t data_i16x8 = loaded_i16x8x3.val[0];
             int32x4_t pairwise_i32x4 = vpaddlq_s16(data_i16x8);
@@ -1046,7 +1046,7 @@ NK_INTERNAL void nk_reduce_moments_i16_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             int16x8x4_t loaded_i16x8x4 = vld4q_s16(data_ptr + idx * 4);
             int16x8_t data_i16x8 = loaded_i16x8x4.val[0];
             int32x4_t pairwise_i32x4 = vpaddlq_s16(data_i16x8);
@@ -1159,19 +1159,19 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_strided_(                      //
     int16x8_t data_for_min_i16x8, data_for_max_i16x8;
 
 nk_reduce_minmax_i16_neon_cycle:
-    if (stride_elements == 2 && idx + 8 <= count) {
+    if (stride_elements == 2 && idx + 8 < count) {
         int16x8x2_t loaded = vld2q_s16(data_ptr + idx * 2);
         data_for_min_i16x8 = loaded.val[0];
         data_for_max_i16x8 = loaded.val[0];
         idx += 8;
     }
-    else if (stride_elements == 3 && idx + 8 <= count) {
+    else if (stride_elements == 3 && idx + 8 < count) {
         int16x8x3_t loaded = vld3q_s16(data_ptr + idx * 3);
         data_for_min_i16x8 = loaded.val[0];
         data_for_max_i16x8 = loaded.val[0];
         idx += 8;
     }
-    else if (stride_elements == 4 && idx + 8 <= count) {
+    else if (stride_elements == 4 && idx + 8 < count) {
         int16x8x4_t loaded = vld4q_s16(data_ptr + idx * 4);
         data_for_min_i16x8 = loaded.val[0];
         data_for_max_i16x8 = loaded.val[0];
@@ -1289,7 +1289,7 @@ NK_INTERNAL void nk_reduce_moments_u16_neon_strided_(                     //
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint16x8x2_t loaded_u16x8x2 = vld2q_u16(data_ptr + idx * 2);
             uint16x8_t data_u16x8 = loaded_u16x8x2.val[0];
             uint32x4_t widened_sum_u32x4 = vpaddlq_u16(data_u16x8);
@@ -1301,7 +1301,7 @@ NK_INTERNAL void nk_reduce_moments_u16_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint16x8x3_t loaded_u16x8x3 = vld3q_u16(data_ptr + idx * 3);
             uint16x8_t data_u16x8 = loaded_u16x8x3.val[0];
             uint32x4_t widened_sum_u32x4 = vpaddlq_u16(data_u16x8);
@@ -1313,7 +1313,7 @@ NK_INTERNAL void nk_reduce_moments_u16_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint16x8x4_t loaded_u16x8x4 = vld4q_u16(data_ptr + idx * 4);
             uint16x8_t data_u16x8 = loaded_u16x8x4.val[0];
             uint32x4_t widened_sum_u32x4 = vpaddlq_u16(data_u16x8);
@@ -1426,19 +1426,19 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     uint16x8_t data_for_min_u16x8, data_for_max_u16x8;
 
 nk_reduce_minmax_u16_neon_cycle:
-    if (stride_elements == 2 && idx + 8 <= count) {
+    if (stride_elements == 2 && idx + 8 < count) {
         uint16x8x2_t loaded = vld2q_u16((nk_u16_t const *)data_ptr + idx * 2);
         data_for_min_u16x8 = loaded.val[0];
         data_for_max_u16x8 = loaded.val[0];
         idx += 8;
     }
-    else if (stride_elements == 3 && idx + 8 <= count) {
+    else if (stride_elements == 3 && idx + 8 < count) {
         uint16x8x3_t loaded = vld3q_u16((nk_u16_t const *)data_ptr + idx * 3);
         data_for_min_u16x8 = loaded.val[0];
         data_for_max_u16x8 = loaded.val[0];
         idx += 8;
     }
-    else if (stride_elements == 4 && idx + 8 <= count) {
+    else if (stride_elements == 4 && idx + 8 < count) {
         uint16x8x4_t loaded = vld4q_u16((nk_u16_t const *)data_ptr + idx * 4);
         data_for_min_u16x8 = loaded.val[0];
         data_for_max_u16x8 = loaded.val[0];
@@ -1616,7 +1616,7 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
     int64x2_t sign_bit_i64x2 = vdupq_n_s64((nk_i64_t)0x8000000000000000ULL);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             int32x4x2_t loaded_i32x4x2 = vld2q_s32(data_ptr + idx * 2);
             int32x4_t data_i32x4 = loaded_i32x4x2.val[0];
             int64x2_t low_i64x2 = vmovl_s32(vget_low_s32(data_i32x4));
@@ -1654,7 +1654,7 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             int32x4x3_t loaded_i32x4x3 = vld3q_s32(data_ptr + idx * 3);
             int32x4_t data_i32x4 = loaded_i32x4x3.val[0];
             int64x2_t low_i64x2 = vmovl_s32(vget_low_s32(data_i32x4));
@@ -1692,7 +1692,7 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             int32x4x4_t loaded_i32x4x4 = vld4q_s32(data_ptr + idx * 4);
             int32x4_t data_i32x4 = loaded_i32x4x4.val[0];
             int64x2_t low_i64x2 = vmovl_s32(vget_low_s32(data_i32x4));
@@ -1841,19 +1841,19 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_strided_(                      //
     int32x4_t data_for_min_i32x4, data_for_max_i32x4;
 
 nk_reduce_minmax_i32_neon_cycle:
-    if (stride_elements == 2 && idx + 4 <= count) {
+    if (stride_elements == 2 && idx + 4 < count) {
         int32x4x2_t loaded = vld2q_s32(data_ptr + idx * 2);
         data_for_min_i32x4 = loaded.val[0];
         data_for_max_i32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 3 && idx + 4 <= count) {
+    else if (stride_elements == 3 && idx + 4 < count) {
         int32x4x3_t loaded = vld3q_s32(data_ptr + idx * 3);
         data_for_min_i32x4 = loaded.val[0];
         data_for_max_i32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 4 && idx + 4 <= count) {
+    else if (stride_elements == 4 && idx + 4 < count) {
         int32x4x4_t loaded = vld4q_s32(data_ptr + idx * 4);
         data_for_min_i32x4 = loaded.val[0];
         data_for_max_i32x4 = loaded.val[0];
@@ -1976,7 +1976,7 @@ NK_INTERNAL void nk_reduce_moments_u32_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             uint32x4x2_t loaded_u32x4x2 = vld2q_u32(data_ptr + idx * 2);
             uint32x4_t data_u32x4 = loaded_u32x4x2.val[0];
             sum_u64x2 = vaddq_u64(sum_u64x2, vmovl_u32(vget_low_u32(data_u32x4)));
@@ -1988,7 +1988,7 @@ NK_INTERNAL void nk_reduce_moments_u32_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             uint32x4x3_t loaded_u32x4x3 = vld3q_u32(data_ptr + idx * 3);
             uint32x4_t data_u32x4 = loaded_u32x4x3.val[0];
             sum_u64x2 = vaddq_u64(sum_u64x2, vmovl_u32(vget_low_u32(data_u32x4)));
@@ -2000,7 +2000,7 @@ NK_INTERNAL void nk_reduce_moments_u32_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 4 <= count; idx += 4) {
+        for (; idx + 4 < count; idx += 4) {
             uint32x4x4_t loaded_u32x4x4 = vld4q_u32(data_ptr + idx * 4);
             uint32x4_t data_u32x4 = loaded_u32x4x4.val[0];
             sum_u64x2 = vaddq_u64(sum_u64x2, vmovl_u32(vget_low_u32(data_u32x4)));
@@ -2114,19 +2114,19 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_strided_(                      //
     uint32x4_t data_for_min_u32x4, data_for_max_u32x4;
 
 nk_reduce_minmax_u32_neon_cycle:
-    if (stride_elements == 2 && idx + 4 <= count) {
+    if (stride_elements == 2 && idx + 4 < count) {
         uint32x4x2_t loaded = vld2q_u32(data_ptr + idx * 2);
         data_for_min_u32x4 = loaded.val[0];
         data_for_max_u32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 3 && idx + 4 <= count) {
+    else if (stride_elements == 3 && idx + 4 < count) {
         uint32x4x3_t loaded = vld3q_u32(data_ptr + idx * 3);
         data_for_min_u32x4 = loaded.val[0];
         data_for_max_u32x4 = loaded.val[0];
         idx += 4;
     }
-    else if (stride_elements == 4 && idx + 4 <= count) {
+    else if (stride_elements == 4 && idx + 4 < count) {
         uint32x4x4_t loaded = vld4q_u32(data_ptr + idx * 4);
         data_for_min_u32x4 = loaded.val[0];
         data_for_max_u32x4 = loaded.val[0];
@@ -2530,7 +2530,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
             uint8x16_t raw_u8x16 = loaded_u8x16x2.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -2548,7 +2548,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
             uint8x16_t raw_u8x16 = loaded_u8x16x3.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -2566,7 +2566,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
             uint8x16_t raw_u8x16 = loaded_u8x16x4.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -2709,21 +2709,21 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_strided_(                      //
     uint8x16_t data_for_min_u8x16, data_for_max_u8x16;
 
 nk_reduce_minmax_e2m3_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         uint8x16x2_t loaded = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
         data_for_max_u8x16 = comparable_u8x16;
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         uint8x16x3_t loaded = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
         data_for_max_u8x16 = comparable_u8x16;
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         uint8x16x4_t loaded = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
@@ -2891,7 +2891,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_strided_(                     //
     uint64x2_t sumsq_u64x2 = vdupq_n_u64(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
             uint8x16_t raw_u8x16 = loaded_u8x16x2.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -2924,7 +2924,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
             uint8x16_t raw_u8x16 = loaded_u8x16x3.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -2957,7 +2957,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
             uint8x16_t raw_u8x16 = loaded_u8x16x4.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -3112,21 +3112,21 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_strided_(                      //
     uint8x16_t data_for_min_u8x16, data_for_max_u8x16;
 
 nk_reduce_minmax_e3m2_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         uint8x16x2_t loaded = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
         data_for_max_u8x16 = comparable_u8x16;
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         uint8x16x3_t loaded = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
         data_for_max_u8x16 = comparable_u8x16;
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         uint8x16x4_t loaded = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(loaded.val[0]);
         data_for_min_u8x16 = comparable_u8x16;
@@ -3249,7 +3249,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neon_strided_(                     //
     float32x4_t sum_f32x4 = vdupq_n_f32(0), sumsq_f32x4 = vdupq_n_f32(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
             float16x8_t half_low_f16x8, half_high_f16x8;
             nk_e4m3x16_to_f16x8x2_neon_(loaded_u8x16x2.val[0], &half_low_f16x8, &half_high_f16x8);
@@ -3266,7 +3266,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
             float16x8_t half_low_f16x8, half_high_f16x8;
             nk_e4m3x16_to_f16x8x2_neon_(loaded_u8x16x3.val[0], &half_low_f16x8, &half_high_f16x8);
@@ -3283,7 +3283,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
             float16x8_t half_low_f16x8, half_high_f16x8;
             nk_e4m3x16_to_f16x8x2_neon_(loaded_u8x16x4.val[0], &half_low_f16x8, &half_high_f16x8);
@@ -3415,7 +3415,7 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_strided_(                      //
     uint8x16_t data_for_min_u8x16, data_for_max_u8x16;
 
 nk_reduce_minmax_e4m3_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         uint8x16x2_t loaded = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vceqq_u8(comparable_u8x16, vdupq_n_u8(0x00)),
@@ -3424,7 +3424,7 @@ nk_reduce_minmax_e4m3_neon_cycle:
         data_for_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         uint8x16x3_t loaded = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vceqq_u8(comparable_u8x16, vdupq_n_u8(0x00)),
@@ -3433,7 +3433,7 @@ nk_reduce_minmax_e4m3_neon_cycle:
         data_for_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         uint8x16x4_t loaded = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vceqq_u8(comparable_u8x16, vdupq_n_u8(0x00)),
@@ -3565,7 +3565,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
     float32x4_t sum_f32x4 = vdupq_n_f32(0), sumsq_f32x4 = vdupq_n_f32(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint8x8x2_t loaded_u8x8x2 = vld2_u8((nk_u8_t const *)(data_ptr + idx * 2));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x2.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
@@ -3575,7 +3575,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint8x8x3_t loaded_u8x8x3 = vld3_u8((nk_u8_t const *)(data_ptr + idx * 3));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x3.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
@@ -3585,7 +3585,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
         }
     }
     else {
-        for (; idx + 8 <= count; idx += 8) {
+        for (; idx + 8 < count; idx += 8) {
             uint8x8x4_t loaded_u8x8x4 = vld4_u8((nk_u8_t const *)(data_ptr + idx * 4));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x4.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
@@ -3712,7 +3712,7 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_strided_(                      //
     uint8x16_t data_for_min_u8x16, data_for_max_u8x16;
 
 nk_reduce_minmax_e5m2_neon_cycle:
-    if (stride_elements == 2 && idx + 16 <= count) {
+    if (stride_elements == 2 && idx + 16 < count) {
         uint8x16x2_t loaded = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vcleq_u8(comparable_u8x16, vdupq_n_u8(0x02)),
@@ -3721,7 +3721,7 @@ nk_reduce_minmax_e5m2_neon_cycle:
         data_for_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
         idx += 16;
     }
-    else if (stride_elements == 3 && idx + 16 <= count) {
+    else if (stride_elements == 3 && idx + 16 < count) {
         uint8x16x3_t loaded = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vcleq_u8(comparable_u8x16, vdupq_n_u8(0x02)),
@@ -3730,7 +3730,7 @@ nk_reduce_minmax_e5m2_neon_cycle:
         data_for_max_u8x16 = vbslq_u8(is_nan_u8x16, vdupq_n_u8(0x00), comparable_u8x16);
         idx += 16;
     }
-    else if (stride_elements == 4 && idx + 16 <= count) {
+    else if (stride_elements == 4 && idx + 16 < count) {
         uint8x16x4_t loaded = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(loaded.val[0]);
         uint8x16_t is_nan_u8x16 = vorrq_u8(vcleq_u8(comparable_u8x16, vdupq_n_u8(0x02)),

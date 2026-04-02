@@ -531,7 +531,7 @@ NK_INTERNAL void nk_reduce_moments_f32_haswell_strided_(                  //
     __m256d sumsq_low_f64x4 = _mm256_setzero_pd(), sumsq_high_f64x4 = _mm256_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(8, stride_elements);
-    for (; idx + step <= total; idx += step) {
+    for (; idx + stride_elements + 7 <= total; idx += step) {
         __m128 low_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data_ptr + idx), blend_low_f32x4);
         __m128 high_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data_ptr + idx + 4), blend_high_f32x4);
         __m256d low_f64x4 = _mm256_cvtps_pd(low_f32x4);
@@ -769,7 +769,7 @@ NK_INTERNAL void nk_reduce_moments_f64_haswell_strided_(                  //
     __m256d sumsq_comp_f64x4 = _mm256_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(4, stride_elements);
-    for (; idx + step <= total; idx += step) {
+    for (; idx + stride_elements + 3 <= total; idx += step) {
         __m256d val_f64x4 = _mm256_blendv_pd(zero_f64x4, _mm256_loadu_pd(data_ptr + idx), blend_f64x4);
         __m256d tentative_f64x4 = _mm256_add_pd(sum_f64x4, val_f64x4);
         __m256d round_f64x4 = _mm256_sub_pd(tentative_f64x4, sum_f64x4);
@@ -981,7 +981,7 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t vector_element_count = 0;
     nk_size_t step = elements_per_vector * stride_elements;
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 31 <= total_scalars; idx_scalars += step) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_i8x32 = _mm256_and_si256(data_i8x32, stride_mask_i8x32);
         __m256i unsigned_u8x32 = _mm256_xor_si256(data_i8x32, masked_bias_i8x32);
@@ -1181,7 +1181,7 @@ NK_INTERNAL void nk_reduce_moments_u8_haswell_strided_(                  //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 31 <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
@@ -1377,7 +1377,7 @@ NK_INTERNAL void nk_reduce_moments_i16_haswell_strided_(                  //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 15 <= total_scalars; idx_scalars += step) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_i16x16 = _mm256_and_si256(data_i16x16, stride_mask_i16x16);
         sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(data_i16x16, ones_i16x16));
@@ -1568,7 +1568,7 @@ NK_INTERNAL void nk_reduce_moments_u16_haswell_strided_(                  //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 15 <= total_scalars; idx_scalars += step) {
         __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_u16x16 = _mm256_and_si256(data_u16x16, stride_mask_i16x16);
         __m256i low_u32x8 = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(data_u16x16));

@@ -60,7 +60,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neonsdot_strided_(                 //
     int32x4_t sumsq_i32x4 = vdupq_n_s32(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x2_t loaded = vld2q_s8(data_ptr + idx * 2);
             int8x16_t data_i8x16 = loaded.val[0];
             sum_i32x4 = vdotq_s32(sum_i32x4, data_i8x16, ones_i8x16);
@@ -68,7 +68,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x3_t loaded = vld3q_s8(data_ptr + idx * 3);
             int8x16_t data_i8x16 = loaded.val[0];
             sum_i32x4 = vdotq_s32(sum_i32x4, data_i8x16, ones_i8x16);
@@ -76,7 +76,7 @@ NK_INTERNAL void nk_reduce_moments_i8_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 4) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             int8x16x4_t loaded = vld4q_s8(data_ptr + idx * 4);
             int8x16_t data_i8x16 = loaded.val[0];
             sum_i32x4 = vdotq_s32(sum_i32x4, data_i8x16, ones_i8x16);
@@ -151,7 +151,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neonsdot_strided_(                 //
     uint32x4_t sumsq_u32x4 = vdupq_n_u32(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded = vld2q_u8(data_ptr + idx * 2);
             uint8x16_t data_u8x16 = loaded.val[0];
             sum_u32x4 = vdotq_u32(sum_u32x4, data_u8x16, ones_u8x16);
@@ -159,7 +159,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded = vld3q_u8(data_ptr + idx * 3);
             uint8x16_t data_u8x16 = loaded.val[0];
             sum_u32x4 = vdotq_u32(sum_u32x4, data_u8x16, ones_u8x16);
@@ -167,7 +167,7 @@ NK_INTERNAL void nk_reduce_moments_u8_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 4) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded = vld4q_u8(data_ptr + idx * 4);
             uint8x16_t data_u8x16 = loaded.val[0];
             sum_u32x4 = vdotq_u32(sum_u32x4, data_u8x16, ones_u8x16);
@@ -268,7 +268,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_strided_(                 //
     int32x4_t sumsq_i32x4 = vdupq_n_s32(0);
     nk_size_t idx = 0;
     if (stride_elements == 2) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)(data_ptr + idx * 2));
             uint8x16_t raw_u8x16 = loaded_u8x16x2.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -282,7 +282,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 3) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)(data_ptr + idx * 3));
             uint8x16_t raw_u8x16 = loaded_u8x16x3.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));
@@ -296,7 +296,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_strided_(                 //
         }
     }
     else if (stride_elements == 4) {
-        for (; idx + 16 <= count; idx += 16) {
+        for (; idx + 16 < count; idx += 16) {
             uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)(data_ptr + idx * 4));
             uint8x16_t raw_u8x16 = loaded_u8x16x4.val[0];
             uint8x16_t magnitude_u8x16 = vandq_u8(raw_u8x16, vdupq_n_u8(0x1F));

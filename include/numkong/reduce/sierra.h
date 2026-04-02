@@ -68,7 +68,7 @@ NK_INTERNAL void nk_reduce_moments_i8_sierra_strided_(               //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 31 <= total_scalars; idx_scalars += step) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_i8x32 = _mm256_and_si256(data_i8x32, stride_mask_i8x32);
         sum_i32x8 = _mm256_dpbssd_epi32(sum_i32x8, data_i8x32, ones_i8x32);
@@ -153,7 +153,7 @@ NK_INTERNAL void nk_reduce_moments_u8_sierra_strided_(               //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 31 <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, data_u8x32, ones_u8x32);
@@ -272,7 +272,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_strided_(               //
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
-    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
+    for (; idx_scalars + stride_elements + 31 <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         __m256i magnitude_u8x32 = _mm256_and_si256(data_u8x32, magnitude_mask_u8x32);
