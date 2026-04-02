@@ -43,6 +43,7 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -93,10 +94,8 @@ def baseline_norm(a):
 
 def precise_sum(a):
     """High-precision sum via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        return float(sum(D.from_float(float(x)) for x in a))
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) for x in a))
 
 
 def precise_min(a):
@@ -119,10 +118,8 @@ def precise_argmax(a):
 
 def precise_norm(a):
     """High-precision L2 norm via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        return float(sum(D.from_float(float(x)) ** 2 for x in a).sqrt())
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) ** 2 for x in a).sqrt())
 
 
 KERNELS_REDUCE = {

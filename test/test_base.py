@@ -16,10 +16,10 @@ Helpers:
     make_nk(np_arr, dtype)          Copy NumPy array into an ``nk.Tensor``.
     tolerances_for_dtype(dtype)     Returns ``(atol, rtol)`` for assertion checks.
     random_of_dtype(dtype, shape)   Legacy wrapper around ``make_random``.
+    precise_decimal()               Context manager yielding Decimal for high-accuracy baselines.
 Constants:
     NATIVE_COMPUTE_DTYPE            Maps dtype → NumPy dtype for native-precision baselines.
     NK_ATOL, NK_RTOL                Default assertion tolerances.
-    DECIMAL_PRECISION              Shared decimal precision for high-accuracy baselines.
 
 Profiling:
     profile(callable, ...)          Time a callable, return ``(ns, result)``.
@@ -48,6 +48,8 @@ from __future__ import annotations
 
 import array
 import collections
+import contextlib
+import decimal
 import faulthandler
 import os
 import platform
@@ -204,7 +206,19 @@ def round_up_to(value: int, multiple: int) -> int:
     return (value + multiple - 1) // multiple * multiple
 
 
-DECIMAL_PRECISION = 120
+@contextlib.contextmanager
+def precise_decimal():
+    """Decimal context for high-precision baselines: 120 digits, IEEE inf/NaN semantics.
+
+    Yields ``decimal.Decimal`` so callers can write::
+
+        with precise_decimal() as d:
+            result = float(d(1.5) + d(2.5))
+    """
+    ctx = decimal.Context(prec=120)
+    ctx.traps[decimal.InvalidOperation] = False
+    with decimal.localcontext(ctx):
+        yield decimal.Decimal
 
 
 def is_running_under_qemu():

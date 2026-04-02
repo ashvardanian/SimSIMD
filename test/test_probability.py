@@ -29,7 +29,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
     assert_allclose,
@@ -39,6 +38,7 @@ from test_base import (
     keep_one_capability,
     make_positive_buffer,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     profile,
     randomized_repetitions_count,
@@ -73,16 +73,14 @@ except ImportError:
 
 
 def precise_jensenshannon(p, q):
-    """High-precision Jensen-Shannon distance via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
+    """High-precision Jensen–Shannon distance via Python Decimal."""
+    with precise_decimal() as d:
         n = len(p)
-        first_distribution = [D.from_float(float(p[i])) for i in range(n)]
-        second_distribution = [D.from_float(float(q[i])) for i in range(n)]
+        first_distribution = [d.from_float(float(p[i])) for i in range(n)]
+        second_distribution = [d.from_float(float(q[i])) for i in range(n)]
         midpoint = [(first_distribution[i] + second_distribution[i]) / 2 for i in range(n)]
-        divergence_first = D(0)
-        divergence_second = D(0)
+        divergence_first = d(0)
+        divergence_second = d(0)
         for i in range(n):
             if first_distribution[i] > 0 and midpoint[i] > 0:
                 divergence_first += first_distribution[i] * (first_distribution[i] / midpoint[i]).ln()
@@ -90,19 +88,17 @@ def precise_jensenshannon(p, q):
                 divergence_second += second_distribution[i] * (second_distribution[i] / midpoint[i]).ln()
         jensen_shannon_divergence = (divergence_first + divergence_second) / 2
         if jensen_shannon_divergence < 0:
-            jensen_shannon_divergence = D(0)
+            jensen_shannon_divergence = d(0)
         return float(jensen_shannon_divergence.sqrt())
 
 
 def precise_kullbackleibler(p, q):
     """High-precision KL divergence via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        total = D(0)
+    with precise_decimal() as d:
+        total = d(0)
         for i in range(len(p)):
-            first_value = D.from_float(float(p[i]))
-            second_value = D.from_float(float(q[i]))
+            first_value = d.from_float(float(p[i]))
+            second_value = d.from_float(float(q[i]))
             if first_value > 0 and second_value > 0:
                 total += first_value * (first_value / second_value).ln()
         return float(total)

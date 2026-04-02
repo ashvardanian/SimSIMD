@@ -36,7 +36,6 @@ except Exception:
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
     LazyFormat,
@@ -49,6 +48,7 @@ from test_base import (
     numpy_available,
     possible_capabilities,
     print_stats_report,
+    precise_decimal,
     profile,
     reduced_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -95,31 +95,27 @@ def make_positive_semidefinite(data):
 
 
 def precise_bilinear(a, b, c):
-    """High-precision bilinear form x @ z @ y via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
+    """High-precision bilinear form a·C·b via Python Decimal."""
+    with precise_decimal() as d:
+        da = [d.from_float(float(x)) for x in a]
+        db = [d.from_float(float(x)) for x in b]
         n = len(a)
-        total = D(0)
+        total = d(0)
         for i in range(n):
             for j in range(n):
-                total += da[i] * D.from_float(float(c[i, j])) * db[j]
+                total += da[i] * d.from_float(float(c[i, j])) * db[j]
         return float(total)
 
 
 def precise_mahalanobis(a, b, c):
-    """High-precision Mahalanobis distance sqrt((a-b) @ c @ (a-b)) via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        diff = [D.from_float(float(x)) - D.from_float(float(y)) for x, y in zip(a, b)]
+    """High-precision Mahalanobis distance √((a−b)·C·(a−b)) via Python Decimal."""
+    with precise_decimal() as d:
+        diff = [d.from_float(float(x)) - d.from_float(float(y)) for x, y in zip(a, b)]
         n = len(diff)
-        total = D(0)
+        total = d(0)
         for i in range(n):
             for j in range(n):
-                total += diff[i] * D.from_float(float(c[i, j])) * diff[j]
+                total += diff[i] * d.from_float(float(c[i, j])) * diff[j]
         return float(total.sqrt())
 
 
