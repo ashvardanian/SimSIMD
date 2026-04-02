@@ -1770,13 +1770,16 @@ NK_INTERNAL void nk_scalar_buffers_to_f64c_(                           //
             to_buffers[i * 2 + 1].f64c.real = unpacked[1], to_buffers[i * 2 + 1].f64c.imag = 0;
         }
     } break;
-    // All byte-or-larger types: load directly into buffer, then convert in-place.
+    // All byte-or-larger types: stage through a separate buffer to avoid
+    // variable-length memcpy and type-punned read on the same union —
+    // a pattern that triggers an ICE in MSVC's ARM64 optimizer (C1001).
     default: {
         nk_size_t stride = nk_dtype_bits(from_dtype) / NK_BITS_PER_BYTE;
+        nk_scalar_buffer_t staged;
         for (i = 0; i < from_count; ++i) {
-            to_buffers[i].u64 = 0;
-            nk_copy_bytes_(&to_buffers[i], (char const *)from_ptr + i * stride, stride);
-            nk_scalar_buffer_to_f64c(&to_buffers[i], from_dtype, &to_buffers[i].f64c);
+            staged.u64 = 0;
+            nk_copy_bytes_(&staged, (char const *)from_ptr + i * stride, stride);
+            nk_scalar_buffer_to_f64c(&staged, from_dtype, &to_buffers[i].f64c);
         }
     } break;
     }

@@ -301,9 +301,6 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     # MSVC requires architecture-specific macros for winnt.h
     if is_64bit_arm():
         macros.append(("_ARM64_", "1"))
-        # Disable LTCG: the HostX86→ARM64 cross-compiler ICEs during
-        # link-time code generation on `nk_scalar_buffer_t` unions.
-        compile_args.append("/GL-")
     elif is_64bit_x86():
         macros.append(("_AMD64_", "1"))
 
