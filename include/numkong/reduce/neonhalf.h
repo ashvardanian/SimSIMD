@@ -48,7 +48,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neonhalf_contiguous_( //
     for (; idx + 8 <= count; idx += 8) {
         float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data_ptr + idx));
         float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
-        float32x4_t high_f32x4 = vcvt_f32_f16(vget_high_f16(data_f16x8));
+        float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
         sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
         sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
         sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
@@ -78,7 +78,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neonhalf_strided_(                 //
             uint16x8x2_t loaded_u16x8x2 = vld2q_u16((uint16_t const *)(data_ptr + idx * 2));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x2.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
-            float32x4_t high_f32x4 = vcvt_f32_f16(vget_high_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
             sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
             sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
             sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
@@ -90,7 +90,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neonhalf_strided_(                 //
             uint16x8x3_t loaded_u16x8x3 = vld3q_u16((uint16_t const *)(data_ptr + idx * 3));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x3.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
-            float32x4_t high_f32x4 = vcvt_f32_f16(vget_high_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
             sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
             sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
             sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);
@@ -102,7 +102,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neonhalf_strided_(                 //
             uint16x8x4_t loaded_u16x8x4 = vld4q_u16((uint16_t const *)(data_ptr + idx * 4));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x4.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
-            float32x4_t high_f32x4 = vcvt_f32_f16(vget_high_f16(data_f16x8));
+            float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
             sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
             sum_f32x4 = vaddq_f32(sum_f32x4, high_f32x4);
             sumsq_f32x4 = vfmaq_f32(sumsq_f32x4, low_f32x4, low_f32x4);

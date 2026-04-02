@@ -254,18 +254,18 @@ nk_dot_e5m2_neonfhm_cycle:
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
         a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
-        a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a_vec.u8x16, 8));
         b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
-        b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b_vec.u8x16, 8));
         count_scalars = 0;
     }
     else {
         uint8x16_t a_u8x16 = vld1q_u8(a_scalars);
         uint8x16_t b_u8x16 = vld1q_u8(b_scalars);
         a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
-        a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a_u8x16, 8));
         b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
-        b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b_u8x16, 8));
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
     sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
@@ -324,9 +324,9 @@ NK_INTERNAL void nk_dot_e5m2x16_update_neonfhm(nk_dot_e5m2x16_state_neonfhm_t *s
     nk_unused_(active_dimensions);
     // Convert e5m2 → f16 via SHLL: widen u8→u16 and shift left 8 in one instruction
     float16x8_t a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a.u8x16), 8));
-    float16x8_t a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a.u8x16), 8));
+    float16x8_t a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a.u8x16, 8));
     float16x8_t b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b.u8x16), 8));
-    float16x8_t b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b.u8x16), 8));
+    float16x8_t b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b.u8x16, 8));
     // FMLAL: widening multiply-accumulate fp16 → f32
     state->sum_f32x4 = vfmlalq_low_f16(state->sum_f32x4, a_low_f16x8, b_low_f16x8);
     state->sum_f32x4 = vfmlalq_high_f16(state->sum_f32x4, a_low_f16x8, b_low_f16x8);

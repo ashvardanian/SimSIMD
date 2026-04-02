@@ -80,7 +80,7 @@ nk_kld_f32_neon_cycle:
     float32x4_t log_ratio_f32x4 = nk_log2_f32x4_neon_(ratio_f32x4);
     float32x4_t contribution_f32x4 = vmulq_f32(a_f32x4, log_ratio_f32x4);
     sum_low_f64x2 = vaddq_f64(sum_low_f64x2, vcvt_f64_f32(vget_low_f32(contribution_f32x4)));
-    sum_high_f64x2 = vaddq_f64(sum_high_f64x2, vcvt_f64_f32(vget_high_f32(contribution_f32x4)));
+    sum_high_f64x2 = vaddq_f64(sum_high_f64x2, vcvt_high_f64_f32(contribution_f32x4));
     if (n != 0) goto nk_kld_f32_neon_cycle;
 
     nk_f64_t log2_normalizer = 0.6931471805599453;
@@ -119,7 +119,7 @@ nk_jsd_f32_neon_cycle:
     float32x4_t contribution_b_f32x4 = vmulq_f32(b_f32x4, log_ratio_b_f32x4);
     float32x4_t contribution_f32x4 = vaddq_f32(contribution_a_f32x4, contribution_b_f32x4);
     sum_low_f64x2 = vaddq_f64(sum_low_f64x2, vcvt_f64_f32(vget_low_f32(contribution_f32x4)));
-    sum_high_f64x2 = vaddq_f64(sum_high_f64x2, vcvt_f64_f32(vget_high_f32(contribution_f32x4)));
+    sum_high_f64x2 = vaddq_f64(sum_high_f64x2, vcvt_high_f64_f32(contribution_f32x4));
     if (n != 0) goto nk_jsd_f32_neon_cycle;
 
     nk_f64_t log2_normalizer = 0.6931471805599453;

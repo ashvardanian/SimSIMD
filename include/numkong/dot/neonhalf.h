@@ -153,8 +153,8 @@ NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *
 /**
  *  @brief Running state for 64-bit dot accumulation over f16 scalars on NEON with FP16 extension.
  *
- *  Processes 4 f16 values at a time (64 bits), converting directly to f32 without
- *  the overhead of vget_low/vget_high operations on 128-bit vectors.
+ *  Processes 4 f16 values at a time (64 bits), converting directly to f32 via
+ *  a single FCVTL without needing to split a 128-bit vector.
  */
 typedef struct nk_dot_f16x4_state_neonhalf_t {
     float32x4_t sum_f32x4;

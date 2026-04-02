@@ -59,7 +59,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_contiguous_( //
     for (; idx + 4 <= count; idx += 4) {
         float32x4_t data_f32x4 = vld1q_f32(data_ptr + idx);
         float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(data_f32x4));
-        float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(data_f32x4));
+        float64x2_t data_high_f64x2 = vcvt_high_f64_f32(data_f32x4);
         sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
         sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
         sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -82,7 +82,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 <= count; idx += 4) {
             float32x4x2_t loaded_f32x4x2 = vld2q_f32(data_ptr + idx * 2);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x2.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x2.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x2.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -93,7 +93,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 <= count; idx += 4) {
             float32x4x3_t loaded_f32x4x3 = vld3q_f32(data_ptr + idx * 3);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x3.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x3.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x3.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);
@@ -104,7 +104,7 @@ NK_INTERNAL void nk_reduce_moments_f32_neon_strided_(                     //
         for (; idx + 4 <= count; idx += 4) {
             float32x4x4_t loaded_f32x4x4 = vld4q_f32(data_ptr + idx * 4);
             float64x2_t data_low_f64x2 = vcvt_f64_f32(vget_low_f32(loaded_f32x4x4.val[0]));
-            float64x2_t data_high_f64x2 = vcvt_f64_f32(vget_high_f32(loaded_f32x4x4.val[0]));
+            float64x2_t data_high_f64x2 = vcvt_high_f64_f32(loaded_f32x4x4.val[0]);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_low_f64x2);
             sum_f64x2 = vaddq_f64(sum_f64x2, data_high_f64x2);
             sumsq_f64x2 = vfmaq_f64(sumsq_f64x2, data_low_f64x2, data_low_f64x2);

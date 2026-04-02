@@ -72,10 +72,6 @@ NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x
     *z_out = vcombine_f64(vld1_f64(&ptr[2]), vld1_f64(&ptr[5]));
 }
 
-NK_INTERNAL float64x2_t nk_promote_high_f32x4_to_f64x2_neon_(float32x4_t values_f32x4) {
-    return vcvt_f64_f32(vget_high_f32(values_f32x4));
-}
-
 NK_INTERNAL nk_f64_t nk_reduce_stable_f64x2_neon_(float64x2_t values_f64x2) {
     nk_b128_vec_t values;
     values.f64x2 = values_f64x2;
@@ -125,23 +121,17 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_neon_( //
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
         float64x2_t centered_a_x_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_x_f32x4)), centroid_a_x_f64x2);
-        float64x2_t centered_a_x_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4),
-                                                        centroid_a_x_f64x2);
+        float64x2_t centered_a_x_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(a_x_f32x4), centroid_a_x_f64x2);
         float64x2_t centered_a_y_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_y_f32x4)), centroid_a_y_f64x2);
-        float64x2_t centered_a_y_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4),
-                                                        centroid_a_y_f64x2);
+        float64x2_t centered_a_y_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(a_y_f32x4), centroid_a_y_f64x2);
         float64x2_t centered_a_z_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(a_z_f32x4)), centroid_a_z_f64x2);
-        float64x2_t centered_a_z_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4),
-                                                        centroid_a_z_f64x2);
+        float64x2_t centered_a_z_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(a_z_f32x4), centroid_a_z_f64x2);
         float64x2_t centered_b_x_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_x_f32x4)), centroid_b_x_f64x2);
-        float64x2_t centered_b_x_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4),
-                                                        centroid_b_x_f64x2);
+        float64x2_t centered_b_x_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(b_x_f32x4), centroid_b_x_f64x2);
         float64x2_t centered_b_y_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_y_f32x4)), centroid_b_y_f64x2);
-        float64x2_t centered_b_y_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4),
-                                                        centroid_b_y_f64x2);
+        float64x2_t centered_b_y_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(b_y_f32x4), centroid_b_y_f64x2);
         float64x2_t centered_b_z_low_f64x2 = vsubq_f64(vcvt_f64_f32(vget_low_f32(b_z_f32x4)), centroid_b_z_f64x2);
-        float64x2_t centered_b_z_high_f64x2 = vsubq_f64(nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4),
-                                                        centroid_b_z_f64x2);
+        float64x2_t centered_b_z_high_f64x2 = vsubq_f64(vcvt_high_f64_f32(b_z_f32x4), centroid_b_z_f64x2);
 
         float64x2_t rotated_a_x_low_f64x2 = vfmaq_f64(
             vfmaq_f64(vmulq_f64(scaled_rotation_x_x_f64x2, centered_a_x_low_f64x2), scaled_rotation_x_y_f64x2,
@@ -392,17 +382,17 @@ NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
         float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_x_high_f64x2 = vcvt_high_f64_f32(a_x_f32x4);
         float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_y_high_f64x2 = vcvt_high_f64_f32(a_y_f32x4);
         float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t a_z_high_f64x2 = vcvt_high_f64_f32(a_z_f32x4);
         float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_x_high_f64x2 = vcvt_high_f64_f32(b_x_f32x4);
         float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_y_high_f64x2 = vcvt_high_f64_f32(b_y_f32x4);
         float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t b_z_high_f64x2 = vcvt_high_f64_f32(b_z_f32x4);
 
         sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
         sum_a_x_high_f64x2 = vaddq_f64(sum_a_x_high_f64x2, a_x_high_f64x2);
@@ -587,17 +577,17 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
         float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_x_high_f64x2 = vcvt_high_f64_f32(a_x_f32x4);
         float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_y_high_f64x2 = vcvt_high_f64_f32(a_y_f32x4);
         float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t a_z_high_f64x2 = vcvt_high_f64_f32(a_z_f32x4);
         float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_x_high_f64x2 = vcvt_high_f64_f32(b_x_f32x4);
         float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_y_high_f64x2 = vcvt_high_f64_f32(b_y_f32x4);
         float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t b_z_high_f64x2 = vcvt_high_f64_f32(b_z_f32x4);
 
         // Accumulate centroids
         sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
@@ -950,17 +940,17 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
             nk_deinterleave_f32x4_neon_(b + index * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
         float64x2_t a_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_x_f32x4));
-        float64x2_t a_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_x_f32x4);
+        float64x2_t a_x_high_f64x2 = vcvt_high_f64_f32(a_x_f32x4);
         float64x2_t a_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_y_f32x4));
-        float64x2_t a_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_y_f32x4);
+        float64x2_t a_y_high_f64x2 = vcvt_high_f64_f32(a_y_f32x4);
         float64x2_t a_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(a_z_f32x4));
-        float64x2_t a_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(a_z_f32x4);
+        float64x2_t a_z_high_f64x2 = vcvt_high_f64_f32(a_z_f32x4);
         float64x2_t b_x_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_x_f32x4));
-        float64x2_t b_x_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_x_f32x4);
+        float64x2_t b_x_high_f64x2 = vcvt_high_f64_f32(b_x_f32x4);
         float64x2_t b_y_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_y_f32x4));
-        float64x2_t b_y_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_y_f32x4);
+        float64x2_t b_y_high_f64x2 = vcvt_high_f64_f32(b_y_f32x4);
         float64x2_t b_z_low_f64x2 = vcvt_f64_f32(vget_low_f32(b_z_f32x4));
-        float64x2_t b_z_high_f64x2 = nk_promote_high_f32x4_to_f64x2_neon_(b_z_f32x4);
+        float64x2_t b_z_high_f64x2 = vcvt_high_f64_f32(b_z_f32x4);
 
         // Accumulate centroids
         sum_a_x_low_f64x2 = vaddq_f64(sum_a_x_low_f64x2, a_x_low_f64x2),
