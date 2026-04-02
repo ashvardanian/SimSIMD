@@ -61,7 +61,6 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_bf16_ssve_(nk_bf16_t const *data, nk_siz
 NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data, nk_size_t count) NK_STREAMING_ {
     svfloat32_t accumulator_even_f32x = svdup_f32(0.0f);
     svfloat32_t accumulator_odd_f32x = svdup_f32(0.0f);
-    svuint16_t subnorm_lut_u16x = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
     nk_size_t const vector_length = svcnth();
     nk_size_t const half_vector_length = svcntw();
     for (nk_size_t i = 0; i < count; i += vector_length) {
@@ -69,7 +68,7 @@ NK_PUBLIC nk_f32_t nk_dots_reduce_sumsq_e4m3_ssve_(nk_e4m3_t const *data, nk_siz
         svbool_t predicate_b8x = svwhilelt_b8_u64(0u, batch_size);
         svbool_t predicate_b16x = svwhilelt_b16_u64(0u, batch_size);
         svuint8_t raw_u8x = svld1_u8(predicate_b8x, (nk_u8_t const *)data + i);
-        svfloat16_t values_f16x = nk_e4m3x_to_f16x_ssve_(predicate_b16x, raw_u8x, subnorm_lut_u16x);
+        svfloat16_t values_f16x = nk_e4m3x_to_f16x_ssve_(predicate_b16x, raw_u8x);
 
         svbool_t predicate_even_b32x = svwhilelt_b32_u64(0u, batch_size);
         svfloat32_t values_even_f32x = svcvt_f32_f16_x(predicate_even_b32x, values_f16x);
