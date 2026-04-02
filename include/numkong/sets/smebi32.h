@@ -127,11 +127,13 @@ NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_count, 
     nk_size_t const tile_dim = nk_smebi32_tile_dim_();        // 16 rows per tile
     nk_size_t const depth_tile_size = nk_smebi32_tile_dim_(); // 16 u32 per depth tile
     nk_size_t const tile_elements = tile_dim * depth_tile_size;
-    nk_size_t const depth_in_bytes = nk_size_divide_round_up_(depth_bits, NK_BITS_PER_BYTE);
+    nk_size_t const depth_bytes = depth_bits / 8;
 
-    nk_size_t const depth_u32_total = nk_size_divide_round_up_(depth_bits, 32);
+    // BMOPA processes binary data in 32-bit words: each svbmopa_za32_u32_m step
+    // handles one u32 (32 bits) across all row×column pairs simultaneously.
+    nk_size_t const depth_words = nk_size_divide_round_up_(depth_bits, 32);
     nk_size_t const row_tile_count = nk_size_divide_round_up_(row_count, tile_dim);
-    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_u32_total, depth_tile_size);
+    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_words, depth_tile_size);
     nk_size_t const total_tiles = row_tile_count * depth_tile_count;
     nk_size_t const data_size = total_tiles * tile_elements * sizeof(nk_u32_t);
 
@@ -159,18 +161,24 @@ NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_count, 
             nk_size_t const src_u32_start = depth_tile * depth_tile_size;
             nk_size_t const rows_to_pack = (src_row_start + tile_dim <= row_count) ? tile_dim
                                                                                    : (row_count - src_row_start);
-            nk_size_t const u32s_to_pack = (src_u32_start + depth_tile_size <= depth_u32_total)
+            nk_size_t const u32s_to_pack = (src_u32_start + depth_tile_size <= depth_words)
                                                ? depth_tile_size
-                                               : (depth_u32_total > src_u32_start ? depth_u32_total - src_u32_start
-                                                                                  : 0);
+                                               : (depth_words > src_u32_start ? depth_words - src_u32_start : 0);
 
             // Column-major packing: tile_output[col * tile_dim + row]
+            // Copy byte-by-byte for the last u32 to avoid garbage bits when depth_bits % 32 != 0
+            nk_size_t const tail_bytes = depth_bytes % 4;
+            nk_size_t const last_col = u32s_to_pack > 0 ? u32s_to_pack - 1 : 0;
+            nk_size_t const is_last_depth_tile = (src_u32_start + u32s_to_pack >= depth_words);
             for (nk_size_t row = 0; row < rows_to_pack; row++) {
                 nk_u32_t const *src_row = (nk_u32_t const *)((char const *)b +
                                                              (src_row_start + row) * b_stride_in_bytes);
                 for (nk_size_t col = 0; col < u32s_to_pack; col++) {
                     nk_size_t const dst_idx = col * tile_dim + row; // Column-major!
-                    tile_output[dst_idx] = src_row[src_u32_start + col];
+                    if (tail_bytes && is_last_depth_tile && col == last_col) {
+                        nk_copy_bytes_(&tile_output[dst_idx], &src_row[src_u32_start + col], tail_bytes);
+                    }
+                    else { tile_output[dst_idx] = src_row[src_u32_start + col]; }
                 }
             }
         }
@@ -181,7 +189,7 @@ NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_count, 
         nk_u1x8_t const *src_row = (nk_u1x8_t const *)((char const *)b + row * b_stride_in_bytes);
         {
             nk_u64_t nk_local_sum_, nk_local_sumsq_;
-            nk_reduce_moments_u1(src_row, depth_in_bytes * 8, sizeof(nk_u1x8_t), &nk_local_sum_, &nk_local_sumsq_);
+            nk_reduce_moments_u1(src_row, depth_bytes * 8, sizeof(nk_u1x8_t), &nk_local_sum_, &nk_local_sumsq_);
             norms_ptr[row] = (nk_u32_t)nk_local_sum_;
         }
     }
@@ -206,12 +214,17 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
     nk_size_t const tile_elements = tile_dim * depth_tile_size;
-    nk_size_t const depth_u32_total = nk_size_divide_round_up_(depth_bits, 32);
+    // BMOPA processes binary data in 32-bit words: each svbmopa_za32_u32_m step
+    // handles one u32 (32 bits) across all row×column pairs simultaneously.
+    nk_size_t const depth_words = nk_size_divide_round_up_(depth_bits, 32);
+    nk_size_t const depth_bytes = depth_bits / 8;
 
     nk_u32_t const *b_tiles = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_sets_smebi32_packed_header_t));
 
     svbool_t const predicate_all_b32x = svptrue_b32();
-    svuint32_t const depth_u32x = svdup_u32((nk_u32_t)depth_bits);
+    // Use padded depth (depth_words * 32) for BMOPA: zero-padded bits always match in XNOR,
+    // so the effective depth for the matching→hamming conversion is the rounded-up bit count.
+    svuint32_t const depth_u32x = svdup_u32((nk_u32_t)(depth_words * 32));
     nk_size_t const row_tile_count_a = nk_size_divide_round_up_(row_count_a, tile_dim);
 
     for (nk_size_t row_tile_a = 0; row_tile_a < row_tile_count_a; row_tile_a++) {
@@ -227,22 +240,23 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
-                // Load A rows into ZA0.S horizontally as u32 words
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
+
+                // Load A rows into ZA0.S, byte-predicated to zero garbage bits
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
-                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)a + (row_start_a + row_in_tile) * a_stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // B tile pointers for 3 column tiles
@@ -291,10 +305,9 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -302,11 +315,12 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
-                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)a + (row_start_a + row_in_tile) * a_stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 nk_u32_t const *b_tile = b_tiles + (row_tile_b * depth_tile_count + d_tile) * tile_elements;
@@ -349,11 +363,16 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
 
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
-    nk_size_t const depth_u32_total = nk_size_divide_round_up_(depth_bits, 32);
-    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_u32_total, depth_tile_size);
+    // BMOPA processes binary data in 32-bit words: each svbmopa_za32_u32_m step
+    // handles one u32 (32 bits) across all row×column pairs simultaneously.
+    nk_size_t const depth_words = nk_size_divide_round_up_(depth_bits, 32);
+    nk_size_t const depth_bytes = depth_bits / 8;
+    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_words, depth_tile_size);
 
     svbool_t const predicate_all_b32x = svptrue_b32();
-    svuint32_t const depth_u32x = svdup_u32((nk_u32_t)depth_bits);
+    // Use padded depth (depth_words * 32) for BMOPA: zero-padded bits always match in XNOR,
+    // so the effective depth for the matching→hamming conversion is the rounded-up bit count.
+    svuint32_t const depth_u32x = svdup_u32((nk_u32_t)(depth_words * 32));
 
     NK_ALIGN64 nk_u32_t a_buffer[16][16]; // Stack buffer for A column save
 
@@ -377,21 +396,21 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 // Load A rows into ZA0 horizontally
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
-                                                                   (row_tile_start + row_in_tile) * stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)vectors + (row_tile_start + row_in_tile) * stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // Save A columns from ZA0 to stack buffer
@@ -404,9 +423,9 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 0) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -420,9 +439,9 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 1) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -436,9 +455,9 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 2) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -477,21 +496,21 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0 horizontally
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
-                                                                   (row_tile_start + row_in_tile) * stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)vectors + (row_tile_start + row_in_tile) * stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // Save A columns from ZA0 to stack buffer
@@ -504,9 +523,9 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = col_tile_start + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -573,18 +592,20 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
     nk_size_t const tile_elements = tile_dim * depth_tile_size;
-    nk_size_t const depth_u32_total = nk_size_divide_round_up_(depth_bits, 32);
+    // BMOPA processes binary data in 32-bit words: each svbmopa_za32_u32_m step
+    // handles one u32 (32 bits) across all row×column pairs simultaneously.
+    nk_size_t const depth_words = nk_size_divide_round_up_(depth_bits, 32);
+    nk_size_t const depth_bytes = depth_bits / 8;
 
     nk_u32_t const *b_tiles = (nk_u32_t const *)((char const *)b_packed + sizeof(nk_sets_smebi32_packed_header_t));
     nk_u32_t const *b_norms = header->norms_offset ? (nk_u32_t const *)((char const *)b_packed + header->norms_offset)
                                                    : (nk_u32_t const *)0;
 
     svbool_t const predicate_all_b32x = svptrue_b32();
-    svfloat32_t const depth_f32x = svdup_f32((nk_f32_t)depth_bits);
+    svfloat32_t const depth_f32x = svdup_f32((nk_f32_t)(depth_words * 32));
     svfloat32_t const half_f32x = svdup_f32(0.5f);
     svfloat32_t const one_f32x = svdup_f32(1.0f);
     svfloat32_t const zero_f32x = svdup_f32(0.0f);
-    nk_size_t const depth_in_bytes = nk_size_divide_round_up_(depth_bits, 8);
     nk_size_t const row_tile_count_a = nk_size_divide_round_up_(row_count_a, tile_dim);
 
     for (nk_size_t row_tile_a = 0; row_tile_a < row_tile_count_a; row_tile_a++) {
@@ -597,7 +618,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
         NK_ALIGN64 nk_f32_t a_tile_norms[16];
         for (nk_size_t r = 0; r < rows_a_remaining; r++) {
             nk_u1x8_t const *a_row = (nk_u1x8_t const *)((char const *)a + (row_start_a + r) * a_stride_in_bytes);
-            a_tile_norms[r] = (nk_f32_t)nk_sets_reduce_sumsq_u1_streaming_(a_row, depth_in_bytes);
+            a_tile_norms[r] = (nk_f32_t)nk_sets_reduce_sumsq_u1_streaming_(a_row, depth_bytes);
         }
 
         // Fast path: 3 B column tiles using ZA1-ZA3 (ZA0.S = staging)
@@ -607,22 +628,23 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
-                // Load A rows into ZA0.S horizontally as u32 words
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
+
+                // Load A rows into ZA0.S, byte-predicated to zero garbage bits
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
-                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)a + (row_start_a + row_in_tile) * a_stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // B tile pointers for 3 column tiles
@@ -721,10 +743,9 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
@@ -732,11 +753,12 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi3
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
-                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)a + (row_start_a + row_in_tile) * a_stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 nk_u32_t const *b_tile = b_tiles + (row_tile_b * depth_tile_count + d_tile) * tile_elements;
@@ -792,12 +814,14 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
 
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
-    nk_size_t const depth_u32_total = nk_size_divide_round_up_(depth_bits, 32);
-    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_u32_total, depth_tile_size);
-    nk_size_t const depth_in_bytes = nk_size_divide_round_up_(depth_bits, NK_BITS_PER_BYTE);
+    // BMOPA processes binary data in 32-bit words: each svbmopa_za32_u32_m step
+    // handles one u32 (32 bits) across all row×column pairs simultaneously.
+    nk_size_t const depth_words = nk_size_divide_round_up_(depth_bits, 32);
+    nk_size_t const depth_tile_count = nk_size_divide_round_up_(depth_words, depth_tile_size);
+    nk_size_t const depth_bytes = depth_bits / 8;
 
     svbool_t const predicate_all_b32x = svptrue_b32();
-    svfloat32_t const depth_f32x = svdup_f32((nk_f32_t)depth_bits);
+    svfloat32_t const depth_f32x = svdup_f32((nk_f32_t)(depth_words * 32));
     svfloat32_t const half_f32x = svdup_f32(0.5f);
     svfloat32_t const one_f32x = svdup_f32(1.0f);
     svfloat32_t const zero_f32x = svdup_f32(0.0f);
@@ -820,7 +844,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
         for (nk_size_t r = 0; r < rows_clamped; r++) {
             nk_u1x8_t const *a_row = (nk_u1x8_t const *)((char const *)vectors +
                                                          (row_tile_start + r) * stride_in_bytes);
-            a_tile_norms[r] = (nk_f32_t)nk_sets_reduce_sumsq_u1_streaming_(a_row, depth_in_bytes);
+            a_tile_norms[r] = (nk_f32_t)nk_sets_reduce_sumsq_u1_streaming_(a_row, depth_bytes);
         }
         for (nk_size_t r = rows_clamped; r < tile_dim; r++) a_tile_norms[r] = 0.0f;
 
@@ -833,21 +857,21 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 // Load A rows into ZA0 horizontally
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
-                                                                   (row_tile_start + row_in_tile) * stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)vectors + (row_tile_start + row_in_tile) * stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // Save A columns from ZA0 to stack buffer
@@ -860,9 +884,9 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 0) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -876,9 +900,9 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 1) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -892,9 +916,9 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = (column_tile_index + 2) * tile_dim + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -915,17 +939,17 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 b_tile_norms_0[col] =
                     (col_abs_0 < vectors_count)
                         ? nk_sets_reduce_sumsq_u1_streaming_(
-                              (nk_u1x8_t const *)((char const *)vectors + col_abs_0 * stride_in_bytes), depth_in_bytes)
+                              (nk_u1x8_t const *)((char const *)vectors + col_abs_0 * stride_in_bytes), depth_bytes)
                         : 0;
                 b_tile_norms_1[col] =
                     (col_abs_1 < vectors_count)
                         ? nk_sets_reduce_sumsq_u1_streaming_(
-                              (nk_u1x8_t const *)((char const *)vectors + col_abs_1 * stride_in_bytes), depth_in_bytes)
+                              (nk_u1x8_t const *)((char const *)vectors + col_abs_1 * stride_in_bytes), depth_bytes)
                         : 0;
                 b_tile_norms_2[col] =
                     (col_abs_2 < vectors_count)
                         ? nk_sets_reduce_sumsq_u1_streaming_(
-                              (nk_u1x8_t const *)((char const *)vectors + col_abs_2 * stride_in_bytes), depth_in_bytes)
+                              (nk_u1x8_t const *)((char const *)vectors + col_abs_2 * stride_in_bytes), depth_bytes)
                         : 0;
             }
 
@@ -1007,21 +1031,21 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
 
             for (nk_size_t d_tile = 0; d_tile < depth_tile_count; d_tile++) {
                 nk_size_t const d_start_u32 = d_tile * depth_tile_size;
-                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_u32_total)
+                nk_size_t const u32s_this_tile = (d_start_u32 + depth_tile_size <= depth_words)
                                                      ? depth_tile_size
-                                                     : (depth_u32_total > d_start_u32 ? depth_u32_total - d_start_u32
-                                                                                      : 0);
+                                                     : (depth_words > d_start_u32 ? depth_words - d_start_u32 : 0);
                 if (u32s_this_tile == 0) break;
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
                 svbool_t const batch_predicate_b32x = svwhilelt_b32_u64(0u, u32s_this_tile);
 
                 // Load A rows into ZA0 horizontally
+                svbool_t const depth_predicate_b8x = svwhilelt_b8_u64(d_start_u32 * 4, depth_bytes);
                 for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)vectors +
-                                                                   (row_tile_start + row_in_tile) * stride_in_bytes) +
-                                                d_start_u32;
-                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32x, a_row_u32);
+                    nk_u8_t const *a_row = (nk_u8_t const *)vectors + (row_tile_start + row_in_tile) * stride_in_bytes +
+                                           d_start_u32 * 4;
+                    svuint8_t row_u8x = svld1_u8(depth_predicate_b8x, a_row);
+                    svwrite_hor_za32_u32_m(0, row_in_tile, batch_predicate_b32x, svreinterpret_u32_u8(row_u8x));
                 }
 
                 // Save A columns from ZA0 to stack buffer
@@ -1034,9 +1058,9 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 for (nk_size_t col = 0; col < tile_dim; col++) {
                     nk_size_t const col_abs = col_tile_start + col;
                     if (col_abs < vectors_count) {
-                        nk_u32_t const *b_row = (nk_u32_t const *)((char const *)vectors + col_abs * stride_in_bytes) +
-                                                d_start_u32;
-                        svld1_hor_za32(0, col, batch_predicate_b32x, b_row);
+                        nk_u8_t const *b_row = (nk_u8_t const *)vectors + col_abs * stride_in_bytes + d_start_u32 * 4;
+                        svuint8_t col_u8x = svld1_u8(depth_predicate_b8x, b_row);
+                        svwrite_hor_za32_u32_m(0, col, batch_predicate_b32x, svreinterpret_u32_u8(col_u8x));
                     }
                 }
                 for (nk_size_t step = 0; step < u32s_this_tile; step++) {
@@ -1053,7 +1077,7 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
                 b_tile_norms[col] = (col_abs < vectors_count)
                                         ? nk_sets_reduce_sumsq_u1_streaming_(
                                               (nk_u1x8_t const *)((char const *)vectors + col_abs * stride_in_bytes),
-                                              depth_in_bytes)
+                                              depth_bytes)
                                         : 0;
             }
 
