@@ -596,10 +596,12 @@ nk_dot_f16_neon_cycle:
         b_u16x8 = vld1q_u16((nk_u16_t const *)b_scalars);
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
-    float32x4_t a_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(a_u16x8));
-    float32x4_t a_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(a_u16x8));
-    float32x4_t b_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(b_u16x8));
-    float32x4_t b_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(b_u16x8));
+    float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_u16x8);
+    float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_u16x8);
+    float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
+    float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
     if (count_scalars) goto nk_dot_f16_neon_cycle;
@@ -622,11 +624,13 @@ NK_INTERNAL void nk_dot_f16x8_update_neon(nk_dot_f16x8_state_neon_t *state, nk_b
                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
-    // Convert f16 to f32 via integer bit manipulation (low and high halves)
-    float32x4_t a_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(a.u16x8));
-    float32x4_t a_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(a.u16x8));
-    float32x4_t b_low_f32x4 = nk_f16x4_to_f32x4_neon_(vget_low_u16(b.u16x8));
-    float32x4_t b_high_f32x4 = nk_f16x4_to_f32x4_neon_(vget_high_u16(b.u16x8));
+    // Convert f16 to f32 via FCVTL / FCVTL2 (low and high halves)
+    float16x8_t a_f16x8 = vreinterpretq_f16_u16(a.u16x8);
+    float16x8_t b_f16x8 = vreinterpretq_f16_u16(b.u16x8);
+    float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
+    float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     state->sum_f32x4 = vfmaq_f32(state->sum_f32x4, a_low_f32x4, b_low_f32x4);
     state->sum_f32x4 = vfmaq_f32(state->sum_f32x4, a_high_f32x4, b_high_f32x4);
 }
