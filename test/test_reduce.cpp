@@ -19,16 +19,18 @@ error_stats_t test_reduce_moments(typename input_type_::reduce_moments_kernel_t 
     error_stats_t stats(comparison_family_t::narrow_arithmetic_k);
     std::mt19937 generator(global_config.seed);
     std::uniform_int_distribution<std::size_t> stride_bytes_distribution(1, max_stride_k);
-    auto buffer = make_vector<input_type_>(global_config.dense_dimensions * (max_stride_k + sizeof(input_type_)));
+    std::size_t const dims_per_value = nk::dimensions_per_value<input_type_>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto buffer = make_vector<input_type_>(n * (max_stride_k + sizeof(input_type_)));
     for (auto start = test_start_time(); within_time_budget(start);) {
         std::size_t stride_bytes = stride_bytes_distribution(generator);
         fill_random(generator, buffer);
         typename sum_type_::raw_t sum;
         typename sumsq_type_::raw_t sumsq;
-        kernel(buffer.raw_values_data(), global_config.dense_dimensions, stride_bytes, &sum, &sumsq);
+        kernel(buffer.raw_values_data(), n, stride_bytes, &sum, &sumsq);
         typename sum_type_::raw_t ref_sum;
         typename sumsq_type_::raw_t ref_sumsq;
-        reference(buffer.raw_values_data(), global_config.dense_dimensions, stride_bytes, &ref_sum, &ref_sumsq);
+        reference(buffer.raw_values_data(), n, stride_bytes, &ref_sum, &ref_sumsq);
         stats.accumulate(sum_type_::from_raw(sum), sum_type_::from_raw(ref_sum));
         stats.accumulate(sumsq_type_::from_raw(sumsq), sumsq_type_::from_raw(ref_sumsq));
     }
@@ -42,18 +44,18 @@ error_stats_t test_reduce_minmax(typename input_type_::reduce_minmax_kernel_t ke
     error_stats_t stats(comparison_family_t::exact_k);
     std::mt19937 generator(global_config.seed);
     std::uniform_int_distribution<std::size_t> stride_bytes_distribution(1, max_stride_k);
-    auto buffer = make_vector<input_type_>(global_config.dense_dimensions * (max_stride_k + sizeof(input_type_)));
+    std::size_t const dims_per_value = nk::dimensions_per_value<input_type_>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto buffer = make_vector<input_type_>(n * (max_stride_k + sizeof(input_type_)));
     for (auto start = test_start_time(); within_time_budget(start);) {
         std::size_t stride_bytes = stride_bytes_distribution(generator);
         fill_random(generator, buffer);
         typename output_type_::raw_t min_val, max_val;
         nk_size_t min_idx, max_idx;
-        kernel(buffer.raw_values_data(), global_config.dense_dimensions, stride_bytes, &min_val, &min_idx, &max_val,
-               &max_idx);
+        kernel(buffer.raw_values_data(), n, stride_bytes, &min_val, &min_idx, &max_val, &max_idx);
         typename output_type_::raw_t ref_min, ref_max;
         nk_size_t ref_min_idx, ref_max_idx;
-        reference(buffer.raw_values_data(), global_config.dense_dimensions, stride_bytes, &ref_min, &ref_min_idx,
-                  &ref_max, &ref_max_idx);
+        reference(buffer.raw_values_data(), n, stride_bytes, &ref_min, &ref_min_idx, &ref_max, &ref_max_idx);
         stats.accumulate(output_type_::from_raw(min_val), output_type_::from_raw(ref_min));
         stats.accumulate(output_type_::from_raw(max_val), output_type_::from_raw(ref_max));
     }

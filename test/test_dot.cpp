@@ -21,19 +21,19 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
 
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
-         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto a = make_vector<scalar_t>(n), b = make_vector<scalar_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &result.raw_);
 
         reference_t reference;
-        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
-                                                      &reference);
+        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, &reference);
 
         stats.accumulate(result, reference);
     }

@@ -34,8 +34,10 @@ error_stats_t test_dots_packed(typename scalar_type_::dots_packed_size_kernel_t 
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t b_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
@@ -81,8 +83,10 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t n = global_config.matrix_height;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
@@ -294,8 +298,10 @@ error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kerne
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t b_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
@@ -363,8 +369,10 @@ error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_ker
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t b_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
@@ -430,8 +438,10 @@ error_stats_t test_angulars_symmetric(typename scalar_type_::angulars_symmetric_
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t n = global_config.matrix_height;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
@@ -485,8 +495,10 @@ error_stats_t test_euclideans_symmetric(typename scalar_type_::euclideans_symmet
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
-    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t n = global_config.matrix_height;
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t k_values = nk::divide_round_up(global_config.matrix_depth, dims_per_value);
+    std::size_t k = k_values * dims_per_value;
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
