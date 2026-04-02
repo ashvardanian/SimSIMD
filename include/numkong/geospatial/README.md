@@ -131,17 +131,17 @@ Measured with Wasmtime v42 (Cranelift backend).
 
 #### WASM
 
-Measured with Wasmtime v42 (Cranelift backend).
+Measured with Wasmtime v43 (Cranelift backend).
 
 | Kernel                         |                      ≤1° |                     ≤30° |                    ≤180° |
 | :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f64_serial`      |       1.84 mp/s, 1.12 km |       1.83 mp/s, 32.8 km |        1.99 mp/s, 148 km |
-| `nk_vincenty_f64_serial`       |      0.481 mp/s, 1.86 nm |      0.419 mp/s, 2.33 nm |       0.422 mp/s, 594 nm |
-| `nk_haversine_f64_v128relaxed` |       35.7 mp/s, 1.12 km |       35.9 mp/s, 32.8 km |        35.9 mp/s, 148 km |
-| `nk_vincenty_f64_v128relaxed`  |       4.19 mp/s, 1.89 nm |       3.57 mp/s, 2.33 nm |        2.94 mp/s, 594 nm |
+| `nk_haversine_f64_serial`      |       5.12 mp/s, 1.12 km |       5.12 mp/s, 32.8 km |        5.07 mp/s, 148 km |
+| `nk_vincenty_f64_serial`       |       1.27 mp/s, 1.86 nm |       1.11 mp/s, 2.33 nm |        1.02 mp/s, 594 nm |
+| `nk_haversine_f64_v128relaxed` |        109 mp/s, 1.12 km |        109 mp/s, 32.8 km |         109 mp/s, 148 km |
+| `nk_vincenty_f64_v128relaxed`  |       12.8 mp/s, 1.89 nm |       10.4 mp/s, 2.33 nm |        8.28 mp/s, 594 nm |
 | __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_haversine_f32_serial`      |     6.74 mp/s, 20,000 km |       6.80 mp/s, 32.7 km |        7.34 mp/s, 136 km |
-| `nk_vincenty_f32_serial`       |     2.25 mp/s, 20,000 km |        1.65 mp/s, 12.0 m |        1.35 mp/s, 22.0 m |
-| `nk_haversine_f32_v128relaxed` |      161 mp/s, 20,000 km |        165 mp/s, 32.7 km |         165 mp/s, 153 km |
-| `nk_vincenty_f32_v128relaxed`  |        24.6 mp/s, 12.0 m |        20.5 mp/s, 16.2 m |        9.57 mp/s, 18.0 m |
+| `nk_haversine_f32_serial`      |     20.9 mp/s, 20,000 km |       20.9 mp/s, 32.7 km |        21.0 mp/s, 136 km |
+| `nk_vincenty_f32_serial`       |     6.11 mp/s, 20,000 km |        4.30 mp/s, 12.0 m |        3.27 mp/s, 22.0 m |
+| `nk_haversine_f32_v128relaxed` |      523 mp/s, 20,000 km |        524 mp/s, 32.7 km |         524 mp/s, 153 km |
+| `nk_vincenty_f32_v128relaxed`  |        76.9 mp/s, 12.0 m |        68.2 mp/s, 16.2 m |        26.8 mp/s, 18.0 m |

@@ -146,7 +146,7 @@ cmake --build build-wasi --parallel
 __Running__
 
 ```sh
-wasmtime --wasm-features simd128 ./build-wasi/nk_bench.wasm
+wasmtime run -W simd=y,relaxed-simd=y,threads=y,shared-memory=y -S threads=y,inherit-env=y ./build-wasi/nk_bench.wasm
 wasmer run --enable-simd --enable-relaxed-simd ./build-wasi/nk_bench.wasm
 node ./build-wasm/nk_bench.js
 ```

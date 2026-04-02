@@ -134,16 +134,16 @@ Measured with Wasmtime v42 (Cranelift backend).
 
 #### WASM
 
-Measured with Wasmtime v42 (Cranelift backend).
+Measured with Wasmtime v43 (Cranelift backend).
 
 | Kernel                                 |                     256³ |                    1024³ |                    4096³ |
 | :------------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __u1__                                 | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_hammings_packed_u1_serial`         |               35.2 gso/s |               47.6 gso/s |               52.8 gso/s |
-| `nk_hammings_symmetric_u1_serial`      |               25.4 gso/s |               51.5 gso/s |                129 gso/s |
-| `nk_jaccards_packed_u1_serial`         |        30.9 gso/s, 0 ulp |        46.0 gso/s, 0 ulp |        52.7 gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_serial`      |        22.8 gso/s, 0 ulp |        48.9 gso/s, 0 ulp |         123 gso/s, 0 ulp |
-| `nk_hammings_packed_u1_v128relaxed`    |                102 gso/s |                144 gso/s |                160 gso/s |
-| `nk_hammings_symmetric_u1_v128relaxed` |               28.2 gso/s |               61.7 gso/s |                175 gso/s |
-| `nk_jaccards_packed_u1_v128relaxed`    |        91.2 gso/s, 0 ulp |         140 gso/s, 0 ulp |         172 gso/s, 0 ulp |
-| `nk_jaccards_symmetric_u1_v128relaxed` |        26.9 gso/s, 0 ulp |        60.3 gso/s, 0 ulp |         177 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_serial`         |               99.3 gso/s |                127 gso/s |                154 gso/s |
+| `nk_hammings_symmetric_u1_serial`      |               63.7 gso/s |                142 gso/s |                210 gso/s |
+| `nk_jaccards_packed_u1_serial`         |        92.2 gso/s, 0 ulp |         123 gso/s, 0 ulp |         153 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_serial`      |        59.3 gso/s, 0 ulp |         142 gso/s, 0 ulp |         207 gso/s, 0 ulp |
+| `nk_hammings_packed_u1_v128relaxed`    |                266 gso/s |                378 gso/s |                426 gso/s |
+| `nk_hammings_symmetric_u1_v128relaxed` |               72.2 gso/s |                185 gso/s |                259 gso/s |
+| `nk_jaccards_packed_u1_v128relaxed`    |         243 gso/s, 0 ulp |         370 gso/s, 0 ulp |         424 gso/s, 0 ulp |
+| `nk_jaccards_symmetric_u1_v128relaxed` |        72.9 gso/s, 0 ulp |         183 gso/s, 0 ulp |         257 gso/s, 0 ulp |

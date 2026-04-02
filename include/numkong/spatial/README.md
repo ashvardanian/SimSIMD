@@ -391,49 +391,49 @@ Measured with Wasmtime v42 (Cranelift backend).
 
 #### WASM
 
-Measured with Wasmtime v42 (Cranelift backend).
+Measured with Wasmtime v43 (Cranelift backend).
 
 | Kernel                            |                      256 |                     1024 |                     4096 |
 | :-------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_f64_serial`       |       22.0 gb/s, 0.1 ulp |         21.6 gb/s, 0 ulp |         19.5 gb/s, 0 ulp |
-| `nk_euclidean_f64_serial`         |       21.3 gb/s, 0.6 ulp |       20.9 gb/s, 0.6 ulp |       20.2 gb/s, 0.5 ulp |
-| `nk_angular_f64_serial`           |         10.9 gb/s, 0 ulp |         10.8 gb/s, 0 ulp |         10.4 gb/s, 0 ulp |
-| `nk_sqeuclidean_f64_v128relaxed`  |       44.7 gb/s, 1.3 ulp |       37.6 gb/s, 2.6 ulp |       31.1 gb/s, 5.0 ulp |
-| `nk_euclidean_f64_v128relaxed`    |       44.4 gb/s, 0.7 ulp |       35.5 gb/s, 1.4 ulp |       31.6 gb/s, 2.8 ulp |
-| `nk_angular_f64_v128relaxed`      |       28.1 gb/s, 0.1 ulp |       19.4 gb/s, 0.1 ulp |       17.3 gb/s, 0.1 ulp |
+| `nk_sqeuclidean_f64_serial`       |       20.3 gb/s, 0.1 ulp |         19.3 gb/s, 0 ulp |         20.3 gb/s, 0 ulp |
+| `nk_euclidean_f64_serial`         |       20.0 gb/s, 0.6 ulp |       19.4 gb/s, 0.6 ulp |       20.3 gb/s, 0.5 ulp |
+| `nk_angular_f64_serial`           |         9.28 gb/s, 0 ulp |         8.83 gb/s, 0 ulp |         9.29 gb/s, 0 ulp |
+| `nk_sqeuclidean_f64_v128relaxed`  |       48.2 gb/s, 1.3 ulp |       35.7 gb/s, 2.6 ulp |       37.0 gb/s, 5.0 ulp |
+| `nk_euclidean_f64_v128relaxed`    |       50.1 gb/s, 0.7 ulp |       36.5 gb/s, 1.4 ulp |       36.7 gb/s, 2.8 ulp |
+| `nk_angular_f64_v128relaxed`      |       31.5 gb/s, 0.1 ulp |       22.3 gb/s, 0.1 ulp |       22.4 gb/s, 0.1 ulp |
 | __f32__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_f32_serial`       |         9.75 gb/s, 0 ulp |         9.54 gb/s, 0 ulp |         9.47 gb/s, 0 ulp |
-| `nk_euclidean_f32_serial`         |       9.62 gb/s, 0.1 ulp |       9.48 gb/s, 0.1 ulp |       9.41 gb/s, 0.1 ulp |
-| `nk_angular_f32_serial`           |         5.07 gb/s, 0 ulp |         4.98 gb/s, 0 ulp |         4.94 gb/s, 0 ulp |
-| `nk_sqeuclidean_f32_v128relaxed`  |       37.0 gb/s, 0.7 ulp |       37.2 gb/s, 1.3 ulp |       31.2 gb/s, 2.6 ulp |
-| `nk_euclidean_f32_v128relaxed`    |       35.7 gb/s, 0.4 ulp |       36.2 gb/s, 0.7 ulp |       32.8 gb/s, 1.4 ulp |
-| `nk_angular_f32_v128relaxed`      |         12.5 gb/s, 0 ulp |         10.8 gb/s, 0 ulp |         10.3 gb/s, 0 ulp |
+| `nk_sqeuclidean_f32_serial`       |         8.90 gb/s, 0 ulp |         8.54 gb/s, 0 ulp |         8.86 gb/s, 0 ulp |
+| `nk_euclidean_f32_serial`         |       8.86 gb/s, 0.1 ulp |       8.58 gb/s, 0.1 ulp |       8.86 gb/s, 0.1 ulp |
+| `nk_angular_f32_serial`           |         4.33 gb/s, 0 ulp |         4.17 gb/s, 0 ulp |         4.30 gb/s, 0 ulp |
+| `nk_sqeuclidean_f32_v128relaxed`  |       20.4 gb/s, 0.7 ulp |       17.9 gb/s, 1.3 ulp |       18.3 gb/s, 2.6 ulp |
+| `nk_euclidean_f32_v128relaxed`    |       20.3 gb/s, 0.4 ulp |       18.0 gb/s, 0.7 ulp |       18.3 gb/s, 1.4 ulp |
+| `nk_angular_f32_v128relaxed`      |         19.7 gb/s, 0 ulp |         17.8 gb/s, 0 ulp |         18.5 gb/s, 0 ulp |
 | __bf16__                          | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_bf16_serial`      |         5.48 gb/s, 0 ulp |         5.35 gb/s, 0 ulp |         5.35 gb/s, 0 ulp |
-| `nk_euclidean_bf16_serial`        |       5.42 gb/s, 0.6 ulp |       5.34 gb/s, 0.5 ulp |       5.35 gb/s, 0.5 ulp |
-| `nk_angular_bf16_serial`          |         2.48 gb/s, 0 ulp |         2.43 gb/s, 0 ulp |         2.43 gb/s, 0 ulp |
-| `nk_sqeuclidean_bf16_v128relaxed` |       7.37 gb/s, 0.9 ulp |        6.78 gb/s, 13 ulp |        6.28 gb/s, 21 ulp |
-| `nk_euclidean_bf16_v128relaxed`   |       7.26 gb/s, 0.5 ulp |       6.33 gb/s, 7.0 ulp |        6.18 gb/s, 12 ulp |
-| `nk_angular_bf16_v128relaxed`     |         10.0 gb/s, 0 ulp |       10.1 gb/s, 0.2 ulp |       10.2 gb/s, 0.6 ulp |
+| `nk_sqeuclidean_bf16_serial`      |         5.16 gb/s, 0 ulp |         4.88 gb/s, 0 ulp |         5.10 gb/s, 0 ulp |
+| `nk_euclidean_bf16_serial`        |       5.12 gb/s, 0.6 ulp |       4.89 gb/s, 0.5 ulp |       5.10 gb/s, 0.5 ulp |
+| `nk_angular_bf16_serial`          |         2.24 gb/s, 0 ulp |         2.15 gb/s, 0 ulp |         2.24 gb/s, 0 ulp |
+| `nk_sqeuclidean_bf16_v128relaxed` |       39.9 gb/s, 0.9 ulp |        27.0 gb/s, 13 ulp |        20.3 gb/s, 21 ulp |
+| `nk_euclidean_bf16_v128relaxed`   |       38.6 gb/s, 0.5 ulp |       27.1 gb/s, 7.0 ulp |        21.2 gb/s, 12 ulp |
+| `nk_angular_bf16_v128relaxed`     |         27.9 gb/s, 0 ulp |       22.6 gb/s, 0.2 ulp |       20.5 gb/s, 0.6 ulp |
 | __f16__                           | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_f16_serial`       |       3.13 gb/s, 0.1 ulp |       3.13 gb/s, 0.1 ulp |       3.08 gb/s, 0.1 ulp |
-| `nk_euclidean_f16_serial`         |       2.65 gb/s, 0.6 ulp |       2.61 gb/s, 0.5 ulp |       2.60 gb/s, 0.5 ulp |
-| `nk_angular_f16_serial`           |         2.48 gb/s, 0 ulp |         2.47 gb/s, 0 ulp |         2.47 gb/s, 0 ulp |
-| `nk_sqeuclidean_f16_v128relaxed`  |       4.70 gb/s, 0.9 ulp |       4.82 gb/s, 3.6 ulp |       4.59 gb/s, 9.6 ulp |
-| `nk_euclidean_f16_v128relaxed`    |       4.72 gb/s, 0.5 ulp |       4.60 gb/s, 2.0 ulp |       4.60 gb/s, 5.3 ulp |
-| `nk_angular_f16_v128relaxed`      |       4.45 gb/s, 0.1 ulp |       4.37 gb/s, 0.1 ulp |       4.36 gb/s, 0.1 ulp |
+| `nk_sqeuclidean_f16_serial`       |       3.22 gb/s, 0.1 ulp |       3.06 gb/s, 0.1 ulp |       3.09 gb/s, 0.1 ulp |
+| `nk_euclidean_f16_serial`         |       3.19 gb/s, 0.6 ulp |       2.92 gb/s, 0.5 ulp |       3.26 gb/s, 0.5 ulp |
+| `nk_angular_f16_serial`           |         2.33 gb/s, 0 ulp |         2.21 gb/s, 0 ulp |         2.32 gb/s, 0 ulp |
+| `nk_sqeuclidean_f16_v128relaxed`  |       11.2 gb/s, 0.9 ulp |       11.0 gb/s, 3.6 ulp |       11.8 gb/s, 9.6 ulp |
+| `nk_euclidean_f16_v128relaxed`    |       11.3 gb/s, 0.5 ulp |       11.0 gb/s, 2.0 ulp |       11.8 gb/s, 5.3 ulp |
+| `nk_angular_f16_v128relaxed`      |       9.41 gb/s, 0.1 ulp |       9.56 gb/s, 0.1 ulp |       10.4 gb/s, 0.1 ulp |
 | __i8__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_i8_serial`        |                15.0 gb/s |                14.7 gb/s |                15.5 gb/s |
-| `nk_euclidean_i8_serial`          |       14.7 gb/s, 0.5 ulp |       15.6 gb/s, 0.4 ulp |       15.6 gb/s, 0.4 ulp |
-| `nk_angular_i8_serial`            |         8.15 gb/s, 0 ulp |         8.50 gb/s, 0 ulp |         8.59 gb/s, 0 ulp |
-| `nk_sqeuclidean_i8_v128relaxed`   |                28.0 gb/s |                20.6 gb/s |                16.6 gb/s |
-| `nk_euclidean_i8_v128relaxed`     |         25.0 gb/s, 0 ulp |         20.5 gb/s, 0 ulp |         16.5 gb/s, 0 ulp |
-| `nk_angular_i8_v128relaxed`       |         16.0 gb/s, 0 ulp |         17.8 gb/s, 0 ulp |         18.2 gb/s, 0 ulp |
+| `nk_sqeuclidean_i8_serial`        |                14.9 gb/s |                14.7 gb/s |                16.5 gb/s |
+| `nk_euclidean_i8_serial`          |       14.7 gb/s, 0.5 ulp |       14.8 gb/s, 0.4 ulp |       16.3 gb/s, 0.4 ulp |
+| `nk_angular_i8_serial`            |         8.06 gb/s, 0 ulp |         8.42 gb/s, 0 ulp |         10.7 gb/s, 0 ulp |
+| `nk_sqeuclidean_i8_v128relaxed`   |                30.7 gb/s |                22.9 gb/s |                18.0 gb/s |
+| `nk_euclidean_i8_v128relaxed`     |         27.4 gb/s, 0 ulp |         22.6 gb/s, 0 ulp |         17.9 gb/s, 0 ulp |
+| `nk_angular_i8_v128relaxed`       |         17.2 gb/s, 0 ulp |         18.1 gb/s, 0 ulp |         19.7 gb/s, 0 ulp |
 | __u8__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_sqeuclidean_u8_serial`        |                14.9 gb/s |                14.7 gb/s |                15.5 gb/s |
-| `nk_euclidean_u8_serial`          |       14.7 gb/s, 0.5 ulp |       15.6 gb/s, 0.5 ulp |       15.6 gb/s, 0.6 ulp |
-| `nk_angular_u8_serial`            |       8.14 gb/s, 0.5 ulp |       8.46 gb/s, 0.5 ulp |       8.63 gb/s, 0.4 ulp |
-| `nk_sqeuclidean_u8_v128relaxed`   |                29.8 gb/s |                21.4 gb/s |                16.9 gb/s |
-| `nk_euclidean_u8_v128relaxed`     |         26.5 gb/s, 0 ulp |         21.8 gb/s, 0 ulp |         16.8 gb/s, 0 ulp |
-| `nk_angular_u8_v128relaxed`       |         20.2 gb/s, 0 ulp |         22.8 gb/s, 0 ulp |         23.6 gb/s, 0 ulp |
+| `nk_sqeuclidean_u8_serial`        |                14.8 gb/s |                14.5 gb/s |                16.3 gb/s |
+| `nk_euclidean_u8_serial`          |       14.5 gb/s, 0.5 ulp |       14.5 gb/s, 0.5 ulp |       16.0 gb/s, 0.6 ulp |
+| `nk_angular_u8_serial`            |       7.86 gb/s, 0.5 ulp |       8.25 gb/s, 0.5 ulp |       10.7 gb/s, 0.4 ulp |
+| `nk_sqeuclidean_u8_v128relaxed`   |                33.2 gb/s |                24.6 gb/s |                18.3 gb/s |
+| `nk_euclidean_u8_v128relaxed`     |         28.6 gb/s, 0 ulp |         23.7 gb/s, 0 ulp |         18.2 gb/s, 0 ulp |
+| `nk_angular_u8_v128relaxed`       |         14.1 gb/s, 0 ulp |         15.0 gb/s, 0 ulp |         16.1 gb/s, 0 ulp |

@@ -172,16 +172,16 @@ Measured with Wasmtime v42 (Cranelift backend).
 
 #### WASM
 
-Measured with Wasmtime v42 (Cranelift backend).
+Measured with Wasmtime v43 (Cranelift backend).
 
 | Kernel                              |                     256³ |                    1024³ |                    4096³ |
 | :---------------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f32__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f32_serial`       |    9.22 gso/s, 46.8K ulp |    10.1 gso/s, 46.8K ulp |    10.5 gso/s, 46.8K ulp |
-| `nk_maxsim_packed_f32_v128relaxed`  |    28.9 gso/s, 46.0K ulp |    31.2 gso/s, 46.0K ulp |    32.0 gso/s, 46.0K ulp |
+| `nk_maxsim_packed_f32_serial`       |    33.7 gso/s, 46.8K ulp |    35.0 gso/s, 46.8K ulp |    35.8 gso/s, 46.8K ulp |
+| `nk_maxsim_packed_f32_v128relaxed`  |    88.5 gso/s, 46.0K ulp |    98.1 gso/s, 46.0K ulp |    82.7 gso/s, 46.0K ulp |
 | __bf16__                            | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_bf16_serial`      |    8.95 gso/s, 49.2K ulp |    10.1 gso/s, 49.2K ulp |    10.0 gso/s, 49.2K ulp |
-| `nk_maxsim_packed_bf16_v128relaxed` |    29.6 gso/s, 49.4K ulp |    31.9 gso/s, 49.4K ulp |    31.6 gso/s, 49.4K ulp |
+| `nk_maxsim_packed_bf16_serial`      |    34.4 gso/s, 49.2K ulp |    35.1 gso/s, 49.2K ulp |    35.7 gso/s, 49.2K ulp |
+| `nk_maxsim_packed_bf16_v128relaxed` |    92.3 gso/s, 49.4K ulp |     100 gso/s, 49.4K ulp |    83.2 gso/s, 49.4K ulp |
 | __f16__                             | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_maxsim_packed_f16_serial`       |    9.21 gso/s, 49.5K ulp |    10.3 gso/s, 49.5K ulp |    10.6 gso/s, 49.5K ulp |
-| `nk_maxsim_packed_f16_v128relaxed`  |    27.2 gso/s, 49.3K ulp |    33.7 gso/s, 49.3K ulp |    31.5 gso/s, 49.3K ulp |
+| `nk_maxsim_packed_f16_serial`       |    33.8 gso/s, 49.5K ulp |    35.0 gso/s, 49.5K ulp |    35.7 gso/s, 49.5K ulp |
+| `nk_maxsim_packed_f16_v128relaxed`  |    87.0 gso/s, 49.3K ulp |    95.8 gso/s, 49.3K ulp |    82.3 gso/s, 49.3K ulp |
