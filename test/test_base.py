@@ -16,10 +16,10 @@ Helpers:
     make_nk(np_arr, dtype)          Copy NumPy array into an ``nk.Tensor``.
     tolerances_for_dtype(dtype)     Returns ``(atol, rtol)`` for assertion checks.
     random_of_dtype(dtype, shape)   Legacy wrapper around ``make_random``.
+    precise_decimal()               Context manager yielding Decimal for high-accuracy baselines.
 Constants:
     NATIVE_COMPUTE_DTYPE            Maps dtype → NumPy dtype for native-precision baselines.
     NK_ATOL, NK_RTOL                Default assertion tolerances.
-    DECIMAL_PRECISION              Shared decimal precision for high-accuracy baselines.
 
 Profiling:
     profile(callable, ...)          Time a callable, return ``(ns, result)``.
@@ -32,8 +32,8 @@ Stats:
 
 **Environment Variables** (parity with ``test.cpp`` / ``test.hpp``)::
 
-    NK_DENSE_DIMENSIONS   Vector dims for dot/spatial/geo tests (default: "11,97,1536")
-    NK_CURVED_DIMENSIONS  Vector dims for curved-space tests (default: "11,97")
+    NK_DENSE_DIMENSIONS   Sorted SIMD-boundary dims for all tests (default: "1,2,...,170")
+    NK_CURVED_DIMENSIONS  Curved-space dims, sampled from dense_dimensions (default: auto-sampled)
     NK_MATRIX_HEIGHT      GEMM M dimensions (default: "1024")
     NK_MATRIX_WIDTH       GEMM N dimensions (default: "128")
     NK_MATRIX_DEPTH       GEMM K dimensions (default: "1536")
@@ -48,48 +48,90 @@ from __future__ import annotations
 
 import array
 import collections
+import contextlib
+import decimal
 import faulthandler
 import os
 import platform
 import random
 import sys
 import time
+from typing import TYPE_CHECKING, Any
 
 import numkong as nk
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 faulthandler.enable()
 
 _nk_seed_base: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not None else None
+
+_nk_possible_dimensions = [
+    # start with simplest cases
+    4,
+    8,
+    16,
+    64,
+    128,
+    # cover tiny cases
+    1,
+    2,
+    3,
+    5,
+    7,
+    9,
+    # corner cases around common sizes
+    15,
+    16,
+    17,
+    31,
+    32,
+    33,
+    63,
+    64,
+    65,
+    97,
+]
 
 randomized_repetitions_count: int = int(s) if (s := os.environ.get("NK_REPETITIONS")) is not None else 10
 
 dense_dimensions: list[int] = (
     [int(d) for d in s.split(",")]
     if (s := os.environ.get("NK_DENSE_DIMENSIONS")) is not None
-    else [1, 2, 3, 4, 7, 8, 15, 16, 11, 97, 1536]
+    else _nk_possible_dimensions
 )
 
-curved_dimensions: list[int] = (
-    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_CURVED_DIMENSIONS")) is not None else [11, 97]
+# Deterministic random subsamples for multi-dimensional parametrization (height × width × depth),
+# matching the C API naming in dots.h. Override via NK_MATRIX_HEIGHT/WIDTH/DEPTH env vars.
+_dim_sample_k = min(6, len(dense_dimensions))
+test_height_dimensions: list[int] = (
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_MATRIX_HEIGHT")) is not None
+    else sorted(random.Random(42).sample(dense_dimensions, _dim_sample_k))
+)
+test_width_dimensions: list[int] = (
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_MATRIX_WIDTH")) is not None
+    else sorted(random.Random(43).sample(dense_dimensions, _dim_sample_k))
+)
+test_depth_dimensions: list[int] = (
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_MATRIX_DEPTH")) is not None
+    else sorted(random.Random(44).sample(dense_dimensions, _dim_sample_k))
 )
 
-matrix_heights: list[int] = (
-    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_HEIGHT")) is not None else [1024]
-)
+reduced_repetitions_count: int = max(1, randomized_repetitions_count // 5)
 
-matrix_widths: list[int] = (
-    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_WIDTH")) is not None else [128]
-)
-
-matrix_depths: list[int] = (
-    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_MATRIX_DEPTH")) is not None else [1536]
+test_curved_dimensions: list[int] = (
+    [int(d) for d in s.split(",")]
+    if (s := os.environ.get("NK_CURVED_DIMENSIONS")) is not None
+    else sorted(random.Random(45).sample(dense_dimensions, min(5, len(dense_dimensions))))
 )
 
 sparse_dimensions: list[int] = (
-    [int(d) for d in s.split(",")]
-    if (s := os.environ.get("NK_SPARSE_DIMENSIONS")) is not None
-    else [256]
+    [int(d) for d in s.split(",")] if (s := os.environ.get("NK_SPARSE_DIMENSIONS")) is not None else [256]
 )
 
 mesh_points: int = int(s) if (s := os.environ.get("NK_MESH_POINTS")) is not None else 100
@@ -100,8 +142,7 @@ try:
     import numpy as np
 
     numpy_available = True
-except:  # noqa: E722
-    np = None
+except Exception:
     numpy_available = False
 
 try:
@@ -110,7 +151,6 @@ try:
     scipy_available = True
 except ImportError:
     scipy_available = False
-
 
 try:
     import ml_dtypes  # noqa: F401
@@ -160,19 +200,32 @@ PACKING_GRANULARITY: dict[str, int] = {
     "uint1": 8,
 }
 
+
 def round_up_to(value: int, multiple: int) -> int:
     """Round *value* up to the nearest multiple of *multiple*."""
     return (value + multiple - 1) // multiple * multiple
 
 
-DECIMAL_PRECISION = 120
+@contextlib.contextmanager
+def precise_decimal():
+    """Decimal context for high-precision baselines: 120 digits, IEEE inf/NaN semantics.
+
+    Yields ``decimal.Decimal`` so callers can write::
+
+        with precise_decimal() as d:
+            result = float(d(1.5) + d(2.5))
+    """
+    ctx = decimal.Context(prec=120)
+    ctx.traps[decimal.InvalidOperation] = False
+    with decimal.localcontext(ctx):
+        yield decimal.Decimal
 
 
 def is_running_under_qemu():
     return "NK_IN_QEMU" in os.environ
 
 
-def profile(callable, *args, **kwargs) -> tuple:
+def profile(callable, *args, **kwargs) -> tuple[int, Any]:
     if callable is None:
         return 0, None
     before = time.perf_counter_ns()
@@ -188,7 +241,7 @@ def scipy_metric_name(metric: str) -> str:
     return metric
 
 
-def to_array(x, dtype=None):
+def to_array(x, dtype=None) -> np.ndarray:
     if numpy_available:
         y = np.array(x)
         if dtype is not None:
@@ -244,7 +297,7 @@ class LazyFormat:
         return self._fn()
 
 
-def f32_downcast_to_bf16(array):
+def f32_downcast_to_bf16(array) -> tuple[np.ndarray, np.ndarray]:
     """Converts an array of 32-bit floats into 16-bit brain-floats.
 
     Uses IEEE 754 round-to-nearest-even (banker's rounding) to match
@@ -479,7 +532,7 @@ def _make_random_fallback(shape, dtype, seed):
     return raw, baseline
 
 
-def make_random(shape, dtype, seed=0):
+def make_random(shape, dtype, seed=0) -> tuple[Any, Any]:
     """Unified random-data factory.
 
     Returns ``(raw, baseline)`` where:
@@ -500,7 +553,7 @@ def make_random(shape, dtype, seed=0):
     return _make_random_fallback(shape, dtype, seed)
 
 
-def make_nk(np_arr, dtype=None):
+def make_nk(np_arr, dtype=None) -> nk.Tensor:
     """Copy a NumPy array into a NumKong tensor."""
     if dtype is None:
         dtype = str(np_arr.dtype)
@@ -513,7 +566,7 @@ def make_nk(np_arr, dtype=None):
     return nk_arr
 
 
-def downcast_f32_to_dtype(f32_arr, dtype):
+def downcast_f32_to_dtype(f32_arr, dtype) -> tuple[np.ndarray, np.ndarray]:
     """Downcast an f32 array to *dtype*, returning (raw, f64_baseline).
 
     For native NumPy dtypes (float16/32/64, int*), casts directly.
@@ -547,12 +600,12 @@ possible_power_capabilities: list[str] = ["powervsx"]
 possible_wasm_capabilities: list[str] = ["v128relaxed"]
 # fmt: on
 
-possible_x86_capabilities = [c for c in possible_x86_capabilities if available_capabilities[c]]
-possible_arm_capabilities = [c for c in possible_arm_capabilities if available_capabilities[c]]
-possible_rvv_capabilities = [c for c in possible_rvv_capabilities if available_capabilities[c]]
-possible_loongarch_capabilities = [c for c in possible_loongarch_capabilities if available_capabilities[c]]
-possible_power_capabilities = [c for c in possible_power_capabilities if available_capabilities[c]]
-possible_wasm_capabilities = [c for c in possible_wasm_capabilities if available_capabilities[c]]
+possible_x86_capabilities = [c for c in possible_x86_capabilities if available_capabilities.get(c, False)]
+possible_arm_capabilities = [c for c in possible_arm_capabilities if available_capabilities.get(c, False)]
+possible_rvv_capabilities = [c for c in possible_rvv_capabilities if available_capabilities.get(c, False)]
+possible_loongarch_capabilities = [c for c in possible_loongarch_capabilities if available_capabilities.get(c, False)]
+possible_power_capabilities = [c for c in possible_power_capabilities if available_capabilities.get(c, False)]
+possible_wasm_capabilities = [c for c in possible_wasm_capabilities if available_capabilities.get(c, False)]
 
 hardware_capabilities: list[str] = []
 machine_architecture = platform.machine()
@@ -660,8 +713,11 @@ def assert_allclose(actual, expected, atol=_SENTINEL, rtol=_SENTINEL, err_msg=""
         if not np.issubdtype(e_arr.dtype, np.complexfloating):
             e_arr = e_arr.astype(float)
         np.testing.assert_allclose(
-            a_arr, e_arr,
-            atol=atol, rtol=rtol, err_msg=err_msg,
+            a_arr,
+            e_arr,
+            atol=atol,
+            rtol=rtol,
+            err_msg=err_msg,
         )
         return
     # Scalar path
@@ -738,7 +794,7 @@ def collect_errors(
     nk_result: float,
     nk_duration: float,
     stats,
-):
+) -> None:
     """Calculates and aggregates errors for a given test."""
     if numpy_available:
         abs_bl, rel_bl, abs_nk, rel_nk = _compute_errors_numpy(accurate_result, baseline_result, nk_result)

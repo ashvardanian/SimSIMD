@@ -76,6 +76,7 @@ _MetricName = Literal[
 
 class bfloat16:
     """BFloat16 scalar (sign + 8-bit exponent + 7-bit mantissa)."""
+
     def __new__(cls, value: float | int = 0, /) -> bfloat16: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -95,6 +96,7 @@ class bfloat16:
 
 class float16:
     """IEEE 754 half-precision scalar."""
+
     def __new__(cls, value: float | int = 0, /) -> float16: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -114,6 +116,7 @@ class float16:
 
 class float8_e4m3:
     """FP8 E4M3 scalar."""
+
     def __new__(cls, value: float | int = 0, /) -> float8_e4m3: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -133,6 +136,7 @@ class float8_e4m3:
 
 class float8_e5m2:
     """FP8 E5M2 scalar."""
+
     def __new__(cls, value: float | int = 0, /) -> float8_e5m2: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -152,6 +156,7 @@ class float8_e5m2:
 
 class float6_e2m3:
     """FP6 E2M3 scalar."""
+
     def __new__(cls, value: float | int = 0, /) -> float6_e2m3: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -171,6 +176,7 @@ class float6_e2m3:
 
 class float6_e3m2:
     """FP6 E3M2 scalar."""
+
     def __new__(cls, value: float | int = 0, /) -> float6_e3m2: ...
     def __repr__(self) -> str: ...
     def __float__(self) -> float: ...
@@ -188,7 +194,9 @@ class float6_e3m2:
     def __neg__(self) -> float6_e3m2: ...
     def __abs__(self) -> float6_e3m2: ...
 
-_MiniFloatType: TypeAlias = type[bfloat16] | type[float16] | type[float8_e4m3] | type[float8_e5m2] | type[float6_e2m3] | type[float6_e3m2]
+_MiniFloatType: TypeAlias = (
+    type[bfloat16] | type[float16] | type[float8_e4m3] | type[float8_e5m2] | type[float6_e2m3] | type[float6_e3m2]
+)
 
 # Buffer-compatible tensor inputs accepted by most functions.
 _BufferType: TypeAlias = NDArray[Any] | memoryview
@@ -729,32 +737,54 @@ def minmax(
     a: _BufferType, /, *, dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None
 ) -> tuple[float, int, float, int] | None: ...
 def sum(
-    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
-    keepdims: bool = False, out: Tensor | None = None,
+    a: _BufferType,
+    /,
+    axis: int | tuple[int, ...] | None = None,
+    *,
+    keepdims: bool = False,
+    out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | Tensor: ...
 def norm(
-    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
-    keepdims: bool = False, out: Tensor | None = None,
+    a: _BufferType,
+    /,
+    axis: int | tuple[int, ...] | None = None,
+    *,
+    keepdims: bool = False,
+    out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | Tensor: ...
 def min(
-    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
-    keepdims: bool = False, out: Tensor | None = None,
+    a: _BufferType,
+    /,
+    axis: int | tuple[int, ...] | None = None,
+    *,
+    keepdims: bool = False,
+    out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...
 def max(
-    a: _BufferType, /, axis: int | tuple[int, ...] | None = None, *,
-    keepdims: bool = False, out: Tensor | None = None,
+    a: _BufferType,
+    /,
+    axis: int | tuple[int, ...] | None = None,
+    *,
+    keepdims: bool = False,
+    out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> float | int | None | Tensor: ...
 def argmin(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType,
+    /,
+    axis: int | None = None,
+    *,
     out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> int | None | Tensor: ...
 def argmax(
-    a: _BufferType, /, axis: int | None = None, *,
+    a: _BufferType,
+    /,
+    axis: int | None = None,
+    *,
     out: Tensor | None = None,
     dtype: _FloatTypeName | _IntegralTypeName | _MiniFloatType | None = None,
 ) -> int | None | Tensor: ...
@@ -985,7 +1015,9 @@ def euclideans_packed(
 # region MaxSim
 def maxsim_pack(b: _BufferType, /, dtype: _FloatTypeName | _MiniFloatType | None = None) -> MaxSimPackedMatrix: ...
 def maxsim_packed(queries: MaxSimPackedMatrix, documents: MaxSimPackedMatrix, /) -> float: ...
-def maxsim(queries: _BufferType, documents: _BufferType, /, dtype: _FloatTypeName | _MiniFloatType | None = None) -> float: ...
+def maxsim(
+    queries: _BufferType, documents: _BufferType, /, dtype: _FloatTypeName | _MiniFloatType | None = None
+) -> float: ...
 
 # endregion MaxSim
 

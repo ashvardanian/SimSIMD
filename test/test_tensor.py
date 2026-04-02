@@ -17,18 +17,25 @@ Matches C++ suite: test_tensor.cpp.
 """
 
 import concurrent.futures
+import decimal
 import multiprocessing
 import sys
 import sysconfig
 import time
 import warnings
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -41,6 +48,7 @@ from test_base import (
     ml_dtypes_available,
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
+    precise_decimal,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
     to_array,
@@ -50,19 +58,67 @@ from test_base import (
 try:
     import ml_dtypes
 except ImportError:
-    pass
+    ml_dtypes = None  # type: ignore[assignment]
+
+
+def precise_sum(a):
+    """High-precision sum via Python Decimal."""
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) for x in np.asarray(a).flat))
+
+
+def precise_min(a):
+    """Exact min — comparison is exact on IEEE floats."""
+    return float(min(float(x) for x in np.asarray(a).flat))
+
+
+def precise_max(a):
+    """Exact max — comparison is exact on IEEE floats."""
+    return float(max(float(x) for x in np.asarray(a).flat))
+
+
+def precise_add(a, b):
+    """High-precision element-wise add via Python Decimal."""
+    with precise_decimal() as d:
+        return [
+            float(d.from_float(float(x)) + d.from_float(float(y)))
+            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
+        ]
+
+
+def precise_subtract(a, b):
+    """High-precision element-wise subtract via Python Decimal."""
+    with precise_decimal() as d:
+        return [
+            float(d.from_float(float(x)) - d.from_float(float(y)))
+            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
+        ]
+
+
+def precise_multiply(a, b):
+    """High-precision element-wise multiply via Python Decimal."""
+    with precise_decimal() as d:
+        return [
+            float(d.from_float(float(x)) * d.from_float(float(y)))
+            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
+        ]
+
+
+def precise_negate(a):
+    """Exact negate — sign flip has no precision loss."""
+    return [-float(x) for x in np.asarray(a).flat]
 
 
 KERNELS_TENSOR = {
-    "sum": (lambda a: np.sum(np.asarray(a)), lambda a: a.sum(), None),
-    "min": (lambda a: np.min(np.asarray(a)), lambda a: a.min(), None),
-    "max": (lambda a: np.max(np.asarray(a)), lambda a: a.max(), None),
+    "sum": (lambda a: np.sum(np.asarray(a)), lambda a: a.sum(), precise_sum),
+    "min": (lambda a: np.min(np.asarray(a)), lambda a: a.min(), precise_min),
+    "max": (lambda a: np.max(np.asarray(a)), lambda a: a.max(), precise_max),
     "argmin": (lambda a: np.argmin(np.asarray(a)), lambda a: a.argmin(), None),
     "argmax": (lambda a: np.argmax(np.asarray(a)), lambda a: a.argmax(), None),
-    "add": (lambda a, b: np.add(np.asarray(a), np.asarray(b)), lambda a, b: a + b, None),
-    "subtract": (lambda a, b: np.subtract(np.asarray(a), np.asarray(b)), lambda a, b: a - b, None),
-    "multiply": (lambda a, b: np.multiply(np.asarray(a), np.asarray(b)), lambda a, b: a * b, None),
-    "negate": (lambda a: -np.asarray(a), lambda a: -a, None),
+    "add": (lambda a, b: np.add(np.asarray(a), np.asarray(b)), lambda a, b: a + b, precise_add),
+    "subtract": (lambda a, b: np.subtract(np.asarray(a), np.asarray(b)), lambda a, b: a - b, precise_subtract),
+    "multiply": (lambda a, b: np.multiply(np.asarray(a), np.asarray(b)), lambda a, b: a * b, precise_multiply),
+    "negate": (lambda a: -np.asarray(a), lambda a: -a, precise_negate),
 }
 
 
@@ -91,22 +147,34 @@ def test_pointers_availability():
 
 def test_capabilities_list():
     """Tests the visibility of hardware capabilities."""
-    assert "serial" in nk.get_capabilities()
-    assert "neon" in nk.get_capabilities()
-    assert "neonhalf" in nk.get_capabilities()
-    assert "neonbfdot" in nk.get_capabilities()
-    assert "neonsdot" in nk.get_capabilities()
-    assert "sve" in nk.get_capabilities()
-    assert "svehalf" in nk.get_capabilities()
-    assert "svebfdot" in nk.get_capabilities()
-    assert "svesdot" in nk.get_capabilities()
-    assert "haswell" in nk.get_capabilities()
-    assert "icelake" in nk.get_capabilities()
-    assert "skylake" in nk.get_capabilities()
-    assert "genoa" in nk.get_capabilities()
-    assert "sapphire" in nk.get_capabilities()
-    assert "turin" in nk.get_capabilities()
-    assert nk.get_capabilities().get("serial") == 1
+    caps = nk.get_capabilities()
+    avx2_caps = ["haswell", "alder", "sierra"]
+    avx512_caps = ["skylake", "icelake", "genoa", "sapphire", "turin", "diamond"]
+    amx_caps = ["sapphireamx", "graniteamx"]
+    neon_caps = ["neon", "neonhalf", "neonfhm", "neonbfdot", "neonsdot", "neonfp8"]
+    sve_caps = ["sve", "svehalf", "svebfdot", "svesdot", "sve2", "sve2p1"]
+    sme_caps = ["sme", "sme2", "sme2p1", "smef64", "smehalf", "smebf16", "smebi32", "smelut2", "smefa64"]
+    rvv_caps = ["rvv", "rvvhalf", "rvvbf16", "rvvbb"]
+    power_caps = ["powervsx"]
+    loongarch_caps = ["loongsonasx"]
+    wasm_caps = ["v128relaxed"]
+
+    expected_capabilities = [
+        "serial",
+        *avx2_caps,
+        *avx512_caps,
+        *amx_caps,
+        *neon_caps,
+        *sve_caps,
+        *sme_caps,
+        *rvv_caps,
+        *power_caps,
+        *loongarch_caps,
+        *wasm_caps,
+    ]
+    for cap in expected_capabilities:
+        assert cap in caps, f"Capability '{cap}' missing from get_capabilities()"
+    assert caps.get("serial") == 1
 
     previous_value = nk.get_capabilities().get("neon")
     nk.enable_capability("neon")
@@ -644,7 +712,15 @@ def test_ndarray_empty(dtype, shape):
     assert arr.dtype == dtype
 
 
-@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float32", id="f32"),
+        pytest.param("float64", id="f64"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
 def test_ndarray_iota(dtype, shape):
     seed = 5
@@ -657,7 +733,15 @@ def test_ndarray_iota(dtype, shape):
     assert float(flat[2]) == seed + 2
 
 
-@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float32", id="f32"),
+        pytest.param("float64", id="f64"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
 @pytest.mark.parametrize("n", [pytest.param(4, id="4x4"), pytest.param(8, id="8x8")])
 def test_ndarray_diagonal(dtype, n):
     seed = 3
@@ -670,7 +754,15 @@ def test_ndarray_diagonal(dtype, n):
             assert float(arr[i, i + 1]) == 0
 
 
-@pytest.mark.parametrize("dtype", [pytest.param("float32", id="f32"), pytest.param("float64", id="f64"), pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float32", id="f32"),
+        pytest.param("float64", id="f64"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
 def test_ndarray_hash(dtype, shape):
     a = nk.hash(shape, seed=42, dtype=dtype)
@@ -701,8 +793,9 @@ def test_ndarray_hash(dtype, shape):
 def test_ndarray_sum_float(dtype, shape):
     np_arr = np.random.randn(*shape).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
-    expected = np_arr.sum()
-    result = nk_arr.sum()
+    baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["sum"]
+    expected = baseline_kernel(np_arr)
+    result = simd_kernel(nk_arr)
     atol, rtol = tolerances_for_dtype(dtype)
     assert_allclose(result, expected, rtol=rtol, atol=atol)
 
@@ -714,8 +807,10 @@ def test_ndarray_sum_float(dtype, shape):
     [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10"), pytest.param((4, 5, 5), id="3d-4x5x5")],
 )
 def test_ndarray_sum_integer(dtype, shape):
-    dtype_info = np.iinfo(np.dtype(dtype))
-    np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+    nk_dtype_conversion_info = np.iinfo(np.dtype(dtype))
+    np_arr = np.random.randint(
+        nk_dtype_conversion_info.min // 2, nk_dtype_conversion_info.max // 2, size=shape, dtype=dtype
+    )
     nk_arr = make_nk(np_arr, dtype)
     assert nk_arr.sum() == np_arr.sum()
 
@@ -727,16 +822,19 @@ def test_ndarray_min_max_float(dtype, shape):
     np_arr = np.random.randn(*shape).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
     atol, rtol = tolerances_for_dtype(dtype)
-    assert_allclose(nk_arr.min(), np_arr.min(), rtol=rtol, atol=atol)
-    assert_allclose(nk_arr.max(), np_arr.max(), rtol=rtol, atol=atol)
+    for op in ("min", "max"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert_allclose(simd_kernel(nk_arr), baseline_kernel(np_arr), rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
 @pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
 def test_ndarray_min_max_integer(dtype, shape):
-    dtype_info = np.iinfo(np.dtype(dtype))
-    np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+    nk_dtype_conversion_info = np.iinfo(np.dtype(dtype))
+    np_arr = np.random.randint(
+        nk_dtype_conversion_info.min // 2, nk_dtype_conversion_info.max // 2, size=shape, dtype=dtype
+    )
     nk_arr = make_nk(np_arr, dtype)
     assert nk_arr.min() == np_arr.min()
     assert nk_arr.max() == np_arr.max()
@@ -751,12 +849,15 @@ def test_ndarray_argmin_argmax_methods(dtype, shape):
     if dtype.startswith("float"):
         np_arr = np.random.randn(*shape).astype(dtype)
     else:
-        dtype_info = np.iinfo(np.dtype(dtype))
-        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+        nk_dtype_conversion_info = np.iinfo(np.dtype(dtype))
+        np_arr = np.random.randint(
+            nk_dtype_conversion_info.min // 2, nk_dtype_conversion_info.max // 2, size=shape, dtype=dtype
+        )
     nk_arr = make_nk(np_arr, dtype)
 
-    assert nk_arr.argmin() == np_arr.argmin()
-    assert nk_arr.argmax() == np_arr.argmax()
+    for op in ("argmin", "argmax"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert simd_kernel(nk_arr) == baseline_kernel(np_arr)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -767,8 +868,9 @@ def test_ndarray_add_float(dtype):
     np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
     nk_b = make_nk(np_b, dtype)
-    result_np = np.asarray(nk_a + nk_b)
-    assert_allclose(result_np, np_a + np_b)
+    baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["add"]
+    result_np = np.asarray(simd_kernel(nk_a, nk_b))
+    assert_allclose(result_np, baseline_kernel(np_a, np_b))
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -789,8 +891,9 @@ def test_ndarray_subtract_float(dtype):
     np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
     nk_b = make_nk(np_b, dtype)
-    result_np = np.asarray(nk_a - nk_b)
-    assert_allclose(result_np, np_a - np_b)
+    baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["subtract"]
+    result_np = np.asarray(simd_kernel(nk_a, nk_b))
+    assert_allclose(result_np, baseline_kernel(np_a, np_b))
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -811,8 +914,9 @@ def test_ndarray_multiply_float(dtype):
     np_b = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
     nk_b = make_nk(np_b, dtype)
-    result_np = np.asarray(nk_a * nk_b)
-    assert_allclose(result_np, np_a * np_b)
+    baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["multiply"]
+    result_np = np.asarray(simd_kernel(nk_a, nk_b))
+    assert_allclose(result_np, baseline_kernel(np_a, np_b))
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -831,8 +935,9 @@ def test_ndarray_unary_float(dtype):
     shape = (20,)
     np_a = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
-    result_neg_np = np.asarray(-nk_a)
-    assert_allclose(result_neg_np, -np_a)
+    baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["negate"]
+    result_neg_np = np.asarray(simd_kernel(nk_a))
+    assert_allclose(result_neg_np, baseline_kernel(np_a))
     np.testing.assert_array_equal(np.asarray(+nk_a), np_a)
 
 
@@ -855,9 +960,9 @@ def test_reduction_on_strided_array(dtype):
     nk_strided = nk_arr[::2]
 
     atol, rtol = tolerances_for_dtype(dtype)
-    assert_allclose(nk_strided.sum(), np_strided.sum(), rtol=rtol, atol=atol)
-    assert_allclose(nk_strided.min(), np_strided.min(), rtol=rtol, atol=atol)
-    assert_allclose(nk_strided.max(), np_strided.max(), rtol=rtol, atol=atol)
+    for op in ("sum", "min", "max"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert_allclose(simd_kernel(nk_strided), baseline_kernel(np_strided), rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -870,9 +975,9 @@ def test_reduction_on_transposed_array(dtype):
     nk_t = nk_arr.T
 
     atol, rtol = tolerances_for_dtype(dtype)
-    assert_allclose(nk_t.sum(), np_t.sum(), rtol=rtol, atol=atol)
-    assert_allclose(nk_t.min(), np_t.min(), rtol=rtol, atol=atol)
-    assert_allclose(nk_t.max(), np_t.max(), rtol=rtol, atol=atol)
+    for op in ("sum", "min", "max"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert_allclose(simd_kernel(nk_t), baseline_kernel(np_t), rtol=rtol, atol=atol)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -885,11 +990,12 @@ def test_reduction_on_subview(dtype):
     nk_sub = nk_arr[5:15, 5:15]
 
     atol, rtol = tolerances_for_dtype(dtype)
-    assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=rtol, atol=atol)
-    assert_allclose(nk_sub.min(), np_sub.min(), rtol=rtol, atol=atol)
-    assert_allclose(nk_sub.max(), np_sub.max(), rtol=rtol, atol=atol)
-    assert nk_sub.argmin() == np_sub.argmin()
-    assert nk_sub.argmax() == np_sub.argmax()
+    for op in ("sum", "min", "max"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert_allclose(simd_kernel(nk_sub), baseline_kernel(np_sub), rtol=rtol, atol=atol)
+    for op in ("argmin", "argmax"):
+        baseline_kernel, simd_kernel, _ = KERNELS_TENSOR[op]
+        assert simd_kernel(nk_sub) == baseline_kernel(np_sub)
 
 
 def test_bfloat16_scalar_creation():
@@ -1291,5 +1397,7 @@ def test_gil_free_dots_symmetric_threading():
     result = np.array(output)
     mask = np.triu(np.ones((count, count), dtype=bool))
     assert_allclose(
-        result[mask], reference[mask], err_msg="Multi-threaded dots_symmetric upper triangle differs from single-threaded"
+        result[mask],
+        reference[mask],
+        err_msg="Multi-threaded dots_symmetric upper triangle differs from single-threaded",
     )

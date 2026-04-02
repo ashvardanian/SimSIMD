@@ -52,6 +52,9 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_u4_neonsdot, *c = nk_cap_neonsdot_k;
             return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif

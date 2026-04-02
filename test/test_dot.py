@@ -18,17 +18,22 @@ Matches C++ suite: test_dot.cpp.
 
 import atexit
 import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     NK_ATOL,
     NK_RTOL,
@@ -45,6 +50,7 @@ from test_base import (
     numpy_available,
     possible_capabilities,
     print_stats_report,
+    precise_decimal,
     profile,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -63,11 +69,9 @@ baseline_inner = np.inner if numpy_available else None
 
 def precise_inner(a, b):
     """High-precision inner product via Python Decimal, exceeding f118 accuracy."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
+    with precise_decimal() as d:
+        da = [d.from_float(float(x)) for x in a]
+        db = [d.from_float(float(x)) for x in b]
         return float(sum(x * y for x, y in zip(da, db)))
 
 
@@ -124,11 +128,7 @@ def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
 
     err_msg = LazyFormat(
-        lambda: (
-            f"\ninner({dtype}, ndim={ndim}):"
-            f"\n  Accurate:  {accurate}"
-            f"\n  Got:       {result}"
-        )
+        lambda: (f"\ninner({dtype}, ndim={ndim}):" f"\n  Accurate:  {accurate}" f"\n  Got:       {result}")
     )
 
     assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)

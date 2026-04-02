@@ -12,7 +12,7 @@
  *      vbfdotq_f32    BFDOT (V.4S, V.8H, V.8H)  3cy @ 2p  2cy @ 1p
  *      vcvt_f32_bf16  BFCVTN (V.4H, V.4S)       3cy @ 2p  3cy @ 4p
  *      vld1q_bf16     LD1 (V.8H)                4cy @ 2p  4cy @ 3p
- *      vsubq_f32      FSUB (V.4S, V.4S, V.4S)   3cy @ 2p  2cy @ 4p
+ *      vsubq_f32      FSUB (V.4S, V.4S, V.4S)   2cy @ 2p  2cy @ 4p
  *      vfmaq_f64      FMLA (V.2D, V.2D, V.2D)   4cy @ 2p  3cy @ 4p
  *      vaddvq_f32     FADDP+FADDP (V.4S)        5cy @ 1p  8cy @ 1p
  *      vaddvq_f64     FADDP (V.2D)              3cy @ 1p  3cy @ 2p

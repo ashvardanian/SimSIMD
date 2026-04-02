@@ -15,6 +15,7 @@
  *      vfmlslq_high_f16  FMLSL2 (V.4S, V.8H, V.8H)  4cy @ 2p  4cy @ 4p
  *      vld1q_f16         LD1 (V.8H)                 4cy @ 2p  4cy @ 3p
  *      vaddvq_f32        FADDP+FADDP (V.4S)         4cy @ 1p  8cy @ 1p
+ *      vpaddq_f32        FADDP (V.4S, V.4S, V.4S)   2cy @ 2p  3cy @ 4p
  *      vshll_n_u8        SHLL (V.8H, V.8B, #8)      2cy @ 2p  2cy @ 4p
  *
  *  The ARMv8.4-FHM extension (FEAT_FHM) provides FMLAL/FMLSL instructions that fuse FP16 to FP32
@@ -124,10 +125,9 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                 
     nk_dot_f16x8_state_neonfhm_t const *state_c, nk_dot_f16x8_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
@@ -220,58 +220,58 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b
 
 NK_PUBLIC void nk_dot_e4m3_neonfhm(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    float16x8_t a_low, a_high, b_low, b_high;
+    float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_e4m3_neonfhm_cycle:
     if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
-        nk_e4m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
-        nk_e4m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
+        nk_e4m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low_f16x8, &a_high_f16x8);
+        nk_e4m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low_f16x8, &b_high_f16x8);
         count_scalars = 0;
     }
     else {
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low, &a_high);
-        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low, &b_high);
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars), &a_low_f16x8, &a_high_f16x8);
+        nk_e4m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars), &b_low_f16x8, &b_high_f16x8);
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
     if (count_scalars) goto nk_dot_e4m3_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e5m2_neonfhm(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    float16x8_t a_low, a_high, b_low, b_high;
+    float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_e5m2_neonfhm_cycle:
     if (count_scalars < 16) {
         nk_b128_vec_t a_vec, b_vec;
         nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
-        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
-        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_vec.u8x16), 8));
-        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
-        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_vec.u8x16), 8));
+        a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_vec.u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a_vec.u8x16, 8));
+        b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_vec.u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b_vec.u8x16, 8));
         count_scalars = 0;
     }
     else {
         uint8x16_t a_u8x16 = vld1q_u8(a_scalars);
         uint8x16_t b_u8x16 = vld1q_u8(b_scalars);
-        a_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
-        a_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a_u8x16), 8));
-        b_low = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
-        b_high = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b_u8x16), 8));
+        a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a_u8x16), 8));
+        a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a_u8x16, 8));
+        b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b_u8x16), 8));
+        b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b_u8x16, 8));
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
-    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
-    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low_f16x8, b_low_f16x8);
+    sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
+    sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high_f16x8, b_high_f16x8);
     if (count_scalars) goto nk_dot_e5m2_neonfhm_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
@@ -304,10 +304,9 @@ NK_INTERNAL void nk_dot_e4m3x16_finalize_neonfhm(                               
     nk_dot_e4m3x16_state_neonfhm_t const *state_c, nk_dot_e4m3x16_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 typedef struct nk_dot_e5m2x16_state_neonfhm_t {
@@ -324,9 +323,9 @@ NK_INTERNAL void nk_dot_e5m2x16_update_neonfhm(nk_dot_e5m2x16_state_neonfhm_t *s
     nk_unused_(active_dimensions);
     // Convert e5m2 → f16 via SHLL: widen u8→u16 and shift left 8 in one instruction
     float16x8_t a_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(a.u8x16), 8));
-    float16x8_t a_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(a.u8x16), 8));
+    float16x8_t a_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(a.u8x16, 8));
     float16x8_t b_low_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_low_u8(b.u8x16), 8));
-    float16x8_t b_high_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vget_high_u8(b.u8x16), 8));
+    float16x8_t b_high_f16x8 = vreinterpretq_f16_u16(vshll_high_n_u8(b.u8x16, 8));
     // FMLAL: widening multiply-accumulate fp16 → f32
     state->sum_f32x4 = vfmlalq_low_f16(state->sum_f32x4, a_low_f16x8, b_low_f16x8);
     state->sum_f32x4 = vfmlalq_high_f16(state->sum_f32x4, a_low_f16x8, b_low_f16x8);
@@ -339,10 +338,9 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_neonfhm(                               
     nk_dot_e5m2x16_state_neonfhm_t const *state_c, nk_dot_e5m2x16_state_neonfhm_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 #if defined(__clang__)

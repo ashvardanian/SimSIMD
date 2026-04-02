@@ -22,11 +22,11 @@ void nk_dispatch_f16c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_NEONHALF
-    if (v & nk_cap_neonhalf_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f16c_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16c_neonhalf, *c = nk_cap_neonbfdot_k; return;
+#if NK_TARGET_NEON
+    if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f16c_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16c_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif

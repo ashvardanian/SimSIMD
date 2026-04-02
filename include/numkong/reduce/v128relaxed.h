@@ -856,8 +856,8 @@ NK_PUBLIC void nk_reduce_moments_u16_v128relaxed(                  //
 NK_INTERNAL void nk_reduce_moments_i32_v128relaxed_contiguous_( //
     nk_i32_t const *data, nk_size_t count,                      //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
-    v128_t sum_lower_u64x2 = wasm_i64x2_splat(0);
-    v128_t sum_upper_i64x2 = wasm_i64x2_splat(0);
+    v128_t sum_low_u64x2 = wasm_i64x2_splat(0);
+    v128_t sum_high_i64x2 = wasm_i64x2_splat(0);
     v128_t sumsq_u64x2 = wasm_i64x2_splat(0);
     v128_t sumsq_overflow_u64x2 = wasm_i64x2_splat(0);
     v128_t sign_bit_i64x2 = wasm_i64x2_splat((nk_i64_t)0x8000000000000000LL);
@@ -865,21 +865,21 @@ NK_INTERNAL void nk_reduce_moments_i32_v128relaxed_contiguous_( //
     for (; idx + 4 <= count; idx += 4) {
         v128_t data_i32x4 = wasm_v128_load(data + idx);
         v128_t data_low_i64x2 = wasm_i64x2_extend_low_i32x4(data_i32x4);
-        v128_t before_u64x2 = sum_lower_u64x2;
-        sum_lower_u64x2 = wasm_i64x2_add(sum_lower_u64x2, data_low_i64x2);
-        v128_t result_biased_i64x2 = wasm_v128_xor(sum_lower_u64x2, sign_bit_i64x2);
+        v128_t before_u64x2 = sum_low_u64x2;
+        sum_low_u64x2 = wasm_i64x2_add(sum_low_u64x2, data_low_i64x2);
+        v128_t result_biased_i64x2 = wasm_v128_xor(sum_low_u64x2, sign_bit_i64x2);
         v128_t before_biased_i64x2 = wasm_v128_xor(before_u64x2, sign_bit_i64x2);
         v128_t carry_u64x2 = wasm_i64x2_gt(before_biased_i64x2, result_biased_i64x2);
-        sum_upper_i64x2 = wasm_i64x2_sub(sum_upper_i64x2, carry_u64x2);
-        sum_upper_i64x2 = wasm_i64x2_add(sum_upper_i64x2, wasm_i64x2_shr(data_low_i64x2, 63));
+        sum_high_i64x2 = wasm_i64x2_sub(sum_high_i64x2, carry_u64x2);
+        sum_high_i64x2 = wasm_i64x2_add(sum_high_i64x2, wasm_i64x2_shr(data_low_i64x2, 63));
         v128_t data_high_i64x2 = wasm_i64x2_extend_high_i32x4(data_i32x4);
-        before_u64x2 = sum_lower_u64x2;
-        sum_lower_u64x2 = wasm_i64x2_add(sum_lower_u64x2, data_high_i64x2);
-        result_biased_i64x2 = wasm_v128_xor(sum_lower_u64x2, sign_bit_i64x2);
+        before_u64x2 = sum_low_u64x2;
+        sum_low_u64x2 = wasm_i64x2_add(sum_low_u64x2, data_high_i64x2);
+        result_biased_i64x2 = wasm_v128_xor(sum_low_u64x2, sign_bit_i64x2);
         before_biased_i64x2 = wasm_v128_xor(before_u64x2, sign_bit_i64x2);
         carry_u64x2 = wasm_i64x2_gt(before_biased_i64x2, result_biased_i64x2);
-        sum_upper_i64x2 = wasm_i64x2_sub(sum_upper_i64x2, carry_u64x2);
-        sum_upper_i64x2 = wasm_i64x2_add(sum_upper_i64x2, wasm_i64x2_shr(data_high_i64x2, 63));
+        sum_high_i64x2 = wasm_i64x2_sub(sum_high_i64x2, carry_u64x2);
+        sum_high_i64x2 = wasm_i64x2_add(sum_high_i64x2, wasm_i64x2_shr(data_high_i64x2, 63));
         v128_t sq_low_i64x2 = wasm_i64x2_extmul_low_i32x4(data_i32x4, data_i32x4);
         v128_t sq_high_i64x2 = wasm_i64x2_extmul_high_i32x4(data_i32x4, data_i32x4);
         v128_t sq_before_u64x2 = sumsq_u64x2;
@@ -897,26 +897,26 @@ NK_INTERNAL void nk_reduce_moments_i32_v128relaxed_contiguous_( //
                                wasm_i64x2_extract_lane(sumsq_overflow_u64x2, 1));
     nk_u64_t sumsq = sumsq_overflow ? NK_U64_MAX : nk_reduce_sadd_u64x2_v128relaxed_(sumsq_u64x2);
     nk_b128_vec_t lower_vec, upper_vec;
-    lower_vec.v128 = sum_lower_u64x2;
-    upper_vec.v128 = sum_upper_i64x2;
-    nk_u64_t sum_lower = 0;
-    nk_i64_t sum_upper = 0;
-    nk_u64_t sum_before = sum_lower;
-    sum_lower += lower_vec.u64s[0], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[0];
-    sum_before = sum_lower;
-    sum_lower += lower_vec.u64s[1], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[1];
+    lower_vec.v128 = sum_low_u64x2;
+    upper_vec.v128 = sum_high_i64x2;
+    nk_u64_t sum_low = 0;
+    nk_i64_t sum_high = 0;
+    nk_u64_t sum_before = sum_low;
+    sum_low += lower_vec.u64s[0], sum_high += (sum_low < sum_before) + upper_vec.i64s[0];
+    sum_before = sum_low;
+    sum_low += lower_vec.u64s[1], sum_high += (sum_low < sum_before) + upper_vec.i64s[1];
     for (; idx < count; ++idx) {
         nk_i64_t val = (nk_i64_t)data[idx];
-        sum_before = sum_lower;
-        sum_lower += (nk_u64_t)val;
-        if (sum_lower < sum_before) sum_upper++;
-        sum_upper += (val >> 63);
+        sum_before = sum_low;
+        sum_low += (nk_u64_t)val;
+        if (sum_low < sum_before) sum_high++;
+        sum_high += (val >> 63);
         nk_u64_t product = (nk_u64_t)(val * val);
         sumsq = nk_u64_saturating_add_serial(sumsq, product);
     }
-    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
-    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low_signed = (nk_i64_t)sum_low;
+    if (sum_high == (sum_low_signed >> 63)) *sum_ptr = sum_low_signed;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }
@@ -981,8 +981,8 @@ NK_PUBLIC void nk_reduce_moments_u32_v128relaxed(                  //
 NK_INTERNAL void nk_reduce_moments_i64_v128relaxed_contiguous_( //
     nk_i64_t const *data, nk_size_t count,                      //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
-    v128_t sum_lower_u64x2 = wasm_i64x2_splat(0);
-    v128_t sum_upper_i64x2 = wasm_i64x2_splat(0);
+    v128_t sum_low_u64x2 = wasm_i64x2_splat(0);
+    v128_t sum_high_i64x2 = wasm_i64x2_splat(0);
     v128_t sumsq_u64x2 = wasm_i64x2_splat(0);
     v128_t sumsq_overflow_u64x2 = wasm_i64x2_splat(0);
     v128_t sign_bit_i64x2 = wasm_i64x2_splat((nk_i64_t)0x8000000000000000LL);
@@ -995,36 +995,36 @@ NK_INTERNAL void nk_reduce_moments_i64_v128relaxed_contiguous_( //
         sumsq_overflow_u64x2 = wasm_v128_or(
             sumsq_overflow_u64x2,
             wasm_i64x2_gt(wasm_v128_xor(sq_before_u64x2, sign_bit_i64x2), wasm_v128_xor(sumsq_u64x2, sign_bit_i64x2)));
-        v128_t before_u64x2 = sum_lower_u64x2;
-        sum_lower_u64x2 = wasm_i64x2_add(sum_lower_u64x2, data_i64x2);
+        v128_t before_u64x2 = sum_low_u64x2;
+        sum_low_u64x2 = wasm_i64x2_add(sum_low_u64x2, data_i64x2);
         v128_t carry_u64x2 = wasm_i64x2_gt(wasm_v128_xor(before_u64x2, sign_bit_i64x2),
-                                           wasm_v128_xor(sum_lower_u64x2, sign_bit_i64x2));
-        sum_upper_i64x2 = wasm_i64x2_sub(sum_upper_i64x2, carry_u64x2);
-        sum_upper_i64x2 = wasm_i64x2_add(sum_upper_i64x2, wasm_i64x2_shr(data_i64x2, 63));
+                                           wasm_v128_xor(sum_low_u64x2, sign_bit_i64x2));
+        sum_high_i64x2 = wasm_i64x2_sub(sum_high_i64x2, carry_u64x2);
+        sum_high_i64x2 = wasm_i64x2_add(sum_high_i64x2, wasm_i64x2_shr(data_i64x2, 63));
     }
     int sumsq_overflow = (int)(wasm_i64x2_extract_lane(sumsq_overflow_u64x2, 0) |
                                wasm_i64x2_extract_lane(sumsq_overflow_u64x2, 1));
     nk_u64_t sumsq = sumsq_overflow ? NK_U64_MAX : nk_reduce_sadd_u64x2_v128relaxed_(sumsq_u64x2);
-    nk_u64_t sum_lower = (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 0);
-    nk_i64_t sum_upper = wasm_i64x2_extract_lane(sum_upper_i64x2, 0);
+    nk_u64_t sum_low = (nk_u64_t)wasm_i64x2_extract_lane(sum_low_u64x2, 0);
+    nk_i64_t sum_high = wasm_i64x2_extract_lane(sum_high_i64x2, 0);
     {
-        nk_u64_t sum_before = sum_lower;
-        sum_lower += (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 1);
-        if (sum_lower < sum_before) sum_upper++;
-        sum_upper += wasm_i64x2_extract_lane(sum_upper_i64x2, 1);
+        nk_u64_t sum_before = sum_low;
+        sum_low += (nk_u64_t)wasm_i64x2_extract_lane(sum_low_u64x2, 1);
+        if (sum_low < sum_before) sum_high++;
+        sum_high += wasm_i64x2_extract_lane(sum_high_i64x2, 1);
     }
     for (; idx < count; ++idx) {
         nk_i64_t val = data[idx];
         nk_u64_t unsigned_product = (nk_u64_t)nk_i64_saturating_mul_serial(val, val);
         sumsq = nk_u64_saturating_add_serial(sumsq, unsigned_product);
-        nk_u64_t sum_before = sum_lower;
-        sum_lower += (nk_u64_t)val;
-        if (sum_lower < sum_before) sum_upper++;
-        sum_upper += (val >> 63);
+        nk_u64_t sum_before = sum_low;
+        sum_low += (nk_u64_t)val;
+        if (sum_low < sum_before) sum_high++;
+        sum_high += (val >> 63);
     }
-    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
-    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low_signed = (nk_i64_t)sum_low;
+    if (sum_high == (sum_low_signed >> 63)) *sum_ptr = sum_low_signed;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }

@@ -68,13 +68,13 @@ static PyObject *implement_dense_metric( //
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
-        out_dtype = python_arg_to_dtype(out_dtype_obj);
+        out_dtype = py_object_to_nk_dtype(out_dtype_obj);
         if (out_dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -124,12 +124,13 @@ static PyObject *implement_dense_metric( //
     // 3. double precision float (or its complex variant)
     if (out_dtype == nk_dtype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.dtype; }
-        else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
+        else { out_dtype = (nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) ? nk_f64c_k : nk_f64_k; }
     }
 
     // Make sure the return dtype is complex if the input dtype is complex, and the same for real numbers
     if (out_dtype != nk_dtype_unknown_k) {
-        if (is_complex(dtype) != is_complex(out_dtype)) {
+        if ((nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) !=
+            (nk_dtype_family(out_dtype) == nk_dtype_family_complex_float_k)) {
             PyErr_SetString(PyExc_ValueError,
                             "If the input dtype is complex, the return dtype must be complex, and same for real.");
             goto cleanup;
@@ -138,8 +139,9 @@ static PyObject *implement_dense_metric( //
 
     // Check if the downcasting to provided dtype is supported
     {
-        char returned_buffer_example[8];
-        if (!cast_distance(0, out_dtype, &returned_buffer_example, 0)) {
+        nk_scalar_buffer_t probe;
+        probe.f64c.real = 0, probe.f64c.imag = 0;
+        if (!nk_scalar_buffer_from_f64c(&probe.f64c, &probe, out_dtype)) {
             PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }
@@ -154,10 +156,10 @@ static PyObject *implement_dense_metric( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s') and " //
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(b_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -166,7 +168,7 @@ static PyObject *implement_dense_metric( //
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
         nk_scalar_buffer_t distance;
         metric(a_parsed.data, b_parsed.data, a_cols, &distance);
-        return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
+        return_obj = nk_scalar_buffer_to_py_number(&distance, kernel_out_dtype);
         goto cleanup;
     }
 
@@ -190,12 +192,12 @@ static PyObject *implement_dense_metric( //
         distances_stride_bytes = distances_obj->strides[0];
     }
     else {
-        if (bytes_per_dtype(out_parsed.dtype) != bytes_per_dtype(out_dtype)) {
+        if (nk_dtype_bytes_per_value(out_parsed.dtype) != nk_dtype_bytes_per_value(out_dtype)) {
             PyErr_Format( //
                 PyExc_LookupError,
                 "Output tensor scalar type must be compatible with the output type ('%s' and '%s'/'%s')",
-                dtype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
-                dtype_to_python_string(out_parsed.dtype));
+                nk_dtype_to_pybuffer_typestr(out_dtype), out_buffer.format ? out_buffer.format : "nil",
+                nk_dtype_to_pybuffer_typestr(out_parsed.dtype));
             goto cleanup;
         }
         distances_start = out_parsed.data;
@@ -219,7 +221,7 @@ static PyObject *implement_dense_metric( //
             &result);
 
         // Export out:
-        cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, distances_start + i * distances_stride_bytes);
+        nk_scalar_buffer_export(&result, kernel_out_dtype, distances_start + i * distances_stride_bytes, out_dtype);
     }
 
     PyEval_RestoreThread(save);
@@ -285,7 +287,7 @@ static PyObject *implement_curved_metric( //
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -331,11 +333,11 @@ static PyObject *implement_curved_metric( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s'), " //
             "tensor ('%s'/'%s'), and `dtype` override ('%s'/'%s')",
-            metric_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
-            c_buffer.format ? c_buffer.format : "nil", dtype_to_python_string(c_parsed.dtype), //
-            dtype_to_python_string(dtype), dtype_to_python_string(dtype));
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(b_parsed.dtype), //
+            c_buffer.format ? c_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(c_parsed.dtype), //
+            nk_dtype_to_pybuffer_typestr(dtype), nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
@@ -343,7 +345,7 @@ static PyObject *implement_curved_metric( //
     nk_dtype_t const kernel_out_dtype = nk_kernel_output_dtype(metric_kind, dtype);
     nk_scalar_buffer_t distance;
     metric(a_parsed.data, b_parsed.data, c_parsed.data, a_parsed.cols, &distance);
-    return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
+    return_obj = nk_scalar_buffer_to_py_number(&distance, kernel_out_dtype);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -412,7 +414,7 @@ static PyObject *implement_geospatial_metric( //
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -455,13 +457,13 @@ static PyObject *implement_geospatial_metric( //
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, (nk_kernel_punned_t *)&metric, &capability);
     if (!metric || !capability) {
         PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and dtype '%s'", metric_kind,
-                     dtype_to_python_string(dtype));
+                     nk_dtype_to_pybuffer_typestr(dtype));
         goto cleanup;
     }
 
     // Allocate output or use provided
     // Output dtype must match input dtype (f32 kernel writes f32, f64 kernel writes f64)
-    size_t const item_size = bytes_per_dtype(dtype);
+    size_t const item_size = nk_dtype_bytes_per_value(dtype);
     void *distances_start = NULL;
     if (!out_obj) {
         Py_ssize_t geo_shape[1] = {(Py_ssize_t)n};
@@ -533,9 +535,9 @@ static PyObject *implement_sparse_metric( //
     if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype));
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(b_parsed.dtype));
         goto cleanup;
     }
 
@@ -597,10 +599,10 @@ static void cdist_pairwise_loop(                          //
             nk_scalar_buffer_t result;
             metric(a_start + i * a_stride, b_start + j * b_stride, dimensions, &result);
             char *ptr_ij = out + i * out_row_stride + j * out_col_stride;
-            cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ij);
+            nk_scalar_buffer_export(&result, kernel_out_dtype, ptr_ij, out_dtype);
             if (is_symmetric) {
                 char *ptr_ji = out + j * out_row_stride + i * out_col_stride;
-                cast_scalar_buffer(&result, kernel_out_dtype, out_dtype, ptr_ji);
+                nk_scalar_buffer_export(&result, kernel_out_dtype, ptr_ji, out_dtype);
             }
         }
 }
@@ -721,12 +723,13 @@ static PyObject *implement_cdist(                        //
     // 3. double precision float (or its complex variant)
     if (out_dtype == nk_dtype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.dtype; }
-        else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
+        else { out_dtype = (nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) ? nk_f64c_k : nk_f64_k; }
     }
 
     // Make sure the return dtype is complex if the input dtype is complex, and the same for real numbers
     if (out_dtype != nk_dtype_unknown_k) {
-        if (is_complex(dtype) != is_complex(out_dtype)) {
+        if ((nk_dtype_family(dtype) == nk_dtype_family_complex_float_k) !=
+            (nk_dtype_family(out_dtype) == nk_dtype_family_complex_float_k)) {
             PyErr_SetString(PyExc_ValueError,
                             "If the input dtype is complex, the return dtype must be complex, and same for real.");
             goto cleanup;
@@ -735,8 +738,9 @@ static PyObject *implement_cdist(                        //
 
     // Check if the downcasting to provided dtype is supported
     {
-        char returned_buffer_example[8];
-        if (!cast_distance(0, out_dtype, &returned_buffer_example, 0)) {
+        nk_scalar_buffer_t probe;
+        probe.f64c.real = 0, probe.f64c.imag = 0;
+        if (!nk_scalar_buffer_from_f64c(&probe.f64c, &probe, out_dtype)) {
             PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }
@@ -749,9 +753,9 @@ static PyObject *implement_cdist(                        //
     if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                       //
-            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
-            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype));
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", nk_dtype_to_pybuffer_typestr(b_parsed.dtype));
         goto cleanup;
     }
 
@@ -760,7 +764,7 @@ static PyObject *implement_cdist(                        //
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
         nk_scalar_buffer_t distance;
         metric(a_parsed.data, b_parsed.data, a_cols, &distance);
-        return_obj = scalar_to_py_number(&distance, kernel_out_dtype);
+        return_obj = nk_scalar_buffer_to_py_number(&distance, kernel_out_dtype);
         goto cleanup;
     }
 
@@ -781,12 +785,12 @@ static PyObject *implement_cdist(                        //
         distances_cols_stride_bytes = distances_obj->strides[1];
     }
     else {
-        if (bytes_per_dtype(out_parsed.dtype) != bytes_per_dtype(out_dtype)) {
+        if (nk_dtype_bytes_per_value(out_parsed.dtype) != nk_dtype_bytes_per_value(out_dtype)) {
             PyErr_Format( //
                 PyExc_LookupError,
                 "Output tensor scalar type must be compatible with the output type ('%s' and '%s'/'%s')",
-                dtype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
-                dtype_to_python_string(out_parsed.dtype));
+                nk_dtype_to_pybuffer_typestr(out_dtype), out_buffer.format ? out_buffer.format : "nil",
+                nk_dtype_to_pybuffer_typestr(out_parsed.dtype));
             goto cleanup;
         }
         distances_start = out_parsed.data;
@@ -801,7 +805,7 @@ static PyObject *implement_cdist(                        //
     // Release the GIL for the compute-intensive section.
     PyThreadState *save = PyEval_SaveThread();
 
-    int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.data == b_parsed.data &&
+    int const is_symmetric = nk_kernel_is_commutative(metric_kind) && a_parsed.data == b_parsed.data &&
                              a_parsed.row_stride == b_parsed.row_stride && a_parsed.rows == b_parsed.rows;
 
     // Batch kernels write typed values directly into the output buffer, so we can only use them
@@ -818,7 +822,7 @@ static PyObject *implement_cdist(                        //
 
     // Symmetric kernel only writes upper triangle; mirror to lower.
     if (batch_result == 0 && is_symmetric) {
-        size_t const elem_size = bytes_per_dtype(out_dtype);
+        size_t const elem_size = nk_dtype_bytes_per_value(out_dtype);
         for (size_t i = 1; i < a_parsed.rows; ++i)
             for (size_t j = 0; j < i; ++j)
                 memcpy(distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes,
@@ -847,7 +851,7 @@ cleanup:
 }
 
 static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject *dtype_obj) {
-    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    nk_dtype_t dtype = py_object_to_nk_dtype(dtype_obj);
     if (!dtype) return NULL;
 
     nk_kernel_punned_t metric = NULL;
@@ -938,7 +942,7 @@ PyObject *api_cdist( //
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
             return NULL;
         }
-        metric_kind = python_string_to_metric_kind(metric_str, metric_len);
+        metric_kind = py_string_to_nk_kernel_kind(metric_str, metric_len);
         if (metric_kind == nk_kernel_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
@@ -947,13 +951,13 @@ PyObject *api_cdist( //
 
     // Convert `dtype_obj` to `dtype`
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     // Convert `out_dtype_obj` to `out_dtype`
     if (out_dtype_obj) {
-        out_dtype = python_arg_to_dtype(out_dtype_obj);
+        out_dtype = py_object_to_nk_dtype(out_dtype_obj);
         if (out_dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -1367,7 +1371,7 @@ PyObject *api_sparse_dot(PyObject *self, PyObject *const *args, Py_ssize_t nargs
     nk_scalar_buffer_t product = {0};
     nk_dtype_t product_dtype = nk_kernel_output_dtype(nk_kernel_sparse_dot_k, dispatch_dtype);
     kernel(a_idx.data, b_idx.data, a_val.data, b_val.data, a_idx.cols, b_idx.cols, &product);
-    return_obj = scalar_to_py_number(&product, product_dtype);
+    return_obj = nk_scalar_buffer_to_py_number(&product, product_dtype);
 
 cleanup:
     if (a_idx_buf.buf) PyBuffer_Release(&a_idx_buf);

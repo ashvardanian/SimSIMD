@@ -116,6 +116,8 @@ void bench_dot() {
     run_dense<e4m3_k, f32_k>("dot_e4m3_neon", nk_dot_e4m3_neon);
     run_dense<e3m2_k, f32_k>("dot_e3m2_neon", nk_dot_e3m2_neon);
     run_dense<e2m3_k, f32_k>("dot_e2m3_neon", nk_dot_e2m3_neon);
+    run_dense<f16c_k, f32c_k>("dot_f16c_neon", nk_dot_f16c_neon);
+    run_dense<f16c_k, f32c_k>("vdot_f16c_neon", nk_vdot_f16c_neon);
     run_dense<u1_k, u32_k>("dot_u1_neon", nk_dot_u1_neon);
 #endif
 
@@ -126,12 +128,6 @@ void bench_dot() {
     run_dense<u8_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot);
     run_dense<i4_k, i32_k>("dot_i4_neonsdot", nk_dot_i4_neonsdot);
     run_dense<u4_k, u32_k>("dot_u4_neonsdot", nk_dot_u4_neonsdot);
-#endif
-
-#if NK_TARGET_NEONHALF
-    run_dense<f16c_k, f32c_k>("dot_f16c_neonhalf", nk_dot_f16c_neonhalf);
-    run_dense<f16c_k, f32c_k>("vdot_f16c_neonhalf", nk_vdot_f16c_neonhalf);
-    run_dense<f16_k, f32_k>("dot_f16_neonhalf", nk_dot_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM

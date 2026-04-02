@@ -50,10 +50,10 @@ extern "C" {
  */
 NK_INTERNAL void nk_deinterleave_f32x8_haswell_(nk_f32_t const *ptr, __m256 *x_out, __m256 *y_out, __m256 *z_out) {
     // Gather indices: 0, 3, 6, 9, 12, 15, 18, 21 (stride 3)
-    __m256i idx = _mm256_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21);
-    *x_out = _mm256_i32gather_ps(ptr + 0, idx, 4);
-    *y_out = _mm256_i32gather_ps(ptr + 1, idx, 4);
-    *z_out = _mm256_i32gather_ps(ptr + 2, idx, 4);
+    __m256i idx_i32x8 = _mm256_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21);
+    *x_out = _mm256_i32gather_ps(ptr + 0, idx_i32x8, 4);
+    *y_out = _mm256_i32gather_ps(ptr + 1, idx_i32x8, 4);
+    *z_out = _mm256_i32gather_ps(ptr + 2, idx_i32x8, 4);
 }
 
 /*  Deinterleave 12 f64 values (4 xyz triplets) into separate x, y, z vectors.
@@ -134,70 +134,70 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_haswell_(nk_f32_t const *a, nk_f32_t
         nk_deinterleave_f32x8_haswell_(a + index * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8),
             nk_deinterleave_f32x8_haswell_(b + index * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
-        __m256d a_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
-        __m256d a_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
-        __m256d a_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
-        __m256d a_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
-        __m256d a_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
-        __m256d a_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
-        __m256d b_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
-        __m256d b_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
-        __m256d b_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
-        __m256d b_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
-        __m256d b_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
-        __m256d b_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
+        __m256d a_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
+        __m256d a_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
+        __m256d a_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
+        __m256d a_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
+        __m256d a_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
+        __m256d a_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
+        __m256d b_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
+        __m256d b_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
+        __m256d b_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
+        __m256d b_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
+        __m256d b_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
+        __m256d b_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
 
-        __m256d centered_a_x_lower_f64x4 = _mm256_sub_pd(a_x_lower_f64x4, centroid_a_x_f64x4);
-        __m256d centered_a_x_upper_f64x4 = _mm256_sub_pd(a_x_upper_f64x4, centroid_a_x_f64x4);
-        __m256d centered_a_y_lower_f64x4 = _mm256_sub_pd(a_y_lower_f64x4, centroid_a_y_f64x4);
-        __m256d centered_a_y_upper_f64x4 = _mm256_sub_pd(a_y_upper_f64x4, centroid_a_y_f64x4);
-        __m256d centered_a_z_lower_f64x4 = _mm256_sub_pd(a_z_lower_f64x4, centroid_a_z_f64x4);
-        __m256d centered_a_z_upper_f64x4 = _mm256_sub_pd(a_z_upper_f64x4, centroid_a_z_f64x4);
-        __m256d centered_b_x_lower_f64x4 = _mm256_sub_pd(b_x_lower_f64x4, centroid_b_x_f64x4);
-        __m256d centered_b_x_upper_f64x4 = _mm256_sub_pd(b_x_upper_f64x4, centroid_b_x_f64x4);
-        __m256d centered_b_y_lower_f64x4 = _mm256_sub_pd(b_y_lower_f64x4, centroid_b_y_f64x4);
-        __m256d centered_b_y_upper_f64x4 = _mm256_sub_pd(b_y_upper_f64x4, centroid_b_y_f64x4);
-        __m256d centered_b_z_lower_f64x4 = _mm256_sub_pd(b_z_lower_f64x4, centroid_b_z_f64x4);
-        __m256d centered_b_z_upper_f64x4 = _mm256_sub_pd(b_z_upper_f64x4, centroid_b_z_f64x4);
+        __m256d centered_a_x_low_f64x4 = _mm256_sub_pd(a_x_low_f64x4, centroid_a_x_f64x4);
+        __m256d centered_a_x_high_f64x4 = _mm256_sub_pd(a_x_high_f64x4, centroid_a_x_f64x4);
+        __m256d centered_a_y_low_f64x4 = _mm256_sub_pd(a_y_low_f64x4, centroid_a_y_f64x4);
+        __m256d centered_a_y_high_f64x4 = _mm256_sub_pd(a_y_high_f64x4, centroid_a_y_f64x4);
+        __m256d centered_a_z_low_f64x4 = _mm256_sub_pd(a_z_low_f64x4, centroid_a_z_f64x4);
+        __m256d centered_a_z_high_f64x4 = _mm256_sub_pd(a_z_high_f64x4, centroid_a_z_f64x4);
+        __m256d centered_b_x_low_f64x4 = _mm256_sub_pd(b_x_low_f64x4, centroid_b_x_f64x4);
+        __m256d centered_b_x_high_f64x4 = _mm256_sub_pd(b_x_high_f64x4, centroid_b_x_f64x4);
+        __m256d centered_b_y_low_f64x4 = _mm256_sub_pd(b_y_low_f64x4, centroid_b_y_f64x4);
+        __m256d centered_b_y_high_f64x4 = _mm256_sub_pd(b_y_high_f64x4, centroid_b_y_f64x4);
+        __m256d centered_b_z_low_f64x4 = _mm256_sub_pd(b_z_low_f64x4, centroid_b_z_f64x4);
+        __m256d centered_b_z_high_f64x4 = _mm256_sub_pd(b_z_high_f64x4, centroid_b_z_f64x4);
 
-        __m256d rotated_a_x_lower_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_x_z_f64x4, centered_a_z_lower_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_x_y_f64x4, centered_a_y_lower_f64x4,
-                            _mm256_mul_pd(scaled_rotation_x_x_f64x4, centered_a_x_lower_f64x4)));
-        __m256d rotated_a_x_upper_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_x_z_f64x4, centered_a_z_upper_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_x_y_f64x4, centered_a_y_upper_f64x4,
-                            _mm256_mul_pd(scaled_rotation_x_x_f64x4, centered_a_x_upper_f64x4)));
-        __m256d rotated_a_y_lower_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_y_z_f64x4, centered_a_z_lower_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_y_y_f64x4, centered_a_y_lower_f64x4,
-                            _mm256_mul_pd(scaled_rotation_y_x_f64x4, centered_a_x_lower_f64x4)));
-        __m256d rotated_a_y_upper_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_y_z_f64x4, centered_a_z_upper_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_y_y_f64x4, centered_a_y_upper_f64x4,
-                            _mm256_mul_pd(scaled_rotation_y_x_f64x4, centered_a_x_upper_f64x4)));
-        __m256d rotated_a_z_lower_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_z_z_f64x4, centered_a_z_lower_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_z_y_f64x4, centered_a_y_lower_f64x4,
-                            _mm256_mul_pd(scaled_rotation_z_x_f64x4, centered_a_x_lower_f64x4)));
-        __m256d rotated_a_z_upper_f64x4 = _mm256_fmadd_pd(
-            scaled_rotation_z_z_f64x4, centered_a_z_upper_f64x4,
-            _mm256_fmadd_pd(scaled_rotation_z_y_f64x4, centered_a_y_upper_f64x4,
-                            _mm256_mul_pd(scaled_rotation_z_x_f64x4, centered_a_x_upper_f64x4)));
+        __m256d rotated_a_x_low_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_x_z_f64x4, centered_a_z_low_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_x_y_f64x4, centered_a_y_low_f64x4,
+                            _mm256_mul_pd(scaled_rotation_x_x_f64x4, centered_a_x_low_f64x4)));
+        __m256d rotated_a_x_high_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_x_z_f64x4, centered_a_z_high_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_x_y_f64x4, centered_a_y_high_f64x4,
+                            _mm256_mul_pd(scaled_rotation_x_x_f64x4, centered_a_x_high_f64x4)));
+        __m256d rotated_a_y_low_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_y_z_f64x4, centered_a_z_low_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_y_y_f64x4, centered_a_y_low_f64x4,
+                            _mm256_mul_pd(scaled_rotation_y_x_f64x4, centered_a_x_low_f64x4)));
+        __m256d rotated_a_y_high_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_y_z_f64x4, centered_a_z_high_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_y_y_f64x4, centered_a_y_high_f64x4,
+                            _mm256_mul_pd(scaled_rotation_y_x_f64x4, centered_a_x_high_f64x4)));
+        __m256d rotated_a_z_low_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_z_z_f64x4, centered_a_z_low_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_z_y_f64x4, centered_a_y_low_f64x4,
+                            _mm256_mul_pd(scaled_rotation_z_x_f64x4, centered_a_x_low_f64x4)));
+        __m256d rotated_a_z_high_f64x4 = _mm256_fmadd_pd(
+            scaled_rotation_z_z_f64x4, centered_a_z_high_f64x4,
+            _mm256_fmadd_pd(scaled_rotation_z_y_f64x4, centered_a_y_high_f64x4,
+                            _mm256_mul_pd(scaled_rotation_z_x_f64x4, centered_a_x_high_f64x4)));
 
-        __m256d delta_x_lower_f64x4 = _mm256_sub_pd(rotated_a_x_lower_f64x4, centered_b_x_lower_f64x4);
-        __m256d delta_x_upper_f64x4 = _mm256_sub_pd(rotated_a_x_upper_f64x4, centered_b_x_upper_f64x4);
-        __m256d delta_y_lower_f64x4 = _mm256_sub_pd(rotated_a_y_lower_f64x4, centered_b_y_lower_f64x4);
-        __m256d delta_y_upper_f64x4 = _mm256_sub_pd(rotated_a_y_upper_f64x4, centered_b_y_upper_f64x4);
-        __m256d delta_z_lower_f64x4 = _mm256_sub_pd(rotated_a_z_lower_f64x4, centered_b_z_lower_f64x4);
-        __m256d delta_z_upper_f64x4 = _mm256_sub_pd(rotated_a_z_upper_f64x4, centered_b_z_upper_f64x4);
+        __m256d delta_x_low_f64x4 = _mm256_sub_pd(rotated_a_x_low_f64x4, centered_b_x_low_f64x4);
+        __m256d delta_x_high_f64x4 = _mm256_sub_pd(rotated_a_x_high_f64x4, centered_b_x_high_f64x4);
+        __m256d delta_y_low_f64x4 = _mm256_sub_pd(rotated_a_y_low_f64x4, centered_b_y_low_f64x4);
+        __m256d delta_y_high_f64x4 = _mm256_sub_pd(rotated_a_y_high_f64x4, centered_b_y_high_f64x4);
+        __m256d delta_z_low_f64x4 = _mm256_sub_pd(rotated_a_z_low_f64x4, centered_b_z_low_f64x4);
+        __m256d delta_z_high_f64x4 = _mm256_sub_pd(rotated_a_z_high_f64x4, centered_b_z_high_f64x4);
 
-        __m256d batch_sum_squared_f64x4 = _mm256_add_pd(_mm256_mul_pd(delta_x_lower_f64x4, delta_x_lower_f64x4),
-                                                        _mm256_mul_pd(delta_x_upper_f64x4, delta_x_upper_f64x4));
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_lower_f64x4, delta_y_lower_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_upper_f64x4, delta_y_upper_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_lower_f64x4, delta_z_lower_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_upper_f64x4, delta_z_upper_f64x4, batch_sum_squared_f64x4);
+        __m256d batch_sum_squared_f64x4 = _mm256_add_pd(_mm256_mul_pd(delta_x_low_f64x4, delta_x_low_f64x4),
+                                                        _mm256_mul_pd(delta_x_high_f64x4, delta_x_high_f64x4));
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_low_f64x4, delta_y_low_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_high_f64x4, delta_y_high_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_low_f64x4, delta_z_low_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_high_f64x4, delta_z_high_f64x4, batch_sum_squared_f64x4);
         sum_squared_f64x4 = _mm256_add_pd(sum_squared_f64x4, batch_sum_squared_f64x4);
     }
 
@@ -330,38 +330,38 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
         nk_deinterleave_f32x8_haswell_(a + index * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8),
             nk_deinterleave_f32x8_haswell_(b + index * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
-        __m256d a_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
-        __m256d a_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
-        __m256d a_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
-        __m256d a_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
-        __m256d a_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
-        __m256d a_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
-        __m256d b_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
-        __m256d b_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
-        __m256d b_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
-        __m256d b_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
-        __m256d b_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
-        __m256d b_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
+        __m256d a_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
+        __m256d a_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
+        __m256d a_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
+        __m256d a_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
+        __m256d a_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
+        __m256d a_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
+        __m256d b_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
+        __m256d b_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
+        __m256d b_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
+        __m256d b_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
+        __m256d b_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
+        __m256d b_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
 
-        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_lower_f64x4, a_x_upper_f64x4));
-        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_lower_f64x4, a_y_upper_f64x4));
-        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_lower_f64x4, a_z_upper_f64x4));
-        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_lower_f64x4, b_x_upper_f64x4));
-        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_lower_f64x4, b_y_upper_f64x4));
-        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_lower_f64x4, b_z_upper_f64x4));
+        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_low_f64x4, a_x_high_f64x4));
+        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_low_f64x4, a_y_high_f64x4));
+        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_low_f64x4, a_z_high_f64x4));
+        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_low_f64x4, b_x_high_f64x4));
+        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_low_f64x4, b_y_high_f64x4));
+        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_low_f64x4, b_z_high_f64x4));
 
-        __m256d delta_x_lower_f64x4 = _mm256_sub_pd(a_x_lower_f64x4, b_x_lower_f64x4);
-        __m256d delta_x_upper_f64x4 = _mm256_sub_pd(a_x_upper_f64x4, b_x_upper_f64x4);
-        __m256d delta_y_lower_f64x4 = _mm256_sub_pd(a_y_lower_f64x4, b_y_lower_f64x4);
-        __m256d delta_y_upper_f64x4 = _mm256_sub_pd(a_y_upper_f64x4, b_y_upper_f64x4);
-        __m256d delta_z_lower_f64x4 = _mm256_sub_pd(a_z_lower_f64x4, b_z_lower_f64x4);
-        __m256d delta_z_upper_f64x4 = _mm256_sub_pd(a_z_upper_f64x4, b_z_upper_f64x4);
-        __m256d batch_sum_squared_f64x4 = _mm256_add_pd(_mm256_mul_pd(delta_x_lower_f64x4, delta_x_lower_f64x4),
-                                                        _mm256_mul_pd(delta_x_upper_f64x4, delta_x_upper_f64x4));
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_lower_f64x4, delta_y_lower_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_upper_f64x4, delta_y_upper_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_lower_f64x4, delta_z_lower_f64x4, batch_sum_squared_f64x4);
-        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_upper_f64x4, delta_z_upper_f64x4, batch_sum_squared_f64x4);
+        __m256d delta_x_low_f64x4 = _mm256_sub_pd(a_x_low_f64x4, b_x_low_f64x4);
+        __m256d delta_x_high_f64x4 = _mm256_sub_pd(a_x_high_f64x4, b_x_high_f64x4);
+        __m256d delta_y_low_f64x4 = _mm256_sub_pd(a_y_low_f64x4, b_y_low_f64x4);
+        __m256d delta_y_high_f64x4 = _mm256_sub_pd(a_y_high_f64x4, b_y_high_f64x4);
+        __m256d delta_z_low_f64x4 = _mm256_sub_pd(a_z_low_f64x4, b_z_low_f64x4);
+        __m256d delta_z_high_f64x4 = _mm256_sub_pd(a_z_high_f64x4, b_z_high_f64x4);
+        __m256d batch_sum_squared_f64x4 = _mm256_add_pd(_mm256_mul_pd(delta_x_low_f64x4, delta_x_low_f64x4),
+                                                        _mm256_mul_pd(delta_x_high_f64x4, delta_x_high_f64x4));
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_low_f64x4, delta_y_low_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_y_high_f64x4, delta_y_high_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_low_f64x4, delta_z_low_f64x4, batch_sum_squared_f64x4);
+        batch_sum_squared_f64x4 = _mm256_fmadd_pd(delta_z_high_f64x4, delta_z_high_f64x4, batch_sum_squared_f64x4);
         sum_squared_f64x4 = _mm256_add_pd(sum_squared_f64x4, batch_sum_squared_f64x4);
     }
 
@@ -559,53 +559,53 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     for (; index + 8 <= n; index += 8) {
         nk_deinterleave_f32x8_haswell_(a + index * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8),
             nk_deinterleave_f32x8_haswell_(b + index * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
-        __m256d a_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
-        __m256d a_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
-        __m256d a_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
-        __m256d a_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
-        __m256d a_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
-        __m256d a_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
-        __m256d b_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
-        __m256d b_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
-        __m256d b_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
-        __m256d b_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
-        __m256d b_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
-        __m256d b_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
+        __m256d a_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
+        __m256d a_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
+        __m256d a_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
+        __m256d a_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
+        __m256d a_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
+        __m256d a_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
+        __m256d b_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
+        __m256d b_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
+        __m256d b_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
+        __m256d b_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
+        __m256d b_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
+        __m256d b_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
 
-        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_lower_f64x4, a_x_upper_f64x4));
-        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_lower_f64x4, a_y_upper_f64x4));
-        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_lower_f64x4, a_z_upper_f64x4));
-        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_lower_f64x4, b_x_upper_f64x4));
-        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_lower_f64x4, b_y_upper_f64x4));
-        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_lower_f64x4, b_z_upper_f64x4));
+        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_low_f64x4, a_x_high_f64x4));
+        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_low_f64x4, a_y_high_f64x4));
+        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_low_f64x4, a_z_high_f64x4));
+        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_low_f64x4, b_x_high_f64x4));
+        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_low_f64x4, b_y_high_f64x4));
+        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_low_f64x4, b_z_high_f64x4));
 
-        covariance_00_f64x4 = _mm256_add_pd(covariance_00_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_x_upper_f64x4)));
-        covariance_01_f64x4 = _mm256_add_pd(covariance_01_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_y_upper_f64x4)));
-        covariance_02_f64x4 = _mm256_add_pd(covariance_02_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_z_upper_f64x4)));
-        covariance_10_f64x4 = _mm256_add_pd(covariance_10_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_x_upper_f64x4)));
-        covariance_11_f64x4 = _mm256_add_pd(covariance_11_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_y_upper_f64x4)));
-        covariance_12_f64x4 = _mm256_add_pd(covariance_12_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_z_upper_f64x4)));
-        covariance_20_f64x4 = _mm256_add_pd(covariance_20_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_x_upper_f64x4)));
-        covariance_21_f64x4 = _mm256_add_pd(covariance_21_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_y_upper_f64x4)));
-        covariance_22_f64x4 = _mm256_add_pd(covariance_22_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_z_upper_f64x4)));
+        covariance_00_f64x4 = _mm256_add_pd(
+            covariance_00_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_x_high_f64x4)));
+        covariance_01_f64x4 = _mm256_add_pd(
+            covariance_01_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_y_high_f64x4)));
+        covariance_02_f64x4 = _mm256_add_pd(
+            covariance_02_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_z_high_f64x4)));
+        covariance_10_f64x4 = _mm256_add_pd(
+            covariance_10_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_x_high_f64x4)));
+        covariance_11_f64x4 = _mm256_add_pd(
+            covariance_11_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_y_high_f64x4)));
+        covariance_12_f64x4 = _mm256_add_pd(
+            covariance_12_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_z_high_f64x4)));
+        covariance_20_f64x4 = _mm256_add_pd(
+            covariance_20_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_x_high_f64x4)));
+        covariance_21_f64x4 = _mm256_add_pd(
+            covariance_21_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_y_high_f64x4)));
+        covariance_22_f64x4 = _mm256_add_pd(
+            covariance_22_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_z_high_f64x4)));
     }
 
     nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
@@ -842,60 +842,60 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     for (; index + 8 <= n; index += 8) {
         nk_deinterleave_f32x8_haswell_(a + index * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8),
             nk_deinterleave_f32x8_haswell_(b + index * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
-        __m256d a_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
-        __m256d a_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
-        __m256d a_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
-        __m256d a_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
-        __m256d a_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
-        __m256d a_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
-        __m256d b_x_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
-        __m256d b_x_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
-        __m256d b_y_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
-        __m256d b_y_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
-        __m256d b_z_lower_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
-        __m256d b_z_upper_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
+        __m256d a_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
+        __m256d a_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_f32x8, 1));
+        __m256d a_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
+        __m256d a_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_f32x8, 1));
+        __m256d a_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_f32x8));
+        __m256d a_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_f32x8, 1));
+        __m256d b_x_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_f32x8));
+        __m256d b_x_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_f32x8, 1));
+        __m256d b_y_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_f32x8));
+        __m256d b_y_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_f32x8, 1));
+        __m256d b_z_low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_f32x8));
+        __m256d b_z_high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_f32x8, 1));
 
-        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_lower_f64x4, a_x_upper_f64x4));
-        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_lower_f64x4, a_y_upper_f64x4));
-        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_lower_f64x4, a_z_upper_f64x4));
-        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_lower_f64x4, b_x_upper_f64x4));
-        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_lower_f64x4, b_y_upper_f64x4));
-        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_lower_f64x4, b_z_upper_f64x4));
-        covariance_00_f64x4 = _mm256_add_pd(covariance_00_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_x_upper_f64x4)));
-        covariance_01_f64x4 = _mm256_add_pd(covariance_01_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_y_upper_f64x4)));
-        covariance_02_f64x4 = _mm256_add_pd(covariance_02_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_x_upper_f64x4, b_z_upper_f64x4)));
-        covariance_10_f64x4 = _mm256_add_pd(covariance_10_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_x_upper_f64x4)));
-        covariance_11_f64x4 = _mm256_add_pd(covariance_11_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_y_upper_f64x4)));
-        covariance_12_f64x4 = _mm256_add_pd(covariance_12_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_y_upper_f64x4, b_z_upper_f64x4)));
-        covariance_20_f64x4 = _mm256_add_pd(covariance_20_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_x_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_x_upper_f64x4)));
-        covariance_21_f64x4 = _mm256_add_pd(covariance_21_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_y_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_y_upper_f64x4)));
-        covariance_22_f64x4 = _mm256_add_pd(covariance_22_f64x4,
-                                            _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, b_z_lower_f64x4),
-                                                          _mm256_mul_pd(a_z_upper_f64x4, b_z_upper_f64x4)));
+        sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, _mm256_add_pd(a_x_low_f64x4, a_x_high_f64x4));
+        sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, _mm256_add_pd(a_y_low_f64x4, a_y_high_f64x4));
+        sum_a_z_f64x4 = _mm256_add_pd(sum_a_z_f64x4, _mm256_add_pd(a_z_low_f64x4, a_z_high_f64x4));
+        sum_b_x_f64x4 = _mm256_add_pd(sum_b_x_f64x4, _mm256_add_pd(b_x_low_f64x4, b_x_high_f64x4));
+        sum_b_y_f64x4 = _mm256_add_pd(sum_b_y_f64x4, _mm256_add_pd(b_y_low_f64x4, b_y_high_f64x4));
+        sum_b_z_f64x4 = _mm256_add_pd(sum_b_z_f64x4, _mm256_add_pd(b_z_low_f64x4, b_z_high_f64x4));
+        covariance_00_f64x4 = _mm256_add_pd(
+            covariance_00_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_x_high_f64x4)));
+        covariance_01_f64x4 = _mm256_add_pd(
+            covariance_01_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_y_high_f64x4)));
+        covariance_02_f64x4 = _mm256_add_pd(
+            covariance_02_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_x_high_f64x4, b_z_high_f64x4)));
+        covariance_10_f64x4 = _mm256_add_pd(
+            covariance_10_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_x_high_f64x4)));
+        covariance_11_f64x4 = _mm256_add_pd(
+            covariance_11_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_y_high_f64x4)));
+        covariance_12_f64x4 = _mm256_add_pd(
+            covariance_12_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_y_high_f64x4, b_z_high_f64x4)));
+        covariance_20_f64x4 = _mm256_add_pd(
+            covariance_20_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_x_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_x_high_f64x4)));
+        covariance_21_f64x4 = _mm256_add_pd(
+            covariance_21_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_y_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_y_high_f64x4)));
+        covariance_22_f64x4 = _mm256_add_pd(
+            covariance_22_f64x4,
+            _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, b_z_low_f64x4), _mm256_mul_pd(a_z_high_f64x4, b_z_high_f64x4)));
         variance_a_f64x4 = _mm256_add_pd(
             variance_a_f64x4,
-            _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(a_x_lower_f64x4, a_x_lower_f64x4),
-                                        _mm256_mul_pd(a_x_upper_f64x4, a_x_upper_f64x4)),
-                          _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(a_y_lower_f64x4, a_y_lower_f64x4),
-                                                      _mm256_mul_pd(a_y_upper_f64x4, a_y_upper_f64x4)),
-                                        _mm256_add_pd(_mm256_mul_pd(a_z_lower_f64x4, a_z_lower_f64x4),
-                                                      _mm256_mul_pd(a_z_upper_f64x4, a_z_upper_f64x4)))));
+            _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(a_x_low_f64x4, a_x_low_f64x4),
+                                        _mm256_mul_pd(a_x_high_f64x4, a_x_high_f64x4)),
+                          _mm256_add_pd(_mm256_add_pd(_mm256_mul_pd(a_y_low_f64x4, a_y_low_f64x4),
+                                                      _mm256_mul_pd(a_y_high_f64x4, a_y_high_f64x4)),
+                                        _mm256_add_pd(_mm256_mul_pd(a_z_low_f64x4, a_z_low_f64x4),
+                                                      _mm256_mul_pd(a_z_high_f64x4, a_z_high_f64x4)))));
     }
 
     nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);

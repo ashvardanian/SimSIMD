@@ -185,8 +185,8 @@ NK_PUBLIC void nk_each_sum_e5m2_rvv(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
 NK_PUBLIC void nk_each_scale_f64_rvv(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                      nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
         vfloat64m4_t a_f64m4 = __riscv_vle64_v_f64m4(a, vector_length);
@@ -198,8 +198,8 @@ NK_PUBLIC void nk_each_scale_f64_rvv(nk_f64_t const *a, nk_size_t n, nk_f64_t co
 NK_PUBLIC void nk_each_scale_f32_rvv(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e32m4(n);
         vfloat32m4_t a_f32m4 = __riscv_vle32_v_f32m4(a, vector_length);
@@ -211,8 +211,8 @@ NK_PUBLIC void nk_each_scale_f32_rvv(nk_f32_t const *a, nk_size_t n, nk_f32_t co
 NK_PUBLIC void nk_each_scale_f16_rvv(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a, vector_length);
@@ -226,8 +226,8 @@ NK_PUBLIC void nk_each_scale_f16_rvv(nk_f16_t const *a, nk_size_t n, nk_f32_t co
 NK_PUBLIC void nk_each_scale_bf16_rvv(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                       nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a, vector_length);
@@ -241,8 +241,8 @@ NK_PUBLIC void nk_each_scale_bf16_rvv(nk_bf16_t const *a, nk_size_t n, nk_f32_t 
 NK_PUBLIC void nk_each_scale_i8_rvv(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n);
         vint8m1_t a_i8m1 = __riscv_vle8_v_i8m1(a, vector_length);
@@ -262,8 +262,8 @@ NK_PUBLIC void nk_each_scale_i8_rvv(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
 NK_PUBLIC void nk_each_scale_u8_rvv(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n);
         vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1(a, vector_length);
@@ -283,8 +283,8 @@ NK_PUBLIC void nk_each_scale_u8_rvv(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
 NK_PUBLIC void nk_each_scale_i16_rvv(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_i16_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         vint16m1_t a_i16m1 = __riscv_vle16_v_i16m1(a, vector_length);
@@ -302,8 +302,8 @@ NK_PUBLIC void nk_each_scale_i16_rvv(nk_i16_t const *a, nk_size_t n, nk_f32_t co
 NK_PUBLIC void nk_each_scale_u16_rvv(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_u16_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t beta_f32m2 = __riscv_vfmv_v_f_f32m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1(a, vector_length);
@@ -321,8 +321,8 @@ NK_PUBLIC void nk_each_scale_u16_rvv(nk_u16_t const *a, nk_size_t n, nk_f32_t co
 NK_PUBLIC void nk_each_scale_i32_rvv(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                      nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t beta_f64m2 = __riscv_vfmv_v_f_f64m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t beta_f64m2 = __riscv_vfmv_v_f_f64m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e32m1(n);
         vint32m1_t a_i32m1 = __riscv_vle32_v_i32m1(a, vector_length);
@@ -338,8 +338,8 @@ NK_PUBLIC void nk_each_scale_i32_rvv(nk_i32_t const *a, nk_size_t n, nk_f64_t co
 NK_PUBLIC void nk_each_scale_u32_rvv(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                      nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t beta_f64m2 = __riscv_vfmv_v_f_f64m2(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t beta_f64m2 = __riscv_vfmv_v_f_f64m2(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e32m1(n);
         vuint32m1_t a_u32m1 = __riscv_vle32_v_u32m1(a, vector_length);
@@ -355,8 +355,8 @@ NK_PUBLIC void nk_each_scale_u32_rvv(nk_u32_t const *a, nk_size_t n, nk_f64_t co
 NK_PUBLIC void nk_each_scale_i64_rvv(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                      nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
         vint64m4_t a_i64m4 = __riscv_vle64_v_i64m4(a, vector_length);
@@ -370,8 +370,8 @@ NK_PUBLIC void nk_each_scale_i64_rvv(nk_i64_t const *a, nk_size_t n, nk_f64_t co
 NK_PUBLIC void nk_each_scale_u64_rvv(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                      nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t beta_f64m4 = __riscv_vfmv_v_f_f64m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
         vuint64m4_t a_u64m4 = __riscv_vle64_v_u64m4(a, vector_length);
@@ -386,8 +386,8 @@ NK_PUBLIC void nk_each_scale_u64_rvv(nk_u64_t const *a, nk_size_t n, nk_f64_t co
 NK_PUBLIC void nk_each_scale_e4m3_rvv(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                       nk_e4m3_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n);
         vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a, vector_length);
@@ -401,8 +401,8 @@ NK_PUBLIC void nk_each_scale_e4m3_rvv(nk_e4m3_t const *a, nk_size_t n, nk_f32_t 
 NK_PUBLIC void nk_each_scale_e5m2_rvv(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                       nk_e5m2_t *result) {
     nk_f32_t alpha_val = *alpha, beta_val = *beta;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t beta_f32m4 = __riscv_vfmv_v_f_f32m4(beta_val, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, result += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n);
         vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a, vector_length);

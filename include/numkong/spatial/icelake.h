@@ -286,7 +286,7 @@ NK_PUBLIC void nk_sqeuclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b,
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const eight_i8x64 = _mm512_set1_epi8(8);
 
-    __m512i a_i4_vec, b_i4_vec;
+    __m512i a_i4_u8x64, b_i4_u8x64;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
     __m512i diff_low_u8x64, diff_high_u8x64;
@@ -295,22 +295,22 @@ NK_PUBLIC void nk_sqeuclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b,
 nk_sqeuclidean_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        a_i4_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
         n_bytes = 0;
     }
     else {
-        a_i4_vec = _mm512_loadu_epi8(a);
-        b_i4_vec = _mm512_loadu_epi8(b);
+        a_i4_u8x64 = _mm512_loadu_epi8(a);
+        b_i4_u8x64 = _mm512_loadu_epi8(b);
         a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]. VPSHUFB ignores high 4 bits of index,
     // so no AND needed for low nibbles when used with lookup, but we need it here.
-    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_i4_u8x64, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_u8x64, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_u8x64, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_u8x64, 4), nibble_mask_u8x64);
 
     // Sign extend using XOR trick: signed = (nibble ^ 8) - 8
     a_low_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(a_low_u8x64, eight_i8x64), eight_i8x64);
@@ -364,7 +364,7 @@ NK_PUBLIC void nk_angular_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_
     __m512i const eight_i8x64 = _mm512_set1_epi8(8);
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
-    __m512i a_i4_vec, b_i4_vec;
+    __m512i a_i4_u8x64, b_i4_u8x64;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i ax_low_u8x64, ax_high_u8x64, bx_low_u8x64, bx_high_u8x64;
     __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
@@ -380,21 +380,21 @@ NK_PUBLIC void nk_angular_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_
 nk_angular_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_i4_vec = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, a);
-        b_i4_vec = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, b);
+        a_i4_u8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, a);
+        b_i4_u8x64 = _mm512_mask_loadu_epi8(_mm512_set1_epi8((char)0x88), mask, b);
         n_bytes = 0;
     }
     else {
-        a_i4_vec = _mm512_loadu_epi8(a);
-        b_i4_vec = _mm512_loadu_epi8(b);
+        a_i4_u8x64 = _mm512_loadu_epi8(a);
+        b_i4_u8x64 = _mm512_loadu_epi8(b);
         a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_i4_u8x64, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_u8x64, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_u8x64, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_u8x64, 4), nibble_mask_u8x64);
 
     // Compute biased values: ax = a ^ 8 (still ∈ [0,15], just reordered)
     ax_low_u8x64 = _mm512_xor_si512(a_low_u8x64, eight_i8x64);
@@ -458,7 +458,7 @@ NK_PUBLIC void nk_sqeuclidean_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b,
     // No sign extension needed since values are unsigned.
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
 
-    __m512i a_u4_vec, b_u4_vec;
+    __m512i a_u4_u8x64, b_u4_u8x64;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i diff_low_u8x64, diff_high_u8x64;
     __m512i d2_i32x16 = _mm512_setzero_si512();
@@ -466,21 +466,21 @@ NK_PUBLIC void nk_sqeuclidean_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b,
 nk_sqeuclidean_u4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        a_u4_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
         n_bytes = 0;
     }
     else {
-        a_u4_vec = _mm512_loadu_epi8(a);
-        b_u4_vec = _mm512_loadu_epi8(b);
+        a_u4_u8x64 = _mm512_loadu_epi8(a);
+        b_u4_u8x64 = _mm512_loadu_epi8(b);
         a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_u4_u8x64, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_u8x64, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_u8x64, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_u8x64, 4), nibble_mask_u8x64);
 
     // Absolute difference for unsigned: |a-b| = (a ⊖ b) | (b ⊖ a) where ⊖ is saturating sub
     diff_low_u8x64 = _mm512_or_si512(_mm512_subs_epu8(a_low_u8x64, b_low_u8x64),
@@ -516,7 +516,7 @@ NK_PUBLIC void nk_angular_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
-    __m512i a_u4_vec, b_u4_vec;
+    __m512i a_u4_u8x64, b_u4_u8x64;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
 
     __m512i ab_i32x16 = zeros_i8x64;
@@ -526,21 +526,21 @@ NK_PUBLIC void nk_angular_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_
 nk_angular_u4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
-        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        a_u4_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
         n_bytes = 0;
     }
     else {
-        a_u4_vec = _mm512_loadu_epi8(a);
-        b_u4_vec = _mm512_loadu_epi8(b);
+        a_u4_u8x64 = _mm512_loadu_epi8(a);
+        b_u4_u8x64 = _mm512_loadu_epi8(b);
         a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_u4_u8x64, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_u8x64, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_u8x64, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_u8x64, 4), nibble_mask_u8x64);
 
     // Dot product with DPBUSD (safe for unsigned [0,15])
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_low_u8x64, b_low_u8x64);
@@ -554,16 +554,16 @@ nk_angular_u4_icelake_cycle:
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0);
 
-    __m512i a2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_low_u8x64);
-    __m512i a2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_high_u8x64);
-    __m512i b2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_low_u8x64);
-    __m512i b2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_high_u8x64);
+    __m512i a2_low_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_low_u8x64);
+    __m512i a2_high_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_high_u8x64);
+    __m512i b2_low_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_low_u8x64);
+    __m512i b2_high_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_high_u8x64);
 
     // Accumulate low and high squares separately using SAD to avoid u8 overflow
-    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_lo_u8x64, zeros_i8x64));
-    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_hi_u8x64, zeros_i8x64));
-    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_lo_u8x64, zeros_i8x64));
-    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_hi_u8x64, zeros_i8x64));
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_low_u8x64, zeros_i8x64));
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_high_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_low_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_high_u8x64, zeros_i8x64));
     if (n_bytes) goto nk_angular_u4_icelake_cycle;
 
     nk_i32_t ab = _mm512_reduce_add_epi32(ab_i32x16);

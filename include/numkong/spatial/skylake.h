@@ -42,18 +42,18 @@ extern "C" {
 
 /** @brief Reciprocal square root of 16 floats with Newton-Raphson refinement (~28-bit precision). */
 NK_INTERNAL __m512 nk_rsqrt_f32x16_skylake_(__m512 x) {
-    __m512 rsqrt = _mm512_rsqrt14_ps(x);
-    __m512 nr = _mm512_mul_ps(_mm512_mul_ps(x, rsqrt), rsqrt);
-    nr = _mm512_sub_ps(_mm512_set1_ps(3.0f), nr);
-    return _mm512_mul_ps(_mm512_mul_ps(_mm512_set1_ps(0.5f), rsqrt), nr);
+    __m512 rsqrt_f32x16 = _mm512_rsqrt14_ps(x);
+    __m512 nr_f32x16 = _mm512_mul_ps(_mm512_mul_ps(x, rsqrt_f32x16), rsqrt_f32x16);
+    nr_f32x16 = _mm512_sub_ps(_mm512_set1_ps(3.0f), nr_f32x16);
+    return _mm512_mul_ps(_mm512_mul_ps(_mm512_set1_ps(0.5f), rsqrt_f32x16), nr_f32x16);
 }
 
 /** @brief Reciprocal square root of 8 doubles with Newton-Raphson refinement (~28-bit precision). */
 NK_INTERNAL __m512d nk_rsqrt_f64x8_skylake_(__m512d x) {
-    __m512d rsqrt = _mm512_rsqrt14_pd(x);
-    __m512d nr = _mm512_mul_pd(_mm512_mul_pd(x, rsqrt), rsqrt);
-    nr = _mm512_sub_pd(_mm512_set1_pd(3.0), nr);
-    return _mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(0.5), rsqrt), nr);
+    __m512d rsqrt_f64x8 = _mm512_rsqrt14_pd(x);
+    __m512d nr_f64x8 = _mm512_mul_pd(_mm512_mul_pd(x, rsqrt_f64x8), rsqrt_f64x8);
+    nr_f64x8 = _mm512_sub_pd(_mm512_set1_pd(3.0), nr_f64x8);
+    return _mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(0.5), rsqrt_f64x8), nr_f64x8);
 }
 
 #pragma region - Traditional Floats
@@ -347,22 +347,22 @@ nk_angular_f16_skylake_cycle:
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
-    __m128i a_e4m3x16, b_e4m3x16;
+    __m128i a_e4m3_u8x16, b_e4m3_u8x16;
 
 nk_sqeuclidean_e4m3_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e4m3_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e4m3_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e4m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e4m3_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e4m3_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
-    __m512 b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
+    __m512 a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3_u8x16);
+    __m512 b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3_u8x16);
     __m512 diff_f32x16 = _mm512_sub_ps(a_f32x16, b_f32x16);
     sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
     if (n) goto nk_sqeuclidean_e4m3_skylake_cycle;
@@ -379,22 +379,22 @@ NK_PUBLIC void nk_angular_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, n
     __m512 dot_f32x16 = _mm512_setzero_ps();
     __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
     __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
-    __m128i a_e4m3x16, b_e4m3x16;
+    __m128i a_e4m3_u8x16, b_e4m3_u8x16;
 
 nk_angular_e4m3_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e4m3_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e4m3_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e4m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e4m3_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e4m3_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
-    __m512 b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
+    __m512 a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3_u8x16);
+    __m512 b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3_u8x16);
     dot_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, dot_f32x16);
     a_norm_sq_f32x16 = _mm512_fmadd_ps(a_f32x16, a_f32x16, a_norm_sq_f32x16);
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);
@@ -408,22 +408,22 @@ nk_angular_e4m3_skylake_cycle:
 
 NK_PUBLIC void nk_sqeuclidean_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
-    __m128i a_e5m2x16, b_e5m2x16;
+    __m128i a_e5m2_u8x16, b_e5m2_u8x16;
 
 nk_sqeuclidean_e5m2_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e5m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e5m2_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e5m2_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e5m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e5m2_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e5m2_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
-    __m512 b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
+    __m512 a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2_u8x16);
+    __m512 b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2_u8x16);
     __m512 diff_f32x16 = _mm512_sub_ps(a_f32x16, b_f32x16);
     sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
     if (n) goto nk_sqeuclidean_e5m2_skylake_cycle;
@@ -440,22 +440,22 @@ NK_PUBLIC void nk_angular_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, n
     __m512 dot_f32x16 = _mm512_setzero_ps();
     __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
     __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
-    __m128i a_e5m2x16, b_e5m2x16;
+    __m128i a_e5m2_u8x16, b_e5m2_u8x16;
 
 nk_angular_e5m2_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e5m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e5m2_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e5m2_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e5m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e5m2_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e5m2_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
-    __m512 b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
+    __m512 a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2_u8x16);
+    __m512 b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2_u8x16);
     dot_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, dot_f32x16);
     a_norm_sq_f32x16 = _mm512_fmadd_ps(a_f32x16, a_f32x16, a_norm_sq_f32x16);
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);
@@ -469,22 +469,22 @@ nk_angular_e5m2_skylake_cycle:
 
 NK_PUBLIC void nk_sqeuclidean_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
-    __m128i a_e2m3x16, b_e2m3x16;
+    __m128i a_e2m3_u8x16, b_e2m3_u8x16;
 
 nk_sqeuclidean_e2m3_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e2m3x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e2m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e2m3_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e2m3_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e2m3x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e2m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e2m3_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e2m3_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e2m3x16_to_f32x16_skylake_(a_e2m3x16);
-    __m512 b_f32x16 = nk_e2m3x16_to_f32x16_skylake_(b_e2m3x16);
+    __m512 a_f32x16 = nk_e2m3x16_to_f32x16_skylake_(a_e2m3_u8x16);
+    __m512 b_f32x16 = nk_e2m3x16_to_f32x16_skylake_(b_e2m3_u8x16);
     __m512 diff_f32x16 = _mm512_sub_ps(a_f32x16, b_f32x16);
     sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
     if (n) goto nk_sqeuclidean_e2m3_skylake_cycle;
@@ -501,22 +501,22 @@ NK_PUBLIC void nk_angular_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, n
     __m512 dot_f32x16 = _mm512_setzero_ps();
     __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
     __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
-    __m128i a_e2m3x16, b_e2m3x16;
+    __m128i a_e2m3_u8x16, b_e2m3_u8x16;
 
 nk_angular_e2m3_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e2m3x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e2m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e2m3_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e2m3_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e2m3x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e2m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e2m3_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e2m3_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e2m3x16_to_f32x16_skylake_(a_e2m3x16);
-    __m512 b_f32x16 = nk_e2m3x16_to_f32x16_skylake_(b_e2m3x16);
+    __m512 a_f32x16 = nk_e2m3x16_to_f32x16_skylake_(a_e2m3_u8x16);
+    __m512 b_f32x16 = nk_e2m3x16_to_f32x16_skylake_(b_e2m3_u8x16);
     dot_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, dot_f32x16);
     a_norm_sq_f32x16 = _mm512_fmadd_ps(a_f32x16, a_f32x16, a_norm_sq_f32x16);
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);
@@ -530,22 +530,22 @@ nk_angular_e2m3_skylake_cycle:
 
 NK_PUBLIC void nk_sqeuclidean_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
-    __m128i a_e3m2x16, b_e3m2x16;
+    __m128i a_e3m2_u8x16, b_e3m2_u8x16;
 
 nk_sqeuclidean_e3m2_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e3m2x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e3m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e3m2_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e3m2_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e3m2x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e3m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e3m2_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e3m2_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e3m2x16_to_f32x16_skylake_(a_e3m2x16);
-    __m512 b_f32x16 = nk_e3m2x16_to_f32x16_skylake_(b_e3m2x16);
+    __m512 a_f32x16 = nk_e3m2x16_to_f32x16_skylake_(a_e3m2_u8x16);
+    __m512 b_f32x16 = nk_e3m2x16_to_f32x16_skylake_(b_e3m2_u8x16);
     __m512 diff_f32x16 = _mm512_sub_ps(a_f32x16, b_f32x16);
     sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
     if (n) goto nk_sqeuclidean_e3m2_skylake_cycle;
@@ -562,22 +562,22 @@ NK_PUBLIC void nk_angular_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, n
     __m512 dot_f32x16 = _mm512_setzero_ps();
     __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
     __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
-    __m128i a_e3m2x16, b_e3m2x16;
+    __m128i a_e3m2_u8x16, b_e3m2_u8x16;
 
 nk_angular_e3m2_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        a_e3m2x16 = _mm_maskz_loadu_epi8(mask, a);
-        b_e3m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        a_e3m2_u8x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e3m2_u8x16 = _mm_maskz_loadu_epi8(mask, b);
         n = 0;
     }
     else {
-        a_e3m2x16 = _mm_loadu_si128((__m128i const *)a);
-        b_e3m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a_e3m2_u8x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e3m2_u8x16 = _mm_loadu_si128((__m128i const *)b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 a_f32x16 = nk_e3m2x16_to_f32x16_skylake_(a_e3m2x16);
-    __m512 b_f32x16 = nk_e3m2x16_to_f32x16_skylake_(b_e3m2x16);
+    __m512 a_f32x16 = nk_e3m2x16_to_f32x16_skylake_(a_e3m2_u8x16);
+    __m512 b_f32x16 = nk_e3m2x16_to_f32x16_skylake_(b_e3m2_u8x16);
     dot_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, dot_f32x16);
     a_norm_sq_f32x16 = _mm512_fmadd_ps(a_f32x16, a_f32x16, a_norm_sq_f32x16);
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);

@@ -13,8 +13,8 @@
  *      Intrinsic     Instruction              A76        M5
  *      vfmaq_f32     FMLA (V.4S, V.4S, V.4S)  4cy @ 2p   3cy @ 4p
  *      vmulq_f32     FMUL (V.4S, V.4S, V.4S)  3cy @ 2p   3cy @ 4p
- *      vaddq_f32     FADD (V.4S, V.4S, V.4S)  3cy @ 2p   2cy @ 4p
- *      vsubq_f32     FSUB (V.4S, V.4S, V.4S)  3cy @ 2p   2cy @ 4p
+ *      vaddq_f32     FADD (V.4S, V.4S, V.4S)  2cy @ 2p   2cy @ 4p
+ *      vsubq_f32     FSUB (V.4S, V.4S, V.4S)  2cy @ 2p   2cy @ 4p
  *      vrsqrteq_f32  FRSQRTE (V.4S, V.4S)     2cy @ 2p   3cy @ 1p
  *      vsqrtq_f32    FSQRT (V.4S, V.4S)       12cy @ 1p  9cy @ 1p
  *      vrecpeq_f32   FRECPE (V.4S, V.4S)      2cy @ 2p   3cy @ 1p
@@ -54,10 +54,10 @@ extern "C" {
  *  Much faster than `vsqrtq_f32` (2 cy vs 9-12 cy latency, 2/cy vs 0.25/cy throughput).
  */
 NK_INTERNAL float32x4_t nk_rsqrt_f32x4_neon_(float32x4_t x) {
-    float32x4_t rsqrt = vrsqrteq_f32(x);
-    rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f32(rsqrt, vrsqrtsq_f32(vmulq_f32(x, rsqrt), rsqrt));
-    return rsqrt;
+    float32x4_t rsqrt_f32x4 = vrsqrteq_f32(x);
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(x, rsqrt_f32x4), rsqrt_f32x4));
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(x, rsqrt_f32x4), rsqrt_f32x4));
+    return rsqrt_f32x4;
 }
 
 /**
@@ -69,29 +69,29 @@ NK_INTERNAL float32x4_t nk_rsqrt_f32x4_neon_(float32x4_t x) {
  *  prefer `vsqrtq_f64` instead.
  */
 NK_INTERNAL float64x2_t nk_rsqrt_f64x2_neon_(float64x2_t x) {
-    float64x2_t rsqrt = vrsqrteq_f64(x);
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    rsqrt = vmulq_f64(rsqrt, vrsqrtsq_f64(vmulq_f64(x, rsqrt), rsqrt));
-    return rsqrt;
+    float64x2_t rsqrt_f64x2 = vrsqrteq_f64(x);
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    rsqrt_f64x2 = vmulq_f64(rsqrt_f64x2, vrsqrtsq_f64(vmulq_f64(x, rsqrt_f64x2), rsqrt_f64x2));
+    return rsqrt_f64x2;
 }
 
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f32_t squares_arr[2] = {a2, b2};
-    float32x2_t squares = vld1_f32(squares_arr);
+    float32x2_t squares_f32x2 = vld1_f32(squares_arr);
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
     // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    float32x2_t rsqrts = vrsqrte_f32(squares);
+    float32x2_t rsqrts_f32x2 = vrsqrte_f32(squares_f32x2);
     // Perform two rounds of Newton-Raphson refinement:
     // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
-    rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
-    vst1_f32(squares_arr, rsqrts);
+    rsqrts_f32x2 = vmul_f32(rsqrts_f32x2, vrsqrts_f32(vmul_f32(squares_f32x2, rsqrts_f32x2), rsqrts_f32x2));
+    rsqrts_f32x2 = vmul_f32(rsqrts_f32x2, vrsqrts_f32(vmul_f32(squares_f32x2, rsqrts_f32x2), rsqrts_f32x2));
+    vst1_f32(squares_arr, rsqrts_f32x2);
     nk_f32_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
@@ -100,19 +100,19 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f64_t squares_arr[2] = {a2, b2};
-    float64x2_t squares = vld1q_f64(squares_arr);
+    float64x2_t squares_f64x2 = vld1q_f64(squares_arr);
 
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
     // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    float64x2_t rsqrts_f64x2 = vrsqrteq_f64(squares);
+    float64x2_t rsqrts_f64x2 = vrsqrteq_f64(squares_f64x2);
     // Perform three rounds of Newton-Raphson refinement for f64 precision (~48 bits):
     // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
-    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares_f64x2, rsqrts_f64x2), rsqrts_f64x2));
     vst1q_f64(squares_arr, rsqrts_f64x2);
     nk_f64_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
@@ -263,9 +263,9 @@ nk_sqeuclidean_bf16_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(a_u16x8), 16));
-    float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(a_u16x8), 16));
+    float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_high_n_u16(a_u16x8, 16));
     float32x4_t b_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(b_u16x8), 16));
-    float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(b_u16x8), 16));
+    float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_high_n_u16(b_u16x8, 16));
     float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
     float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
@@ -299,9 +299,9 @@ nk_angular_bf16_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(a_u16x8), 16));
-    float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(a_u16x8), 16));
+    float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_high_n_u16(a_u16x8, 16));
     float32x4_t b_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(b_u16x8), 16));
-    float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(b_u16x8), 16));
+    float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_high_n_u16(b_u16x8, 16));
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
     a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);
@@ -309,6 +309,80 @@ nk_angular_bf16_neon_cycle:
     b2_f32x4 = vfmaq_f32(b2_f32x4, b_low_f32x4, b_low_f32x4);
     b2_f32x4 = vfmaq_f32(b2_f32x4, b_high_f32x4, b_high_f32x4);
     if (n) goto nk_angular_bf16_neon_cycle;
+    nk_f32_t ab = vaddvq_f32(ab_f32x4);
+    nk_f32_t a2 = vaddvq_f32(a2_f32x4);
+    nk_f32_t b2 = vaddvq_f32(b2_f32x4);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+}
+
+NK_PUBLIC void nk_sqeuclidean_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    uint16x8_t a_u16x8, b_u16x8;
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+nk_sqeuclidean_f16_neon_cycle:
+    if (n < 8) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b16x8_serial_(a, &a_vec, n);
+        nk_partial_load_b16x8_serial_(b, &b_vec, n);
+        a_u16x8 = a_vec.u16x8;
+        b_u16x8 = b_vec.u16x8;
+        n = 0;
+    }
+    else {
+        a_u16x8 = vld1q_u16((nk_u16_t const *)a);
+        b_u16x8 = vld1q_u16((nk_u16_t const *)b);
+        a += 8, b += 8, n -= 8;
+    }
+    float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_u16x8);
+    float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_u16x8);
+    float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
+    float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
+    float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
+    float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_high_f32x4, diff_high_f32x4);
+    if (n) goto nk_sqeuclidean_f16_neon_cycle;
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_euclidean_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_f16_neon(a, b, n, result);
+    *result = nk_f32_sqrt_neon(*result);
+}
+
+NK_PUBLIC void nk_angular_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    uint16x8_t a_u16x8, b_u16x8;
+    float32x4_t ab_f32x4 = vdupq_n_f32(0);
+    float32x4_t a2_f32x4 = vdupq_n_f32(0);
+    float32x4_t b2_f32x4 = vdupq_n_f32(0);
+nk_angular_f16_neon_cycle:
+    if (n < 8) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b16x8_serial_(a, &a_vec, n);
+        nk_partial_load_b16x8_serial_(b, &b_vec, n);
+        a_u16x8 = a_vec.u16x8;
+        b_u16x8 = b_vec.u16x8;
+        n = 0;
+    }
+    else {
+        a_u16x8 = vld1q_u16((nk_u16_t const *)a);
+        b_u16x8 = vld1q_u16((nk_u16_t const *)b);
+        a += 8, b += 8, n -= 8;
+    }
+    float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_u16x8);
+    float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_u16x8);
+    float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
+    float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_high_f32x4, a_high_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_low_f32x4, b_low_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_high_f32x4, b_high_f32x4);
+    if (n) goto nk_angular_f16_neon_cycle;
     nk_f32_t ab = vaddvq_f32(ab_f32x4);
     nk_f32_t a2 = vaddvq_f32(a2_f32x4);
     nk_f32_t b2 = vaddvq_f32(b2_f32x4);
@@ -333,9 +407,9 @@ nk_sqeuclidean_e2m3_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
     float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
@@ -369,9 +443,9 @@ nk_angular_e2m3_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
     a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);
@@ -403,9 +477,9 @@ nk_sqeuclidean_e3m2_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
     float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
@@ -439,9 +513,9 @@ nk_angular_e3m2_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
     a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);
@@ -473,9 +547,9 @@ nk_sqeuclidean_e4m3_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
     float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
@@ -509,9 +583,9 @@ nk_angular_e4m3_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
     a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);
@@ -543,9 +617,9 @@ nk_sqeuclidean_e5m2_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     float32x4_t diff_low_f32x4 = vsubq_f32(a_low_f32x4, b_low_f32x4);
     float32x4_t diff_high_f32x4 = vsubq_f32(a_high_f32x4, b_high_f32x4);
     sum_f32x4 = vfmaq_f32(sum_f32x4, diff_low_f32x4, diff_low_f32x4);
@@ -579,9 +653,9 @@ nk_angular_e5m2_neon_cycle:
         a += 8, b += 8, n -= 8;
     }
     float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
-    float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+    float32x4_t a_high_f32x4 = vcvt_high_f32_f16(a_f16x8);
     float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
-    float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+    float32x4_t b_high_f32x4 = vcvt_high_f32_f16(b_f16x8);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_low_f32x4, b_low_f32x4);
     ab_f32x4 = vfmaq_f32(ab_f32x4, a_high_f32x4, b_high_f32x4);
     a2_f32x4 = vfmaq_f32(a2_f32x4, a_low_f32x4, a_low_f32x4);

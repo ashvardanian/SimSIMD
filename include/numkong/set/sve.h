@@ -61,20 +61,20 @@ NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     // On larger register sizes, SVE is faster.
     nk_size_t i = 0, cycle = 0;
     nk_u32_t differences = 0;
-    svuint8_t popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_b8();
+    svuint8_t popcount_u8x = svdup_n_u8(0);
+    svbool_t const all_predicate_b8x = svptrue_b8();
     while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_b8_u64(i, n_bytes);
-            svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
-            svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
-            popcount_u8 = svadd_u8_z(all_predicate, popcount_u8,
-                                     svcnt_u8_x(all_predicate, sveor_u8_m(all_predicate, a_u8, b_u8)));
+            svbool_t active_predicate_b8x = svwhilelt_b8_u64(i, n_bytes);
+            svuint8_t a_u8x = svld1_u8(active_predicate_b8x, a + i);
+            svuint8_t b_u8x = svld1_u8(active_predicate_b8x, b + i);
+            popcount_u8x = svadd_u8_z(all_predicate_b8x, popcount_u8x,
+                                      svcnt_u8_x(all_predicate_b8x, sveor_u8_m(all_predicate_b8x, a_u8x, b_u8x)));
             i += words_per_register;
             ++cycle;
         } while (i < n_bytes && cycle < 31);
-        differences += svaddv_u8(all_predicate, popcount_u8);
-        popcount_u8 = svdup_n_u8(0);
+        differences += svaddv_u8(all_predicate_b8x, popcount_u8x);
+        popcount_u8x = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
     }
 
@@ -94,25 +94,26 @@ NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     // On larger register sizes, SVE is faster.
     nk_size_t i = 0, cycle = 0;
     nk_u32_t intersection_count = 0, union_count = 0;
-    svuint8_t intersection_popcount_u8 = svdup_n_u8(0);
-    svuint8_t union_popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_b8();
+    svuint8_t intersection_popcount_u8x = svdup_n_u8(0);
+    svuint8_t union_popcount_u8x = svdup_n_u8(0);
+    svbool_t const all_predicate_b8x = svptrue_b8();
     while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_b8_u64(i, n_bytes);
-            svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
-            svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
-            intersection_popcount_u8 = svadd_u8_z(all_predicate, intersection_popcount_u8,
-                                                  svcnt_u8_x(all_predicate, svand_u8_m(all_predicate, a_u8, b_u8)));
-            union_popcount_u8 = svadd_u8_z(all_predicate, union_popcount_u8,
-                                           svcnt_u8_x(all_predicate, svorr_u8_m(all_predicate, a_u8, b_u8)));
+            svbool_t active_predicate_b8x = svwhilelt_b8_u64(i, n_bytes);
+            svuint8_t a_u8x = svld1_u8(active_predicate_b8x, a + i);
+            svuint8_t b_u8x = svld1_u8(active_predicate_b8x, b + i);
+            intersection_popcount_u8x = svadd_u8_z(
+                all_predicate_b8x, intersection_popcount_u8x,
+                svcnt_u8_x(all_predicate_b8x, svand_u8_m(all_predicate_b8x, a_u8x, b_u8x)));
+            union_popcount_u8x = svadd_u8_z(all_predicate_b8x, union_popcount_u8x,
+                                            svcnt_u8_x(all_predicate_b8x, svorr_u8_m(all_predicate_b8x, a_u8x, b_u8x)));
             i += words_per_register;
             ++cycle;
         } while (i < n_bytes && cycle < 31);
-        intersection_count += svaddv_u8(all_predicate, intersection_popcount_u8);
-        intersection_popcount_u8 = svdup_n_u8(0);
-        union_count += svaddv_u8(all_predicate, union_popcount_u8);
-        union_popcount_u8 = svdup_n_u8(0);
+        intersection_count += svaddv_u8(all_predicate_b8x, intersection_popcount_u8x);
+        intersection_popcount_u8x = svdup_n_u8(0);
+        union_count += svaddv_u8(all_predicate_b8x, union_popcount_u8x);
+        union_popcount_u8x = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
     }
 
@@ -128,11 +129,11 @@ NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_
     nk_size_t i = 0;
     nk_u32_t intersection_count = 0;
     while (i < n) {
-        svbool_t active_predicate = svwhilelt_b32_u64(i, n);
-        svuint32_t a_u32 = svld1_u32(active_predicate, a + i);
-        svuint32_t b_u32 = svld1_u32(active_predicate, b + i);
-        svbool_t equality_predicate = svcmpeq_u32(active_predicate, a_u32, b_u32);
-        intersection_count += svcntp_b32(active_predicate, equality_predicate);
+        svbool_t active_predicate_b32x = svwhilelt_b32_u64(i, n);
+        svuint32_t a_u32x = svld1_u32(active_predicate_b32x, a + i);
+        svuint32_t b_u32x = svld1_u32(active_predicate_b32x, b + i);
+        svbool_t equality_predicate_b32x = svcmpeq_u32(active_predicate_b32x, a_u32x, b_u32x);
+        intersection_count += svcntp_b32(active_predicate_b32x, equality_predicate_b32x);
         i += words_per_register;
     }
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
@@ -143,11 +144,11 @@ NK_PUBLIC void nk_hamming_u8_sve(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     nk_size_t i = 0;
     nk_u32_t differences = 0;
     while (i < n) {
-        svbool_t active_predicate = svwhilelt_b8_u64(i, n);
-        svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
-        svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
-        svbool_t neq_predicate = svcmpne_u8(active_predicate, a_u8, b_u8);
-        differences += svcntp_b8(active_predicate, neq_predicate);
+        svbool_t active_predicate_b8x = svwhilelt_b8_u64(i, n);
+        svuint8_t a_u8x = svld1_u8(active_predicate_b8x, a + i);
+        svuint8_t b_u8x = svld1_u8(active_predicate_b8x, b + i);
+        svbool_t neq_predicate_b8x = svcmpne_u8(active_predicate_b8x, a_u8x, b_u8x);
+        differences += svcntp_b8(active_predicate_b8x, neq_predicate_b8x);
         i += bytes_per_register;
     }
     *result = differences;
@@ -158,11 +159,11 @@ NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     nk_size_t i = 0;
     nk_u32_t intersection_count = 0;
     while (i < n) {
-        svbool_t active_predicate = svwhilelt_b16_u64(i, n);
-        svuint16_t a_u16 = svld1_u16(active_predicate, a + i);
-        svuint16_t b_u16 = svld1_u16(active_predicate, b + i);
-        svbool_t equality_predicate = svcmpeq_u16(active_predicate, a_u16, b_u16);
-        intersection_count += svcntp_b16(active_predicate, equality_predicate);
+        svbool_t active_predicate_b16x = svwhilelt_b16_u64(i, n);
+        svuint16_t a_u16x = svld1_u16(active_predicate_b16x, a + i);
+        svuint16_t b_u16x = svld1_u16(active_predicate_b16x, b + i);
+        svbool_t equality_predicate_b16x = svcmpeq_u16(active_predicate_b16x, a_u16x, b_u16x);
+        intersection_count += svcntp_b16(active_predicate_b16x, equality_predicate_b16x);
         i += halfwords_per_register;
     }
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;

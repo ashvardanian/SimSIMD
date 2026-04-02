@@ -13,6 +13,7 @@
  *      vcvt_f32_bf16  BFCVTN (V.4H, V.4S)       3cy @ 2p  3cy @ 4p
  *      vld1q_bf16     LD1 (V.8H)                4cy @ 2p  4cy @ 3p
  *      vaddvq_f32     FADDP+FADDP (V.4S)        4cy @ 1p  8cy @ 1p
+ *      vpaddq_f32     FADDP (V.4S, V.4S, V.4S)  2cy @ 2p  3cy @ 4p
  *      vfmaq_f32      FMLA (V.4S, V.4S, V.4S)   4cy @ 2p  3cy @ 4p
  *      vfmsq_f32      FMLS (V.4S, V.4S, V.4S)   4cy @ 2p  3cy @ 4p
  *
@@ -222,10 +223,9 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
     nk_dot_bf16x8_state_neonbfdot_t const *state_c, nk_dot_bf16x8_state_neonbfdot_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
-    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
-    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
-    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
+    float32x4_t ab_f32x4 = vpaddq_f32(state_a->sum_f32x4, state_b->sum_f32x4);
+    float32x4_t cd_f32x4 = vpaddq_f32(state_c->sum_f32x4, state_d->sum_f32x4);
+    result->f32x4 = vpaddq_f32(ab_f32x4, cd_f32x4);
 }
 
 #if defined(__clang__)

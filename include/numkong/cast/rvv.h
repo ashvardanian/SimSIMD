@@ -450,18 +450,18 @@ NK_INTERNAL vuint16m2_t nk_e3m2m1_to_f16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t 
  */
 NK_INTERNAL vint8m1x2_t nk_i4m1_to_i8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
     // Extract high nibble (even indices in output)
-    vuint8m1_t hi_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
+    vuint8m1_t high_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
     // Sign extend: (x ^ 8) - 8
-    vint8m1_t hi_i8m1 = __riscv_vsub_vx_i8m1(
-        __riscv_vxor_vx_i8m1(__riscv_vreinterpret_v_u8m1_i8m1(hi_u8m1), 8, vector_length), 8, vector_length);
+    vint8m1_t high_i8m1 = __riscv_vsub_vx_i8m1(
+        __riscv_vxor_vx_i8m1(__riscv_vreinterpret_v_u8m1_i8m1(high_u8m1), 8, vector_length), 8, vector_length);
 
     // Extract low nibble (odd indices in output)
-    vuint8m1_t lo_u8m1 = __riscv_vand_vx_u8m1(packed_u8m1, 0x0F, vector_length);
+    vuint8m1_t low_u8m1 = __riscv_vand_vx_u8m1(packed_u8m1, 0x0F, vector_length);
     // Sign extend: (x ^ 8) - 8
-    vint8m1_t lo_i8m1 = __riscv_vsub_vx_i8m1(
-        __riscv_vxor_vx_i8m1(__riscv_vreinterpret_v_u8m1_i8m1(lo_u8m1), 8, vector_length), 8, vector_length);
+    vint8m1_t low_i8m1 = __riscv_vsub_vx_i8m1(
+        __riscv_vxor_vx_i8m1(__riscv_vreinterpret_v_u8m1_i8m1(low_u8m1), 8, vector_length), 8, vector_length);
 
-    return __riscv_vcreate_v_i8m1x2(hi_i8m1, lo_i8m1);
+    return __riscv_vcreate_v_i8m1x2(high_i8m1, low_i8m1);
 }
 
 /**
@@ -471,12 +471,12 @@ NK_INTERNAL vint8m1x2_t nk_i4m1_to_i8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t v
  */
 NK_INTERNAL vuint8m1x2_t nk_u4m1_to_u8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
     // Extract high nibble (even indices in output)
-    vuint8m1_t hi_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
+    vuint8m1_t high_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
 
     // Extract low nibble (odd indices in output)
-    vuint8m1_t lo_u8m1 = __riscv_vand_vx_u8m1(packed_u8m1, 0x0F, vector_length);
+    vuint8m1_t low_u8m1 = __riscv_vand_vx_u8m1(packed_u8m1, 0x0F, vector_length);
 
-    return __riscv_vcreate_v_u8m1x2(hi_u8m1, lo_u8m1);
+    return __riscv_vcreate_v_u8m1x2(high_u8m1, low_u8m1);
 }
 
 /**
@@ -485,17 +485,17 @@ NK_INTERNAL vuint8m1x2_t nk_u4m1_to_u8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t 
  *  Takes a tuple of two m1 vectors (high nibbles, low nibbles from segment load).
  *  Values are clamped to [-8, 7] before packing.
  */
-NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_rvv_(vint8m1_t hi_i8m1, vint8m1_t lo_i8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_rvv_(vint8m1_t high_i8m1, vint8m1_t low_i8m1, nk_size_t vector_length) {
     // Clamp to [-8, 7]
-    hi_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(hi_i8m1, 7, vector_length), -8, vector_length);
-    lo_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(lo_i8m1, 7, vector_length), -8, vector_length);
+    high_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(high_i8m1, 7, vector_length), -8, vector_length);
+    low_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(low_i8m1, 7, vector_length), -8, vector_length);
 
     // Convert to unsigned nibbles: value & 0x0F
-    vuint8m1_t hi_u4m1 = __riscv_vand_vx_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(hi_i8m1), 0x0F, vector_length);
-    vuint8m1_t lo_u4m1 = __riscv_vand_vx_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(lo_i8m1), 0x0F, vector_length);
+    vuint8m1_t high_u4m1 = __riscv_vand_vx_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(high_i8m1), 0x0F, vector_length);
+    vuint8m1_t low_u4m1 = __riscv_vand_vx_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(low_i8m1), 0x0F, vector_length);
 
     // Pack: (hi << 4) | lo
-    return __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(hi_u4m1, 4, vector_length), lo_u4m1, vector_length);
+    return __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(high_u4m1, 4, vector_length), low_u4m1, vector_length);
 }
 
 /**
@@ -504,13 +504,13 @@ NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_rvv_(vint8m1_t hi_i8m1, vint8m1_t lo_i8m1
  *  Takes a tuple of two m1 vectors (high nibbles, low nibbles from segment load).
  *  Values are clamped to [0, 15] before packing.
  */
-NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_rvv_(vuint8m1_t hi_u8m1, vuint8m1_t lo_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_rvv_(vuint8m1_t high_u8m1, vuint8m1_t low_u8m1, nk_size_t vector_length) {
     // Clamp to [0, 15]
-    hi_u8m1 = __riscv_vminu_vx_u8m1(hi_u8m1, 15, vector_length);
-    lo_u8m1 = __riscv_vminu_vx_u8m1(lo_u8m1, 15, vector_length);
+    high_u8m1 = __riscv_vminu_vx_u8m1(high_u8m1, 15, vector_length);
+    low_u8m1 = __riscv_vminu_vx_u8m1(low_u8m1, 15, vector_length);
 
     // Pack: (hi << 4) | lo
-    return __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(hi_u8m1, 4, vector_length), lo_u8m1, vector_length);
+    return __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(high_u8m1, 4, vector_length), low_u8m1, vector_length);
 }
 
 /**
@@ -924,9 +924,9 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
              n_bytes -= vector_length, source += vector_length * 2, destination += vector_length) {
             vector_length = __riscv_vsetvl_e8m1(n_bytes);
             vint8m1x2_t loaded_i8m1x2 = __riscv_vlseg2e8_v_i8m1x2(source, vector_length);
-            vint8m1_t hi_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 0);
-            vint8m1_t lo_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 1);
-            vuint8m1_t packed_u8m1 = nk_i8m2_to_i4m1_rvv_(hi_i8m1, lo_i8m1, vector_length);
+            vint8m1_t high_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 0);
+            vint8m1_t low_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 1);
+            vuint8m1_t packed_u8m1 = nk_i8m2_to_i4m1_rvv_(high_i8m1, low_i8m1, vector_length);
             __riscv_vse8_v_u8m1((nk_u8_t *)destination, packed_u8m1, vector_length);
         }
         return;
@@ -941,9 +941,9 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
              n_bytes -= vector_length, source += vector_length * 2, destination += vector_length) {
             vector_length = __riscv_vsetvl_e8m1(n_bytes);
             vuint8m1x2_t loaded_u8m1x2 = __riscv_vlseg2e8_v_u8m1x2(source, vector_length);
-            vuint8m1_t hi_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 0);
-            vuint8m1_t lo_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 1);
-            vuint8m1_t packed_u8m1 = nk_u8m2_to_u4m1_rvv_(hi_u8m1, lo_u8m1, vector_length);
+            vuint8m1_t high_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 0);
+            vuint8m1_t low_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 1);
+            vuint8m1_t packed_u8m1 = nk_u8m2_to_u4m1_rvv_(high_u8m1, low_u8m1, vector_length);
             __riscv_vse8_v_u8m1((nk_u8_t *)destination, packed_u8m1, vector_length);
         }
         return;

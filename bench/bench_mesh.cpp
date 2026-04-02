@@ -73,12 +73,9 @@ void bench_mesh() {
     run_mesh<f64_k>("rmsd_f64_neon", nk_rmsd_f64_neon);
     run_mesh<f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
     run_mesh<f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
-#endif
-
-#if NK_TARGET_NEONHALF
-    run_mesh<f16_k>("rmsd_f16_neonhalf", nk_rmsd_f16_neonhalf);
-    run_mesh<f16_k>("kabsch_f16_neonhalf", nk_kabsch_f16_neonhalf);
-    run_mesh<f16_k>("umeyama_f16_neonhalf", nk_umeyama_f16_neonhalf);
+    run_mesh<f16_k>("rmsd_f16_neon", nk_rmsd_f16_neon);
+    run_mesh<f16_k>("kabsch_f16_neon", nk_kabsch_f16_neon);
+    run_mesh<f16_k>("umeyama_f16_neon", nk_umeyama_f16_neon);
 #endif
 
 #if NK_TARGET_NEONBFDOT

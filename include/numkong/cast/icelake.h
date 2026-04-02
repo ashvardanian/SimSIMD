@@ -273,14 +273,14 @@ NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_icelake_(__m512i bf16x32) {
     // bf16 to f32 is just left shift by 16
     __m512i bf16_low_i32x16 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(bf16x32));
     __m512i bf16_high_i32x16 = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(bf16x32, 1));
-    __m512 f32_low = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_low_i32x16, 16));
-    __m512 f32_high = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_high_i32x16, 16));
-    __m512 abs_f32_low = _mm512_and_ps(f32_low, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
-    __m512 abs_f32_high = _mm512_and_ps(f32_high, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
-    __m512 scaled_low = _mm512_mul_ps(abs_f32_low, _mm512_set1_ps(512.0f));
-    __m512 scaled_high = _mm512_mul_ps(abs_f32_high, _mm512_set1_ps(512.0f));
-    __m512i subnorm_mant_low_i32x16 = _mm512_cvtps_epi32(scaled_low);
-    __m512i subnorm_mant_high_i32x16 = _mm512_cvtps_epi32(scaled_high);
+    __m512 f32_low_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_low_i32x16, 16));
+    __m512 f32_high_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_high_i32x16, 16));
+    __m512 abs_f32_low_f32x16 = _mm512_and_ps(f32_low_f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 abs_f32_high_f32x16 = _mm512_and_ps(f32_high_f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 scaled_low_f32x16 = _mm512_mul_ps(abs_f32_low_f32x16, _mm512_set1_ps(512.0f));
+    __m512 scaled_high_f32x16 = _mm512_mul_ps(abs_f32_high_f32x16, _mm512_set1_ps(512.0f));
+    __m512i subnorm_mant_low_i32x16 = _mm512_cvtps_epi32(scaled_low_f32x16);
+    __m512i subnorm_mant_high_i32x16 = _mm512_cvtps_epi32(scaled_high_f32x16);
     __m256i subnorm_mant_low_i16x16 = _mm512_cvtepi32_epi16(subnorm_mant_low_i32x16);
     __m256i subnorm_mant_high_i16x16 = _mm512_cvtepi32_epi16(subnorm_mant_high_i32x16);
     __m512i subnorm_mantissa_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(subnorm_mant_low_i16x16),
@@ -333,14 +333,14 @@ NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_icelake_(__m512i bf16x32) {
     // Subnormal path: compute via f32 to get correct rounding
     __m512i bf16_low_i32x16 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(bf16x32));
     __m512i bf16_high_i32x16 = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(bf16x32, 1));
-    __m512 f32_low = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_low_i32x16, 16));
-    __m512 f32_high = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_high_i32x16, 16));
-    __m512 abs_f32_low = _mm512_and_ps(f32_low, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
-    __m512 abs_f32_high = _mm512_and_ps(f32_high, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
-    __m512 scaled_low = _mm512_mul_ps(abs_f32_low, _mm512_set1_ps(65536.0f));
-    __m512 scaled_high = _mm512_mul_ps(abs_f32_high, _mm512_set1_ps(65536.0f));
-    __m512i subnorm_mant_low_i32x16 = _mm512_cvtps_epi32(scaled_low);
-    __m512i subnorm_mant_high_i32x16 = _mm512_cvtps_epi32(scaled_high);
+    __m512 f32_low_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_low_i32x16, 16));
+    __m512 f32_high_f32x16 = _mm512_castsi512_ps(_mm512_slli_epi32(bf16_high_i32x16, 16));
+    __m512 abs_f32_low_f32x16 = _mm512_and_ps(f32_low_f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 abs_f32_high_f32x16 = _mm512_and_ps(f32_high_f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 scaled_low_f32x16 = _mm512_mul_ps(abs_f32_low_f32x16, _mm512_set1_ps(65536.0f));
+    __m512 scaled_high_f32x16 = _mm512_mul_ps(abs_f32_high_f32x16, _mm512_set1_ps(65536.0f));
+    __m512i subnorm_mant_low_i32x16 = _mm512_cvtps_epi32(scaled_low_f32x16);
+    __m512i subnorm_mant_high_i32x16 = _mm512_cvtps_epi32(scaled_high_f32x16);
     __m256i subnorm_mant_low_i16x16 = _mm512_cvtepi32_epi16(subnorm_mant_low_i32x16);
     __m256i subnorm_mant_high_i16x16 = _mm512_cvtepi32_epi16(subnorm_mant_high_i32x16);
     __m512i subnorm_mantissa_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(subnorm_mant_low_i16x16),
@@ -367,8 +367,8 @@ NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_icelake_(void const *src, nk_b512_ve
 /** @brief Partial load n e4m3 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
 NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
-    __m256i e4m3_partial = _mm256_maskz_loadu_epi8(mask, src);
-    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(e4m3_partial);
+    __m256i e4m3_partial_i8x32 = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(e4m3_partial_i8x32);
 }
 
 /** @brief Load 32x e5m2 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
@@ -379,8 +379,8 @@ NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_icelake_(void const *src, nk_b512_ve
 /** @brief Partial load n e5m2 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
 NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
-    __m256i e5m2_partial = _mm256_maskz_loadu_epi8(mask, src);
-    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(e5m2_partial);
+    __m256i e5m2_partial_i8x32 = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(e5m2_partial_i8x32);
 }
 
 /** @brief Load 32x e2m3 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
@@ -391,8 +391,8 @@ NK_INTERNAL void nk_load_e2m3x32_to_bf16x32_icelake_(void const *src, nk_b512_ve
 /** @brief Partial load n e2m3 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
 NK_INTERNAL void nk_partial_load_e2m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
-    __m256i e2m3_partial = _mm256_maskz_loadu_epi8(mask, src);
-    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(e2m3_partial);
+    __m256i e2m3_partial_i8x32 = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(e2m3_partial_i8x32);
 }
 
 /** @brief Load 32x e3m2 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
@@ -403,8 +403,8 @@ NK_INTERNAL void nk_load_e3m2x32_to_bf16x32_icelake_(void const *src, nk_b512_ve
 /** @brief Partial load n e3m2 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
 NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
-    __m256i e3m2_partial = _mm256_maskz_loadu_epi8(mask, src);
-    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial);
+    __m256i e3m2_partial_i8x32 = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial_i8x32);
 }
 
 #pragma endregion - Vectorized Conversions
@@ -433,9 +433,9 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
         for (nk_size_t idx = 0; idx < n; idx += 32) {
             nk_size_t remaining = n - idx;
             __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
-            __m512i in_bf16x32 = _mm512_maskz_loadu_epi16(mask, from_ptr + idx);
-            __m256i out_f8x32 = (to_type == nk_e4m3_k) ? nk_bf16x32_to_e4m3x32_icelake_(in_bf16x32)
-                                                       : nk_bf16x32_to_e5m2x32_icelake_(in_bf16x32);
+            __m512i in_bf16x32_i16x32 = _mm512_maskz_loadu_epi16(mask, from_ptr + idx);
+            __m256i out_f8x32 = (to_type == nk_e4m3_k) ? nk_bf16x32_to_e4m3x32_icelake_(in_bf16x32_i16x32)
+                                                       : nk_bf16x32_to_e5m2x32_icelake_(in_bf16x32_i16x32);
             _mm256_mask_storeu_epi8(to_ptr + idx, mask, out_f8x32);
         }
     }

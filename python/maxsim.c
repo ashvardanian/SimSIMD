@@ -30,7 +30,7 @@ static PyObject *MaxSimPackedMatrix_repr(PyObject *self) {
     MaxSimPackedMatrix *mm = (MaxSimPackedMatrix *)self;
     size_t packed_size = maxsim_packed_matrix_nbytes(mm);
     return PyUnicode_FromFormat("<MaxSimPackedMatrix vector_count=%zu depth=%zu dtype='%s' nbytes=%zu>",
-                                (size_t)mm->vector_count, (size_t)mm->depth, dtype_to_string(mm->dtype), packed_size);
+                                (size_t)mm->vector_count, (size_t)mm->depth, nk_dtype_name(mm->dtype), packed_size);
 }
 
 static PyObject *MaxSimPackedMatrix_get_vector_count(PyObject *self, void *closure) {
@@ -45,7 +45,7 @@ static PyObject *MaxSimPackedMatrix_get_depth(PyObject *self, void *closure) {
 
 static PyObject *MaxSimPackedMatrix_get_dtype(PyObject *self, void *closure) {
     nk_unused_(closure);
-    return PyUnicode_FromString(dtype_to_string(((MaxSimPackedMatrix *)self)->dtype));
+    return PyUnicode_FromString(nk_dtype_name(((MaxSimPackedMatrix *)self)->dtype));
 }
 
 static PyObject *MaxSimPackedMatrix_get_nbytes(PyObject *self, void *closure) {
@@ -104,7 +104,7 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
     nk_size_t depth = (nk_size_t)PyLong_AsSize_t(depth_obj);
     if (depth == (nk_size_t)-1 && PyErr_Occurred()) return NULL;
 
-    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    nk_dtype_t dtype = py_object_to_nk_dtype(dtype_obj);
     if (dtype == nk_dtype_unknown_k) return NULL;
 
     nk_dots_packed_size_punned_t size_fn = NULL;
@@ -112,7 +112,8 @@ static PyObject *MaxSimPackedMatrix_packed_size(PyObject *cls, PyObject *const *
     nk_find_kernel_punned(nk_kernel_maxsim_packed_size_k, dtype, static_capabilities, (nk_kernel_punned_t *)&size_fn,
                           &cap);
     if (!size_fn || !cap) {
-        PyErr_Format(PyExc_LookupError, "No maxsim packed_size kernel for dtype '%s'", dtype_to_python_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No maxsim packed_size kernel for dtype '%s'",
+                     nk_dtype_to_pybuffer_typestr(dtype));
         return NULL;
     }
 
@@ -182,11 +183,11 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     }
     if (nargs >= 2) dtype_obj = args[1];
 
-    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_dtype_unknown_k;
+    nk_dtype_t target_dtype = dtype_obj ? py_object_to_nk_dtype(dtype_obj) : nk_dtype_unknown_k;
     if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
 
     if (target_dtype != nk_dtype_unknown_k && nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
 
@@ -203,7 +204,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
         return NULL;
     }
 
-    nk_dtype_t src_dtype = dtype_from_buffer(&b_buffer);
+    nk_dtype_t src_dtype = resolve_nk_dtype_in_py_buffer(&b_buffer);
     if (src_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", b_buffer.format);
         PyBuffer_Release(&b_buffer);
@@ -215,7 +216,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
         if (nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
             PyBuffer_Release(&b_buffer);
             PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s' inferred from input",
-                         dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(target_dtype));
             return NULL;
         }
     }
@@ -234,10 +235,10 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     if (src_dtype != target_dtype) {
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_TypeError, "Input dtype '%s' does not match target dtype '%s'. Cast the input first.",
-                     dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
+                     nk_dtype_to_pybuffer_typestr(src_dtype), nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
-    if (col_stride != (nk_size_t)bytes_per_dtype(target_dtype)) {
+    if (col_stride != (nk_size_t)nk_dtype_bytes_per_value(target_dtype)) {
         PyBuffer_Release(&b_buffer);
         PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
         return NULL;
@@ -250,7 +251,7 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     if (!size_fn || !cap) {
         PyBuffer_Release(&b_buffer);
         PyErr_Format(PyExc_LookupError, "No maxsim packed_size kernel for dtype '%s'",
-                     dtype_to_python_string(target_dtype));
+                     nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
     nk_size_t packed_size = size_fn(vector_count, depth);
@@ -273,7 +274,8 @@ PyObject *api_maxsim_pack(PyObject *self, PyObject *const *args, Py_ssize_t narg
     if (!pack_fn || !cap) {
         Py_DECREF(packed);
         PyBuffer_Release(&b_buffer);
-        PyErr_Format(PyExc_LookupError, "No maxsim pack kernel for dtype '%s'", dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_LookupError, "No maxsim pack kernel for dtype '%s'",
+                     nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
 
@@ -306,7 +308,7 @@ static PyObject *maxsim_result_to_py_number(                  //
     nk_dtype_t out_dtype = nk_kernel_output_dtype(nk_kernel_maxsim_packed_k, input_dtype);
     if (out_dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Cannot determine output dtype for maxsim_packed('%s')",
-                     dtype_to_python_string(input_dtype));
+                     nk_dtype_to_pybuffer_typestr(input_dtype));
         return NULL;
     }
 
@@ -318,12 +320,12 @@ static PyObject *maxsim_result_to_py_number(                  //
     default:
         PyEval_RestoreThread(save);
         PyErr_Format(PyExc_ValueError, "Unsupported maxsim_packed output dtype '%s'",
-                     dtype_to_python_string(out_dtype));
+                     nk_dtype_to_pybuffer_typestr(out_dtype));
         return NULL;
     }
     PyEval_RestoreThread(save);
 
-    return scalar_to_py_number(&result, out_dtype);
+    return nk_scalar_buffer_to_py_number(&result, out_dtype);
 }
 
 PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
@@ -348,7 +350,7 @@ PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t na
 
     if (queries->dtype != documents->dtype) {
         PyErr_Format(PyExc_TypeError, "dtype mismatch: queries is '%s' but documents is '%s'",
-                     dtype_to_python_string(queries->dtype), dtype_to_python_string(documents->dtype));
+                     nk_dtype_to_pybuffer_typestr(queries->dtype), nk_dtype_to_pybuffer_typestr(documents->dtype));
         return NULL;
     }
     if (queries->depth != documents->depth) {
@@ -363,7 +365,7 @@ PyObject *api_maxsim_packed(PyObject *self, PyObject *const *args, Py_ssize_t na
                           &cap);
     if (!kernel || !cap) {
         PyErr_Format(PyExc_LookupError, "No maxsim_packed kernel for dtype '%s'",
-                     dtype_to_python_string(queries->dtype));
+                     nk_dtype_to_pybuffer_typestr(queries->dtype));
         return NULL;
     }
 
@@ -418,10 +420,10 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
     if (nargs >= 3) dtype_obj = args[2];
 
-    nk_dtype_t target_dtype = dtype_obj ? python_arg_to_dtype(dtype_obj) : nk_dtype_unknown_k;
+    nk_dtype_t target_dtype = dtype_obj ? py_object_to_nk_dtype(dtype_obj) : nk_dtype_unknown_k;
     if (dtype_obj && target_dtype == nk_dtype_unknown_k) return NULL;
     if (target_dtype != nk_dtype_unknown_k && nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", dtype_to_python_string(target_dtype));
+        PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s'", nk_dtype_to_pybuffer_typestr(target_dtype));
         return NULL;
     }
 
@@ -449,12 +451,12 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     }
 
     {
-        nk_dtype_t queries_dtype = dtype_from_buffer(&queries_buffer);
+        nk_dtype_t queries_dtype = resolve_nk_dtype_in_py_buffer(&queries_buffer);
         if (queries_dtype == nk_dtype_unknown_k) {
             PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", queries_buffer.format);
             goto cleanup;
         }
-        nk_dtype_t documents_dtype = dtype_from_buffer(&documents_buffer);
+        nk_dtype_t documents_dtype = resolve_nk_dtype_in_py_buffer(&documents_buffer);
         if (documents_dtype == nk_dtype_unknown_k) {
             PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", documents_buffer.format);
             goto cleanup;
@@ -465,25 +467,25 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
             target_dtype = queries_dtype;
             if (nk_maxsim_output_dtype(target_dtype) == nk_dtype_unknown_k) {
                 PyErr_Format(PyExc_ValueError, "Unsupported maxsim dtype '%s' inferred from input",
-                             dtype_to_python_string(target_dtype));
+                             nk_dtype_to_pybuffer_typestr(target_dtype));
                 goto cleanup;
             }
         }
 
         if (queries_dtype != target_dtype) {
             PyErr_Format(PyExc_TypeError, "queries dtype '%s' does not match target dtype '%s'",
-                         dtype_to_python_string(queries_dtype), dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(queries_dtype), nk_dtype_to_pybuffer_typestr(target_dtype));
             goto cleanup;
         }
         if (documents_dtype != target_dtype) {
             PyErr_Format(PyExc_TypeError, "documents dtype '%s' does not match target dtype '%s'",
-                         dtype_to_python_string(documents_dtype), dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(documents_dtype), nk_dtype_to_pybuffer_typestr(target_dtype));
             goto cleanup;
         }
     }
 
-    if (queries_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype) ||
-        documents_buffer.strides[1] != (Py_ssize_t)bytes_per_dtype(target_dtype)) {
+    if (queries_buffer.strides[1] != (Py_ssize_t)nk_dtype_bytes_per_value(target_dtype) ||
+        documents_buffer.strides[1] != (Py_ssize_t)nk_dtype_bytes_per_value(target_dtype)) {
         PyErr_SetString(PyExc_ValueError, "Input matrices must be row-contiguous");
         goto cleanup;
     }
@@ -507,7 +509,7 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
                               (nk_kernel_punned_t *)&size_fn, &cap);
         if (!size_fn || !cap) {
             PyErr_Format(PyExc_LookupError, "No maxsim packed_size kernel for dtype '%s'",
-                         dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(target_dtype));
             goto cleanup;
         }
 
@@ -517,7 +519,7 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
                               (nk_kernel_punned_t *)&pack_fn, &cap);
         if (!pack_fn || !cap) {
             PyErr_Format(PyExc_LookupError, "No maxsim pack kernel for dtype '%s'",
-                         dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(target_dtype));
             goto cleanup;
         }
 
@@ -527,7 +529,7 @@ PyObject *api_maxsim(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
                               (nk_kernel_punned_t *)&kernel, &cap);
         if (!kernel || !cap) {
             PyErr_Format(PyExc_LookupError, "No maxsim_packed kernel for dtype '%s'",
-                         dtype_to_python_string(target_dtype));
+                         nk_dtype_to_pybuffer_typestr(target_dtype));
             goto cleanup;
         }
 

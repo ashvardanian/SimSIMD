@@ -6,32 +6,34 @@
  *
  *  Contains following element-wise operations:
  *
- *  - Scale (Multiply) with shift: result[i] = alpha * a[i] + beta
+ *  - Scale (Multiply) with shift: result[i] = α·a[i] + β
  *  - Sum (Add): result[i] = a[i] + b[i]
- *  - Blend: result[i] = alpha * a[i] + beta * b[i]
- *  - FMA (Fused Multiply-Add): result[i] = alpha * a[i] * b[i] + beta * c[i]
+ *  - Blend: result[i] = α·a[i] + β·b[i]
+ *  - FMA (Fused Multiply-Add): result[i] = α·a[i]·b[i] + β·c[i]
  *
  *  Beyond their obvious usecases, those can be reused for vector-scalar math and other operations:
  *
- *  - Scale with beta = 0 for a pure multiply.
- *  - Sum is equivalent to WSum with alpha = beta = 1.
- *  - Average is WSum with alpha = beta = 0.5.
- *  - Elementwise multiply is FMA with beta = 0.
+ *  - Scale with β = 0 for a pure multiply.
+ *  - Sum is equivalent to WSum with α = β = 1.
+ *  - Average is WSum with α = β = 0.5.
+ *  - Elementwise multiply is FMA with β = 0.
  *
  *  For dtypes:
  *
- *  - f64: 64-bit IEEE floating point numbers × 64-bit scales
- *  - f32: 32-bit IEEE floating point numbers × 32-bit scales
- *  - f16: 16-bit IEEE floating point numbers × 32-bit scales
- *  - bf16: 16-bit brain floating point numbers × 32-bit scales
- *  - e4m3: 8-bit e4m3 floating point numbers × 32-bit scales
- *  - e5m2: 8-bit e5m2 floating point numbers × 32-bit scales
- *  - e2m3: 8-bit e2m3 floating point numbers (MX) × 32-bit scales
- *  - e3m2: 8-bit e3m2 floating point numbers (MX) × 32-bit scales
- *  - i8/u8: 8-bit signed and unsigned integers × 32-bit scales
- *  - i16/u16: 16-bit signed and unsigned integers × 32-bit scales
- *  - i32/u32: 32-bit signed and unsigned integers × 64-bit scales
- *  - i64/u64: 64-bit signed and unsigned integers × 64-bit scales
+ *  - f64c: 64-bit complex × 64-bit complex scales
+ *  - f32c: 32-bit complex × 32-bit complex scales
+ *  - f64: 64-bit IEEE floating point × 64-bit scales
+ *  - f32: 32-bit IEEE floating point × 32-bit scales
+ *  - f16: 16-bit IEEE floating point × 32-bit scales
+ *  - bf16: 16-bit brain floating point × 32-bit scales
+ *  - e4m3: 8-bit e4m3 floating point × 32-bit scales
+ *  - e5m2: 8-bit e5m2 floating point × 32-bit scales
+ *  - e2m3: 8-bit e2m3 floating point (MX) × 32-bit scales
+ *  - e3m2: 8-bit e3m2 floating point (MX) × 32-bit scales
+ *  - i8/u8: 8-bit integers × 32-bit scales
+ *  - i16/u16: 16-bit integers × 32-bit scales
+ *  - i32/u32: 32-bit integers × 64-bit scales
+ *  - i64/u64: 64-bit integers × 64-bit scales
  *
  *  For hardware architectures:
  *
@@ -651,6 +653,11 @@ NK_PUBLIC void nk_each_fma_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
 /** @copydoc nk_each_fma_f64 */
 NK_PUBLIC void nk_each_fma_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
                                      nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result);
+
+/** @copydoc nk_each_sum_i8 */
+NK_PUBLIC void nk_each_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_u8 */
+NK_PUBLIC void nk_each_sum_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
@@ -680,10 +687,6 @@ NK_PUBLIC void nk_each_blend_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, 
 NK_PUBLIC void nk_each_fma_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                         nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 
-/** @copydoc nk_each_sum_i8 */
-NK_PUBLIC void nk_each_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_each_sum_u8 */
-NK_PUBLIC void nk_each_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
 /** @copydoc nk_each_scale_i8 */
 NK_PUBLIC void nk_each_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                          nk_i8_t *result);
@@ -1201,6 +1204,10 @@ NK_INTERNAL nk_dtype_t nk_each_scale_input_dtype(nk_dtype_t dtype) {
     case nk_u16_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
     default: return nk_dtype_unknown_k;
     }
 }
@@ -1286,8 +1293,8 @@ NK_PUBLIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
     nk_each_sum_i8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_i8_haswell(a, b, n, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_sum_i8_neonhalf(a, b, n, r);
+#elif NK_TARGET_NEON
+    nk_each_sum_i8_neon(a, b, n, r);
 #elif NK_TARGET_RVV
     nk_each_sum_i8_rvv(a, b, n, r);
 #else
@@ -1300,8 +1307,8 @@ NK_PUBLIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, n
     nk_each_sum_u8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_u8_haswell(a, b, n, r);
-#elif NK_TARGET_NEONHALF
-    nk_each_sum_u8_neonhalf(a, b, n, r);
+#elif NK_TARGET_NEON
+    nk_each_sum_u8_neon(a, b, n, r);
 #elif NK_TARGET_RVV
     nk_each_sum_u8_rvv(a, b, n, r);
 #else

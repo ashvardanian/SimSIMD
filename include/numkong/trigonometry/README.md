@@ -164,21 +164,21 @@ Measured with Wasmtime v42 (Cranelift backend).
 
 #### WASM
 
-Measured with Wasmtime v42 (Cranelift backend).
+Measured with Wasmtime v43 (Cranelift backend).
 
 | Kernel                         |                      256 |                     1024 |                     4096 |
 | :----------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f64_serial`       |      0.619 gb/s, 0.2 ulp |      0.517 gb/s, 0.2 ulp |      0.705 gb/s, 0.2 ulp |
-| `nk_each_sin_f64_v128relaxed`  |       9.10 gb/s, 0.2 ulp |       3.58 gb/s, 0.2 ulp |       8.93 gb/s, 0.2 ulp |
-| `nk_each_cos_f64_serial`       |      0.595 gb/s, 0.3 ulp |      0.501 gb/s, 0.3 ulp |      0.681 gb/s, 0.3 ulp |
-| `nk_each_cos_f64_v128relaxed`  |       9.35 gb/s, 0.3 ulp |       3.99 gb/s, 0.3 ulp |       9.16 gb/s, 0.3 ulp |
-| `nk_each_atan_f64_serial`      |      0.188 gb/s, 0.3 ulp |      0.157 gb/s, 0.3 ulp |      0.214 gb/s, 0.3 ulp |
-| `nk_each_atan_f64_v128relaxed` |       6.22 gb/s, 0.3 ulp |       2.44 gb/s, 0.3 ulp |       6.06 gb/s, 0.3 ulp |
+| `nk_each_sin_f64_serial`       |      0.771 gb/s, 0.2 ulp |      0.733 gb/s, 0.2 ulp |      0.798 gb/s, 0.2 ulp |
+| `nk_each_sin_f64_v128relaxed`  |       8.65 gb/s, 0.2 ulp |       8.40 gb/s, 0.2 ulp |       9.45 gb/s, 0.2 ulp |
+| `nk_each_cos_f64_serial`       |      0.746 gb/s, 0.3 ulp |      0.703 gb/s, 0.3 ulp |      0.735 gb/s, 0.3 ulp |
+| `nk_each_cos_f64_v128relaxed`  |       9.07 gb/s, 0.3 ulp |       8.80 gb/s, 0.3 ulp |       9.58 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_serial`      |      0.247 gb/s, 0.3 ulp |      0.234 gb/s, 0.3 ulp |      0.232 gb/s, 0.3 ulp |
+| `nk_each_atan_f64_v128relaxed` |       5.51 gb/s, 0.3 ulp |       5.21 gb/s, 0.3 ulp |       5.96 gb/s, 0.3 ulp |
 | __f32__                        | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_each_sin_f32_serial`       |       8.08 gb/s, 4.9 ulp |       4.26 gb/s, 4.9 ulp |       9.32 gb/s, 4.9 ulp |
-| `nk_each_sin_f32_v128relaxed`  |        19.1 gb/s, 20 ulp |        7.19 gb/s, 20 ulp |        17.1 gb/s, 20 ulp |
-| `nk_each_cos_f32_serial`       |        7.45 gb/s, 14 ulp |        3.88 gb/s, 14 ulp |        8.52 gb/s, 14 ulp |
-| `nk_each_cos_f32_v128relaxed`  |        17.8 gb/s, 21 ulp |        7.06 gb/s, 21 ulp |        16.2 gb/s, 21 ulp |
-| `nk_each_atan_f32_serial`      |      0.151 gb/s, 0.4 ulp |     0.0950 gb/s, 0.4 ulp |      0.175 gb/s, 0.4 ulp |
-| `nk_each_atan_f32_v128relaxed` |       11.3 gb/s, 0.4 ulp |       4.22 gb/s, 0.4 ulp |       10.9 gb/s, 0.4 ulp |
+| `nk_each_sin_f32_serial`       |       9.94 gb/s, 4.9 ulp |       9.44 gb/s, 4.9 ulp |       10.2 gb/s, 4.9 ulp |
+| `nk_each_sin_f32_v128relaxed`  |        17.8 gb/s, 20 ulp |        17.5 gb/s, 20 ulp |        17.9 gb/s, 20 ulp |
+| `nk_each_cos_f32_serial`       |        9.13 gb/s, 14 ulp |        8.96 gb/s, 14 ulp |        9.55 gb/s, 14 ulp |
+| `nk_each_cos_f32_v128relaxed`  |        16.7 gb/s, 21 ulp |        14.7 gb/s, 21 ulp |        16.9 gb/s, 21 ulp |
+| `nk_each_atan_f32_serial`      |      0.191 gb/s, 0.4 ulp |      0.185 gb/s, 0.4 ulp |      0.199 gb/s, 0.4 ulp |
+| `nk_each_atan_f32_v128relaxed` |       11.2 gb/s, 0.4 ulp |       10.7 gb/s, 0.4 ulp |       11.6 gb/s, 0.4 ulp |

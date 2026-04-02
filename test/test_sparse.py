@@ -14,13 +14,19 @@ Matches C++ suite: test_sparse.cpp.
 
 import atexit
 import platform
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -45,8 +51,18 @@ atexit.register(print_stats_report, stats)
 
 baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
 
+
+def baseline_sparse_dot(a_idx, a_val, b_idx, b_val):
+    common = np.intersect1d(a_idx, b_idx)
+    total = 0.0
+    for idx in common:
+        total += float(a_val[np.searchsorted(a_idx, idx)]) * float(b_val[np.searchsorted(b_idx, idx)])
+    return total
+
+
 KERNELS_SPARSE = {
     "intersect": (baseline_intersect, nk.intersect, None),
+    "sparse_dot": (baseline_sparse_dot, nk.sparse_dot, None),
 }
 
 
@@ -55,6 +71,7 @@ KERNELS_SPARSE = {
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_sparse_dot(capability):
     """Test nk.sparse_dot against manual weighted intersection."""
+    baseline_kernel, simd_kernel, _ = KERNELS_SPARSE["sparse_dot"]
     sparse_dim = sparse_dimensions[0]
     a_idx = np.unique(np.random.randint(0, sparse_dim, size=min(50, sparse_dim))).astype(np.uint32)
     b_idx = np.unique(np.random.randint(0, sparse_dim, size=min(50, sparse_dim))).astype(np.uint32)
@@ -62,21 +79,10 @@ def test_sparse_dot(capability):
     b_val = np.random.randn(len(b_idx)).astype(np.float32)
 
     keep_one_capability(capability)
-    result_dt, result = profile(nk.sparse_dot, a_idx, a_val, b_idx, b_val)
+    result_dt, result = profile(simd_kernel, a_idx, a_val, b_idx, b_val)
 
-    def _sparse_dot_baseline(a_idx, a_val, b_idx, b_val):
-        common = np.intersect1d(a_idx, b_idx)
-        total = 0.0
-        for idx in common:
-            ai = np.searchsorted(a_idx, idx)
-            bi = np.searchsorted(b_idx, idx)
-            total += float(a_val[ai]) * float(b_val[bi])
-        return total
-
-    accurate_dt, accurate = profile(
-        _sparse_dot_baseline, a_idx, a_val.astype(np.float64), b_idx, b_val.astype(np.float64)
-    )
-    expected_dt, expected = profile(_sparse_dot_baseline, a_idx, a_val, b_idx, b_val)
+    accurate_dt, accurate = profile(baseline_kernel, a_idx, a_val.astype(np.float64), b_idx, b_val.astype(np.float64))
+    expected_dt, expected = profile(baseline_kernel, a_idx, a_val, b_idx, b_val)
 
     assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(
@@ -104,8 +110,9 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     b = np.unique(b)
 
     keep_one_capability(capability)
-    expected = baseline_intersect(a, b)
-    result = nk.intersect(a, b)
+    baseline_kernel, simd_kernel, _ = KERNELS_SPARSE["intersect"]
+    expected = baseline_kernel(a, b)
+    result = simd_kernel(a, b)
 
     assert round(float(expected)) == round(float(result)), (
         f"Intersection count mismatch: expected {expected}, got {result}. "

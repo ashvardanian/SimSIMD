@@ -724,20 +724,26 @@ NK_INTERNAL void nk_dot_u4x16_finalize_serial(nk_dot_u4x16_state_serial_t const 
 }
 
 NK_INTERNAL void nk_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst) {
-    nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, 16);
+    nk_i4x2_t const *pairs = (nk_i4x2_t const *)src;
+    for (nk_size_t i = 0; i < 8; ++i) nk_i4x2_to_i8x2_serial(&pairs[i], &dst->i8s[i * 2]);
 }
 
 NK_INTERNAL void nk_partial_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
-    nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, n);
+    nk_i4x2_t const *pairs = (nk_i4x2_t const *)src;
+    nk_size_t count_pairs = n / 2;
+    for (nk_size_t i = 0; i < count_pairs; ++i) nk_i4x2_to_i8x2_serial(&pairs[i], &dst->i8s[i * 2]);
     for (nk_size_t i = n; i < 16; ++i) dst->i8s[i] = 0;
 }
 
 NK_INTERNAL void nk_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst) {
-    nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, 16);
+    nk_u4x2_t const *pairs = (nk_u4x2_t const *)src;
+    for (nk_size_t i = 0; i < 8; ++i) nk_u4x2_to_u8x2_serial(&pairs[i], &dst->u8s[i * 2]);
 }
 
 NK_INTERNAL void nk_partial_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
-    nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, n);
+    nk_u4x2_t const *pairs = (nk_u4x2_t const *)src;
+    nk_size_t count_pairs = n / 2;
+    for (nk_size_t i = 0; i < count_pairs; ++i) nk_u4x2_to_u8x2_serial(&pairs[i], &dst->u8s[i * 2]);
     for (nk_size_t i = n; i < 16; ++i) dst->u8s[i] = 0;
 }
 

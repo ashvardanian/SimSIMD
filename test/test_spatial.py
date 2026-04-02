@@ -17,17 +17,22 @@ import atexit
 import decimal
 import math
 import warnings
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NATIVE_COMPUTE_DTYPE,
     NK_ATOL,
     NK_RTOL,
@@ -42,6 +47,7 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     profile,
     randomized_repetitions_count,
@@ -68,10 +74,8 @@ except ImportError:
 
 def precise_sqeuclidean(a, b):
     """High-precision squared Euclidean distance via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        return float(sum((D.from_float(float(x)) - D.from_float(float(y))) ** 2 for x, y in zip(a, b)))
+    with precise_decimal() as d:
+        return float(sum((d.from_float(float(x)) - d.from_float(float(y))) ** 2 for x, y in zip(a, b)))
 
 
 def precise_euclidean(a, b):
@@ -80,13 +84,11 @@ def precise_euclidean(a, b):
 
 def precise_angular(a, b):
     """High-precision angular/cosine distance via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        ab, aa, bb = D(0), D(0), D(0)
+    with precise_decimal() as d:
+        ab, aa, bb = d(0), d(0), d(0)
         for x, y in zip(a, b):
-            dx = D.from_float(float(x))
-            dy = D.from_float(float(y))
+            dx = d.from_float(float(x))
+            dy = d.from_float(float(y))
             ab += dx * dy
             aa += dx * dx
             bb += dy * dy
@@ -151,11 +153,7 @@ def test_spatial_random_accuracy(ndim, dtype, metric, capability, nk_seed):
     result_dt, result = profile(simd_kernel, a_raw, b_raw, dtype)
 
     err_msg = LazyFormat(
-        lambda: (
-            f"\n{metric}({dtype}, ndim={ndim}):"
-            f"\n  Accurate:  {accurate}"
-            f"\n  Got:       {result}"
-        )
+        lambda: (f"\n{metric}({dtype}, ndim={ndim}):" f"\n  Accurate:  {accurate}" f"\n  Got:       {result}")
     )
 
     assert_allclose(result, accurate, atol=atol, rtol=rtol, err_msg=err_msg)

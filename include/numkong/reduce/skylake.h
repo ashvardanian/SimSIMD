@@ -56,12 +56,12 @@ extern "C" {
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x16_skylake_(__m512 sum_f32x16) {
-    __m256 lo_f32x8 = _mm512_castps512_ps256(sum_f32x16);
-    __m256 hi_f32x8 = _mm512_extractf32x8_ps(sum_f32x16, 1);
-    __m256 sum_f32x8 = _mm256_add_ps(lo_f32x8, hi_f32x8);
-    __m128 lo_f32x4 = _mm256_castps256_ps128(sum_f32x8);
-    __m128 hi_f32x4 = _mm256_extractf128_ps(sum_f32x8, 1);
-    __m128 sum_f32x4 = _mm_add_ps(lo_f32x4, hi_f32x4);
+    __m256 low_f32x8 = _mm512_castps512_ps256(sum_f32x16);
+    __m256 high_f32x8 = _mm512_extractf32x8_ps(sum_f32x16, 1);
+    __m256 sum_f32x8 = _mm256_add_ps(low_f32x8, high_f32x8);
+    __m128 low_f32x4 = _mm256_castps256_ps128(sum_f32x8);
+    __m128 high_f32x4 = _mm256_extractf128_ps(sum_f32x8, 1);
+    __m128 sum_f32x4 = _mm_add_ps(low_f32x4, high_f32x4);
     sum_f32x4 = _mm_hadd_ps(sum_f32x4, sum_f32x4);
     sum_f32x4 = _mm_hadd_ps(sum_f32x4, sum_f32x4);
     return _mm_cvtss_f32(sum_f32x4);
@@ -69,24 +69,24 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f32x16_skylake_(__m512 sum_f32x16) {
 
 /** @brief Horizontal sum of 8 doubles in a ZMM register. */
 NK_INTERNAL nk_f64_t nk_reduce_add_f64x8_skylake_(__m512d sum_f64x8) {
-    __m256d lo_f64x4 = _mm512_castpd512_pd256(sum_f64x8);
-    __m256d hi_f64x4 = _mm512_extractf64x4_pd(sum_f64x8, 1);
-    __m256d sum_f64x4 = _mm256_add_pd(lo_f64x4, hi_f64x4);
-    __m128d lo_f64x2 = _mm256_castpd256_pd128(sum_f64x4);
-    __m128d hi_f64x2 = _mm256_extractf128_pd(sum_f64x4, 1);
-    __m128d sum_f64x2 = _mm_add_pd(lo_f64x2, hi_f64x2);
+    __m256d low_f64x4 = _mm512_castpd512_pd256(sum_f64x8);
+    __m256d high_f64x4 = _mm512_extractf64x4_pd(sum_f64x8, 1);
+    __m256d sum_f64x4 = _mm256_add_pd(low_f64x4, high_f64x4);
+    __m128d low_f64x2 = _mm256_castpd256_pd128(sum_f64x4);
+    __m128d high_f64x2 = _mm256_extractf128_pd(sum_f64x4, 1);
+    __m128d sum_f64x2 = _mm_add_pd(low_f64x2, high_f64x2);
     sum_f64x2 = _mm_hadd_pd(sum_f64x2, sum_f64x2);
     return _mm_cvtsd_f64(sum_f64x2);
 }
 
 /** @brief Horizontal min of 16 floats in a ZMM register. */
 NK_INTERNAL nk_f32_t nk_reduce_min_f32x16_skylake_(__m512 min_f32x16) {
-    __m256 lo_f32x8 = _mm512_castps512_ps256(min_f32x16);
-    __m256 hi_f32x8 = _mm512_extractf32x8_ps(min_f32x16, 1);
-    __m256 min_f32x8 = _mm256_min_ps(lo_f32x8, hi_f32x8);
-    __m128 lo_f32x4 = _mm256_castps256_ps128(min_f32x8);
-    __m128 hi_f32x4 = _mm256_extractf128_ps(min_f32x8, 1);
-    __m128 min_f32x4 = _mm_min_ps(lo_f32x4, hi_f32x4);
+    __m256 low_f32x8 = _mm512_castps512_ps256(min_f32x16);
+    __m256 high_f32x8 = _mm512_extractf32x8_ps(min_f32x16, 1);
+    __m256 min_f32x8 = _mm256_min_ps(low_f32x8, high_f32x8);
+    __m128 low_f32x4 = _mm256_castps256_ps128(min_f32x8);
+    __m128 high_f32x4 = _mm256_extractf128_ps(min_f32x8, 1);
+    __m128 min_f32x4 = _mm_min_ps(low_f32x4, high_f32x4);
     min_f32x4 = _mm_min_ps(min_f32x4, _mm_shuffle_ps(min_f32x4, min_f32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     min_f32x4 = _mm_min_ps(min_f32x4, _mm_shuffle_ps(min_f32x4, min_f32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return _mm_cvtss_f32(min_f32x4);
@@ -94,12 +94,12 @@ NK_INTERNAL nk_f32_t nk_reduce_min_f32x16_skylake_(__m512 min_f32x16) {
 
 /** @brief Horizontal max of 16 floats in a ZMM register. */
 NK_INTERNAL nk_f32_t nk_reduce_max_f32x16_skylake_(__m512 max_f32x16) {
-    __m256 lo_f32x8 = _mm512_castps512_ps256(max_f32x16);
-    __m256 hi_f32x8 = _mm512_extractf32x8_ps(max_f32x16, 1);
-    __m256 max_f32x8 = _mm256_max_ps(lo_f32x8, hi_f32x8);
-    __m128 lo_f32x4 = _mm256_castps256_ps128(max_f32x8);
-    __m128 hi_f32x4 = _mm256_extractf128_ps(max_f32x8, 1);
-    __m128 max_f32x4 = _mm_max_ps(lo_f32x4, hi_f32x4);
+    __m256 low_f32x8 = _mm512_castps512_ps256(max_f32x16);
+    __m256 high_f32x8 = _mm512_extractf32x8_ps(max_f32x16, 1);
+    __m256 max_f32x8 = _mm256_max_ps(low_f32x8, high_f32x8);
+    __m128 low_f32x4 = _mm256_castps256_ps128(max_f32x8);
+    __m128 high_f32x4 = _mm256_extractf128_ps(max_f32x8, 1);
+    __m128 max_f32x4 = _mm_max_ps(low_f32x4, high_f32x4);
     max_f32x4 = _mm_max_ps(max_f32x4, _mm_shuffle_ps(max_f32x4, max_f32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     max_f32x4 = _mm_max_ps(max_f32x4, _mm_shuffle_ps(max_f32x4, max_f32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return _mm_cvtss_f32(max_f32x4);
@@ -107,36 +107,36 @@ NK_INTERNAL nk_f32_t nk_reduce_max_f32x16_skylake_(__m512 max_f32x16) {
 
 /** @brief Horizontal min of 8 doubles in a ZMM register. */
 NK_INTERNAL nk_f64_t nk_reduce_min_f64x8_skylake_(__m512d min_f64x8) {
-    __m256d lo_f64x4 = _mm512_castpd512_pd256(min_f64x8);
-    __m256d hi_f64x4 = _mm512_extractf64x4_pd(min_f64x8, 1);
-    __m256d min_f64x4 = _mm256_min_pd(lo_f64x4, hi_f64x4);
-    __m128d lo_f64x2 = _mm256_castpd256_pd128(min_f64x4);
-    __m128d hi_f64x2 = _mm256_extractf128_pd(min_f64x4, 1);
-    __m128d min_f64x2 = _mm_min_pd(lo_f64x2, hi_f64x2);
+    __m256d low_f64x4 = _mm512_castpd512_pd256(min_f64x8);
+    __m256d high_f64x4 = _mm512_extractf64x4_pd(min_f64x8, 1);
+    __m256d min_f64x4 = _mm256_min_pd(low_f64x4, high_f64x4);
+    __m128d low_f64x2 = _mm256_castpd256_pd128(min_f64x4);
+    __m128d high_f64x2 = _mm256_extractf128_pd(min_f64x4, 1);
+    __m128d min_f64x2 = _mm_min_pd(low_f64x2, high_f64x2);
     min_f64x2 = _mm_min_pd(min_f64x2, _mm_shuffle_pd(min_f64x2, min_f64x2, 1));
     return _mm_cvtsd_f64(min_f64x2);
 }
 
 /** @brief Horizontal max of 8 doubles in a ZMM register. */
 NK_INTERNAL nk_f64_t nk_reduce_max_f64x8_skylake_(__m512d max_f64x8) {
-    __m256d lo_f64x4 = _mm512_castpd512_pd256(max_f64x8);
-    __m256d hi_f64x4 = _mm512_extractf64x4_pd(max_f64x8, 1);
-    __m256d max_f64x4 = _mm256_max_pd(lo_f64x4, hi_f64x4);
-    __m128d lo_f64x2 = _mm256_castpd256_pd128(max_f64x4);
-    __m128d hi_f64x2 = _mm256_extractf128_pd(max_f64x4, 1);
-    __m128d max_f64x2 = _mm_max_pd(lo_f64x2, hi_f64x2);
+    __m256d low_f64x4 = _mm512_castpd512_pd256(max_f64x8);
+    __m256d high_f64x4 = _mm512_extractf64x4_pd(max_f64x8, 1);
+    __m256d max_f64x4 = _mm256_max_pd(low_f64x4, high_f64x4);
+    __m128d low_f64x2 = _mm256_castpd256_pd128(max_f64x4);
+    __m128d high_f64x2 = _mm256_extractf128_pd(max_f64x4, 1);
+    __m128d max_f64x2 = _mm_max_pd(low_f64x2, high_f64x2);
     max_f64x2 = _mm_max_pd(max_f64x2, _mm_shuffle_pd(max_f64x2, max_f64x2, 1));
     return _mm_cvtsd_f64(max_f64x2);
 }
 
 /** @brief Horizontal sum of 16 i32s in a ZMM register. */
 NK_INTERNAL nk_i32_t nk_reduce_add_i32x16_skylake_(__m512i sum_i32x16) {
-    __m256i lo_i32x8 = _mm512_castsi512_si256(sum_i32x16);
-    __m256i hi_i32x8 = _mm512_extracti32x8_epi32(sum_i32x16, 1);
-    __m256i sum_i32x8 = _mm256_add_epi32(lo_i32x8, hi_i32x8);
-    __m128i lo_i32x4 = _mm256_castsi256_si128(sum_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(sum_i32x8, 1);
-    __m128i sum_i32x4 = _mm_add_epi32(lo_i32x4, hi_i32x4);
+    __m256i low_i32x8 = _mm512_castsi512_si256(sum_i32x16);
+    __m256i high_i32x8 = _mm512_extracti32x8_epi32(sum_i32x16, 1);
+    __m256i sum_i32x8 = _mm256_add_epi32(low_i32x8, high_i32x8);
+    __m128i low_i32x4 = _mm256_castsi256_si128(sum_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(sum_i32x8, 1);
+    __m128i sum_i32x4 = _mm_add_epi32(low_i32x4, high_i32x4);
     sum_i32x4 = _mm_hadd_epi32(sum_i32x4, sum_i32x4);
     sum_i32x4 = _mm_hadd_epi32(sum_i32x4, sum_i32x4);
     return _mm_cvtsi128_si32(sum_i32x4);
@@ -144,12 +144,12 @@ NK_INTERNAL nk_i32_t nk_reduce_add_i32x16_skylake_(__m512i sum_i32x16) {
 
 /** @brief Horizontal sum of 8 i64s in a ZMM register. */
 NK_INTERNAL nk_i64_t nk_reduce_add_i64x8_skylake_(__m512i sum_i64x8) {
-    __m256i lo_i64x4 = _mm512_castsi512_si256(sum_i64x8);
-    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(sum_i64x8, 1);
-    __m256i sum_i64x4 = _mm256_add_epi64(lo_i64x4, hi_i64x4);
-    __m128i lo_i64x2 = _mm256_castsi256_si128(sum_i64x4);
-    __m128i hi_i64x2 = _mm256_extracti128_si256(sum_i64x4, 1);
-    __m128i sum_i64x2 = _mm_add_epi64(lo_i64x2, hi_i64x2);
+    __m256i low_i64x4 = _mm512_castsi512_si256(sum_i64x8);
+    __m256i high_i64x4 = _mm512_extracti64x4_epi64(sum_i64x8, 1);
+    __m256i sum_i64x4 = _mm256_add_epi64(low_i64x4, high_i64x4);
+    __m128i low_i64x2 = _mm256_castsi256_si128(sum_i64x4);
+    __m128i high_i64x2 = _mm256_extracti128_si256(sum_i64x4, 1);
+    __m128i sum_i64x2 = _mm_add_epi64(low_i64x2, high_i64x2);
     sum_i64x2 = _mm_add_epi64(sum_i64x2, _mm_shuffle_epi32(sum_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
     return _mm_cvtsi128_si64(sum_i64x2);
 }
@@ -284,12 +284,12 @@ NK_INTERNAL nk_size_t nk_stride_elems_b64x8_(nk_size_t stride) {
 
 /** @brief Horizontal min of 64 signed i8s in a ZMM register. */
 NK_INTERNAL nk_i8_t nk_reduce_min_i8x64_skylake_(__m512i min_i8x64) {
-    __m256i lo_i8x32 = _mm512_castsi512_si256(min_i8x64);
-    __m256i hi_i8x32 = _mm512_extracti64x4_epi64(min_i8x64, 1);
-    __m256i min_i8x32 = _mm256_min_epi8(lo_i8x32, hi_i8x32);
-    __m128i lo_i8x16 = _mm256_castsi256_si128(min_i8x32);
-    __m128i hi_i8x16 = _mm256_extracti128_si256(min_i8x32, 1);
-    __m128i min_i8x16 = _mm_min_epi8(lo_i8x16, hi_i8x16);
+    __m256i low_i8x32 = _mm512_castsi512_si256(min_i8x64);
+    __m256i high_i8x32 = _mm512_extracti64x4_epi64(min_i8x64, 1);
+    __m256i min_i8x32 = _mm256_min_epi8(low_i8x32, high_i8x32);
+    __m128i low_i8x16 = _mm256_castsi256_si128(min_i8x32);
+    __m128i high_i8x16 = _mm256_extracti128_si256(min_i8x32, 1);
+    __m128i min_i8x16 = _mm_min_epi8(low_i8x16, high_i8x16);
     min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
     min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
     min_i8x16 = _mm_min_epi8(min_i8x16, _mm_srli_si128(min_i8x16, 2));
@@ -299,12 +299,12 @@ NK_INTERNAL nk_i8_t nk_reduce_min_i8x64_skylake_(__m512i min_i8x64) {
 
 /** @brief Horizontal max of 64 signed i8s in a ZMM register. */
 NK_INTERNAL nk_i8_t nk_reduce_max_i8x64_skylake_(__m512i max_i8x64) {
-    __m256i lo_i8x32 = _mm512_castsi512_si256(max_i8x64);
-    __m256i hi_i8x32 = _mm512_extracti64x4_epi64(max_i8x64, 1);
-    __m256i max_i8x32 = _mm256_max_epi8(lo_i8x32, hi_i8x32);
-    __m128i lo_i8x16 = _mm256_castsi256_si128(max_i8x32);
-    __m128i hi_i8x16 = _mm256_extracti128_si256(max_i8x32, 1);
-    __m128i max_i8x16 = _mm_max_epi8(lo_i8x16, hi_i8x16);
+    __m256i low_i8x32 = _mm512_castsi512_si256(max_i8x64);
+    __m256i high_i8x32 = _mm512_extracti64x4_epi64(max_i8x64, 1);
+    __m256i max_i8x32 = _mm256_max_epi8(low_i8x32, high_i8x32);
+    __m128i low_i8x16 = _mm256_castsi256_si128(max_i8x32);
+    __m128i high_i8x16 = _mm256_extracti128_si256(max_i8x32, 1);
+    __m128i max_i8x16 = _mm_max_epi8(low_i8x16, high_i8x16);
     max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
     max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
     max_i8x16 = _mm_max_epi8(max_i8x16, _mm_srli_si128(max_i8x16, 2));
@@ -314,12 +314,12 @@ NK_INTERNAL nk_i8_t nk_reduce_max_i8x64_skylake_(__m512i max_i8x64) {
 
 /** @brief Horizontal min of 64 unsigned u8s in a ZMM register. */
 NK_INTERNAL nk_u8_t nk_reduce_min_u8x64_skylake_(__m512i min_u8x64) {
-    __m256i lo_u8x32 = _mm512_castsi512_si256(min_u8x64);
-    __m256i hi_u8x32 = _mm512_extracti64x4_epi64(min_u8x64, 1);
-    __m256i min_u8x32 = _mm256_min_epu8(lo_u8x32, hi_u8x32);
-    __m128i lo_u8x16 = _mm256_castsi256_si128(min_u8x32);
-    __m128i hi_u8x16 = _mm256_extracti128_si256(min_u8x32, 1);
-    __m128i min_u8x16 = _mm_min_epu8(lo_u8x16, hi_u8x16);
+    __m256i low_u8x32 = _mm512_castsi512_si256(min_u8x64);
+    __m256i high_u8x32 = _mm512_extracti64x4_epi64(min_u8x64, 1);
+    __m256i min_u8x32 = _mm256_min_epu8(low_u8x32, high_u8x32);
+    __m128i low_u8x16 = _mm256_castsi256_si128(min_u8x32);
+    __m128i high_u8x16 = _mm256_extracti128_si256(min_u8x32, 1);
+    __m128i min_u8x16 = _mm_min_epu8(low_u8x16, high_u8x16);
     min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
     min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
     min_u8x16 = _mm_min_epu8(min_u8x16, _mm_srli_si128(min_u8x16, 2));
@@ -329,12 +329,12 @@ NK_INTERNAL nk_u8_t nk_reduce_min_u8x64_skylake_(__m512i min_u8x64) {
 
 /** @brief Horizontal max of 64 unsigned u8s in a ZMM register. */
 NK_INTERNAL nk_u8_t nk_reduce_max_u8x64_skylake_(__m512i max_u8x64) {
-    __m256i lo_u8x32 = _mm512_castsi512_si256(max_u8x64);
-    __m256i hi_u8x32 = _mm512_extracti64x4_epi64(max_u8x64, 1);
-    __m256i max_u8x32 = _mm256_max_epu8(lo_u8x32, hi_u8x32);
-    __m128i lo_u8x16 = _mm256_castsi256_si128(max_u8x32);
-    __m128i hi_u8x16 = _mm256_extracti128_si256(max_u8x32, 1);
-    __m128i max_u8x16 = _mm_max_epu8(lo_u8x16, hi_u8x16);
+    __m256i low_u8x32 = _mm512_castsi512_si256(max_u8x64);
+    __m256i high_u8x32 = _mm512_extracti64x4_epi64(max_u8x64, 1);
+    __m256i max_u8x32 = _mm256_max_epu8(low_u8x32, high_u8x32);
+    __m128i low_u8x16 = _mm256_castsi256_si128(max_u8x32);
+    __m128i high_u8x16 = _mm256_extracti128_si256(max_u8x32, 1);
+    __m128i max_u8x16 = _mm_max_epu8(low_u8x16, high_u8x16);
     max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
     max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
     max_u8x16 = _mm_max_epu8(max_u8x16, _mm_srli_si128(max_u8x16, 2));
@@ -344,12 +344,12 @@ NK_INTERNAL nk_u8_t nk_reduce_max_u8x64_skylake_(__m512i max_u8x64) {
 
 /** @brief Horizontal min of 32 signed i16s in a ZMM register. */
 NK_INTERNAL nk_i16_t nk_reduce_min_i16x32_skylake_(__m512i min_i16x32) {
-    __m256i lo_i16x16 = _mm512_castsi512_si256(min_i16x32);
-    __m256i hi_i16x16 = _mm512_extracti64x4_epi64(min_i16x32, 1);
-    __m256i min_i16x16 = _mm256_min_epi16(lo_i16x16, hi_i16x16);
-    __m128i lo_i16x8 = _mm256_castsi256_si128(min_i16x16);
-    __m128i hi_i16x8 = _mm256_extracti128_si256(min_i16x16, 1);
-    __m128i min_i16x8 = _mm_min_epi16(lo_i16x8, hi_i16x8);
+    __m256i low_i16x16 = _mm512_castsi512_si256(min_i16x32);
+    __m256i high_i16x16 = _mm512_extracti64x4_epi64(min_i16x32, 1);
+    __m256i min_i16x16 = _mm256_min_epi16(low_i16x16, high_i16x16);
+    __m128i low_i16x8 = _mm256_castsi256_si128(min_i16x16);
+    __m128i high_i16x8 = _mm256_extracti128_si256(min_i16x16, 1);
+    __m128i min_i16x8 = _mm_min_epi16(low_i16x8, high_i16x8);
     min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
     min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
     min_i16x8 = _mm_min_epi16(min_i16x8, _mm_srli_si128(min_i16x8, 2));
@@ -358,12 +358,12 @@ NK_INTERNAL nk_i16_t nk_reduce_min_i16x32_skylake_(__m512i min_i16x32) {
 
 /** @brief Horizontal max of 32 signed i16s in a ZMM register. */
 NK_INTERNAL nk_i16_t nk_reduce_max_i16x32_skylake_(__m512i max_i16x32) {
-    __m256i lo_i16x16 = _mm512_castsi512_si256(max_i16x32);
-    __m256i hi_i16x16 = _mm512_extracti64x4_epi64(max_i16x32, 1);
-    __m256i max_i16x16 = _mm256_max_epi16(lo_i16x16, hi_i16x16);
-    __m128i lo_i16x8 = _mm256_castsi256_si128(max_i16x16);
-    __m128i hi_i16x8 = _mm256_extracti128_si256(max_i16x16, 1);
-    __m128i max_i16x8 = _mm_max_epi16(lo_i16x8, hi_i16x8);
+    __m256i low_i16x16 = _mm512_castsi512_si256(max_i16x32);
+    __m256i high_i16x16 = _mm512_extracti64x4_epi64(max_i16x32, 1);
+    __m256i max_i16x16 = _mm256_max_epi16(low_i16x16, high_i16x16);
+    __m128i low_i16x8 = _mm256_castsi256_si128(max_i16x16);
+    __m128i high_i16x8 = _mm256_extracti128_si256(max_i16x16, 1);
+    __m128i max_i16x8 = _mm_max_epi16(low_i16x8, high_i16x8);
     max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
     max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
     max_i16x8 = _mm_max_epi16(max_i16x8, _mm_srli_si128(max_i16x8, 2));
@@ -372,12 +372,12 @@ NK_INTERNAL nk_i16_t nk_reduce_max_i16x32_skylake_(__m512i max_i16x32) {
 
 /** @brief Horizontal min of 32 unsigned u16s in a ZMM register. */
 NK_INTERNAL nk_u16_t nk_reduce_min_u16x32_skylake_(__m512i min_u16x32) {
-    __m256i lo_u16x16 = _mm512_castsi512_si256(min_u16x32);
-    __m256i hi_u16x16 = _mm512_extracti64x4_epi64(min_u16x32, 1);
-    __m256i min_u16x16 = _mm256_min_epu16(lo_u16x16, hi_u16x16);
-    __m128i lo_u16x8 = _mm256_castsi256_si128(min_u16x16);
-    __m128i hi_u16x8 = _mm256_extracti128_si256(min_u16x16, 1);
-    __m128i min_u16x8 = _mm_min_epu16(lo_u16x8, hi_u16x8);
+    __m256i low_u16x16 = _mm512_castsi512_si256(min_u16x32);
+    __m256i high_u16x16 = _mm512_extracti64x4_epi64(min_u16x32, 1);
+    __m256i min_u16x16 = _mm256_min_epu16(low_u16x16, high_u16x16);
+    __m128i low_u16x8 = _mm256_castsi256_si128(min_u16x16);
+    __m128i high_u16x8 = _mm256_extracti128_si256(min_u16x16, 1);
+    __m128i min_u16x8 = _mm_min_epu16(low_u16x8, high_u16x8);
     min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
     min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
     min_u16x8 = _mm_min_epu16(min_u16x8, _mm_srli_si128(min_u16x8, 2));
@@ -386,12 +386,12 @@ NK_INTERNAL nk_u16_t nk_reduce_min_u16x32_skylake_(__m512i min_u16x32) {
 
 /** @brief Horizontal max of 32 unsigned u16s in a ZMM register. */
 NK_INTERNAL nk_u16_t nk_reduce_max_u16x32_skylake_(__m512i max_u16x32) {
-    __m256i lo_u16x16 = _mm512_castsi512_si256(max_u16x32);
-    __m256i hi_u16x16 = _mm512_extracti64x4_epi64(max_u16x32, 1);
-    __m256i max_u16x16 = _mm256_max_epu16(lo_u16x16, hi_u16x16);
-    __m128i lo_u16x8 = _mm256_castsi256_si128(max_u16x16);
-    __m128i hi_u16x8 = _mm256_extracti128_si256(max_u16x16, 1);
-    __m128i max_u16x8 = _mm_max_epu16(lo_u16x8, hi_u16x8);
+    __m256i low_u16x16 = _mm512_castsi512_si256(max_u16x32);
+    __m256i high_u16x16 = _mm512_extracti64x4_epi64(max_u16x32, 1);
+    __m256i max_u16x16 = _mm256_max_epu16(low_u16x16, high_u16x16);
+    __m128i low_u16x8 = _mm256_castsi256_si128(max_u16x16);
+    __m128i high_u16x8 = _mm256_extracti128_si256(max_u16x16, 1);
+    __m128i max_u16x8 = _mm_max_epu16(low_u16x8, high_u16x8);
     max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
     max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
     max_u16x8 = _mm_max_epu16(max_u16x8, _mm_srli_si128(max_u16x8, 2));
@@ -400,12 +400,12 @@ NK_INTERNAL nk_u16_t nk_reduce_max_u16x32_skylake_(__m512i max_u16x32) {
 
 /** @brief Horizontal min of 16 signed i32s in a ZMM register. */
 NK_INTERNAL nk_i32_t nk_reduce_min_i32x16_skylake_(__m512i min_i32x16) {
-    __m256i lo_i32x8 = _mm512_castsi512_si256(min_i32x16);
-    __m256i hi_i32x8 = _mm512_extracti64x4_epi64(min_i32x16, 1);
-    __m256i min_i32x8 = _mm256_min_epi32(lo_i32x8, hi_i32x8);
-    __m128i lo_i32x4 = _mm256_castsi256_si128(min_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(min_i32x8, 1);
-    __m128i min_i32x4 = _mm_min_epi32(lo_i32x4, hi_i32x4);
+    __m256i low_i32x8 = _mm512_castsi512_si256(min_i32x16);
+    __m256i high_i32x8 = _mm512_extracti64x4_epi64(min_i32x16, 1);
+    __m256i min_i32x8 = _mm256_min_epi32(low_i32x8, high_i32x8);
+    __m128i low_i32x4 = _mm256_castsi256_si128(min_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(min_i32x8, 1);
+    __m128i min_i32x4 = _mm_min_epi32(low_i32x4, high_i32x4);
     min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return _mm_cvtsi128_si32(min_i32x4);
@@ -413,12 +413,12 @@ NK_INTERNAL nk_i32_t nk_reduce_min_i32x16_skylake_(__m512i min_i32x16) {
 
 /** @brief Horizontal max of 16 signed i32s in a ZMM register. */
 NK_INTERNAL nk_i32_t nk_reduce_max_i32x16_skylake_(__m512i max_i32x16) {
-    __m256i lo_i32x8 = _mm512_castsi512_si256(max_i32x16);
-    __m256i hi_i32x8 = _mm512_extracti64x4_epi64(max_i32x16, 1);
-    __m256i max_i32x8 = _mm256_max_epi32(lo_i32x8, hi_i32x8);
-    __m128i lo_i32x4 = _mm256_castsi256_si128(max_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(max_i32x8, 1);
-    __m128i max_i32x4 = _mm_max_epi32(lo_i32x4, hi_i32x4);
+    __m256i low_i32x8 = _mm512_castsi512_si256(max_i32x16);
+    __m256i high_i32x8 = _mm512_extracti64x4_epi64(max_i32x16, 1);
+    __m256i max_i32x8 = _mm256_max_epi32(low_i32x8, high_i32x8);
+    __m128i low_i32x4 = _mm256_castsi256_si128(max_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(max_i32x8, 1);
+    __m128i max_i32x4 = _mm_max_epi32(low_i32x4, high_i32x4);
     max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return _mm_cvtsi128_si32(max_i32x4);
@@ -426,12 +426,12 @@ NK_INTERNAL nk_i32_t nk_reduce_max_i32x16_skylake_(__m512i max_i32x16) {
 
 /** @brief Horizontal min of 16 unsigned u32s in a ZMM register. */
 NK_INTERNAL nk_u32_t nk_reduce_min_u32x16_skylake_(__m512i min_u32x16) {
-    __m256i lo_u32x8 = _mm512_castsi512_si256(min_u32x16);
-    __m256i hi_u32x8 = _mm512_extracti64x4_epi64(min_u32x16, 1);
-    __m256i min_u32x8 = _mm256_min_epu32(lo_u32x8, hi_u32x8);
-    __m128i lo_u32x4 = _mm256_castsi256_si128(min_u32x8);
-    __m128i hi_u32x4 = _mm256_extracti128_si256(min_u32x8, 1);
-    __m128i min_u32x4 = _mm_min_epu32(lo_u32x4, hi_u32x4);
+    __m256i low_u32x8 = _mm512_castsi512_si256(min_u32x16);
+    __m256i high_u32x8 = _mm512_extracti64x4_epi64(min_u32x16, 1);
+    __m256i min_u32x8 = _mm256_min_epu32(low_u32x8, high_u32x8);
+    __m128i low_u32x4 = _mm256_castsi256_si128(min_u32x8);
+    __m128i high_u32x4 = _mm256_extracti128_si256(min_u32x8, 1);
+    __m128i min_u32x4 = _mm_min_epu32(low_u32x4, high_u32x4);
     min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return (nk_u32_t)_mm_cvtsi128_si32(min_u32x4);
@@ -439,12 +439,12 @@ NK_INTERNAL nk_u32_t nk_reduce_min_u32x16_skylake_(__m512i min_u32x16) {
 
 /** @brief Horizontal max of 16 unsigned u32s in a ZMM register. */
 NK_INTERNAL nk_u32_t nk_reduce_max_u32x16_skylake_(__m512i max_u32x16) {
-    __m256i lo_u32x8 = _mm512_castsi512_si256(max_u32x16);
-    __m256i hi_u32x8 = _mm512_extracti64x4_epi64(max_u32x16, 1);
-    __m256i max_u32x8 = _mm256_max_epu32(lo_u32x8, hi_u32x8);
-    __m128i lo_u32x4 = _mm256_castsi256_si128(max_u32x8);
-    __m128i hi_u32x4 = _mm256_extracti128_si256(max_u32x8, 1);
-    __m128i max_u32x4 = _mm_max_epu32(lo_u32x4, hi_u32x4);
+    __m256i low_u32x8 = _mm512_castsi512_si256(max_u32x16);
+    __m256i high_u32x8 = _mm512_extracti64x4_epi64(max_u32x16, 1);
+    __m256i max_u32x8 = _mm256_max_epu32(low_u32x8, high_u32x8);
+    __m128i low_u32x4 = _mm256_castsi256_si128(max_u32x8);
+    __m128i high_u32x4 = _mm256_extracti128_si256(max_u32x8, 1);
+    __m128i max_u32x4 = _mm_max_epu32(low_u32x4, high_u32x4);
     max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
     max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
     return (nk_u32_t)_mm_cvtsi128_si32(max_u32x4);
@@ -452,67 +452,67 @@ NK_INTERNAL nk_u32_t nk_reduce_max_u32x16_skylake_(__m512i max_u32x16) {
 
 /** @brief Horizontal min of 8 signed i64s in a ZMM register. */
 NK_INTERNAL nk_i64_t nk_reduce_min_i64x8_skylake_(__m512i min_i64x8) {
-    __m256i lo_i64x4 = _mm512_castsi512_si256(min_i64x8);
-    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(min_i64x8, 1);
-    __m256i min_i64x4 = _mm256_min_epi64(lo_i64x4, hi_i64x4);
-    __m128i lo_i64x2 = _mm256_castsi256_si128(min_i64x4);
-    __m128i hi_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
-    __m128i min_i64x2 = _mm_min_epi64(lo_i64x2, hi_i64x2);
-    __m128i hi_lane_i64 = _mm_unpackhi_epi64(min_i64x2, min_i64x2);
-    __m128i final_i64 = _mm_min_epi64(min_i64x2, hi_lane_i64);
-    return _mm_cvtsi128_si64(final_i64);
+    __m256i low_i64x4 = _mm512_castsi512_si256(min_i64x8);
+    __m256i high_i64x4 = _mm512_extracti64x4_epi64(min_i64x8, 1);
+    __m256i min_i64x4 = _mm256_min_epi64(low_i64x4, high_i64x4);
+    __m128i low_i64x2 = _mm256_castsi256_si128(min_i64x4);
+    __m128i high_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
+    __m128i min_i64x2 = _mm_min_epi64(low_i64x2, high_i64x2);
+    __m128i high_lane_i64x2 = _mm_unpackhi_epi64(min_i64x2, min_i64x2);
+    __m128i final_i64x2 = _mm_min_epi64(min_i64x2, high_lane_i64x2);
+    return _mm_cvtsi128_si64(final_i64x2);
 }
 
 /** @brief Horizontal max of 8 signed i64s in a ZMM register. */
 NK_INTERNAL nk_i64_t nk_reduce_max_i64x8_skylake_(__m512i max_i64x8) {
-    __m256i lo_i64x4 = _mm512_castsi512_si256(max_i64x8);
-    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(max_i64x8, 1);
-    __m256i max_i64x4 = _mm256_max_epi64(lo_i64x4, hi_i64x4);
-    __m128i lo_i64x2 = _mm256_castsi256_si128(max_i64x4);
-    __m128i hi_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
-    __m128i max_i64x2 = _mm_max_epi64(lo_i64x2, hi_i64x2);
-    __m128i hi_lane_i64 = _mm_unpackhi_epi64(max_i64x2, max_i64x2);
-    __m128i final_i64 = _mm_max_epi64(max_i64x2, hi_lane_i64);
-    return _mm_cvtsi128_si64(final_i64);
+    __m256i low_i64x4 = _mm512_castsi512_si256(max_i64x8);
+    __m256i high_i64x4 = _mm512_extracti64x4_epi64(max_i64x8, 1);
+    __m256i max_i64x4 = _mm256_max_epi64(low_i64x4, high_i64x4);
+    __m128i low_i64x2 = _mm256_castsi256_si128(max_i64x4);
+    __m128i high_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
+    __m128i max_i64x2 = _mm_max_epi64(low_i64x2, high_i64x2);
+    __m128i high_lane_i64x2 = _mm_unpackhi_epi64(max_i64x2, max_i64x2);
+    __m128i final_i64x2 = _mm_max_epi64(max_i64x2, high_lane_i64x2);
+    return _mm_cvtsi128_si64(final_i64x2);
 }
 
 /** @brief Horizontal min of 8 unsigned u64s in a ZMM register. */
 NK_INTERNAL nk_u64_t nk_reduce_min_u64x8_skylake_(__m512i min_u64x8) {
-    __m256i lo_u64x4 = _mm512_castsi512_si256(min_u64x8);
-    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(min_u64x8, 1);
-    __m256i min_u64x4 = _mm256_min_epu64(lo_u64x4, hi_u64x4);
-    __m128i lo_u64x2 = _mm256_castsi256_si128(min_u64x4);
-    __m128i hi_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
-    __m128i min_u64x2 = _mm_min_epu64(lo_u64x2, hi_u64x2);
-    __m128i hi_lane_u64 = _mm_unpackhi_epi64(min_u64x2, min_u64x2);
-    __m128i final_u64 = _mm_min_epu64(min_u64x2, hi_lane_u64);
-    return (nk_u64_t)_mm_cvtsi128_si64(final_u64);
+    __m256i low_u64x4 = _mm512_castsi512_si256(min_u64x8);
+    __m256i high_u64x4 = _mm512_extracti64x4_epi64(min_u64x8, 1);
+    __m256i min_u64x4 = _mm256_min_epu64(low_u64x4, high_u64x4);
+    __m128i low_u64x2 = _mm256_castsi256_si128(min_u64x4);
+    __m128i high_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
+    __m128i min_u64x2 = _mm_min_epu64(low_u64x2, high_u64x2);
+    __m128i high_lane_u64x2 = _mm_unpackhi_epi64(min_u64x2, min_u64x2);
+    __m128i final_u64x2 = _mm_min_epu64(min_u64x2, high_lane_u64x2);
+    return (nk_u64_t)_mm_cvtsi128_si64(final_u64x2);
 }
 
 /** @brief Horizontal max of 8 unsigned u64s in a ZMM register. */
 NK_INTERNAL nk_u64_t nk_reduce_max_u64x8_skylake_(__m512i max_u64x8) {
-    __m256i lo_u64x4 = _mm512_castsi512_si256(max_u64x8);
-    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(max_u64x8, 1);
-    __m256i max_u64x4 = _mm256_max_epu64(lo_u64x4, hi_u64x4);
-    __m128i lo_u64x2 = _mm256_castsi256_si128(max_u64x4);
-    __m128i hi_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
-    __m128i max_u64x2 = _mm_max_epu64(lo_u64x2, hi_u64x2);
-    __m128i hi_lane_u64 = _mm_unpackhi_epi64(max_u64x2, max_u64x2);
-    __m128i final_u64 = _mm_max_epu64(max_u64x2, hi_lane_u64);
-    return (nk_u64_t)_mm_cvtsi128_si64(final_u64);
+    __m256i low_u64x4 = _mm512_castsi512_si256(max_u64x8);
+    __m256i high_u64x4 = _mm512_extracti64x4_epi64(max_u64x8, 1);
+    __m256i max_u64x4 = _mm256_max_epu64(low_u64x4, high_u64x4);
+    __m128i low_u64x2 = _mm256_castsi256_si128(max_u64x4);
+    __m128i high_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
+    __m128i max_u64x2 = _mm_max_epu64(low_u64x2, high_u64x2);
+    __m128i high_lane_u64x2 = _mm_unpackhi_epi64(max_u64x2, max_u64x2);
+    __m128i final_u64x2 = _mm_max_epu64(max_u64x2, high_lane_u64x2);
+    return (nk_u64_t)_mm_cvtsi128_si64(final_u64x2);
 }
 
 /** @brief Horizontal sum of 8 unsigned u64s in a ZMM register. */
 NK_INTERNAL nk_u64_t nk_reduce_add_u64x8_skylake_(__m512i sum_u64x8) {
-    __m256i lo_u64x4 = _mm512_castsi512_si256(sum_u64x8);
-    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(sum_u64x8, 1);
-    __m256i sum_u64x4 = _mm256_add_epi64(lo_u64x4, hi_u64x4);
-    __m128i lo_u64x2 = _mm256_castsi256_si128(sum_u64x4);
-    __m128i hi_u64x2 = _mm256_extracti128_si256(sum_u64x4, 1);
-    __m128i sum_u64x2 = _mm_add_epi64(lo_u64x2, hi_u64x2);
-    __m128i hi_lane_u64 = _mm_unpackhi_epi64(sum_u64x2, sum_u64x2);
-    __m128i final_u64 = _mm_add_epi64(sum_u64x2, hi_lane_u64);
-    return (nk_u64_t)_mm_cvtsi128_si64(final_u64);
+    __m256i low_u64x4 = _mm512_castsi512_si256(sum_u64x8);
+    __m256i high_u64x4 = _mm512_extracti64x4_epi64(sum_u64x8, 1);
+    __m256i sum_u64x4 = _mm256_add_epi64(low_u64x4, high_u64x4);
+    __m128i low_u64x2 = _mm256_castsi256_si128(sum_u64x4);
+    __m128i high_u64x2 = _mm256_extracti128_si256(sum_u64x4, 1);
+    __m128i sum_u64x2 = _mm_add_epi64(low_u64x2, high_u64x2);
+    __m128i high_lane_u64x2 = _mm_unpackhi_epi64(sum_u64x2, sum_u64x2);
+    __m128i final_u64x2 = _mm_add_epi64(sum_u64x2, high_lane_u64x2);
+    return (nk_u64_t)_mm_cvtsi128_si64(final_u64x2);
 }
 
 NK_INTERNAL __m512i nk_fp8x64_to_u8x64_comparable_skylake_(__m512i raw_i8x64) {
@@ -1514,7 +1514,7 @@ NK_INTERNAL void nk_reduce_moments_u16_skylake_contiguous_( //
     nk_u64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
     // Widen u16→u32, square in u32, widen to u64. Avoids bias trick whose
     // VPMADDWD pair-of-squares overflows i32 when both lanes map to -32768.
-    __m512i zero = _mm512_setzero_si512();
+    __m512i zero_u32x16 = _mm512_setzero_si512();
     __m512i sum_u32x16 = _mm512_setzero_si512();
     __m512i sumsq_u64x8 = _mm512_setzero_si512();
     nk_size_t idx = 0;
@@ -1522,20 +1522,20 @@ NK_INTERNAL void nk_reduce_moments_u16_skylake_contiguous_( //
         __m512i data_u32x16 = _mm512_cvtepu16_epi32(_mm256_loadu_si256((__m256i const *)(data_ptr + idx)));
         sum_u32x16 = _mm512_add_epi32(sum_u32x16, data_u32x16);
         __m512i sq_u32x16 = _mm512_mullo_epi32(data_u32x16, data_u32x16);
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(sq_u32x16, zero));
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(sq_u32x16, zero));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(sq_u32x16, zero_u32x16));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(sq_u32x16, zero_u32x16));
     }
     if (idx < count) {
         __mmask16 tail_mask = (__mmask16)((1u << (count - idx)) - 1);
         __m512i data_u32x16 = _mm512_cvtepu16_epi32(_mm256_maskz_loadu_epi16(tail_mask, data_ptr + idx));
         sum_u32x16 = _mm512_add_epi32(sum_u32x16, data_u32x16);
         __m512i sq_u32x16 = _mm512_mullo_epi32(data_u32x16, data_u32x16);
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(sq_u32x16, zero));
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(sq_u32x16, zero));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(sq_u32x16, zero_u32x16));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(sq_u32x16, zero_u32x16));
     }
-    __m512i sum_u64x8 = _mm512_add_epi64(         //
-        _mm512_unpacklo_epi32(sum_u32x16, zero),  //
-        _mm512_unpackhi_epi32(sum_u32x16, zero)); //
+    __m512i sum_u64x8 = _mm512_add_epi64(                //
+        _mm512_unpacklo_epi32(sum_u32x16, zero_u32x16),  //
+        _mm512_unpackhi_epi32(sum_u32x16, zero_u32x16)); //
     *sum_ptr = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sum_u64x8);
     *sumsq_ptr = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_u64x8);
 }
@@ -1544,7 +1544,7 @@ NK_INTERNAL void nk_reduce_moments_u16_skylake_strided_(                  //
     nk_u16_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
     __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_(stride_elements);
-    __m512i zero = _mm512_setzero_si512();
+    __m512i zero_u32x16 = _mm512_setzero_si512();
     __m512i sum_u64x8 = _mm512_setzero_si512();
     __m512i sumsq_u64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -1552,18 +1552,18 @@ NK_INTERNAL void nk_reduce_moments_u16_skylake_strided_(                  //
     nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m32) * stride_elements;
     for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data_ptr + idx_scalars);
-        __m512i low_u32x16 = _mm512_unpacklo_epi16(data_u16x32, zero);
-        __m512i high_u32x16 = _mm512_unpackhi_epi16(data_u16x32, zero);
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpacklo_epi32(low_u32x16, zero));
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpackhi_epi32(low_u32x16, zero));
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpacklo_epi32(high_u32x16, zero));
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpackhi_epi32(high_u32x16, zero));
-        __m512i low_sq = _mm512_mullo_epi32(low_u32x16, low_u32x16);
-        __m512i high_sq = _mm512_mullo_epi32(high_u32x16, high_u32x16);
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(low_sq, zero));
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(low_sq, zero));
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(high_sq, zero));
-        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(high_sq, zero));
+        __m512i low_u32x16 = _mm512_unpacklo_epi16(data_u16x32, zero_u32x16);
+        __m512i high_u32x16 = _mm512_unpackhi_epi16(data_u16x32, zero_u32x16);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpacklo_epi32(low_u32x16, zero_u32x16));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpackhi_epi32(low_u32x16, zero_u32x16));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpacklo_epi32(high_u32x16, zero_u32x16));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_unpackhi_epi32(high_u32x16, zero_u32x16));
+        __m512i low_sq_u32x16 = _mm512_mullo_epi32(low_u32x16, low_u32x16);
+        __m512i high_sq_u32x16 = _mm512_mullo_epi32(high_u32x16, high_u32x16);
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(low_sq_u32x16, zero_u32x16));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(low_sq_u32x16, zero_u32x16));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpacklo_epi32(high_sq_u32x16, zero_u32x16));
+        sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_unpackhi_epi32(high_sq_u32x16, zero_u32x16));
     }
     nk_u64_t sum = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sum_u64x8);
     nk_u64_t sumsq = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_u64x8);
@@ -1699,24 +1699,24 @@ NK_PUBLIC void nk_reduce_minmax_u16_skylake(                           //
 
 /** @brief Unsigned saturating add of two i64x8 vectors (3 uops). */
 NK_INTERNAL __m512i nk_u64_sadd_epi64_skylake_(__m512i a, __m512i b) {
-    __m512i result = _mm512_add_epi64(a, b);
-    __mmask8 ovf = _mm512_cmp_epu64_mask(result, a, _MM_CMPINT_LT);
-    return _mm512_mask_mov_epi64(result, ovf, _mm512_set1_epi64((nk_i64_t)-1));
+    __m512i result_u64x8 = _mm512_add_epi64(a, b);
+    __mmask8 ovf = _mm512_cmp_epu64_mask(result_u64x8, a, _MM_CMPINT_LT);
+    return _mm512_mask_mov_epi64(result_u64x8, ovf, _mm512_set1_epi64((nk_i64_t)-1));
 }
 
 /** @brief Saturating i64 square: clamp when |val| > floor(sqrt(INT64_MAX)). */
 NK_INTERNAL __m512i nk_i64_smul_sq_epi64_skylake_(__m512i val) {
-    __m512i sq = _mm512_mullo_epi64(val, val);
-    __m512i abs_val = _mm512_abs_epi64(val);
-    __mmask8 ovf = _mm512_cmp_epu64_mask(abs_val, _mm512_set1_epi64(3037000499ll), _MM_CMPINT_NLE);
-    return _mm512_mask_mov_epi64(sq, ovf, _mm512_set1_epi64(9223372036854775807ll));
+    __m512i sq_i64x8 = _mm512_mullo_epi64(val, val);
+    __m512i abs_val_u64x8 = _mm512_abs_epi64(val);
+    __mmask8 ovf = _mm512_cmp_epu64_mask(abs_val_u64x8, _mm512_set1_epi64(3037000499ll), _MM_CMPINT_NLE);
+    return _mm512_mask_mov_epi64(sq_i64x8, ovf, _mm512_set1_epi64(9223372036854775807ll));
 }
 
 /** @brief Saturating u64 square: clamp when val > floor(sqrt(UINT64_MAX)). */
 NK_INTERNAL __m512i nk_u64_smul_sq_epi64_skylake_(__m512i val) {
-    __m512i sq = _mm512_mullo_epi64(val, val);
+    __m512i sq_u64x8 = _mm512_mullo_epi64(val, val);
     __mmask8 ovf = _mm512_cmp_epu64_mask(val, _mm512_set1_epi64(4294967295ll), _MM_CMPINT_NLE);
-    return _mm512_mask_mov_epi64(sq, ovf, _mm512_set1_epi64((nk_i64_t)-1));
+    return _mm512_mask_mov_epi64(sq_u64x8, ovf, _mm512_set1_epi64((nk_i64_t)-1));
 }
 
 /** @brief Saturating horizontal sum of 8 unsigned u64 lanes.
@@ -1738,8 +1738,8 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
     // Sum: 128-bit accumulation (lower + upper) — no block cap needed.
     // Sumsq: unsigned wrapping accumulation with carry-based overflow detection.
-    __m512i sum_lower_i64x8 = _mm512_setzero_si512();
-    __m512i sum_upper_i64x8 = _mm512_setzero_si512();
+    __m512i sum_low_i64x8 = _mm512_setzero_si512();
+    __m512i sum_high_i64x8 = _mm512_setzero_si512();
     __m512i sumsq_u64x8 = _mm512_setzero_si512();
     __mmask8 sumsq_overflow_mask = 0;
     __m512i one_i64x8 = _mm512_set1_epi64(1);
@@ -1750,18 +1750,18 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
         __m256i high_i32x8 = _mm512_extracti64x4_epi64(data_i32x16, 1);
         // 128-bit sum: lower half
         __m512i widened_low_i64x8 = _mm512_cvtepi32_epi64(low_i32x8);
-        __m512i sum_before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, widened_low_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(widened_low_i64x8, 63));
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i sum_before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, widened_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(widened_low_i64x8, 63));
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
         // 128-bit sum: upper half
         __m512i widened_high_i64x8 = _mm512_cvtepi32_epi64(high_i32x8);
-        sum_before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, widened_high_i64x8);
-        carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(widened_high_i64x8, 63));
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        sum_before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, widened_high_i64x8);
+        carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(widened_high_i64x8, 63));
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
         // Sumsq: unsigned accumulation with carry detection
         __m512i even_sq_u64x8 = _mm512_mul_epi32(data_i32x16, data_i32x16);
         __m512i odd_i32x16 = _mm512_srli_epi64(data_i32x16, 32);
@@ -1778,18 +1778,18 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
         __m256i low_i32x8 = _mm512_castsi512_si256(data_i32x16);
         __m256i high_i32x8 = _mm512_extracti64x4_epi64(data_i32x16, 1);
         __m512i widened_low_i64x8 = _mm512_cvtepi32_epi64(low_i32x8);
-        __m512i sum_before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, widened_low_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(widened_low_i64x8, 63));
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i sum_before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, widened_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(widened_low_i64x8, 63));
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
         if (remaining > 8) {
             __m512i widened_high_i64x8 = _mm512_cvtepi32_epi64(high_i32x8);
-            sum_before_i64x8 = sum_lower_i64x8;
-            sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, widened_high_i64x8);
-            carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-            sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(widened_high_i64x8, 63));
-            sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+            sum_before_i64x8 = sum_low_i64x8;
+            sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, widened_high_i64x8);
+            carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+            sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(widened_high_i64x8, 63));
+            sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
         }
         __m512i even_sq_u64x8 = _mm512_mul_epi32(data_i32x16, data_i32x16);
         __m512i odd_i32x16 = _mm512_srli_epi64(data_i32x16, 32);
@@ -1805,36 +1805,36 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
     else sumsq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
     // Sum: horizontal 128-bit tree reduction, same as i64 skylake
     { // 8→4
-        __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
-        __m512i fold_upper_i64x8 = _mm512_shuffle_i64x2(sum_upper_i64x8, sum_upper_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_shuffle_i64x2(sum_low_i64x8, sum_low_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
+        __m512i fold_high_i64x8 = _mm512_shuffle_i64x2(sum_high_i64x8, sum_high_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     { // 4→2
-        __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
-        __m512i fold_upper_i64x8 = _mm512_shuffle_i64x2(sum_upper_i64x8, sum_upper_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_shuffle_i64x2(sum_low_i64x8, sum_low_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
+        __m512i fold_high_i64x8 = _mm512_shuffle_i64x2(sum_high_i64x8, sum_high_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     { // 2→1
-        __m512i fold_lower_i64x8 = _mm512_alignr_epi64(sum_lower_i64x8, sum_lower_i64x8, 1);
-        __m512i fold_upper_i64x8 = _mm512_alignr_epi64(sum_upper_i64x8, sum_upper_i64x8, 1);
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_alignr_epi64(sum_low_i64x8, sum_low_i64x8, 1);
+        __m512i fold_high_i64x8 = _mm512_alignr_epi64(sum_high_i64x8, sum_high_i64x8, 1);
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
-    nk_i64_t sum_lower = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_lower_i64x8));
-    nk_i64_t sum_upper = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_upper_i64x8));
-    if (sum_upper == (sum_lower >> 63)) *sum_ptr = sum_lower;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_low_i64x8));
+    nk_i64_t sum_high = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_high_i64x8));
+    if (sum_high == (sum_low >> 63)) *sum_ptr = sum_low;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }
@@ -2119,8 +2119,8 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
     // Sum: double-width 128-bit accumulation per lane.
     // Sumsq: unsigned wrapping accumulation with carry-based overflow detection.
-    __m512i sum_lower_i64x8 = _mm512_setzero_si512();
-    __m512i sum_upper_i64x8 = _mm512_setzero_si512();
+    __m512i sum_low_i64x8 = _mm512_setzero_si512();
+    __m512i sum_high_i64x8 = _mm512_setzero_si512();
     __m512i sumsq_u64x8 = _mm512_setzero_si512();
     __mmask8 sumsq_overflow_mask = 0;
     __m512i one_i64x8 = _mm512_set1_epi64(1);
@@ -2130,11 +2130,11 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
         __m512i squared_i64x8 = nk_i64_smul_sq_epi64_skylake_(data_i64x8);
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, squared_i64x8);
         sumsq_overflow_mask |= _mm512_cmp_epu64_mask(sumsq_u64x8, squared_i64x8, _MM_CMPINT_LT);
-        __m512i sum_before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, data_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(data_i64x8, 63));
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i sum_before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, data_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(data_i64x8, 63));
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
@@ -2143,11 +2143,11 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
         __m512i squared_i64x8 = nk_i64_smul_sq_epi64_skylake_(data_i64x8);
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, squared_i64x8);
         sumsq_overflow_mask |= _mm512_cmp_epu64_mask(sumsq_u64x8, squared_i64x8, _MM_CMPINT_LT);
-        __m512i sum_before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, data_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, _mm512_srai_epi64(data_i64x8, 63));
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i sum_before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, data_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, sum_before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, _mm512_srai_epi64(data_i64x8, 63));
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     // Sumsq: horizontal unsigned saturating reduction
     nk_u64_t sumsq;
@@ -2155,37 +2155,37 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
     else sumsq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
     // Sum: horizontal 128-bit tree reduction (8→4→2→1), then clamp to i64
     { // 8→4: fold high 256 bits into low 256 bits
-        __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
-        __m512i fold_upper_i64x8 = _mm512_shuffle_i64x2(sum_upper_i64x8, sum_upper_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_shuffle_i64x2(sum_low_i64x8, sum_low_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
+        __m512i fold_high_i64x8 = _mm512_shuffle_i64x2(sum_high_i64x8, sum_high_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     { // 4→2: fold lanes 2-3 into lanes 0-1
-        __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
-        __m512i fold_upper_i64x8 = _mm512_shuffle_i64x2(sum_upper_i64x8, sum_upper_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_shuffle_i64x2(sum_low_i64x8, sum_low_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
+        __m512i fold_high_i64x8 = _mm512_shuffle_i64x2(sum_high_i64x8, sum_high_i64x8, _MM_SHUFFLE(2, 3, 0, 1));
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     { // 2→1: fold lane 1 into lane 0
-        __m512i fold_lower_i64x8 = _mm512_alignr_epi64(sum_lower_i64x8, sum_lower_i64x8, 1);
-        __m512i fold_upper_i64x8 = _mm512_alignr_epi64(sum_upper_i64x8, sum_upper_i64x8, 1);
-        __m512i before_i64x8 = sum_lower_i64x8;
-        sum_lower_i64x8 = _mm512_add_epi64(sum_lower_i64x8, fold_lower_i64x8);
-        __mmask8 carry = _mm512_cmp_epu64_mask(sum_lower_i64x8, before_i64x8, _MM_CMPINT_LT);
-        sum_upper_i64x8 = _mm512_add_epi64(sum_upper_i64x8, fold_upper_i64x8);
-        sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
+        __m512i fold_low_i64x8 = _mm512_alignr_epi64(sum_low_i64x8, sum_low_i64x8, 1);
+        __m512i fold_high_i64x8 = _mm512_alignr_epi64(sum_high_i64x8, sum_high_i64x8, 1);
+        __m512i before_i64x8 = sum_low_i64x8;
+        sum_low_i64x8 = _mm512_add_epi64(sum_low_i64x8, fold_low_i64x8);
+        __mmask8 carry = _mm512_cmp_epu64_mask(sum_low_i64x8, before_i64x8, _MM_CMPINT_LT);
+        sum_high_i64x8 = _mm512_add_epi64(sum_high_i64x8, fold_high_i64x8);
+        sum_high_i64x8 = _mm512_mask_add_epi64(sum_high_i64x8, carry, sum_high_i64x8, one_i64x8);
     }
     // Clamp 128-bit result to [INT64_MIN, INT64_MAX]: fits iff upper == sign-extension of lower
-    nk_i64_t sum_lower = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_lower_i64x8));
-    nk_i64_t sum_upper = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_upper_i64x8));
-    if (sum_upper == (sum_lower >> 63)) *sum_ptr = sum_lower;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_low_i64x8));
+    nk_i64_t sum_high = _mm_cvtsi128_si64(_mm512_castsi512_si128(sum_high_i64x8));
+    if (sum_high == (sum_low >> 63)) *sum_ptr = sum_low;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }
@@ -2534,16 +2534,16 @@ NK_INTERNAL void nk_reduce_moments_e4m3_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
     for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
-        __m128i data_e4m3x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e4m3x16_to_f32x16_skylake_(data_e4m3x16);
+        __m128i data_e4m3_u8x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e4m3x16_to_f32x16_skylake_(data_e4m3_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
     nk_size_t remaining_bytes = total_scalars - idx_scalars;
     if (remaining_bytes > 0) {
         __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
-        __m128i data_e4m3x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e4m3x16_to_f32x16_skylake_(data_e4m3x16);
+        __m128i data_e4m3_u8x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e4m3x16_to_f32x16_skylake_(data_e4m3_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
@@ -2612,13 +2612,14 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_skylake_contiguous_( //
         __mmask64 is_nan_m64 = _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_setzero_si512()) |
                                _mm512_cmpeq_epi8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFF));
         __mmask64 valid_non_nan_m64 = tail_load & ~is_nan_m64;
-        __m512i data_cmp_min = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF), data_cmp_u8x64);
-        __m512i data_cmp_max = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
-        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min);
+        __m512i data_cmp_min_u8x64 = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF),
+                                                            data_cmp_u8x64);
+        __m512i data_cmp_max_u8x64 = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min_u8x64);
         __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
         min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max);
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max_u8x64);
         __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
         max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
@@ -2739,16 +2740,16 @@ NK_INTERNAL void nk_reduce_moments_e5m2_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
     for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
-        __m128i data_e5m2x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e5m2x16_to_f32x16_skylake_(data_e5m2x16);
+        __m128i data_e5m2_u8x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e5m2x16_to_f32x16_skylake_(data_e5m2_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
     nk_size_t remaining_bytes = total_scalars - idx_scalars;
     if (remaining_bytes > 0) {
         __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
-        __m128i data_e5m2x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e5m2x16_to_f32x16_skylake_(data_e5m2x16);
+        __m128i data_e5m2_u8x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e5m2x16_to_f32x16_skylake_(data_e5m2_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
@@ -2809,16 +2810,16 @@ NK_INTERNAL void nk_reduce_moments_e2m3_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
     for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
-        __m128i data_e2m3x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3x16);
+        __m128i data_e2m3_u8x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
     nk_size_t remaining_bytes = total_scalars - idx_scalars;
     if (remaining_bytes > 0) {
         __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
-        __m128i data_e2m3x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3x16);
+        __m128i data_e2m3_u8x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
@@ -2879,16 +2880,16 @@ NK_INTERNAL void nk_reduce_moments_e3m2_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
     for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
-        __m128i data_e3m2x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2x16);
+        __m128i data_e3m2_u8x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
     nk_size_t remaining_bytes = total_scalars - idx_scalars;
     if (remaining_bytes > 0) {
         __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
-        __m128i data_e3m2x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
-        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2x16);
+        __m128i data_e3m2_u8x16 = _mm_maskz_loadu_epi8(tail_mask, data_ptr + idx_scalars);
+        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2_u8x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
         sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
     }
@@ -2957,13 +2958,14 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
         __mmask64 is_nan_m64 = _mm512_cmple_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8(0x02)) |
                                _mm512_cmpge_epu8_mask(data_cmp_u8x64, _mm512_set1_epi8((char)0xFD));
         __mmask64 valid_non_nan_m64 = tail_load & ~is_nan_m64;
-        __m512i data_cmp_min = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF), data_cmp_u8x64);
-        __m512i data_cmp_max = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
-        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min);
+        __m512i data_cmp_min_u8x64 = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_set1_epi8((char)0xFF),
+                                                            data_cmp_u8x64);
+        __m512i data_cmp_max_u8x64 = _mm512_mask_blend_epi8(valid_non_nan_m64, _mm512_setzero_si512(), data_cmp_u8x64);
+        __m512i new_min_u8x64 = _mm512_min_epu8(min_vec.zmm, data_cmp_min_u8x64);
         __mmask64 min_changed_mask = ~_mm512_cmpeq_epi8_mask(new_min_u8x64, min_vec.zmm);
         min_vec.zmm = new_min_u8x64;
         min_loop_cycle_u8x64 = _mm512_mask_mov_epi8(min_loop_cycle_u8x64, min_changed_mask, current_loop_cycle_u8x64);
-        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max);
+        __m512i new_max_u8x64 = _mm512_max_epu8(max_vec.zmm, data_cmp_max_u8x64);
         __mmask64 max_changed_mask = ~_mm512_cmpeq_epi8_mask(new_max_u8x64, max_vec.zmm);
         max_vec.zmm = new_max_u8x64;
         max_loop_cycle_u8x64 = _mm512_mask_mov_epi8(max_loop_cycle_u8x64, max_changed_mask, current_loop_cycle_u8x64);
@@ -3284,16 +3286,16 @@ NK_INTERNAL void nk_reduce_moments_i4_skylake_contiguous_( //
             ptr += 64, count_bytes -= 64;
         }
         // Extract nibbles as unsigned [0,15]
-        __m512i low_u4x64 = _mm512_and_si512(raw_i8x64, mask_0f_i8x64);
-        __m512i high_u4x64 = _mm512_and_si512(_mm512_srli_epi16(raw_i8x64, 4), mask_0f_i8x64);
+        __m512i low_u4_u8x64 = _mm512_and_si512(raw_i8x64, mask_0f_i8x64);
+        __m512i high_u4_u8x64 = _mm512_and_si512(_mm512_srli_epi16(raw_i8x64, 4), mask_0f_i8x64);
         // Sum: XOR-bias nibbles to unsigned [0,15], add lo+hi per byte, vpsadbw
-        __m512i low_biased_u4x64 = _mm512_xor_si512(low_u4x64, eight_i8x64);
-        __m512i high_biased_u4x64 = _mm512_xor_si512(high_u4x64, eight_i8x64);
-        __m512i pair_sum = _mm512_add_epi8(low_biased_u4x64, high_biased_u4x64);
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(pair_sum, zero_i8x64));
+        __m512i low_biased_u4x64 = _mm512_xor_si512(low_u4_u8x64, eight_i8x64);
+        __m512i high_biased_u4x64 = _mm512_xor_si512(high_u4_u8x64, eight_i8x64);
+        __m512i pair_sum_u8x64 = _mm512_add_epi8(low_biased_u4x64, high_biased_u4x64);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(pair_sum_u8x64, zero_i8x64));
         // Sumsq: squares are sign-independent, use LUT on unsigned nibbles
-        __m512i low_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, low_u4x64);
-        __m512i high_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, high_u4x64);
+        __m512i low_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, low_u4_u8x64);
+        __m512i high_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, high_u4_u8x64);
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_sad_epu8(low_sq_u8x64, zero_i8x64));
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_sad_epu8(high_sq_u8x64, zero_i8x64));
     }
@@ -3342,13 +3344,13 @@ NK_INTERNAL void nk_reduce_moments_u4_skylake_contiguous_( //
             raw_i8x64 = _mm512_loadu_si512(ptr);
             ptr += 64, count_bytes -= 64;
         }
-        __m512i low_u4x64 = _mm512_and_si512(raw_i8x64, mask_0f_i8x64);
-        __m512i high_u4x64 = _mm512_and_si512(_mm512_srli_epi16(raw_i8x64, 4), mask_0f_i8x64);
-        __m512i pair_sum = _mm512_add_epi8(low_u4x64, high_u4x64);
-        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(pair_sum, zero_i8x64));
+        __m512i low_u4_u8x64 = _mm512_and_si512(raw_i8x64, mask_0f_i8x64);
+        __m512i high_u4_u8x64 = _mm512_and_si512(_mm512_srli_epi16(raw_i8x64, 4), mask_0f_i8x64);
+        __m512i pair_sum_u8x64 = _mm512_add_epi8(low_u4_u8x64, high_u4_u8x64);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(pair_sum_u8x64, zero_i8x64));
         // Sumsq: LUT maps nibble→square, vpsadbw accumulates into u64
-        __m512i low_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, low_u4x64);
-        __m512i high_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, high_u4x64);
+        __m512i low_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, low_u4_u8x64);
+        __m512i high_sq_u8x64 = _mm512_shuffle_epi8(sq_lut_u8x64, high_u4_u8x64);
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_sad_epu8(low_sq_u8x64, zero_i8x64));
         sumsq_u64x8 = _mm512_add_epi64(sumsq_u64x8, _mm512_sad_epu8(high_sq_u8x64, zero_i8x64));
     }
@@ -3467,9 +3469,9 @@ NK_PUBLIC void nk_reduce_moments_bf16_skylake(                          //
 }
 
 NK_INTERNAL __m512i nk_bf16x32_to_comparable_i16x32_skylake_(__m512i raw_u16x32) {
-    __m512i sign = _mm512_srai_epi16(raw_u16x32, 15);
-    __m512i flip = _mm512_srli_epi16(sign, 1);
-    return _mm512_xor_si512(raw_u16x32, flip);
+    __m512i sign_i16x32 = _mm512_srai_epi16(raw_u16x32, 15);
+    __m512i flip_i16x32 = _mm512_srli_epi16(sign_i16x32, 1);
+    return _mm512_xor_si512(raw_u16x32, flip_i16x32);
 }
 
 NK_INTERNAL void nk_reduce_minmax_bf16_skylake_contiguous_( //
@@ -3648,9 +3650,9 @@ NK_PUBLIC void nk_reduce_moments_f16_skylake(                          //
 }
 
 NK_INTERNAL __m512i nk_f16x32_to_comparable_i16x32_skylake_(__m512i raw_u16x32) {
-    __m512i sign = _mm512_srai_epi16(raw_u16x32, 15);
-    __m512i flip = _mm512_srli_epi16(sign, 1);
-    return _mm512_xor_si512(raw_u16x32, flip);
+    __m512i sign_i16x32 = _mm512_srai_epi16(raw_u16x32, 15);
+    __m512i flip_i16x32 = _mm512_srli_epi16(sign_i16x32, 1);
+    return _mm512_xor_si512(raw_u16x32, flip_i16x32);
 }
 
 NK_INTERNAL void nk_reduce_minmax_f16_skylake_contiguous_( //

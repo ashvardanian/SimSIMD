@@ -3,7 +3,7 @@
 
 Covers dtypes: float64, float32, float16 (with float32 compute), bfloat16,
     e4m3, e5m2, e2m3, e3m2.
-Parametrized over: ndim from curved_dimensions, metric, capability.
+Parametrized over: rows/columns from test_rows/columns_dimensions, metric, capability.
 
 Precision notes:
     bilinear computes ``x @ z @ y``, mahalanobis computes ``sqrt((x-y) @ z @ (x-y))``.
@@ -20,33 +20,39 @@ Matches C++ suite: test_curved.cpp.
 
 import atexit
 import decimal
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
-    DECIMAL_PRECISION,
     NK_ATOL,
     NK_RTOL,
     LazyFormat,
     assert_allclose,
     collect_errors,
     create_stats,
-    curved_dimensions,
     downcast_f32_to_dtype,
     hex_array,
     keep_one_capability,
     numpy_available,
     possible_capabilities,
     print_stats_report,
+    precise_decimal,
     profile,
-    randomized_repetitions_count,
+    reduced_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
+    test_curved_dimensions,
 )
 
 stats = create_stats()
@@ -89,31 +95,27 @@ def make_positive_semidefinite(data):
 
 
 def precise_bilinear(a, b, c):
-    """High-precision bilinear form x @ z @ y via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
+    """High-precision bilinear form a·C·b via Python Decimal."""
+    with precise_decimal() as d:
+        da = [d.from_float(float(x)) for x in a]
+        db = [d.from_float(float(x)) for x in b]
         n = len(a)
-        total = D(0)
+        total = d(0)
         for i in range(n):
             for j in range(n):
-                total += da[i] * D.from_float(float(c[i, j])) * db[j]
+                total += da[i] * d.from_float(float(c[i, j])) * db[j]
         return float(total)
 
 
 def precise_mahalanobis(a, b, c):
-    """High-precision Mahalanobis distance sqrt((a-b) @ c @ (a-b)) via Python Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = DECIMAL_PRECISION
-        D = decimal.Decimal
-        diff = [D.from_float(float(x)) - D.from_float(float(y)) for x, y in zip(a, b)]
+    """High-precision Mahalanobis distance √((a−b)·C·(a−b)) via Python Decimal."""
+    with precise_decimal() as d:
+        diff = [d.from_float(float(x)) - d.from_float(float(y)) for x, y in zip(a, b)]
         n = len(diff)
-        total = D(0)
+        total = d(0)
         for i in range(n):
             for j in range(n):
-                total += diff[i] * D.from_float(float(c[i, j])) * diff[j]
+                total += diff[i] * d.from_float(float(c[i, j])) * diff[j]
         return float(total.sqrt())
 
 
@@ -124,8 +126,8 @@ KERNELS_CURVED = {
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
-@pytest.mark.parametrize("ndim", curved_dimensions)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("ndim", test_curved_dimensions)
 @pytest.mark.parametrize(
     "dtypes",
     [
@@ -187,8 +189,8 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(randomized_repetitions_count)
-@pytest.mark.parametrize("ndim", curved_dimensions)
+@pytest.mark.repeat(reduced_repetitions_count)
+@pytest.mark.parametrize("ndim", test_curved_dimensions)
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_bilinear_complex_accuracy(ndim, dtype, capability):

@@ -172,8 +172,8 @@ NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_kld_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-    vfloat64m4_t sum_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t sum_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
         vfloat64m4_t a_f64m4 = __riscv_vle64_v_f64m4(a, vector_length);
@@ -192,13 +192,13 @@ NK_PUBLIC void nk_kld_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     // Single horizontal reduction after loop
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     // Convert from log2 to ln by multiplying by ln(2)
-    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m4_f64m1(sum_f64m4, zero_f64m1, vlmax)) *
+    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m4_f64m1(sum_f64m4, zero_f64m1, max_vector_length)) *
               0.6931471805599453;
 }
 
 NK_PUBLIC void nk_kld_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         // Load f16 as raw u16 bits
@@ -220,12 +220,13 @@ NK_PUBLIC void nk_kld_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax)) * 0.693147181f;
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
+              0.693147181f;
 }
 
 NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         // Load bf16 as raw u16 bits
@@ -247,7 +248,8 @@ NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax)) * 0.693147181f;
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
+              0.693147181f;
 }
 
 #pragma endregion - Kullback - Leibler Divergence
@@ -288,9 +290,9 @@ NK_PUBLIC void nk_jsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_jsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-    vfloat64m4_t sum_a_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-    vfloat64m4_t sum_b_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    vfloat64m4_t sum_a_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+    vfloat64m4_t sum_b_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
         vfloat64m4_t va = __riscv_vle64_v_f64m4(a, vector_length);
@@ -315,14 +317,15 @@ NK_PUBLIC void nk_jsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     // JSD = sqrt((sum_a + sum_b) * ln(2) / 2)
     nk_f64_t sum = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m4_f64m1(
-                       __riscv_vfadd_vv_f64m4(sum_a_f64m4, sum_b_f64m4, vlmax), zero_f64m1, vlmax)) *
+                       __riscv_vfadd_vv_f64m4(sum_a_f64m4, sum_b_f64m4, max_vector_length), zero_f64m1,
+                       max_vector_length)) *
                    0.6931471805599453 / 2;
     *result = sum > 0 ? nk_f64_sqrt_rvv(sum) : 0;
 }
 
 NK_PUBLIC void nk_jsd_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         // Load f16 as raw u16 bits
@@ -351,14 +354,15 @@ NK_PUBLIC void nk_jsd_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax)) *
+    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(
+                       __riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
                    0.693147181f / 2;
     *result = sum > 0 ? nk_f32_sqrt_rvv(sum) : 0;
 }
 
 NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(n);
         // Load bf16 as raw u16 bits
@@ -387,7 +391,8 @@ NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax)) *
+    nk_f32_t sum = __riscv_vfmv_f_s_f32m1_f32(
+                       __riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length)) *
                    0.693147181f / 2;
     *result = sum > 0 ? nk_f32_sqrt_rvv(sum) : 0;
 }

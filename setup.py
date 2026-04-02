@@ -415,7 +415,7 @@ setup(
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/NumKong",
-    description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
+    description="Portable mixed-precision math, linear-algebra, & retrieval library with 2000+ SIMD kernels for x86, Arm, RISC-V, LoongArch, Power, & WebAssembly",
     long_description=(
         Path("python/README.md").read_text(encoding="utf8") + "\n\n" + Path("README.md").read_text(encoding="utf8")
     ),

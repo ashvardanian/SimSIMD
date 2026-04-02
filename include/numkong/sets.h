@@ -73,17 +73,17 @@ NK_DYNAMIC void nk_hammings_packed_u1(nk_u1x8_t const *v, void const *q_packed, 
 /**
  *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Hamming distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
- *  @param[in] n_vectors Number of vectors (rows) in the input matrix.
+ *  @param[in] vectors_count Number of vectors (rows) in the input matrix.
  *  @param[in] d Dimension of each vector (columns).
  *  @param[in] stride Row stride in bytes for the input matrix.
- *  @param[out] result Output symmetric matrix (n_vectors × n_vectors).
+ *  @param[out] result Output symmetric matrix (vectors_count × vectors_count).
  *  @param[in] result_stride Row stride in bytes for the result matrix.
  *  @param[in] row_start Starting row offset of results to compute (needed for parallelism).
  *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
  */
-NK_DYNAMIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                         nk_size_t row_count);
+NK_DYNAMIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
+                                         nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                         nk_size_t row_start, nk_size_t row_count);
 
 /**
  *  @brief Compute Jaccard distances between V rows and packed Q rows.
@@ -103,24 +103,24 @@ NK_DYNAMIC void nk_jaccards_packed_u1(nk_u1x8_t const *v, void const *q_packed, 
 /**
  *  @brief Computes C = f(A, Aᵀ) symmetric Gram matrix of Jaccard distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
- *  @param[in] n_vectors Number of vectors (rows).
+ *  @param[in] vectors_count Number of vectors (rows).
  *  @param[in] d Dimension of each vector (columns).
  *  @param[in] stride Row stride in bytes.
- *  @param[out] result Output symmetric f32 matrix (n_vectors × n_vectors).
+ *  @param[out] result Output symmetric f32 matrix (vectors_count × vectors_count).
  *  @param[in] result_stride Row stride in bytes for the result matrix.
  *  @param[in] row_start Starting row offset (for parallelism).
  *  @param[in] row_count Number of rows to compute (for parallelism).
  */
-NK_DYNAMIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                         nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                         nk_size_t row_count);
+NK_DYNAMIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
+                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                         nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_hammings_packed_u1 */
 NK_PUBLIC void nk_hammings_packed_u1_serial(nk_u1x8_t const *v, void const *q_packed, nk_u32_t *result, nk_size_t rows,
                                             nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                             nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_serial(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_serial(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -128,7 +128,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_serial(nk_u1x8_t const *v, void const *q_pa
                                             nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                             nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_serial(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_serial(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                nk_size_t row_start, nk_size_t row_count);
 
@@ -141,7 +141,7 @@ NK_PUBLIC void nk_hammings_packed_u1_smebi32(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -149,7 +149,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_smebi32(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SMEBI32
@@ -163,7 +163,7 @@ NK_PUBLIC void nk_hammings_packed_u1_haswell(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_haswell(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_haswell(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -171,7 +171,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_haswell(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_haswell(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_haswell(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_HASWELL
@@ -185,7 +185,7 @@ NK_PUBLIC void nk_hammings_packed_u1_icelake(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -193,7 +193,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_icelake(nk_u1x8_t const *v, void const *q_p
                                              nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                              nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_ICELAKE
@@ -207,7 +207,7 @@ NK_PUBLIC void nk_hammings_packed_u1_neon(nk_u1x8_t const *v, void const *q_pack
                                           nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                           nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                              nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                              nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -215,7 +215,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_neon(nk_u1x8_t const *v, void const *q_pack
                                           nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                           nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                              nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_NEON
@@ -228,7 +228,7 @@ NK_PUBLIC void nk_hammings_packed_u1_v128relaxed(nk_u1x8_t const *v, void const 
                                                  nk_size_t rows, nk_size_t cols, nk_size_t d,
                                                  nk_size_t v_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_v128relaxed(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_v128relaxed(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                     nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                     nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -236,7 +236,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_v128relaxed(nk_u1x8_t const *v, void const 
                                                  nk_size_t rows, nk_size_t cols, nk_size_t d,
                                                  nk_size_t v_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_v128relaxed(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_v128relaxed(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                     nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                     nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_V128RELAXED
@@ -249,7 +249,7 @@ NK_PUBLIC void nk_hammings_packed_u1_loongsonasx(nk_u1x8_t const *v, void const 
                                                  nk_size_t rows, nk_size_t cols, nk_size_t d,
                                                  nk_size_t v_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_symmetric_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u1_loongsonasx(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_hammings_symmetric_u1_loongsonasx(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                     nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                                     nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_jaccards_packed_u1 */
@@ -257,7 +257,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_loongsonasx(nk_u1x8_t const *v, void const 
                                                  nk_size_t rows, nk_size_t cols, nk_size_t d,
                                                  nk_size_t v_stride_in_bytes, nk_size_t r_stride_in_bytes);
 /** @copydoc nk_jaccards_symmetric_u1 */
-NK_PUBLIC void nk_jaccards_symmetric_u1_loongsonasx(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d,
+NK_PUBLIC void nk_jaccards_symmetric_u1_loongsonasx(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
                                                     nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                     nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_LOONGSONASX
@@ -303,25 +303,27 @@ NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *v, void const *q_packed, n
 #endif
 }
 
-NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
+NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
+                                        nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                        nk_size_t row_start, nk_size_t row_count) {
 #if NK_TARGET_SMEBI32
-    nk_hammings_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_smebi32(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEON
-    nk_hammings_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_neon(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
-    nk_hammings_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_icelake(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
-    nk_hammings_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_haswell(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_POWERVSX
-    nk_hammings_symmetric_u1_powervsx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_powervsx(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_LOONGSONASX
-    nk_hammings_symmetric_u1_loongsonasx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_loongsonasx(vectors, vectors_count, d, stride, result, result_stride, row_start,
+                                         row_count);
 #elif NK_TARGET_V128RELAXED
-    nk_hammings_symmetric_u1_v128relaxed(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_v128relaxed(vectors, vectors_count, d, stride, result, result_stride, row_start,
+                                         row_count);
 #else
-    nk_hammings_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_hammings_symmetric_u1_serial(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #endif
 }
 
@@ -347,25 +349,27 @@ NK_PUBLIC void nk_jaccards_packed_u1(nk_u1x8_t const *v, void const *q_packed, n
 #endif
 }
 
-NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
+NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t d,
+                                        nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                        nk_size_t row_start, nk_size_t row_count) {
 #if NK_TARGET_SMEBI32
-    nk_jaccards_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_smebi32(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEON
-    nk_jaccards_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_neon(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
-    nk_jaccards_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_icelake(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
-    nk_jaccards_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_haswell(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_POWERVSX
-    nk_jaccards_symmetric_u1_powervsx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_powervsx(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_LOONGSONASX
-    nk_jaccards_symmetric_u1_loongsonasx(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_loongsonasx(vectors, vectors_count, d, stride, result, result_stride, row_start,
+                                         row_count);
 #elif NK_TARGET_V128RELAXED
-    nk_jaccards_symmetric_u1_v128relaxed(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_v128relaxed(vectors, vectors_count, d, stride, result, result_stride, row_start,
+                                         row_count);
 #else
-    nk_jaccards_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
+    nk_jaccards_symmetric_u1_serial(vectors, vectors_count, d, stride, result, result_stride, row_start, row_count);
 #endif
 }
 

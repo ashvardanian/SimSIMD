@@ -1,8 +1,6 @@
 # NumKong: Mixed Precision for All
 
-NumKong (previously SimSIMD) is a portable mixed-precision math library with over 2000 kernels for x86, Arm, RISC-V, and WASM.
-It covers numeric types from 6-bit floats to 64-bit complex numbers, hardened against in-house 118-bit extended-precision baselines.
-Built alongside the [USearch](https://github.com/unum-cloud/usearch) vector-search engine, it provides wider accumulators to avoid the overflow and precision loss typical of naive same-type arithmetic.
+Portable mixed-precision math, linear-algebra, & retrieval library with 2'000+ SIMD kernels for x86, Arm, RISC-V, LoongArch, Power, & WebAssembly, leveraging rare algebraic transforms with both 1D & 2D registers like AMX & SME, covering 15+ numeric types from 4-bit integers & 6-bit floats to 128-bit complex numbers, validated against 118-bit extended-precision baselines with saturation, casting, & rounding edge-case coverage, in a 5-100x smaller binary than other BLAS-like alternatives, co-designed with Tensor abstractions in C++, Python, Rust, JavaScript, GoLang, & Swift.
 
 ![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong-v7.png?raw=true)
 

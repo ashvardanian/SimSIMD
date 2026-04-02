@@ -91,42 +91,27 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
 #endif
 #if NK_TARGET_NEONHALF
     if (v & nk_cap_neonhalf_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
-        case nk_kernel_angulars_symmetric_k:
-            *m = (m_t)&nk_angulars_symmetric_f16_neonhalf, *c = nk_cap_neonhalf_k;
-            return;
-        case nk_kernel_euclideans_packed_k:
-            *m = (m_t)&nk_euclideans_packed_f16_neonhalf, *c = nk_cap_neonhalf_k;
-            return;
-        case nk_kernel_euclideans_symmetric_k:
-            *m = (m_t)&nk_euclideans_symmetric_f16_neonhalf, *c = nk_cap_neonhalf_k;
-            return;
         default: break;
         }
 #endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f16_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f16_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f16_neon, *c = nk_cap_neon_k; return;
@@ -278,7 +263,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_angulars_symmetric_k:
             *m = (m_t)&nk_angulars_symmetric_f16_powervsx, *c = nk_cap_powervsx_k;
             return;
-        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f16_powervsx, *c = nk_cap_powervsx_k; return;
+        case nk_kernel_euclideans_packed_k:
+            *m = (m_t)&nk_euclideans_packed_f16_powervsx, *c = nk_cap_powervsx_k;
+            return;
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_f16_powervsx, *c = nk_cap_powervsx_k;
             return;
@@ -291,15 +278,23 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
-        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
+        case nk_kernel_dots_symmetric_k:
+            *m = (m_t)&nk_dots_symmetric_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
+        case nk_kernel_angulars_packed_k:
+            *m = (m_t)&nk_angulars_packed_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
         case nk_kernel_angulars_symmetric_k:
             *m = (m_t)&nk_angulars_symmetric_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
             return;
-        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f16_loongsonasx, *c = nk_cap_loongsonasx_k; return;
+        case nk_kernel_euclideans_packed_k:
+            *m = (m_t)&nk_euclideans_packed_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
+            return;
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_f16_loongsonasx, *c = nk_cap_loongsonasx_k;
             return;

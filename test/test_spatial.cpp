@@ -21,19 +21,19 @@ error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kerne
 
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
-         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto a = make_vector<scalar_t>(n), b = make_vector<scalar_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &result.raw_);
 
         reference_t reference;
-        nk::sqeuclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
-                                                              global_config.dense_dimensions, &reference);
+        nk::sqeuclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -53,19 +53,19 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
 
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
-         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto a = make_vector<scalar_t>(n), b = make_vector<scalar_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &result.raw_);
 
         reference_t reference;
-        nk::angular<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
-                                                          global_config.dense_dimensions, &reference);
+        nk::angular<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -85,19 +85,19 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
 
     error_stats_t stats(comparison_family_t::mixed_precision_reduction_k);
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
-         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    std::size_t const dims_per_value = nk::dimensions_per_value<scalar_t>();
+    std::size_t const n = nk::divide_round_up(global_config.dense_dimensions, dims_per_value) * dims_per_value;
+    auto a = make_vector<scalar_t>(n), b = make_vector<scalar_t>(n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &result.raw_);
 
         reference_t reference;
-        nk::euclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(),
-                                                            global_config.dense_dimensions, &reference);
+        nk::euclidean<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -138,6 +138,7 @@ void test_spatial() {
     check("sqeuclidean_f64_neon", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_neon);
     check("sqeuclidean_f32_neon", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
     check("sqeuclidean_bf16_neon", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neon);
+    check("sqeuclidean_f16_neon", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_neon);
     check("sqeuclidean_e5m2_neon", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_neon);
     check("sqeuclidean_e4m3_neon", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_neon);
     check("sqeuclidean_e3m2_neon", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_neon);
@@ -145,6 +146,7 @@ void test_spatial() {
     check("euclidean_f64_neon", test_euclidean<f64_t>, nk_euclidean_f64_neon);
     check("euclidean_f32_neon", test_euclidean<f32_t>, nk_euclidean_f32_neon);
     check("euclidean_bf16_neon", test_euclidean<bf16_t>, nk_euclidean_bf16_neon);
+    check("euclidean_f16_neon", test_euclidean<f16_t>, nk_euclidean_f16_neon);
     check("euclidean_e5m2_neon", test_euclidean<e5m2_t>, nk_euclidean_e5m2_neon);
     check("euclidean_e4m3_neon", test_euclidean<e4m3_t>, nk_euclidean_e4m3_neon);
     check("euclidean_e3m2_neon", test_euclidean<e3m2_t>, nk_euclidean_e3m2_neon);
@@ -152,17 +154,12 @@ void test_spatial() {
     check("angular_f64_neon", test_angular<f64_t>, nk_angular_f64_neon);
     check("angular_f32_neon", test_angular<f32_t>, nk_angular_f32_neon);
     check("angular_bf16_neon", test_angular<bf16_t>, nk_angular_bf16_neon);
+    check("angular_f16_neon", test_angular<f16_t>, nk_angular_f16_neon);
     check("angular_e5m2_neon", test_angular<e5m2_t>, nk_angular_e5m2_neon);
     check("angular_e4m3_neon", test_angular<e4m3_t>, nk_angular_e4m3_neon);
     check("angular_e3m2_neon", test_angular<e3m2_t>, nk_angular_e3m2_neon);
     check("angular_e2m3_neon", test_angular<e2m3_t>, nk_angular_e2m3_neon);
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_NEONHALF
-    check("sqeuclidean_f16_neonhalf", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_neonhalf);
-    check("euclidean_f16_neonhalf", test_euclidean<f16_t>, nk_euclidean_f16_neonhalf);
-    check("angular_f16_neonhalf", test_angular<f16_t>, nk_angular_f16_neonhalf);
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     check("sqeuclidean_bf16_neonbfdot", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neonbfdot);
@@ -177,6 +174,12 @@ void test_spatial() {
     check("angular_u8_neonsdot", test_angular<u8_t>, nk_angular_u8_neonsdot);
     check("sqeuclidean_u8_neonsdot", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_neonsdot);
     check("euclidean_u8_neonsdot", test_euclidean<u8_t>, nk_euclidean_u8_neonsdot);
+    check("angular_i4_neonsdot", test_angular<i4x2_t>, nk_angular_i4_neonsdot);
+    check("sqeuclidean_i4_neonsdot", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_neonsdot);
+    check("euclidean_i4_neonsdot", test_euclidean<i4x2_t>, nk_euclidean_i4_neonsdot);
+    check("angular_u4_neonsdot", test_angular<u4x2_t>, nk_angular_u4_neonsdot);
+    check("sqeuclidean_u4_neonsdot", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_neonsdot);
+    check("euclidean_u4_neonsdot", test_euclidean<u4x2_t>, nk_euclidean_u4_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_NEONFP8

@@ -182,9 +182,9 @@ void each_blend_recursive(                                           //
 static int tensor_is_c_contig(Tensor *tensor, size_t item_size);
 static int tensor_is_f_contig(Tensor *tensor, size_t item_size);
 
-/** @brief Return a Python scalar from a tensor byte offset using scalar_to_py_number. */
+/** @brief Return a Python scalar from a tensor byte offset using nk_scalar_buffer_to_py_number. */
 static PyObject *tensor_read_scalar(Tensor *tensor, size_t byte_offset) {
-    size_t elem_size = bytes_per_dtype(tensor->dtype);
+    size_t elem_size = nk_dtype_bytes_per_value(tensor->dtype);
     if (!elem_size) {
         PyErr_SetString(PyExc_TypeError, "unsupported dtype for indexing");
         return NULL;
@@ -192,7 +192,7 @@ static PyObject *tensor_read_scalar(Tensor *tensor, size_t byte_offset) {
     nk_scalar_buffer_t buf;
     memset(&buf, 0, sizeof(buf));
     memcpy(&buf, tensor->data + byte_offset, elem_size);
-    return scalar_to_py_number(&buf, tensor->dtype);
+    return nk_scalar_buffer_to_py_number(&buf, tensor->dtype);
 }
 
 /** @brief Check if a tensor is C-contiguous (row-major). */
@@ -229,7 +229,7 @@ Tensor *Tensor_new(nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape) {
         return NULL;
     }
 
-    size_t const item_size = bytes_per_dtype(dtype);
+    size_t const item_size = nk_dtype_bytes_per_value(dtype);
     size_t total_items = 1;
     for (size_t i = 0; i < rank; i++) {
         if (shape[i] > 0 && total_items > SIZE_MAX / (size_t)shape[i]) {
@@ -299,7 +299,7 @@ Tensor *Tensor_view(Tensor *parent, char *data_ptr, nk_dtype_t dtype, size_t ran
 
 /** @brief Create a 0D scalar tensor. */
 static Tensor *Tensor_scalar(nk_dtype_t dtype, void const *value) {
-    size_t const item_size = bytes_per_dtype(dtype);
+    size_t const item_size = nk_dtype_bytes_per_value(dtype);
     Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, item_size);
     if (!tensor) {
         PyErr_NoMemory();
@@ -398,8 +398,8 @@ static void linearize_cast_recursive(                                         //
 void linearize_cast_into(char const *src_data, nk_dtype_t src_dtype, char *dest_data, nk_dtype_t dest_dtype,
                          size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements) {
     nk_unused_(total_elements);
-    size_t src_element_size = bytes_per_dtype(src_dtype);
-    size_t dest_element_size = bytes_per_dtype(dest_dtype);
+    size_t src_element_size = nk_dtype_bytes_per_value(src_dtype);
+    size_t dest_element_size = nk_dtype_bytes_per_value(dest_dtype);
 
     // Count how many trailing dims are contiguous in src
     size_t contiguous_tail_dims = 0;
@@ -417,8 +417,8 @@ void linearize_cast_into(char const *src_data, nk_dtype_t src_dtype, char *dest_
 char *ensure_contiguous_buffer(char const *src_data, nk_dtype_t src_dtype, nk_dtype_t target_dtype, size_t rank,
                                Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements,
                                int *needs_free) {
-    size_t src_element_size = bytes_per_dtype(src_dtype);
-    size_t dest_element_size = bytes_per_dtype(target_dtype);
+    size_t src_element_size = nk_dtype_bytes_per_value(src_dtype);
+    size_t dest_element_size = nk_dtype_bytes_per_value(target_dtype);
 
     // Check full contiguity
     int is_contiguous = 1;
@@ -455,14 +455,15 @@ static PyObject *tensor_elementwise_scalar(Tensor *a, double alpha_value, double
     nk_capability_t cap = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_each_scale_k, a->dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
     if (!kernel || !cap) {
-        PyErr_Format(PyExc_NotImplementedError, "scale not supported for dtype '%s'", dtype_to_python_string(a->dtype));
+        PyErr_Format(PyExc_NotImplementedError, "scale not supported for dtype '%s'",
+                     nk_dtype_to_pybuffer_typestr(a->dtype));
         return NULL;
     }
 
     Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
     if (!r) return NULL;
 
-    size_t item_size = bytes_per_dtype(a->dtype);
+    size_t item_size = nk_dtype_bytes_per_value(a->dtype);
     Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
     compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
 
@@ -475,8 +476,9 @@ static PyObject *tensor_elementwise_scalar(Tensor *a, double alpha_value, double
 
     nk_scalar_buffer_t alpha_buf, beta_buf;
     nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
-    nk_scalar_buffer_set_f64(&alpha_buf, alpha_value, scalar_dtype);
-    nk_scalar_buffer_set_f64(&beta_buf, beta_value, scalar_dtype);
+    alpha_buf.f64 = alpha_value, beta_buf.f64 = beta_value;
+    nk_scalar_buffer_from_f64(&alpha_buf.f64, &alpha_buf, scalar_dtype);
+    nk_scalar_buffer_from_f64(&beta_buf.f64, &beta_buf, scalar_dtype);
     PyThreadState *gil = PyEval_SaveThread();
     each_scale_recursive(kernel, a->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, r_strides, a->rank,
                          contiguous_tail);
@@ -508,14 +510,14 @@ static PyObject *Tensor_add(PyObject *self, PyObject *other) {
         nk_find_kernel_punned(nk_kernel_each_sum_k, a->dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
         if (!kernel || !cap) {
             PyErr_Format(PyExc_NotImplementedError, "add not supported for dtype '%s'",
-                         dtype_to_python_string(a->dtype));
+                         nk_dtype_to_pybuffer_typestr(a->dtype));
             return NULL;
         }
 
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t item_size = bytes_per_dtype(a->dtype);
+        size_t item_size = nk_dtype_bytes_per_value(a->dtype);
         Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
         compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
 
@@ -563,21 +565,21 @@ static PyObject *Tensor_subtract(PyObject *self, PyObject *other) {
                 return NULL;
             }
 
-        // Single-pass subtract via blend: result = 1*a + (-1)*b
+        // Single-pass subtract via blend: result = 1·a + (−1)·b
         nk_each_blend_punned_t kernel = NULL;
         nk_capability_t cap = nk_cap_serial_k;
         nk_find_kernel_punned(nk_kernel_each_blend_k, a->dtype, static_capabilities, (nk_kernel_punned_t *)&kernel,
                               &cap);
         if (!kernel || !cap) {
             PyErr_Format(PyExc_NotImplementedError, "subtract not supported for dtype '%s'",
-                         dtype_to_python_string(a->dtype));
+                         nk_dtype_to_pybuffer_typestr(a->dtype));
             return NULL;
         }
 
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t item_size = bytes_per_dtype(a->dtype);
+        size_t item_size = nk_dtype_bytes_per_value(a->dtype);
         Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
         compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
 
@@ -593,9 +595,10 @@ static PyObject *Tensor_subtract(PyObject *self, PyObject *other) {
         size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
 
         nk_scalar_buffer_t alpha_buf, beta_buf;
+        alpha_buf.f64 = 1.0, beta_buf.f64 = -1.0;
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
-        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
-        nk_scalar_buffer_set_f64(&beta_buf, -1.0, scalar_dtype);
+        nk_scalar_buffer_from_f64(&alpha_buf.f64, &alpha_buf, scalar_dtype);
+        nk_scalar_buffer_from_f64(&beta_buf.f64, &beta_buf, scalar_dtype);
         PyThreadState *gil = PyEval_SaveThread();
         each_blend_recursive(kernel, a->data, b->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, b->strides,
                              r_strides, a->rank, contiguous_tail);
@@ -634,14 +637,14 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
         nk_find_kernel_punned(nk_kernel_each_fma_k, a->dtype, static_capabilities, (nk_kernel_punned_t *)&kernel, &cap);
         if (!kernel || !cap) {
             PyErr_Format(PyExc_NotImplementedError, "multiply not supported for dtype '%s'",
-                         dtype_to_python_string(a->dtype));
+                         nk_dtype_to_pybuffer_typestr(a->dtype));
             return NULL;
         }
 
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t item_size = bytes_per_dtype(a->dtype);
+        size_t item_size = nk_dtype_bytes_per_value(a->dtype);
         size_t total_items = 1;
         for (size_t i = 0; i < a->rank; i++) total_items *= (size_t)a->shape[i];
         memset(r->data, 0, total_items * item_size); // prevent 0*NaN=NaN from uninitialized memory
@@ -660,11 +663,12 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
         Py_buffer const *bufs[] = {&a_buf, &b_buf};
         size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
 
-        // fma(a, b, dummy, n, alpha=1, beta=0) -> 1*a*b + 0*dummy
+        // fma(a, b, dummy, n, α=1, β=0) → 1·a·b + 0·dummy
         nk_scalar_buffer_t alpha_buf, beta_buf;
+        alpha_buf.f64 = 1.0, beta_buf.f64 = 0.0;
         nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
-        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
-        nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+        nk_scalar_buffer_from_f64(&alpha_buf.f64, &alpha_buf, scalar_dtype);
+        nk_scalar_buffer_from_f64(&beta_buf.f64, &beta_buf, scalar_dtype);
         PyThreadState *gil = PyEval_SaveThread();
         each_fma_recursive(kernel, a->data, b->data, r->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides,
                            b->strides, r_strides, r_strides, a->rank, contiguous_tail);
@@ -706,7 +710,7 @@ static PyObject *Tensor_get_shape(PyObject *self, void *closure) {
 static PyObject *Tensor_get_dtype(PyObject *self, void *closure) {
     nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
-    return PyUnicode_FromString(dtype_to_string(tensor->dtype));
+    return PyUnicode_FromString(nk_dtype_name(tensor->dtype));
 }
 
 static PyObject *Tensor_get_ndim(PyObject *self, void *closure) {
@@ -728,7 +732,7 @@ static PyObject *Tensor_get_nbytes(PyObject *self, void *closure) {
     Tensor *tensor = (Tensor *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
-    return PyLong_FromSsize_t(total * (Py_ssize_t)bytes_per_dtype(tensor->dtype));
+    return PyLong_FromSsize_t(total * (Py_ssize_t)nk_dtype_bytes_per_value(tensor->dtype));
 }
 
 static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
@@ -745,7 +749,7 @@ static PyObject *Tensor_get_strides(PyObject *self, void *closure) {
 static PyObject *Tensor_get_itemsize(PyObject *self, void *closure) {
     nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
-    return PyLong_FromSize_t(bytes_per_dtype(tensor->dtype));
+    return PyLong_FromSize_t(nk_dtype_bytes_per_value(tensor->dtype));
 }
 
 static PyObject *Tensor_get_T(PyObject *self, void *closure) {
@@ -785,7 +789,7 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
     PyDict_SetItemString(dict, "shape", shape);
     Py_DECREF(shape);
 
-    char const *typestr = dtype_to_array_typestr(tensor->dtype);
+    char const *typestr = nk_dtype_to_numpy_typestr(tensor->dtype);
     PyObject *typestr_obj = PyUnicode_FromString(typestr);
     if (!typestr_obj) {
         Py_DECREF(dict);
@@ -830,7 +834,7 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
 static PyObject *Tensor_get_is_contiguous(PyObject *self, void *closure) {
     nk_unused_(closure);
     Tensor *tensor = (Tensor *)self;
-    size_t item_size = bytes_per_dtype(tensor->dtype);
+    size_t item_size = nk_dtype_bytes_per_value(tensor->dtype);
     return PyBool_FromLong(tensor_is_c_contig(tensor, item_size));
 }
 
@@ -971,7 +975,7 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs
         return NULL;
     }
 
-    size_t item_size = bytes_per_dtype(tensor->dtype);
+    size_t item_size = nk_dtype_bytes_per_value(tensor->dtype);
 
     if (tensor_is_c_contig(tensor, item_size)) {
         Py_ssize_t new_strides[NK_TENSOR_MAX_RANK];
@@ -1007,7 +1011,7 @@ PyObject *Tensor_flatten(PyObject *self, PyObject *args) {
     Py_ssize_t total_elements = 1;
     for (size_t i = 0; i < tensor->rank; i++) total_elements *= tensor->shape[i];
 
-    size_t item_size = bytes_per_dtype(tensor->dtype);
+    size_t item_size = nk_dtype_bytes_per_value(tensor->dtype);
 
     if (tensor_is_c_contig(tensor, item_size)) {
         Py_ssize_t flat_shape[1] = {total_elements};
@@ -1085,7 +1089,7 @@ PyObject *Tensor_squeeze(PyObject *self, PyObject *const *args, Py_ssize_t nargs
     if (new_rank == 0) {
         new_rank = 1;
         new_shape[0] = 1;
-        new_strides[0] = (Py_ssize_t)bytes_per_dtype(tensor->dtype);
+        new_strides[0] = (Py_ssize_t)nk_dtype_bytes_per_value(tensor->dtype);
     }
 
     Tensor *root_parent = tensor->parent ? (Tensor *)tensor->parent : tensor;
@@ -1263,7 +1267,7 @@ static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_ou
     if (view->rank == 0) { kernel(view->data, 1, 0, &min_buf, &min_idx, &max_buf, &max_idx); }
     else {
         // Initialize accumulators from the first element
-        size_t elem_size = bytes_per_dtype(value_dtype);
+        size_t elem_size = nk_dtype_bytes_per_value(value_dtype);
         kernel(view->data, 1, (nk_size_t)elem_size, &min_buf, &min_idx, &max_buf, &max_idx);
         // Now do the full traversal (first element will be compared again, which is fine)
         reduce_minmax_recursive(kernel, value_dtype, view->data, view->shape, view->strides, view->rank, 0, 0, &min_buf,
@@ -1291,10 +1295,10 @@ static PyObject *impl_moments_from_view(TensorView const *view) {
     nk_dtype_t sum_dtype, sumsq_dtype;
     if (impl_reduce_moments(view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
         return PyErr_Format(PyExc_NotImplementedError, "moments not supported for dtype '%s'",
-                            dtype_to_python_string(view->dtype));
-    PyObject *sum_obj = scalar_to_py_number(&sum_buf, sum_dtype);
+                            nk_dtype_to_pybuffer_typestr(view->dtype));
+    PyObject *sum_obj = nk_scalar_buffer_to_py_number(&sum_buf, sum_dtype);
     if (!sum_obj) return NULL;
-    PyObject *sumsq_obj = scalar_to_py_number(&sumsq_buf, sumsq_dtype);
+    PyObject *sumsq_obj = nk_scalar_buffer_to_py_number(&sumsq_buf, sumsq_dtype);
     if (!sumsq_obj) {
         Py_DECREF(sum_obj);
         return NULL;
@@ -1325,16 +1329,16 @@ static PyObject *impl_minmax_from_view(TensorView const *view) {
     size_t min_index = 0, max_index = 0;
     if (impl_reduce_minmax(view, &min_buf, &min_dtype, &min_index, &max_buf, &max_dtype, &max_index) < 0)
         return PyErr_Format(PyExc_NotImplementedError, "minmax not supported for dtype '%s'",
-                            dtype_to_python_string(view->dtype));
+                            nk_dtype_to_pybuffer_typestr(view->dtype));
     if (min_index == NK_SIZE_MAX) { Py_RETURN_NONE; }
-    PyObject *min_obj = scalar_to_py_number(&min_buf, min_dtype);
+    PyObject *min_obj = nk_scalar_buffer_to_py_number(&min_buf, min_dtype);
     if (!min_obj) return NULL;
     PyObject *min_idx_obj = PyLong_FromSsize_t((Py_ssize_t)min_index);
     if (!min_idx_obj) {
         Py_DECREF(min_obj);
         return NULL;
     }
-    PyObject *max_obj = scalar_to_py_number(&max_buf, max_dtype);
+    PyObject *max_obj = nk_scalar_buffer_to_py_number(&max_buf, max_dtype);
     if (!max_obj) {
         Py_DECREF(min_obj);
         Py_DECREF(min_idx_obj);
@@ -1471,7 +1475,7 @@ static int parse_reduce_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject
         }
         else if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
             if (value != Py_None) {
-                parsed->dtype_override = python_arg_to_dtype(value);
+                parsed->dtype_override = py_object_to_nk_dtype(value);
                 if (parsed->dtype_override == nk_dtype_unknown_k) return -1;
             }
         }
@@ -1501,14 +1505,14 @@ static size_t reduce_output_shape(Py_ssize_t const *in_shape, size_t in_rank, Py
 static int validate_reduce_out(Tensor *out, Py_ssize_t const *expected_shape, size_t expected_rank,
                                nk_dtype_t expected_dtype) {
     if (out->dtype != expected_dtype)
-        return (
-            PyErr_Format(PyExc_TypeError, "out dtype mismatch: expected '%s'", dtype_to_python_string(expected_dtype)),
-            -1);
+        return (PyErr_Format(PyExc_TypeError, "out dtype mismatch: expected '%s'",
+                             nk_dtype_to_pybuffer_typestr(expected_dtype)),
+                -1);
     if (out->rank != expected_rank)
         return (PyErr_Format(PyExc_ValueError, "out rank mismatch: expected %zu", expected_rank), -1);
     for (size_t i = 0; i < expected_rank; i++)
         if (out->shape[i] != expected_shape[i]) return (PyErr_SetString(PyExc_ValueError, "out shape mismatch"), -1);
-    if (!tensor_is_c_contig(out, bytes_per_dtype(expected_dtype)))
+    if (!tensor_is_c_contig(out, nk_dtype_bytes_per_value(expected_dtype)))
         return (PyErr_SetString(PyExc_ValueError, "out must be C-contiguous"), -1);
     return 0;
 }
@@ -1567,7 +1571,7 @@ static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t cons
     }
     size_t out_index = 0;
     reduce_along_axes(view->data, view->shape, view->strides, view->rank, 0, parsed->axes, parsed->n_axes, 0,
-                      view->dtype, result->data, bytes_per_dtype(out_dtype), on_slice, &out_index);
+                      view->dtype, result->data, nk_dtype_bytes_per_value(out_dtype), on_slice, &out_index);
     if (parsed->out) Py_INCREF((PyObject *)parsed->out);
     return (PyObject *)result;
 }
@@ -1612,7 +1616,8 @@ static void norm_slice(TensorView const *slice, nk_scalar_buffer_t *out) {
     nk_scalar_buffer_t sum_buf, sumsq_buf;
     nk_dtype_t sum_dtype, sumsq_dtype;
     impl_reduce_moments(slice, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype);
-    out->f64 = nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype));
+    nk_scalar_buffer_to_f64(&sumsq_buf, sumsq_dtype, &out->f64);
+    out->f64 = nk_f64_sqrt(out->f64);
 }
 
 char const doc_method_sum[] =                                                                                         //
@@ -1637,8 +1642,8 @@ static PyObject *Tensor_sum(PyObject *self, PyObject *const *args, Py_ssize_t na
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "sum not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
-        return scalar_to_py_number(&sum_buf, sum_dtype);
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
+        return nk_scalar_buffer_to_py_number(&sum_buf, sum_dtype);
     }
     return reduce_axis_dispatch(&view, &parsed, nk_reduce_moments_sum_dtype(view.dtype), sum_slice);
 }
@@ -1665,8 +1670,9 @@ static PyObject *Tensor_norm(PyObject *self, PyObject *const *args, Py_ssize_t n
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "norm not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
-        return PyFloat_FromDouble(nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
+        nk_scalar_buffer_to_f64(&sumsq_buf, sumsq_dtype, &sumsq_buf.f64);
+        return PyFloat_FromDouble(nk_f64_sqrt(sumsq_buf.f64));
     }
     return reduce_axis_dispatch(&view, &parsed, nk_f64_k, norm_slice);
 }
@@ -1694,9 +1700,9 @@ static PyObject *Tensor_min(PyObject *self, PyObject *const *args, Py_ssize_t na
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "min not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
         if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
-        return scalar_to_py_number(&min_buf, min_dtype);
+        return nk_scalar_buffer_to_py_number(&min_buf, min_dtype);
     }
     return reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), min_slice);
 }
@@ -1724,9 +1730,9 @@ static PyObject *Tensor_max(PyObject *self, PyObject *const *args, Py_ssize_t na
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "max not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
         if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
-        return scalar_to_py_number(&max_buf, max_dtype);
+        return nk_scalar_buffer_to_py_number(&max_buf, max_dtype);
     }
     return reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), max_slice);
 }
@@ -1755,7 +1761,7 @@ static PyObject *Tensor_argmin(PyObject *self, PyObject *const *args, Py_ssize_t
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmin not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
         if (min_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)min_idx);
     }
@@ -1786,7 +1792,7 @@ static PyObject *Tensor_argmax(PyObject *self, PyObject *const *args, Py_ssize_t
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             return PyErr_Format(PyExc_NotImplementedError, "argmax not supported for dtype '%s'",
-                                dtype_to_python_string(view.dtype));
+                                nk_dtype_to_pybuffer_typestr(view.dtype));
         if (max_idx == NK_SIZE_MAX) Py_RETURN_NONE;
         return PyLong_FromSsize_t((Py_ssize_t)max_idx);
     }
@@ -1806,7 +1812,7 @@ PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
     Tensor *tensor = (Tensor *)self;
 
     // Parse target dtype from argument
-    nk_dtype_t target_dtype = python_arg_to_dtype(dtype_arg);
+    nk_dtype_t target_dtype = py_object_to_nk_dtype(dtype_arg);
     if (target_dtype == nk_dtype_unknown_k) return NULL;
 
     // Same dtype -> return copy
@@ -1856,13 +1862,13 @@ static PyObject *Tensor___array__(PyObject *self_obj, PyObject *const *args, Py_
     }
 
     Tensor *self = (Tensor *)self_obj;
-    nk_dtype_info_t const *info = dtype_info(self->dtype);
+    nk_dtype_conversion_info_t const *info = nk_dtype_conversion_info(self->dtype);
     if (!info) {
         PyErr_SetString(PyExc_TypeError, "Unknown dtype");
         return NULL;
     }
     // Reject exotic dtypes that NumPy can't represent natively
-    char const *fmt = info->buffer_format;
+    char const *fmt = info->pybuffer_typestr;
     if (same_string(fmt, "e2m3") || same_string(fmt, "e3m2") ||       //
         same_string(fmt, "e4m3") || same_string(fmt, "e5m2") ||       //
         same_string(fmt, "bf16") || same_string(fmt, "bcomplex32") || //
@@ -1911,7 +1917,7 @@ static PyMethodDef Tensor_methods[] = {
 
 static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
     Tensor *tensor = (Tensor *)export_from;
-    size_t const item_size = bytes_per_dtype(tensor->dtype);
+    size_t const item_size = nk_dtype_bytes_per_value(tensor->dtype);
 
     int c_contig = tensor_is_c_contig(tensor, item_size);
     int f_contig = tensor_is_f_contig(tensor, item_size);
@@ -1943,7 +1949,7 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
 
     if ((flags & PyBUF_FORMAT) == PyBUF_FORMAT) {
         // Exotic types that numpy can't represent via PEP 3118: emit a valid
-        // unsigned-integer format whose item size matches bytes_per_dtype.
+        // unsigned-integer format whose item size matches nk_dtype_bytes_per_value.
         // Internal callers needing the real dtype should check isinstance(obj, Tensor)
         // and read .dtype directly.
         switch (tensor->dtype) {
@@ -1957,7 +1963,7 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
         case nk_u1_k: view->format = "B"; break;    // 1 byte  → uint8
         case nk_bf16c_k: view->format = "I"; break; // 4 bytes → uint32
         case nk_f16c_k: view->format = "I"; break;  // 4 bytes → uint32
-        default: view->format = (char *)dtype_to_python_string(tensor->dtype); break;
+        default: view->format = (char *)nk_dtype_to_pybuffer_typestr(tensor->dtype); break;
         }
     }
     else view->format = NULL;
@@ -2019,7 +2025,7 @@ static PyObject *Tensor_subscript(PyObject *self, PyObject *key) {
         return NULL;
     }
 
-    size_t item_size = bytes_per_dtype(tensor->dtype);
+    size_t item_size = nk_dtype_bytes_per_value(tensor->dtype);
 
     // Single slice
     if (PySlice_Check(key)) {
@@ -2139,7 +2145,7 @@ static PyObject *Tensor_repr(PyObject *self) {
     PyObject *shape_str = Tensor_get_shape(self, NULL);
     if (!shape_str) return NULL;
 
-    PyObject *repr = PyUnicode_FromFormat("Tensor(shape=%R, dtype='%s')", shape_str, dtype_to_string(tensor->dtype));
+    PyObject *repr = PyUnicode_FromFormat("Tensor(shape=%R, dtype='%s')", shape_str, nk_dtype_name(tensor->dtype));
     Py_DECREF(shape_str);
     return repr;
 }
@@ -2177,7 +2183,7 @@ static PyObject *Tensor_richcompare(PyObject *self, PyObject *other, int op) {
     if (equal) {
         size_t total = 1;
         for (size_t i = 0; i < a->rank; i++) total *= (size_t)a->shape[i];
-        size_t item_size = bytes_per_dtype(a->dtype);
+        size_t item_size = nk_dtype_bytes_per_value(a->dtype);
         int a_free = 0, b_free = 0;
         char *a_buffer = ensure_contiguous_buffer(a->data, a->dtype, a->dtype, a->rank, a->shape, a->strides, total,
                                                   &a_free);
@@ -2268,20 +2274,20 @@ static PyObject *Tensor_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 
     nk_dtype_t dtype;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) {
             PyBuffer_Release(&buf);
             return NULL;
         }
-        if ((Py_ssize_t)bytes_per_dtype(dtype) != buf.itemsize) {
+        if ((Py_ssize_t)nk_dtype_bytes_per_value(dtype) != buf.itemsize) {
             PyBuffer_Release(&buf);
-            PyErr_Format(PyExc_ValueError, "dtype has itemsize %zu but buffer has itemsize %zd", bytes_per_dtype(dtype),
-                         buf.itemsize);
+            PyErr_Format(PyExc_ValueError, "dtype has itemsize %zu but buffer has itemsize %zd",
+                         nk_dtype_bytes_per_value(dtype), buf.itemsize);
             return NULL;
         }
     }
     else {
-        dtype = dtype_from_buffer(&buf);
+        dtype = resolve_nk_dtype_in_py_buffer(&buf);
         if (dtype == nk_dtype_unknown_k) {
             char const *fmt = buf.format ? buf.format : "(null)";
             PyBuffer_Release(&buf);
@@ -2421,7 +2427,7 @@ PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t con
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 
     // Parse dtype
-    nk_dtype_t dtype = python_arg_to_dtype(dtype_obj);
+    nk_dtype_t dtype = py_object_to_nk_dtype(dtype_obj);
     if (dtype == nk_dtype_unknown_k) return NULL;
 
     // Compute or parse strides
@@ -2445,7 +2451,7 @@ PyObject *api_from_pointer(PyObject *self, PyObject *const *args, Py_ssize_t con
             if (strides[i] == -1 && PyErr_Occurred()) return NULL;
         }
     }
-    else { compute_contiguous_strides(rank, shape, bytes_per_dtype(dtype), strides); }
+    else { compute_contiguous_strides(rank, shape, nk_dtype_bytes_per_value(dtype), strides); }
 
     // Use a sentinel owner if none provided — we need a non-NULL parent
     // so Tensor_dealloc doesn't try to free the inline data
@@ -2490,7 +2496,7 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2533,14 +2539,14 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
     Tensor *result = Tensor_new(dtype, rank, shape);
     if (!result) return NULL;
 
-    size_t nbytes = bytes_per_dtype(dtype);
+    size_t nbytes = nk_dtype_bytes_per_value(dtype);
     for (size_t i = 0; i < rank; i++) nbytes *= (size_t)shape[i];
     memset(result->data, 0, nbytes);
 
@@ -2583,7 +2589,7 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2594,10 +2600,10 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
     {
-        size_t elem_size = bytes_per_dtype(dtype);
+        size_t elem_size = nk_dtype_bytes_per_value(dtype);
         nk_scalar_buffer_t one;
-        memset(&one, 0, sizeof(one));
-        nk_scalar_buffer_set_f64(&one, 1.0, dtype);
+        one.f64 = 1.0;
+        nk_scalar_buffer_from_f64(&one.f64, &one, dtype);
         for (size_t i = 0; i < total; i++) memcpy(result->data + i * elem_size, &one, elem_size);
     }
 
@@ -2636,8 +2642,8 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
         }
     }
 
-    double fill_value;
-    if (!get_scalar_value(fill_obj, &fill_value)) {
+    nk_f64_t fill_value;
+    if (!py_number_to_f64(fill_obj, &fill_value)) {
         PyErr_SetString(PyExc_TypeError, "fill_value must be a number");
         return NULL;
     }
@@ -2648,7 +2654,7 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2659,10 +2665,10 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
     {
-        size_t elem_size = bytes_per_dtype(dtype);
+        size_t elem_size = nk_dtype_bytes_per_value(dtype);
         nk_scalar_buffer_t val;
-        memset(&val, 0, sizeof(val));
-        nk_scalar_buffer_set_f64(&val, fill_value, dtype);
+        val.f64 = fill_value;
+        nk_scalar_buffer_from_f64(&val.f64, &val, dtype);
         for (size_t i = 0; i < total; i++) memcpy(result->data + i * elem_size, &val, elem_size);
     }
 
@@ -2710,7 +2716,7 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2721,11 +2727,11 @@ PyObject *api_iota(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
     {
-        size_t elem_size = bytes_per_dtype(dtype);
+        size_t elem_size = nk_dtype_bytes_per_value(dtype);
         nk_scalar_buffer_t val;
-        memset(&val, 0, sizeof(val));
         for (size_t i = 0; i < total; i++) {
-            nk_scalar_buffer_set_f64(&val, (double)(seed + (long long)i), dtype);
+            val.f64 = (nk_f64_t)(seed + (nk_i64_t)i);
+            nk_scalar_buffer_from_f64(&val.f64, &val, dtype);
             memcpy(result->data + i * elem_size, &val, elem_size);
         }
     }
@@ -2776,7 +2782,7 @@ PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const n
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2784,14 +2790,14 @@ PyObject *api_diagonal(PyObject *self, PyObject *const *args, Py_ssize_t const n
     Tensor *result = Tensor_new(dtype, 2, shape);
     if (!result) return NULL;
 
-    size_t elem_size = bytes_per_dtype(dtype);
+    size_t elem_size = nk_dtype_bytes_per_value(dtype);
     size_t total_bytes = (size_t)n * (size_t)n * elem_size;
     memset(result->data, 0, total_bytes);
 
     {
         nk_scalar_buffer_t val;
-        memset(&val, 0, sizeof(val));
-        nk_scalar_buffer_set_f64(&val, (double)seed, dtype);
+        val.f64 = (nk_f64_t)seed;
+        nk_scalar_buffer_from_f64(&val.f64, &val, dtype);
         for (Py_ssize_t i = 0; i < n; i++) {
             memcpy(result->data + (size_t)i * ((size_t)n + 1) * elem_size, &val, elem_size);
         }
@@ -2850,7 +2856,7 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
 
     nk_dtype_t dtype = nk_f32_k;
     if (dtype_obj) {
-        dtype = python_arg_to_dtype(dtype_obj);
+        dtype = py_object_to_nk_dtype(dtype_obj);
         if (dtype == nk_dtype_unknown_k) return NULL;
     }
 
@@ -2861,7 +2867,7 @@ PyObject *api_hash(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
     {
-        size_t elem_size = bytes_per_dtype(dtype);
+        size_t elem_size = nk_dtype_bytes_per_value(dtype);
         uint64_t seed_hash = splitmix64((uint64_t)seed ^ 0x9E3779B97F4A7C15ULL);
         for (size_t i = 0; i < total; i++) {
             uint64_t bits = splitmix64(seed_hash + (uint64_t)i);
@@ -2893,7 +2899,7 @@ PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const na
         if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
             PyObject *value = args[nargs + i];
             if (value != Py_None) {
-                dtype_override = python_arg_to_dtype(value);
+                dtype_override = py_object_to_nk_dtype(value);
                 if (dtype_override == nk_dtype_unknown_k) return NULL;
             }
         }
@@ -2938,7 +2944,7 @@ PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
         if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) {
             PyObject *value = args[nargs + i];
             if (value != Py_None) {
-                dtype_override = python_arg_to_dtype(value);
+                dtype_override = py_object_to_nk_dtype(value);
                 if (dtype_override == nk_dtype_unknown_k) return NULL;
             }
         }
@@ -3063,8 +3069,8 @@ PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "sum not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
-        else result = scalar_to_py_number(&sum_buf, sum_dtype);
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
+        else result = nk_scalar_buffer_to_py_number(&sum_buf, sum_dtype);
     }
     else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_moments_sum_dtype(view.dtype), sum_slice);
     PyBuffer_Release(&buffer);
@@ -3093,8 +3099,11 @@ PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
         nk_dtype_t sum_dtype, sumsq_dtype;
         if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "norm not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
-        else result = PyFloat_FromDouble(nk_f64_sqrt(nk_scalar_buffer_get_f64(&sumsq_buf, sumsq_dtype)));
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
+        else {
+            nk_scalar_buffer_to_f64(&sumsq_buf, sumsq_dtype, &sumsq_buf.f64);
+            result = PyFloat_FromDouble(nk_f64_sqrt(sumsq_buf.f64));
+        }
     }
     else result = reduce_axis_dispatch(&view, &parsed, nk_f64_k, norm_slice);
     PyBuffer_Release(&buffer);
@@ -3124,12 +3133,12 @@ PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "min not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
         else if (min_idx == NK_SIZE_MAX) {
             Py_INCREF(Py_None);
             result = Py_None;
         }
-        else result = scalar_to_py_number(&min_buf, min_dtype);
+        else result = nk_scalar_buffer_to_py_number(&min_buf, min_dtype);
     }
     else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), min_slice);
     PyBuffer_Release(&buffer);
@@ -3159,12 +3168,12 @@ PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs,
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "max not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
         else if (max_idx == NK_SIZE_MAX) {
             Py_INCREF(Py_None);
             result = Py_None;
         }
-        else result = scalar_to_py_number(&max_buf, max_dtype);
+        else result = nk_scalar_buffer_to_py_number(&max_buf, max_dtype);
     }
     else result = reduce_axis_dispatch(&view, &parsed, nk_reduce_minmax_value_dtype(view.dtype), max_slice);
     PyBuffer_Release(&buffer);
@@ -3198,7 +3207,7 @@ PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nar
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "argmin not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
         else if (min_idx == NK_SIZE_MAX) {
             Py_INCREF(Py_None);
             result = Py_None;
@@ -3237,7 +3246,7 @@ PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
         size_t min_idx, max_idx;
         if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_idx, &max_buf, &max_dtype, &max_idx) < 0)
             result = PyErr_Format(PyExc_NotImplementedError, "argmax not supported for dtype '%s'",
-                                  dtype_to_python_string(view.dtype));
+                                  nk_dtype_to_pybuffer_typestr(view.dtype));
         else if (max_idx == NK_SIZE_MAX) {
             Py_INCREF(Py_None);
             result = Py_None;

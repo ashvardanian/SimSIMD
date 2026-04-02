@@ -22,13 +22,19 @@ Matches C++ suite: test_each.cpp.
 import atexit
 import decimal
 import random
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -44,6 +50,7 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     profile,
     random_of_dtype,
@@ -134,9 +141,12 @@ def baseline_multiply(x, y, out=None):
 
 
 _INT_CLIP_RANGES = {
-    "int8": (-128, 127), "uint8": (0, 255),
-    "int16": (-32768, 32767), "uint16": (0, 65535),
-    "int32": (-2147483648, 2147483647), "uint32": (0, 4294967295),
+    "int8": (-128, 127),
+    "uint8": (0, 255),
+    "int16": (-32768, 32767),
+    "uint16": (0, 65535),
+    "int32": (-2147483648, 2147483647),
+    "uint32": (0, 4294967295),
 }
 
 
@@ -150,52 +160,43 @@ def _clip_int(values, dtype):
 
 
 def precise_scale(a, alpha, beta, dtype=None):
-    """High-precision scale: alpha * x + beta via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        da = D.from_float(float(alpha))
-        db = D.from_float(float(beta))
-        result = [float(da * D.from_float(float(x)) + db) for x in a]
+    """High-precision scale: α·x + β via Decimal."""
+    with precise_decimal() as d:
+        da, db = d.from_float(float(alpha)), d.from_float(float(beta))
+        result = [float(da * d.from_float(float(x)) + db) for x in a]
     return _clip_int(result, dtype) if dtype else result
 
 
 def precise_add(a, b, dtype=None):
     """High-precision elementwise add via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        result = [float(D.from_float(float(x)) + D.from_float(float(y))) for x, y in zip(a, b)]
+    with precise_decimal() as d:
+        result = [float(d.from_float(float(x)) + d.from_float(float(y))) for x, y in zip(a, b)]
     return _clip_int(result, dtype) if dtype else result
 
 
 def precise_blend(a, b, alpha, beta, dtype=None):
-    """High-precision blend: alpha * x + beta * y via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        da, db = D.from_float(float(alpha)), D.from_float(float(beta))
-        result = [float(da * D.from_float(float(x)) + db * D.from_float(float(y))) for x, y in zip(a, b)]
+    """High-precision blend: α·x + β·y via Decimal."""
+    with precise_decimal() as d:
+        da, db = d.from_float(float(alpha)), d.from_float(float(beta))
+        result = [float(da * d.from_float(float(x)) + db * d.from_float(float(y))) for x, y in zip(a, b)]
     return _clip_int(result, dtype) if dtype else result
 
 
 def precise_fma(a, b, c, alpha, beta, dtype=None):
-    """High-precision FMA: alpha * x * y + beta * z via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        da, db = D.from_float(float(alpha)), D.from_float(float(beta))
-        result = [float(da * D.from_float(float(x)) * D.from_float(float(y)) + db * D.from_float(float(z)))
-                for x, y, z in zip(a, b, c)]
+    """High-precision FMA: α·x·y + β·z via Decimal."""
+    with precise_decimal() as d:
+        da, db = d.from_float(float(alpha)), d.from_float(float(beta))
+        result = [
+            float(da * d.from_float(float(x)) * d.from_float(float(y)) + db * d.from_float(float(z)))
+            for x, y, z in zip(a, b, c)
+        ]
     return _clip_int(result, dtype) if dtype else result
 
 
 def precise_multiply(a, b, dtype=None):
     """High-precision elementwise multiply via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        result = [float(D.from_float(float(x)) * D.from_float(float(y))) for x, y in zip(a, b)]
+    with precise_decimal() as d:
+        result = [float(d.from_float(float(x)) * d.from_float(float(y))) for x, y in zip(a, b)]
     return _clip_int(result, dtype) if dtype else result
 
 
@@ -607,7 +608,9 @@ def test_scale_edge_cases(ndim, dtype, capability):
     out_nk = nk.zeros((ndim,), dtype=dtype)
     ret = simd_kernel(a, alpha=alpha, beta=beta, out=out_nk)
     assert ret is None
-    assert_allclose(np.asarray(out_nk), baseline_kernel(a, alpha=alpha, beta=beta).astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
+    assert_allclose(
+        np.asarray(out_nk), baseline_kernel(a, alpha=alpha, beta=beta).astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL
+    )
 
     # out= shape mismatch raises
     with pytest.raises(ValueError):

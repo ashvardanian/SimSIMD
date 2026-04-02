@@ -331,8 +331,8 @@ NK_PUBLIC void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *      NaN          0x7FC00000    0x7F      Quiet NaN
  *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
  *      448+         >0x43E00000   0x7E      Overflow → max
- *      2⁻⁶         0x3E800000    0x08      Min normal
- *      <2⁻¹² × ⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
+ *      2⁻⁶          0x3E800000    0x08      Min normal
+ *      ≤2⁻¹⁰        ≤0x3A800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -574,8 +574,8 @@ NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *      NaN          0x7FC00000    0x7D      Quiet NaN
  *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
  *      57344+       >0x47600000   0x7C      Overflow → infinity
- *      2⁻¹⁴        0x38800000    0x04      Min normal
- *      <2⁻¹⁷ × ⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
+ *      2⁻¹⁴         0x38800000    0x04      Min normal
+ *      ≤2⁻¹⁷        ≤0x37000000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -1181,17 +1181,6 @@ NK_INTERNAL void nk_u64_to_u32_serial(nk_u64_t const *x, nk_u32_t *y) {
     *y = (nk_u32_t)(*x > 4294967295ull ? 4294967295ull : *x);
 }
 
-NK_PUBLIC void nk_f16_to_f64_(nk_f16_t const *src, nk_f64_t *dest) {
-    nk_f32_t f32;
-    nk_f16_to_f32_serial(src, &f32);
-    *dest = f32;
-}
-NK_PUBLIC void nk_bf16_to_f64_(nk_bf16_t const *src, nk_f64_t *dest) {
-    nk_f32_t f32;
-    nk_bf16_to_f32_serial(src, &f32);
-    *dest = f32;
-}
-
 NK_INTERNAL void nk_u64_to_i64_serial(nk_u64_t const *x, nk_i64_t *y) {
     *y = (nk_i64_t)(*x >= 9223372036854775807ull ? 9223372036854775807ll : *x);
 }
@@ -1216,6 +1205,23 @@ NK_INTERNAL void nk_u64_to_f16_serial(nk_u64_t const *x, nk_f16_t *y) {
 NK_INTERNAL void nk_u64_to_bf16_serial(nk_u64_t const *x, nk_bf16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_bf16_serial(&f32, y);
+}
+
+/** @brief Convert a pair of i4 (4-bit signed integer, -8 to 7) nibbles into signed integers. */
+NK_PUBLIC void nk_i4x2_to_i8x2_serial(nk_i4x2_t const *src, nk_i8_t *dest) {
+    nk_u8_t byte = *(nk_u8_t const *)src;
+    nk_u8_t high_nibble = byte >> 4;
+    nk_u8_t low_nibble = byte & 0x0F;
+    // Sign extend: 0-7 → 0-7, 8-15 → -8 to -1
+    dest[0] = (nk_i8_t)((high_nibble ^ 8) - 8);
+    dest[1] = (nk_i8_t)((low_nibble ^ 8) - 8);
+}
+
+/** @brief Convert a pair of u4 (4-bit unsigned integer, 0 to 15) nibbles into unsigned integers. */
+NK_PUBLIC void nk_u4x2_to_u8x2_serial(nk_u4x2_t const *src, nk_u8_t *dest) {
+    nk_u8_t byte = *(nk_u8_t const *)src;
+    dest[0] = byte >> 4;
+    dest[1] = byte & 0x0F;
 }
 
 #pragma region - Type Punned Loads and Stores
@@ -1647,7 +1653,7 @@ NK_INTERNAL void nk_strided_load_b8x16_serial_(void const *src, nk_size_t stride
  *  The caller fills the appropriate union member based on the target dtype,
  *  then passes the union address as `void const *` to kernel functions.
  */
-typedef union nk_scalar_buffer_t {
+typedef union NK_MAY_ALIAS_ nk_scalar_buffer_t {
     nk_u8_t bytes[16];
     nk_f64_t f64;
     nk_f32_t f32;
@@ -1667,115 +1673,78 @@ typedef union nk_scalar_buffer_t {
     nk_u8_t u8;
 } nk_scalar_buffer_t;
 
+/** @brief Reads a typed scalar from @p buf and writes the widened f64c into @p result.
+ *  Real types set `.imag = 0`. Safe when @p result aliases @p buf (in-place conversion).
+ *  @return 1 on success, 0 for unsupported types (sub-byte, unknown). */
+NK_INTERNAL int nk_scalar_buffer_to_f64c(nk_scalar_buffer_t const *buf, nk_dtype_t dtype, nk_f64c_t *result) {
+    // Snapshot input so `result` may alias `buf` (e.g. in-place conversion within a union).
+    nk_scalar_buffer_t local;
+    local.f64c = buf->f64c;
+    result->real = 0, result->imag = 0;
+    switch (dtype) {
+    case nk_f64_k: result->real = local.f64; break;
+    case nk_f32_k: result->real = (nk_f64_t)local.f32; break;
+    case nk_f16_k:
+        nk_f16_to_f32_serial(&local.f16, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    case nk_bf16_k:
+        nk_bf16_to_f32_serial(&local.bf16, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    case nk_f64c_k: result->real = local.f64c.real, result->imag = local.f64c.imag; break;
+    case nk_f32c_k: result->real = (nk_f64_t)local.f32c.real, result->imag = (nk_f64_t)local.f32c.imag; break;
+    case nk_f16c_k:
+        nk_f16_to_f32_serial(&local.f16c.real, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        nk_f16_to_f32_serial(&local.f16c.imag, &local.f32);
+        result->imag = (nk_f64_t)local.f32;
+        break;
+    case nk_bf16c_k:
+        nk_bf16_to_f32_serial(&local.bf16c.real, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        nk_bf16_to_f32_serial(&local.bf16c.imag, &local.f32);
+        result->imag = (nk_f64_t)local.f32;
+        break;
+    case nk_i64_k: result->real = (nk_f64_t)local.i64; break;
+    case nk_u64_k: result->real = (nk_f64_t)local.u64; break;
+    case nk_i32_k: result->real = (nk_f64_t)local.i32; break;
+    case nk_u32_k: result->real = (nk_f64_t)local.u32; break;
+    case nk_i16_k: result->real = (nk_f64_t)local.i16; break;
+    case nk_u16_k: result->real = (nk_f64_t)local.u16; break;
+    case nk_i8_k: result->real = (nk_f64_t)local.i8; break;
+    case nk_u8_k: result->real = (nk_f64_t)local.u8; break;
+    case nk_e4m3_k:
+        nk_e4m3_to_f32_serial(&local.u8, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    case nk_e5m2_k:
+        nk_e5m2_to_f32_serial(&local.u8, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    case nk_e2m3_k:
+        nk_e2m3_to_f32_serial(&local.u8, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    case nk_e3m2_k:
+        nk_e3m2_to_f32_serial(&local.u8, &local.f32);
+        result->real = (nk_f64_t)local.f32;
+        break;
+    default: return 0;
+    }
+    return 1;
+}
+
 /**
  *  @brief Converts up to 8x values from `from_ptr` buffer into 8x puned buffer objects
  *  into a complex 64-bit floating point representation.
  */
-NK_INTERNAL void nk_scalar_buffers_fill_f64c_(                         //
+NK_INTERNAL void nk_scalar_buffers_to_f64c_(                           //
     void const *from_ptr, nk_dtype_t from_dtype, nk_size_t from_count, //
     nk_scalar_buffer_t to_buffers[nk_at_least_(8)]) {
 
-    nk_f32_t temporary_f32;
     nk_size_t i;
     switch (from_dtype) {
-    case nk_f64_k: {
-        nk_f64_t const *p = (nk_f64_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_f32_k: {
-        nk_f32_t const *p = (nk_f32_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_f16_k: {
-        nk_f16_t const *p = (nk_f16_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_f16_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                         to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_bf16_k: {
-        nk_bf16_t const *p = (nk_bf16_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_bf16_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                          to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_e4m3_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_e4m3_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                          to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_e5m2_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_e5m2_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                          to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_e2m3_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_e2m3_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                          to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_e3m2_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i)
-            nk_e3m2_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
-                                                          to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_i64_k: {
-        nk_i64_t const *p = (nk_i64_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = (nk_f64_t)p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_i32_k: {
-        nk_i32_t const *p = (nk_i32_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_i16_k: {
-        nk_i16_t const *p = (nk_i16_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_i8_k: {
-        nk_i8_t const *p = (nk_i8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_u64_k: {
-        nk_u64_t const *p = (nk_u64_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = (nk_f64_t)p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_u32_k: {
-        nk_u32_t const *p = (nk_u32_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_u16_k: {
-        nk_u16_t const *p = (nk_u16_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_u8_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i], to_buffers[i].f64c.imag = 0;
-    } break;
-    case nk_f64c_k: {
-        nk_f64c_t const *p = (nk_f64c_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c = p[i];
-    } break;
-    case nk_f32c_k: {
-        nk_f32c_t const *p = (nk_f32c_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = p[i].real, to_buffers[i].f64c.imag = p[i].imag;
-    } break;
-    case nk_f16c_k: {
-        nk_f16c_t const *p = (nk_f16c_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) {
-            nk_f16_to_f32_serial(&p[i].real, &temporary_f32), to_buffers[i].f64c.real = temporary_f32;
-            nk_f16_to_f32_serial(&p[i].imag, &temporary_f32), to_buffers[i].f64c.imag = temporary_f32;
-        }
-    } break;
-    case nk_bf16c_k: {
-        nk_bf16c_t const *p = (nk_bf16c_t const *)from_ptr;
-        for (i = 0; i < from_count; ++i) {
-            nk_bf16_to_f32_serial(&p[i].real, &temporary_f32), to_buffers[i].f64c.real = temporary_f32;
-            nk_bf16_to_f32_serial(&p[i].imag, &temporary_f32), to_buffers[i].f64c.imag = temporary_f32;
-        }
-    } break;
     // Sub-byte: u1 - 8 bits from 1 byte, MSB-first
     case nk_u1_k: {
         nk_u8_t byte = *(nk_u8_t const *)from_ptr;
@@ -1783,130 +1752,117 @@ NK_INTERNAL void nk_scalar_buffers_fill_f64c_(                         //
     } break;
     // Sub-byte: i4 - 8 nibbles from 4 bytes, high nibble = even index, sign-extended
     case nk_i4_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        nk_i4x2_t const *pairs = (nk_i4x2_t const *)from_ptr;
+        nk_i8_t unpacked[2];
         for (i = 0; i < 4; ++i) {
-            nk_i8_t hi = (nk_i8_t)(p[i] >> 4), lo = (nk_i8_t)(p[i] & 0xF);
-            to_buffers[i * 2].f64c.real = (hi ^ 8) - 8, to_buffers[i * 2].f64c.imag = 0;
-            to_buffers[i * 2 + 1].f64c.real = (lo ^ 8) - 8, to_buffers[i * 2 + 1].f64c.imag = 0;
+            nk_i4x2_to_i8x2_serial(&pairs[i], unpacked);
+            to_buffers[i * 2].f64c.real = unpacked[0], to_buffers[i * 2].f64c.imag = 0;
+            to_buffers[i * 2 + 1].f64c.real = unpacked[1], to_buffers[i * 2 + 1].f64c.imag = 0;
         }
     } break;
     // Sub-byte: u4 - 8 nibbles from 4 bytes, high nibble = even index
     case nk_u4_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        nk_u4x2_t const *pairs = (nk_u4x2_t const *)from_ptr;
+        nk_u8_t unpacked[2];
         for (i = 0; i < 4; ++i) {
-            to_buffers[i * 2].f64c.real = p[i] >> 4, to_buffers[i * 2].f64c.imag = 0;
-            to_buffers[i * 2 + 1].f64c.real = p[i] & 0xF, to_buffers[i * 2 + 1].f64c.imag = 0;
+            nk_u4x2_to_u8x2_serial(&pairs[i], unpacked);
+            to_buffers[i * 2].f64c.real = unpacked[0], to_buffers[i * 2].f64c.imag = 0;
+            to_buffers[i * 2 + 1].f64c.real = unpacked[1], to_buffers[i * 2 + 1].f64c.imag = 0;
         }
     } break;
-    default:
-        for (i = 0; i < 8; ++i) to_buffers[i].f64c.real = 0, to_buffers[i].f64c.imag = 0;
-        break;
+    // All byte-or-larger types: stage through a separate buffer to avoid
+    // variable-length memcpy and type-punned read on the same union —
+    // a pattern that triggers an ICE in MSVC's ARM64 optimizer (C1001).
+    default: {
+        nk_size_t stride = nk_dtype_bits(from_dtype) / NK_BITS_PER_BYTE;
+        nk_scalar_buffer_t staged;
+        for (i = 0; i < from_count; ++i) {
+            staged.u64 = 0;
+            nk_copy_bytes_(&staged, (char const *)from_ptr + i * stride, stride);
+            nk_scalar_buffer_to_f64c(&staged, from_dtype, &to_buffers[i].f64c);
+        }
+    } break;
     }
+}
+
+/** @brief Narrows an f64c @p value into the appropriate typed member of @p buf.
+ *  Real types use only `.real`; complex types use both components.
+ *  Safe when @p value aliases @p buf (in-place conversion).
+ *  @note Integer targets (i64, i32, ...) go through f64 rounding — values beyond 2^53 may lose precision.
+ *  @return 1 on success, 0 for unsupported types (sub-byte, unknown). */
+NK_INTERNAL int nk_scalar_buffer_from_f64c(nk_f64c_t const *value, nk_scalar_buffer_t *buf, nk_dtype_t dtype) {
+    // Snapshot input so `value` may point into `buf` (e.g. in-place conversion within a union).
+    nk_f64c_t local = *value;
+    nk_f32_t temporary_f32;
+    switch (dtype) {
+    case nk_f64_k: buf->f64 = local.real; break;
+    case nk_f32_k: buf->f32 = (nk_f32_t)local.real; break;
+    case nk_f16_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_f16_serial(&temporary_f32, &buf->f16);
+        break;
+    case nk_bf16_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_bf16_serial(&temporary_f32, &buf->bf16);
+        break;
+    case nk_f64c_k:
+        buf->f64c.real = local.real;
+        buf->f64c.imag = local.imag;
+        break;
+    case nk_f32c_k:
+        buf->f32c.real = (nk_f32_t)local.real;
+        buf->f32c.imag = (nk_f32_t)local.imag;
+        break;
+    case nk_f16c_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_f16_serial(&temporary_f32, &buf->f16c.real);
+        temporary_f32 = (nk_f32_t)local.imag;
+        nk_f32_to_f16_serial(&temporary_f32, &buf->f16c.imag);
+        break;
+    case nk_bf16c_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_bf16_serial(&temporary_f32, &buf->bf16c.real);
+        temporary_f32 = (nk_f32_t)local.imag;
+        nk_f32_to_bf16_serial(&temporary_f32, &buf->bf16c.imag);
+        break;
+    case nk_i64_k: nk_f64_to_i64_serial(&local.real, &buf->i64); break;
+    case nk_u64_k: nk_f64_to_u64_serial(&local.real, &buf->u64); break;
+    case nk_i32_k: nk_f64_to_i32_serial(&local.real, &buf->i32); break;
+    case nk_u32_k: nk_f64_to_u32_serial(&local.real, &buf->u32); break;
+    case nk_i16_k: nk_f64_to_i16_serial(&local.real, &buf->i16); break;
+    case nk_u16_k: nk_f64_to_u16_serial(&local.real, &buf->u16); break;
+    case nk_i8_k: nk_f64_to_i8_serial(&local.real, &buf->i8); break;
+    case nk_u8_k: nk_f64_to_u8_serial(&local.real, &buf->u8); break;
+    case nk_e4m3_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_e4m3_serial(&temporary_f32, &buf->u8);
+        break;
+    case nk_e5m2_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_e5m2_serial(&temporary_f32, &buf->u8);
+        break;
+    case nk_e2m3_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_e2m3_serial(&temporary_f32, &buf->u8);
+        break;
+    case nk_e3m2_k:
+        temporary_f32 = (nk_f32_t)local.real;
+        nk_f32_to_e3m2_serial(&temporary_f32, &buf->u8);
+        break;
+    default: return 0;
+    }
+    return 1;
 }
 
 /**
  *  @brief Converts up to 8x values from `from_buffers` buffer into 8x typed scalars.
  */
-NK_INTERNAL void nk_scalar_buffers_export_f64c_(            //
+NK_INTERNAL void nk_scalar_buffers_from_f64c_(              //
     nk_scalar_buffer_t const from_buffers[nk_at_least_(8)], //
     void *to_ptr, nk_dtype_t to_dtype, nk_size_t to_count) {
 
-    nk_f32_t temporary_f32;
     nk_size_t i;
     switch (to_dtype) {
-    case nk_f64_k: {
-        nk_f64_t *p = (nk_f64_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) p[i] = from_buffers[i].f64c.real;
-    } break;
-    case nk_f32_k: {
-        nk_f32_t *p = (nk_f32_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) p[i] = (nk_f32_t)from_buffers[i].f64c.real;
-    } break;
-    case nk_f16_k: {
-        nk_f16_t *p = (nk_f16_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_f16_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_bf16_k: {
-        nk_bf16_t *p = (nk_bf16_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_bf16_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_e4m3_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e4m3_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_e5m2_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e5m2_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_e2m3_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e2m3_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_e3m2_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e3m2_serial(&temporary_f32, &p[i]);
-    } break;
-    case nk_i64_k: {
-        nk_i64_t *p = (nk_i64_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_i64_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_i32_k: {
-        nk_i32_t *p = (nk_i32_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_i32_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_i16_k: {
-        nk_i16_t *p = (nk_i16_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_i16_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_i8_k: {
-        nk_i8_t *p = (nk_i8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_i8_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_u64_k: {
-        nk_u64_t *p = (nk_u64_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_u64_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_u32_k: {
-        nk_u32_t *p = (nk_u32_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_u32_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_u16_k: {
-        nk_u16_t *p = (nk_u16_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_u16_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_u8_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) nk_f64_to_u8_serial(&from_buffers[i].f64c.real, &p[i]);
-    } break;
-    case nk_f64c_k: {
-        nk_f64c_t *p = (nk_f64c_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) p[i] = from_buffers[i].f64c;
-    } break;
-    case nk_f32c_k: {
-        nk_f32c_t *p = (nk_f32c_t *)to_ptr;
-        for (i = 0; i < to_count; ++i)
-            p[i].real = (nk_f32_t)from_buffers[i].f64c.real, p[i].imag = (nk_f32_t)from_buffers[i].f64c.imag;
-    } break;
-    case nk_f16c_k: {
-        nk_f16c_t *p = (nk_f16c_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) {
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_f16_serial(&temporary_f32, &p[i].real);
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.imag, nk_f32_to_f16_serial(&temporary_f32, &p[i].imag);
-        }
-    } break;
-    case nk_bf16c_k: {
-        nk_bf16c_t *p = (nk_bf16c_t *)to_ptr;
-        for (i = 0; i < to_count; ++i) {
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_bf16_serial(&temporary_f32, &p[i].real);
-            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.imag, nk_f32_to_bf16_serial(&temporary_f32, &p[i].imag);
-        }
-    } break;
     // Sub-byte: u1 - 8 bits to 1 byte, MSB-first, non-zero → 1
     case nk_u1_k: {
         nk_u8_t *p = (nk_u8_t *)to_ptr;
@@ -1918,32 +1874,38 @@ NK_INTERNAL void nk_scalar_buffers_export_f64c_(            //
     case nk_i4_k: {
         nk_u8_t *p = (nk_u8_t *)to_ptr;
         for (i = 0; i < 4; ++i) {
-            nk_i64_t hi = (nk_i64_t)from_buffers[i * 2].f64c.real;
-            nk_i64_t lo = (nk_i64_t)from_buffers[i * 2 + 1].f64c.real;
-            hi = hi > 7 ? 7 : (hi < -8 ? -8 : hi);
-            lo = lo > 7 ? 7 : (lo < -8 ? -8 : lo);
-            p[i] = (nk_u8_t)(((hi & 0xF) << 4) | (lo & 0xF));
+            nk_f64_t high = from_buffers[i * 2].f64c.real, low = from_buffers[i * 2 + 1].f64c.real;
+            high = high > 7 ? 7 : (high < -8 ? -8 : high);
+            low = low > 7 ? 7 : (low < -8 ? -8 : low);
+            p[i] = (nk_u8_t)((((nk_i8_t)high & 0x0F) << 4) | ((nk_i8_t)low & 0x0F));
         }
     } break;
     // Sub-byte: u4 - 8 nibbles to 4 bytes, high nibble = even index
     case nk_u4_k: {
         nk_u8_t *p = (nk_u8_t *)to_ptr;
         for (i = 0; i < 4; ++i) {
-            nk_u64_t hi = (nk_u64_t)from_buffers[i * 2].f64c.real;
-            nk_u64_t lo = (nk_u64_t)from_buffers[i * 2 + 1].f64c.real;
-            hi = hi > 15 ? 15 : hi;
-            lo = lo > 15 ? 15 : lo;
-            p[i] = (nk_u8_t)((hi << 4) | lo);
+            nk_f64_t high = from_buffers[i * 2].f64c.real, low = from_buffers[i * 2 + 1].f64c.real;
+            high = high > 15 ? 15 : (high < 0 ? 0 : high);
+            low = low > 15 ? 15 : (low < 0 ? 0 : low);
+            p[i] = (nk_u8_t)(((nk_u8_t)high << 4) | (nk_u8_t)low);
         }
     } break;
-    default: break;
+    // All byte-or-larger types: convert, then store relevant bytes
+    default: {
+        nk_size_t stride = nk_dtype_bits(to_dtype) / NK_BITS_PER_BYTE;
+        nk_scalar_buffer_t tmp;
+        for (i = 0; i < to_count; ++i) {
+            nk_scalar_buffer_from_f64c(&from_buffers[i].f64c, &tmp, to_dtype);
+            nk_copy_bytes_((char *)to_ptr + i * stride, &tmp, stride);
+        }
+    } break;
     }
 }
 
 /**
  *  @brief Load 8 values from typed buffer into `buf[i].i64` (lossless widening for signed integers).
  */
-NK_INTERNAL void nk_scalar_buffers_fill_i64_(                          //
+NK_INTERNAL void nk_scalar_buffers_to_i64_(                            //
     void const *from_ptr, nk_dtype_t from_dtype, nk_size_t from_count, //
     nk_scalar_buffer_t to_buffers[nk_at_least_(8)]) {                  //
     nk_size_t i;
@@ -1966,11 +1928,12 @@ NK_INTERNAL void nk_scalar_buffers_fill_i64_(                          //
     } break;
     // Sub-byte: i4 - 4 bytes to 8 nibbles, sign-extend each nibble
     case nk_i4_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        nk_i4x2_t const *pairs = (nk_i4x2_t const *)from_ptr;
         for (i = 0; i < 4; ++i) {
-            nk_i8_t hi = (nk_i8_t)(p[i] >> 4), lo = (nk_i8_t)(p[i] & 0xF);
-            to_buffers[i * 2].i64 = (hi ^ 8) - 8;
-            to_buffers[i * 2 + 1].i64 = (lo ^ 8) - 8;
+            nk_i8_t unpacked[2];
+            nk_i4x2_to_i8x2_serial(&pairs[i], unpacked);
+            to_buffers[i * 2].i64 = unpacked[0];
+            to_buffers[i * 2 + 1].i64 = unpacked[1];
         }
     } break;
     case nk_u64_k: {
@@ -2002,8 +1965,9 @@ NK_INTERNAL void nk_scalar_buffers_fill_i64_(                          //
 
 /**
  *  @brief Export 8 `buf[i].i64` values to typed buffer with saturation on downcast.
+ *  @note Only handles integer and sub-byte targets. Float/complex targets are silently skipped.
  */
-NK_INTERNAL void nk_scalar_buffers_export_i64_(              //
+NK_INTERNAL void nk_scalar_buffers_from_i64_(                //
     nk_scalar_buffer_t const from_buffers[nk_at_least_(8)],  //
     void *to_ptr, nk_dtype_t to_dtype, nk_size_t to_count) { //
     nk_size_t i;
@@ -2043,12 +2007,12 @@ NK_INTERNAL void nk_scalar_buffers_export_i64_(              //
     } break;
     // Sub-byte: i4 - 8 nibbles to 4 bytes, clamp [-8,7]
     case nk_i4_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
+        nk_i4x2_t *p = (nk_i4x2_t *)to_ptr;
         for (i = 0; i < 4; ++i) {
-            nk_i64_t hi = from_buffers[i * 2].i64, lo = from_buffers[i * 2 + 1].i64;
-            hi = hi > 7 ? 7 : (hi < -8 ? -8 : hi);
-            lo = lo > 7 ? 7 : (lo < -8 ? -8 : lo);
-            p[i] = (nk_u8_t)(((hi & 0xF) << 4) | (lo & 0xF));
+            nk_i64_t high = from_buffers[i * 2].i64, low = from_buffers[i * 2 + 1].i64;
+            high = high > 7 ? 7 : (high < -8 ? -8 : high);
+            low = low > 7 ? 7 : (low < -8 ? -8 : low);
+            p[i] = (nk_u8_t)(((high & 0xF) << 4) | (low & 0xF));
         }
     } break;
     default: break;
@@ -2058,7 +2022,7 @@ NK_INTERNAL void nk_scalar_buffers_export_i64_(              //
 /**
  *  @brief Load 8 values from typed buffer into `buf[i].u64` (lossless widening for unsigned integers).
  */
-NK_INTERNAL void nk_scalar_buffers_fill_u64_(                          //
+NK_INTERNAL void nk_scalar_buffers_to_u64_(                            //
     void const *from_ptr, nk_dtype_t from_dtype, nk_size_t from_count, //
     nk_scalar_buffer_t to_buffers[nk_at_least_(8)]) {                  //
     nk_size_t i;
@@ -2081,10 +2045,12 @@ NK_INTERNAL void nk_scalar_buffers_fill_u64_(                          //
     } break;
     // Sub-byte: u4 - 4 bytes to 8 nibbles, zero-extend
     case nk_u4_k: {
-        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        nk_u4x2_t const *pairs = (nk_u4x2_t const *)from_ptr;
         for (i = 0; i < 4; ++i) {
-            to_buffers[i * 2].u64 = p[i] >> 4;
-            to_buffers[i * 2 + 1].u64 = p[i] & 0xF;
+            nk_u8_t unpacked[2];
+            nk_u4x2_to_u8x2_serial(&pairs[i], unpacked);
+            to_buffers[i * 2].u64 = unpacked[0];
+            to_buffers[i * 2 + 1].u64 = unpacked[1];
         }
     } break;
     // Sub-byte: u1 - 1 byte to 8 bits, MSB-first
@@ -2098,8 +2064,9 @@ NK_INTERNAL void nk_scalar_buffers_fill_u64_(                          //
 
 /**
  *  @brief Export 8 `buf[i].u64` values to typed buffer with saturation on downcast.
+ *  @note Only handles integer and sub-byte targets. Float/complex targets are silently skipped.
  */
-NK_INTERNAL void nk_scalar_buffers_export_u64_(              //
+NK_INTERNAL void nk_scalar_buffers_from_u64_(                //
     nk_scalar_buffer_t const from_buffers[nk_at_least_(8)],  //
     void *to_ptr, nk_dtype_t to_dtype, nk_size_t to_count) { //
     nk_size_t i;
@@ -2139,12 +2106,12 @@ NK_INTERNAL void nk_scalar_buffers_export_u64_(              //
     } break;
     // Sub-byte: u4 - 8 nibbles to 4 bytes, clamp [0,15]
     case nk_u4_k: {
-        nk_u8_t *p = (nk_u8_t *)to_ptr;
+        nk_u4x2_t *p = (nk_u4x2_t *)to_ptr;
         for (i = 0; i < 4; ++i) {
-            nk_u64_t hi = from_buffers[i * 2].u64, lo = from_buffers[i * 2 + 1].u64;
-            hi = hi > 15 ? 15 : hi;
-            lo = lo > 15 ? 15 : lo;
-            p[i] = (nk_u8_t)((hi << 4) | lo);
+            nk_u64_t high = from_buffers[i * 2].u64, low = from_buffers[i * 2 + 1].u64;
+            high = high > 15 ? 15 : high;
+            low = low > 15 ? 15 : low;
+            p[i] = (nk_u8_t)((high << 4) | low);
         }
     } break;
     // Sub-byte: u1 - 8 bits to 1 byte, MSB-first, non-zero becomes 1
@@ -2156,6 +2123,23 @@ NK_INTERNAL void nk_scalar_buffers_export_u64_(              //
     } break;
     default: break;
     }
+}
+
+/** @brief Widens a typed scalar from @p buf into @p result as f64 (discards imaginary part).
+ *  Safe when @p result aliases @p buf (in-place conversion). */
+NK_INTERNAL int nk_scalar_buffer_to_f64(nk_scalar_buffer_t const *buf, nk_dtype_t dtype, nk_f64_t *result) {
+    nk_f64c_t temporary_f64c;
+    int ok = nk_scalar_buffer_to_f64c(buf, dtype, &temporary_f64c);
+    *result = temporary_f64c.real;
+    return ok;
+}
+
+/** @brief Narrows an f64 @p value into the appropriate typed member of @p buf.
+ *  Safe when @p value aliases @p buf (in-place: `buf->f64 = x; from_f64(&buf->f64, buf, dtype)`).
+ *  @note Integer targets go through f64 rounding — values beyond 2^53 may lose precision. */
+NK_INTERNAL int nk_scalar_buffer_from_f64(nk_f64_t const *value, nk_scalar_buffer_t *buf, nk_dtype_t dtype) {
+    nk_f64c_t temporary_f64c = {*value, 0};
+    return nk_scalar_buffer_from_f64c(&temporary_f64c, buf, dtype);
 }
 
 #pragma endregion - Type Punned Loads and Stores
@@ -2190,12 +2174,12 @@ NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t 
     // Both unsigned: u64 hub
     if (from_family == nk_dtype_family_uint_k && to_family == nk_dtype_family_uint_k) {
         for (nk_size_t b = 0; b < batches; ++b, src += from_step, dst += to_step) {
-            nk_scalar_buffers_fill_u64_(src, from_type, NK_BITS_PER_BYTE, bufs);
-            nk_scalar_buffers_export_u64_(bufs, dst, to_type, NK_BITS_PER_BYTE);
+            nk_scalar_buffers_to_u64_(src, from_type, NK_BITS_PER_BYTE, bufs);
+            nk_scalar_buffers_from_u64_(bufs, dst, to_type, NK_BITS_PER_BYTE);
         }
         if (tail) {
-            nk_scalar_buffers_fill_u64_(src, from_type, tail, bufs);
-            nk_scalar_buffers_export_u64_(bufs, dst, to_type, tail);
+            nk_scalar_buffers_to_u64_(src, from_type, tail, bufs);
+            nk_scalar_buffers_from_u64_(bufs, dst, to_type, tail);
         }
         return;
     }
@@ -2204,24 +2188,24 @@ NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t 
     if ((from_family == nk_dtype_family_int_k || from_family == nk_dtype_family_uint_k) &&
         (to_family == nk_dtype_family_int_k || to_family == nk_dtype_family_uint_k)) {
         for (nk_size_t b = 0; b < batches; ++b, src += from_step, dst += to_step) {
-            nk_scalar_buffers_fill_i64_(src, from_type, NK_BITS_PER_BYTE, bufs);
-            nk_scalar_buffers_export_i64_(bufs, dst, to_type, NK_BITS_PER_BYTE);
+            nk_scalar_buffers_to_i64_(src, from_type, NK_BITS_PER_BYTE, bufs);
+            nk_scalar_buffers_from_i64_(bufs, dst, to_type, NK_BITS_PER_BYTE);
         }
         if (tail) {
-            nk_scalar_buffers_fill_i64_(src, from_type, tail, bufs);
-            nk_scalar_buffers_export_i64_(bufs, dst, to_type, tail);
+            nk_scalar_buffers_to_i64_(src, from_type, tail, bufs);
+            nk_scalar_buffers_from_i64_(bufs, dst, to_type, tail);
         }
         return;
     }
 
     // Everything else: f64c hub (floats, complex, cross-category)
     for (nk_size_t b = 0; b < batches; ++b, src += from_step, dst += to_step) {
-        nk_scalar_buffers_fill_f64c_(src, from_type, NK_BITS_PER_BYTE, bufs);
-        nk_scalar_buffers_export_f64c_(bufs, dst, to_type, NK_BITS_PER_BYTE);
+        nk_scalar_buffers_to_f64c_(src, from_type, NK_BITS_PER_BYTE, bufs);
+        nk_scalar_buffers_from_f64c_(bufs, dst, to_type, NK_BITS_PER_BYTE);
     }
     if (tail) {
-        nk_scalar_buffers_fill_f64c_(src, from_type, tail, bufs);
-        nk_scalar_buffers_export_f64c_(bufs, dst, to_type, tail);
+        nk_scalar_buffers_to_f64c_(src, from_type, tail, bufs);
+        nk_scalar_buffers_from_f64c_(bufs, dst, to_type, tail);
     }
 }
 
@@ -2251,34 +2235,6 @@ NK_PUBLIC void nk_e3m2_to_bf16(nk_e3m2_t const *src, nk_bf16_t *dest) {
     nk_f32_t temp;
     nk_e3m2_to_f32_serial(src, &temp);
     nk_f32_to_bf16_serial(&temp, dest);
-}
-
-/**
- *  @brief Convert i4 (4-bit signed integer, -8 to 7) to i8.
- *
- *  Nibbles are packed: low nibble in bits [0:3], high nibble in bits [4:7].
- *  Sign extension: XOR with 8 then subtract 8 converts unsigned nibble to signed.
- */
-NK_PUBLIC void nk_i4_to_i8_serial_(nk_i4x2_t const *src, nk_i8_t *dest, nk_size_t count) {
-    nk_u8_t const *bytes = (nk_u8_t const *)src;
-    for (nk_size_t i = 0; i < count; ++i) {
-        nk_u8_t byte = bytes[i / 2];
-        nk_u8_t nibble = (i % 2 == 0) ? (byte & 0x0F) : (byte >> 4);
-        dest[i] = (nk_i8_t)((nibble ^ 8) - 8); // Sign extend: 0-7 → 0-7, 8-15 → -8 to -1
-    }
-}
-
-/**
- *  @brief Convert u4 (4-bit unsigned integer, 0 to 15) to u8.
- *
- *  Nibbles are packed: low nibble in bits [0:3], high nibble in bits [4:7].
- */
-NK_PUBLIC void nk_u4_to_u8_serial_(nk_u4x2_t const *src, nk_u8_t *dest, nk_size_t count) {
-    nk_u8_t const *bytes = (nk_u8_t const *)src;
-    for (nk_size_t i = 0; i < count; ++i) {
-        nk_u8_t byte = bytes[i / 2];
-        dest[i] = (i % 2 == 0) ? (byte & 0x0F) : (byte >> 4);
-    }
 }
 
 #pragma endregion - Public API

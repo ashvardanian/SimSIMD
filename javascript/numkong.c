@@ -65,7 +65,7 @@ static int is_compatible_napi_type(napi_typedarray_type napi_type, nk_dtype_t dt
  *  @param out_dtype The dtype of the value stored in the buffer.
  *  @return napi_value containing the result as a JavaScript Number, or NULL on error.
  */
-static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *result, nk_dtype_t out_dtype) {
+static napi_value nk_scalar_buffer_to_js_number(napi_env env, nk_scalar_buffer_t const *result, nk_dtype_t out_dtype) {
     // i64/u64 must return BigInt since they may exceed Number.MAX_SAFE_INTEGER
     if (out_dtype == nk_i64_k) {
         napi_value js_result;
@@ -77,30 +77,9 @@ static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *re
         if (napi_create_bigint_uint64(env, result->u64, &js_result) != napi_ok) return NULL;
         return js_result;
     }
-    double result_f64;
-    switch (out_dtype) {
-    case nk_f64_k: result_f64 = (double)result->f64; break;
-    case nk_f32_k: result_f64 = (double)result->f32; break;
-    case nk_f16_k: {
-        nk_f32_t t;
-        nk_f16_to_f32(&result->f16, &t);
-        result_f64 = (double)t;
-        break;
-    }
-    case nk_bf16_k: {
-        nk_f32_t t;
-        nk_bf16_to_f32(&result->bf16, &t);
-        result_f64 = (double)t;
-        break;
-    }
-    case nk_i8_k: result_f64 = (double)result->i8; break;
-    case nk_u8_k: result_f64 = (double)result->u8; break;
-    case nk_i16_k: result_f64 = (double)result->i16; break;
-    case nk_u16_k: result_f64 = (double)result->u16; break;
-    case nk_i32_k: result_f64 = (double)result->i32; break;
-    case nk_u32_k: result_f64 = (double)result->u32; break;
-    default: napi_throw_error(env, NULL, "Unexpected output dtype in result conversion"); return NULL;
-    }
+    nk_f64c_t result_c;
+    nk_scalar_buffer_to_f64c(result, out_dtype, &result_c);
+    double result_f64 = result_c.real;
     napi_value js_result;
     if (napi_create_double(env, result_f64, &js_result) != napi_ok) return NULL;
     return js_result;
@@ -209,7 +188,7 @@ static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t 
     nk_scalar_buffer_t result;
     metric(data_a, data_b, dimensions, &result);
 
-    return scalar_to_js_number(env, &result, out_dtype);
+    return nk_scalar_buffer_to_js_number(env, &result, out_dtype);
 }
 
 /** @brief N-API entry for inner product (dot).  */

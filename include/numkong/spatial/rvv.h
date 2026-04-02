@@ -192,8 +192,8 @@ NK_PUBLIC void nk_euclidean_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_sc
 
 NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f64_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t sum_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t sum_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e32m1(count_scalars);
@@ -206,7 +206,7 @@ NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const 
     }
     // Single horizontal reduction at the end
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, vlmax));
+    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(sum_f64m2, zero_f64m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
@@ -325,10 +325,10 @@ NK_PUBLIC void nk_angular_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
 
 NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f64_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t dot_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t a_norm_sq_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t b_norm_sq_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m2();
+    vfloat64m2_t dot_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t a_norm_sq_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
+    vfloat64m2_t b_norm_sq_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, max_vector_length);
 
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -344,11 +344,12 @@ NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_s
 
     // Single horizontal reduction at the end for all three accumulators
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
-    nk_f64_t dot_f64 = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(dot_f64m2, zero_f64m1, vlmax));
+    nk_f64_t dot_f64 = __riscv_vfmv_f_s_f64m1_f64(
+        __riscv_vfredusum_vs_f64m2_f64m1(dot_f64m2, zero_f64m1, max_vector_length));
     nk_f64_t a_norm_sq_f64 = __riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(a_norm_sq_f64m2, zero_f64m1, vlmax));
+        __riscv_vfredusum_vs_f64m2_f64m1(a_norm_sq_f64m2, zero_f64m1, max_vector_length));
     nk_f64_t b_norm_sq_f64 = __riscv_vfmv_f_s_f64m1_f64(
-        __riscv_vfredusum_vs_f64m2_f64m1(b_norm_sq_f64m2, zero_f64m1, vlmax));
+        __riscv_vfredusum_vs_f64m2_f64m1(b_norm_sq_f64m2, zero_f64m1, max_vector_length));
 
     // Normalize: 1 − dot / √(‖a‖² × ‖b‖²)
     if (a_norm_sq_f64 == 0.0 && b_norm_sq_f64 == 0.0) { *result = 0.0; }
@@ -418,8 +419,8 @@ NK_PUBLIC void nk_angular_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_s
 
 NK_PUBLIC void nk_sqeuclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count_scalars);
@@ -436,7 +437,7 @@ NK_PUBLIC void nk_sqeuclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const 
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax));
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -447,10 +448,10 @@ NK_PUBLIC void nk_euclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b
 
 NK_PUBLIC void nk_angular_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t dot_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
-    vfloat32m2_t a_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
-    vfloat32m2_t b_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t dot_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
+    vfloat32m2_t a_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
+    vfloat32m2_t b_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
 
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -470,11 +471,12 @@ NK_PUBLIC void nk_angular_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
     // Single horizontal reduction at the end for all three accumulators
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, vlmax));
+    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, max_vector_length));
     nk_f32_t a_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m2_f32m1(a_norm_sq_f32m2, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m2_f32m1(a_norm_sq_f32m2, zero_f32m1, max_vector_length));
     nk_f32_t b_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m2_f32m1(b_norm_sq_f32m2, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m2_f32m1(b_norm_sq_f32m2, zero_f32m1, max_vector_length));
 
     if (a_norm_sq_f32 == 0.0f && b_norm_sq_f32 == 0.0f) { *result = 0.0f; }
     else if (dot_f32 == 0.0f) { *result = 1.0f; }
@@ -486,8 +488,8 @@ NK_PUBLIC void nk_angular_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
 NK_PUBLIC void nk_sqeuclidean_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count_scalars);
@@ -504,7 +506,7 @@ NK_PUBLIC void nk_sqeuclidean_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t con
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, vlmax));
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sum_f32m2, zero_f32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
@@ -515,10 +517,10 @@ NK_PUBLIC void nk_euclidean_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const
 
 NK_PUBLIC void nk_angular_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-    vfloat32m2_t dot_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
-    vfloat32m2_t a_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
-    vfloat32m2_t b_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t dot_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
+    vfloat32m2_t a_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
+    vfloat32m2_t b_norm_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, max_vector_length);
 
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -538,11 +540,12 @@ NK_PUBLIC void nk_angular_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *
 
     // Single horizontal reduction at the end for all three accumulators
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, vlmax));
+    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, max_vector_length));
     nk_f32_t a_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m2_f32m1(a_norm_sq_f32m2, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m2_f32m1(a_norm_sq_f32m2, zero_f32m1, max_vector_length));
     nk_f32_t b_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m2_f32m1(b_norm_sq_f32m2, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m2_f32m1(b_norm_sq_f32m2, zero_f32m1, max_vector_length));
 
     if (a_norm_sq_f32 == 0.0f && b_norm_sq_f32 == 0.0f) { *result = 0.0f; }
     else if (dot_f32 == 0.0f) { *result = 1.0f; }
@@ -554,8 +557,8 @@ NK_PUBLIC void nk_angular_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count_scalars);
@@ -572,7 +575,7 @@ NK_PUBLIC void nk_sqeuclidean_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t con
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
@@ -583,10 +586,10 @@ NK_PUBLIC void nk_euclidean_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const
 
 NK_PUBLIC void nk_angular_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t dot_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    vfloat32m4_t a_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    vfloat32m4_t b_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t dot_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
+    vfloat32m4_t a_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
+    vfloat32m4_t b_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
 
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -606,11 +609,12 @@ NK_PUBLIC void nk_angular_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *
 
     // Single horizontal reduction at the end for all three accumulators
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(dot_f32m4, zero_f32m1, vlmax));
+    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m4_f32m1(dot_f32m4, zero_f32m1, max_vector_length));
     nk_f32_t a_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m4_f32m1(a_norm_sq_f32m4, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m4_f32m1(a_norm_sq_f32m4, zero_f32m1, max_vector_length));
     nk_f32_t b_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m4_f32m1(b_norm_sq_f32m4, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m4_f32m1(b_norm_sq_f32m4, zero_f32m1, max_vector_length));
 
     if (a_norm_sq_f32 == 0.0f && b_norm_sq_f32 == 0.0f) { *result = 0.0f; }
     else if (dot_f32 == 0.0f) { *result = 1.0f; }
@@ -622,8 +626,8 @@ NK_PUBLIC void nk_angular_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *
 
 NK_PUBLIC void nk_sqeuclidean_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count_scalars);
@@ -640,7 +644,7 @@ NK_PUBLIC void nk_sqeuclidean_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t con
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
+    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
@@ -651,10 +655,10 @@ NK_PUBLIC void nk_euclidean_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const
 
 NK_PUBLIC void nk_angular_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t dot_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    vfloat32m4_t a_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    vfloat32m4_t b_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vfloat32m4_t dot_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
+    vfloat32m4_t a_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
+    vfloat32m4_t b_norm_sq_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, max_vector_length);
 
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -674,11 +678,12 @@ NK_PUBLIC void nk_angular_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
 
     // Single horizontal reduction at the end for all three accumulators
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(dot_f32m4, zero_f32m1, vlmax));
+    nk_f32_t dot_f32 = __riscv_vfmv_f_s_f32m1_f32(
+        __riscv_vfredusum_vs_f32m4_f32m1(dot_f32m4, zero_f32m1, max_vector_length));
     nk_f32_t a_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m4_f32m1(a_norm_sq_f32m4, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m4_f32m1(a_norm_sq_f32m4, zero_f32m1, max_vector_length));
     nk_f32_t b_norm_sq_f32 = __riscv_vfmv_f_s_f32m1_f32(
-        __riscv_vfredusum_vs_f32m4_f32m1(b_norm_sq_f32m4, zero_f32m1, vlmax));
+        __riscv_vfredusum_vs_f32m4_f32m1(b_norm_sq_f32m4, zero_f32m1, max_vector_length));
 
     if (a_norm_sq_f32 == 0.0f && b_norm_sq_f32 == 0.0f) { *result = 0.0f; }
     else if (dot_f32 == 0.0f) { *result = 1.0f; }
@@ -713,31 +718,31 @@ NK_PUBLIC void nk_sqeuclidean_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const
     };
     count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n_bytes);
         vuint8m1_t a_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
         vuint8m1_t b_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        // Build LUT indices: high nibble pair = (a_hi << 4) | b_hi
-        vuint8m1_t hi_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
-                                                     __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length),
-                                                     vector_length);
-        // Low nibble pair = (a_lo << 4) | b_lo
-        vuint8m1_t lo_idx_u8m1 = __riscv_vor_vv_u8m1(
+        // Build LUT indices: high nibble pair = (a_high << 4) | b_hi
+        vuint8m1_t high_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
+                                                       __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length),
+                                                       vector_length);
+        // Low nibble pair = (a_low << 4) | b_lo
+        vuint8m1_t low_idx_u8m1 = __riscv_vor_vv_u8m1(
             __riscv_vsll_vx_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length), 4, vector_length),
             __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length), vector_length);
         // Gather squared differences from LUT (0-225, fits u8)
-        vuint8m1_t sq_hi_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sqd_lut_, hi_idx_u8m1, vector_length);
-        vuint8m1_t sq_lo_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sqd_lut_, lo_idx_u8m1, vector_length);
+        vuint8m1_t sq_high_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sqd_lut_, high_idx_u8m1, vector_length);
+        vuint8m1_t sq_low_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sqd_lut_, low_idx_u8m1, vector_length);
         // Combine and per-lane accumulate: u8+u8→u16, then u32+=u16
-        vuint16m2_t combined_u16m2 = __riscv_vwaddu_vv_u16m2(sq_hi_u8m1, sq_lo_u8m1, vector_length);
+        vuint16m2_t combined_u16m2 = __riscv_vwaddu_vv_u16m2(sq_high_u8m1, sq_low_u8m1, vector_length);
         sum_u32m4 = __riscv_vwaddu_wv_u32m4_tu(sum_u32m4, sum_u32m4, combined_u16m2, vector_length);
     }
     // Single horizontal reduction after loop
-    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
-    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, vlmax));
+    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, max_vector_length);
+    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
@@ -770,10 +775,10 @@ NK_PUBLIC void nk_angular_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_
     static nk_u8_t const nk_i4_sq_lut_[16] = {0, 1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1};
     count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vint32m4_t dot_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-    vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-    vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vint32m4_t dot_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+    vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+    vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
 
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -782,44 +787,45 @@ NK_PUBLIC void nk_angular_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_
         vuint8m1_t b_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
 
         // Extract nibbles for index building
-        vuint8m1_t a_hi_u8m1 = __riscv_vsrl_vx_u8m1(a_packed_u8m1, 4, vector_length);
-        vuint8m1_t b_hi_u8m1 = __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length);
-        vuint8m1_t a_lo_u8m1 = __riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length);
-        vuint8m1_t b_lo_u8m1 = __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length);
+        vuint8m1_t a_high_u8m1 = __riscv_vsrl_vx_u8m1(a_packed_u8m1, 4, vector_length);
+        vuint8m1_t b_high_u8m1 = __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length);
+        vuint8m1_t a_low_u8m1 = __riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length);
+        vuint8m1_t b_low_u8m1 = __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length);
 
         // Dot product via 256-entry LUT: dot_lut[(a<<4)|b] = a_signed * b_signed (i8)
-        vuint8m1_t hi_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
-                                                     b_hi_u8m1, vector_length);
-        vuint8m1_t lo_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(a_lo_u8m1, 4, vector_length), b_lo_u8m1,
-                                                     vector_length);
-        vint8m1_t dot_hi_i8m1 = __riscv_vluxei8_v_i8m1(nk_i4_dot_lut_, hi_idx_u8m1, vector_length);
-        vint8m1_t dot_lo_i8m1 = __riscv_vluxei8_v_i8m1(nk_i4_dot_lut_, lo_idx_u8m1, vector_length);
+        vuint8m1_t high_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
+                                                       b_high_u8m1, vector_length);
+        vuint8m1_t low_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(a_low_u8m1, 4, vector_length), b_low_u8m1,
+                                                      vector_length);
+        vint8m1_t dot_high_i8m1 = __riscv_vluxei8_v_i8m1(nk_i4_dot_lut_, high_idx_u8m1, vector_length);
+        vint8m1_t dot_low_i8m1 = __riscv_vluxei8_v_i8m1(nk_i4_dot_lut_, low_idx_u8m1, vector_length);
         // Widen i8→i16, add hi+lo, then per-lane accumulate i32+=i16
-        vint16m2_t dot_combined_i16m2 = __riscv_vwadd_vv_i16m2(dot_hi_i8m1, dot_lo_i8m1, vector_length);
+        vint16m2_t dot_combined_i16m2 = __riscv_vwadd_vv_i16m2(dot_high_i8m1, dot_low_i8m1, vector_length);
         dot_i32m4 = __riscv_vwadd_wv_i32m4_tu(dot_i32m4, dot_i32m4, dot_combined_i16m2, vector_length);
 
         // Norms via 16-entry squaring LUT + vluxei8
-        vuint8m1_t a_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_hi_u8m1, vector_length);
-        vuint8m1_t a_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_lo_u8m1, vector_length);
-        vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_hi_sq_u8m1, a_lo_sq_u8m1, vector_length);
+        vuint8m1_t a_high_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_high_u8m1, vector_length);
+        vuint8m1_t a_low_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_low_u8m1, vector_length);
+        vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_high_sq_u8m1, a_low_sq_u8m1, vector_length);
         a_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4_tu(a_norm_sq_u32m4, a_norm_sq_u32m4, a_sq_combined_u16m2,
                                                      vector_length);
 
-        vuint8m1_t b_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_hi_u8m1, vector_length);
-        vuint8m1_t b_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_lo_u8m1, vector_length);
-        vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_hi_sq_u8m1, b_lo_sq_u8m1, vector_length);
+        vuint8m1_t b_high_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_high_u8m1, vector_length);
+        vuint8m1_t b_low_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_low_u8m1, vector_length);
+        vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_high_sq_u8m1, b_low_sq_u8m1, vector_length);
         b_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4_tu(b_norm_sq_u32m4, b_norm_sq_u32m4, b_sq_combined_u16m2,
                                                      vector_length);
     }
 
     // Single horizontal reductions after loop
-    vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
-    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
-    nk_i32_t dot_i32 = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(dot_i32m4, zero_i32m1, vlmax));
+    vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, max_vector_length);
+    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, max_vector_length);
+    nk_i32_t dot_i32 = __riscv_vmv_x_s_i32m1_i32(
+        __riscv_vredsum_vs_i32m4_i32m1(dot_i32m4, zero_i32m1, max_vector_length));
     nk_u32_t a_norm_sq_u32 = __riscv_vmv_x_s_u32m1_u32(
-        __riscv_vredsum_vs_u32m4_u32m1(a_norm_sq_u32m4, zero_u32m1, vlmax));
+        __riscv_vredsum_vs_u32m4_u32m1(a_norm_sq_u32m4, zero_u32m1, max_vector_length));
     nk_u32_t b_norm_sq_u32 = __riscv_vmv_x_s_u32m1_u32(
-        __riscv_vredsum_vs_u32m4_u32m1(b_norm_sq_u32m4, zero_u32m1, vlmax));
+        __riscv_vredsum_vs_u32m4_u32m1(b_norm_sq_u32m4, zero_u32m1, max_vector_length));
 
     if (a_norm_sq_u32 == 0 && b_norm_sq_u32 == 0) { *result = 0.0f; }
     else if (dot_i32 == 0) { *result = 1.0f; }
@@ -852,31 +858,31 @@ NK_PUBLIC void nk_sqeuclidean_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const
     };
     count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vuint32m4_t sum_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n_bytes);
         vuint8m1_t a_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
         vuint8m1_t b_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        // Build LUT indices: high nibble pair = (a_hi & 0xF0) | (b_hi >> 4)
-        vuint8m1_t hi_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
-                                                     __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length),
-                                                     vector_length);
-        // Low nibble pair = (a_lo << 4) | b_lo
-        vuint8m1_t lo_idx_u8m1 = __riscv_vor_vv_u8m1(
+        // Build LUT indices: high nibble pair = (a_high & 0xF0) | (b_high >> 4)
+        vuint8m1_t high_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
+                                                       __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length),
+                                                       vector_length);
+        // Low nibble pair = (a_low << 4) | b_lo
+        vuint8m1_t low_idx_u8m1 = __riscv_vor_vv_u8m1(
             __riscv_vsll_vx_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length), 4, vector_length),
             __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length), vector_length);
         // Gather squared differences from LUT (0-225, fits u8)
-        vuint8m1_t sq_hi_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sqd_lut_, hi_idx_u8m1, vector_length);
-        vuint8m1_t sq_lo_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sqd_lut_, lo_idx_u8m1, vector_length);
+        vuint8m1_t sq_high_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sqd_lut_, high_idx_u8m1, vector_length);
+        vuint8m1_t sq_low_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sqd_lut_, low_idx_u8m1, vector_length);
         // Combine and per-lane accumulate: u8+u8→u16, then u32+=u16
-        vuint16m2_t combined_u16m2 = __riscv_vwaddu_vv_u16m2(sq_hi_u8m1, sq_lo_u8m1, vector_length);
+        vuint16m2_t combined_u16m2 = __riscv_vwaddu_vv_u16m2(sq_high_u8m1, sq_low_u8m1, vector_length);
         sum_u32m4 = __riscv_vwaddu_wv_u32m4_tu(sum_u32m4, sum_u32m4, combined_u16m2, vector_length);
     }
     // Single horizontal reduction after loop
-    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
-    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, vlmax));
+    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, max_vector_length);
+    *result = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(sum_u32m4, zero_u32m1, max_vector_length));
 }
 
 NK_PUBLIC void nk_euclidean_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_scalars,
@@ -909,10 +915,10 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
     static nk_u8_t const nk_u4_sq_lut_[16] = {0, 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225};
     count_scalars = nk_size_round_up_to_multiple_(count_scalars, 2);
     nk_size_t n_bytes = count_scalars / 2;
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vuint32m4_t dot_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-    vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-    vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+    vuint32m4_t dot_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+    vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+    vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
 
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -921,43 +927,44 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
         vuint8m1_t b_packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
 
         // Extract nibbles
-        vuint8m1_t a_hi_u8m1 = __riscv_vsrl_vx_u8m1(a_packed_u8m1, 4, vector_length);
-        vuint8m1_t b_hi_u8m1 = __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length);
-        vuint8m1_t a_lo_u8m1 = __riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length);
-        vuint8m1_t b_lo_u8m1 = __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length);
+        vuint8m1_t a_high_u8m1 = __riscv_vsrl_vx_u8m1(a_packed_u8m1, 4, vector_length);
+        vuint8m1_t b_high_u8m1 = __riscv_vsrl_vx_u8m1(b_packed_u8m1, 4, vector_length);
+        vuint8m1_t a_low_u8m1 = __riscv_vand_vx_u8m1(a_packed_u8m1, 0x0F, vector_length);
+        vuint8m1_t b_low_u8m1 = __riscv_vand_vx_u8m1(b_packed_u8m1, 0x0F, vector_length);
 
         // Dot product via 256-entry LUT: dot_lut[(a<<4)|b] = a * b (u8)
-        vuint8m1_t hi_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
-                                                     b_hi_u8m1, vector_length);
-        vuint8m1_t lo_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(a_lo_u8m1, 4, vector_length), b_lo_u8m1,
-                                                     vector_length);
-        vuint8m1_t dot_hi_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_dot_lut_, hi_idx_u8m1, vector_length);
-        vuint8m1_t dot_lo_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_dot_lut_, lo_idx_u8m1, vector_length);
+        vuint8m1_t high_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vand_vx_u8m1(a_packed_u8m1, 0xF0, vector_length),
+                                                       b_high_u8m1, vector_length);
+        vuint8m1_t low_idx_u8m1 = __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(a_low_u8m1, 4, vector_length), b_low_u8m1,
+                                                      vector_length);
+        vuint8m1_t dot_high_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_dot_lut_, high_idx_u8m1, vector_length);
+        vuint8m1_t dot_low_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_dot_lut_, low_idx_u8m1, vector_length);
         // Widen u8→u16, add hi+lo, then per-lane accumulate u32+=u16
-        vuint16m2_t dot_combined_u16m2 = __riscv_vwaddu_vv_u16m2(dot_hi_u8m1, dot_lo_u8m1, vector_length);
+        vuint16m2_t dot_combined_u16m2 = __riscv_vwaddu_vv_u16m2(dot_high_u8m1, dot_low_u8m1, vector_length);
         dot_u32m4 = __riscv_vwaddu_wv_u32m4_tu(dot_u32m4, dot_u32m4, dot_combined_u16m2, vector_length);
 
         // Norms via 16-entry squaring LUT + vluxei8
-        vuint8m1_t a_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_hi_u8m1, vector_length);
-        vuint8m1_t a_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_lo_u8m1, vector_length);
-        vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_hi_sq_u8m1, a_lo_sq_u8m1, vector_length);
+        vuint8m1_t a_high_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_high_u8m1, vector_length);
+        vuint8m1_t a_low_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_low_u8m1, vector_length);
+        vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_high_sq_u8m1, a_low_sq_u8m1, vector_length);
         a_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4_tu(a_norm_sq_u32m4, a_norm_sq_u32m4, a_sq_combined_u16m2,
                                                      vector_length);
 
-        vuint8m1_t b_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_hi_u8m1, vector_length);
-        vuint8m1_t b_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_lo_u8m1, vector_length);
-        vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_hi_sq_u8m1, b_lo_sq_u8m1, vector_length);
+        vuint8m1_t b_high_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_high_u8m1, vector_length);
+        vuint8m1_t b_low_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_low_u8m1, vector_length);
+        vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_high_sq_u8m1, b_low_sq_u8m1, vector_length);
         b_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4_tu(b_norm_sq_u32m4, b_norm_sq_u32m4, b_sq_combined_u16m2,
                                                      vector_length);
     }
 
     // Single horizontal reductions after loop
-    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
-    nk_u32_t dot_u32 = __riscv_vmv_x_s_u32m1_u32(__riscv_vredsum_vs_u32m4_u32m1(dot_u32m4, zero_u32m1, vlmax));
+    vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, max_vector_length);
+    nk_u32_t dot_u32 = __riscv_vmv_x_s_u32m1_u32(
+        __riscv_vredsum_vs_u32m4_u32m1(dot_u32m4, zero_u32m1, max_vector_length));
     nk_u32_t a_norm_sq_u32 = __riscv_vmv_x_s_u32m1_u32(
-        __riscv_vredsum_vs_u32m4_u32m1(a_norm_sq_u32m4, zero_u32m1, vlmax));
+        __riscv_vredsum_vs_u32m4_u32m1(a_norm_sq_u32m4, zero_u32m1, max_vector_length));
     nk_u32_t b_norm_sq_u32 = __riscv_vmv_x_s_u32m1_u32(
-        __riscv_vredsum_vs_u32m4_u32m1(b_norm_sq_u32m4, zero_u32m1, vlmax));
+        __riscv_vredsum_vs_u32m4_u32m1(b_norm_sq_u32m4, zero_u32m1, max_vector_length));
 
     if (a_norm_sq_u32 == 0 && b_norm_sq_u32 == 0) { *result = 0.0f; }
     else if (dot_u32 == 0) { *result = 1.0f; }

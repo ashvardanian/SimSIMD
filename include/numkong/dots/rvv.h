@@ -80,21 +80,21 @@ static nk_u16_t const nk_e3m2_magnitude_lut_rvv_[32] = {0,  1,   2,   3,   4,   
 #pragma region Single Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     // Break power-of-2 strides for cache associativity
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
            column_count * sizeof(nk_f64_t); // per-column norms
 }
 
 NK_PUBLIC void nk_dots_pack_f32_rvv(nk_f32_t const *b, nk_size_t column_count, nk_size_t depth,
                                     nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -158,11 +158,11 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -186,13 +186,13 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
             // Horizontal reduce directly to f64
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
             c_row_2[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, max_vector_length));
             c_row_3[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows (mr < 4)
@@ -201,8 +201,8 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
         nk_f64_t *c_row = (nk_f64_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -214,7 +214,7 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -225,9 +225,10 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t m, nk_size_t n,
-                                      nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_f32_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
+                                      nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                      nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_f32_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -236,19 +237,19 @@ NK_PUBLIC void nk_dots_packed_f32_rvv(nk_f32_t const *a, void const *b_packed, n
  *  Uses f64 widened accumulation via `vfwmacc_vv_f64m4` for precision.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                         nk_size_t stride_in_bytes, nk_f64_t *result, nk_size_t result_stride_in_bytes,
                                          nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
         nk_f32_t const *a_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
+        for (nk_size_t j = i; j < vectors_count; ++j) {
             nk_f32_t const *a_j = vectors + j * stride_elements;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -260,7 +261,7 @@ NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_ve
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f64_t dot = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -271,20 +272,20 @@ NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_ve
 #pragma region Double Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e64m4();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f64_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f64_t) +
            column_count * sizeof(nk_f64_t); // per-column norms
 }
 
 NK_PUBLIC void nk_dots_pack_f64_rvv(nk_f64_t const *b, nk_size_t column_count, nk_size_t depth,
                                     nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e64m4();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f64_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -341,11 +342,11 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f64_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t compensation_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t compensation_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t compensation_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t compensation_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -384,9 +385,9 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
             // Horizontal reduce
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows
@@ -395,9 +396,9 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
         nk_f64_t *c_row = (nk_f64_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f64_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -419,7 +420,7 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
 
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -427,9 +428,10 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
 /**
  *  @brief  Public f64 packed GEMM wrapper matching the declared signature in dots.h.
  */
-NK_PUBLIC void nk_dots_packed_f64_rvv(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t m, nk_size_t n,
-                                      nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_f64_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_f64_rvv(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
+                                      nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                      nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_f64_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -438,20 +440,20 @@ NK_PUBLIC void nk_dots_packed_f64_rvv(nk_f64_t const *a, void const *b_packed, n
  *  Uses Kahan compensation over full depth for precision.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                         nk_size_t stride_in_bytes, nk_f64_t *result, nk_size_t result_stride_in_bytes,
                                          nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
         nk_f64_t const *a_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
+        for (nk_size_t j = i; j < vectors_count; ++j) {
             nk_f64_t const *a_j = vectors + j * stride_elements;
-            nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -473,7 +475,7 @@ NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t n_ve
 
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f64_t dot = __riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -496,10 +498,10 @@ NK_INTERNAL nk_i8_t nk_e2m3_to_i8_rvv_(nk_u8_t raw) {
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_i8_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -512,10 +514,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_rvv(nk_size_t column_count, nk_size
  */
 NK_PUBLIC void nk_dots_pack_e2m3_rvv(nk_e2m3_t const *b, nk_size_t column_count, nk_size_t depth,
                                      nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -584,11 +586,11 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_2_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_3_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_2_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_3_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -654,16 +656,16 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
             // Horizontal reduce and convert to f32 with scaling
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
             c_row_1[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
             c_row_2[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_2_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_2_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
             c_row_3[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_3_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_3_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
         }
     }
@@ -673,8 +675,8 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -693,7 +695,7 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax)) *
+                                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length)) *
                             lut_scale_reciprocal;
         }
     }
@@ -702,9 +704,10 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
 /**
  *  @brief  Public e2m3 packed GEMM wrapper matching the declared signature in dots.h.
  */
-NK_PUBLIC void nk_dots_packed_e2m3_rvv(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_e2m3_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_e2m3_rvv(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                       nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                       nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_e2m3_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -713,20 +716,20 @@ NK_PUBLIC void nk_dots_packed_e2m3_rvv(nk_e2m3_t const *a, void const *b_packed,
  *  Uses integer i8 LUT arithmetic with i32 accumulation, scaled by 1/256.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
     nk_f32_t const lut_scale_reciprocal = 1.0f / 256.0f;
 
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride_in_bytes;
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride_in_bytes;
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -755,7 +758,7 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t n_
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                               __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax)) *
+                               __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length)) *
                            lut_scale_reciprocal;
             result[i * result_stride_elements + j] = dot;
         }
@@ -779,10 +782,10 @@ NK_INTERNAL nk_i16_t nk_e3m2_to_i16_rvv_(nk_u8_t raw) {
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e16m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e16m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i16_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_i16_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -795,10 +798,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_rvv(nk_size_t column_count, nk_size
  */
 NK_PUBLIC void nk_dots_pack_e3m2_rvv(nk_e3m2_t const *b, nk_size_t column_count, nk_size_t depth,
                                      nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e16m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e16m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i16_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -862,9 +865,9 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i16_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -916,10 +919,10 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
             // Horizontal reduce and convert to f32 with scaling
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
             c_row_1[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, vlmax)) *
+                                  __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, max_vector_length)) *
                               lut_scale_reciprocal;
         }
     }
@@ -929,8 +932,8 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i16_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -951,7 +954,7 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax)) *
+                                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length)) *
                             lut_scale_reciprocal;
         }
     }
@@ -960,9 +963,10 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
 /**
  *  @brief  Public e3m2 packed GEMM wrapper matching the declared signature in dots.h.
  */
-NK_PUBLIC void nk_dots_packed_e3m2_rvv(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_e3m2_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_e3m2_rvv(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                       nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                       nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_e3m2_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -971,20 +975,20 @@ NK_PUBLIC void nk_dots_packed_e3m2_rvv(nk_e3m2_t const *a, void const *b_packed,
  *  Uses integer i16 LUT arithmetic with i32 widening MAC, scaled by 1/256.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
     nk_f32_t const lut_scale_reciprocal = 1.0f / 256.0f;
 
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride_in_bytes;
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride_in_bytes;
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1023,7 +1027,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t n_
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
-                               __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax)) *
+                               __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length)) *
                            lut_scale_reciprocal;
             result[i * result_stride_elements + j] = dot;
         }
@@ -1041,11 +1045,11 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t n_
  *  Layout: column-panel with depth-contiguous f32 values, cache-line padding.
  */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     // Break power-of-2 strides for cache associativity
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -1058,10 +1062,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_rvv(nk_size_t column_count, nk_size
  */
 NK_PUBLIC void nk_dots_pack_bf16_rvv(nk_bf16_t const *b, nk_size_t column_count, nk_size_t depth,
                                      nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -1133,11 +1137,11 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -1166,13 +1170,13 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
             // Horizontal reduce and narrow to f32
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
             c_row_2[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, max_vector_length));
             c_row_3[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows (mr < 4)
@@ -1181,8 +1185,8 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1195,7 +1199,7 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -1206,9 +1210,10 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_bf16_rvv(nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_bf16_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_bf16_rvv(nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                       nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                       nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_bf16_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -1219,18 +1224,18 @@ NK_PUBLIC void nk_dots_packed_bf16_rvv(nk_bf16_t const *a, void const *b_packed,
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u16_t const *a_i = (nk_u16_t const *)((char const *)vectors + i * stride);
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u16_t const *a_j = (nk_u16_t const *)((char const *)vectors + j * stride);
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        nk_u16_t const *a_i = (nk_u16_t const *)((char const *)vectors + i * stride_in_bytes);
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u16_t const *a_j = (nk_u16_t const *)((char const *)vectors + j * stride_in_bytes);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1244,7 +1249,7 @@ NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t n_
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -1261,11 +1266,11 @@ NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t n_
  *  Layout: column-panel with depth-contiguous f32 values, cache-line padding.
  */
 NK_PUBLIC nk_size_t nk_dots_packed_size_f16_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     // Break power-of-2 strides for cache associativity
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -1278,10 +1283,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f16_rvv(nk_size_t column_count, nk_size_
  */
 NK_PUBLIC void nk_dots_pack_f16_rvv(nk_f16_t const *b, nk_size_t column_count, nk_size_t depth,
                                     nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -1346,11 +1351,11 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_2_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_3_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -1379,13 +1384,13 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
             // Horizontal reduce and narrow to f32
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
             c_row_2[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_2_f64m4, zero_f64m1, max_vector_length));
             c_row_3[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_3_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows (mr < 4)
@@ -1394,8 +1399,8 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1408,7 +1413,7 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -1419,9 +1424,10 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_f16_rvv(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                      nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_f16_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_f16_rvv(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                      nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                      nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_f16_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -1432,18 +1438,18 @@ NK_PUBLIC void nk_dots_packed_f16_rvv(nk_f16_t const *a, void const *b_packed, n
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                         nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                          nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u16_t const *a_i = (nk_u16_t const *)((char const *)vectors + i * stride);
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u16_t const *a_j = (nk_u16_t const *)((char const *)vectors + j * stride);
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        nk_u16_t const *a_i = (nk_u16_t const *)((char const *)vectors + i * stride_in_bytes);
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u16_t const *a_j = (nk_u16_t const *)((char const *)vectors + j * stride_in_bytes);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1457,7 +1463,7 @@ NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t n_ve
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -1474,11 +1480,11 @@ NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t n_ve
  *  Layout: column-panel with depth-contiguous i8 values, cache-line padding.
  */
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     // Break power-of-2 strides for cache associativity
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_i8_t) +
            column_count * sizeof(nk_u32_t); // per-column norms
 }
@@ -1491,10 +1497,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8_rvv(nk_size_t column_count, nk_size_t
  */
 NK_PUBLIC void nk_dots_pack_i8_rvv(nk_i8_t const *b, nk_size_t column_count, nk_size_t depth,
                                    nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_i8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -1560,11 +1566,11 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_2_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
-            vint32m4_t accumulator_3_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_0_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_1_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_2_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
+            vint32m4_t accumulator_3_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -1592,13 +1598,13 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
             // Horizontal reduce
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row_0[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_0_i32m4, zero_i32m1, max_vector_length));
             c_row_1[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_1_i32m4, zero_i32m1, max_vector_length));
             c_row_2[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_2_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_2_i32m4, zero_i32m1, max_vector_length));
             c_row_3[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_3_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_3_i32m4, zero_i32m1, max_vector_length));
         }
     }
     // Remainder rows (mr < 4)
@@ -1607,8 +1613,8 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
         nk_i32_t *c_row = (nk_i32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_i8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1621,7 +1627,7 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length));
         }
     }
 }
@@ -1632,9 +1638,10 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_i8_rvv(nk_i8_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m, nk_size_t n,
-                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_i8_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_i8_rvv(nk_i8_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t rows,
+                                     nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                     nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_i8_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -1645,18 +1652,18 @@ NK_PUBLIC void nk_dots_packed_i8_rvv(nk_i8_t const *a, void const *b_packed, nk_
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
-                                        nk_i32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_i32_t *result, nk_size_t result_stride_in_bytes,
+                                        nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_i32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_i8_t const *a_i = (nk_i8_t const *)((char const *)vectors + i * stride);
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_i8_t const *a_j = (nk_i8_t const *)((char const *)vectors + j * stride);
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
+        nk_i8_t const *a_i = (nk_i8_t const *)((char const *)vectors + i * stride_in_bytes);
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_i8_t const *a_j = (nk_i8_t const *)((char const *)vectors + j * stride_in_bytes);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1669,7 +1676,7 @@ NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t n_vect
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_i32_t dot = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
-                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, vlmax));
+                __riscv_vredsum_vs_i32m4_i32m1(accumulator_i32m4, zero_i32m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -1686,11 +1693,11 @@ NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t n_vect
  *  Layout: column-panel with depth-contiguous u8 values, cache-line padding.
  */
 NK_PUBLIC nk_size_t nk_dots_packed_size_u8_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     // Break power-of-2 strides for cache associativity
     nk_size_t stride_bytes = depth_padded * sizeof(nk_u8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_u8_t) +
            column_count * sizeof(nk_u32_t); // per-column norms
 }
@@ -1703,10 +1710,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_u8_rvv(nk_size_t column_count, nk_size_t
  */
 NK_PUBLIC void nk_dots_pack_u8_rvv(nk_u8_t const *b, nk_size_t column_count, nk_size_t depth,
                                    nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e8m1();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e8m1();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_u8_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -1772,11 +1779,11 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_u8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vuint32m4_t accumulator_0_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-            vuint32m4_t accumulator_1_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-            vuint32m4_t accumulator_2_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
-            vuint32m4_t accumulator_3_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vuint32m4_t accumulator_0_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+            vuint32m4_t accumulator_1_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+            vuint32m4_t accumulator_2_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
+            vuint32m4_t accumulator_3_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -1804,13 +1811,13 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
             // Horizontal reduce
             vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
             c_row_0[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_0_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_0_u32m4, zero_u32m1, max_vector_length));
             c_row_1[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_1_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_1_u32m4, zero_u32m1, max_vector_length));
             c_row_2[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_2_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_2_u32m4, zero_u32m1, max_vector_length));
             c_row_3[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_3_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_3_u32m4, zero_u32m1, max_vector_length));
         }
     }
     // Remainder rows (mr < 4)
@@ -1819,8 +1826,8 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
         nk_u32_t *c_row = (nk_u32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_u8_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1833,7 +1840,7 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
             }
             vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
             c_row[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_u32m4, zero_u32m1, max_vector_length));
         }
     }
 }
@@ -1844,9 +1851,10 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
  *  Dispatches to the aligned kernel for all cases — RVV's `vsetvl` handles partial
  *  vectors naturally, so no separate edge kernel is needed.
  */
-NK_PUBLIC void nk_dots_packed_u8_rvv(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
-                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_u8_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_u8_rvv(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t rows,
+                                     nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                     nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_u8_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -1857,18 +1865,18 @@ NK_PUBLIC void nk_dots_packed_u8_rvv(nk_u8_t const *a, void const *b_packed, nk_
  *  Stride is in bytes.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_u32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                        nk_size_t stride_in_bytes, nk_u32_t *result, nk_size_t result_stride_in_bytes,
+                                        nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_u32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u8_t const *a_i = (nk_u8_t const *)((char const *)vectors + i * stride);
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u8_t const *a_j = (nk_u8_t const *)((char const *)vectors + j * stride);
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-            vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
+        nk_u8_t const *a_i = (nk_u8_t const *)((char const *)vectors + i * stride_in_bytes);
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u8_t const *a_j = (nk_u8_t const *)((char const *)vectors + j * stride_in_bytes);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m4();
+            vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -1881,7 +1889,7 @@ NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t n_vect
             }
             vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
             nk_u32_t dot = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
-                __riscv_vredsum_vs_u32m4_u32m1(accumulator_u32m4, zero_u32m1, vlmax));
+                __riscv_vredsum_vs_u32m4_u32m1(accumulator_u32m4, zero_u32m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -1933,10 +1941,10 @@ static nk_u32_t const nk_e4m3_magnitude_lut_rvv_[128] = {
 };
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -1949,10 +1957,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_rvv(nk_size_t column_count, nk_size
  */
 NK_PUBLIC void nk_dots_pack_e4m3_rvv(nk_e4m3_t const *b, nk_size_t column_count, nk_size_t depth,
                                      nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -2014,9 +2022,9 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -2069,9 +2077,9 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
             // Horizontal reduce and narrow to f32
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows
@@ -2080,8 +2088,8 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -2103,7 +2111,7 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -2111,9 +2119,10 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
 /**
  *  @brief  Public e4m3 packed GEMM wrapper matching the declared signature in dots.h.
  */
-NK_PUBLIC void nk_dots_packed_e4m3_rvv(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_e4m3_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_e4m3_rvv(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                       nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                       nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_e4m3_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -2123,18 +2132,18 @@ NK_PUBLIC void nk_dots_packed_e4m3_rvv(nk_e4m3_t const *a, void const *b_packed,
  *  Both operands are converted from e4m3 on-the-fly via magnitude LUT.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride_in_bytes;
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride_in_bytes;
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -2172,7 +2181,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }
@@ -2224,10 +2233,10 @@ static nk_u32_t const nk_e5m2_magnitude_lut_rvv_[128] = {
 };
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_rvv(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
     return sizeof(nk_cross_packed_buffer_header_t) + column_count * depth_padded * sizeof(nk_f32_t) +
            column_count * sizeof(nk_f32_t); // per-column norms
 }
@@ -2240,10 +2249,10 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_rvv(nk_size_t column_count, nk_size
  */
 NK_PUBLIC void nk_dots_pack_e5m2_rvv(nk_e5m2_t const *b, nk_size_t column_count, nk_size_t depth,
                                      nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_size_t vector_length = __riscv_vsetvlmax_e32m2();
-    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, vector_length);
+    nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+    nk_size_t depth_padded = nk_size_round_up_to_multiple_(depth, max_vector_length);
     nk_size_t stride_bytes = depth_padded * sizeof(nk_f32_t);
-    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += vector_length;
+    if (stride_bytes > 0 && (stride_bytes & (stride_bytes - 1)) == 0) depth_padded += max_vector_length;
 
     nk_cross_packed_buffer_header_t *header = (nk_cross_packed_buffer_header_t *)b_packed;
     header->column_count = (nk_u32_t)column_count;
@@ -2305,9 +2314,9 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
 
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
-            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_0_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
+            vfloat64m4_t accumulator_1_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
@@ -2360,9 +2369,9 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
             // Horizontal reduce and narrow to f32
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row_0[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_0_f64m4, zero_f64m1, max_vector_length));
             c_row_1[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_1_f64m4, zero_f64m1, max_vector_length));
         }
     }
     // Remainder rows
@@ -2371,8 +2380,8 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
         nk_f32_t *c_row = (nk_f32_t *)((char *)c_matrix + row * c_stride_in_bytes);
         for (nk_size_t column = 0; column < column_count; ++column) {
             nk_f32_t const *b_column = packed_data + column * depth_padded;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -2394,7 +2403,7 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
         }
     }
 }
@@ -2402,9 +2411,10 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
 /**
  *  @brief  Public e5m2 packed GEMM wrapper matching the declared signature in dots.h.
  */
-NK_PUBLIC void nk_dots_packed_e5m2_rvv(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
-    nk_dots_packed_e5m2_rvv_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+NK_PUBLIC void nk_dots_packed_e5m2_rvv(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows,
+                                       nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
+                                       nk_size_t c_stride_in_bytes) {
+    nk_dots_packed_e5m2_rvv_aligned_(a, b_packed, c, rows, columns, depth, a_stride_in_bytes, c_stride_in_bytes);
 }
 
 /**
@@ -2414,18 +2424,18 @@ NK_PUBLIC void nk_dots_packed_e5m2_rvv(nk_e5m2_t const *a, void const *b_packed,
  *  Both operands are converted from e5m2 on-the-fly via magnitude LUT.
  *  Processes only the rows in [row_start, row_start + row_count) for parallelism.
  */
-NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
+                                          nk_size_t stride_in_bytes, nk_f32_t *result, nk_size_t result_stride_in_bytes,
                                           nk_size_t row_start, nk_size_t row_count) {
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_size_t const row_end = (row_start + row_count < n_vectors) ? (row_start + row_count) : n_vectors;
+    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f32_t);
+    nk_size_t const row_end = (row_start + row_count < vectors_count) ? (row_start + row_count) : vectors_count;
 
     for (nk_size_t i = row_start; i < row_end; ++i) {
-        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride;
-        for (nk_size_t j = i; j < n_vectors; ++j) {
-            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride;
-            nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
-            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        nk_u8_t const *a_i = (nk_u8_t const *)vectors + i * stride_in_bytes;
+        for (nk_size_t j = i; j < vectors_count; ++j) {
+            nk_u8_t const *a_j = (nk_u8_t const *)vectors + j * stride_in_bytes;
+            nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
+            vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, max_vector_length);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
             for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
@@ -2463,7 +2473,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
-                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, vlmax));
+                __riscv_vfredusum_vs_f64m4_f64m1(accumulator_f64m4, zero_f64m1, max_vector_length));
             result[i * result_stride_elements + j] = dot;
         }
     }

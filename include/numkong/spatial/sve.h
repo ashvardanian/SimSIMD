@@ -63,10 +63,10 @@ extern "C" {
  *  @param x         Input vector (must be positive for meaningful results)
  *  @return          Approximate 1/sqrt(x) with ~23-bit mantissa accuracy
  */
-NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) NK_STREAMING_COMPATIBLE_ {
+NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate_b32x, svfloat32_t x) NK_STREAMING_COMPATIBLE_ {
     svfloat32_t r = svrsqrte_f32(x);
-    r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
-    r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
+    r = svmul_f32_x(predicate_b32x, r, svrsqrts_f32(svmul_f32_x(predicate_b32x, x, r), r));
+    r = svmul_f32_x(predicate_b32x, r, svrsqrts_f32(svmul_f32_x(predicate_b32x, x, r), r));
     return r;
 }
 
@@ -79,15 +79,15 @@ NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) NK
  *  Marked `__arm_streaming_compatible` so the helper is callable from both streaming
  *  (SME) and non-streaming (SVE) contexts without mode transitions.
  *
- *  @param predicate Active-lane mask
+ *  @param predicate_b32x Active-lane mask
  *  @param x         Input vector (must be positive for meaningful results)
  *  @return          Approximate 1/sqrt(x) with ~52-bit mantissa accuracy
  */
-NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate, svfloat64_t x) NK_STREAMING_COMPATIBLE_ {
+NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate_b64x, svfloat64_t x) NK_STREAMING_COMPATIBLE_ {
     svfloat64_t r = svrsqrte_f64(x);
-    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
-    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
-    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
+    r = svmul_f64_x(predicate_b64x, r, svrsqrts_f64(svmul_f64_x(predicate_b64x, x, r), r));
+    r = svmul_f64_x(predicate_b64x, r, svrsqrts_f64(svmul_f64_x(predicate_b64x, x, r), r));
+    r = svmul_f64_x(predicate_b64x, r, svrsqrts_f64(svmul_f64_x(predicate_b64x, x, r), r));
     return r;
 }
 
@@ -95,23 +95,23 @@ NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_s
     nk_size_t i = 0;
     svfloat64_t dist_sq_f64x = svdupq_n_f64(0.0, 0.0);
     for (; i < n; i += svcntw()) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
-        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
-        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
+        svbool_t predicate_b32x = svwhilelt_b32_u64(i, n);
+        svfloat32_t a_f32x = svld1_f32(predicate_b32x, a + i);
+        svfloat32_t b_f32x = svld1_f32(predicate_b32x, b + i);
         nk_size_t remaining = n - i < svcntw() ? n - i : svcntw();
 
         // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
-        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_f32x);
-        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_f32x);
-        svfloat64_t diff_even_f64x = svsub_f64_x(pred_even_f64x, a_even_f64x, b_even_f64x);
-        dist_sq_f64x = svmla_f64_m(pred_even_f64x, dist_sq_f64x, diff_even_f64x, diff_even_f64x);
+        svbool_t pred_even_b64x = svwhilelt_b64_u64(0u, (remaining + 1) / 2);
+        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_b64x, a_f32x);
+        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_b64x, b_f32x);
+        svfloat64_t diff_even_f64x = svsub_f64_x(pred_even_b64x, a_even_f64x, b_even_f64x);
+        dist_sq_f64x = svmla_f64_m(pred_even_b64x, dist_sq_f64x, diff_even_f64x, diff_even_f64x);
 
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
-        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1));
-        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1));
-        svfloat64_t diff_odd_f64x = svsub_f64_x(pred_odd_f64x, a_odd_f64x, b_odd_f64x);
-        dist_sq_f64x = svmla_f64_m(pred_odd_f64x, dist_sq_f64x, diff_odd_f64x, diff_odd_f64x);
+        svbool_t pred_odd_b64x = svwhilelt_b64_u64(0u, remaining / 2);
+        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_b64x, svext_f32(a_f32x, a_f32x, 1));
+        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_b64x, svext_f32(b_f32x, b_f32x, 1));
+        svfloat64_t diff_odd_f64x = svsub_f64_x(pred_odd_b64x, a_odd_f64x, b_odd_f64x);
+        dist_sq_f64x = svmla_f64_m(pred_odd_b64x, dist_sq_f64x, diff_odd_f64x, diff_odd_f64x);
     }
     nk_f64_t dist_sq_f64 = svaddv_f64(svptrue_b64(), dist_sq_f64x);
     *result = dist_sq_f64;
@@ -128,25 +128,25 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     svfloat64_t a2_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t b2_f64x = svdupq_n_f64(0.0, 0.0);
     for (; i < n; i += svcntw()) {
-        svbool_t predicate_f32x = svwhilelt_b32_u64(i, n);
-        svfloat32_t a_f32x = svld1_f32(predicate_f32x, a + i);
-        svfloat32_t b_f32x = svld1_f32(predicate_f32x, b + i);
+        svbool_t predicate_b32x = svwhilelt_b32_u64(i, n);
+        svfloat32_t a_f32x = svld1_f32(predicate_b32x, a + i);
+        svfloat32_t b_f32x = svld1_f32(predicate_b32x, b + i);
         nk_size_t remaining = n - i < svcntw() ? n - i : svcntw();
 
         // svcvt_f64_f32_x widens only even-indexed f32 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_f64x = svwhilelt_b64_u64(0, (remaining + 1) / 2);
-        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_f64x, a_f32x);
-        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_f64x, b_f32x);
-        ab_f64x = svmla_f64_m(pred_even_f64x, ab_f64x, a_even_f64x, b_even_f64x);
-        a2_f64x = svmla_f64_m(pred_even_f64x, a2_f64x, a_even_f64x, a_even_f64x);
-        b2_f64x = svmla_f64_m(pred_even_f64x, b2_f64x, b_even_f64x, b_even_f64x);
+        svbool_t pred_even_b64x = svwhilelt_b64_u64(0u, (remaining + 1) / 2);
+        svfloat64_t a_even_f64x = svcvt_f64_f32_x(pred_even_b64x, a_f32x);
+        svfloat64_t b_even_f64x = svcvt_f64_f32_x(pred_even_b64x, b_f32x);
+        ab_f64x = svmla_f64_m(pred_even_b64x, ab_f64x, a_even_f64x, b_even_f64x);
+        a2_f64x = svmla_f64_m(pred_even_b64x, a2_f64x, a_even_f64x, a_even_f64x);
+        b2_f64x = svmla_f64_m(pred_even_b64x, b2_f64x, b_even_f64x, b_even_f64x);
 
-        svbool_t pred_odd_f64x = svwhilelt_b64_u64(0, remaining / 2);
-        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(a_f32x, a_f32x, 1));
-        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_f64x, svext_f32(b_f32x, b_f32x, 1));
-        ab_f64x = svmla_f64_m(pred_odd_f64x, ab_f64x, a_odd_f64x, b_odd_f64x);
-        a2_f64x = svmla_f64_m(pred_odd_f64x, a2_f64x, a_odd_f64x, a_odd_f64x);
-        b2_f64x = svmla_f64_m(pred_odd_f64x, b2_f64x, b_odd_f64x, b_odd_f64x);
+        svbool_t pred_odd_b64x = svwhilelt_b64_u64(0u, remaining / 2);
+        svfloat64_t a_odd_f64x = svcvt_f64_f32_x(pred_odd_b64x, svext_f32(a_f32x, a_f32x, 1));
+        svfloat64_t b_odd_f64x = svcvt_f64_f32_x(pred_odd_b64x, svext_f32(b_f32x, b_f32x, 1));
+        ab_f64x = svmla_f64_m(pred_odd_b64x, ab_f64x, a_odd_f64x, b_odd_f64x);
+        a2_f64x = svmla_f64_m(pred_odd_b64x, a2_f64x, a_odd_f64x, a_odd_f64x);
+        b2_f64x = svmla_f64_m(pred_odd_b64x, b2_f64x, b_odd_f64x, b_odd_f64x);
     }
 
     nk_f64_t ab_f64 = svaddv_f64(svptrue_b64(), ab_f64x);
@@ -160,29 +160,29 @@ NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_size_t i = 0;
     svfloat64_t sum_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t compensation_f64x = svdupq_n_f64(0.0, 0.0);
-    svbool_t predicate_all_f64x = svptrue_b64();
+    svbool_t predicate_all_b64x = svptrue_b64();
     do {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
-        svfloat64_t a_f64x = svld1_f64(predicate_f64x, a + i);
-        svfloat64_t b_f64x = svld1_f64(predicate_f64x, b + i);
-        svfloat64_t diff_f64x = svsub_f64_x(predicate_f64x, a_f64x, b_f64x);
-        svfloat64_t diff_sq_f64x = svmul_f64_x(predicate_f64x, diff_f64x, diff_f64x);
+        svbool_t predicate_b64x = svwhilelt_b64_u64(i, n);
+        svfloat64_t a_f64x = svld1_f64(predicate_b64x, a + i);
+        svfloat64_t b_f64x = svld1_f64(predicate_b64x, b + i);
+        svfloat64_t diff_f64x = svsub_f64_x(predicate_b64x, a_f64x, b_f64x);
+        svfloat64_t diff_sq_f64x = svmul_f64_x(predicate_b64x, diff_f64x, diff_f64x);
         // Neumaier: t = sum + x
-        svfloat64_t t_f64x = svadd_f64_x(predicate_f64x, sum_f64x, diff_sq_f64x);
-        svfloat64_t abs_sum_f64x = svabs_f64_x(predicate_f64x, sum_f64x);
+        svfloat64_t t_f64x = svadd_f64_m(predicate_b64x, sum_f64x, diff_sq_f64x);
+        svfloat64_t abs_sum_f64x = svabs_f64_x(predicate_b64x, sum_f64x);
         // diff_sq is already non-negative (it's a square), so svabs is unnecessary
-        svbool_t sum_ge_x_f64x = svcmpge_f64(predicate_f64x, abs_sum_f64x, diff_sq_f64x);
+        svbool_t sum_ge_x_b64x = svcmpge_f64(predicate_b64x, abs_sum_f64x, diff_sq_f64x);
         // When |sum| >= |x|: comp += (sum - t) + x; when |x| > |sum|: comp += (x - t) + sum
-        svfloat64_t comp_sum_large_f64x = svadd_f64_x(predicate_f64x, svsub_f64_x(predicate_f64x, sum_f64x, t_f64x),
+        svfloat64_t comp_sum_large_f64x = svadd_f64_x(predicate_b64x, svsub_f64_x(predicate_b64x, sum_f64x, t_f64x),
                                                       diff_sq_f64x);
-        svfloat64_t comp_x_large_f64x = svadd_f64_x(predicate_f64x, svsub_f64_x(predicate_f64x, diff_sq_f64x, t_f64x),
+        svfloat64_t comp_x_large_f64x = svadd_f64_x(predicate_b64x, svsub_f64_x(predicate_b64x, diff_sq_f64x, t_f64x),
                                                     sum_f64x);
-        svfloat64_t comp_update_f64x = svsel_f64(sum_ge_x_f64x, comp_sum_large_f64x, comp_x_large_f64x);
-        compensation_f64x = svadd_f64_x(predicate_f64x, compensation_f64x, comp_update_f64x);
+        svfloat64_t comp_update_f64x = svsel_f64(sum_ge_x_b64x, comp_sum_large_f64x, comp_x_large_f64x);
+        compensation_f64x = svadd_f64_m(predicate_b64x, compensation_f64x, comp_update_f64x);
         sum_f64x = t_f64x;
         i += svcntd();
     } while (i < n);
-    *result = nk_dot_stable_sum_f64_sve_(predicate_all_f64x, sum_f64x, compensation_f64x);
+    *result = nk_dot_stable_sum_f64_sve_(predicate_all_b64x, sum_f64x, compensation_f64x);
 }
 
 NK_PUBLIC void nk_euclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -198,35 +198,35 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     svfloat64_t ab_compensation_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t a2_f64x = svdupq_n_f64(0.0, 0.0);
     svfloat64_t b2_f64x = svdupq_n_f64(0.0, 0.0);
-    svbool_t predicate_all_f64x = svptrue_b64();
+    svbool_t predicate_all_b64x = svptrue_b64();
     do {
-        svbool_t predicate_f64x = svwhilelt_b64_u64(i, n);
-        svfloat64_t a_f64x = svld1_f64(predicate_f64x, a + i);
-        svfloat64_t b_f64x = svld1_f64(predicate_f64x, b + i);
+        svbool_t predicate_b64x = svwhilelt_b64_u64(i, n);
+        svfloat64_t a_f64x = svld1_f64(predicate_b64x, a + i);
+        svfloat64_t b_f64x = svld1_f64(predicate_b64x, b + i);
         // TwoProd for ab: product = a*b, error = fma(a,b,-product) = -(product - a*b)
-        svfloat64_t product_f64x = svmul_f64_x(predicate_f64x, a_f64x, b_f64x);
-        svfloat64_t product_error_f64x = svneg_f64_x(predicate_f64x,
-                                                     svnmls_f64_x(predicate_f64x, product_f64x, a_f64x, b_f64x));
+        svfloat64_t product_f64x = svmul_f64_x(predicate_b64x, a_f64x, b_f64x);
+        svfloat64_t product_error_f64x = svneg_f64_x(predicate_b64x,
+                                                     svnmls_f64_x(predicate_b64x, product_f64x, a_f64x, b_f64x));
         // TwoSum: (tentative_sum, sum_error) = TwoSum(sum, product)
-        svfloat64_t tentative_sum_f64x = svadd_f64_x(predicate_f64x, ab_sum_f64x, product_f64x);
-        svfloat64_t virtual_addend_f64x = svsub_f64_x(predicate_f64x, tentative_sum_f64x, ab_sum_f64x);
+        svfloat64_t tentative_sum_f64x = svadd_f64_m(predicate_b64x, ab_sum_f64x, product_f64x);
+        svfloat64_t virtual_addend_f64x = svsub_f64_x(predicate_b64x, tentative_sum_f64x, ab_sum_f64x);
         svfloat64_t sum_error_f64x = svadd_f64_x(
-            predicate_f64x,
-            svsub_f64_x(predicate_f64x, ab_sum_f64x,
-                        svsub_f64_x(predicate_f64x, tentative_sum_f64x, virtual_addend_f64x)),
-            svsub_f64_x(predicate_f64x, product_f64x, virtual_addend_f64x));
+            predicate_b64x,
+            svsub_f64_x(predicate_b64x, ab_sum_f64x,
+                        svsub_f64_x(predicate_b64x, tentative_sum_f64x, virtual_addend_f64x)),
+            svsub_f64_x(predicate_b64x, product_f64x, virtual_addend_f64x));
         ab_sum_f64x = tentative_sum_f64x;
-        ab_compensation_f64x = svadd_f64_x(predicate_f64x, ab_compensation_f64x,
-                                           svadd_f64_x(predicate_f64x, sum_error_f64x, product_error_f64x));
+        ab_compensation_f64x = svadd_f64_m(predicate_b64x, ab_compensation_f64x,
+                                           svadd_f64_x(predicate_b64x, sum_error_f64x, product_error_f64x));
         // Simple FMA for self-products (no cancellation)
-        a2_f64x = svmla_f64_x(predicate_f64x, a2_f64x, a_f64x, a_f64x);
-        b2_f64x = svmla_f64_x(predicate_f64x, b2_f64x, b_f64x, b_f64x);
+        a2_f64x = svmla_f64_m(predicate_b64x, a2_f64x, a_f64x, a_f64x);
+        b2_f64x = svmla_f64_m(predicate_b64x, b2_f64x, b_f64x, b_f64x);
         i += svcntd();
     } while (i < n);
 
-    nk_f64_t ab_f64 = nk_dot_stable_sum_f64_sve_(predicate_all_f64x, ab_sum_f64x, ab_compensation_f64x);
-    nk_f64_t a2_f64 = svaddv_f64(predicate_all_f64x, a2_f64x);
-    nk_f64_t b2_f64 = svaddv_f64(predicate_all_f64x, b2_f64x);
+    nk_f64_t ab_f64 = nk_dot_stable_sum_f64_sve_(predicate_all_b64x, ab_sum_f64x, ab_compensation_f64x);
+    nk_f64_t a2_f64 = svaddv_f64(predicate_all_b64x, a2_f64x);
+    nk_f64_t b2_f64 = svaddv_f64(predicate_all_b64x, b2_f64x);
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 

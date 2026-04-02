@@ -140,22 +140,22 @@ NK_PUBLIC void nk_reduce_moments_u16_serial(                       //
 NK_PUBLIC void nk_reduce_moments_i32_serial(                       //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
-    nk_u64_t sum_lower = 0;
-    nk_i64_t sum_upper = 0;
+    nk_u64_t sum_low = 0;
+    nk_i64_t sum_high = 0;
     nk_u64_t sumsq = 0;
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_i64_t val = (nk_i64_t)(*(nk_i32_t const *)ptr);
         nk_u64_t product = (nk_u64_t)(val * val);
-        nk_u64_t sum_before = sum_lower;
-        sum_lower += (nk_u64_t)val;
-        if (sum_lower < sum_before) sum_upper++;
-        sum_upper += (val >> 63);
+        nk_u64_t sum_before = sum_low;
+        sum_low += (nk_u64_t)val;
+        if (sum_low < sum_before) sum_high++;
+        sum_high += (val >> 63);
         sumsq = nk_u64_saturating_add_serial(sumsq, product);
     }
-    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
-    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low_signed = (nk_i64_t)sum_low;
+    if (sum_high == (sum_low_signed >> 63)) *sum_ptr = sum_low_signed;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }
@@ -177,8 +177,8 @@ NK_PUBLIC void nk_reduce_moments_u32_serial(                       //
 NK_PUBLIC void nk_reduce_moments_i64_serial(                       //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
-    nk_u64_t sum_lower = 0;
-    nk_i64_t sum_upper = 0;
+    nk_u64_t sum_low = 0;
+    nk_i64_t sum_high = 0;
     nk_u64_t sumsq = 0;
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
@@ -186,14 +186,14 @@ NK_PUBLIC void nk_reduce_moments_i64_serial(                       //
         nk_i64_t product = nk_i64_saturating_mul_serial(val, val);
         nk_u64_t unsigned_product = (nk_u64_t)product;
         sumsq = nk_u64_saturating_add_serial(sumsq, unsigned_product);
-        nk_u64_t sum_before = sum_lower;
-        sum_lower += (nk_u64_t)val;
-        if (sum_lower < sum_before) sum_upper++;
-        sum_upper += (val >> 63);
+        nk_u64_t sum_before = sum_low;
+        sum_low += (nk_u64_t)val;
+        if (sum_low < sum_before) sum_high++;
+        sum_high += (val >> 63);
     }
-    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
-    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
-    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_low_signed = (nk_i64_t)sum_low;
+    if (sum_high == (sum_low_signed >> 63)) *sum_ptr = sum_low_signed;
+    else if (sum_high >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }

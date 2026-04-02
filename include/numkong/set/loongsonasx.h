@@ -48,8 +48,8 @@ extern "C" {
 
 /** @brief Horizontal sum of 4 u64 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_u64_t nk_reduce_add_u64x4_loongsonasx_(__m256i sum_u64x4) {
-    __m256i hi_u64x4 = __lasx_xvpermi_q(sum_u64x4, sum_u64x4, 0x11);
-    __m256i sum_u64x2 = __lasx_xvadd_d(sum_u64x4, hi_u64x4);
+    __m256i high_u64x4 = __lasx_xvpermi_q(sum_u64x4, sum_u64x4, 0x11);
+    __m256i sum_u64x2 = __lasx_xvadd_d(sum_u64x4, high_u64x4);
     __m256i swapped_u64x2 = __lasx_xvshuf4i_d(sum_u64x2, sum_u64x2, 0b0001);
     __m256i reduced_u64x2 = __lasx_xvadd_d(sum_u64x2, swapped_u64x2);
     return (nk_u64_t)__lasx_xvpickve2gr_du(reduced_u64x2, 0);

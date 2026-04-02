@@ -248,10 +248,10 @@ NK_PUBLIC void nk_dot_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b
     // Uses dpbssd instead of dpbusd — both operands are already signed i8 after
     // LUT + sign application, so no unsigned conversion is needed.
     //
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
-                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
-                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const lut_low_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28, 26,
+                                                  24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_high_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                   120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -277,11 +277,11 @@ nk_dot_e2m3_sierra_cycle:
     // Decode a: extract magnitude, dual-VPSHUFB LUT, apply sign
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
-                                                  a_upper_select_u8x32);
+    __m256i a_high_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                    half_select_u8x32);
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_high_u8x32, a_shuffle_index_u8x32),
+                                                  a_high_select_u8x32);
     __m256i a_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i a_signed_i8x32 = _mm256_blendv_epi8(
         a_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate_mask_u8x32);
@@ -289,11 +289,11 @@ nk_dot_e2m3_sierra_cycle:
     // Decode b: same LUT decode + sign
     __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
-                                                  b_upper_select_u8x32);
+    __m256i b_high_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                    half_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_high_u8x32, b_shuffle_index_u8x32),
+                                                  b_high_select_u8x32);
     __m256i b_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i b_signed_i8x32 = _mm256_blendv_epi8(
         b_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate_mask_u8x32);
@@ -318,10 +318,10 @@ NK_INTERNAL void nk_dot_e2m3x32_update_sierra(nk_dot_e2m3x32_state_sierra_t *sta
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Same LUT constants...
-    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
-                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
-                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const lut_low_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28, 26,
+                                                  24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_high_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                   120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
     __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
     __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
     __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
@@ -333,11 +333,11 @@ NK_INTERNAL void nk_dot_e2m3x32_update_sierra(nk_dot_e2m3x32_state_sierra_t *sta
     // Decode a
     __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
-                                                  a_upper_select_u8x32);
+    __m256i a_high_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                    half_select_u8x32);
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_high_u8x32, a_shuffle_index_u8x32),
+                                                  a_high_select_u8x32);
     __m256i a_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i a_signed_i8x32 = _mm256_blendv_epi8(
         a_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), a_unsigned_u8x32), a_negate_mask_u8x32);
@@ -345,11 +345,11 @@ NK_INTERNAL void nk_dot_e2m3x32_update_sierra(nk_dot_e2m3x32_state_sierra_t *sta
     // Decode b
     __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
     __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
-    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
-                                                     half_select_u8x32);
-    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
-                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
-                                                  b_upper_select_u8x32);
+    __m256i b_high_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                    half_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_low_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_high_u8x32, b_shuffle_index_u8x32),
+                                                  b_high_select_u8x32);
     __m256i b_negate_mask_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_e2m3_u8x32, sign_mask_u8x32), sign_mask_u8x32);
     __m256i b_signed_i8x32 = _mm256_blendv_epi8(
         b_unsigned_u8x32, _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32), b_negate_mask_u8x32);

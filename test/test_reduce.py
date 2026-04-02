@@ -16,13 +16,19 @@ Matches C++ suite: test_reduce.cpp.
 import atexit
 import decimal
 import math
+from typing import TYPE_CHECKING
 
 import pytest
 
+if TYPE_CHECKING:
+    import numpy as np  # static-analysis-only; the runtime try/except below is authoritative
+
 try:
     import numpy as np
-except:  # noqa: E722
-    np = None
+
+    numpy_available = True
+except Exception:
+    numpy_available = False
 
 import numkong as nk
 from test_base import (
@@ -37,6 +43,7 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
+    precise_decimal,
     print_stats_report,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -87,10 +94,8 @@ def baseline_norm(a):
 
 def precise_sum(a):
     """High-precision sum via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        return float(sum(D.from_float(float(x)) for x in a))
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) for x in a))
 
 
 def precise_min(a):
@@ -113,10 +118,8 @@ def precise_argmax(a):
 
 def precise_norm(a):
     """High-precision L2 norm via Decimal."""
-    with decimal.localcontext() as ctx:
-        ctx.prec = 120
-        D = decimal.Decimal
-        return float(sum(D.from_float(float(x)) ** 2 for x in a).sqrt())
+    with precise_decimal() as d:
+        return float(sum(d.from_float(float(x)) ** 2 for x in a).sqrt())
 
 
 KERNELS_REDUCE = {
@@ -148,10 +151,10 @@ def test_moments(ndim, dtype, capability):
     np_arr = np.random.randn(ndim).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
 
-    moments_result = nk.moments(nk_arr)
-    nk_sum, nk_sum_sq = moments_result
+    baseline_kernel, simd_kernel, _ = KERNELS_REDUCE["moments"]
+    nk_sum, nk_sum_sq = simd_kernel(nk_arr)
 
-    expected_sum, expected_sum_sq = baseline_moments(np_arr)
+    expected_sum, expected_sum_sq = baseline_kernel(np_arr)
     atol, rtol = tolerances_for_dtype(dtype)
     assert_allclose(nk_sum, expected_sum, rtol=rtol, atol=atol)
     assert_allclose(nk_sum_sq, expected_sum_sq, rtol=rtol, atol=atol)
@@ -170,14 +173,15 @@ def test_minmax(ndim, dtype, capability):
     np_arr = np.random.randn(ndim).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
 
-    minmax_result = nk.minmax(nk_arr)
-    nk_min, nk_argmin, nk_max, nk_argmax = minmax_result
+    baseline_kernel, simd_kernel, _ = KERNELS_REDUCE["minmax"]
+    nk_min, nk_argmin, nk_max, nk_argmax = simd_kernel(nk_arr)
 
+    ref_min, ref_argmin, ref_max, ref_argmax = baseline_kernel(np_arr)
     atol, rtol = tolerances_for_dtype(dtype)
-    assert_allclose(nk_min, np_arr.min(), rtol=rtol, atol=atol)
-    assert int(nk_argmin) == np_arr.argmin()
-    assert_allclose(nk_max, np_arr.max(), rtol=rtol, atol=atol)
-    assert int(nk_argmax) == np_arr.argmax()
+    assert_allclose(nk_min, ref_min, rtol=rtol, atol=atol)
+    assert int(nk_argmin) == ref_argmin
+    assert_allclose(nk_max, ref_max, rtol=rtol, atol=atol)
+    assert int(nk_argmax) == ref_argmax
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -255,18 +259,22 @@ def test_individual_reductions_all_nan(ndim, dtype, capability):
         pytest.param("float16", id="f16"),
     ],
 )
+@pytest.mark.parametrize("metric", ["sum", "min", "max", "norm", "argmin", "argmax"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_module_level_reductions(ndim, dtype, capability, nk_seed):
-    """Test nk.sum(), nk.min(), nk.max(), nk.argmin(), nk.argmax() module functions."""
+def test_module_level_reductions(ndim, dtype, capability, metric, nk_seed):
+    """Test scalar reductions via KERNELS_REDUCE lookup."""
     keep_one_capability(capability)
     raw, baseline = make_random((ndim,), dtype, seed=nk_seed)
     nk_arr = make_nk(raw, dtype) if numpy_available else raw
 
-    assert_allclose(nk.sum(nk_arr), precise_sum(baseline), atol=NK_ATOL, rtol=NK_RTOL)
-    assert_allclose(nk.min(nk_arr), precise_min(baseline), atol=NK_ATOL, rtol=NK_RTOL)
-    assert_allclose(nk.max(nk_arr), precise_max(baseline), atol=NK_ATOL, rtol=NK_RTOL)
-    assert nk.argmin(nk_arr) == precise_argmin(baseline)
-    assert nk.argmax(nk_arr) == precise_argmax(baseline)
+    baseline_kernel, simd_kernel, precise_kernel = KERNELS_REDUCE[metric]
+    accurate = (precise_kernel or baseline_kernel)(baseline)
+    result = simd_kernel(nk_arr)
+
+    if metric in ("argmin", "argmax"):
+        assert result == accurate
+    else:
+        assert_allclose(result, accurate, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -457,9 +465,7 @@ def test_integer_axis_reductions(capability):
     np_arr = np.array([[10, 3, 7], [1, 8, 5], [4, 9, 2]], dtype=np.int32)
     nk_arr = make_nk(np_arr, "int32")
     for axis in [0, 1]:
-        assert_allclose(
-            np.asarray(nk_arr.sum(axis=axis)), np_arr.astype(np.float64).sum(axis=axis)
-        )
+        assert_allclose(np.asarray(nk_arr.sum(axis=axis)), np_arr.astype(np.float64).sum(axis=axis))
         np.testing.assert_array_equal(np.asarray(nk_arr.min(axis=axis)), np_arr.min(axis=axis))
         np.testing.assert_array_equal(np.asarray(nk_arr.max(axis=axis)), np_arr.max(axis=axis))
         np.testing.assert_array_equal(np.asarray(nk_arr.argmin(axis=axis)), np_arr.argmin(axis=axis))

@@ -124,7 +124,7 @@ class Random {
   }
 }
 
-// Sub-byte packing ratio — mirrors nk_dtype_dimensions_per_value in types.h.
+// Sub-byte packing ratio — mirrors nk_dimensions_per_value in types.h.
 function dimensionsPerValue(dtype) {
   switch (dtype) {
     case "u1":

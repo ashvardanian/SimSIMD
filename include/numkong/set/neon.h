@@ -290,12 +290,11 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A ∪ B| = |A| + |B| - |A ∩ B|
-    // Build target popcounts vector using lane insertion (avoids union store/load round-trip).
+    // Build target popcounts vector from two independent halves (avoids serial lane insertion chain).
     float32x4_t query_f32x4 = vdupq_n_f32(query_popcount);
-    float32x4_t targets_f32x4 = vdupq_n_f32(target_popcount_a);
-    targets_f32x4 = vsetq_lane_f32(target_popcount_b, targets_f32x4, 1);
-    targets_f32x4 = vsetq_lane_f32(target_popcount_c, targets_f32x4, 2);
-    targets_f32x4 = vsetq_lane_f32(target_popcount_d, targets_f32x4, 3);
+    float32x2_t targets_ab_f32x2 = vset_lane_f32(target_popcount_b, vdup_n_f32(target_popcount_a), 1);
+    float32x2_t targets_cd_f32x2 = vset_lane_f32(target_popcount_d, vdup_n_f32(target_popcount_c), 1);
+    float32x4_t targets_f32x4 = vcombine_f32(targets_ab_f32x2, targets_cd_f32x2);
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
     // Handle zero-union edge case (empty vectors → distance = 0.0, matching scipy convention)
