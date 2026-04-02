@@ -351,9 +351,6 @@ jobs:
     env:
       CC: gcc-14
       CXX: g++-14
-      # `node-gyp-build` will look at this first; setting it prevents an
-      # unintended rebuild and lets Deno just `dlopen` the prebuilt `.node`.
-      PREBUILDS_ONLY: "1"
 
     steps:
       - name: Checkout
@@ -405,7 +402,6 @@ jobs:
     env:
       CC: gcc-14
       CXX: g++-14
-      PREBUILDS_ONLY: "1"
 
     steps:
       - name: Checkout
