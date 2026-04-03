@@ -174,7 +174,8 @@ nk_angular_i8_icelake_cycle:
     nk_i32_t dot_product_i32 = _mm512_reduce_add_epi32(dot_product_i32x16);
     nk_i32_t a_norm_sq_i32 = _mm512_reduce_add_epi32(a_norm_sq_i32x16);
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(b_norm_sq_i32x16);
-    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
+                                                (nk_f32_t)b_norm_sq_i32);
 }
 NK_PUBLIC void nk_sqeuclidean_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m512i distance_sq_low_i32x16 = _mm512_setzero_si512();
@@ -259,7 +260,8 @@ nk_angular_u8_icelake_cycle:
         _mm512_add_epi32(dot_product_low_i32x16, dot_product_high_i32x16));
     nk_i32_t a_norm_sq_i32 = _mm512_reduce_add_epi32(_mm512_add_epi32(a_norm_sq_low_i32x16, a_norm_sq_high_i32x16));
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(_mm512_add_epi32(b_norm_sq_low_i32x16, b_norm_sq_high_i32x16));
-    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
+                                                (nk_f32_t)b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -441,7 +443,7 @@ nk_angular_i4_icelake_cycle:
     nk_i32_t norm_excess = 128 * (nk_i32_t)(nk_size_round_up_to_multiple_(n_bytes_total, 64) - n_bytes_total);
     nk_i32_t a2 = _mm512_reduce_add_epi32(a2_i32x16) - norm_excess;
     nk_i32_t b2 = _mm512_reduce_add_epi32(b2_i32x16) - norm_excess;
-    *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
 NK_PUBLIC void nk_sqeuclidean_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -569,7 +571,7 @@ nk_angular_u4_icelake_cycle:
     nk_i32_t ab = _mm512_reduce_add_epi32(ab_i32x16);
     nk_i64_t a2 = _mm512_reduce_add_epi64(a2_i64x8);
     nk_i64_t b2 = _mm512_reduce_add_epi64(b2_i64x8);
-    *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_icelake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {

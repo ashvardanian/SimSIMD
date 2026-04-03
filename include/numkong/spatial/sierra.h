@@ -67,7 +67,8 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
+                                                (nk_f32_t)b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -132,7 +133,8 @@ NK_PUBLIC void nk_angular_u8_sierra(nk_u8_t const *a, nk_u8_t const *b, nk_size_
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
+                                                (nk_f32_t)b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_u8_sierra(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -239,7 +241,7 @@ nk_angular_e2m3_sierra_cycle:
     nk_i32_t dot_i32 = nk_reduce_add_i32x8_haswell_(ab_i32x8);
     nk_i32_t a_norm_i32 = nk_reduce_add_i32x8_haswell_(a_norm_i32x8);
     nk_i32_t b_norm_i32 = nk_reduce_add_i32x8_haswell_(b_norm_i32x8);
-    *result = nk_angular_normalize_f32_haswell_(dot_i32, a_norm_i32, b_norm_i32);
+    *result = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_i32, (nk_f32_t)a_norm_i32, (nk_f32_t)b_norm_i32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_e2m3_sierra(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars,

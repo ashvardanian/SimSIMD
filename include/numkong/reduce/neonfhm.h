@@ -38,7 +38,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neonfhm_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 8 <= count; idx += 8) {
-        uint8x8_t data_u8x8 = vld1_u8((uint8_t const *)(data_ptr + idx));
+        uint8x8_t data_u8x8 = vld1_u8((nk_u8_t const *)(data_ptr + idx));
         float16x8_t data_f16x8 = nk_e4m3x8_to_f16x8_neon_(data_u8x8);
         sum_f32x4 = vfmlalq_low_f16(sum_f32x4, data_f16x8, ones_f16x8);
         sum_f32x4 = vfmlalq_high_f16(sum_f32x4, data_f16x8, ones_f16x8);
@@ -163,7 +163,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neonfhm_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 8 <= count; idx += 8) {
-        uint8x8_t data_u8x8 = vld1_u8((uint8_t const *)(data_ptr + idx));
+        uint8x8_t data_u8x8 = vld1_u8((nk_u8_t const *)(data_ptr + idx));
         float16x8_t data_f16x8 = nk_e5m2x8_to_f16x8_neon_(data_u8x8);
         sum_f32x4 = vfmlalq_low_f16(sum_f32x4, data_f16x8, ones_f16x8);
         sum_f32x4 = vfmlalq_high_f16(sum_f32x4, data_f16x8, ones_f16x8);

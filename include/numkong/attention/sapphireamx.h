@@ -291,8 +291,8 @@ NK_INTERNAL void nk_attention_softmax_update_bc32_(nk_attention_softmax_row_stat
     __m512 new_sum_f32x16 = _mm512_mul_ps(state->row_sum_f32x16, correction_f32x16);
 
     // Compute P = exp(S - new_max_f32x16) and accumulate sums
-    NK_ALIGN64 float new_max_arr[16];
-    NK_ALIGN64 float row_sums[16];
+    NK_ALIGN64 nk_f32_t new_max_arr[16];
+    NK_ALIGN64 nk_f32_t row_sums[16];
     _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     // Process rows
@@ -374,8 +374,8 @@ NK_INTERNAL void nk_attention_softmax_update_bc32_fast_(nk_attention_softmax_row
     __m512 new_sum_f32x16 = _mm512_mul_ps(state->row_sum_f32x16, correction_f32x16);
 
     // Compute P = exp(S - new_max_f32x16) using fast exp
-    NK_ALIGN64 float new_max_arr[16];
-    NK_ALIGN64 float row_sums[16];
+    NK_ALIGN64 nk_f32_t new_max_arr[16];
+    NK_ALIGN64 nk_f32_t row_sums[16];
     _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     // Process rows with fast exp
@@ -452,7 +452,7 @@ NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *
 
     // Compute P = exp(S - newₘₐₓ) for each row, accumulate sum
     __m512 new_sum_f32x16 = old_sum_rescaled_f32x16;
-    float new_max_arr[16];
+    nk_f32_t new_max_arr[16];
     _mm512_store_ps(new_max_arr, new_max_f32x16);
 
     for (int i = 0; i < 16; i++) {
@@ -461,7 +461,7 @@ NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *
         _mm512_store_ps(weights_out + i * 16, p_f32x16);
 
         // Add row sum to running sum (at position i)
-        float row_sum = _mm512_reduce_add_ps(p_f32x16);
+        nk_f32_t row_sum = _mm512_reduce_add_ps(p_f32x16);
         new_sum_f32x16 = _mm512_mask_add_ps(new_sum_f32x16, 1u << i, new_sum_f32x16, _mm512_set1_ps(row_sum));
     }
 
@@ -484,7 +484,7 @@ NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_d
                                               __m512 new_max_f32x16) {
 
     __m512 correction_f32x16 = nk_exp_ps_avx512_(_mm512_sub_ps(old_max_f32x16, new_max_f32x16));
-    float corr_arr[16];
+    nk_f32_t corr_arr[16];
     _mm512_store_ps(corr_arr, correction_f32x16);
 
     for (nk_size_t row = 0; row < 16; row++) {
@@ -854,7 +854,7 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
             }
 
             // Finalize: normalize O by row sums
-            float row_sums[16];
+            nk_f32_t row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
 
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
@@ -1101,7 +1101,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
             }
 
             // Finalize: normalize O by row sums
-            float row_sums[16];
+            nk_f32_t row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
                 nk_f32_t inv_sum = 1.0f / row_sums[qi];
@@ -1320,7 +1320,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
             }
 
             // Finalize: normalize O by row sums
-            float row_sums[16];
+            nk_f32_t row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum_f32x16);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
                 __m512 inv_sum_f32x16 = _mm512_set1_ps(1.0f / row_sums[qi]);

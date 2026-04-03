@@ -195,7 +195,8 @@ NK_PUBLIC void nk_angular_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_siz
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = nk_angular_normalize_f32_neon_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_neon_((nk_f32_t)dot_product_i32, (nk_f32_t)a_norm_sq_i32,
+                                             (nk_f32_t)b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_sqeuclidean_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -243,7 +244,7 @@ NK_PUBLIC void nk_angular_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_siz
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+    *result = nk_angular_normalize_f32_neon_((nk_f32_t)ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
 NK_PUBLIC void nk_sqeuclidean_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -325,7 +326,8 @@ nk_angular_i4_neonsdot_cycle:
 
     if (n_bytes) goto nk_angular_i4_neonsdot_cycle;
 
-    *result = nk_angular_normalize_f32_neon_(vaddvq_s32(ab_i32x4), vaddvq_s32(a2_i32x4), vaddvq_s32(b2_i32x4));
+    *result = nk_angular_normalize_f32_neon_((nk_f32_t)vaddvq_s32(ab_i32x4), (nk_f32_t)vaddvq_s32(a2_i32x4),
+                                             (nk_f32_t)vaddvq_s32(b2_i32x4));
 }
 
 NK_PUBLIC void nk_sqeuclidean_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -408,7 +410,8 @@ nk_angular_u4_neonsdot_cycle:
 
     if (n_bytes) goto nk_angular_u4_neonsdot_cycle;
 
-    *result = nk_angular_normalize_f32_neon_(vaddvq_u32(ab_u32x4), vaddvq_u32(a2_u32x4), vaddvq_u32(b2_u32x4));
+    *result = nk_angular_normalize_f32_neon_((nk_f32_t)vaddvq_u32(ab_u32x4), (nk_f32_t)vaddvq_u32(a2_u32x4),
+                                             (nk_f32_t)vaddvq_u32(b2_u32x4));
 }
 
 #if defined(__clang__)

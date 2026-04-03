@@ -402,18 +402,18 @@ NK_INTERNAL void nk_sum_i4x128_update_icelake(nk_sum_i4x128_state_icelake_t *sta
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const xor_mask_u8x64 = _mm512_set1_epi8(0x08);
     __m512i const zeros_u8x64 = _mm512_setzero_si512();
-    /* Extract low and high nibbles, XOR with 8 to get unsigned representation */
+    // Extract low and high nibbles, XOR with 8 to get unsigned representation
     __m512i low_u8x64 = _mm512_and_si512(v.zmm, nibble_mask_u8x64);
     __m512i high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(v.zmm, 4), nibble_mask_u8x64);
     __m512i low_biased_u8x64 = _mm512_xor_si512(low_u8x64, xor_mask_u8x64);
     __m512i high_biased_u8x64 = _mm512_xor_si512(high_u8x64, xor_mask_u8x64);
-    /* SAD against zero gives sum of unsigned values, accumulate in u64 lanes */
+    // SAD against zero gives sum of unsigned values, accumulate in u64 lanes
     state->biased_sum_u64x8 = _mm512_add_epi64(state->biased_sum_u64x8, _mm512_sad_epu8(low_biased_u8x64, zeros_u8x64));
     state->biased_sum_u64x8 = _mm512_add_epi64(state->biased_sum_u64x8,
                                                _mm512_sad_epu8(high_biased_u8x64, zeros_u8x64));
 }
 NK_INTERNAL nk_i32_t nk_sum_i4x128_finalize_icelake(nk_sum_i4x128_state_icelake_t const *state, nk_size_t count) {
-    /* Reduce u64x8 → scalar, then undo XOR bias: signed_sum = unsigned_sum - 8 * count */
+    // Reduce u64x8 → scalar, then undo XOR bias: signed_sum = unsigned_sum - 8 * count
     nk_i64_t unsigned_sum = _mm512_reduce_add_epi64(state->biased_sum_u64x8);
     return (nk_i32_t)(unsigned_sum - 8 * (nk_i64_t)count);
 }

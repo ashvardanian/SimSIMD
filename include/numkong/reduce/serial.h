@@ -572,13 +572,11 @@ NK_PUBLIC void nk_reduce_minmax_f16_serial(                        //
     nk_f16_t *min_value_ptr, nk_size_t *min_index_ptr,             //
     nk_f16_t *max_value_ptr, nk_size_t *max_index_ptr) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f16_t min_value = nk_f16_from_u16_(NK_F16_MAX), max_value = nk_f16_from_u16_(NK_F16_MIN);
+    nk_f16_t min_value = NK_F16_MAX, max_value = NK_F16_MIN;
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f16_t raw_value = *(nk_f16_t const *)ptr;
-        nk_fui16_t raw_fui;
-        raw_fui.f = raw_value;
-        if (nk_f16_is_nan_(raw_fui.u)) continue;
+        if (nk_f16_is_nan_(raw_value)) continue;
         if (min_idx == NK_SIZE_MAX || nk_f16_order_serial(raw_value, min_value) < 0) min_value = raw_value, min_idx = i;
         if (max_idx == NK_SIZE_MAX || nk_f16_order_serial(raw_value, max_value) > 0) max_value = raw_value, max_idx = i;
     }
@@ -591,13 +589,11 @@ NK_PUBLIC void nk_reduce_minmax_bf16_serial(                        //
     nk_bf16_t *min_value_ptr, nk_size_t *min_index_ptr,             //
     nk_bf16_t *max_value_ptr, nk_size_t *max_index_ptr) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_bf16_t min_value = nk_bf16_from_u16_(NK_BF16_MAX), max_value = nk_bf16_from_u16_(NK_BF16_MIN);
+    nk_bf16_t min_value = NK_BF16_MAX, max_value = NK_BF16_MIN;
     nk_size_t min_idx = NK_SIZE_MAX, max_idx = NK_SIZE_MAX;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_bf16_t raw_value = *(nk_bf16_t const *)ptr;
-        nk_fui16_t raw_fui;
-        raw_fui.bf = raw_value;
-        if (nk_bf16_is_nan_(raw_fui.u)) continue;
+        if (nk_bf16_is_nan_(raw_value)) continue;
         if (min_idx == NK_SIZE_MAX || nk_bf16_order_serial(raw_value, min_value) < 0)
             min_value = raw_value, min_idx = i;
         if (max_idx == NK_SIZE_MAX || nk_bf16_order_serial(raw_value, max_value) > 0)

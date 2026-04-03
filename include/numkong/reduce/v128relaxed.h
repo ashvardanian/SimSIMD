@@ -620,8 +620,8 @@ NK_INTERNAL void nk_reduce_minmax_f16_v128relaxed_contiguous_( //
         if (val > max_value_f32) max_value_f32 = val, max_idx = idx;
     }
     if (min_value_f32 == NK_F32_MAX && max_value_f32 == NK_F32_MIN) {
-        *min_value_ptr = nk_f16_from_u16_(NK_F16_MAX), *min_index_ptr = NK_SIZE_MAX,
-        *max_value_ptr = nk_f16_from_u16_(NK_F16_MIN), *max_index_ptr = NK_SIZE_MAX;
+        *min_value_ptr = NK_F16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
         return;
     }
     *min_value_ptr = data[min_idx], *min_index_ptr = min_idx;
@@ -635,8 +635,8 @@ NK_PUBLIC void nk_reduce_minmax_f16_v128relaxed(                   //
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
     if (count == 0)
-        *min_value_ptr = nk_f16_from_u16_(NK_F16_MAX), *min_index_ptr = NK_SIZE_MAX,
-        *max_value_ptr = nk_f16_from_u16_(NK_F16_MIN), *max_index_ptr = NK_SIZE_MAX;
+        *min_value_ptr = NK_F16_MAX, *min_index_ptr = NK_SIZE_MAX, *max_value_ptr = NK_F16_MIN,
+        *max_index_ptr = NK_SIZE_MAX;
     else if (!aligned)
         nk_reduce_minmax_f16_serial(data, count, stride_bytes, min_value_ptr, min_index_ptr, max_value_ptr,
                                     max_index_ptr);

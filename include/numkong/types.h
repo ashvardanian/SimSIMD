@@ -640,11 +640,11 @@
 #endif
 
 #if !defined(NK_F32_DIVISION_EPSILON)
-#define NK_F32_DIVISION_EPSILON (1e-7)
+#define NK_F32_DIVISION_EPSILON (1e-7f)
 #endif
 
 #if !defined(NK_F16_DIVISION_EPSILON)
-#define NK_F16_DIVISION_EPSILON (1e-3)
+#define NK_F16_DIVISION_EPSILON (1e-3f)
 #endif
 
 /**
@@ -863,11 +863,17 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_U8_MAX 255U
 #define NK_U8_MIN 0x0U
 
-#define NK_F16_MAX 0x7BFF // IEEE 754 binary16: +65504.0
-#define NK_F16_MIN 0xFBFF // IEEE 754 binary16: -65504.0
+#define NK_F16_MAX_AS_U16 0x7BFF // IEEE 754 binary16: +65504.0
+#define NK_F16_MIN_AS_U16 0xFBFF // IEEE 754 binary16: -65504.0
 
-#define NK_BF16_MAX 0x7F7F // BFloat16: ~+3.39e38
-#define NK_BF16_MIN 0xFF7F // BFloat16: ~-3.39e38
+#define NK_F16_MAX nk_u16_as_f16_(0x7BFF)
+#define NK_F16_MIN nk_u16_as_f16_(0xFBFF)
+
+#define NK_BF16_MAX_AS_U16 0x7F7F // BFloat16: ~+3.39e38
+#define NK_BF16_MIN_AS_U16 0xFF7F // BFloat16: ~-3.39e38
+
+#define NK_BF16_MAX nk_u16_as_bf16_(0x7F7F)
+#define NK_BF16_MIN nk_u16_as_bf16_(0xFF7F)
 
 #define NK_E4M3_MAX 0x7E // FP8 E4M3: +448.0
 #define NK_E4M3_MIN 0xFE // FP8 E4M3: -448.0
@@ -1530,12 +1536,17 @@ NK_INTERNAL nk_i8_t nk_i4x2_get_(nk_i4x2_t byte_val, int n) {
 /** @brief Extract bit at position n (0-7) from packed u1x8 byte. */
 NK_INTERNAL nk_u8_t nk_u1x8_get_(nk_u1x8_t byte_val, int n) { return (byte_val >> (n & 7)) & 1; }
 
-NK_INTERNAL nk_f16_t nk_f16_from_u16_(nk_u16_t bits) {
+NK_INTERNAL nk_f16_t nk_u16_as_f16_(nk_u16_t bits) {
     nk_fui16_t c;
     c.u = bits;
     return c.f;
 }
-NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
+NK_INTERNAL nk_u16_t nk_f16_as_u16_(nk_f16_t x) {
+    nk_fui16_t c;
+    c.f = x;
+    return c.u;
+}
+NK_INTERNAL nk_bf16_t nk_u16_as_bf16_(nk_u16_t bits) {
     nk_fui16_t c;
     c.u = bits;
     return c.bf;
@@ -1555,10 +1566,18 @@ NK_INTERNAL int nk_e4m3_is_nan_(nk_e4m3_t x) { return (x & 0x7F) == 0x7F; }
 NK_INTERNAL int nk_e5m2_is_nan_(nk_e5m2_t x) { return (x & 0x7F) > 0x7C; }
 
 /** @brief F16: NaN when (raw & 0x7FFF) > 0x7C00. */
-NK_INTERNAL int nk_f16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7C00; }
+NK_INTERNAL int nk_f16_is_nan_(nk_f16_t x) {
+    nk_fui16_t x_fui;
+    x_fui.f = x;
+    return (x_fui.u & 0x7FFF) > 0x7C00;
+}
 
 /** @brief BF16: NaN when (raw & 0x7FFF) > 0x7F80. */
-NK_INTERNAL int nk_bf16_is_nan_(nk_u16_t x) { return (x & 0x7FFF) > 0x7F80; }
+NK_INTERNAL int nk_bf16_is_nan_(nk_bf16_t x) {
+    nk_fui16_t x_fui;
+    x_fui.bf = x;
+    return (x_fui.u & 0x7FFF) > 0x7F80;
+}
 
 /*  Safe SVE vector-length queries usable from non-streaming context.
  *  On Apple M4 (and other SME-only-SVE cores), SVE instructions like CNTW/CNTH/CNTB

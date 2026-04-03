@@ -650,7 +650,7 @@ NK_INTERNAL void nk_f32x4_to_i8x4_neon_(float32x4_t f32x4, nk_i8_t *dst) {
     int16x4_t i16x4 = vqmovn_s32(i32x4);
     int8x8_t i8x8 = vqmovn_s16(vcombine_s16(i16x4, i16x4));
     // Reinterpret as s32x2, store lane 0 (4 bytes in one instruction)
-    vst1_lane_s32((int32_t *)dst, vreinterpret_s32_s8(i8x8), 0);
+    vst1_lane_s32((nk_i32_t *)dst, vreinterpret_s32_s8(i8x8), 0);
 }
 
 /** @brief Convert f32x4 → 4x u8 with saturation (NEON). Convert to u32, narrow twice. */
@@ -659,7 +659,7 @@ NK_INTERNAL void nk_f32x4_to_u8x4_neon_(float32x4_t f32x4, nk_u8_t *dst) {
     uint16x4_t u16x4 = vqmovn_u32(u32x4);
     uint8x8_t u8x8 = vqmovn_u16(vcombine_u16(u16x4, u16x4));
     // Reinterpret as u32x2, store lane 0 (4 bytes in one instruction)
-    vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(u8x8), 0);
+    vst1_lane_u32((nk_u32_t *)dst, vreinterpret_u32_u8(u8x8), 0);
 }
 
 /** @brief Convert f32x4 → 4x e4m3 via bit manipulation (NEON).

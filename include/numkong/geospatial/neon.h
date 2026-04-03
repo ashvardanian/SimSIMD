@@ -242,7 +242,7 @@ NK_INTERNAL float64x2_t nk_vincenty_f64x2_neon_(                           //
 
     for (nk_u32_t iteration = 0; iteration < NK_VINCENTY_MAX_ITERATIONS; ++iteration) {
         // Check if all lanes converged
-        uint64_t converged_bits = vgetq_lane_u64(converged_mask_u64x2, 0) & vgetq_lane_u64(converged_mask_u64x2, 1);
+        nk_u64_t converged_bits = vgetq_lane_u64(converged_mask_u64x2, 0) & vgetq_lane_u64(converged_mask_u64x2, 1);
         if (converged_bits) break;
 
         float64x2_t sin_lambda_f64x2 = nk_sin_f64x2_neon_(lambda_f64x2);
@@ -450,7 +450,7 @@ NK_INTERNAL float32x4_t nk_vincenty_f32x4_neon_(                           //
 
     for (nk_u32_t iteration = 0; iteration < NK_VINCENTY_MAX_ITERATIONS; ++iteration) {
         // Check if all lanes converged (all bits set = 0xFFFFFFFF per lane)
-        uint32_t converged_bits = vminvq_u32(converged_mask_u32x4);
+        nk_u32_t converged_bits = vminvq_u32(converged_mask_u32x4);
         if (converged_bits == 0xFFFFFFFF) break;
 
         float32x4_t sin_lambda_f32x4 = nk_sin_f32x4_neon_(lambda_f32x4);

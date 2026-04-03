@@ -94,11 +94,11 @@ extern "C" {
 #define nk_define_dot_(input_type, accumulator_type, output_type, load_and_convert)                         \
     NK_PUBLIC void nk_dot_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                 nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t sum = 0, a_val, b_val;                                                    \
+        nk_##accumulator_type##_t sum = 0, a_value, b_value;                                                \
         for (nk_size_t i = 0; i != n; ++i) {                                                                \
-            load_and_convert(a + i, &a_val);                                                                \
-            load_and_convert(b + i, &b_val);                                                                \
-            sum += a_val * b_val;                                                                           \
+            load_and_convert(a + i, &a_value);                                                              \
+            load_and_convert(b + i, &b_value);                                                              \
+            sum += a_value * b_value;                                                                       \
         }                                                                                                   \
         *result = (nk_##output_type##_t)sum;                                                                \
     }
@@ -854,8 +854,8 @@ NK_INTERNAL void nk_sum_i4x32_init_serial(nk_sum_i4x32_state_serial_t *state) { 
 NK_INTERNAL void nk_sum_i4x32_update_serial(nk_sum_i4x32_state_serial_t *state, nk_b128_vec_t v) {
     nk_u8_t const *d = (nk_u8_t const *)&v;
     for (int i = 0; i < 16; i++) {
-        nk_i8_t low = (nk_i8_t)((d[i] & 0x0F) ^ 0x08) - 8; /* sign-extend low nibble */
-        nk_i8_t high = (nk_i8_t)((d[i] >> 4) ^ 0x08) - 8;  /* sign-extend high nibble */
+        nk_i8_t low = (nk_i8_t)((d[i] & 0x0F) ^ 0x08) - 8; // sign-extend low nibble
+        nk_i8_t high = (nk_i8_t)((d[i] >> 4) ^ 0x08) - 8;  // sign-extend high nibble
         state->sum += low + high;
     }
 }

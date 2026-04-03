@@ -217,7 +217,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
         // Mask invalid lanes to zero BEFORE centering
         uint32x4_t lane_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
                                              vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
-        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)(n - j)));
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((nk_u32_t)(n - j)));
         float32x4_t zero_f32x4 = vdupq_n_f32(0);
         a_x_f32x4 = vbslq_f32(valid_u32x4, a_x_f32x4, zero_f32x4);
         a_y_f32x4 = vbslq_f32(valid_u32x4, a_y_f32x4, zero_f32x4);
@@ -262,7 +262,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
 
 NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                       nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
-    /* RMSD uses identity rotation and scale=1.0 */
+    // RMSD uses identity rotation and scale=1.0
     if (rotation) {
         rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
         rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
@@ -368,7 +368,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
                                         nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     float32x4_t const zeros_f32x4 = vdupq_n_f32(0);
 
-    /*  2x unrolling with dual accumulators to hide FMA latency. */
+    // 2x unrolling with dual accumulators to hide FMA latency.
     float32x4_t sum_a_x_a_f32x4 = zeros_f32x4, sum_a_y_a_f32x4 = zeros_f32x4, sum_a_z_a_f32x4 = zeros_f32x4;
     float32x4_t sum_b_x_a_f32x4 = zeros_f32x4, sum_b_y_a_f32x4 = zeros_f32x4, sum_b_z_a_f32x4 = zeros_f32x4;
     float32x4_t sum_a_x_b_f32x4 = zeros_f32x4, sum_a_y_b_f32x4 = zeros_f32x4, sum_a_z_b_f32x4 = zeros_f32x4;
@@ -568,7 +568,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
         r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
     }
 
-    /* Output rotation matrix and scale=1.0 */
+    // Output rotation matrix and scale=1.0
     if (rotation) {
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
     }
@@ -584,7 +584,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
                                          nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     float32x4_t const zeros_f32x4 = vdupq_n_f32(0);
 
-    /*  2x unrolling with dual accumulators to hide FMA latency. */
+    // 2x unrolling with dual accumulators to hide FMA latency.
     float32x4_t sum_a_x_a_f32x4 = zeros_f32x4, sum_a_y_a_f32x4 = zeros_f32x4, sum_a_z_a_f32x4 = zeros_f32x4;
     float32x4_t sum_b_x_a_f32x4 = zeros_f32x4, sum_b_y_a_f32x4 = zeros_f32x4, sum_b_z_a_f32x4 = zeros_f32x4;
     float32x4_t sum_a_x_b_f32x4 = zeros_f32x4, sum_a_y_b_f32x4 = zeros_f32x4, sum_a_z_b_f32x4 = zeros_f32x4;
@@ -816,7 +816,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
         r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
     }
 
-    /* Output rotation matrix */
+    // Output rotation matrix
     if (rotation) {
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
     }

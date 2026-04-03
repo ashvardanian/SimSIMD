@@ -96,7 +96,7 @@ extern "C" {
             int matches = ai == bj;                                                                        \
             load_and_convert(a_weights + i, &awi);                                                         \
             load_and_convert(b_weights + j, &bwi);                                                         \
-            weights_product += matches * awi * bwi;                                                        \
+            weights_product += (nk_##accumulator_type##_t)matches * awi * bwi;                             \
             i += ai < bj;                                                                                  \
             j += ai >= bj;                                                                                 \
         }                                                                                                  \

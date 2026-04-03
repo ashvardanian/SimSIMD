@@ -200,9 +200,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
 
                     // Load A rows into ZA0.D: extending load f32→u64 + convert to f64
-                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, (uint64_t)batch_size);
-                    svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                              (uint64_t)depth);
+                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, batch_size);
+                    svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start, depth);
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                         nk_size_t const a_row = row_start + row_in_tile;
                         // Extending load: svld1uw_u64 loads f32 bits into lower 32 of each u64 lane
@@ -349,9 +348,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
 
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
 
-                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, (uint64_t)batch_size);
-                    svbool_t const a_depth_pred_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                         (uint64_t)depth);
+                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, batch_size);
+                    svbool_t const a_depth_pred_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start, depth);
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                         nk_size_t const a_row = row_start + row_in_tile;
                         svfloat64_t a_row_widened_f64x = svcvt_f64_f32_x(
@@ -454,9 +452,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                     if (depth_offset + depth_batch_start >= depth) break;
 
                     // ZA transpose for A rows: extending load f32→f64, MOVA directly into ZA0
-                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, (uint64_t)batch_size);
-                    svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                              (uint64_t)depth);
+                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, batch_size);
+                    svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start, depth);
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                         nk_size_t const row_abs = row_tile_start + row_in_tile;
@@ -672,9 +669,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
 
                     if (depth_offset + depth_batch_start >= depth) break;
 
-                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, (uint64_t)batch_size);
-                    svbool_t const a_depth_pred_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                         (uint64_t)depth);
+                    svbool_t const batch_predicate_b64x = svwhilelt_b64_u64(0u, batch_size);
+                    svbool_t const a_depth_pred_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start, depth);
                     svzero_mask_za(nk_sme_zero_za64_tile_0_);
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_actual; row_in_tile++) {
                         nk_size_t const row_abs = row_tile_start + row_in_tile;
@@ -1090,7 +1086,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_st
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                         nk_size_t const a_row = row_start + row_in_tile;
                         svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                                  (uint64_t)depth);
+                                                                                  depth);
                         svld1_hor_za64(0, row_in_tile, a_depth_predicate_b64x,
                                        &a[a_row * a_stride_elements + depth_offset + depth_batch_start]);
                     }
@@ -1228,7 +1224,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_st
                     for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
                         nk_size_t const a_row = row_start + row_in_tile;
                         svbool_t const a_depth_predicate_b64x = svwhilelt_b64_u64(depth_offset + depth_batch_start,
-                                                                                  (uint64_t)depth);
+                                                                                  depth);
                         svld1_hor_za64(0, row_in_tile, a_depth_predicate_b64x,
                                        &a[a_row * a_stride_elements + depth_offset + depth_batch_start]);
                     }

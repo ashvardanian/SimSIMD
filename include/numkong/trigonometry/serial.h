@@ -42,8 +42,8 @@ NK_PUBLIC nk_f32_t nk_f32_sin(nk_f32_t const angle_radians) {
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
     // Cody-Waite range reduction: angle = angle_radians - multiple * (pi_high + pi_low)
-    nk_f32_t angle = angle_radians - multiple_of_pi * pi_high;
-    angle -= multiple_of_pi * pi_low;
+    nk_f32_t angle = angle_radians - (nk_f32_t)multiple_of_pi * pi_high;
+    angle -= (nk_f32_t)multiple_of_pi * pi_low;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 
@@ -84,9 +84,9 @@ NK_PUBLIC nk_f32_t nk_f32_cos(nk_f32_t const angle_radians) {
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
     // Cody-Waite range reduction: angle = angle_radians - (multiple * pi + pi/2)
-    nk_f32_t const offset = pi_half + multiple_of_pi * pi_high;
+    nk_f32_t const offset = pi_half + (nk_f32_t)multiple_of_pi * pi_high;
     nk_f32_t angle = angle_radians - offset;
-    angle -= multiple_of_pi * pi_low;
+    angle -= (nk_f32_t)multiple_of_pi * pi_low;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 
@@ -560,8 +560,8 @@ NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
     // Cody-Waite range reduction
-    nk_f32_t angle = angle_radians - multiple_of_pi * pi_high;
-    angle -= multiple_of_pi * pi_low;
+    nk_f32_t angle = angle_radians - (nk_f32_t)multiple_of_pi * pi_high;
+    angle -= (nk_f32_t)multiple_of_pi * pi_low;
 
     // If |angle| > π/4, use tan(x) = 1/tan(π/2 - x) for better accuracy
     int reciprocal = 0;

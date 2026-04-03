@@ -2146,7 +2146,7 @@ NK_INTERNAL void nk_reduce_moments_bf16_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((uint16_t const *)data_ptr, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)data_ptr, vector_length);
 
         // Convert bf16 → f32 (m1 → m2)
         vfloat32m2_t data_f32m2 = nk_bf16m1_to_f32m2_rvv_(data_u16m1, vector_length);
@@ -2176,7 +2176,7 @@ NK_INTERNAL void nk_reduce_moments_bf16_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((uint16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((nk_u16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert bf16 → f32 (m1 → m2)
         vfloat32m2_t data_f32m2 = nk_bf16m1_to_f32m2_rvv_(data_u16m1, vector_length);
@@ -2222,7 +2222,7 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((uint16_t const *)data_ptr, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)data_ptr, vector_length);
         vuint64m4_t pos_u64m4 = __riscv_vadd_vx_u64m4(__riscv_vid_v_u64m4(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
@@ -2297,7 +2297,7 @@ NK_INTERNAL void nk_reduce_minmax_bf16_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((uint16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((nk_u16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
         vuint64m4_t pos_u64m4 = __riscv_vadd_vx_u64m4(__riscv_vid_v_u64m4(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
@@ -2387,7 +2387,7 @@ NK_INTERNAL void nk_reduce_moments_f16_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((uint16_t const *)data_ptr, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)data_ptr, vector_length);
 
         // Convert f16 → f32 (m1 → m2)
         vfloat32m2_t data_f32m2 = nk_f16m1_to_f32m2_rvv_(data_u16m1, vector_length);
@@ -2417,7 +2417,7 @@ NK_INTERNAL void nk_reduce_moments_f16_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((uint16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((nk_u16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert f16 → f32 (m1 → m2)
         vfloat32m2_t data_f32m2 = nk_f16m1_to_f32m2_rvv_(data_u16m1, vector_length);
@@ -2463,7 +2463,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((uint16_t const *)data_ptr, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)data_ptr, vector_length);
         vuint64m4_t pos_u64m4 = __riscv_vadd_vx_u64m4(__riscv_vid_v_u64m4(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
@@ -2538,7 +2538,7 @@ NK_INTERNAL void nk_reduce_minmax_f16_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e16m1(count);
-        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((uint16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint16m1_t data_u16m1 = __riscv_vlse16_v_u16m1((nk_u16_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
         vuint64m4_t pos_u64m4 = __riscv_vadd_vx_u64m4(__riscv_vid_v_u64m4(vector_length), (nk_u64_t)offset,
                                                       vector_length);
 
@@ -2628,7 +2628,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert e4m3 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e4m3m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -2655,7 +2655,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert e4m3 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e4m3m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -2698,7 +2698,7 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert to comparable form
         vuint8m1_t comparable_u8m1 = nk_fp8m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
@@ -2777,7 +2777,7 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp8m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
@@ -2869,7 +2869,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert e5m2 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e5m2m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -2896,7 +2896,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert e5m2 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e5m2m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -2939,7 +2939,7 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp8m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
@@ -3016,7 +3016,7 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp8m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
@@ -3108,7 +3108,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert e2m3 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e2m3m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -3135,7 +3135,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert e2m3 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e2m3m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -3178,7 +3178,7 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert to FP6 comparable form
         vuint8m1_t comparable_u8m1 = nk_fp6m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
@@ -3241,7 +3241,7 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp6m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
@@ -3318,7 +3318,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_rvv_contiguous_( //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         // Convert e3m2 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e3m2m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -3345,7 +3345,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_rvv_strided_(                   //
 
     for (nk_size_t vector_length; count > 0; count -= vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t data_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         // Convert e3m2 → f32 (m1 → m4)
         vfloat32m4_t data_f32m4 = nk_e3m2m1_to_f32m4_rvv_(data_u8m1, vector_length);
@@ -3388,7 +3388,7 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_rvv_contiguous_( //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, data_ptr += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((uint8_t const *)data_ptr, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)data_ptr, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp6m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,
@@ -3450,7 +3450,7 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_rvv_strided_(                    //
     for (nk_size_t vector_length; count > 0;
          count -= vector_length, offset += vector_length, ptr += vector_length * stride_bytes) {
         vector_length = __riscv_vsetvl_e8m1(count);
-        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((uint8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
+        vuint8m1_t raw_u8m1 = __riscv_vlse8_v_u8m1((nk_u8_t const *)ptr, (nk_ssize_t)stride_bytes, vector_length);
 
         vuint8m1_t comparable_u8m1 = nk_fp6m1_to_comparable_u8m1_rvv_(raw_u8m1, vector_length);
         vuint64m8_t pos_u64m8 = __riscv_vadd_vx_u64m8(__riscv_vid_v_u64m8(vector_length), (nk_u64_t)offset,

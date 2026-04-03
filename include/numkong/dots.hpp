@@ -390,7 +390,8 @@ void jaccards_symmetric(in_type_ const *a, std::size_t vectors_count, std::size_
                     intersection += std::popcount(static_cast<unsigned>(a_i[b] & a_j[b]));
                     union_ += std::popcount(static_cast<unsigned>(a_i[b] | a_j[b]));
                 }
-                c_row[j] = result_type_::from_raw(union_ ? 1.0f - static_cast<float>(intersection) / union_ : 0.0f);
+                c_row[j] = result_type_::from_raw(
+                    union_ ? 1.0f - static_cast<float>(intersection) / static_cast<float>(union_) : 0.0f);
             }
         }
     }
@@ -440,7 +441,8 @@ void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
                     intersection += std::popcount(static_cast<unsigned>(a_row[byte_idx] & b_row[byte_idx]));
                     union_ += std::popcount(static_cast<unsigned>(a_row[byte_idx] | b_row[byte_idx]));
                 }
-                c_row[j] = result_type_::from_raw(union_ ? 1.0f - static_cast<float>(intersection) / union_ : 0.0f);
+                c_row[j] = result_type_::from_raw(
+                    union_ ? 1.0f - static_cast<float>(intersection) / static_cast<float>(union_) : 0.0f);
             }
         }
     }

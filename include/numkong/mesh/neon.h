@@ -667,15 +667,15 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
 
     // Apply centering correction: H_centered = sum(a * bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f64_t h[9];
-    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
-    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
-    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
-    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
-    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
-    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
-    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
-    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
-    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - (nk_f64_t)n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - (nk_f64_t)n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - (nk_f64_t)n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - (nk_f64_t)n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - (nk_f64_t)n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - (nk_f64_t)n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - (nk_f64_t)n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - (nk_f64_t)n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - (nk_f64_t)n * centroid_a_z * centroid_b_z;
 
     nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(h, svd_u, svd_s, svd_v);
@@ -868,15 +868,15 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f64_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f64_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f64_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f64_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f64_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f64_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f64_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f64_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f64_t)n * centroid_a_z * centroid_b_z;
 
     // Compute SVD and optimal rotation
     nk_f64_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
@@ -1044,15 +1044,15 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
 
     // Apply centering correction: H_centered = sum(a * bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f64_t h[9];
-    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
-    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
-    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
-    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
-    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
-    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
-    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
-    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
-    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - (nk_f64_t)n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - (nk_f64_t)n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - (nk_f64_t)n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - (nk_f64_t)n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - (nk_f64_t)n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - (nk_f64_t)n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - (nk_f64_t)n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - (nk_f64_t)n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - (nk_f64_t)n * centroid_a_z * centroid_b_z;
 
     nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(h, svd_u, svd_s, svd_v);
@@ -1267,15 +1267,15 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f64_t var_a = sum_sq_a * inv_n - centroid_sq;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f64_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f64_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f64_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f64_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f64_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f64_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f64_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f64_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f64_t)n * centroid_a_z * centroid_b_z;
 
     // Compute SVD
     nk_f64_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
@@ -1289,7 +1289,7 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     // Handle reflection and compute scale
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t trace_d_s = svd_s[0] + svd_s[4] + (det < 0 ? -svd_s[8] : svd_s[8]);
-    nk_f64_t computed_scale = trace_d_s / (n * var_a);
+    nk_f64_t computed_scale = trace_d_s / ((nk_f64_t)n * var_a);
 
     if (det < 0) {
         svd_v[2] = -svd_v[2];
@@ -1396,7 +1396,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
 
         uint32x4_t lane_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
                                              vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
-        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)(n - j)));
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((nk_u32_t)(n - j)));
         float32x4_t zero_f32x4 = vdupq_n_f32(0);
         a_x_f32x4 = vbslq_f32(valid_u32x4, a_x_f32x4, zero_f32x4);
         a_y_f32x4 = vbslq_f32(valid_u32x4, a_y_f32x4, zero_f32x4);
@@ -1649,15 +1649,15 @@ NK_PUBLIC void nk_kabsch_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     // Compute centered covariance: H = (A - centroid_A)ᵀ * (B - centroid_B)
     // H = sum(a * bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f32_t h[9];
-    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
-    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
-    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
-    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
-    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
-    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
-    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
-    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
-    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
@@ -1804,15 +1804,15 @@ NK_PUBLIC void nk_umeyama_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
     nk_f32_t h[9];
-    h[0] = covariance_x_x - n * centroid_a_x * centroid_b_x;
-    h[1] = covariance_x_y - n * centroid_a_x * centroid_b_y;
-    h[2] = covariance_x_z - n * centroid_a_x * centroid_b_z;
-    h[3] = covariance_y_x - n * centroid_a_y * centroid_b_x;
-    h[4] = covariance_y_y - n * centroid_a_y * centroid_b_y;
-    h[5] = covariance_y_z - n * centroid_a_y * centroid_b_z;
-    h[6] = covariance_z_x - n * centroid_a_z * centroid_b_x;
-    h[7] = covariance_z_y - n * centroid_a_z * centroid_b_y;
-    h[8] = covariance_z_z - n * centroid_a_z * centroid_b_z;
+    h[0] = covariance_x_x - (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    h[1] = covariance_x_y - (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    h[2] = covariance_x_z - (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    h[3] = covariance_y_x - (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    h[4] = covariance_y_y - (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    h[5] = covariance_y_z - (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    h[6] = covariance_z_x - (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    h[7] = covariance_z_y - (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    h[8] = covariance_z_z - (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];

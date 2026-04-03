@@ -57,11 +57,11 @@ NK_PUBLIC void nk_dot_f16_svehalf(nk_f16_t const *a_scalars, nk_f16_t const *b_s
         nk_size_t remaining = count_scalars - idx_scalars < svcnth() ? count_scalars - idx_scalars : svcnth();
 
         // svcvt_f32_f16_x widens only even-indexed f16 elements; svext by 1 shifts odd into even.
-        svbool_t pred_even_b32x = svwhilelt_b32_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_b32x = svwhilelt_b32_u64(0u, (remaining + 1) / 2);
         ab_f32x = svmla_f32_m(pred_even_b32x, ab_f32x, svcvt_f32_f16_x(pred_even_b32x, a_f16x),
                               svcvt_f32_f16_x(pred_even_b32x, b_f16x));
 
-        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0, remaining / 2);
+        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0u, remaining / 2);
         ab_f32x = svmla_f32_m(pred_odd_b32x, ab_f32x, svcvt_f32_f16_x(pred_odd_b32x, svext_f16(a_f16x, a_f16x, 1)),
                               svcvt_f32_f16_x(pred_odd_b32x, svext_f16(b_f16x, b_f16x, 1)));
 
@@ -84,7 +84,7 @@ NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
         nk_size_t remaining = count_pairs - idx_scalars < svcnth() ? count_pairs - idx_scalars : svcnth();
 
         // Even-indexed elements of each deinterleaved component
-        svbool_t pred_even_b32x = svwhilelt_b32_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_b32x = svwhilelt_b32_u64(0u, (remaining + 1) / 2);
         svfloat32_t ar_even_f32x = svcvt_f32_f16_x(pred_even_b32x, ar_f16x);
         svfloat32_t ai_even_f32x = svcvt_f32_f16_x(pred_even_b32x, ai_f16x);
         svfloat32_t br_even_f32x = svcvt_f32_f16_x(pred_even_b32x, br_f16x);
@@ -95,7 +95,7 @@ NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
         ab_imag_f32x = svmla_f32_m(pred_even_b32x, ab_imag_f32x, ai_even_f32x, br_even_f32x);
 
         // Odd-indexed elements via svext shift-by-1
-        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0, remaining / 2);
+        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0u, remaining / 2);
         svfloat32_t ar_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(ar_f16x, ar_f16x, 1));
         svfloat32_t ai_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(ai_f16x, ai_f16x, 1));
         svfloat32_t br_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(br_f16x, br_f16x, 1));
@@ -125,7 +125,7 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b
         nk_size_t remaining = count_pairs - idx_scalars < svcnth() ? count_pairs - idx_scalars : svcnth();
 
         // Even-indexed elements
-        svbool_t pred_even_b32x = svwhilelt_b32_u64(0, (remaining + 1) / 2);
+        svbool_t pred_even_b32x = svwhilelt_b32_u64(0u, (remaining + 1) / 2);
         svfloat32_t ar_even_f32x = svcvt_f32_f16_x(pred_even_b32x, ar_f16x);
         svfloat32_t ai_even_f32x = svcvt_f32_f16_x(pred_even_b32x, ai_f16x);
         svfloat32_t br_even_f32x = svcvt_f32_f16_x(pred_even_b32x, br_f16x);
@@ -136,7 +136,7 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b
         ab_imag_f32x = svmls_f32_m(pred_even_b32x, ab_imag_f32x, ai_even_f32x, br_even_f32x);
 
         // Odd-indexed elements via svext shift-by-1
-        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0, remaining / 2);
+        svbool_t pred_odd_b32x = svwhilelt_b32_u64(0u, remaining / 2);
         svfloat32_t ar_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(ar_f16x, ar_f16x, 1));
         svfloat32_t ai_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(ai_f16x, ai_f16x, 1));
         svfloat32_t br_odd_f32x = svcvt_f32_f16_x(pred_odd_b32x, svext_f16(br_f16x, br_f16x, 1));

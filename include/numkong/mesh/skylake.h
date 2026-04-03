@@ -1529,7 +1529,7 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
     nk_f64_t trace_ds = nk_sum_three_products_f64_(svd_s[0], 1.0, svd_s[4], 1.0, svd_s[8], d3);
-    nk_f64_t applied_scale = trace_ds / (n * variance_a);
+    nk_f64_t applied_scale = trace_ds / ((nk_f64_t)n * variance_a);
     if (scale) *scale = (nk_f32_t)applied_scale;
 
     // Handle reflection
@@ -1707,7 +1707,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
     nk_f64_t trace_ds = nk_sum_three_products_f64_(svd_s[0], 1.0, svd_s[4], 1.0, svd_s[8], d3);
-    nk_f64_t c = trace_ds / (n * variance_a);
+    nk_f64_t c = trace_ds / ((nk_f64_t)n * variance_a);
     if (scale) *scale = c;
 
     // Handle reflection
@@ -1987,15 +1987,15 @@ NK_PUBLIC void nk_kabsch_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_si
     if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
                                     covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
@@ -2118,15 +2118,15 @@ NK_PUBLIC void nk_kabsch_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk
     if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
                                     covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
@@ -2262,15 +2262,15 @@ NK_PUBLIC void nk_umeyama_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_s
     nk_f32_t variance_a = variance_a_sum * inv_n -
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
                                     covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
@@ -2292,7 +2292,7 @@ NK_PUBLIC void nk_umeyama_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_s
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
-    nk_f32_t c = trace_ds / (n * variance_a);
+    nk_f32_t c = trace_ds / ((nk_f32_t)n * variance_a);
     if (scale) *scale = c;
 
     if (det < 0) {
@@ -2412,15 +2412,15 @@ NK_PUBLIC void nk_umeyama_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, n
     nk_f32_t variance_a = variance_a_sum * inv_n -
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
-    covariance_x_x -= n * centroid_a_x * centroid_b_x;
-    covariance_x_y -= n * centroid_a_x * centroid_b_y;
-    covariance_x_z -= n * centroid_a_x * centroid_b_z;
-    covariance_y_x -= n * centroid_a_y * centroid_b_x;
-    covariance_y_y -= n * centroid_a_y * centroid_b_y;
-    covariance_y_z -= n * centroid_a_y * centroid_b_z;
-    covariance_z_x -= n * centroid_a_z * centroid_b_x;
-    covariance_z_y -= n * centroid_a_z * centroid_b_y;
-    covariance_z_z -= n * centroid_a_z * centroid_b_z;
+    covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
+    covariance_x_y -= (nk_f32_t)n * centroid_a_x * centroid_b_y;
+    covariance_x_z -= (nk_f32_t)n * centroid_a_x * centroid_b_z;
+    covariance_y_x -= (nk_f32_t)n * centroid_a_y * centroid_b_x;
+    covariance_y_y -= (nk_f32_t)n * centroid_a_y * centroid_b_y;
+    covariance_y_z -= (nk_f32_t)n * centroid_a_y * centroid_b_z;
+    covariance_z_x -= (nk_f32_t)n * centroid_a_z * centroid_b_x;
+    covariance_z_y -= (nk_f32_t)n * centroid_a_z * centroid_b_y;
+    covariance_z_z -= (nk_f32_t)n * centroid_a_z * centroid_b_z;
 
     nk_f32_t cross_covariance[9] = {covariance_x_x, covariance_x_y, covariance_x_z, covariance_y_x, covariance_y_y,
                                     covariance_y_z, covariance_z_x, covariance_z_y, covariance_z_z};
@@ -2442,7 +2442,7 @@ NK_PUBLIC void nk_umeyama_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, n
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
-    nk_f32_t c = trace_ds / (n * variance_a);
+    nk_f32_t c = trace_ds / ((nk_f32_t)n * variance_a);
     if (scale) *scale = c;
 
     if (det < 0) {

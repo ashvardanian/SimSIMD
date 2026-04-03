@@ -40,11 +40,11 @@ extern "C" {
 #define nk_define_sqeuclidean_(input_type, accumulator_type, output_type, load_and_convert)                         \
     NK_PUBLIC void nk_sqeuclidean_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                         nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                                  \
+        nk_##accumulator_type##_t sum = 0, compensation = 0, a_value, b_value;                                      \
         for (nk_size_t i = 0; i != n; ++i) {                                                                        \
-            load_and_convert(a + i, &a_element);                                                                    \
-            load_and_convert(b + i, &b_element);                                                                    \
-            nk_##accumulator_type##_t diff = a_element - b_element;                                                 \
+            load_and_convert(a + i, &a_value);                                                                      \
+            load_and_convert(b + i, &b_value);                                                                      \
+            nk_##accumulator_type##_t diff = a_value - b_value;                                                     \
             nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                           \
             compensation += (nk_##accumulator_type##_abs_(sum) >= nk_##accumulator_type##_abs_(term))               \
                                 ? ((sum - t) + term)                                                                \
@@ -74,14 +74,14 @@ extern "C" {
 #define nk_define_angular_(input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)            \
     NK_PUBLIC void nk_angular_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b,   \
                                                     nk_size_t n, nk_##output_type##_t *result) {                  \
-        nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_element, b_element;                        \
+        nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_value, b_value;                            \
         nk_##accumulator_type##_t compensation_dot = 0, compensation_a = 0, compensation_b = 0;                   \
         for (nk_size_t i = 0; i != n; ++i) {                                                                      \
-            load_and_convert(a + i, &a_element);                                                                  \
-            load_and_convert(b + i, &b_element);                                                                  \
-            nk_##accumulator_type##_t term_dot = a_element * b_element, t_dot = dot_sum + term_dot;               \
-            nk_##accumulator_type##_t term_a = a_element * a_element, t_a = a_sum + term_a;                       \
-            nk_##accumulator_type##_t term_b = b_element * b_element, t_b = b_sum + term_b;                       \
+            load_and_convert(a + i, &a_value);                                                                    \
+            load_and_convert(b + i, &b_value);                                                                    \
+            nk_##accumulator_type##_t term_dot = a_value * b_value, t_dot = dot_sum + term_dot;                   \
+            nk_##accumulator_type##_t term_a = a_value * a_value, t_a = a_sum + term_a;                           \
+            nk_##accumulator_type##_t term_b = b_value * b_value, t_b = b_sum + term_b;                           \
             compensation_dot += (nk_##accumulator_type##_abs_(dot_sum) >= nk_##accumulator_type##_abs_(term_dot)) \
                                     ? ((dot_sum - t_dot) + term_dot)                                              \
                                     : ((term_dot - t_dot) + dot_sum);                                             \
@@ -102,7 +102,8 @@ extern "C" {
         else if (dot_product == 0) { *result = 1; }                                                               \
         else {                                                                                                    \
             nk_##output_type##_t unclipped_distance = (nk_##output_type##_t)(                                     \
-                1 - dot_product * compute_rsqrt(a_norm_sq) * compute_rsqrt(b_norm_sq));                           \
+                1 - (nk_##output_type##_t)dot_product * compute_rsqrt((nk_##output_type##_t)a_norm_sq) *          \
+                        compute_rsqrt((nk_##output_type##_t)b_norm_sq));                                          \
             *result = unclipped_distance > 0 ? unclipped_distance : 0;                                            \
         }                                                                                                         \
     }

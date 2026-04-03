@@ -149,39 +149,39 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_neonsdot_(                             
             // Depth loop: 16 bytes per step
             for (nk_size_t depth_index = 0; depth_index < depth_i8_padded; depth_index += 16) {
                 int8x16_t query_i8x16_0 = vld1q_s8(
-                    (int8_t const *)(query_i8 + (query_block_start_index + 0) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(query_i8 + (query_block_start_index + 0) * depth_i8_padded + depth_index));
                 int8x16_t query_i8x16_1 = vld1q_s8(
-                    (int8_t const *)(query_i8 + (query_block_start_index + 1) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(query_i8 + (query_block_start_index + 1) * depth_i8_padded + depth_index));
                 int8x16_t query_i8x16_2 = vld1q_s8(
-                    (int8_t const *)(query_i8 + (query_block_start_index + 2) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(query_i8 + (query_block_start_index + 2) * depth_i8_padded + depth_index));
                 int8x16_t query_i8x16_3 = vld1q_s8(
-                    (int8_t const *)(query_i8 + (query_block_start_index + 3) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(query_i8 + (query_block_start_index + 3) * depth_i8_padded + depth_index));
 
                 int8x16_t document_i8x16;
 
                 document_i8x16 = vld1q_s8(
-                    (int8_t const *)(document_i8 + (document_block_start_index + 0) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(document_i8 + (document_block_start_index + 0) * depth_i8_padded + depth_index));
                 accumulator_tiles_i32x4[0][0] = vdotq_s32(accumulator_tiles_i32x4[0][0], query_i8x16_0, document_i8x16);
                 accumulator_tiles_i32x4[1][0] = vdotq_s32(accumulator_tiles_i32x4[1][0], query_i8x16_1, document_i8x16);
                 accumulator_tiles_i32x4[2][0] = vdotq_s32(accumulator_tiles_i32x4[2][0], query_i8x16_2, document_i8x16);
                 accumulator_tiles_i32x4[3][0] = vdotq_s32(accumulator_tiles_i32x4[3][0], query_i8x16_3, document_i8x16);
 
                 document_i8x16 = vld1q_s8(
-                    (int8_t const *)(document_i8 + (document_block_start_index + 1) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(document_i8 + (document_block_start_index + 1) * depth_i8_padded + depth_index));
                 accumulator_tiles_i32x4[0][1] = vdotq_s32(accumulator_tiles_i32x4[0][1], query_i8x16_0, document_i8x16);
                 accumulator_tiles_i32x4[1][1] = vdotq_s32(accumulator_tiles_i32x4[1][1], query_i8x16_1, document_i8x16);
                 accumulator_tiles_i32x4[2][1] = vdotq_s32(accumulator_tiles_i32x4[2][1], query_i8x16_2, document_i8x16);
                 accumulator_tiles_i32x4[3][1] = vdotq_s32(accumulator_tiles_i32x4[3][1], query_i8x16_3, document_i8x16);
 
                 document_i8x16 = vld1q_s8(
-                    (int8_t const *)(document_i8 + (document_block_start_index + 2) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(document_i8 + (document_block_start_index + 2) * depth_i8_padded + depth_index));
                 accumulator_tiles_i32x4[0][2] = vdotq_s32(accumulator_tiles_i32x4[0][2], query_i8x16_0, document_i8x16);
                 accumulator_tiles_i32x4[1][2] = vdotq_s32(accumulator_tiles_i32x4[1][2], query_i8x16_1, document_i8x16);
                 accumulator_tiles_i32x4[2][2] = vdotq_s32(accumulator_tiles_i32x4[2][2], query_i8x16_2, document_i8x16);
                 accumulator_tiles_i32x4[3][2] = vdotq_s32(accumulator_tiles_i32x4[3][2], query_i8x16_3, document_i8x16);
 
                 document_i8x16 = vld1q_s8(
-                    (int8_t const *)(document_i8 + (document_block_start_index + 3) * depth_i8_padded + depth_index));
+                    (nk_i8_t const *)(document_i8 + (document_block_start_index + 3) * depth_i8_padded + depth_index));
                 accumulator_tiles_i32x4[0][3] = vdotq_s32(accumulator_tiles_i32x4[0][3], query_i8x16_0, document_i8x16);
                 accumulator_tiles_i32x4[1][3] = vdotq_s32(accumulator_tiles_i32x4[1][3], query_i8x16_1, document_i8x16);
                 accumulator_tiles_i32x4[2][3] = vdotq_s32(accumulator_tiles_i32x4[2][3], query_i8x16_2, document_i8x16);
@@ -211,27 +211,27 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_neonsdot_(                             
             int32x4_t accumulator_i32x4_3 = vdupq_n_s32(0);
 
             for (nk_size_t depth_index = 0; depth_index < depth_i8_padded; depth_index += 16) {
-                int8x16_t document_i8x16 = vld1q_s8((int8_t const *)(document_i8_row + depth_index));
+                int8x16_t document_i8x16 = vld1q_s8((nk_i8_t const *)(document_i8_row + depth_index));
 
                 accumulator_i32x4_0 = vdotq_s32(
                     accumulator_i32x4_0,
                     vld1q_s8(
-                        (int8_t const *)(query_i8 + (query_block_start_index + 0) * depth_i8_padded + depth_index)),
+                        (nk_i8_t const *)(query_i8 + (query_block_start_index + 0) * depth_i8_padded + depth_index)),
                     document_i8x16);
                 accumulator_i32x4_1 = vdotq_s32(
                     accumulator_i32x4_1,
                     vld1q_s8(
-                        (int8_t const *)(query_i8 + (query_block_start_index + 1) * depth_i8_padded + depth_index)),
+                        (nk_i8_t const *)(query_i8 + (query_block_start_index + 1) * depth_i8_padded + depth_index)),
                     document_i8x16);
                 accumulator_i32x4_2 = vdotq_s32(
                     accumulator_i32x4_2,
                     vld1q_s8(
-                        (int8_t const *)(query_i8 + (query_block_start_index + 2) * depth_i8_padded + depth_index)),
+                        (nk_i8_t const *)(query_i8 + (query_block_start_index + 2) * depth_i8_padded + depth_index)),
                     document_i8x16);
                 accumulator_i32x4_3 = vdotq_s32(
                     accumulator_i32x4_3,
                     vld1q_s8(
-                        (int8_t const *)(query_i8 + (query_block_start_index + 3) * depth_i8_padded + depth_index)),
+                        (nk_i8_t const *)(query_i8 + (query_block_start_index + 3) * depth_i8_padded + depth_index)),
                     document_i8x16);
             }
 
@@ -260,8 +260,8 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_neonsdot_(                             
             int32x4_t accumulator_i32x4 = vdupq_n_s32(0);
 
             for (nk_size_t depth_index = 0; depth_index < depth_i8_padded; depth_index += 16) {
-                int8x16_t query_i8x16 = vld1q_s8((int8_t const *)(query_i8_row + depth_index));
-                int8x16_t document_i8x16 = vld1q_s8((int8_t const *)(document_i8_row + depth_index));
+                int8x16_t query_i8x16 = vld1q_s8((nk_i8_t const *)(query_i8_row + depth_index));
+                int8x16_t document_i8x16 = vld1q_s8((nk_i8_t const *)(document_i8_row + depth_index));
                 accumulator_i32x4 = vdotq_s32(accumulator_i32x4, query_i8x16, document_i8x16);
             }
 

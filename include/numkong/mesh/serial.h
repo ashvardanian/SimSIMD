@@ -413,7 +413,7 @@ nk_define_det3x3_(f64)
             nk_accumulate_sum_##accumulator_type##_(&sum_b_y, &sum_b_y_compensation, val_b_y);                     \
             nk_accumulate_sum_##accumulator_type##_(&sum_b_z, &sum_b_z_compensation, val_b_z);                     \
         }                                                                                                          \
-        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / n;                                      \
+        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / (nk_##accumulator_type##_t)n;           \
         nk_##accumulator_type##_t centroid_a_x = (sum_a_x + sum_a_x_compensation) * inv_n;                         \
         nk_##accumulator_type##_t centroid_a_y = (sum_a_y + sum_a_y_compensation) * inv_n;                         \
         nk_##accumulator_type##_t centroid_a_z = (sum_a_z + sum_a_z_compensation) * inv_n;                         \
@@ -479,7 +479,7 @@ nk_define_det3x3_(f64)
             nk_accumulate_sum_##accumulator_type##_(&sum_b_y, &sum_b_y_compensation, val_b_y);                       \
             nk_accumulate_sum_##accumulator_type##_(&sum_b_z, &sum_b_z_compensation, val_b_z);                       \
         }                                                                                                            \
-        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / n;                                        \
+        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / (nk_##accumulator_type##_t)n;             \
         nk_##accumulator_type##_t centroid_a_x = (sum_a_x + sum_a_x_compensation) * inv_n;                           \
         nk_##accumulator_type##_t centroid_a_y = (sum_a_y + sum_a_y_compensation) * inv_n;                           \
         nk_##accumulator_type##_t centroid_a_z = (sum_a_z + sum_a_z_compensation) * inv_n;                           \
@@ -595,7 +595,7 @@ nk_define_det3x3_(f64)
             nk_accumulate_sum_##accumulator_type##_(&sum_b_y, &sum_b_y_compensation, val_b_y);                        \
             nk_accumulate_sum_##accumulator_type##_(&sum_b_z, &sum_b_z_compensation, val_b_z);                        \
         }                                                                                                             \
-        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / n;                                         \
+        nk_##accumulator_type##_t inv_n = (nk_##accumulator_type##_t)1.0 / (nk_##accumulator_type##_t)n;              \
         nk_##accumulator_type##_t centroid_a_x = (sum_a_x + sum_a_x_compensation) * inv_n;                            \
         nk_##accumulator_type##_t centroid_a_y = (sum_a_y + sum_a_y_compensation) * inv_n;                            \
         nk_##accumulator_type##_t centroid_a_z = (sum_a_z + sum_a_z_compensation) * inv_n;                            \

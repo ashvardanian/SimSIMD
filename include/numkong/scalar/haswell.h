@@ -52,23 +52,32 @@ NK_PUBLIC nk_f64_t nk_f64_fma_haswell(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
     return _mm_cvtsd_f64(_mm_fmadd_sd(_mm_set_sd(a), _mm_set_sd(b), _mm_set_sd(c)));
 }
 NK_PUBLIC nk_f16_t nk_f16_sqrt_haswell(nk_f16_t x) {
-    __m128 x_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(x));
-    return (nk_f16_t)_mm_cvtsi128_si32(_mm_cvtps_ph(_mm_sqrt_ps(x_f32x4), _MM_FROUND_TO_NEAREST_INT));
+    nk_fui16_t x_fui, out_fui;
+    x_fui.f = x;
+    __m128 x_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(x_fui.u));
+    out_fui.u = (nk_u16_t)_mm_cvtsi128_si32(_mm_cvtps_ph(_mm_sqrt_ps(x_f32x4), _MM_FROUND_TO_NEAREST_INT));
+    return out_fui.f;
 }
 NK_PUBLIC nk_f16_t nk_f16_rsqrt_haswell(nk_f16_t x) {
-    __m128 x_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(x));
+    nk_fui16_t x_fui, out_fui;
+    x_fui.f = x;
+    __m128 x_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(x_fui.u));
     __m128 estimate_f32x4 = _mm_rsqrt_ss(x_f32x4);
     __m128 refinement_f32x4 = _mm_mul_ss(_mm_mul_ss(x_f32x4, estimate_f32x4), estimate_f32x4);
     refinement_f32x4 = _mm_sub_ss(_mm_set_ss(3.0f), refinement_f32x4);
     estimate_f32x4 = _mm_mul_ss(_mm_mul_ss(_mm_set_ss(0.5f), estimate_f32x4), refinement_f32x4);
-    return (nk_f16_t)_mm_cvtsi128_si32(_mm_cvtps_ph(estimate_f32x4, _MM_FROUND_TO_NEAREST_INT));
+    out_fui.u = (nk_u16_t)_mm_cvtsi128_si32(_mm_cvtps_ph(estimate_f32x4, _MM_FROUND_TO_NEAREST_INT));
+    return out_fui.f;
 }
 NK_PUBLIC nk_f16_t nk_f16_fma_haswell(nk_f16_t a, nk_f16_t b, nk_f16_t c) {
-    __m128 a_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(a));
-    __m128 b_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(b));
-    __m128 c_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(c));
-    return (nk_f16_t)_mm_cvtsi128_si32(
+    nk_fui16_t a_fui, b_fui, c_fui, out_fui;
+    a_fui.f = a, b_fui.f = b, c_fui.f = c;
+    __m128 a_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(a_fui.u));
+    __m128 b_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(b_fui.u));
+    __m128 c_f32x4 = _mm_cvtph_ps(_mm_cvtsi32_si128(c_fui.u));
+    out_fui.u = (nk_u16_t)_mm_cvtsi128_si32(
         _mm_cvtps_ph(_mm_fmadd_ss(a_f32x4, b_f32x4, c_f32x4), _MM_FROUND_TO_NEAREST_INT));
+    return out_fui.f;
 }
 NK_PUBLIC nk_u8_t nk_u8_saturating_add_haswell(nk_u8_t a, nk_u8_t b) {
     return (nk_u8_t)_mm_cvtsi128_si32(_mm_adds_epu8(_mm_cvtsi32_si128(a), _mm_cvtsi32_si128(b)));

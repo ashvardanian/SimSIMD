@@ -719,23 +719,24 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svint8_t query_packed_i8x = svld1_s8(
                     row_predicate_b8x,
-                    (int8_t const *)(query_tiles + (row_tile_index * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(query_tiles +
+                                      (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_0_i8x = svld1_s8(
                     predicate_all_b8x,
-                    (int8_t const *)(document_tiles +
-                                     ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(document_tiles +
+                                      ((column_tile_index + 0) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_1_i8x = svld1_s8(
                     predicate_all_b8x,
-                    (int8_t const *)(document_tiles +
-                                     ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(document_tiles +
+                                      ((column_tile_index + 1) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_2_i8x = svld1_s8(
                     predicate_all_b8x,
-                    (int8_t const *)(document_tiles +
-                                     ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(document_tiles +
+                                      ((column_tile_index + 2) * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_3_i8x = svld1_s8(
                     predicate_all_b8x,
-                    (int8_t const *)(document_tiles +
-                                     ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(document_tiles +
+                                      ((column_tile_index + 3) * depth_step_count + depth_step) * vector_elements));
                 svmopa_za32_s8_m(0, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_0_i8x);
                 svmopa_za32_s8_m(1, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_1_i8x);
                 svmopa_za32_s8_m(2, row_predicate_b8x, predicate_all_b8x, query_packed_i8x, document_packed_2_i8x);
@@ -798,11 +799,12 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
             for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
                 svint8_t query_packed_i8x = svld1_s8(
                     row_predicate_b8x,
-                    (int8_t const *)(query_tiles + (row_tile_index * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(query_tiles +
+                                      (row_tile_index * depth_step_count + depth_step) * vector_elements));
                 svint8_t document_packed_i8x = svld1_s8(
                     column_predicate_b8x,
-                    (int8_t const *)(document_tiles +
-                                     (column_tile_index * depth_step_count + depth_step) * vector_elements));
+                    (nk_i8_t const *)(document_tiles +
+                                      (column_tile_index * depth_step_count + depth_step) * vector_elements));
                 svmopa_za32_s8_m(0, row_predicate_b8x, column_predicate_b8x, query_packed_i8x, document_packed_i8x);
             }
 

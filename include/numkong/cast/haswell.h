@@ -38,11 +38,11 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_f32_to_f16_haswell(nk_f32_t const *from, nk_f16_t *to) {
-    *to = _mm_cvtsi128_si32(_mm_cvtps_ph(_mm_set_ss(*from), _MM_FROUND_TO_NEAREST_INT));
+    *(nk_u16_t *)to = (nk_u16_t)_mm_cvtsi128_si32(_mm_cvtps_ph(_mm_set_ss(*from), _MM_FROUND_TO_NEAREST_INT));
 }
 
 NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *from, nk_f32_t *to) {
-    *to = _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(*from)));
+    *to = _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(*(nk_u16_t const *)from)));
 }
 
 #pragma region - Type Punned Loads and Stores
