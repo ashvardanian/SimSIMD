@@ -169,6 +169,11 @@ void test_dot() {
     check("dot_bf16_svebfdot", test_dot<bf16_t>, nk_dot_bf16_svebfdot);
 #endif // NK_TARGET_SVEBFDOT
 
+#if NK_TARGET_SVESDOT
+    check("dot_i8_svesdot", test_dot<i8_t>, nk_dot_i8_svesdot);
+    check("dot_u8_svesdot", test_dot<u8_t>, nk_dot_u8_svesdot);
+#endif // NK_TARGET_SVESDOT
+
 #if NK_TARGET_HASWELL
     check("dot_f64c_haswell", test_dot<f64c_t>, nk_dot_f64c_haswell);
     check("vdot_f64c_haswell", test_vdot<f64c_t>, nk_vdot_f64c_haswell);

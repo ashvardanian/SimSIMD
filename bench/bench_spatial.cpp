@@ -93,6 +93,15 @@ void bench_spatial() {
     run_dense<bf16_k, f32_k>("euclidean_bf16_svebfdot", nk_euclidean_bf16_svebfdot);
 #endif
 
+#if NK_TARGET_SVESDOT
+    run_dense<i8_k, f32_k>("angular_i8_svesdot", nk_angular_i8_svesdot);
+    run_dense<i8_k, u32_k>("sqeuclidean_i8_svesdot", nk_sqeuclidean_i8_svesdot);
+    run_dense<i8_k, f32_k>("euclidean_i8_svesdot", nk_euclidean_i8_svesdot);
+    run_dense<u8_k, f32_k>("angular_u8_svesdot", nk_angular_u8_svesdot);
+    run_dense<u8_k, u32_k>("sqeuclidean_u8_svesdot", nk_sqeuclidean_u8_svesdot);
+    run_dense<u8_k, f32_k>("euclidean_u8_svesdot", nk_euclidean_u8_svesdot);
+#endif
+
 #if NK_TARGET_NEONFP8
     run_dense<e4m3_k, f32_k>("angular_e4m3_neonfp8", nk_angular_e4m3_neonfp8);
     run_dense<e4m3_k, f32_k>("sqeuclidean_e4m3_neonfp8", nk_sqeuclidean_e4m3_neonfp8);

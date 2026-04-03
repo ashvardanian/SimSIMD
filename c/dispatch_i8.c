@@ -50,6 +50,15 @@ void nk_dispatch_i8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
+#if NK_TARGET_SVESDOT
+    if (v & nk_cap_svesdot_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_svesdot, *c = nk_cap_svesdot_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_i8_svesdot, *c = nk_cap_svesdot_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_i8_svesdot, *c = nk_cap_svesdot_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_i8_svesdot, *c = nk_cap_svesdot_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_neonsdot, *c = nk_cap_neonsdot_k; return;

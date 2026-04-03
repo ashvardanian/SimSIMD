@@ -376,6 +376,21 @@ NK_PUBLIC void nk_sqeuclidean_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b
 NK_PUBLIC void nk_angular_u4_neonsdot(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONSDOT
 
+#if NK_TARGET_SVESDOT
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_i8_svesdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_i8_svesdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_i8_svesdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_u8_svesdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_u8_svesdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_u8_svesdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SVESDOT
+
 #if NK_TARGET_NEONFP8
 /** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e4m3_neonfp8(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
@@ -867,6 +882,7 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 #include "numkong/spatial/sve.h"
 #include "numkong/spatial/svehalf.h"
 #include "numkong/spatial/svebfdot.h"
+#include "numkong/spatial/svesdot.h"
 #include "numkong/spatial/neonfp8.h"
 #include "numkong/spatial/haswell.h"
 #include "numkong/spatial/skylake.h"
@@ -1387,6 +1403,8 @@ NK_PUBLIC void nk_euclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, 
     nk_euclidean_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_i8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_euclidean_i8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_euclidean_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1411,6 +1429,8 @@ NK_PUBLIC void nk_sqeuclidean_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
     nk_sqeuclidean_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_i8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_sqeuclidean_i8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_sqeuclidean_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1435,6 +1455,8 @@ NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk
     nk_angular_i8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_i8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_angular_i8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1459,6 +1481,8 @@ NK_PUBLIC void nk_euclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, 
     nk_euclidean_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_euclidean_u8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_euclidean_u8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_euclidean_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1483,6 +1507,8 @@ NK_PUBLIC void nk_sqeuclidean_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     nk_sqeuclidean_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_sqeuclidean_u8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_sqeuclidean_u8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_sqeuclidean_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -1507,6 +1533,8 @@ NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
     nk_angular_u8_powervsx(a, b, n, result);
 #elif NK_TARGET_LOONGSONASX
     nk_angular_u8_loongsonasx(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_angular_u8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE

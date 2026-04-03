@@ -328,6 +328,13 @@ NK_PUBLIC void nk_dot_e2m3_neonsdot(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_s
 NK_PUBLIC void nk_dot_e3m2_neonsdot(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONSDOT
 
+#if NK_TARGET_SVESDOT
+/** @copydoc nk_dot_i8 */
+NK_PUBLIC void nk_dot_i8_svesdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u8_svesdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+#endif // NK_TARGET_SVESDOT
+
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_dot_bf16 */
 NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
@@ -659,6 +666,7 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/sve.h"
 #include "numkong/dot/svehalf.h"
 #include "numkong/dot/svebfdot.h"
+#include "numkong/dot/svesdot.h"
 #include "numkong/dot/haswell.h"
 #include "numkong/dot/skylake.h"
 #include "numkong/dot/icelake.h"
@@ -690,6 +698,8 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_i8_rvv(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_dot_i8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE
@@ -716,6 +726,8 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_loongsonasx(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_u8_rvv(a, b, n, result);
+#elif NK_TARGET_SVESDOT
+    nk_dot_u8_svesdot(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICELAKE

@@ -165,6 +165,11 @@ void bench_dot() {
     run_dense<bf16_k, f32_k>("dot_bf16_svebfdot", nk_dot_bf16_svebfdot);
 #endif
 
+#if NK_TARGET_SVESDOT
+    run_dense<i8_k, i32_k>("dot_i8_svesdot", nk_dot_i8_svesdot);
+    run_dense<u8_k, u32_k>("dot_u8_svesdot", nk_dot_u8_svesdot);
+#endif
+
 #if NK_TARGET_NEONFP8
     run_dense<e4m3_k, f32_k>("dot_e4m3_neonfp8", nk_dot_e4m3_neonfp8);
     run_dense<e5m2_k, f32_k>("dot_e5m2_neonfp8", nk_dot_e5m2_neonfp8);

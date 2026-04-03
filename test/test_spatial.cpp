@@ -218,6 +218,15 @@ void test_spatial() {
     check("euclidean_bf16_svebfdot", test_euclidean<bf16_t>, nk_euclidean_bf16_svebfdot);
 #endif // NK_TARGET_SVEBFDOT
 
+#if NK_TARGET_SVESDOT
+    check("angular_i8_svesdot", test_angular<i8_t>, nk_angular_i8_svesdot);
+    check("sqeuclidean_i8_svesdot", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_svesdot);
+    check("euclidean_i8_svesdot", test_euclidean<i8_t>, nk_euclidean_i8_svesdot);
+    check("angular_u8_svesdot", test_angular<u8_t>, nk_angular_u8_svesdot);
+    check("sqeuclidean_u8_svesdot", test_sqeuclidean<u8_t>, nk_sqeuclidean_u8_svesdot);
+    check("euclidean_u8_svesdot", test_euclidean<u8_t>, nk_euclidean_u8_svesdot);
+#endif // NK_TARGET_SVESDOT
+
 #if NK_TARGET_HASWELL
     check("angular_f64_haswell", test_angular<f64_t>, nk_angular_f64_haswell);
     check("sqeuclidean_f64_haswell", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_haswell);
