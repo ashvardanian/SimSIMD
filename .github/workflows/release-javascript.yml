@@ -75,7 +75,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: npm install --ignore-scripts
 
       - name: Run ISA Probes
@@ -110,7 +110,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: |
             rm -rf ~/emsdk
             git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
@@ -224,7 +224,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: npm install --ignore-scripts
 
       - name: Probe ISA Capabilities

@@ -31,14 +31,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -69,7 +69,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: |
             sudo apt-get update
             sudo apt-get install -y ca-certificates curl gnupg lsb-release
@@ -90,14 +90,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -130,14 +130,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -170,14 +170,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -230,14 +230,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-win_${{ matrix.architecture }}
@@ -271,14 +271,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -316,14 +316,14 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: python -m pip install cibuildwheel
       - name: Build wheels
         uses: nick-fields/retry@v4
         with:
           max_attempts: 2
           retry_wait_seconds: 30
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
@@ -354,7 +354,7 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 10
-          timeout_minutes: 120
+          timeout_minutes: 180
           command: pip install build
       - name: Build source distribution
         run: python -m build --sdist
