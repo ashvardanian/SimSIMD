@@ -1139,7 +1139,35 @@ static size_t uniform_stride_tail_dims(Py_ssize_t const *shape, Py_ssize_t const
     return tail;
 }
 
-/** @brief Recursively reduce moments over an N-D tensor using a SIMD kernel. */
+/** @brief Normalize a strided pointer for SIMD kernel consumption.
+ *  For negative strides, flips the base pointer to the last element so the kernel walks forward. */
+static char const *normalize_strided_base(char const *data, size_t count, Py_ssize_t stride,
+                                          Py_ssize_t *out_stride_magnitude) {
+    if (stride < 0) {
+        *out_stride_magnitude = -stride;
+        return data + (Py_ssize_t)(count - 1) * stride;
+    }
+    *out_stride_magnitude = stride;
+    return data;
+}
+
+/** @brief Collapse trailing uniform-stride dims into one, writing the result into caller-provided arrays.
+ *  @return The new rank after collapsing (remaining_dims - tail_dims + 1). */
+static size_t build_collapsed_shape(Py_ssize_t const *shape, Py_ssize_t const *strides, size_t dim, size_t tail_dims,
+                                    size_t collapsed_count, Py_ssize_t collapsed_stride,
+                                    Py_ssize_t *out_shape, Py_ssize_t *out_strides, size_t remaining_dims) {
+    size_t collapsed_rank = remaining_dims - tail_dims + 1;
+    for (size_t i = 0; i < collapsed_rank - 1; i++) {
+        out_shape[i] = shape[dim + i];
+        out_strides[i] = strides[dim + i];
+    }
+    out_shape[collapsed_rank - 1] = (Py_ssize_t)collapsed_count;
+    out_strides[collapsed_rank - 1] = collapsed_stride;
+    return collapsed_rank;
+}
+
+/** @brief Recursively reduce moments over an N-D tensor using a SIMD kernel.
+ *  Re-analyzes remaining dimensions at each level to collapse uniform-stride tails. */
 static void reduce_moments_recursive(                   //
     nk_kernel_reduce_moments_punned_t kernel,           //
     nk_dtype_t sum_dtype, nk_dtype_t sumsq_dtype,       //
@@ -1147,8 +1175,33 @@ static void reduce_moments_recursive(                   //
     Py_ssize_t const *strides, size_t rank, size_t dim, //
     nk_scalar_buffer_t *sum_accum, nk_scalar_buffer_t *sumsq_accum) {
 
-    if (dim == rank - 1) {
-        // Base case: call SIMD kernel on innermost dimension
+    size_t remaining = rank - dim;
+    if (remaining >= 2) {
+        size_t collapsed_count;
+        Py_ssize_t collapsed_stride;
+        size_t tail = uniform_stride_tail_dims(shape + dim, strides + dim, remaining, &collapsed_count,
+                                               &collapsed_stride);
+        if (tail == remaining) {
+            Py_ssize_t stride_magnitude;
+            char const *base = normalize_strided_base(data, collapsed_count, collapsed_stride, &stride_magnitude);
+            nk_scalar_buffer_t partial_sum, partial_sumsq;
+            memset(&partial_sum, 0, sizeof(partial_sum));
+            memset(&partial_sumsq, 0, sizeof(partial_sumsq));
+            kernel(base, (nk_size_t)collapsed_count, (nk_size_t)stride_magnitude, &partial_sum, &partial_sumsq);
+            accum_add(sum_accum, &partial_sum, sum_dtype);
+            accum_add(sumsq_accum, &partial_sumsq, sumsq_dtype);
+            return;
+        }
+        if (tail >= 2) {
+            Py_ssize_t collapsed_shape[NK_TENSOR_MAX_RANK], collapsed_strides[NK_TENSOR_MAX_RANK];
+            size_t collapsed_rank = build_collapsed_shape(shape, strides, dim, tail, collapsed_count, collapsed_stride,
+                                                          collapsed_shape, collapsed_strides, remaining);
+            reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, data, collapsed_shape, collapsed_strides,
+                                     collapsed_rank, 0, sum_accum, sumsq_accum);
+            return;
+        }
+    }
+    if (remaining == 1) {
         nk_scalar_buffer_t partial_sum, partial_sumsq;
         memset(&partial_sum, 0, sizeof(partial_sum));
         memset(&partial_sumsq, 0, sizeof(partial_sumsq));
@@ -1182,38 +1235,10 @@ static int impl_reduce_moments(TensorView const *view, nk_scalar_buffer_t *sum_o
     memset(&sum_buf, 0, sizeof(sum_buf));
     memset(&sumsq_buf, 0, sizeof(sumsq_buf));
 
-    if (view->rank == 0) {
-        kernel(view->data, 1, 0, &sum_buf, &sumsq_buf);
-    }
+    if (view->rank == 0) { kernel(view->data, 1, 0, &sum_buf, &sumsq_buf); }
     else {
-        size_t collapsed_count;
-        Py_ssize_t collapsed_stride;
-        size_t tail = uniform_stride_tail_dims(view->shape, view->strides, view->rank, &collapsed_count,
-                                               &collapsed_stride);
-        if (tail == view->rank) {
-            char const *base = collapsed_stride < 0
-                                   ? view->data + (Py_ssize_t)(collapsed_count - 1) * collapsed_stride
-                                   : view->data;
-            Py_ssize_t abs_stride = collapsed_stride < 0 ? -collapsed_stride : collapsed_stride;
-            kernel(base, (nk_size_t)collapsed_count, (nk_size_t)abs_stride, &sum_buf, &sumsq_buf);
-        }
-        else if (tail >= 2) {
-            Py_ssize_t collapsed_shape[NK_TENSOR_MAX_RANK];
-            Py_ssize_t collapsed_strides[NK_TENSOR_MAX_RANK];
-            size_t new_rank = view->rank - tail + 1;
-            for (size_t i = 0; i < new_rank - 1; i++) {
-                collapsed_shape[i] = view->shape[i];
-                collapsed_strides[i] = view->strides[i];
-            }
-            collapsed_shape[new_rank - 1] = (Py_ssize_t)collapsed_count;
-            collapsed_strides[new_rank - 1] = collapsed_stride;
-            reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, view->data, collapsed_shape, collapsed_strides,
-                                     new_rank, 0, &sum_buf, &sumsq_buf);
-        }
-        else {
-            reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, view->data, view->shape, view->strides, view->rank,
-                                     0, &sum_buf, &sumsq_buf);
-        }
+        reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, view->data, view->shape, view->strides, view->rank, 0,
+                                 &sum_buf, &sumsq_buf);
     }
 
     *sum_out = sum_buf;
@@ -1264,7 +1289,8 @@ static void minmax_update(nk_scalar_buffer_t *running_min, nk_size_t *running_mi
     }
 }
 
-/** @brief Recursively reduce minmax over an N-D tensor using a SIMD kernel. */
+/** @brief Recursively reduce minmax over an N-D tensor using a SIMD kernel.
+ *  Re-analyzes remaining dimensions at each level to collapse uniform-stride tails. */
 static void reduce_minmax_recursive(                         //
     nk_kernel_reduce_minmax_punned_t kernel,                 //
     nk_dtype_t value_dtype,                                  //
@@ -1274,7 +1300,39 @@ static void reduce_minmax_recursive(                         //
     nk_scalar_buffer_t *min_accum, nk_size_t *min_idx_accum, //
     nk_scalar_buffer_t *max_accum, nk_size_t *max_idx_accum) {
 
-    if (dim == rank - 1) {
+    size_t remaining = rank - dim;
+    if (remaining >= 2) {
+        size_t collapsed_count;
+        Py_ssize_t collapsed_stride;
+        size_t tail = uniform_stride_tail_dims(shape + dim, strides + dim, remaining, &collapsed_count,
+                                               &collapsed_stride);
+        if (tail == remaining) {
+            Py_ssize_t stride_magnitude;
+            char const *base = normalize_strided_base(data, collapsed_count, collapsed_stride, &stride_magnitude);
+            nk_scalar_buffer_t partial_min, partial_max;
+            memset(&partial_min, 0, sizeof(partial_min));
+            memset(&partial_max, 0, sizeof(partial_max));
+            nk_size_t partial_min_idx = 0, partial_max_idx = 0;
+            kernel(base, (nk_size_t)collapsed_count, (nk_size_t)stride_magnitude, &partial_min, &partial_min_idx,
+                   &partial_max, &partial_max_idx);
+            if (collapsed_stride < 0) {
+                partial_min_idx = (nk_size_t)(collapsed_count - 1) - partial_min_idx;
+                partial_max_idx = (nk_size_t)(collapsed_count - 1) - partial_max_idx;
+            }
+            minmax_update(min_accum, min_idx_accum, max_accum, max_idx_accum, &partial_min, partial_min_idx, &partial_max,
+                          partial_max_idx, value_dtype, flat_offset);
+            return;
+        }
+        if (tail >= 2) {
+            Py_ssize_t collapsed_shape[NK_TENSOR_MAX_RANK], collapsed_strides[NK_TENSOR_MAX_RANK];
+            size_t collapsed_rank = build_collapsed_shape(shape, strides, dim, tail, collapsed_count, collapsed_stride,
+                                                          collapsed_shape, collapsed_strides, remaining);
+            reduce_minmax_recursive(kernel, value_dtype, data, collapsed_shape, collapsed_strides, collapsed_rank, 0,
+                                    flat_offset, min_accum, min_idx_accum, max_accum, max_idx_accum);
+            return;
+        }
+    }
+    if (remaining == 1) {
         nk_scalar_buffer_t partial_min, partial_max;
         memset(&partial_min, 0, sizeof(partial_min));
         memset(&partial_max, 0, sizeof(partial_max));
@@ -1319,42 +1377,10 @@ static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_ou
 
     if (view->rank == 0) { kernel(view->data, 1, 0, &min_buf, &min_idx, &max_buf, &max_idx); }
     else {
-        size_t collapsed_count;
-        Py_ssize_t collapsed_stride;
-        size_t tail = uniform_stride_tail_dims(view->shape, view->strides, view->rank, &collapsed_count,
-                                               &collapsed_stride);
-        if (tail == view->rank) {
-            char const *base = collapsed_stride < 0
-                                   ? view->data + (Py_ssize_t)(collapsed_count - 1) * collapsed_stride
-                                   : view->data;
-            Py_ssize_t abs_stride = collapsed_stride < 0 ? -collapsed_stride : collapsed_stride;
-            kernel(base, (nk_size_t)collapsed_count, (nk_size_t)abs_stride, &min_buf, &min_idx, &max_buf, &max_idx);
-            if (collapsed_stride < 0) {
-                min_idx = (nk_size_t)(collapsed_count - 1) - min_idx;
-                max_idx = (nk_size_t)(collapsed_count - 1) - max_idx;
-            }
-        }
-        else if (tail >= 2) {
-            Py_ssize_t collapsed_shape[NK_TENSOR_MAX_RANK];
-            Py_ssize_t collapsed_strides[NK_TENSOR_MAX_RANK];
-            size_t new_rank = view->rank - tail + 1;
-            for (size_t i = 0; i < new_rank - 1; i++) {
-                collapsed_shape[i] = view->shape[i];
-                collapsed_strides[i] = view->strides[i];
-            }
-            collapsed_shape[new_rank - 1] = (Py_ssize_t)collapsed_count;
-            collapsed_strides[new_rank - 1] = collapsed_stride;
-            size_t elem_size = nk_dtype_bytes_per_value(value_dtype);
-            kernel(view->data, 1, (nk_size_t)elem_size, &min_buf, &min_idx, &max_buf, &max_idx);
-            reduce_minmax_recursive(kernel, value_dtype, view->data, collapsed_shape, collapsed_strides, new_rank, 0, 0,
-                                    &min_buf, &min_idx, &max_buf, &max_idx);
-        }
-        else {
-            size_t elem_size = nk_dtype_bytes_per_value(value_dtype);
-            kernel(view->data, 1, (nk_size_t)elem_size, &min_buf, &min_idx, &max_buf, &max_idx);
-            reduce_minmax_recursive(kernel, value_dtype, view->data, view->shape, view->strides, view->rank, 0, 0,
-                                    &min_buf, &min_idx, &max_buf, &max_idx);
-        }
+        size_t elem_size = nk_dtype_bytes_per_value(value_dtype);
+        kernel(view->data, 1, (nk_size_t)elem_size, &min_buf, &min_idx, &max_buf, &max_idx);
+        reduce_minmax_recursive(kernel, value_dtype, view->data, view->shape, view->strides, view->rank, 0, 0, &min_buf,
+                                &min_idx, &max_buf, &max_idx);
     }
 
     *min_out = min_buf;
@@ -1637,7 +1663,9 @@ static void reduce_along_axes(char const *data, Py_ssize_t const *shape, Py_ssiz
     }
 }
 
-/** @brief Dispatch axis reduction: build output, walk slices, return result. */
+/** @brief Dispatch axis reduction: build output, walk slices, return result.
+ *  For single-axis reductions on tensors where the non-axis dims are uniformly strided,
+ *  uses a pointer-increment fast path instead of the recursive coordinate walker. */
 static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t const *parsed, nk_dtype_t out_dtype,
                                       reduce_slice_fn_t on_slice) {
     Py_ssize_t out_shape[NK_TENSOR_MAX_RANK];
@@ -1652,6 +1680,39 @@ static PyObject *reduce_axis_dispatch(TensorView const *view, reduce_args_t cons
         result = Tensor_new(out_dtype, out_rank, out_shape);
         if (!result) return NULL;
     }
+
+    // Fast path: single-axis reduction with contiguous non-axis dims → pointer-increment loop.
+    if (parsed->n_axes == 1 && view->rank >= 2) {
+        size_t axis = (size_t)parsed->axes[0];
+        Py_ssize_t other_shapes[NK_TENSOR_MAX_RANK], other_strides[NK_TENSOR_MAX_RANK];
+        size_t other_count = 0;
+        for (size_t i = 0; i < view->rank; i++) {
+            if (i != axis) {
+                other_shapes[other_count] = view->shape[i];
+                other_strides[other_count] = view->strides[i];
+                other_count++;
+            }
+        }
+        size_t collapsed_count;
+        Py_ssize_t collapsed_stride;
+        size_t tail = uniform_stride_tail_dims(other_shapes, other_strides, other_count, &collapsed_count,
+                                               &collapsed_stride);
+        if (tail == other_count) {
+            Py_ssize_t lane_shape = view->shape[axis];
+            Py_ssize_t lane_stride = view->strides[axis];
+            size_t out_elem_size = nk_dtype_bytes_per_value(out_dtype);
+            char const *ptr = view->data;
+            for (size_t i = 0; i < collapsed_count; i++, ptr += collapsed_stride) {
+                TensorView slice = {view->dtype, 1, &lane_shape, &lane_stride, (char *)ptr};
+                nk_scalar_buffer_t element = {0};
+                on_slice(&slice, &element);
+                memcpy(result->data + i * out_elem_size, &element, out_elem_size);
+            }
+            if (parsed->out) Py_INCREF((PyObject *)parsed->out);
+            return (PyObject *)result;
+        }
+    }
+
     size_t out_index = 0;
     reduce_along_axes(view->data, view->shape, view->strides, view->rank, 0, parsed->axes, parsed->n_axes, 0,
                       view->dtype, result->data, nk_dtype_bytes_per_value(out_dtype), on_slice, &out_index);

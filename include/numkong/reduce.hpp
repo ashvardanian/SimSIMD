@@ -235,19 +235,18 @@ uniform_stride_tail_result_t_ uniform_stride_tail_(tensor_view<value_type_, max_
     auto rank = input.rank();
     if (rank == 0) return {0, 1, sizeof(value_type_)};
     std::size_t tail = 1;
-    auto innermost = input.stride_bytes(rank - 1);
-    auto abs_expected = innermost < 0 ? -innermost : innermost;
+    auto innermost_stride = input.stride_bytes(rank - 1);
+    auto expected_stride = innermost_stride < 0 ? -innermost_stride : innermost_stride;
     for (std::size_t i = rank - 1; i > 0; --i) {
-        auto next = abs_expected * static_cast<std::ptrdiff_t>(input.extent(i));
-        auto actual = input.stride_bytes(i - 1);
-        auto abs_actual = actual < 0 ? -actual : actual;
-        if (abs_actual != next) break;
-        abs_expected = next;
+        auto next = expected_stride * static_cast<std::ptrdiff_t>(input.extent(i));
+        auto actual_stride = input.stride_bytes(i - 1);
+        if ((actual_stride < 0 ? -actual_stride : actual_stride) != next) break;
+        expected_stride = next;
         ++tail;
     }
     std::size_t count = 1;
     for (std::size_t i = rank - tail; i < rank; ++i) count *= input.extent(i);
-    return {tail, count, static_cast<std::size_t>(innermost < 0 ? -innermost : innermost)};
+    return {tail, count, static_cast<std::size_t>(innermost_stride < 0 ? -innermost_stride : innermost_stride)};
 }
 
 /** @brief Collapse the trailing `tail.tail_dims` dimensions into one, preserving outer dims and strides. */

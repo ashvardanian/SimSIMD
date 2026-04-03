@@ -1781,10 +1781,38 @@ bool for_each_axis_lane_(tensor_view<value_type_, max_rank_> input, std::size_t 
 
     if (remaining_count == 0) return lane_fn(tensor_view<value_type_, max_rank_> {input.byte_data(), lane_shape}, 0);
 
-    std::size_t coords[max_rank_] = {};
     std::size_t total_lanes = 1;
     for (std::size_t i = 0; i < remaining_count; ++i) total_lanes *= input.extent(remaining_dims[i]);
 
+    // When non-axis dims form a uniform-stride progression, iterate with a constant byte
+    // increment instead of recomputing offsets from multi-dimensional coordinates.
+    {
+        std::size_t other_extents[max_rank_];
+        std::ptrdiff_t other_strides[max_rank_];
+        for (std::size_t i = 0; i < remaining_count; ++i) {
+            other_extents[i] = input.extent(remaining_dims[i]);
+            other_strides[i] = input.stride_bytes(remaining_dims[i]);
+        }
+        bool all_collapse = true;
+        auto expected_stride = other_strides[remaining_count - 1] < 0 ? -other_strides[remaining_count - 1]
+                                                                      : other_strides[remaining_count - 1];
+        for (std::size_t i = remaining_count - 1; i > 0 && all_collapse; --i) {
+            auto next = expected_stride * static_cast<std::ptrdiff_t>(other_extents[i]);
+            auto actual_stride = other_strides[i - 1] < 0 ? -other_strides[i - 1] : other_strides[i - 1];
+            if (actual_stride != next) all_collapse = false;
+            expected_stride = next;
+        }
+        if (all_collapse) {
+            auto lane_byte_increment = other_strides[remaining_count - 1];
+            auto *ptr = input.byte_data();
+            for (std::size_t lane_index = 0; lane_index < total_lanes; ++lane_index, ptr += lane_byte_increment) {
+                if (!lane_fn(tensor_view<value_type_, max_rank_> {ptr, lane_shape}, lane_index)) return false;
+            }
+            return true;
+        }
+    }
+
+    std::size_t coords[max_rank_] = {};
     for (std::size_t lane_index = 0; lane_index < total_lanes; ++lane_index) {
         auto offset = std::ptrdiff_t {};
         for (std::size_t i = 0; i < remaining_count; ++i)
