@@ -1311,14 +1311,15 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
 NK_INTERNAL void nk_deinterleave_f16x4_to_f32x4_neon_(nk_f16_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
                                                       float32x4_t *z_out) {
     // Deinterleave 12 f16 values (4 xyz triplets) into separate x, y, z vectors.
-    // Uses NEON vld3_f16 for efficient stride-3 deinterleaving, then converts to f32.
+    // Uses NEON vld3_u16 for efficient stride-3 deinterleaving, then converts to f32.
+    // Avoids vld3_f16 which is unavailable on MSVC for ARM.
     //
     // Input: 12 contiguous f16 values [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
     // Output: x[4], y[4], z[4] vectors in f32
-    float16x4x3_t xyz_f16x4x3 = vld3_f16((nk_f16_for_arm_simd_t const *)ptr);
-    *x_out = vcvt_f32_f16(xyz_f16x4x3.val[0]);
-    *y_out = vcvt_f32_f16(xyz_f16x4x3.val[1]);
-    *z_out = vcvt_f32_f16(xyz_f16x4x3.val[2]);
+    uint16x4x3_t xyz_u16x4x3 = vld3_u16((nk_u16_t const *)ptr);
+    *x_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[0]));
+    *y_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[1]));
+    *z_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[2]));
 }
 
 NK_INTERNAL void nk_partial_deinterleave_f16_to_f32x4_neon_(nk_f16_t const *ptr, nk_size_t n_points, float32x4_t *x_out,

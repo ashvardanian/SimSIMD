@@ -158,8 +158,8 @@ nk_kld_f16_neon_cycle:
         n = 0;
     }
     else {
-        a_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)a));
-        b_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)b));
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)a)));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)b)));
         n -= 4, a += 4, b += 4;
     }
 
@@ -190,8 +190,8 @@ nk_jsd_f16_neon_cycle:
         n = 0;
     }
     else {
-        a_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)a));
-        b_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)b));
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)a)));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)b)));
         n -= 4, a += 4, b += 4;
     }
 

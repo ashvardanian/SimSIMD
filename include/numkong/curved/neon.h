@@ -199,8 +199,8 @@ NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t column = 0;
         for (; column + 4 <= n; column += 4) {
-            float32x4_t b_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(b + column)));
-            float32x4_t c_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(c_row + column)));
+            float32x4_t b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)(b + column))));
+            float32x4_t c_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)(c_row + column))));
             inner_sum_f32x4 = vfmaq_f32(inner_sum_f32x4, c_f32x4, b_f32x4);
         }
         nk_f32_t inner_sum = vaddvq_f32(inner_sum_f32x4);
@@ -227,9 +227,9 @@ NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t column = 0;
         for (; column + 4 <= n; column += 4) {
-            float32x4_t a_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(a + column)));
-            float32x4_t b_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(b + column)));
-            float32x4_t c_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(c_row + column)));
+            float32x4_t a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)(a + column))));
+            float32x4_t b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)(b + column))));
+            float32x4_t c_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16((nk_u16_t const *)(c_row + column))));
             float32x4_t diff_column_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
             inner_sum_f32x4 = vfmaq_f32(inner_sum_f32x4, c_f32x4, diff_column_f32x4);
         }

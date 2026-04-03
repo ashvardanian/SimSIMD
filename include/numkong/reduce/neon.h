@@ -1113,7 +1113,7 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_contiguous_( //
         nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
         uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
                                                      vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
-        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((nk_u16_t)remaining));
         int16x8_t data_for_min_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, vdupq_n_s16(NK_I16_MAX));
         int16x8_t data_for_max_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, vdupq_n_s16(NK_I16_MIN));
         uint16x8_t less_u16x8 = vcltq_s16(data_for_min_i16x8, min_i16x8);
@@ -1180,7 +1180,7 @@ nk_reduce_minmax_i16_neon_cycle:
     else if (idx < count) {
         nk_b128_vec_t tail_vec;
         nk_strided_load_b16x8_serial_(data_ptr + idx * stride_elements, stride_elements, &tail_vec, count - idx);
-        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)(count - idx)));
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((nk_u16_t)(count - idx)));
         data_for_min_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, min_i16x8);
         data_for_max_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, max_i16x8);
         idx = count;
@@ -1380,7 +1380,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_contiguous_( //
         nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
         uint16x8_t lane_indices_u16x8 = vcombine_u16(vreinterpret_u16_u64(vcreate_u64(0x0003000200010000ULL)),
                                                      vreinterpret_u16_u64(vcreate_u64(0x0007000600050004ULL)));
-        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((nk_u16_t)remaining));
         uint16x8_t data_for_min_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, vdupq_n_u16(NK_U16_MAX));
         uint16x8_t data_for_max_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, vdupq_n_u16(0));
         uint16x8_t less_u16x8 = vcltq_u16(data_for_min_u16x8, min_u16x8);
@@ -1447,7 +1447,7 @@ nk_reduce_minmax_u16_neon_cycle:
     else if (idx < count) {
         nk_b128_vec_t tail_vec;
         nk_strided_load_b16x8_serial_(data_ptr + idx * stride_elements, stride_elements, &tail_vec, count - idx);
-        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)(count - idx)));
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((nk_u16_t)(count - idx)));
         data_for_min_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, min_u16x8);
         data_for_max_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, max_u16x8);
         idx = count;
@@ -3842,7 +3842,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neon_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 8 <= count; idx += 8) {
-        float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data_ptr + idx));
+        float16x8_t data_f16x8 = vreinterpretq_f16_u16(vld1q_u16((nk_u16_t const *)(data_ptr + idx)));
         float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
         float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
         sum_f32x4 = vaddq_f32(sum_f32x4, low_f32x4);
@@ -3870,7 +3870,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neon_strided_(                     //
 
     if (stride_elements == 2) {
         for (; idx + 8 < count; idx += 8) {
-            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((uint16_t const *)(data_ptr + idx * 2));
+            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((nk_u16_t const *)(data_ptr + idx * 2));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x2.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
             float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
@@ -3882,7 +3882,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neon_strided_(                     //
     }
     else if (stride_elements == 3) {
         for (; idx + 8 < count; idx += 8) {
-            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((uint16_t const *)(data_ptr + idx * 3));
+            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((nk_u16_t const *)(data_ptr + idx * 3));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x3.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
             float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);
@@ -3894,7 +3894,7 @@ NK_INTERNAL void nk_reduce_moments_f16_neon_strided_(                     //
     }
     else if (stride_elements == 4) {
         for (; idx + 8 < count; idx += 8) {
-            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((uint16_t const *)(data_ptr + idx * 4));
+            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((nk_u16_t const *)(data_ptr + idx * 4));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x4.val[0]);
             float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(data_f16x8));
             float32x4_t high_f32x4 = vcvt_high_f32_f16(data_f16x8);

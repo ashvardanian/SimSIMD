@@ -91,8 +91,8 @@ nk_dot_f16_neonfhm_cycle:
         count_scalars = 0;
     }
     else {
-        a_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(a_scalars));
-        b_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(b_scalars));
+        a_f16x8 = vreinterpretq_f16_u16(vld1q_u16((nk_u16_t const *)(a_scalars)));
+        b_f16x8 = vreinterpretq_f16_u16(vld1q_u16((nk_u16_t const *)(b_scalars)));
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     // FMLAL: widening multiply-accumulate fp16 → f32

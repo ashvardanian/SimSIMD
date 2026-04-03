@@ -56,7 +56,7 @@ extern "C" {
 NK_INTERNAL void nk_deinterleave_bf16x4_to_f32x4_neonbfdot_(nk_bf16_t const *ptr, float32x4_t *x_out,
                                                             float32x4_t *y_out, float32x4_t *z_out) {
     // Load 12 bf16 values and de-interleave into x, y, z components
-    uint16x4x3_t xyz_u16x4x3 = vld3_u16((uint16_t const *)ptr);
+    uint16x4x3_t xyz_u16x4x3 = vld3_u16((nk_u16_t const *)ptr);
     // Convert bf16 to f32 by zero-extending to lower 16 bits, then shifting left by 16
     uint32x4_t x_u32x4 = vshll_n_u16(xyz_u16x4x3.val[0], 16);
     uint32x4_t y_u32x4 = vshll_n_u16(xyz_u16x4x3.val[1], 16);
