@@ -199,7 +199,7 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ const *c,
 
 namespace ashvardanian::numkong {
 
-#pragma region - Tensor Elementwise
+#pragma region Tensor Elementwise
 
 /** @brief Scale: output[i] = α × input[i] + β. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
@@ -427,7 +427,7 @@ tensor<value_type_, allocator_type_, max_rank_> try_mul(tensor_view<value_type_,
     return result;
 }
 
-#pragma endregion - Tensor Elementwise
+#pragma endregion Tensor Elementwise
 
 } // namespace ashvardanian::numkong
 

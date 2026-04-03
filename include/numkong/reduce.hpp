@@ -217,7 +217,7 @@ void reduce_minmax(vector_view<in_type_> input, minmax_type_ *min_value, std::si
 
 namespace ashvardanian::numkong {
 
-#pragma region - Tensor Reduction Helpers
+#pragma region Tensor Reduction Helpers
 
 /** @brief Result of detecting how many trailing dimensions form a single arithmetic progression. */
 struct uniform_stride_tail_result_t_ {
@@ -473,9 +473,9 @@ bool reduce_minmax_axis_packed_(tensor_view<value_type_, max_rank_> input, std::
     return true;
 }
 
-#pragma endregion - Tensor Reduction Helpers
+#pragma endregion Tensor Reduction Helpers
 
-#pragma region - Scalar Reductions
+#pragma region Scalar Reductions
 
 /** @brief Compute Σxᵢ and Σxᵢ² in a single pass. Returns zeroed result for empty tensors. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
@@ -629,9 +629,9 @@ std::size_t argmax(vector_view<value_type_> input) noexcept {
     return minmax(input).max_index;
 }
 
-#pragma endregion - Scalar Reductions
+#pragma endregion Scalar Reductions
 
-#pragma region - Axis Reductions
+#pragma region Axis Reductions
 
 /** @brief Σ along a single axis. Returns empty tensor on failure. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8,
@@ -771,7 +771,7 @@ tensor<typename value_type_::reduce_minmax_value_t, allocator_type_, max_rank_> 
     return try_minmax<value_type_, max_rank_, allocator_type_>(input, axis, keep_dims).max_value;
 }
 
-#pragma endregion - Axis Reductions
+#pragma endregion Axis Reductions
 
 } // namespace ashvardanian::numkong
 

@@ -123,7 +123,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x2_powervsx_(nk_vf64x2_t sum_f64x2, nk
     return tentative_sum + (lower_error + upper_error + rounding_error);
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_dot_f32_powervsx(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f64_t *result) {
@@ -198,7 +198,8 @@ nk_dot_f64_powervsx_cycle:
     *result = nk_dot_stable_sum_f64x2_powervsx_(sum_f64x2, compensation_f64x2);
 }
 
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_dot_bf16_powervsx(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                     nk_f32_t *result) {
@@ -265,7 +266,8 @@ nk_dot_f16_powervsx_cycle:
     *result = nk_hsum_f32x4_powervsx_(sum_f32x4);
 }
 
-#pragma region - Small Integers
+#pragma endregion F16 and BF16 Floats
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_dot_i8_powervsx(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                   nk_i32_t *result) {
@@ -338,7 +340,8 @@ nk_dot_u8_powervsx_cycle:
     *result = nk_hsum_u32x4_powervsx_(accumulator_u32x4);
 }
 
-#pragma region - Binary
+#pragma endregion I8 and U8 Integers
+#pragma region Binary
 
 NK_PUBLIC void nk_dot_u1_powervsx(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
@@ -365,6 +368,8 @@ nk_dot_u1_powervsx_cycle:
     if (n_bytes) goto nk_dot_u1_powervsx_cycle;
     *result = (nk_u32_t)nk_hsum_u64x2_powervsx_(accumulator_u64x2);
 }
+
+#pragma endregion Binary
 
 /**
  *  @brief Running state for 128-bit dot accumulation over f32 scalars on Power VSX.

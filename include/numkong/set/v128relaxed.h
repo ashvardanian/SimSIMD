@@ -30,7 +30,7 @@ extern "C" {
 #pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
 #endif
 
-#pragma region - Binary Sets
+#pragma region Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u8_t const *a_bytes = (nk_u8_t const *)a;
@@ -121,9 +121,9 @@ NK_PUBLIC void nk_jaccard_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b,
     *result = union_count > 0 ? 1.0f - ((nk_f32_t)intersection / (nk_f32_t)union_count) : 0.0f;
 }
 
-#pragma endregion - Binary Sets
+#pragma endregion Binary Sets
 
-#pragma region - Integer Sets
+#pragma region Integer Sets
 
 NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u32_t sum_total = 0;
@@ -197,9 +197,9 @@ NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, 
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
-#pragma endregion - Integer Sets
+#pragma endregion Integer Sets
 
-#pragma region - Binary Sets from Dot
+#pragma region Binary Sets from Dot
 
 NK_INTERNAL void nk_hamming_u32x4_from_dot_v128relaxed_( //
     nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops, nk_b128_vec_t *results) {
@@ -226,7 +226,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_v128relaxed_( //
     results->v128 = wasm_i32x4_relaxed_laneselect(zero_f32x4, jaccard_f32x4, zero_mask_u32x4);
 }
 
-#pragma endregion - Binary Sets from Dot
+#pragma endregion Binary Sets from Dot
 
 #if defined(__clang__)
 #pragma clang attribute pop

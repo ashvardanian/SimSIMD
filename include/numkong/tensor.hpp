@@ -78,7 +78,7 @@ extern "C" [[noreturn]] inline void nk_assert_failure(char const *expr, char con
 #define nk_assert_(expr) ((expr) ? (void)0 : nk_assert_failure(#expr, __FILE__, __LINE__))
 #endif
 
-#pragma region - Shape Storage
+#pragma region Shape Storage
 
 /**
  *  @brief Inline fixed-capacity shape descriptor.
@@ -206,9 +206,9 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, all_t, rest_types_... rest
 template <typename tensor_type_, typename... rest_types_>
 tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... rest) noexcept;
 
-#pragma endregion - Shape Storage
+#pragma endregion Shape Storage
 
-#pragma region - Tensor View
+#pragma region Tensor View
 
 template <typename view_type_>
 class axis_iterator;
@@ -421,9 +421,9 @@ struct tensor_view {
     }
 };
 
-#pragma endregion - Tensor View
+#pragma endregion Tensor View
 
-#pragma region - Tensor Span
+#pragma region Tensor Span
 
 /**
  *  @brief Non-owning, mutable, N-dimensional view.
@@ -700,7 +700,7 @@ struct tensor_span {
     }
 };
 
-#pragma endregion - Tensor Span
+#pragma endregion Tensor Span
 
 template <typename value_type_, std::size_t max_rank_, std::size_t extent_>
 decltype(auto) tensor_lookup_resolved_(tensor_view<value_type_, max_rank_> input,
@@ -893,7 +893,7 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... re
     }
 }
 
-#pragma region - Axis Iterator
+#pragma region Axis Iterator
 
 /**
  *  @brief Random-access iterator over slices along the leading dimension.
@@ -964,9 +964,9 @@ class axis_iterator {
     constexpr std::size_t index() const noexcept { return index_; }
 };
 
-#pragma endregion - Axis Iterator
+#pragma endregion Axis Iterator
 
-#pragma region - Tensor Element Iterators
+#pragma region Tensor Element Iterators
 
 /**
  *  @brief Forward iterator over all logical scalar elements of a const tensor view.
@@ -1187,9 +1187,9 @@ struct tensor_dims_view_ {
     std::size_t size() const noexcept { return size_; }
 };
 
-#pragma endregion - Tensor Element Iterators
+#pragma endregion Tensor Element Iterators
 
-#pragma region - Tensor
+#pragma region Tensor
 
 /**
  *  @brief Owning, non-resizable, N-dimensional tensor.
@@ -1611,9 +1611,9 @@ void swap(tensor<V, A, R> &a, tensor<V, A, R> &b) noexcept {
     b = std::move(tmp);
 }
 
-#pragma endregion - Tensor
+#pragma endregion Tensor
 
-#pragma region - Matrix Aliases
+#pragma region Matrix Aliases
 
 /** @brief 2D owning matrix (max_rank = 2, smaller shape_storage). */
 template <typename value_type_, typename allocator_type_ = aligned_allocator<value_type_>>
@@ -1627,13 +1627,13 @@ using matrix_view = tensor_view<value_type_, 2>;
 template <typename value_type_>
 using matrix_span = tensor_span<value_type_, 2>;
 
-#pragma endregion - Matrix Aliases
+#pragma endregion Matrix Aliases
 
 } // namespace ashvardanian::numkong
 
 namespace ashvardanian::numkong {
 
-#pragma region - Enums and Result Types
+#pragma region Enums and Result Types
 
 /** @brief Controls whether reduction collapses or preserves the reduced axis. */
 enum keep_dims_t : bool { collapse_dims_k = false, keep_dims_k = true };
@@ -1654,9 +1654,9 @@ struct minmax_result {
     std::size_t max_index = 0;
 };
 
-#pragma endregion - Enums and Result Types
+#pragma endregion Enums and Result Types
 
-#pragma region - Helpers
+#pragma region Helpers
 
 /** @brief Compute output shape with one axis removed (or set to 1 if keep_dims). */
 template <typename value_type_, std::size_t max_rank_>
@@ -1974,7 +1974,7 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_
     return true;
 }
 
-#pragma endregion - Helpers
+#pragma endregion Helpers
 
 } // namespace ashvardanian::numkong
 

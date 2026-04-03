@@ -37,7 +37,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#pragma region - Vectorized Conversions
+#pragma region Vectorized Conversions
 
 /** @brief Convert 32x e4m3 → 32x bf16 via arithmetic + 8-entry subnormal LUT (AVX-512BW).
  *  E4M3 format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
@@ -407,9 +407,9 @@ NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_icelake_(void const *src, nk
     dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial_i8x32);
 }
 
-#pragma endregion - Vectorized Conversions
+#pragma endregion Vectorized Conversions
 
-#pragma region - Public API
+#pragma region Public API
 
 NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Group 1: Conversions to bf16 (e4m3 → bf16, e5m2 → bf16)
@@ -458,7 +458,7 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
     else nk_cast_skylake(from, from_type, n, to, to_type);
 }
 
-#pragma endregion - Public API
+#pragma endregion Public API
 
 #if defined(__clang__)
 #pragma clang attribute pop

@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#pragma region - Horizontal Reduction Helpers
+#pragma region Horizontal Reduction Helpers
 
 /** @brief Horizontal sum of 4 f64 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_loongsonasx_(__m256d sum_f64x4) {
@@ -103,9 +103,9 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_loongsonasx_(__m256d sum_f64x4, __m
     return tentative_sum + (error_low + error_high + rounding_error);
 }
 
-#pragma endregion - Horizontal Reduction Helpers
+#pragma endregion Horizontal Reduction Helpers
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_dot_f32_loongsonasx(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f64_t *result) {
@@ -342,9 +342,9 @@ NK_INTERNAL void nk_dot_f32x8_finalize_loongsonasx(                             
     result->ymm = __lasx_xvpermi_q((__m256i)sum_cd_f64x2, (__m256i)sum_ab_f64x2, 0x20);
 }
 
-#pragma endregion - Traditional Floats
+#pragma endregion F32 and F64 Floats
 
-#pragma region - Small Integers
+#pragma region I8 and U8 Integers
 
 /**
  *  @brief Internal helper state for dot-products of integer types, where 32-bit accumulation is enough.
@@ -452,9 +452,9 @@ NK_INTERNAL void nk_dot_u8x32_finalize_loongsonasx(                             
     nk_dot_through_i32_finalize_loongsonasx_(state_a, state_b, state_c, state_d, total_dimensions, result);
 }
 
-#pragma endregion - Small Integers
+#pragma endregion I8 and U8 Integers
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 /**
  *  @brief Internal helper state for dot-products of low-precision types, where 32-bit accumulation is enough.
@@ -611,9 +611,9 @@ NK_INTERNAL void nk_dot_f16x16_finalize_loongsonasx(                            
     nk_dot_through_f32_finalize_loongsonasx_(state_a, state_b, state_c, state_d, total_dimensions, result);
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
-#pragma region - Binary
+#pragma region Binary
 
 typedef struct nk_dot_u1x256_state_loongsonasx_t {
     __m256i dot_count_u32x8;
@@ -660,7 +660,7 @@ NK_INTERNAL void nk_dot_u1x256_finalize_loongsonasx(                            
                                __lsx_vadd_w(sum_lane2_u32x4, sum_lane3_u32x4));
 }
 
-#pragma endregion - Binary
+#pragma endregion Binary
 
 #if defined(__cplusplus)
 } // extern "C"

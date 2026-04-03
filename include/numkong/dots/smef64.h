@@ -72,7 +72,7 @@ extern "C" {
  *  for higher-than-f32 accumulation precision; replacing it with f32 FMOPA would be
  *  counterproductive. Apple M4 has `hw.optional.arm.SME_F32F32: 1` but we don't use it here.
  */
-#pragma region Single Precision Floats
+#pragma region F32 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_smef64(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = nk_sme_cntd_();  // rows per `ZA64` tile (8 for SVL=512)
@@ -732,7 +732,7 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t v
                                             result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Single Precision Floats
+#pragma endregion F32 Floats
 
 /*
  *  f64 GEMM via 3-way Ozaki splitting using FMOPA with ZA64 tiles.
@@ -768,7 +768,7 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t v
  *  - f64 input vectors: 8 elements (SVL/64)
  *  - FMOPA predicates: b64 (native f64 granularity)
  */
-#pragma region Double Precision Floats
+#pragma region F64 Floats
 
 /*  Mantissa bit masks for 3-way Ozaki splitting of f64 values.
  *
@@ -1306,7 +1306,7 @@ NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed
     nk_dots_packed_f64_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-#pragma endregion // Double Precision Floats
+#pragma endregion F64 Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop

@@ -863,7 +863,7 @@ NK_INTERNAL void nk_dots_pack_i8_transposed_sapphireamx_( //
     nk_compiler_barrier_sapphireamx_();
 }
 
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sapphireamx(nk_size_t column_count, nk_size_t depth) {
     nk_size_t const tmm_rows = 16;
@@ -1392,7 +1392,7 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sapphireamx(                              
     }
 }
 
-#pragma endregion // Half Precision Floats
+#pragma endregion F16 Floats
 
 #pragma region Signed Integers
 
@@ -1985,7 +1985,7 @@ NK_PUBLIC void nk_dots_symmetric_i8_sapphireamx(                                
     }
 }
 
-#pragma endregion // Signed Integers
+#pragma endregion Signed Integers
 
 #pragma region Unsigned Integers
 
@@ -2439,9 +2439,9 @@ NK_PUBLIC void nk_dots_symmetric_u8_sapphireamx(                                
     }
 }
 
-#pragma endregion // Unsigned Integers
+#pragma endregion Unsigned Integers
 
-#pragma region Quarter Precision E4M3
+#pragma region E4M3 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sapphireamx(nk_size_t column_count, nk_size_t depth) {
     // FP8 uses BF16 tile layout after conversion (same element count: 32 per row)
@@ -2728,9 +2728,9 @@ NK_PUBLIC void nk_dots_packed_e4m3_sapphireamx(            //
     _tile_release();
 }
 
-#pragma endregion // Quarter Precision E4M3
+#pragma endregion E4M3 Floats
 
-#pragma region Quarter Precision E5M2
+#pragma region E5M2 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sapphireamx(nk_size_t column_count, nk_size_t depth) {
     return nk_dots_packed_size_bf16_sapphireamx(column_count, depth);
@@ -3146,9 +3146,9 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sapphireamx(                              
     }
 }
 
-#pragma endregion // Quarter Precision E5M2
+#pragma endregion E5M2 Floats
 
-#pragma region Micro Precision E2M3
+#pragma region E2M3 Floats
 
 /* Load E2M3 A tile with E2M3 to signed I8 conversion via VPERMB LUT.
  * Each E2M3 byte encodes: bit 5 = sign, bits 4:0 = magnitude (5-bit index).
@@ -3598,9 +3598,9 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sapphireamx(                              
     }
 }
 
-#pragma endregion // Micro Precision E2M3
+#pragma endregion E2M3 Floats
 
-#pragma region Micro Precision E3M2
+#pragma region E3M2 Floats
 
 /* Load E3M2 A tile with FP8 to BF16 conversion */
 NK_INTERNAL void nk_dots_e3m2_load_a_sapphireamx_( //
@@ -3969,7 +3969,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sapphireamx(                              
     }
 }
 
-#pragma endregion // Micro Precision E3M2
+#pragma endregion E3M2 Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop

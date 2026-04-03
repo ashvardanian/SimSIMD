@@ -145,7 +145,7 @@ NK_INTERNAL vfloat64m4_t nk_log2_f64m4_rvv_(vfloat64m4_t x, nk_size_t vector_len
     return __riscv_vfadd_vv_f64m4(exp_f, log2_m, vector_length);
 }
 
-#pragma region - Kullback-Leibler Divergence
+#pragma region Kullback Leibler Divergence
 
 NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t vector_length_max = __riscv_vsetvlmax_e64m4();
@@ -252,9 +252,9 @@ NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
               0.693147181f;
 }
 
-#pragma endregion - Kullback - Leibler Divergence
+#pragma endregion Kullback Leibler Divergence
 
-#pragma region - Jensen-Shannon Divergence
+#pragma region Jensen Shannon Divergence
 
 NK_PUBLIC void nk_jsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t vector_length_max = __riscv_vsetvlmax_e64m4();
@@ -397,7 +397,7 @@ NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
     *result = sum > 0 ? nk_f32_sqrt_rvv(sum) : 0;
 }
 
-#pragma endregion - Jensen - Shannon Divergence
+#pragma endregion Jensen Shannon Divergence
 
 #if defined(__cplusplus)
 } // extern "C"

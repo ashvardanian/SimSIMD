@@ -44,7 +44,7 @@
 extern "C" {
 #endif
 
-#pragma region - Reduction Helpers
+#pragma region Reduction Helpers
 
 /** @brief Horizontal sum of 4 u64 lanes in a 256-bit LASX register. */
 NK_INTERNAL nk_u64_t nk_reduce_add_u64x4_loongsonasx_(__m256i sum_u64x4) {
@@ -66,9 +66,9 @@ NK_INTERNAL nk_u64_t nk_reduce_add_u8x32_loongsonasx_(__m256i v_u8x32) {
     return nk_reduce_add_u64x4_loongsonasx_(sum_u64x4);
 }
 
-#pragma endregion - Reduction Helpers
+#pragma endregion Reduction Helpers
 
-#pragma region - Binary Sets
+#pragma region Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -113,9 +113,9 @@ NK_PUBLIC void nk_jaccard_u1_loongsonasx(nk_u1x8_t const *a, nk_u1x8_t const *b,
     *result = (or_count != 0) ? (nk_f32_t)xor_count / (nk_f32_t)or_count : 0.0f;
 }
 
-#pragma endregion - Binary Sets
+#pragma endregion Binary Sets
 
-#pragma region - Integer Sets
+#pragma region Integer Sets
 
 NK_PUBLIC void nk_hamming_u8_loongsonasx(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m256i count_u64x4 = __lasx_xvreplgr2vr_d(0);
@@ -139,9 +139,9 @@ NK_PUBLIC void nk_hamming_u8_loongsonasx(nk_u8_t const *a, nk_u8_t const *b, nk_
     *result = (nk_u32_t)count;
 }
 
-#pragma endregion - Integer Sets
+#pragma endregion Integer Sets
 
-#pragma region - Batched Finalizers
+#pragma region Batched Finalizers
 
 /** @brief Hamming from_dot: computes pop_a + pop_b − 2 × dot for 4 pairs (LSX). */
 NK_INTERNAL void nk_hamming_u32x4_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_u32_t query_pop,
@@ -170,7 +170,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_loongsonasx_(nk_b128_vec_t dots, nk_u
     results->xmm_ps = (__m128)__lsx_vbitsel_v((__m128i)jaccard_f32x4, (__m128i)zero_f32x4, zero_union_mask_u32x4);
 }
 
-#pragma endregion - Batched Finalizers
+#pragma endregion Batched Finalizers
 
 #if defined(__cplusplus)
 } // extern "C"

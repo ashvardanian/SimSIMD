@@ -802,7 +802,7 @@ nk_dot_e3m2_icelake_cycle:
     *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_dot_e4m3_icelake(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
@@ -913,9 +913,9 @@ nk_dot_e4m3_icelake_cycle:
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
-#pragma region - Binary
+#pragma region Binary
 
 NK_PUBLIC void nk_dot_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
@@ -980,7 +980,7 @@ NK_INTERNAL void nk_dot_u1x512_finalize_icelake( //
     result->xmm = _mm_hadd_epi32(ab_i32x4, cd_i32x4);
 }
 
-#pragma endregion - Binary
+#pragma endregion Binary
 
 #if defined(__clang__)
 #pragma clang attribute pop

@@ -48,7 +48,7 @@ NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *from, nk_f32_t *to) {
     *to = _mm_cvtss_f32(_mm_cvtsh_ss(_mm_setzero_ps(), _mm_castsi128_ph(_mm_cvtsi32_si128(*(nk_u16_t const *)from))));
 }
 
-#pragma region - Vectorized Conversions
+#pragma region Vectorized Conversions
 
 /** @brief Convert 16x e4m3 → 16x f16 via bit manipulation (AVX-512 FP16).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
@@ -208,9 +208,9 @@ NK_INTERNAL __m128i nk_f16x16_to_e5m2x16_sapphire_(__m256h f16x16) {
     return _mm256_cvtepi16_epi8(e5m2_i16x16);
 }
 
-#pragma endregion - Vectorized Conversions
+#pragma endregion Vectorized Conversions
 
-#pragma region - Public API
+#pragma region Public API
 
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Group 1: Conversions to f16 (e4m3 → f16, e5m2 → f16)
@@ -245,7 +245,7 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_
     else nk_cast_icelake(from, from_type, n, to, to_type);
 }
 
-#pragma endregion - Public API
+#pragma endregion Public API
 
 #if defined(__clang__)
 #pragma clang attribute pop

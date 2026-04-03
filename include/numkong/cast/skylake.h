@@ -41,7 +41,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#pragma region - Type Punned Loads and Stores
+#pragma region Type Punned Loads and Stores
 
 /** @brief Type-agnostic 512-bit full load (Skylake AVX-512). */
 NK_INTERNAL void nk_load_b512_skylake_(void const *src, nk_b512_vec_t *dst) { dst->zmm = _mm512_loadu_si512(src); }
@@ -132,9 +132,9 @@ NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void 
     _mm256_mask_storeu_epi64(dst, mask, src->ymm);
 }
 
-#pragma endregion - Type Punned Loads and Stores
+#pragma endregion Type Punned Loads and Stores
 
-#pragma region - Vectorized Conversions
+#pragma region Vectorized Conversions
 
 /** @brief Convert 16x bf16 → 16x f32 (Skylake AVX-512). */
 NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
@@ -563,9 +563,9 @@ NK_INTERNAL __m256i nk_f64x8_to_u32x8_skylake_(__m512d f64x8) {
     return _mm512_cvtpd_epu32(clamped);
 }
 
-#pragma endregion - Vectorized Conversions
+#pragma endregion Vectorized Conversions
 
-#pragma region - Converting Loads and Stores
+#pragma region Converting Loads and Stores
 
 /** @brief Load 16 f16 values and convert to 16 f32 (Skylake AVX-512). */
 NK_INTERNAL void nk_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
@@ -639,9 +639,9 @@ NK_INTERNAL void nk_partial_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_
     dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(e3m2_partial.xmm);
 }
 
-#pragma endregion - Converting Loads and Stores
+#pragma endregion Converting Loads and Stores
 
-#pragma region - Public API
+#pragma region Public API
 
 NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Same-type fast path
@@ -841,7 +841,7 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
     nk_cast_serial(from, from_type, n, to, to_type);
 }
 
-#pragma endregion - Public API
+#pragma endregion Public API
 
 #if defined(__clang__)
 #pragma clang attribute pop

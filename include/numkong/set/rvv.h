@@ -50,7 +50,7 @@
 extern "C" {
 #endif
 
-#pragma region - Binary Sets
+#pragma region Binary Sets
 
 /**
  *  @brief  Compute byte-level popcount using arithmetic SWAR.
@@ -142,9 +142,9 @@ NK_PUBLIC void nk_jaccard_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     *result = (union_count_u32 != 0) ? 1.0f - (nk_f32_t)intersection_count_u32 / (nk_f32_t)union_count_u32 : 0.0f;
 }
 
-#pragma endregion - Binary Sets
+#pragma endregion Binary Sets
 
-#pragma region - Integer Sets
+#pragma region Integer Sets
 
 NK_PUBLIC void nk_hamming_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     vuint32m1_t difference_count_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
@@ -209,7 +209,7 @@ NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 0.0f;
 }
 
-#pragma endregion - Integer Sets
+#pragma endregion Integer Sets
 
 #if defined(__cplusplus)
 } // extern "C"

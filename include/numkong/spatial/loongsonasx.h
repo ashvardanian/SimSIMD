@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#pragma region - Angular Normalize Helpers
+#pragma region Angular Normalize Helpers
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_loongsonasx_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
@@ -50,9 +50,9 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_i32_loongsonasx_(nk_i32_t ab, nk_i32_t
     return result > 0 ? result : 0;
 }
 
-#pragma endregion - Angular Normalize Helpers
+#pragma endregion Angular Normalize Helpers
 
-#pragma region - Small Integers
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_loongsonasx(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m256i sum_i32x8 = __lasx_xvreplgr2vr_w(0);
@@ -197,9 +197,9 @@ NK_PUBLIC void nk_angular_u8_loongsonasx(nk_u8_t const *a, nk_u8_t const *b, nk_
     *result = nk_angular_normalize_i32_loongsonasx_(dot, a_sq, b_sq);
 }
 
-#pragma endregion - Small Integers
+#pragma endregion I8 and U8 Integers
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_loongsonasx(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     __m256d sum_f64x4_low = (__m256d)__lasx_xvreplgr2vr_d(0);
@@ -326,9 +326,9 @@ NK_PUBLIC void nk_angular_f64_loongsonasx(nk_f64_t const *a, nk_f64_t const *b, 
     *result = nk_angular_normalize_f64_loongsonasx_(dot, a_sq, b_sq);
 }
 
-#pragma endregion - Traditional Floats
+#pragma endregion F32 and F64 Floats
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_loongsonasx_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0.0f && b2 == 0.0f) return 0.0f;
@@ -472,7 +472,7 @@ NK_PUBLIC void nk_angular_f16_loongsonasx(nk_f16_t const *a, nk_f16_t const *b, 
     *result = nk_angular_normalize_f32_loongsonasx_(dot, a_sq, b_sq);
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
 #if defined(__cplusplus)
 } // extern "C"

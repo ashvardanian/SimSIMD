@@ -118,7 +118,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     return result > 0 ? result : 0;
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
@@ -242,8 +242,8 @@ nk_angular_f64_neon_cycle:
         nk_dot_stable_sum_f64x2_neon_(ab_sum_f64x2, ab_compensation_f64x2), vaddvq_f64(a2_f64x2), vaddvq_f64(b2_f64x2));
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     uint16x8_t a_u16x8, b_u16x8;
@@ -840,7 +840,7 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_neon_(nk_b128_vec_t dots, nk_
 } // extern "C"
 #endif
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 #endif // NK_SPATIAL_NEON_H

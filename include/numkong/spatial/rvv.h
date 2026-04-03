@@ -133,7 +133,7 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_reciprocal_rvv_(vfloat64m4_t x_f64m4, nk_size_
     return est_f64m4;
 }
 
-#pragma region - Small Integers
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                      nk_u32_t *result) {
@@ -187,8 +187,8 @@ NK_PUBLIC void nk_euclidean_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_sc
     *result = nk_f32_sqrt_rvv((nk_f32_t)d2);
 }
 
-#pragma endregion - Small Integers
-#pragma region - Traditional Floats
+#pragma endregion I8 and U8 Integers
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f64_t *result) {
@@ -239,8 +239,8 @@ NK_PUBLIC void nk_euclidean_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b
     *result = nk_f64_sqrt_rvv(*result);
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Small Integers
+#pragma endregion F32 and F64 Floats
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_angular_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
@@ -320,8 +320,8 @@ NK_PUBLIC void nk_angular_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     }
 }
 
-#pragma endregion - Small Integers
-#pragma region - Traditional Floats
+#pragma endregion I8 and U8 Integers
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f64_t *result) {
@@ -414,8 +414,8 @@ NK_PUBLIC void nk_angular_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_s
     }
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f32_t *result) {
@@ -693,8 +693,8 @@ NK_PUBLIC void nk_angular_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
     }
 }
 
-#pragma endregion - Smaller Floats
-#pragma region - Small Integers
+#pragma endregion F16 and BF16 Floats
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
                                      nk_u32_t *result) {
@@ -985,7 +985,7 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
 #pragma GCC pop_options
 #endif
 
-#pragma endregion - Small Integers
+#pragma endregion I8 and U8 Integers
 #endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
 #endif // NK_SPATIAL_RVV_H

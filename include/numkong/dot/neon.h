@@ -121,7 +121,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x2_neon_(float64x2_t sum_f64x2, float6
     return tentative_sum + (lower_error + upper_error + rounding_error);
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                nk_f64_t *result) {
@@ -512,9 +512,9 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
     result->f64s[3] = nk_dot_stable_sum_f64x2_neon_(state_d->sum_f64x2, state_d->compensation_f64x2);
 }
 
-#pragma endregion - Traditional Floats
+#pragma endregion F32 and F64 Floats
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
@@ -758,9 +758,9 @@ nk_dot_e3m2_neon_cycle:
     *result = vaddvq_f32(sum_f32x4);
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
-#pragma region - Binary
+#pragma region Binary
 
 NK_PUBLIC void nk_dot_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
@@ -806,7 +806,7 @@ NK_INTERNAL void nk_dot_u1x128_finalize_neon( //
     result->u32x4 = vpaddq_u32(ab_sum_u32x4, cd_sum_u32x4);
 }
 
-#pragma endregion - Binary
+#pragma endregion Binary
 
 NK_PUBLIC void nk_dot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                 nk_f32c_t *result) {

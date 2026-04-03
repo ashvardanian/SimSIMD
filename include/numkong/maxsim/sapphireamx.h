@@ -70,7 +70,7 @@ extern "C" {
                    "avx512fp16", "f16c", "fma", "bmi", "bmi2", "amx-tile", "amx-bf16", "amx-int8")
 #endif
 
-#pragma region i8 Header (for f32/f16 coarse+refine)
+#pragma region I8 Header
 
 /**
  *  i8 packed buffer header for AMX coarse+refine MaxSim (64 bytes).
@@ -92,9 +92,9 @@ typedef struct {
 
 NK_STATIC_ASSERT(sizeof(nk_maxsim_sapphireamx_i8_header_t) == 64, nk_maxsim_sapphireamx_i8_header_must_be_64_bytes);
 
-#pragma endregion
+#pragma endregion I8 Header
 
-#pragma region Single Precision Floats
+#pragma region F32 Floats
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_sapphireamx(nk_size_t vector_count, nk_size_t depth) {
     nk_size_t column_tile_count = nk_size_divide_round_up_(vector_count, 16);
@@ -347,9 +347,9 @@ NK_PUBLIC void nk_maxsim_packed_f32_sapphireamx( //
     *result = total_angular_distance_f64;
 }
 
-#pragma endregion
+#pragma endregion F32 Floats
 
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_sapphireamx(nk_size_t vector_count, nk_size_t depth) {
     nk_size_t column_tile_count = nk_size_divide_round_up_(vector_count, 16);
@@ -602,9 +602,9 @@ NK_PUBLIC void nk_maxsim_packed_f16_sapphireamx( //
     *result = (nk_f32_t)total_angular_distance_f64;
 }
 
-#pragma endregion
+#pragma endregion F16 Floats
 
-#pragma region Brain Floats (Fused AMX)
+#pragma region BF16 Floats
 
 /**
  *  BF16 packed buffer header for AMX fused MaxSim (64 bytes).
@@ -860,7 +860,7 @@ NK_PUBLIC void nk_maxsim_packed_bf16_sapphireamx( //
     *result = (nk_f32_t)total_angular_distance_f64;
 }
 
-#pragma endregion
+#pragma endregion BF16 Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop

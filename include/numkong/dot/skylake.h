@@ -123,7 +123,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x8_skylake_(__m512d sum_f64x8, __m512d
     return nk_dot_stable_sum_f64x4_haswell_(tentative_sum_f64x4, accumulated_error_f64x4);
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 /**
  *  @brief Internal helper state for dot-products of low-precision types, where 32-bit accumulation is enough.
@@ -479,7 +479,8 @@ nk_vdot_f64c_skylake_cycle:
     result->imag = nk_dot_stable_sum_f64x8_skylake_(sum_imag_f64x8, compensation_imag_f64x8);
 }
 
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_dot_f16_skylake(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
@@ -743,9 +744,9 @@ nk_dot_e3m2_skylake_cycle:
     *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
-#pragma region - Small Integers
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
@@ -874,8 +875,6 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
     result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
 }
-
-#pragma endregion - Traditional Floats
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;
 
@@ -1100,7 +1099,7 @@ NK_INTERNAL void nk_dot_e3m2x64_finalize_skylake(                               
     results->xmm = _mm_castps_si128(sum_f32x4);
 }
 
-#pragma endregion - Small Integers
+#pragma endregion I8 and U8 Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop

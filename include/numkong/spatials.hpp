@@ -362,7 +362,7 @@ void euclideans_packed(in_type_ const *a, void const *b_packed, result_type_ *c,
 
 namespace ashvardanian::numkong {
 
-#pragma region - Concept-Constrained Symmetric Spatial Distances
+#pragma region Concept Constrained Symmetric Spatial Distances
 
 /** @brief Symmetric angular distances: C[i,j] = angular(A[i], A[j]). */
 template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
@@ -444,9 +444,9 @@ bool euclideans_symmetric(input_matrix_ const &input, output_matrix_ &&output, s
     return true;
 }
 
-#pragma endregion - Concept - Constrained Symmetric Spatial Distances
+#pragma endregion Concept Constrained Symmetric Spatial Distances
 
-#pragma region - Concept-Constrained Packed Spatial Distances
+#pragma region Concept Constrained Packed Spatial Distances
 
 /** @brief Packed angular distances: C = angular(A, B_packed). */
 template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
@@ -502,7 +502,7 @@ matrix<typename value_type_::euclidean_result_t, allocator_type_> try_euclideans
     return c;
 }
 
-#pragma endregion - Concept - Constrained Packed Spatial Distances
+#pragma endregion Concept Constrained Packed Spatial Distances
 
 } // namespace ashvardanian::numkong
 

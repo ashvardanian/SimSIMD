@@ -55,7 +55,7 @@ extern "C" {
 #pragma GCC target("avx2", "sse4.1", "popcnt")
 #endif
 
-#pragma region - Binary Sets
+#pragma region Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -79,9 +79,9 @@ NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
-#pragma endregion - Binary Sets
+#pragma endregion Binary Sets
 
-#pragma region - Integer Sets
+#pragma region Integer Sets
 
 NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
@@ -192,9 +192,9 @@ NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
-#pragma endregion - Integer Sets
+#pragma endregion Integer Sets
 
-#pragma region - Stateful Streaming
+#pragma region Stateful Streaming
 
 typedef struct nk_hamming_u1x64_state_haswell_t {
     nk_u32_t intersection_count;
@@ -317,7 +317,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t
     results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
-#pragma endregion - Stateful Streaming
+#pragma endregion Stateful Streaming
 
 #if defined(__clang__)
 #pragma clang attribute pop

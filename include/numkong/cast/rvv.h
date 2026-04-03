@@ -54,7 +54,7 @@
 extern "C" {
 #endif
 
-#pragma region - Register-to-Register Helpers
+#pragma region Register to Register Helpers
 
 /**
  *  @brief Convert bf16 (m1) to f32 (m2) register-to-register.
@@ -670,9 +670,9 @@ NK_INTERNAL vuint8m1_t nk_f32m4_to_e5m2m1_rvv_(vfloat32m4_t f32_f32m4, nk_size_t
     return __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
 }
 
-#pragma endregion - Register - to - Register Helpers
+#pragma endregion Register - to - Register Helpers
 
-#pragma region - Unified Cast Dispatcher
+#pragma region Unified Cast Dispatcher
 
 NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t count, void *to, nk_dtype_t to_type) {
     // bf16 → f32
@@ -953,7 +953,7 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
     nk_cast_serial(from, from_type, count, to, to_type);
 }
 
-#pragma endregion - Unified Cast Dispatcher
+#pragma endregion Unified Cast Dispatcher
 
 #if defined(__cplusplus)
 } // extern "C"

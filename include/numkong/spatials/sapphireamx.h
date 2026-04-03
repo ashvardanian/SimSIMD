@@ -184,7 +184,7 @@ NK_INTERNAL void nk_euclideans_row_u32dots_sapphireamx_(nk_f32_t *results, nk_u3
     }
 }
 
-#pragma endregion // Row Finalize Helpers
+#pragma endregion Row Finalize Helpers
 
 #pragma region BF16 Packed
 
@@ -234,7 +234,7 @@ NK_PUBLIC void nk_euclideans_packed_bf16_sapphireamx(      //
                                                     c_stride_elements);
 }
 
-#pragma endregion // BF16 Packed
+#pragma endregion BF16 Packed
 
 #pragma region BF16 Symmetric
 
@@ -318,9 +318,9 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16_sapphireamx(                        
                                                        result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // BF16 Symmetric
+#pragma endregion BF16 Symmetric
 
-#pragma region Signed 8-bit Integer Packed
+#pragma region I8 Packed
 
 NK_INTERNAL void nk_angulars_packed_i8_sapphireamx_finalize_(nk_i8_t const *a, void const *b_packed, nk_f32_t *c,
                                                              nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -369,9 +369,9 @@ NK_PUBLIC void nk_euclideans_packed_i8_sapphireamx(      //
                                                   c_stride_elements);
 }
 
-#pragma endregion // Signed 8-bit Integer Packed
+#pragma endregion I8 Packed
 
-#pragma region Signed 8-bit Integer Symmetric
+#pragma region I8 Symmetric
 
 NK_INTERNAL void nk_angulars_symmetric_i8_sapphireamx_finalize_(nk_i8_t const *vectors, nk_size_t vectors_count,
                                                                 nk_size_t depth, nk_size_t stride_elements,
@@ -457,9 +457,9 @@ NK_PUBLIC void nk_euclideans_symmetric_i8_sapphireamx(                          
                                                      result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Signed 8-bit Integer Symmetric
+#pragma endregion I8 Symmetric
 
-#pragma region Unsigned 8-bit Integer Packed
+#pragma region U8 Packed
 
 NK_INTERNAL void nk_angulars_packed_u8_sapphireamx_finalize_(nk_u8_t const *a, void const *b_packed, nk_f32_t *c,
                                                              nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -508,9 +508,9 @@ NK_PUBLIC void nk_euclideans_packed_u8_sapphireamx(      //
                                                   c_stride_elements);
 }
 
-#pragma endregion // Unsigned 8-bit Integer Packed
+#pragma endregion U8 Packed
 
-#pragma region Unsigned 8-bit Integer Symmetric
+#pragma region U8 Symmetric
 
 NK_INTERNAL void nk_angulars_symmetric_u8_sapphireamx_finalize_(nk_u8_t const *vectors, nk_size_t vectors_count,
                                                                 nk_size_t depth, nk_size_t stride_elements,
@@ -596,7 +596,7 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_sapphireamx(                          
                                                      result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Unsigned 8-bit Integer Symmetric
+#pragma endregion U8 Symmetric
 
 #pragma region E4M3 Packed
 
@@ -646,7 +646,7 @@ NK_PUBLIC void nk_euclideans_packed_e4m3_sapphireamx(      //
                                                     c_stride_elements);
 }
 
-#pragma endregion // E4M3 Packed
+#pragma endregion E4M3 Packed
 
 #pragma region E5M2 Packed
 
@@ -696,7 +696,7 @@ NK_PUBLIC void nk_euclideans_packed_e5m2_sapphireamx(      //
                                                     c_stride_elements);
 }
 
-#pragma endregion // E5M2 Packed
+#pragma endregion E5M2 Packed
 
 #pragma region E5M2 Symmetric
 
@@ -780,7 +780,7 @@ NK_PUBLIC void nk_euclideans_symmetric_e5m2_sapphireamx(                        
                                                        result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // E5M2 Symmetric
+#pragma endregion E5M2 Symmetric
 
 #pragma region E4M3 Symmetric
 
@@ -864,7 +864,7 @@ NK_PUBLIC void nk_euclideans_symmetric_e4m3_sapphireamx(                        
                                                        result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // E4M3 Symmetric
+#pragma endregion E4M3 Symmetric
 
 #pragma region E2M3 Packed
 
@@ -914,7 +914,7 @@ NK_PUBLIC void nk_euclideans_packed_e2m3_sapphireamx(      //
                                                     c_stride_elements);
 }
 
-#pragma endregion // E2M3 Packed
+#pragma endregion E2M3 Packed
 
 #pragma region E2M3 Symmetric
 
@@ -998,7 +998,7 @@ NK_PUBLIC void nk_euclideans_symmetric_e2m3_sapphireamx(                        
                                                        result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // E2M3 Symmetric
+#pragma endregion E2M3 Symmetric
 
 #pragma region E3M2 Packed
 
@@ -1048,7 +1048,7 @@ NK_PUBLIC void nk_euclideans_packed_e3m2_sapphireamx(      //
                                                     c_stride_elements);
 }
 
-#pragma endregion // E3M2 Packed
+#pragma endregion E3M2 Packed
 
 #pragma region E3M2 Symmetric
 
@@ -1132,7 +1132,7 @@ NK_PUBLIC void nk_euclideans_symmetric_e3m2_sapphireamx(                        
                                                        result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // E3M2 Symmetric
+#pragma endregion E3M2 Symmetric
 
 #if defined(__clang__)
 #pragma clang attribute pop

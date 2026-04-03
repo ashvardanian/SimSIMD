@@ -26,7 +26,7 @@
 
 namespace ashvardanian::numkong {
 
-#pragma region - Packing Utilities
+#pragma region Packing Utilities
 
 /**
  *  @brief Estimates the memory requirements for packed B matrix.
@@ -155,9 +155,9 @@ NK_PUBLIC void maxsim_pack(typename in_type_::raw_t const *vectors, std::size_t 
     }
 }
 
-#pragma endregion - Packing Utilities
+#pragma endregion Packing Utilities
 
-#pragma region - Packed Containers
+#pragma region Packed Containers
 
 /**
  *  @brief Owning, move-only, pre-packed matrix for efficient GEMM.
@@ -329,7 +329,7 @@ class packed_maxsim {
     std::size_t size_bytes() const noexcept { return size_bytes_; }
 };
 
-#pragma endregion - Packed Containers
+#pragma endregion Packed Containers
 
 } // namespace ashvardanian::numkong
 

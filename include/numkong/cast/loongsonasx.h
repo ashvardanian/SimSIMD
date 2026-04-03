@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#pragma region - Type Punned Loads and Stores
+#pragma region Type Punned Loads and Stores
 
 /**
  *  LSX and LASX share the same physical register file, so widening __m128i → __m256i and
@@ -122,9 +122,9 @@ NK_INTERNAL void nk_partial_load_f16x8_to_f32x8_loongsonasx_(nk_f16_t const *src
     dst->ymm = nk_f16x8_to_f32x8_loongsonasx_(vec.xmm);
 }
 
-#pragma endregion - Type Punned Loads and Stores
+#pragma endregion Type Punned Loads and Stores
 
-#pragma region - Vectorized From-Dot Helpers
+#pragma region Vectorized From Dot Helpers
 
 /** @brief Safe square root of 8 floats with zero-clamping for numerical stability (LASX 256-bit). */
 NK_INTERNAL __m256 nk_sqrt_f32x8_loongsonasx_(__m256 x_f32x8) {
@@ -241,7 +241,7 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_loongsonasx_(nk_b128_vec_t do
     results->xmm_ps = nk_sqrt_f32x4_loongsonasx_(dist_sq_f32x4);
 }
 
-#pragma endregion - Vectorized From - Dot Helpers
+#pragma endregion Vectorized From Dot Helpers
 
 #if defined(__cplusplus)
 } // extern "C"

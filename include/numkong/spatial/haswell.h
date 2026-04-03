@@ -196,7 +196,7 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     return result > 0 ? result : 0;
 }
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
@@ -333,8 +333,8 @@ nk_angular_bf16_haswell_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-#pragma endregion - Smaller Floats
-#pragma region - Small Integers
+#pragma endregion F16 and BF16 Floats
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     // Optimized i8 L2-squared using saturating subtract + VPMADDWD
@@ -561,8 +561,8 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
                                                 (nk_f32_t)b_norm_sq_i32);
 }
 
-#pragma endregion - Small Integers
-#pragma region - Traditional Floats
+#pragma endregion I8 and U8 Integers
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
@@ -712,8 +712,8 @@ nk_angular_f64_haswell_cycle:
         nk_reduce_add_f64x4_haswell_(a_norm_sq_f64x4), nk_reduce_add_f64x4_haswell_(b_norm_sq_f64x4));
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region FP8 Floats
 
 NK_PUBLIC void nk_sqeuclidean_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
@@ -973,7 +973,7 @@ nk_angular_e5m2_haswell_cycle:
 } // extern "C"
 #endif
 
-#pragma endregion - Smaller Floats
+#pragma endregion FP8 Floats
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 #endif // NK_SPATIAL_HASWELL_H

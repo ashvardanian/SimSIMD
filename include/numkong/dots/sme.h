@@ -118,7 +118,7 @@ enum {
  *  - FMOPA predicates: b16 (input granularity), not b32
  *  - 4-tile path: ZA0-ZA3 process 4 column tiles simultaneously
  */
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const expansion = 2;                    // FMOPA f16 → f32: 2 f16 pairs per f32 output
@@ -975,7 +975,7 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t ve
                                           result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion
+#pragma endregion F16 Floats
 
 /*
  *  `i8` × `i8` → `i32` GEMM using SME outer products.
@@ -991,7 +991,7 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t ve
  *  Expected performance: ~2 TOPS (4× `f16` due to 4:1 element packing)
  */
 
-#pragma region Signed 8-bit Integers
+#pragma region I8 Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const expansion = 4;                    // SMOPA i8→i32: 4 i8 pairs per i32 output
@@ -1397,7 +1397,7 @@ NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t vector
                                         row_start, row_count);
 }
 
-#pragma endregion
+#pragma endregion I8 Integers
 
 /*
  *  e4m3 × e4m3 → f32 GEMM using inline SSVE conversion + FMOPA.
@@ -1408,7 +1408,7 @@ NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t vector
  *  - No memory round-trip for format conversion
  *  - FMOPA predicates: b16 (f16 input granularity)
  */
-#pragma region Quarter Precision E4M3
+#pragma region E4M3 Floats
 
 /**
  *  Inline `e4m3` → `f16` conversion for streaming SVE.
@@ -1920,7 +1920,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t ve
                                           result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion
+#pragma endregion E4M3 Floats
 
 /*
  *  e5m2 × e5m2 → f32 GEMM using inline SSVE conversion + FMOPA.
@@ -1930,7 +1930,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t ve
  *  - E5M2 shares F16 exponent bias (15), so normal conversion is a shift
  *  - Handles infinity (mag=0x7C) and NaN (mag>0x7C)
  */
-#pragma region Quarter Precision E5M2
+#pragma region E5M2 Floats
 
 /**
  *  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using interleaved FMOPA.
@@ -2365,7 +2365,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t ve
                                           result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion
+#pragma endregion E5M2 Floats
 
 /*
  *  `e2m3` × `e2m3` → `f32` GEMM using `i8` SME outer products.
@@ -2384,7 +2384,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t ve
  *  - Each output word accumulates 4 `i8` pairs, scaled by 1/256
  */
 
-#pragma region Micro Precision E2M3
+#pragma region E2M3 Floats
 
 /**
  *  Inline `e2m3` → signed `i8` conversion returning `svint8_t` for direct use in GEMM.
@@ -2875,7 +2875,7 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t ve
                                           result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion
+#pragma endregion E2M3 Floats
 
 /*
  *  e3m2 × e3m2 → f32 GEMM using inline SSVE conversion + FMOPA.
@@ -2893,7 +2893,7 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t ve
  *  i32 max = 2,147,483,647). The f16 → f32 path has no such depth constraint (f32 range ~3.4e38).
  *  Apple M4 has `hw.optional.arm.SME_I16I32: 1` but the feature offers no advantage here.
  */
-#pragma region Micro Precision E3M2
+#pragma region E3M2 Floats
 
 /**
  *  Inline `e3m2` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
@@ -3361,7 +3361,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t ve
                                           result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Signed 8-bit Integers
+#pragma endregion I8 Integers
 
 /*
  *  `u8` × `u8` → `u32` GEMM using SME outer products.
@@ -3375,7 +3375,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sme(nk_e3m2_t const *vectors, nk_size_t ve
  *  - Each output `u32` is a dot product of 4 `u8` pairs
  */
 
-#pragma region Unsigned 8-bit Integers
+#pragma region U8 Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u8_sme(nk_size_t columns, nk_size_t depth) {
     return nk_dots_packed_size_i8_sme(columns, depth);
@@ -3768,7 +3768,7 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t vector
                                         row_start, row_count);
 }
 
-#pragma endregion // Unsigned 8-bit Integers
+#pragma endregion U8 Integers
 
 /*
  *  4-bit integer GEMM (u4, i4) using direct mask-and-double-MOPA.
@@ -3786,7 +3786,7 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t vector
  *  = ceil(depth/4) total MOPAs — same as the unpacked path.
  */
 
-#pragma region Nibble Unsigned Integers
+#pragma region U4 Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u4_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = nk_sme_cntw_();
@@ -4058,9 +4058,9 @@ NK_PUBLIC void nk_dots_packed_u4_sme(                      //
     nk_dots_packed_u4_sme_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-#pragma endregion // Nibble Unsigned Integers
+#pragma endregion Unsigned Integers
 
-#pragma region Nibble Signed Integers
+#pragma region I4 Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_i4_sme(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = nk_sme_cntw_();
@@ -4918,7 +4918,7 @@ NK_PUBLIC void nk_dots_symmetric_i4_sme(nk_i4x2_t const *vectors, nk_size_t vect
                                         row_start, row_count);
 }
 
-#pragma endregion // Nibble Signed Integers
+#pragma endregion Signed Integers
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

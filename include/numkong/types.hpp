@@ -5315,7 +5315,7 @@ struct u4x2_t {
     constexpr std::strong_ordering operator<=>(u4x2_t const &o) const noexcept = default;
 };
 
-#pragma region - Enum Conversion
+#pragma region Enum Conversion
 
 /**
  *  @brief Maps `nk_dtype_t` enum values to their corresponding C++ wrapper types.
@@ -5350,9 +5350,9 @@ template <> struct type_for<nk_i4_k> { using type = i4x2_t; };
 template <> struct type_for<nk_u4_k> { using type = u4x2_t; };
 // clang-format on
 
-#pragma endregion - Enum Conversion
+#pragma endregion Enum Conversion
 
-#pragma region - Numeric Limits
+#pragma region Numeric Limits
 
 /** @brief Get the maximum representable value for a type. */
 template <typename scalar_type_>
@@ -5471,9 +5471,9 @@ constexpr std::size_t round_up_to_multiple(std::size_t n) {
     return divide_round_up<multiple_>(n) * multiple_;
 }
 
-#pragma endregion - Numeric Limits
+#pragma endregion Numeric Limits
 
-#pragma region - SIMD Dispatch Helpers
+#pragma region SIMD Dispatch Helpers
 
 /** @brief Controls whether template wrappers dispatch to SIMD C kernels. */
 enum allow_simd_t {
@@ -5612,9 +5612,9 @@ constexpr unsigned count_intersection(u1x8_t a, u1x8_t b) noexcept { return a.in
 /** @brief Count bit-level union for u1x8_t (8 packed bits). Returns popcount of OR. */
 constexpr unsigned count_union(u1x8_t a, u1x8_t b) noexcept { return a.union_size(b); }
 
-#pragma endregion - SIMD Dispatch Helpers
+#pragma endregion SIMD Dispatch Helpers
 
-#pragma region - f118_t Mixed Operators
+#pragma region F118 Mixed Operators
 
 constexpr f118_t operator+(double a, f118_t b) noexcept { return f118_t(a) + b; }
 constexpr f118_t operator-(double a, f118_t b) noexcept { return f118_t(a) - b; }
@@ -5628,9 +5628,9 @@ constexpr bool operator>(double a, f118_t b) noexcept { return f118_t(a) > b; }
 constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; }
 constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
 
-#pragma endregion - f118_t Mixed Operators
+#pragma endregion F118 Mixed Operators
 
-#pragma region - Concepts
+#pragma region Concepts
 
 template <typename matrix_type_, typename element_type_>
 concept const_matrix_of = requires(matrix_type_ const &m) {
@@ -5655,7 +5655,7 @@ concept packed_matrix_like = requires(packed_type_ const &p) {
     { p.depth() } -> std::convertible_to<std::size_t>;
 };
 
-#pragma endregion - Concepts
+#pragma endregion Concepts
 
 } // namespace ashvardanian::numkong
 

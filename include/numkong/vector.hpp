@@ -46,7 +46,7 @@
 
 namespace ashvardanian::numkong {
 
-#pragma region - Aligned Allocator
+#pragma region Aligned Allocator
 
 /**
  *  @brief Cache-aligned allocator with non-throwing allocation.
@@ -102,9 +102,9 @@ struct aligned_allocator {
     }
 };
 
-#pragma endregion - Aligned Allocator
+#pragma endregion Aligned Allocator
 
-#pragma region - Slicing Infrastructure
+#pragma region Slicing Infrastructure
 
 /** @brief Tag type for selecting all elements along a dimension. */
 struct all_t {};
@@ -159,18 +159,18 @@ constexpr std::size_t range_extent_(std::size_t start, std::size_t stop, std::pt
     }
 }
 
-#pragma endregion - Slicing Infrastructure
+#pragma endregion Slicing Infrastructure
 
-#pragma region - Forward Declarations
+#pragma region Forward Declarations
 
 template <typename value_type_>
 struct vector_view;
 template <typename value_type_>
 struct vector_span;
 
-#pragma endregion - Forward Declarations
+#pragma endregion Forward Declarations
 
-#pragma region - Dim Iterator
+#pragma region Dim Iterator
 
 template <typename value_type_, typename allocator_type_>
 struct vector;
@@ -299,9 +299,9 @@ constexpr enumerate_view_<container_type_ const> enumerate(container_type_ const
     return {c};
 }
 
-#pragma endregion - Dim Iterator
+#pragma endregion Dim Iterator
 
-#pragma region - Vector View
+#pragma region Vector View
 
 /**
  *  @brief Non-owning, immutable, strided view into a vector.
@@ -399,9 +399,9 @@ struct vector_view {
     const_iterator cend() const noexcept { return {*this, dimensions_}; }
 };
 
-#pragma endregion - Vector View
+#pragma endregion Vector View
 
-#pragma region - Vector Span
+#pragma region Vector Span
 
 /**
  *  @brief Non-owning, mutable, strided view into a vector.
@@ -512,9 +512,9 @@ struct vector_span {
     const_iterator cend() const noexcept { return {*this, dimensions_}; }
 };
 
-#pragma endregion - Vector Span
+#pragma endregion Vector Span
 
-#pragma region - Vector
+#pragma region Vector
 
 /**
  *  @brief Owning, non-resizable, SIMD-aligned vector.
@@ -759,7 +759,7 @@ void swap(vector<value_type_, allocator_type_> &a, vector<value_type_, allocator
     a.swap(b);
 }
 
-#pragma endregion - Vector
+#pragma endregion Vector
 
 } // namespace ashvardanian::numkong
 

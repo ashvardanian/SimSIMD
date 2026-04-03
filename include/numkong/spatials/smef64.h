@@ -83,7 +83,7 @@ NK_PUBLIC svfloat64_t nk_euclideans_from_dot_f64x_ssvef64_(svbool_t predicate_b6
     return svsqrt_f64_x(predicate_b64x, dist_sq_f64x);
 }
 
-#pragma region Single Precision Packed Angular
+#pragma region F32 Packed Angular
 
 __arm_locally_streaming static void nk_angulars_packed_f32_smef64_finalize_streaming_( //
     nk_f32_t const *a, void const *b_packed, nk_f64_t *c,                              //
@@ -123,7 +123,8 @@ NK_PUBLIC void nk_angulars_packed_f32_smef64(             //
                                                       c_stride_elements);
 }
 
-#pragma region Single Precision Packed Euclidean
+#pragma endregion F32 Packed Angular
+#pragma region F32 Packed Euclidean
 
 __arm_locally_streaming static void nk_euclideans_packed_f32_smef64_finalize_streaming_( //
     nk_f32_t const *a, void const *b_packed, nk_f64_t *c,                                //
@@ -163,7 +164,8 @@ NK_PUBLIC void nk_euclideans_packed_f32_smef64(           //
                                                         c_stride_elements);
 }
 
-#pragma region Single Precision Symmetric Angular
+#pragma endregion F32 Packed Euclidean
+#pragma region F32 Symmetric Angular
 
 __arm_locally_streaming static void nk_angulars_symmetric_f32_smef64_finalize_streaming_(         //
     nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
@@ -215,7 +217,8 @@ NK_PUBLIC void nk_angulars_symmetric_f32_smef64(                                
                                                          result_stride_elements, row_start, row_count);
 }
 
-#pragma region Single Precision Symmetric Euclidean
+#pragma endregion F32 Symmetric Angular
+#pragma region F32 Symmetric Euclidean
 
 __arm_locally_streaming static void nk_euclideans_symmetric_f32_smef64_finalize_streaming_(       //
     nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
@@ -267,7 +270,8 @@ NK_PUBLIC void nk_euclideans_symmetric_f32_smef64(                              
                                                            result_stride_elements, row_start, row_count);
 }
 
-#pragma region Double Precision Packed Angular
+#pragma endregion F32 Symmetric Euclidean
+#pragma region F64 Packed Angular
 
 __arm_locally_streaming static void nk_angulars_packed_f64_smef64_finalize_streaming_( //
     nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                              //
@@ -307,7 +311,9 @@ NK_PUBLIC void nk_angulars_packed_f64_smef64(             //
                                                       c_stride_elements);
 }
 
-#pragma region Double Precision Packed Euclidean
+#pragma endregion F64 Packed Angular
+#pragma region F64 Packed Euclidean
+
 
 __arm_locally_streaming static void nk_euclideans_packed_f64_smef64_finalize_streaming_( //
     nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                                //
@@ -347,7 +353,8 @@ NK_PUBLIC void nk_euclideans_packed_f64_smef64(           //
                                                         c_stride_elements);
 }
 
-#pragma region Double Precision Symmetric Angular
+#pragma endregion F64 Packed Euclidean
+#pragma region F64 Symmetric Angular
 
 __arm_locally_streaming static void nk_angulars_symmetric_f64_smef64_finalize_streaming_(         //
     nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
@@ -399,7 +406,8 @@ NK_PUBLIC void nk_angulars_symmetric_f64_smef64(                                
                                                          result_stride_elements, row_start, row_count);
 }
 
-#pragma region Double Precision Symmetric Euclidean
+#pragma endregion F64 Symmetric Angular
+#pragma region F64 Symmetric Euclidean
 
 __arm_locally_streaming static void nk_euclideans_symmetric_f64_smef64_finalize_streaming_(       //
     nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, //
@@ -451,6 +459,7 @@ NK_PUBLIC void nk_euclideans_symmetric_f64_smef64(                              
                                                            result_stride_elements, row_start, row_count);
 }
 
+#pragma endregion F64 Symmetric Euclidean
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

@@ -79,7 +79,7 @@ NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest) {
     vst1_lane_u16((nk_u16_t *)dest, vreinterpret_u16_f16(f16_f16x4), 0);
 }
 
-#pragma region - Type Punned Loads and Stores
+#pragma region Type Punned Loads and Stores
 
 /** @brief Type-agnostic 128-bit full load (NEON). */
 NK_INTERNAL void nk_load_b128_neon_(void const *src, nk_b128_vec_t *dst) {
@@ -104,9 +104,9 @@ NK_INTERNAL void nk_store_b256_neon_(nk_b256_vec_t const *src, void *dst) {
 /** @brief Type-agnostic 64-bit full load (NEON). */
 NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8x8 = vld1_u8((nk_u8_t const *)src); }
 
-#pragma endregion - Type Punned Loads and Stores
+#pragma endregion Type Punned Loads and Stores
 
-#pragma region - Vectorized Conversions
+#pragma region Vectorized Conversions
 
 /** @brief Convert 4x e4m3 → f32x4 via Giesen magic-multiply (NEON).
  *  Reinterprets magnitude bits as a tiny f32, then multiplies by 2^(127-bias) to rebias.
@@ -970,9 +970,9 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e3m2x4_neon_(float32x4_t f32x4) {
     return result;
 }
 
-#pragma endregion - Vectorized Conversions
+#pragma endregion Vectorized Conversions
 
-#pragma region - Public API
+#pragma region Public API
 
 NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Same-type fast path
@@ -1142,7 +1142,7 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
     if (tail) nk_cast_serial(from_ptr, from_type, tail, to_ptr, to_type);
 }
 
-#pragma endregion - Public API
+#pragma endregion Public API
 
 #if defined(__clang__)
 #pragma clang attribute pop

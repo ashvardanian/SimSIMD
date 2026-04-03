@@ -91,7 +91,7 @@ void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
 
 namespace ashvardanian::numkong {
 
-#pragma region - Tensor Trigonometric
+#pragma region Tensor Trigonometric
 
 /** @brief Elementwise sin into pre-allocated output. */
 template <numeric_dtype value_type_, std::size_t max_rank_ = 8>
@@ -159,7 +159,7 @@ tensor<value_type_, allocator_type_, max_rank_> try_atan(tensor_view<value_type_
     return result;
 }
 
-#pragma endregion - Tensor Trigonometric
+#pragma endregion Tensor Trigonometric
 
 } // namespace ashvardanian::numkong
 

@@ -454,7 +454,7 @@ void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
 
 namespace ashvardanian::numkong {
 
-#pragma region - Concept-Constrained Symmetric Dot Products
+#pragma region Concept Constrained Symmetric Dot Products
 
 /** @brief C = A × Aᵀ where C[i,j] = ⟨A[i], A[j]⟩. */
 template <numeric_dtype value_type_, const_matrix_of<value_type_> input_matrix_,
@@ -549,9 +549,9 @@ matrix<typename value_type_::jaccard_result_t, allocator_type_> try_jaccards_sym
     return result;
 }
 
-#pragma endregion - Concept - Constrained Symmetric Dot Products
+#pragma endregion Concept Constrained Symmetric Dot Products
 
-#pragma region - Concept-Constrained Packed Dot Products
+#pragma region Concept Constrained Packed Dot Products
 
 /** @brief Packed dot products: C = A × B_packedᵀ. */
 template <numeric_dtype value_type_, packed_matrix_like packed_type_, const_matrix_of<value_type_> input_matrix_,
@@ -634,7 +634,7 @@ matrix<typename value_type_::jaccard_result_t, allocator_type_> try_jaccards_pac
     return c;
 }
 
-#pragma endregion - Concept - Constrained Packed Dot Products
+#pragma endregion Concept Constrained Packed Dot Products
 
 } // namespace ashvardanian::numkong
 

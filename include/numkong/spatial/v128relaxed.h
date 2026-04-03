@@ -64,7 +64,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_v128relaxed_(nk_f64_t ab, nk_f64_t
     return result > 0.0 ? result : 0.0;
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     v128_t sum_f64x2 = wasm_f64x2_splat(0.0);
@@ -203,8 +203,8 @@ nk_angular_f64_v128relaxed_cycle:
     *result = nk_angular_normalize_f64_v128relaxed_(ab, a2, b2);
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     v128_t sum_f32x4 = wasm_f32x4_splat(0.0f);
@@ -359,8 +359,8 @@ nk_angular_bf16_v128relaxed_cycle:
     *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_((nk_f64_t)ab, (nk_f64_t)a2, (nk_f64_t)b2);
 }
 
-#pragma endregion - Smaller Floats
-#pragma region - Mini Floats
+#pragma endregion F16 and BF16 Floats
+#pragma region FP8 Floats
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_v128relaxed(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     v128_t sum_f32x4 = wasm_f32x4_splat(0.0f);
@@ -614,8 +614,8 @@ nk_angular_e3m2_v128relaxed_cycle:
     *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_((nk_f64_t)ab, (nk_f64_t)a2, (nk_f64_t)b2);
 }
 
-#pragma endregion - Mini Floats
-#pragma region - Spatial From-Dot Helpers
+#pragma endregion FP8 Floats
+#pragma region Spatial From Dot Helpers
 
 /** @brief Angular from_dot: computes 1 − dot / √(query_sumsq × target_sumsq) for 4 pairs in f32. */
 NK_INTERNAL void nk_angular_through_f32_from_dot_v128relaxed_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
@@ -689,8 +689,8 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_v128relaxed_(nk_b128_vec_t do
     results->v128 = wasm_f32x4_sqrt(dist_sq_f32x4);
 }
 
-#pragma endregion - Spatial From - Dot Helpers
-#pragma region - Integer Spatial
+#pragma endregion Spatial From Dot Helpers
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     v128_t sum_u32x4 = wasm_u32x4_splat(0);
@@ -955,7 +955,7 @@ NK_PUBLIC void nk_angular_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_
     *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_(dot_ab, norm_aa, norm_bb);
 }
 
-#pragma endregion - Integer Spatial
+#pragma endregion I8 and U8 Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop

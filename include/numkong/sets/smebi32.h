@@ -553,7 +553,7 @@ NK_PUBLIC void nk_hammings_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_siz
                                                 result_stride_in_bytes, row_start, row_count);
 }
 
-#pragma endregion // Hamming Distance
+#pragma endregion Hamming Distance
 
 /*
  *  Jaccard distance via BMOPA matching counts + algebraic normalization.
@@ -1112,7 +1112,7 @@ NK_PUBLIC void nk_jaccards_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_siz
                                                 result_stride_in_bytes, row_start, row_count);
 }
 
-#pragma endregion // Jaccard Distance
+#pragma endregion Jaccard Distance
 
 #if defined(__clang__)
 #pragma clang attribute pop

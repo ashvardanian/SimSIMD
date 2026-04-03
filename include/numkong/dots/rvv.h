@@ -77,7 +77,7 @@ static nk_u16_t const nk_e3m2_magnitude_lut_rvv_[32] = {0,  1,   2,   3,   4,   
                                                         14, 16,  20,  24,  28,  32,  40,  48,  56,  64, 80,
                                                         96, 112, 128, 160, 192, 224, 256, 320, 384, 448};
 
-#pragma region Single Precision Floats
+#pragma region F32 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_rvv(nk_size_t column_count, nk_size_t depth) {
     nk_size_t max_vector_length = __riscv_vsetvlmax_e32m2();
@@ -267,9 +267,9 @@ NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t vect
     }
 }
 
-#pragma endregion // Single Precision Floats
+#pragma endregion F32 Floats
 
-#pragma region Double Precision Floats
+#pragma region F64 Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_rvv(nk_size_t column_count, nk_size_t depth) {
     nk_size_t max_vector_length = __riscv_vsetvlmax_e64m4();
@@ -481,9 +481,9 @@ NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t vect
     }
 }
 
-#pragma endregion // Double Precision Floats
+#pragma endregion F64 Floats
 
-#pragma region Micro Precision E2M3
+#pragma region E2M3 Floats
 
 /**
  *  @brief  Scalar conversion helper: e2m3 byte → signed i8 (value × 16).
@@ -765,9 +765,9 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t ve
     }
 }
 
-#pragma endregion // Micro Precision E2M3
+#pragma endregion E2M3 Floats
 
-#pragma region Micro Precision E3M2
+#pragma region E3M2 Floats
 
 /**
  *  @brief  Scalar conversion helper: e3m2 byte → signed i16 (value × 16).
@@ -1034,9 +1034,9 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t ve
     }
 }
 
-#pragma endregion // Micro Precision E3M2
+#pragma endregion E3M2 Floats
 
-#pragma region Brain Float 16
+#pragma region BF16 Floats
 
 /**
  *  @brief  Compute the packed buffer size for bf16 GEMM (B stored as f32).
@@ -1255,9 +1255,9 @@ NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t ve
     }
 }
 
-#pragma endregion // Brain Float 16
+#pragma endregion BF16 Floats
 
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 /**
  *  @brief  Compute the packed buffer size for f16 GEMM (B stored as f32).
@@ -1469,9 +1469,9 @@ NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t vect
     }
 }
 
-#pragma endregion // Half Precision Floats
+#pragma endregion F16 Floats
 
-#pragma region Signed 8-bit Integers
+#pragma region I8 Integers
 
 /**
  *  @brief  Compute the packed buffer size for i8 GEMM (B stored as i8).
@@ -1682,9 +1682,9 @@ NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t vector
     }
 }
 
-#pragma endregion // Signed 8-bit Integers
+#pragma endregion I8 Integers
 
-#pragma region Unsigned 8-bit Integers
+#pragma region U8 Integers
 
 /**
  *  @brief  Compute the packed buffer size for u8 GEMM (B stored as u8).
@@ -1895,9 +1895,9 @@ NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t vector
     }
 }
 
-#pragma endregion // Unsigned 8-bit Integers
+#pragma endregion U8 Integers
 
-#pragma region Quarter Precision E4M3
+#pragma region E4M3 Floats
 
 /**
  *  @brief  E4M3 magnitude LUT: 7-bit magnitude → f32 bit pattern (u32).
@@ -2187,9 +2187,9 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t ve
     }
 }
 
-#pragma endregion // Quarter Precision E4M3
+#pragma endregion E4M3 Floats
 
-#pragma region Quarter Precision E5M2
+#pragma region E5M2 Floats
 
 /**
  *  @brief  E5M2 magnitude LUT: 7-bit magnitude → f32 bit pattern (u32).
@@ -2479,7 +2479,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t ve
     }
 }
 
-#pragma endregion // Quarter Precision E5M2
+#pragma endregion E5M2 Floats
 
 #if defined(__cplusplus)
 } // extern "C"

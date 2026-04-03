@@ -17,7 +17,7 @@
 
 namespace ashvardanian::numkong {
 
-#pragma region - SVD Helpers for Scalar Fallbacks
+#pragma region SVD Helpers for Scalar Fallbacks
 
 /** @brief 3x3 matrix determinant. */
 template <typename scalar_type_>
@@ -313,9 +313,9 @@ void svd3x3_(scalar_type_ const *a, scalar_type_ *svd_u, scalar_type_ *svd_s, sc
     svd_s[8] = s3_sq.sqrt();
 }
 
-#pragma endregion - SVD Helpers for Scalar Fallbacks
+#pragma endregion SVD Helpers for Scalar Fallbacks
 
-#pragma region - Mesh Alignment Kernels
+#pragma region Mesh Alignment Kernels
 
 /**
  *  @brief Root Mean Square Deviation between two 3D point clouds (no alignment)
@@ -755,7 +755,7 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, transform_type
     }
 }
 
-#pragma endregion - Mesh Alignment Kernels
+#pragma endregion Mesh Alignment Kernels
 
 } // namespace ashvardanian::numkong
 

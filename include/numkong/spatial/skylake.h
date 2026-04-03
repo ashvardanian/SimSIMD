@@ -56,7 +56,7 @@ NK_INTERNAL __m512d nk_rsqrt_f64x8_skylake_(__m512d x) {
     return _mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(0.5), rsqrt_f64x8), nr_f64x8);
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Upcast to f64 for higher precision accumulation
@@ -281,8 +281,8 @@ NK_INTERNAL void nk_euclidean_through_f64_from_dot_skylake_(nk_b128_vec_t dots, 
     results->xmm_ps = _mm256_cvtpd_ps(dist_f64x4);
 }
 
-#pragma endregion - Traditional Floats
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
@@ -599,7 +599,7 @@ nk_angular_e3m2_skylake_cycle:
 } // extern "C"
 #endif
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 #endif // NK_SPATIAL_SKYLAKE_H

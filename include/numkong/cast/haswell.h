@@ -45,7 +45,7 @@ NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *from, nk_f32_t *to) {
     *to = _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(*(nk_u16_t const *)from)));
 }
 
-#pragma region - Type Punned Loads and Stores
+#pragma region Type Punned Loads and Stores
 
 /** @brief Type-agnostic 256-bit full load (Haswell AVX2). */
 NK_INTERNAL void nk_load_b256_haswell_(void const *src, nk_b256_vec_t *dst) {
@@ -99,9 +99,9 @@ NK_INTERNAL void nk_partial_store_b64x4_haswell_(nk_b256_vec_t const *src, void 
     _mm256_maskstore_pd((double *)dst, mask_i64x4, _mm256_castsi256_pd(src->ymm));
 }
 
-#pragma endregion - Type Punned Loads and Stores
+#pragma endregion Type Punned Loads and Stores
 
-#pragma region - Vectorized Conversions
+#pragma region Vectorized Conversions
 
 /** @brief Convert 8x bf16 → 8x f32 by shifting left 16 bits (AVX2). */
 NK_INTERNAL __m256 nk_bf16x8_to_f32x8_haswell_(__m128i bf16_i16x8) {
@@ -524,9 +524,9 @@ NK_INTERNAL __m128i nk_f32x8_to_e3m2x8_haswell_(__m256 f32x8) {
     return packed_i8x8;
 }
 
-#pragma endregion - Vectorized Conversions
+#pragma endregion Vectorized Conversions
 
-#pragma region - Converting Loads and Stores
+#pragma region Converting Loads and Stores
 
 /** @brief Full load for f16 elements (8) with conversion to f32 via F16C. */
 NK_INTERNAL void nk_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
@@ -642,9 +642,9 @@ NK_INTERNAL void nk_partial_load_u32x8_to_f32x8_haswell_(nk_u32_t const *src, nk
     dst->ymm_ps = nk_u32x8_to_f32x8_haswell_(vec.ymm);
 }
 
-#pragma endregion - Converting Loads and Stores
+#pragma endregion Converting Loads and Stores
 
-#pragma region - Public API
+#pragma region Public API
 
 NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Same-type fast path
@@ -806,7 +806,7 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
     }
 }
 
-#pragma endregion - Public API
+#pragma endregion Public API
 
 #if defined(__clang__)
 #pragma clang attribute pop

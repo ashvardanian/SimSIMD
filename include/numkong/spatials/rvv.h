@@ -27,7 +27,7 @@ extern "C" {
 #pragma GCC target("arch=+v")
 #endif
 
-#pragma region Single Precision Floats
+#pragma region F32 Floats
 
 NK_INTERNAL void nk_angulars_packed_f32_rvv_finalize_(nk_f32_t const *a, void const *b_packed, nk_f64_t *c,
                                                       nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -216,9 +216,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f32_rvv(                                 
                                               result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Single Precision Floats
+#pragma endregion F32 Floats
 
-#pragma region Double Precision Floats
+#pragma region F64 Floats
 
 NK_INTERNAL void nk_angulars_packed_f64_rvv_finalize_(nk_f64_t const *a, void const *b_packed, nk_f64_t *c,
                                                       nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -407,9 +407,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f64_rvv(                                 
                                               result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Double Precision Floats
+#pragma endregion F64 Floats
 
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 NK_INTERNAL void nk_angulars_packed_f16_rvv_finalize_(nk_f16_t const *a, void const *b_packed, nk_f32_t *c,
                                                       nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -598,9 +598,9 @@ NK_PUBLIC void nk_euclideans_symmetric_f16_rvv(                                 
                                               result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Half Precision Floats
+#pragma endregion F16 Floats
 
-#pragma region Brain Float 16
+#pragma region BF16 Floats
 
 NK_INTERNAL void nk_angulars_packed_bf16_rvv_finalize_(nk_bf16_t const *a, void const *b_packed, nk_f32_t *c,
                                                        nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -789,9 +789,9 @@ NK_PUBLIC void nk_euclideans_symmetric_bf16_rvv(                                
                                                result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Brain Float 16
+#pragma endregion BF16 Floats
 
-#pragma region Micro Precision E2M3
+#pragma region E2M3 Floats
 
 NK_INTERNAL void nk_angulars_packed_e2m3_rvv_finalize_(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,
                                                        nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -980,9 +980,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e2m3_rvv(                                
                                                result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Micro Precision E2M3
+#pragma endregion E2M3 Floats
 
-#pragma region Micro Precision E3M2
+#pragma region E3M2 Floats
 
 NK_INTERNAL void nk_angulars_packed_e3m2_rvv_finalize_(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,
                                                        nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -1171,9 +1171,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e3m2_rvv(                                
                                                result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Micro Precision E3M2
+#pragma endregion E3M2 Floats
 
-#pragma region Quarter Precision E4M3
+#pragma region E4M3 Floats
 
 NK_INTERNAL void nk_angulars_packed_e4m3_rvv_finalize_(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,
                                                        nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -1362,9 +1362,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e4m3_rvv(                                
                                                result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Quarter Precision E4M3
+#pragma endregion E4M3 Floats
 
-#pragma region Quarter Precision E5M2
+#pragma region E5M2 Floats
 
 NK_INTERNAL void nk_angulars_packed_e5m2_rvv_finalize_(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,
                                                        nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -1553,9 +1553,9 @@ NK_PUBLIC void nk_euclideans_symmetric_e5m2_rvv(                                
                                                result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Quarter Precision E5M2
+#pragma endregion E5M2 Floats
 
-#pragma region Signed 8-bit Integers
+#pragma region I8 Integers
 
 NK_INTERNAL void nk_angulars_packed_i8_rvv_finalize_(nk_i8_t const *a, void const *b_packed, nk_f32_t *c,
                                                      nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -1756,9 +1756,9 @@ NK_PUBLIC void nk_euclideans_symmetric_i8_rvv(                                  
                                              result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Signed 8-bit Integers
+#pragma endregion I8 Integers
 
-#pragma region Unsigned 8-bit Integers
+#pragma region U8 Integers
 
 NK_INTERNAL void nk_angulars_packed_u8_rvv_finalize_(nk_u8_t const *a, void const *b_packed, nk_f32_t *c,
                                                      nk_size_t rows, nk_size_t columns, nk_size_t depth,
@@ -1959,7 +1959,7 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(                                  
                                              result_stride_elements, row_start, row_count);
 }
 
-#pragma endregion // Unsigned 8-bit Integers
+#pragma endregion U8 Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop

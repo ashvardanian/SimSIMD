@@ -44,7 +44,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#pragma region Single Precision Floats
+#pragma region F32 Floats
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f32_icelake(nk_size_t vector_count, nk_size_t depth) {
     return nk_maxsim_packed_size_(vector_count, depth, sizeof(nk_f32_t), 64);
@@ -75,9 +75,9 @@ NK_PUBLIC void nk_maxsim_pack_f32_icelake( //
     }
 }
 
-#pragma endregion
+#pragma endregion F32 Floats
 
-#pragma region Half Precision Floats
+#pragma region F16 Floats
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_f16_icelake(nk_size_t vector_count, nk_size_t depth) {
     return nk_maxsim_packed_size_(vector_count, depth, sizeof(nk_f16_t), 64);
@@ -109,7 +109,7 @@ NK_PUBLIC void nk_maxsim_pack_f16_icelake( //
     }
 }
 
-#pragma endregion
+#pragma endregion F16 Floats
 
 #pragma region Coarse Argmax
 
@@ -390,7 +390,7 @@ NK_INTERNAL void nk_maxsim_coarse_argmax_icelake_(        //
     }
 }
 
-#pragma endregion
+#pragma endregion Coarse Argmax
 
 #pragma region Compute Functions
 
@@ -463,7 +463,7 @@ NK_PUBLIC void nk_maxsim_packed_f16_icelake( //
     *result = (nk_f32_t)total_angular_distance;
 }
 
-#pragma endregion
+#pragma endregion Compute Functions
 
 #if defined(__clang__)
 #pragma clang attribute pop

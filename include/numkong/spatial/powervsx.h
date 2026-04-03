@@ -120,7 +120,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_powervsx_(nk_f64_t ab, nk_f64_t a2
     return result > 0 ? result : 0;
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_powervsx(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result) {
     // Accumulate in f64 for numerical stability using vec_doublee/vec_doubleo (f32 → f64)
@@ -276,7 +276,8 @@ nk_angular_f64_powervsx_cycle:
                                                  nk_hsum_f64x2_powervsx_(a2_f64x2), nk_hsum_f64x2_powervsx_(b2_f64x2));
 }
 
-#pragma region - Smaller Floats
+#pragma endregion F32 and F64 Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_sqeuclidean_bf16_powervsx(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     // bf16 → f32 via merge with zero: places bf16 bits in upper 16 of each f32
@@ -422,6 +423,9 @@ nk_angular_f16_powervsx_cycle:
     nk_f32_t b2 = nk_hsum_f32x4_powervsx_(b2_f32x4);
     *result = nk_angular_normalize_f32_powervsx_(ab, a2, b2);
 }
+
+#pragma endregion F16 and BF16 Floats
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_powervsx(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     // Power has no vabdq_s8. Widen i8 → i16 via vec_unpackh/vec_unpackl,
@@ -716,6 +720,8 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_powervsx_(nk_b128_vec_t dots,
     nk_vf32x4_t dist_f32x4 = vec_sqrt(dist_sq_f32x4);
     results->vf32x4 = dist_f32x4;
 }
+
+#pragma endregion I8 and U8 Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop

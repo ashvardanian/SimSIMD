@@ -141,7 +141,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_haswell_(__m256d sum_f64x4, __m256d
     return tentative_sum + (lower_error + upper_error + rounding_error);
 }
 
-#pragma region - Traditional Floats
+#pragma region F32 and F64 Floats
 
 NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f64_t *result) {
@@ -479,9 +479,9 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     result->ymm_pd = sum_abcd_f64x4;
 }
 
-#pragma endregion - Traditional Floats
+#pragma endregion F32 and F64 Floats
 
-#pragma region - Smaller Floats
+#pragma region F16 and BF16 Floats
 
 NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
@@ -1209,9 +1209,9 @@ NK_INTERNAL void nk_dot_e3m2x32_finalize_haswell(                               
     results->xmm = _mm_castps_si128(sum_f32x4);
 }
 
-#pragma endregion - Smaller Floats
+#pragma endregion F16 and BF16 Floats
 
-#pragma region - Small Integers
+#pragma region I8 and U8 Integers
 
 NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
@@ -1668,9 +1668,9 @@ NK_INTERNAL void nk_dot_u4x32_finalize_haswell(                                 
                                 _mm_add_epi32(product_lane2_i32x4, product_lane3_i32x4));
 }
 
-#pragma endregion - Small Integers
+#pragma endregion I8 and U8 Integers
 
-#pragma region - Binary
+#pragma region Binary
 
 NK_PUBLIC void nk_dot_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
@@ -1706,7 +1706,7 @@ NK_INTERNAL void nk_dot_u1x128_finalize_haswell( //
     result->u32s[3] = state_d->dot_count;
 }
 
-#pragma endregion - Binary
+#pragma endregion Binary
 
 #if defined(__clang__)
 #pragma clang attribute pop

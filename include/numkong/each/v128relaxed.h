@@ -32,7 +32,7 @@ extern "C" {
 #pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
 #endif
 
-#pragma region - F32
+#pragma region F32 Floats
 
 NK_PUBLIC void nk_each_sum_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
@@ -103,8 +103,8 @@ NK_PUBLIC void nk_each_fma_f32_v128relaxed(                  //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-#pragma endregion - F32
-#pragma region - F16
+#pragma endregion F32 Floats
+#pragma region F16 Floats
 
 NK_PUBLIC void nk_each_sum_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
     nk_size_t i = 0;
@@ -223,8 +223,8 @@ NK_PUBLIC void nk_each_fma_f16_v128relaxed(                  //
     }
 }
 
-#pragma endregion - F16
-#pragma region - BF16
+#pragma endregion F16 Floats
+#pragma region BF16 Floats
 
 NK_PUBLIC void nk_each_sum_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
     nk_size_t i = 0;
@@ -343,8 +343,8 @@ NK_PUBLIC void nk_each_fma_bf16_v128relaxed(                    //
     }
 }
 
-#pragma endregion - BF16
-#pragma region - I8
+#pragma endregion BF16 Floats
+#pragma region I8 Integers
 
 NK_PUBLIC void nk_each_sum_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result) {
     nk_size_t i = 0;
@@ -445,8 +445,8 @@ NK_PUBLIC void nk_each_fma_i8_v128relaxed(                //
     }
 }
 
-#pragma endregion - I8
-#pragma region - U8
+#pragma endregion I8 Integers
+#pragma region U8 Integers
 
 NK_PUBLIC void nk_each_sum_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result) {
     nk_size_t i = 0;
@@ -547,7 +547,7 @@ NK_PUBLIC void nk_each_fma_u8_v128relaxed(                //
     }
 }
 
-#pragma endregion - U8
+#pragma endregion U8 Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
