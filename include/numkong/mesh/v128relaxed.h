@@ -460,15 +460,15 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_v128relaxed_( //
 
     nk_f64_t sum_squared = nk_hsum_f64x2_v128relaxed_(wasm_f64x2_add(sum_squared_low_f64x2, sum_squared_high_f64x2));
     for (; index < n; ++index) {
-        nk_f64_t centered_a_x = (nk_f64_t)a[index * 3 + 0] - centroid_a_x;
-        nk_f64_t centered_a_y = (nk_f64_t)a[index * 3 + 1] - centroid_a_y;
-        nk_f64_t centered_a_z = (nk_f64_t)a[index * 3 + 2] - centroid_a_z;
-        nk_f64_t centered_b_x = (nk_f64_t)b[index * 3 + 0] - centroid_b_x;
-        nk_f64_t centered_b_y = (nk_f64_t)b[index * 3 + 1] - centroid_b_y;
-        nk_f64_t centered_b_z = (nk_f64_t)b[index * 3 + 2] - centroid_b_z;
-        nk_f64_t rotated_a_x = scale * (r[0] * centered_a_x + r[1] * centered_a_y + r[2] * centered_a_z);
-        nk_f64_t rotated_a_y = scale * (r[3] * centered_a_x + r[4] * centered_a_y + r[5] * centered_a_z);
-        nk_f64_t rotated_a_z = scale * (r[6] * centered_a_x + r[7] * centered_a_y + r[8] * centered_a_z);
+        nk_f64_t centered_a_x = (nk_f64_t)a[index * 3 + 0] - centroid_a_x,
+                 centered_a_y = (nk_f64_t)a[index * 3 + 1] - centroid_a_y,
+                 centered_a_z = (nk_f64_t)a[index * 3 + 2] - centroid_a_z;
+        nk_f64_t centered_b_x = (nk_f64_t)b[index * 3 + 0] - centroid_b_x,
+                 centered_b_y = (nk_f64_t)b[index * 3 + 1] - centroid_b_y,
+                 centered_b_z = (nk_f64_t)b[index * 3 + 2] - centroid_b_z;
+        nk_f64_t rotated_a_x = scale * (r[0] * centered_a_x + r[1] * centered_a_y + r[2] * centered_a_z),
+                 rotated_a_y = scale * (r[3] * centered_a_x + r[4] * centered_a_y + r[5] * centered_a_z),
+                 rotated_a_z = scale * (r[6] * centered_a_x + r[7] * centered_a_y + r[8] * centered_a_z);
         nk_f64_t delta_x = rotated_a_x - centered_b_x, delta_y = rotated_a_y - centered_b_y,
                  delta_z = rotated_a_z - centered_b_z;
         sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
@@ -546,20 +546,16 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_v128relaxed_(nk_f64_t const *a, nk_f
 
     // Scalar tail
     for (; j < n; ++j) {
-        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x;
-        nk_f64_t pa_y = a[j * 3 + 1] - centroid_a_y;
-        nk_f64_t pa_z = a[j * 3 + 2] - centroid_a_z;
-        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x;
-        nk_f64_t pb_y = b[j * 3 + 1] - centroid_b_y;
-        nk_f64_t pb_z = b[j * 3 + 2] - centroid_b_z;
+        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x, pa_y = a[j * 3 + 1] - centroid_a_y,
+                 pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x, pb_y = b[j * 3 + 1] - centroid_b_y,
+                 pb_z = b[j * 3 + 2] - centroid_b_z;
 
-        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
-        nk_f64_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
-        nk_f64_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z),
+                 ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z),
+                 ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
 
-        nk_f64_t delta_x = ra_x - pb_x;
-        nk_f64_t delta_y = ra_y - pb_y;
-        nk_f64_t delta_z = ra_z - pb_z;
+        nk_f64_t delta_x = ra_x - pb_x, delta_y = ra_y - pb_y, delta_z = ra_z - pb_z;
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_x);
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_y);
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_z);
@@ -570,11 +566,9 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_v128relaxed_(nk_f64_t const *a, nk_f
 
 NK_PUBLIC void nk_rmsd_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                        nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result) {
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0f;
 
     // Fused single-pass: accumulate centroids and squared differences simultaneously.
@@ -684,11 +678,9 @@ NK_PUBLIC void nk_rmsd_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_
 NK_PUBLIC void nk_rmsd_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                        nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result) {
     // RMSD uses identity rotation and scale=1.0
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0;
 
     v128_t const zeros_f64x2 = wasm_f64x2_splat(0);
@@ -804,9 +796,7 @@ NK_PUBLIC void nk_kabsch_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, n
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R.
     if (nk_det3x3_f64_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -818,9 +808,8 @@ NK_PUBLIC void nk_kabsch_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, n
         r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
     }
 
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = (nk_f32_t)r[j];
-    }
     if (scale) *scale = 1.0f;
 
     *result = nk_f64_sqrt_v128relaxed(nk_transformed_ssd_f32_v128relaxed_(a, b, n, r, 1.0, centroid_a_x, centroid_a_y,
@@ -946,9 +935,7 @@ NK_PUBLIC void nk_kabsch_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, n
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
     if (nk_det3x3_f64_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         nk_rotation_from_svd_f64_v128relaxed_(svd_u, svd_v, r);
     }
 
@@ -994,9 +981,7 @@ NK_PUBLIC void nk_umeyama_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, 
 
     nk_f64_t det = nk_det3x3_f64_(r);
     if (det < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -1154,9 +1139,7 @@ NK_PUBLIC void nk_umeyama_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, 
     nk_f64_t computed_scale = trace_d_s / (n * var_a);
 
     if (det < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         nk_rotation_from_svd_f64_v128relaxed_(svd_u, svd_v, r);
     }
 

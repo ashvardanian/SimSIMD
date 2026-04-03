@@ -697,11 +697,9 @@ NK_INTERNAL void nk_rotation_from_svd_f64_rvv_( //
 
 NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t points_count, nk_f32_t *a_centroid,
                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f64_t *result) {
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0f;
 
     // Fused single-pass: accumulate centroids and squared differences simultaneously.
@@ -786,11 +784,9 @@ NK_PUBLIC void nk_rmsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t p
 
 NK_PUBLIC void nk_rmsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t points_count, nk_f64_t *a_centroid,
                                nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result) {
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0;
 
     // Fused single-pass: accumulate centroids and squared differences simultaneously.

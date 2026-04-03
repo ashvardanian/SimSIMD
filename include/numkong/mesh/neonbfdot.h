@@ -263,11 +263,9 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_neonbfdot_(nk_bf16_t const *a, nk_b
 NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                       nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     // RMSD uses identity rotation and scale=1.0
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0f;
 
     float32x4_t const zeros_f32x4 = vdupq_n_f32(0);
@@ -343,16 +341,8 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f32_t centroid_b_y = total_by * inv_n;
     nk_f32_t centroid_b_z = total_bz * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -512,16 +502,8 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     nk_f32_t centroid_b_y = sum_b_y * inv_n;
     nk_f32_t centroid_b_z = sum_b_z * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     covariance_x_x -= n * centroid_a_x * centroid_b_x;
@@ -554,9 +536,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
     if (nk_det3x3_f32_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -569,9 +549,8 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     }
 
     // Output rotation matrix and scale=1.0
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
     if (scale) *scale = 1.0f;
 
     // Compute RMSD after optimal rotation
@@ -749,16 +728,8 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     nk_f32_t centroid_b_y = sum_b_y * inv_n;
     nk_f32_t centroid_b_z = sum_b_z * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute centered variance of A
     nk_f32_t variance_a = variance_a_sum * inv_n -
@@ -802,9 +773,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     if (scale) *scale = c;
 
     if (rotation_det < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -817,9 +786,8 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     }
 
     // Output rotation matrix
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
 
     // Compute RMSD after similarity transform: ‖c × R × a - b‖
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,

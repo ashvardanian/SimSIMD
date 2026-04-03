@@ -203,15 +203,15 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_haswell_(nk_f32_t const *a, nk_f32_t
 
     nk_f64_t sum_squared = nk_reduce_add_f64x4_haswell_(sum_squared_f64x4);
     for (; index < n; ++index) {
-        nk_f64_t centered_a_x = (nk_f64_t)a[index * 3 + 0] - centroid_a_x;
-        nk_f64_t centered_a_y = (nk_f64_t)a[index * 3 + 1] - centroid_a_y;
-        nk_f64_t centered_a_z = (nk_f64_t)a[index * 3 + 2] - centroid_a_z;
-        nk_f64_t centered_b_x = (nk_f64_t)b[index * 3 + 0] - centroid_b_x;
-        nk_f64_t centered_b_y = (nk_f64_t)b[index * 3 + 1] - centroid_b_y;
-        nk_f64_t centered_b_z = (nk_f64_t)b[index * 3 + 2] - centroid_b_z;
-        nk_f64_t rotated_a_x = scale * (r[0] * centered_a_x + r[1] * centered_a_y + r[2] * centered_a_z);
-        nk_f64_t rotated_a_y = scale * (r[3] * centered_a_x + r[4] * centered_a_y + r[5] * centered_a_z);
-        nk_f64_t rotated_a_z = scale * (r[6] * centered_a_x + r[7] * centered_a_y + r[8] * centered_a_z);
+        nk_f64_t centered_a_x = (nk_f64_t)a[index * 3 + 0] - centroid_a_x,
+                 centered_a_y = (nk_f64_t)a[index * 3 + 1] - centroid_a_y,
+                 centered_a_z = (nk_f64_t)a[index * 3 + 2] - centroid_a_z;
+        nk_f64_t centered_b_x = (nk_f64_t)b[index * 3 + 0] - centroid_b_x,
+                 centered_b_y = (nk_f64_t)b[index * 3 + 1] - centroid_b_y,
+                 centered_b_z = (nk_f64_t)b[index * 3 + 2] - centroid_b_z;
+        nk_f64_t rotated_a_x = scale * (r[0] * centered_a_x + r[1] * centered_a_y + r[2] * centered_a_z),
+                 rotated_a_y = scale * (r[3] * centered_a_x + r[4] * centered_a_y + r[5] * centered_a_z),
+                 rotated_a_z = scale * (r[6] * centered_a_x + r[7] * centered_a_y + r[8] * centered_a_z);
         nk_f64_t delta_x = rotated_a_x - centered_b_x, delta_y = rotated_a_y - centered_b_y,
                  delta_z = rotated_a_z - centered_b_z;
         sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
@@ -290,20 +290,15 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_haswell_(nk_f64_t const *a, nk_f64_t
 
     // Scalar tail
     for (; j < n; ++j) {
-        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x;
-        nk_f64_t pa_y = a[j * 3 + 1] - centroid_a_y;
-        nk_f64_t pa_z = a[j * 3 + 2] - centroid_a_z;
-        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x;
-        nk_f64_t pb_y = b[j * 3 + 1] - centroid_b_y;
-        nk_f64_t pb_z = b[j * 3 + 2] - centroid_b_z;
+        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x, pa_y = a[j * 3 + 1] - centroid_a_y,
+                 pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x, pb_y = b[j * 3 + 1] - centroid_b_y,
+                 pb_z = b[j * 3 + 2] - centroid_b_z;
+        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z),
+                 ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z),
+                 ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
 
-        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
-        nk_f64_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
-        nk_f64_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
-
-        nk_f64_t delta_x = ra_x - pb_x;
-        nk_f64_t delta_y = ra_y - pb_y;
-        nk_f64_t delta_z = ra_z - pb_z;
+        nk_f64_t delta_x = ra_x - pb_x, delta_y = ra_y - pb_y, delta_z = ra_z - pb_z;
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_x);
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_y);
         nk_accumulate_square_f64_(&sum_squared, &sum_squared_compensation, delta_z);
@@ -402,11 +397,9 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
 NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
                                    nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result) {
     // RMSD uses identity rotation and scale=1.0
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0;
     __m256d const zeros_f64x4 = _mm256_setzero_pd();
 
@@ -521,16 +514,8 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f64_t centroid_b_y = total_by * inv_n;
     nk_f64_t centroid_b_z = total_bz * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f64_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -775,16 +760,8 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     nk_f64_t centroid_b_y = sum_b_y * inv_n;
     nk_f64_t centroid_b_z = sum_b_z * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     covariance_x_x -= (nk_f64_t)n * centroid_a_x * centroid_b_x;
@@ -808,16 +785,13 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
     if (nk_det3x3_f64_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         nk_rotation_from_svd_f64_haswell_(svd_u, svd_v, r);
     }
 
     // Output rotation matrix and scale=1.0
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
     if (scale) *scale = 1.0;
 
     // Compute RMSD after optimal rotation
@@ -1116,9 +1090,8 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     }
 
     // Output rotation matrix
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
 
     // Compute RMSD with scaling
     nk_f64_t sum_squared = nk_transformed_ssd_f64_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
@@ -1247,20 +1220,13 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_haswell_(nk_f16_t const *a, nk_f16_t
         nk_f16_to_f32_haswell(&b[j * 3 + 1], &b_y_f32);
         nk_f16_to_f32_haswell(&b[j * 3 + 2], &b_z_f32);
 
-        nk_f32_t pa_x = a_x_f32 - centroid_a_x;
-        nk_f32_t pa_y = a_y_f32 - centroid_a_y;
-        nk_f32_t pa_z = a_z_f32 - centroid_a_z;
-        nk_f32_t pb_x = b_x_f32 - centroid_b_x;
-        nk_f32_t pb_y = b_y_f32 - centroid_b_y;
-        nk_f32_t pb_z = b_z_f32 - centroid_b_z;
+        nk_f32_t pa_x = a_x_f32 - centroid_a_x, pa_y = a_y_f32 - centroid_a_y, pa_z = a_z_f32 - centroid_a_z;
+        nk_f32_t pb_x = b_x_f32 - centroid_b_x, pb_y = b_y_f32 - centroid_b_y, pb_z = b_z_f32 - centroid_b_z;
+        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z),
+                 ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z),
+                 ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
 
-        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
-        nk_f32_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
-        nk_f32_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
-
-        nk_f32_t delta_x = ra_x - pb_x;
-        nk_f32_t delta_y = ra_y - pb_y;
-        nk_f32_t delta_z = ra_z - pb_z;
+        nk_f32_t delta_x = ra_x - pb_x, delta_y = ra_y - pb_y, delta_z = ra_z - pb_z;
         sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
     }
 
@@ -1344,20 +1310,13 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_haswell_(nk_bf16_t const *a, nk_bf1
         nk_bf16_to_f32_serial(&b[j * 3 + 1], &b_y_f32);
         nk_bf16_to_f32_serial(&b[j * 3 + 2], &b_z_f32);
 
-        nk_f32_t pa_x = a_x_f32 - centroid_a_x;
-        nk_f32_t pa_y = a_y_f32 - centroid_a_y;
-        nk_f32_t pa_z = a_z_f32 - centroid_a_z;
-        nk_f32_t pb_x = b_x_f32 - centroid_b_x;
-        nk_f32_t pb_y = b_y_f32 - centroid_b_y;
-        nk_f32_t pb_z = b_z_f32 - centroid_b_z;
+        nk_f32_t pa_x = a_x_f32 - centroid_a_x, pa_y = a_y_f32 - centroid_a_y, pa_z = a_z_f32 - centroid_a_z;
+        nk_f32_t pb_x = b_x_f32 - centroid_b_x, pb_y = b_y_f32 - centroid_b_y, pb_z = b_z_f32 - centroid_b_z;
+        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z),
+                 ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z),
+                 ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
 
-        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
-        nk_f32_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
-        nk_f32_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
-
-        nk_f32_t delta_x = ra_x - pb_x;
-        nk_f32_t delta_y = ra_y - pb_y;
-        nk_f32_t delta_z = ra_z - pb_z;
+        nk_f32_t delta_x = ra_x - pb_x, delta_y = ra_y - pb_y, delta_z = ra_z - pb_z;
         sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
     }
 
@@ -1367,11 +1326,9 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_haswell_(nk_bf16_t const *a, nk_bf1
 NK_PUBLIC void nk_rmsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     // RMSD uses identity rotation and scale=1.0
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0f;
 
     __m256 const zeros_f32x8 = _mm256_setzero_ps();
@@ -1446,16 +1403,8 @@ NK_PUBLIC void nk_rmsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
     nk_f32_t centroid_b_y = total_by * inv_n;
     nk_f32_t centroid_b_z = total_bz * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -1470,11 +1419,9 @@ NK_PUBLIC void nk_rmsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
 NK_PUBLIC void nk_rmsd_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                     nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     // RMSD uses identity rotation and scale=1.0
-    if (rotation) {
-        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;
-        rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;
+    if (rotation)
+        rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
-    }
     if (scale) *scale = 1.0f;
 
     __m256 const zeros_f32x8 = _mm256_setzero_ps();
@@ -1549,16 +1496,8 @@ NK_PUBLIC void nk_rmsd_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
     nk_f32_t centroid_b_y = total_by * inv_n;
     nk_f32_t centroid_b_z = total_bz * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -1638,21 +1577,11 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
         nk_f16_to_f32_haswell(&b[i * 3 + 0], &bx);
         nk_f16_to_f32_haswell(&b[i * 3 + 1], &by);
         nk_f16_to_f32_haswell(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        covariance_x_x += ax * bx;
-        covariance_x_y += ax * by;
-        covariance_x_z += ax * bz;
-        covariance_y_x += ay * bx;
-        covariance_y_y += ay * by;
-        covariance_y_z += ay * bz;
-        covariance_z_x += az * bx;
-        covariance_z_y += az * by;
-        covariance_z_z += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        covariance_x_x += ax * bx, covariance_x_y += ax * by, covariance_x_z += ax * bz;
+        covariance_y_x += ay * bx, covariance_y_y += ay * by, covariance_y_z += ay * bz;
+        covariance_z_x += az * bx, covariance_z_y += az * by, covariance_z_z += az * bz;
     }
 
     // Compute centroids
@@ -1664,16 +1593,8 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
     nk_f32_t centroid_b_y = sum_b_y * inv_n;
     nk_f32_t centroid_b_z = sum_b_z * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
@@ -1706,9 +1627,7 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
     if (nk_det3x3_f32_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -1721,9 +1640,8 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
     }
 
     // Output rotation matrix and scale=1.0
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
     if (scale) *scale = 1.0f;
 
     // Compute RMSD after optimal rotation
@@ -1800,21 +1718,11 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
         nk_bf16_to_f32_serial(&b[i * 3 + 0], &bx);
         nk_bf16_to_f32_serial(&b[i * 3 + 1], &by);
         nk_bf16_to_f32_serial(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        covariance_x_x += ax * bx;
-        covariance_x_y += ax * by;
-        covariance_x_z += ax * bz;
-        covariance_y_x += ay * bx;
-        covariance_y_y += ay * by;
-        covariance_y_z += ay * bz;
-        covariance_z_x += az * bx;
-        covariance_z_y += az * by;
-        covariance_z_z += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        covariance_x_x += ax * bx, covariance_x_y += ax * by, covariance_x_z += ax * bz;
+        covariance_y_x += ay * bx, covariance_y_y += ay * by, covariance_y_z += ay * bz;
+        covariance_z_x += az * bx, covariance_z_y += az * by, covariance_z_z += az * bz;
     }
 
     // Compute centroids
@@ -1826,16 +1734,8 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f32_t centroid_b_y = sum_b_y * inv_n;
     nk_f32_t centroid_b_z = sum_b_z * inv_n;
 
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     covariance_x_x -= (nk_f32_t)n * centroid_a_x * centroid_b_x;
@@ -1868,9 +1768,7 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
     if (nk_det3x3_f32_(r) < 0) {
-        svd_v[2] = -svd_v[2];
-        svd_v[5] = -svd_v[5];
-        svd_v[8] = -svd_v[8];
+        svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
         r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -1883,9 +1781,8 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
     }
 
     // Output rotation matrix and scale=1.0
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
     if (scale) *scale = 1.0f;
 
     // Compute RMSD after optimal rotation
@@ -1965,21 +1862,11 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
         nk_f16_to_f32_haswell(&b[i * 3 + 0], &bx);
         nk_f16_to_f32_haswell(&b[i * 3 + 1], &by);
         nk_f16_to_f32_haswell(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        covariance_x_x += ax * bx;
-        covariance_x_y += ax * by;
-        covariance_x_z += ax * bz;
-        covariance_y_x += ay * bx;
-        covariance_y_y += ay * by;
-        covariance_y_z += ay * bz;
-        covariance_z_x += az * bx;
-        covariance_z_y += az * by;
-        covariance_z_z += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        covariance_x_x += ax * bx, covariance_x_y += ax * by, covariance_x_z += ax * bz;
+        covariance_y_x += ay * bx, covariance_y_y += ay * by, covariance_y_z += ay * bz;
+        covariance_z_x += az * bx, covariance_z_y += az * by, covariance_z_z += az * bz;
         variance_a_sum += ax * ax + ay * ay + az * az;
     }
 
@@ -2047,9 +1934,8 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
     }
 
     // Output rotation matrix
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
 
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_f16_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
@@ -2128,21 +2014,11 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
         nk_bf16_to_f32_serial(&b[i * 3 + 0], &bx);
         nk_bf16_to_f32_serial(&b[i * 3 + 1], &by);
         nk_bf16_to_f32_serial(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        covariance_x_x += ax * bx;
-        covariance_x_y += ax * by;
-        covariance_x_z += ax * bz;
-        covariance_y_x += ay * bx;
-        covariance_y_y += ay * by;
-        covariance_y_z += ay * bz;
-        covariance_z_x += az * bx;
-        covariance_z_y += az * by;
-        covariance_z_z += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        covariance_x_x += ax * bx, covariance_x_y += ax * by, covariance_x_z += ax * bz;
+        covariance_y_x += ay * bx, covariance_y_y += ay * by, covariance_y_z += ay * bz;
+        covariance_z_x += az * bx, covariance_z_y += az * by, covariance_z_z += az * bz;
         variance_a_sum += ax * ax + ay * ay + az * az;
     }
 
@@ -2210,9 +2086,8 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
     }
 
     // Output rotation matrix
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
 
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
