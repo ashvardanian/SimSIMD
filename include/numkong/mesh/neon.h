@@ -1394,7 +1394,8 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
         nk_partial_deinterleave_f16_to_f32x4_neon_(a + j * 3, n - j, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
         nk_partial_deinterleave_f16_to_f32x4_neon_(b + j * 3, n - j, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t lane_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
+                                             vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
         uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)(n - j)));
         float32x4_t zero_f32x4 = vdupq_n_f32(0);
         a_x_f32x4 = vbslq_f32(valid_u32x4, a_x_f32x4, zero_f32x4);
