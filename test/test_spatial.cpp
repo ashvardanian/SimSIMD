@@ -411,6 +411,18 @@ void test_spatial() {
     check("sqeuclidean_i8_v128relaxed", test_sqeuclidean<i8_t>, nk_sqeuclidean_i8_v128relaxed);
     check("euclidean_i8_v128relaxed", test_euclidean<i8_t>, nk_euclidean_i8_v128relaxed);
     check("angular_i8_v128relaxed", test_angular<i8_t>, nk_angular_i8_v128relaxed);
+    check("sqeuclidean_e4m3_v128relaxed", test_sqeuclidean<e4m3_t>, nk_sqeuclidean_e4m3_v128relaxed);
+    check("euclidean_e4m3_v128relaxed", test_euclidean<e4m3_t>, nk_euclidean_e4m3_v128relaxed);
+    check("angular_e4m3_v128relaxed", test_angular<e4m3_t>, nk_angular_e4m3_v128relaxed);
+    check("sqeuclidean_e5m2_v128relaxed", test_sqeuclidean<e5m2_t>, nk_sqeuclidean_e5m2_v128relaxed);
+    check("euclidean_e5m2_v128relaxed", test_euclidean<e5m2_t>, nk_euclidean_e5m2_v128relaxed);
+    check("angular_e5m2_v128relaxed", test_angular<e5m2_t>, nk_angular_e5m2_v128relaxed);
+    check("sqeuclidean_e2m3_v128relaxed", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3_v128relaxed);
+    check("euclidean_e2m3_v128relaxed", test_euclidean<e2m3_t>, nk_euclidean_e2m3_v128relaxed);
+    check("angular_e2m3_v128relaxed", test_angular<e2m3_t>, nk_angular_e2m3_v128relaxed);
+    check("sqeuclidean_e3m2_v128relaxed", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2_v128relaxed);
+    check("euclidean_e3m2_v128relaxed", test_euclidean<e3m2_t>, nk_euclidean_e3m2_v128relaxed);
+    check("angular_e3m2_v128relaxed", test_angular<e3m2_t>, nk_angular_e3m2_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF

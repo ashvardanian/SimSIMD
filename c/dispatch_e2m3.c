@@ -15,6 +15,9 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_V128RELAXED
     if (v & nk_cap_v128relaxed_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_reduce_moments_k:
             *m = (m_t)&nk_reduce_moments_e2m3_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;

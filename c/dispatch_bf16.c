@@ -44,6 +44,10 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             return;
         case nk_kernel_maxsim_pack_k: *m = (m_t)&nk_maxsim_pack_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_maxsim_packed_k: *m = (m_t)&nk_maxsim_packed_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif

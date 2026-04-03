@@ -34,6 +34,10 @@ void nk_dispatch_i8_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_euclideans_symmetric_k:
             *m = (m_t)&nk_euclideans_symmetric_i8_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_i8_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif

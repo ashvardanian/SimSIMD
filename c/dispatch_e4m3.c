@@ -15,6 +15,9 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
             return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_dots_packed_size_k:
             *m = (m_t)&nk_dots_packed_size_e4m3_v128relaxed, *c = nk_cap_v128relaxed_k;
             return;

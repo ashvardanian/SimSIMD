@@ -21,6 +21,9 @@ NK_INTERNAL void nk_load_b32_serial_(void const *src, nk_b32_vec_t *dst) { dst->
 /** @brief Type-agnostic 32-bit full store (scalar). */
 NK_INTERNAL void nk_store_b32_serial_(nk_b32_vec_t const *src, void *dst) { *(nk_u32_t *)dst = src->u32; }
 
+/** @brief Type-agnostic 64-bit full store (scalar). */
+NK_INTERNAL void nk_store_b64_serial_(nk_b64_vec_t const *src, void *dst) { *(nk_u64_t *)dst = src->u64; }
+
 /** @brief Type-agnostic 128-bit store (serial, word-by-word). */
 NK_INTERNAL void nk_store_b128_serial_(nk_b128_vec_t const *src, void *dst) {
     nk_u64_t *d = (nk_u64_t *)dst;
