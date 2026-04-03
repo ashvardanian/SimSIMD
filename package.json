@@ -94,11 +94,11 @@
     "printWidth": 120
   },
   "optionalDependencies": {
-    "@numkong/darwin-arm64": "7.2.0",
-    "@numkong/darwin-x64": "7.2.0",
-    "@numkong/linux-arm64": "7.2.0",
-    "@numkong/linux-x64": "7.2.0",
-    "@numkong/win32-arm64": "7.2.0",
-    "@numkong/win32-x64": "7.2.0"
+    "@numkong/darwin-arm64": "7.3.0",
+    "@numkong/darwin-x64": "7.3.0",
+    "@numkong/linux-arm64": "7.3.0",
+    "@numkong/linux-x64": "7.3.0",
+    "@numkong/win32-arm64": "7.3.0",
+    "@numkong/win32-x64": "7.3.0"
   }
 }

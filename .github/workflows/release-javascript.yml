@@ -211,6 +211,9 @@ jobs:
           name: wasm-bundle
           path: wasm
 
+      - name: Install Build Tools
+        run: sudo apt-get install -y cmake build-essential
+
       - name: Install Node.js Dependencies
         uses: nick-fields/retry@v4
         with:
@@ -218,6 +221,12 @@ jobs:
           retry_wait_seconds: 10
           timeout_minutes: 120
           command: npm install --ignore-scripts
+
+      - name: Probe ISA Capabilities
+        run: node probes/probe.js
+
+      - name: Build Native Addon
+        run: npx node-gyp rebuild
 
       - name: Build JavaScript from TypeScript
         run: npm run build-js
