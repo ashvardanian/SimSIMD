@@ -1802,6 +1802,64 @@ bool for_each_axis_lane_(tensor_view<value_type_, max_rank_> input, std::size_t 
     return true;
 }
 
+/** @brief Count trailing dimensions that are contiguous across all stride arrays.
+ *  Returns how many rightmost dims can be collapsed into a single contiguous slice. */
+template <typename value_type_, std::size_t max_rank_>
+std::size_t shared_contiguous_tail_dims_(std::size_t rank, std::size_t const *extents,
+                                         std::initializer_list<std::ptrdiff_t const *> all_strides) noexcept {
+    if constexpr (dimensions_per_value<value_type_>() > 1) return 0;
+    std::size_t tail = 0;
+    for (std::size_t i = rank; i > 0; --i) {
+        auto dim = i - 1;
+        auto expected = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+        for (std::size_t d = rank; d > dim + 1; --d) expected *= static_cast<std::ptrdiff_t>(extents[d - 1]);
+        bool all_match = true;
+        for (auto const *strides : all_strides) {
+            if (strides[dim] != expected) {
+                all_match = false;
+                break;
+            }
+        }
+        if (!all_match) break;
+        ++tail;
+    }
+    return tail;
+}
+
+/** @brief Collapse contiguous trailing dimensions of a tensor_view into one. */
+template <typename value_type_, std::size_t max_rank_>
+tensor_view<value_type_, max_rank_> collapse_contiguous_tail_(tensor_view<value_type_, max_rank_> input,
+                                                              std::size_t tail_dims) noexcept {
+    shape_storage_<max_rank_> s;
+    s.rank = input.rank() - tail_dims + 1;
+    for (std::size_t i = 0; i + tail_dims < input.rank(); ++i) {
+        s.extents[i] = input.extent(i);
+        s.strides[i] = input.stride_bytes(i);
+    }
+    std::size_t product = 1;
+    for (std::size_t i = input.rank() - tail_dims; i < input.rank(); ++i) product *= input.extent(i);
+    s.extents[s.rank - 1] = product;
+    s.strides[s.rank - 1] = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    return {input.byte_data(), s};
+}
+
+/** @brief Collapse contiguous trailing dimensions of a tensor_span into one. */
+template <typename value_type_, std::size_t max_rank_>
+tensor_span<value_type_, max_rank_> collapse_contiguous_tail_(tensor_span<value_type_, max_rank_> input,
+                                                              std::size_t tail_dims) noexcept {
+    shape_storage_<max_rank_> s;
+    s.rank = input.rank() - tail_dims + 1;
+    for (std::size_t i = 0; i + tail_dims < input.rank(); ++i) {
+        s.extents[i] = input.extent(i);
+        s.strides[i] = input.stride_bytes(i);
+    }
+    std::size_t product = 1;
+    for (std::size_t i = input.rank() - tail_dims; i < input.rank(); ++i) product *= input.extent(i);
+    s.extents[s.rank - 1] = product;
+    s.strides[s.rank - 1] = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    return {input.byte_data(), s};
+}
+
 /** @brief Unary elementwise traversal: validates shapes, recurses on rank≥2, calls leaf on rank-1 slices. */
 template <typename value_type_, std::size_t max_rank_, typename leaf_fn_>
 bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output,
@@ -1810,6 +1868,12 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> input, tensor_span<va
         return false;
     if (input.empty()) return true;
     if (input.rank() >= 2) {
+        auto tail = shared_contiguous_tail_dims_<value_type_, max_rank_>(
+            input.rank(), input.shape().extents, {input.shape().strides, output.shape().strides});
+        if (tail >= 2)
+            return elementwise_into_<value_type_, max_rank_>(collapse_contiguous_tail_(input, tail),
+                                                             collapse_contiguous_tail_(output, tail),
+                                                             std::forward<leaf_fn_>(leaf));
         for (std::size_t i = 0; i < input.extent(0); ++i) {
             auto idx = static_cast<std::ptrdiff_t>(i);
             if (!elementwise_into_<value_type_, max_rank_>(input.slice_leading(idx), output.slice_leading(idx), leaf))
@@ -1831,6 +1895,12 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> lhs, tensor_view<valu
         return false;
     if (lhs.empty()) return true;
     if (lhs.rank() >= 2) {
+        auto tail = shared_contiguous_tail_dims_<value_type_, max_rank_>(
+            lhs.rank(), lhs.shape().extents, {lhs.shape().strides, rhs.shape().strides, output.shape().strides});
+        if (tail >= 2)
+            return elementwise_into_<value_type_, max_rank_>(
+                collapse_contiguous_tail_(lhs, tail), collapse_contiguous_tail_(rhs, tail),
+                collapse_contiguous_tail_(output, tail), std::forward<leaf_fn_>(leaf));
         for (std::size_t i = 0; i < lhs.extent(0); ++i) {
             auto idx = static_cast<std::ptrdiff_t>(i);
             if (!elementwise_into_<value_type_, max_rank_>(lhs.slice_leading(idx), rhs.slice_leading(idx),
@@ -1856,6 +1926,14 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_
         return false;
     if (a.empty()) return true;
     if (a.rank() >= 2) {
+        auto tail = shared_contiguous_tail_dims_<value_type_, max_rank_>(
+            a.rank(), a.shape().extents,
+            {a.shape().strides, b.shape().strides, c.shape().strides, output.shape().strides});
+        if (tail >= 2)
+            return elementwise_into_<value_type_, max_rank_>(
+                collapse_contiguous_tail_(a, tail), collapse_contiguous_tail_(b, tail),
+                collapse_contiguous_tail_(c, tail), collapse_contiguous_tail_(output, tail),
+                std::forward<leaf_fn_>(leaf));
         for (std::size_t i = 0; i < a.extent(0); ++i) {
             auto idx = static_cast<std::ptrdiff_t>(i);
             if (!elementwise_into_<value_type_, max_rank_>(a.slice_leading(idx), b.slice_leading(idx),

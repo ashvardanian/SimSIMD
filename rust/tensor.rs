@@ -4595,6 +4595,39 @@ fn for_each_axis_lane<T, const MAX_RANK: usize, F>(
     }
 }
 
+/// Detect trailing dimensions where `stride[i] == stride[i+1] * shape[i+1]`.
+/// Returns `(tail_dims, element_count, abs_stride_bytes)`.
+fn uniform_stride_tail(shape: &[usize], strides: &[isize]) -> (usize, usize, usize) {
+    let rank = shape.len();
+    if rank == 0 {
+        return (0, 1, 0);
+    }
+    let mut tail: usize = 1;
+    let innermost = strides[rank - 1];
+    let mut abs_expected = if innermost < 0 {
+        -innermost
+    } else {
+        innermost
+    };
+    for i in (0..rank - 1).rev() {
+        let next = abs_expected * shape[i + 1] as isize;
+        let actual = strides[i];
+        let abs_actual = if actual < 0 { -actual } else { actual };
+        if abs_actual != next {
+            break;
+        }
+        abs_expected = next;
+        tail += 1;
+    }
+    let count: usize = shape[rank - tail..].iter().product();
+    let abs_stride = if innermost < 0 {
+        (-innermost) as usize
+    } else {
+        innermost as usize
+    };
+    (tail, count, abs_stride)
+}
+
 unsafe fn normalize_reduction_lane<T>(
     lane_ptr: *const T,
     lane_len: usize,
@@ -5653,6 +5686,25 @@ where
     T::SumSqOutput: Clone + Default + core::ops::AddAssign + SumSqToF64,
 {
     pub fn try_moments_all(&self) -> Result<(T::SumOutput, T::SumSqOutput), TensorError> {
+        let (tail_dims, count, stride) =
+            uniform_stride_tail(self.shape(), &self.strides[..self.ndim]);
+        if tail_dims == self.ndim {
+            let (ptr, count, stride, _) =
+                unsafe { normalize_reduction_lane(self.data, count, stride as isize) };
+            return Ok(unsafe { T::reduce_moments_raw(ptr, count, stride) });
+        }
+        if tail_dims >= 2 {
+            let new_rank = self.ndim - tail_dims + 1;
+            let mut cshape = [0usize; MAX_RANK];
+            let mut cstrides = [0isize; MAX_RANK];
+            cshape[..new_rank - 1].copy_from_slice(&self.shape[..new_rank - 1]);
+            cstrides[..new_rank - 1].copy_from_slice(&self.strides[..new_rank - 1]);
+            cshape[new_rank - 1] = count;
+            cstrides[new_rank - 1] = self.strides[self.ndim - 1];
+            return Ok(unsafe {
+                reduce_moments_recursive::<T>(self.data, &cshape[..new_rank], &cstrides[..new_rank])
+            });
+        }
         Ok(unsafe {
             reduce_moments_recursive::<T>(self.data, self.shape(), &self.strides[..self.ndim])
         })
@@ -5795,6 +5847,44 @@ where
     T::Output: Clone + Default + PartialOrd,
 {
     pub fn try_minmax_all(&self) -> Result<MinMaxResult<T::Output>, TensorError> {
+        let (tail_dims, count, stride) =
+            uniform_stride_tail(self.shape(), &self.strides[..self.ndim]);
+        if tail_dims == self.ndim && count > 0 {
+            let innermost_stride = self.strides[self.ndim - 1];
+            let (ptr, count, stride, reversed) =
+                unsafe { normalize_reduction_lane(self.data, count, innermost_stride) };
+            if let Some((min_value, mut min_index, max_value, mut max_index)) =
+                unsafe { T::reduce_minmax_raw(ptr, count, stride) }
+            {
+                if reversed {
+                    min_index = count - 1 - min_index;
+                    max_index = count - 1 - max_index;
+                }
+                return Ok(MinMaxResult {
+                    min_value,
+                    min_index,
+                    max_value,
+                    max_index,
+                });
+            }
+        }
+        if tail_dims >= 2 {
+            let new_rank = self.ndim - tail_dims + 1;
+            let mut cshape = [0usize; MAX_RANK];
+            let mut cstrides = [0isize; MAX_RANK];
+            cshape[..new_rank - 1].copy_from_slice(&self.shape[..new_rank - 1]);
+            cstrides[..new_rank - 1].copy_from_slice(&self.strides[..new_rank - 1]);
+            cshape[new_rank - 1] = count;
+            cstrides[new_rank - 1] = self.strides[self.ndim - 1];
+            return unsafe {
+                reduce_minmax_recursive::<T>(self.data, &cshape[..new_rank], &cstrides[..new_rank], 0)
+            }
+            .ok_or(TensorError::InvalidShape {
+                axis: 0,
+                size: self.numel(),
+                reason: "min/max reduction undefined for empty or NaN-only input",
+            });
+        }
         unsafe {
             reduce_minmax_recursive::<T>(self.data, self.shape(), &self.strides[..self.ndim], 0)
         }
