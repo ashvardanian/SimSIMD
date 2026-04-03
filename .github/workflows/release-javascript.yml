@@ -40,6 +40,11 @@ jobs:
             cc: cl.exe
             cxx: cl.exe
             node-gyp-args: ""
+          - platform: win32-arm64
+            os: windows-latest
+            cc: cl.exe
+            cxx: cl.exe
+            node-gyp-args: "--arch=arm64"
     runs-on: ${{ matrix.os }}
     env:
       CC: ${{ matrix.cc }}
