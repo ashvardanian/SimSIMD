@@ -65,8 +65,9 @@ NK_PUBLIC void nk_maxsim_pack_f32_icelake( //
     for (nk_size_t vector_index = 0; vector_index < vector_count; vector_index++) {
         char const *source_row = (char const *)vectors + vector_index * stride_in_bytes;
         nk_f32_t norm_sq;
-        nk_maxsim_quantize_vector_(source_row, element_bytes, depth, depth_i8_padded, 127.0f, nk_f32_to_f32_,
-                                   &quantized_i8[vector_index * depth_i8_padded], &metadata[vector_index], &norm_sq);
+        nk_maxsim_quantize_vector_powlog_(source_row, element_bytes, depth, depth_i8_padded, 127.0f, nk_f32_to_f32_,
+                                          &quantized_i8[vector_index * depth_i8_padded], &metadata[vector_index],
+                                          &norm_sq);
         metadata[vector_index].inverse_norm_f32 = norm_sq > 0.0f ? (1.0f / nk_f32_sqrt_haswell(norm_sq)) : 0.0f;
         char *destination_original = originals + vector_index * original_stride;
         nk_copy_bytes_(destination_original, source_row, depth * element_bytes);

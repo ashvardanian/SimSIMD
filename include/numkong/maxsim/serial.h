@@ -158,6 +158,92 @@ NK_INTERNAL void nk_maxsim_quantize_vector_(                             //
 }
 
 /**
+ *  @brief Power-stretch exponent quantization of a single vector to i8.
+ *  Same signature as nk_maxsim_quantize_vector_ → drop-in replacement.
+ *  Raises |v| to the 16th power via repeated squaring (4 multiplications),
+ *  then extracts the IEEE 754 biased exponent as a hardware-accelerated
+ *  floor(16 * log₂|v|). Maps the exponent range linearly to i8 bins.
+ *  No log() calls — the float representation IS the logarithmic quantizer.
+ */
+NK_INTERNAL void nk_maxsim_quantize_vector_powlog_(                      //
+    void const *source_vector, nk_size_t element_bytes, nk_size_t depth, //
+    nk_size_t depth_i8_padded, nk_f32_t scale_limit,                     //
+    nk_maxsim_to_f32_t convert_to_f32,                                   //
+    nk_i8_t *destination_i8, nk_maxsim_vector_metadata_t *metadata,      //
+    nk_f32_t *norm_squared_ptr) {
+
+    char const *source_bytes = (char const *)source_vector;
+
+    // Pass 1: Stretch |v|^16, extract exponents, find range, compute norm_squared
+    nk_f32_t norm_squared_f32 = 0.0f;
+    nk_u32_t exp_min = 255, exp_max = 0;
+    for (nk_size_t dim_index = 0; dim_index < depth; dim_index++) {
+        nk_f32_t value_f32;
+        convert_to_f32(source_bytes + dim_index * element_bytes, &value_f32);
+        norm_squared_f32 += value_f32 * value_f32;
+
+        nk_f32_t abs_value = nk_f32_abs_(value_f32);
+        if (abs_value == 0.0f) continue;
+
+        nk_f32_t v2 = abs_value * abs_value;
+        nk_f32_t v4 = v2 * v2;
+        nk_f32_t v8 = v4 * v4;
+        nk_f32_t v16 = v8 * v8;
+
+        nk_fui32_t bits;
+        bits.f = v16;
+        nk_u32_t biased_exp = (bits.u >> 23) & 0xFFu;
+        if (biased_exp > 0 && biased_exp < 255) {
+            if (biased_exp < exp_min) exp_min = biased_exp;
+            if (biased_exp > exp_max) exp_max = biased_exp;
+        }
+    }
+
+    nk_f32_t exp_range = (nk_f32_t)(exp_max - exp_min);
+    nk_f32_t inv_exp_range = exp_range > 0.0f ? (1.0f / exp_range) : 0.0f;
+
+    // Pass 2: Map exponent to i8 with original sign
+    nk_i32_t sum_quantized_i32 = 0;
+    for (nk_size_t dim_index = 0; dim_index < depth; dim_index++) {
+        nk_f32_t value_f32;
+        convert_to_f32(source_bytes + dim_index * element_bytes, &value_f32);
+        nk_f32_t abs_value = nk_f32_abs_(value_f32);
+
+        nk_i32_t quantized_value;
+        if (abs_value == 0.0f) { quantized_value = 0; }
+        else {
+            nk_f32_t v2 = abs_value * abs_value;
+            nk_f32_t v4 = v2 * v2;
+            nk_f32_t v8 = v4 * v4;
+            nk_f32_t v16 = v8 * v8;
+
+            nk_fui32_t bits;
+            bits.f = v16;
+            nk_u32_t biased_exp = (bits.u >> 23) & 0xFFu;
+
+            nk_f32_t normalized;
+            if (biased_exp == 0 || biased_exp >= 255) normalized = 0.0f;
+            else normalized = (nk_f32_t)(biased_exp - exp_min) * inv_exp_range;
+
+            nk_f32_t scaled = normalized * scale_limit;
+            if (value_f32 >= 0.0f) quantized_value = (nk_i32_t)(scaled + 0.5f);
+            else quantized_value = -(nk_i32_t)(scaled + 0.5f);
+            if (quantized_value > (nk_i32_t)scale_limit) quantized_value = (nk_i32_t)scale_limit;
+            if (quantized_value < -(nk_i32_t)scale_limit) quantized_value = -(nk_i32_t)scale_limit;
+        }
+
+        destination_i8[dim_index] = (nk_i8_t)quantized_value;
+        sum_quantized_i32 += quantized_value;
+    }
+
+    for (nk_size_t dim_index = depth; dim_index < depth_i8_padded; dim_index++) destination_i8[dim_index] = 0;
+
+    metadata->scale_f32 = (nk_f32_t)exp_range;
+    metadata->sum_i8_i32 = sum_quantized_i32;
+    *norm_squared_ptr = norm_squared_f32;
+}
+
+/**
  *  @brief Region pointers extracted from two packed buffers.
  *  Eliminates ~15 lines of boilerplate per compute function.
  */
