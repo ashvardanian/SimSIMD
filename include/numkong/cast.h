@@ -150,6 +150,20 @@ NK_PUBLIC void nk_f32_to_f16_sapphire(nk_f32_t const *src, nk_f16_t *dest);
 NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_RVV
 
+#if NK_TARGET_POWERVSX
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_powervsx(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_f16_to_f32 */
+NK_PUBLIC void nk_f16_to_f32_powervsx(nk_f16_t const *src, nk_f32_t *dest);
+/** @copydoc nk_f32_to_f16 */
+NK_PUBLIC void nk_f32_to_f16_powervsx(nk_f32_t const *src, nk_f16_t *dest);
+#endif // NK_TARGET_POWERVSX
+
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_v128relaxed(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+#endif // NK_TARGET_V128RELAXED
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
@@ -185,6 +199,8 @@ NK_PUBLIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void
     nk_cast_rvv(from, from_type, n, to, to_type);
 #elif NK_TARGET_NEON
     nk_cast_neon(from, from_type, n, to, to_type);
+#elif NK_TARGET_V128RELAXED
+    nk_cast_v128relaxed(from, from_type, n, to, to_type);
 #else
     nk_cast_serial(from, from_type, n, to, to_type);
 #endif
@@ -195,6 +211,8 @@ NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) {
     nk_f16_to_f32_sapphire(src, dest);
 #elif NK_TARGET_HASWELL
     nk_f16_to_f32_haswell(src, dest);
+#elif NK_TARGET_POWERVSX
+    nk_f16_to_f32_powervsx(src, dest);
 #elif NK_TARGET_NEON
     nk_f16_to_f32_neon(src, dest);
 #else
@@ -207,6 +225,8 @@ NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) {
     nk_f32_to_f16_sapphire(src, dest);
 #elif NK_TARGET_HASWELL
     nk_f32_to_f16_haswell(src, dest);
+#elif NK_TARGET_POWERVSX
+    nk_f32_to_f16_powervsx(src, dest);
 #elif NK_TARGET_NEON
     nk_f32_to_f16_neon(src, dest);
 #else

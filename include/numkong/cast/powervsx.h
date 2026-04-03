@@ -90,55 +90,43 @@ extern "C" {
 #pragma GCC target("power9-vector")
 #endif
 
-/** @brief Convert scalar f16 → f32 via POWER9 inline asm (lxsihzx + xscvhpdp). */
+/** @brief Convert scalar f16 → f32 via POWER9 vector path (xvcvhpsp). */
 NK_PUBLIC void nk_f16_to_f32_powervsx(nk_f16_t const *source, nk_f32_t *destination) {
-    nk_f64_t temporary_f64;
-    __asm__ __volatile__("lxsihzx %x0, 0, %1" : "=wa"(temporary_f64) : "r"(source));
-    __asm__ __volatile__("xscvhpdp %x0, %x0" : "+wa"(temporary_f64));
-    *destination = (nk_f32_t)temporary_f64;
+    nk_vu16x8_t values_u16x8 = (nk_vu16x8_t)vec_xl_len((nk_u8_t *)source, 2);
+    *destination = vec_extract(vec_extract_fp32_from_shorth(values_u16x8), 0);
 }
 
-/** @brief Convert scalar f32 → f16 via POWER9 inline asm (xscvdphp + stxsihx). */
+/** @brief Convert scalar f32 → f16 via POWER9 vector path (xvcvsphp). */
 NK_PUBLIC void nk_f32_to_f16_powervsx(nk_f32_t const *source, nk_f16_t *destination) {
-    nk_f64_t temporary_f64 = (nk_f64_t)*source;
-    __asm__ __volatile__("xscvdphp %x0, %x0" : "+wa"(temporary_f64));
-    __asm__ __volatile__("stxsihx %x0, 0, %1" : : "wa"(temporary_f64), "r"(destination) : "memory");
+    nk_vu16x8_t packed_u16x8 = vec_pack_to_short_fp32(vec_splats(*source), vec_splats(*source));
+    *destination = vec_extract(packed_u16x8, 0);
 }
 
 /** @brief Type-agnostic 128-bit full load (Power VSX). */
 NK_INTERNAL void nk_load_b128_powervsx_(void const *source, nk_b128_vec_t *destination) {
-    nk_vu8x16_t loaded_vu8x16 = vec_xl(0, (nk_u8_t const *)source);
-    nk_copy_bytes_(destination, &loaded_vu8x16, 16);
+    destination->vu8x16 = vec_xl(0, (nk_u8_t const *)source);
 }
 
 /** @brief Type-agnostic 256-bit full load (Power VSX). */
 NK_INTERNAL void nk_load_b256_powervsx_(void const *source, nk_b256_vec_t *destination) {
-    nk_vu8x16_t low_vu8x16 = vec_xl(0, (nk_u8_t const *)source);
-    nk_vu8x16_t high_vu8x16 = vec_xl(16, (nk_u8_t const *)source);
-    nk_copy_bytes_(destination->u8s, &low_vu8x16, 16);
-    nk_copy_bytes_(destination->u8s + 16, &high_vu8x16, 16);
+    destination->vu8x16s[0] = vec_xl(0, (nk_u8_t const *)source);
+    destination->vu8x16s[1] = vec_xl(16, (nk_u8_t const *)source);
 }
 
 /** @brief Type-agnostic 128-bit full store (Power VSX). */
 NK_INTERNAL void nk_store_b128_powervsx_(nk_b128_vec_t const *source, void *destination) {
-    nk_vu8x16_t value_vu8x16;
-    nk_copy_bytes_(&value_vu8x16, source, 16);
-    vec_xst(value_vu8x16, 0, (nk_u8_t *)destination);
+    vec_xst(source->vu8x16, 0, (nk_u8_t *)destination);
 }
 
 /** @brief Type-agnostic 256-bit full store (Power VSX). */
 NK_INTERNAL void nk_store_b256_powervsx_(nk_b256_vec_t const *source, void *destination) {
-    nk_vu8x16_t low_vu8x16;
-    nk_vu8x16_t high_vu8x16;
-    nk_copy_bytes_(&low_vu8x16, source->u8s, 16);
-    nk_copy_bytes_(&high_vu8x16, source->u8s + 16, 16);
-    vec_xst(low_vu8x16, 0, (nk_u8_t *)destination);
-    vec_xst(high_vu8x16, 16, (nk_u8_t *)destination);
+    vec_xst(source->vu8x16s[0], 0, (nk_u8_t *)destination);
+    vec_xst(source->vu8x16s[1], 16, (nk_u8_t *)destination);
 }
 
-/** @brief Type-agnostic 64-bit load (Power VSX). Uses memcpy for sub-vector size. */
+/** @brief Type-agnostic 64-bit load (Power VSX). */
 NK_INTERNAL void nk_load_b64_powervsx_(void const *source, nk_b64_vec_t *destination) {
-    nk_copy_bytes_(destination, source, 8);
+    destination->u64 = *(nk_u64_t const *)source;
 }
 
 /** @brief Partial load for 64-bit elements (n elements, max 4) into 256-bit vector.
@@ -204,6 +192,15 @@ NK_INTERNAL nk_vf32x4_t nk_f16x4_to_f32x4_powervsx_(nk_f16_t const *source) {
     return vec_extract_fp32_from_shorth(values_u16x8);
 }
 
+/** @brief Convert f32x4 → 4x f16 via POWER9 hardware (xvcvsphp, 1 instruction!).
+ *  Uses `vec_pack_to_short_fp32` to pack 4 f32 values into 4 f16 values. */
+NK_INTERNAL nk_b64_vec_t nk_f32x4_to_f16x4_powervsx_(nk_vf32x4_t values_f32x4) {
+    nk_vu16x8_t packed_u16x8 = vec_pack_to_short_fp32(values_f32x4, values_f32x4);
+    nk_b64_vec_t result_vec;
+    result_vec.u64 = vec_extract((nk_vu64x2_t)packed_u16x8, 0);
+    return result_vec;
+}
+
 /** @brief Convert 4x bf16 → f32x4 via branchless bit manipulation (Power VSX).
  *  BF16 format: upper 16 bits of f32. Conversion is zero-extend via vec_mergeh, reinterpret. */
 NK_INTERNAL nk_vf32x4_t nk_bf16x4_to_f32x4_powervsx_(nk_bf16_t const *source) {
@@ -213,10 +210,11 @@ NK_INTERNAL nk_vf32x4_t nk_bf16x4_to_f32x4_powervsx_(nk_bf16_t const *source) {
     return (nk_vf32x4_t)bits_u32x4;
 }
 
-/** @brief Convert f32x4 → 4x bf16 with RNE rounding (Power VSX).
+/** @brief Convert f32x4 → bf16 packed in u16x8 with RNE rounding (Power VSX).
  *  Round-to-nearest-even: add (0x7FFF + lsb) before truncation.
- *  Uses vec_sr by 16, then vec_pack to narrow u32x4 → u16x8. */
-NK_INTERNAL void nk_f32x4_to_bf16x4_powervsx_(nk_vf32x4_t values_f32x4, nk_bf16_t *destination) {
+ *  Uses vec_sr by 16, then vec_pack to narrow u32x4 → u16x8.
+ *  Result is in low 4 lanes of the returned u16x8. */
+NK_INTERNAL nk_vu16x8_t nk_f32x4_to_bf16_pack_powervsx_(nk_vf32x4_t values_f32x4) {
     nk_vu32x4_t shift_u32x4 = vec_splats((nk_u32_t)16);
     nk_vu32x4_t one_u32x4 = vec_splats((nk_u32_t)1);
     nk_vu32x4_t rounding_base_u32x4 = vec_splats((nk_u32_t)0x7FFF);
@@ -227,15 +225,15 @@ NK_INTERNAL void nk_f32x4_to_bf16x4_powervsx_(nk_vf32x4_t values_f32x4, nk_bf16_
     nk_vu32x4_t lsb_u32x4 = vec_and(vec_sr(bits_u32x4, shift_u32x4), one_u32x4);
     nk_vu32x4_t rounding_u32x4 = vec_add(rounding_base_u32x4, lsb_u32x4);
     bits_u32x4 = vec_add(bits_u32x4, rounding_u32x4);
-
-    // Shift right by 16 to get bf16 bits in low 16 bits of each u32
     bits_u32x4 = vec_sr(bits_u32x4, shift_u32x4);
+    return vec_pack(bits_u32x4, bits_u32x4);
+}
 
-    // Pack u32x4 → u16x8 (modular narrowing), store low 4 elements (8 bytes)
-    nk_vu16x8_t packed_u16x8 = vec_pack(bits_u32x4, bits_u32x4);
-    nk_u16_t buffer[8];
-    vec_xst(packed_u16x8, 0, buffer);
-    nk_copy_bytes_(destination, buffer, 8);
+/** @brief Convert f32x4 → 4x bf16 with RNE rounding (Power VSX). Returns nk_b64_vec_t. */
+NK_INTERNAL nk_b64_vec_t nk_f32x4_to_bf16x4_powervsx_(nk_vf32x4_t values_f32x4) {
+    nk_b64_vec_t result_vec;
+    result_vec.u64 = vec_extract((nk_vu64x2_t)nk_f32x4_to_bf16_pack_powervsx_(values_f32x4), 0);
+    return result_vec;
 }
 
 /** @brief Convert 4x i16 → f32x4 (Power VSX). Sign-extend via vec_unpackh, then vec_ctf. */
@@ -273,72 +271,72 @@ NK_INTERNAL nk_vf32x4_t nk_u8x4_to_f32x4_powervsx_(void const *source) {
 
 /** @brief Convert f32x4 → 4x i16 with vector saturation (Power VSX).
  *  Uses vec_cts + vec_min/vec_max for clamping, then vec_packs to narrow. */
-NK_INTERNAL void nk_f32x4_to_i16x4_powervsx_(nk_vf32x4_t values_f32x4, nk_i16_t *destination) {
+NK_INTERNAL nk_b64_vec_t nk_f32x4_to_i16x4_powervsx_(nk_vf32x4_t values_f32x4) {
     nk_vi32x4_t min_i32x4 = vec_splats((nk_i32_t)-32768);
     nk_vi32x4_t max_i32x4 = vec_splats((nk_i32_t)32767);
 
-    nk_vi32x4_t values_i32x4 = vec_cts(values_f32x4, 0);
+    nk_vi32x4_t values_i32x4 = vec_cts(vec_round(values_f32x4), 0);
     values_i32x4 = vec_max(values_i32x4, min_i32x4);
     values_i32x4 = vec_min(values_i32x4, max_i32x4);
 
-    // Signed saturating pack: i32x4 → i16x8
+    // Signed saturating pack: i32x4 → i16x8, extract low 8 bytes
     nk_vi16x8_t packed_i16x8 = vec_packs(values_i32x4, values_i32x4);
-    nk_i16_t buffer[8];
-    vec_xst(packed_i16x8, 0, buffer);
-    nk_copy_bytes_(destination, buffer, 8);
+    nk_b64_vec_t result_vec;
+    result_vec.u64 = vec_extract((nk_vu64x2_t)packed_i16x8, 0);
+    return result_vec;
 }
 
 /** @brief Convert f32x4 → 4x u16 with vector saturation (Power VSX).
- *  Uses vec_ctu + vec_min/vec_max for clamping, then vec_pack to narrow. */
-NK_INTERNAL void nk_f32x4_to_u16x4_powervsx_(nk_vf32x4_t values_f32x4, nk_u16_t *destination) {
+ *  Uses vec_ctu + vec_round/vec_max for clamping, then vec_pack to narrow. */
+NK_INTERNAL nk_b64_vec_t nk_f32x4_to_u16x4_powervsx_(nk_vf32x4_t values_f32x4) {
     nk_vf32x4_t zero_f32x4 = vec_splats(0.0f);
     nk_vu32x4_t max_u32x4 = vec_splats((nk_u32_t)65535);
 
     values_f32x4 = vec_max(values_f32x4, zero_f32x4);
-    nk_vu32x4_t values_u32x4 = vec_ctu(values_f32x4, 0);
+    nk_vu32x4_t values_u32x4 = vec_ctu(vec_round(values_f32x4), 0);
     values_u32x4 = vec_min(values_u32x4, max_u32x4);
 
-    // Pack u32x4 → u16x8 (modular narrowing, values already clamped)
+    // Pack u32x4 → u16x8, extract low 8 bytes
     nk_vu16x8_t packed_u16x8 = vec_pack(values_u32x4, values_u32x4);
-    nk_u16_t buffer[8];
-    vec_xst(packed_u16x8, 0, buffer);
-    nk_copy_bytes_(destination, buffer, 8);
+    nk_b64_vec_t result_vec;
+    result_vec.u64 = vec_extract((nk_vu64x2_t)packed_u16x8, 0);
+    return result_vec;
 }
 
 /** @brief Convert f32x4 → 4x i8 with vector saturation (Power VSX).
  *  Uses vec_cts + vec_min/vec_max for clamping, then vec_packs twice to narrow. */
-NK_INTERNAL void nk_f32x4_to_i8x4_powervsx_(nk_vf32x4_t values_f32x4, nk_i8_t *destination) {
+NK_INTERNAL nk_b32_vec_t nk_f32x4_to_i8x4_powervsx_(nk_vf32x4_t values_f32x4) {
     nk_vi32x4_t min_i32x4 = vec_splats((nk_i32_t)-128);
     nk_vi32x4_t max_i32x4 = vec_splats((nk_i32_t)127);
 
-    nk_vi32x4_t values_i32x4 = vec_cts(values_f32x4, 0);
+    nk_vi32x4_t values_i32x4 = vec_cts(vec_round(values_f32x4), 0);
     values_i32x4 = vec_max(values_i32x4, min_i32x4);
     values_i32x4 = vec_min(values_i32x4, max_i32x4);
 
-    // Narrow: i32x4 → i16x8 → i8x16
+    // Narrow: i32x4 → i16x8 → i8x16, extract low 4 bytes
     nk_vi16x8_t packed_i16x8 = vec_packs(values_i32x4, values_i32x4);
     nk_vi8x16_t packed_i8x16 = vec_packs(packed_i16x8, packed_i16x8);
-    nk_i8_t buffer[16];
-    vec_xst(packed_i8x16, 0, buffer);
-    nk_copy_bytes_(destination, buffer, 4);
+    nk_b32_vec_t result_vec;
+    result_vec.u32 = vec_extract((nk_vu32x4_t)packed_i8x16, 0);
+    return result_vec;
 }
 
 /** @brief Convert f32x4 → 4x u8 with vector saturation (Power VSX).
  *  Uses vec_ctu + vec_min/vec_max for clamping, then vec_pack twice to narrow. */
-NK_INTERNAL void nk_f32x4_to_u8x4_powervsx_(nk_vf32x4_t values_f32x4, nk_u8_t *destination) {
+NK_INTERNAL nk_b32_vec_t nk_f32x4_to_u8x4_powervsx_(nk_vf32x4_t values_f32x4) {
     nk_vf32x4_t zero_f32x4 = vec_splats(0.0f);
     nk_vu32x4_t max_u32x4 = vec_splats((nk_u32_t)255);
 
     values_f32x4 = vec_max(values_f32x4, zero_f32x4);
-    nk_vu32x4_t values_u32x4 = vec_ctu(values_f32x4, 0);
+    nk_vu32x4_t values_u32x4 = vec_ctu(vec_round(values_f32x4), 0);
     values_u32x4 = vec_min(values_u32x4, max_u32x4);
 
-    // Narrow: u32x4 → u16x8 → u8x16
+    // Narrow: u32x4 → u16x8 → u8x16, extract low 4 bytes
     nk_vu16x8_t packed_u16x8 = vec_pack(values_u32x4, values_u32x4);
     nk_vu8x16_t packed_u8x16 = vec_pack(packed_u16x8, packed_u16x8);
-    nk_u8_t buffer[16];
-    vec_xst(packed_u8x16, 0, buffer);
-    nk_copy_bytes_(destination, buffer, 4);
+    nk_b32_vec_t result_vec;
+    result_vec.u32 = vec_extract((nk_vu32x4_t)packed_u8x16, 0);
+    return result_vec;
 }
 
 NK_PUBLIC void nk_cast_powervsx(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
@@ -364,55 +362,76 @@ NK_PUBLIC void nk_cast_powervsx(void const *from, nk_dtype_t from_type, nk_size_
         return;
     }
 
-    // F32 hub: 4 elements per iteration (f32x4 intermediate)
-    nk_size_t batches = n / 4;
-    nk_size_t tail = n % 4;
-    nk_size_t from_step = 4 * nk_dtype_bits(from_type) / 8;
-    nk_size_t to_step = 4 * nk_dtype_bits(to_type) / 8;
+    // F32 hub with predicated loads/stores — no serial fallback needed
+    nk_size_t from_element_bytes = nk_dtype_bits(from_type) / 8;
+    nk_size_t to_element_bytes = nk_dtype_bits(to_type) / 8;
     nk_u8_t const *from_ptr = (nk_u8_t const *)from;
     nk_u8_t *to_ptr = (nk_u8_t *)to;
 
-    for (nk_size_t index = 0; index < batches; ++index, from_ptr += from_step, to_ptr += to_step) {
-        // Load and upcast to f32x4
+    for (nk_size_t index = 0; index < n; index += 4) {
+        nk_size_t remaining = n - index < 4 ? n - index : 4;
+        nk_size_t from_bytes = remaining * from_element_bytes;
+        nk_size_t to_bytes = remaining * to_element_bytes;
+
+        // Predicated load → upcast to f32x4 hub
+        nk_vu8x16_t raw_u8x16 = vec_xl_len((nk_u8_t *)from_ptr, from_bytes);
         nk_vf32x4_t hub_f32x4;
         switch (from_type) {
-        case nk_f32_k: hub_f32x4 = vec_xl(0, (nk_f32_t const *)from_ptr); break;
-        case nk_f16_k: hub_f32x4 = nk_f16x4_to_f32x4_powervsx_((nk_f16_t const *)from_ptr); break;
-        case nk_bf16_k: hub_f32x4 = nk_bf16x4_to_f32x4_powervsx_((nk_bf16_t const *)from_ptr); break;
-        case nk_i32_k: hub_f32x4 = vec_ctf(vec_xl(0, (nk_i32_t const *)from_ptr), 0); break;
-        case nk_u32_k: hub_f32x4 = vec_ctf(vec_xl(0, (nk_u32_t const *)from_ptr), 0); break;
-        case nk_i16_k: hub_f32x4 = nk_i16x4_to_f32x4_powervsx_((nk_i16_t const *)from_ptr); break;
-        case nk_u16_k: hub_f32x4 = nk_u16x4_to_f32x4_powervsx_((nk_u16_t const *)from_ptr); break;
-        case nk_i8_k: hub_f32x4 = nk_i8x4_to_f32x4_powervsx_(from_ptr); break;
-        case nk_u8_k: hub_f32x4 = nk_u8x4_to_f32x4_powervsx_(from_ptr); break;
+        case nk_f32_k: hub_f32x4 = (nk_vf32x4_t)raw_u8x16; break;
+        case nk_f16_k: hub_f32x4 = vec_extract_fp32_from_shorth((nk_vu16x8_t)raw_u8x16); break;
+        case nk_bf16_k: hub_f32x4 = (nk_vf32x4_t)vec_mergeh(vec_splats((nk_u16_t)0), (nk_vu16x8_t)raw_u8x16); break;
+        case nk_i32_k: hub_f32x4 = vec_ctf((nk_vi32x4_t)raw_u8x16, 0); break;
+        case nk_u32_k: hub_f32x4 = vec_ctf((nk_vu32x4_t)raw_u8x16, 0); break;
+        case nk_i16_k: hub_f32x4 = vec_ctf(vec_unpackh((nk_vi16x8_t)raw_u8x16), 0); break;
+        case nk_u16_k:
+            hub_f32x4 = vec_ctf((nk_vu32x4_t)vec_mergeh((nk_vu16x8_t)raw_u8x16, vec_splats((nk_u16_t)0)), 0);
+            break;
+        case nk_i8_k: hub_f32x4 = vec_ctf(vec_unpackh(vec_unpackh((nk_vi8x16_t)raw_u8x16)), 0); break;
+        case nk_u8_k:
+            hub_f32x4 = vec_ctf((nk_vu32x4_t)vec_mergeh((nk_vu16x8_t)vec_mergeh(raw_u8x16, vec_splats((nk_u8_t)0)),
+                                                        vec_splats((nk_u16_t)0)),
+                                0);
+            break;
         default: hub_f32x4 = vec_splats(0.0f); break;
         }
 
-        // Downcast from f32x4 and store
+        // Downcast from f32x4 hub → predicated store
         switch (to_type) {
-        case nk_f32_k: vec_xst(hub_f32x4, 0, (nk_f32_t *)to_ptr); break;
-        case nk_f16_k: {
-            // f32 → f16: use POWER9 scalar inline asm per element
-            nk_f32_t temporary[4];
-            vec_xst(hub_f32x4, 0, temporary);
-            nk_f32_to_f16_powervsx(&temporary[0], (nk_f16_t *)(to_ptr + 0));
-            nk_f32_to_f16_powervsx(&temporary[1], (nk_f16_t *)(to_ptr + 2));
-            nk_f32_to_f16_powervsx(&temporary[2], (nk_f16_t *)(to_ptr + 4));
-            nk_f32_to_f16_powervsx(&temporary[3], (nk_f16_t *)(to_ptr + 6));
-        } break;
-        case nk_bf16_k: nk_f32x4_to_bf16x4_powervsx_(hub_f32x4, (nk_bf16_t *)to_ptr); break;
-        case nk_i32_k: vec_xst(vec_cts(hub_f32x4, 0), 0, (nk_i32_t *)to_ptr); break;
-        case nk_u32_k: vec_xst(vec_ctu(hub_f32x4, 0), 0, (nk_u32_t *)to_ptr); break;
-        case nk_i16_k: nk_f32x4_to_i16x4_powervsx_(hub_f32x4, (nk_i16_t *)to_ptr); break;
-        case nk_u16_k: nk_f32x4_to_u16x4_powervsx_(hub_f32x4, (nk_u16_t *)to_ptr); break;
-        case nk_i8_k: nk_f32x4_to_i8x4_powervsx_(hub_f32x4, (nk_i8_t *)to_ptr); break;
-        case nk_u8_k: nk_f32x4_to_u8x4_powervsx_(hub_f32x4, (nk_u8_t *)to_ptr); break;
+        case nk_f32_k: vec_xst_len(hub_f32x4, (nk_f32_t *)to_ptr, to_bytes); break;
+        case nk_f16_k:
+            vec_xst_len((nk_vu8x16_t)vec_pack_to_short_fp32(hub_f32x4, hub_f32x4), (nk_u8_t *)to_ptr, to_bytes);
+            break;
+        case nk_bf16_k:
+            vec_xst_len((nk_vu8x16_t)nk_f32x4_to_bf16_pack_powervsx_(hub_f32x4), (nk_u8_t *)to_ptr, to_bytes);
+            break;
+        case nk_i32_k: vec_xst_len(vec_cts(vec_round(hub_f32x4), 0), (nk_i32_t *)to_ptr, to_bytes); break;
+        case nk_u32_k: vec_xst_len(vec_ctu(vec_round(hub_f32x4), 0), (nk_u32_t *)to_ptr, to_bytes); break;
+        case nk_i16_k:
+            vec_xst_len((nk_vu8x16_t)vec_packs(vec_cts(vec_round(hub_f32x4), 0), vec_cts(vec_round(hub_f32x4), 0)),
+                        (nk_u8_t *)to_ptr, to_bytes);
+            break;
+        case nk_u16_k:
+            vec_xst_len((nk_vu8x16_t)vec_pack(vec_ctu(vec_round(hub_f32x4), 0), vec_ctu(vec_round(hub_f32x4), 0)),
+                        (nk_u8_t *)to_ptr, to_bytes);
+            break;
+        case nk_i8_k:
+            vec_xst_len(
+                (nk_vu8x16_t)vec_packs(vec_packs(vec_cts(vec_round(hub_f32x4), 0), vec_cts(vec_round(hub_f32x4), 0)),
+                                       vec_packs(vec_cts(vec_round(hub_f32x4), 0), vec_cts(vec_round(hub_f32x4), 0))),
+                (nk_u8_t *)to_ptr, to_bytes);
+            break;
+        case nk_u8_k:
+            vec_xst_len(
+                (nk_vu8x16_t)vec_pack(vec_pack(vec_ctu(vec_round(hub_f32x4), 0), vec_ctu(vec_round(hub_f32x4), 0)),
+                                      vec_pack(vec_ctu(vec_round(hub_f32x4), 0), vec_ctu(vec_round(hub_f32x4), 0))),
+                (nk_u8_t *)to_ptr, to_bytes);
+            break;
         default: break;
         }
-    }
 
-    // Handle tail elements with serial fallback
-    if (tail) nk_cast_serial(from_ptr, from_type, tail, to_ptr, to_type);
+        from_ptr += from_bytes;
+        to_ptr += to_bytes;
+    }
 }
 
 #if defined(__clang__)

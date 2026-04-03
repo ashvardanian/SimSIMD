@@ -1239,6 +1239,9 @@ typedef union NK_MAY_ALIAS_ nk_b128_vec_t {
     float32x4_t f32x4;
     float64x2_t f64x2;
 #endif
+#if NK_TARGET_NEONHALF
+    float16x8_t f16x8;
+#endif
 #if NK_TARGET_POWERVSX
     nk_vu8x16_t vu8x16;
     nk_vu16x8_t vu16x8;
