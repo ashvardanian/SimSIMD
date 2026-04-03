@@ -1308,26 +1308,37 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     *result = nk_f64_sqrt_neon(sum_squared * inv_n);
 }
 
-NK_INTERNAL void nk_deinterleave_f16x4_to_f32x4_neon_(nk_f16_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
-                                                      float32x4_t *z_out) {
-    // Deinterleave 12 f16 values (4 xyz triplets) into separate x, y, z vectors.
-    // Uses NEON vld3_u16 for efficient stride-3 deinterleaving, then converts to f32.
-    // Avoids vld3_f16 which is unavailable on MSVC for ARM.
+NK_INTERNAL void nk_deinterleave_f16x8_to_f32x4x2_neon_(nk_f16_t const *ptr,                             //
+                                                        float32x4_t *x_low_out, float32x4_t *x_high_out, //
+                                                        float32x4_t *y_low_out, float32x4_t *y_high_out, //
+                                                        float32x4_t *z_low_out, float32x4_t *z_high_out) {
+    // Deinterleave 24 f16 values (8 xyz triplets) into separate x, y, z vectors.
+    // Uses NEON vld3q_u16 for efficient stride-3 deinterleaving, then converts to f32.
+    // Avoids vld3q_f16 which is unavailable on MSVC for ARM.
     //
-    // Input: 12 contiguous f16 values [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
-    // Output: x[4], y[4], z[4] vectors in f32
-    uint16x4x3_t xyz_u16x4x3 = vld3_u16((nk_u16_t const *)ptr);
-    *x_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[0]));
-    *y_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[1]));
-    *z_out = vcvt_f32_f16(vreinterpret_f16_u16(xyz_u16x4x3.val[2]));
+    // Input: 24 contiguous f16 values [x0,y0,z0, ..., x7,y7,z7]
+    // Output: x_low[4]+x_high[4], y_low[4]+y_high[4], z_low[4]+z_high[4] vectors in f32
+    uint16x8x3_t xyz_u16x8x3 = vld3q_u16((nk_u16_t const *)ptr);
+    float16x8_t x_f16x8 = vreinterpretq_f16_u16(xyz_u16x8x3.val[0]);
+    float16x8_t y_f16x8 = vreinterpretq_f16_u16(xyz_u16x8x3.val[1]);
+    float16x8_t z_f16x8 = vreinterpretq_f16_u16(xyz_u16x8x3.val[2]);
+    *x_low_out = vcvt_f32_f16(vget_low_f16(x_f16x8));
+    *x_high_out = vcvt_high_f32_f16(x_f16x8);
+    *y_low_out = vcvt_f32_f16(vget_low_f16(y_f16x8));
+    *y_high_out = vcvt_high_f32_f16(y_f16x8);
+    *z_low_out = vcvt_f32_f16(vget_low_f16(z_f16x8));
+    *z_high_out = vcvt_high_f32_f16(z_f16x8);
 }
 
-NK_INTERNAL void nk_partial_deinterleave_f16_to_f32x4_neon_(nk_f16_t const *ptr, nk_size_t n_points, float32x4_t *x_out,
-                                                            float32x4_t *y_out, float32x4_t *z_out) {
-    nk_u16_t buf[12] = {0};
+NK_INTERNAL void nk_partial_deinterleave_f16_to_f32x4x2_neon_(nk_f16_t const *ptr, nk_size_t n_points,         //
+                                                              float32x4_t *x_low_out, float32x4_t *x_high_out, //
+                                                              float32x4_t *y_low_out, float32x4_t *y_high_out, //
+                                                              float32x4_t *z_low_out, float32x4_t *z_high_out) {
+    nk_u16_t buf[24] = {0};
     nk_u16_t const *src = (nk_u16_t const *)ptr;
     for (nk_size_t k = 0; k < n_points * 3; ++k) buf[k] = src[k];
-    nk_deinterleave_f16x4_to_f32x4_neon_((nk_f16_t const *)buf, x_out, y_out, z_out);
+    nk_deinterleave_f16x8_to_f32x4x2_neon_((nk_f16_t const *)buf, x_low_out, x_high_out, y_low_out, y_high_out,
+                                           z_low_out, z_high_out);
 }
 
 NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *r,
@@ -1350,22 +1361,23 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
     float32x4_t const r20_f32x4 = vdupq_n_f32(r[6]), r21_f32x4 = vdupq_n_f32(r[7]), r22_f32x4 = vdupq_n_f32(r[8]);
 
     float32x4_t sum_squared_f32x4 = vdupq_n_f32(0);
-    float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+    float32x4_t a_x_low_f32x4, a_x_high_f32x4, a_y_low_f32x4, a_y_high_f32x4, a_z_low_f32x4, a_z_high_f32x4;
+    float32x4_t b_x_low_f32x4, b_x_high_f32x4, b_y_low_f32x4, b_y_high_f32x4, b_z_low_f32x4, b_z_high_f32x4;
 
     nk_size_t j = 0;
-    for (; j + 4 <= n; j += 4) {
-        nk_deinterleave_f16x4_to_f32x4_neon_(a + j * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_deinterleave_f16x4_to_f32x4_neon_(b + j * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+    for (; j + 8 <= n; j += 8) {
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(a + j * 3, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                               &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(b + j * 3, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                               &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        // Center points
-        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_f32x4, centroid_a_x_f32x4);
-        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_f32x4, centroid_a_y_f32x4);
-        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_f32x4, centroid_a_z_f32x4);
-        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_f32x4, centroid_b_x_f32x4);
-        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
-        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
-
-        // Apply rotation: R * pa (with optional scaling)
+        // Center points → low half
+        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_low_f32x4, centroid_a_x_f32x4);
+        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_low_f32x4, centroid_a_y_f32x4);
+        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_low_f32x4, centroid_a_z_f32x4);
+        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_low_f32x4, centroid_b_x_f32x4);
+        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_low_f32x4, centroid_b_y_f32x4);
+        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_low_f32x4, centroid_b_z_f32x4);
         float32x4_t ra_x_f32x4 = vmulq_f32(
             scale_f32x4,
             vfmaq_f32(vfmaq_f32(vmulq_f32(r00_f32x4, pa_x_f32x4), r01_f32x4, pa_y_f32x4), r02_f32x4, pa_z_f32x4));
@@ -1375,12 +1387,32 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
         float32x4_t ra_z_f32x4 = vmulq_f32(
             scale_f32x4,
             vfmaq_f32(vfmaq_f32(vmulq_f32(r20_f32x4, pa_x_f32x4), r21_f32x4, pa_y_f32x4), r22_f32x4, pa_z_f32x4));
-
-        // Compute squared differences
         float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
         float32x4_t delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_x_f32x4, delta_x_f32x4);
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_y_f32x4, delta_y_f32x4);
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_z_f32x4, delta_z_f32x4);
 
+        // Center points → high half
+        pa_x_f32x4 = vsubq_f32(a_x_high_f32x4, centroid_a_x_f32x4);
+        pa_y_f32x4 = vsubq_f32(a_y_high_f32x4, centroid_a_y_f32x4);
+        pa_z_f32x4 = vsubq_f32(a_z_high_f32x4, centroid_a_z_f32x4);
+        pb_x_f32x4 = vsubq_f32(b_x_high_f32x4, centroid_b_x_f32x4);
+        pb_y_f32x4 = vsubq_f32(b_y_high_f32x4, centroid_b_y_f32x4);
+        pb_z_f32x4 = vsubq_f32(b_z_high_f32x4, centroid_b_z_f32x4);
+        ra_x_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r00_f32x4, pa_x_f32x4), r01_f32x4, pa_y_f32x4), r02_f32x4, pa_z_f32x4));
+        ra_y_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r10_f32x4, pa_x_f32x4), r11_f32x4, pa_y_f32x4), r12_f32x4, pa_z_f32x4));
+        ra_z_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r20_f32x4, pa_x_f32x4), r21_f32x4, pa_y_f32x4), r22_f32x4, pa_z_f32x4));
+        delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
+        delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
+        delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
         sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_x_f32x4, delta_x_f32x4);
         sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_y_f32x4, delta_y_f32x4);
         sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_z_f32x4, delta_z_f32x4);
@@ -1390,28 +1422,18 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
     nk_f32_t sum_squared = vaddvq_f32(sum_squared_f32x4);
 
     if (j < n) {
-        float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
-        nk_partial_deinterleave_f16_to_f32x4_neon_(a + j * 3, n - j, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_partial_deinterleave_f16_to_f32x4_neon_(b + j * 3, n - j, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(a + j * 3, n - j, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                                     &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(b + j * 3, n - j, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                                     &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        uint32x4_t lane_u32x4 = vcombine_u32(vreinterpret_u32_u64(vcreate_u64(0x0000000100000000ULL)),
-                                             vreinterpret_u32_u64(vcreate_u64(0x0000000300000002ULL)));
-        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((nk_u32_t)(n - j)));
-        float32x4_t zero_f32x4 = vdupq_n_f32(0);
-        a_x_f32x4 = vbslq_f32(valid_u32x4, a_x_f32x4, zero_f32x4);
-        a_y_f32x4 = vbslq_f32(valid_u32x4, a_y_f32x4, zero_f32x4);
-        a_z_f32x4 = vbslq_f32(valid_u32x4, a_z_f32x4, zero_f32x4);
-        b_x_f32x4 = vbslq_f32(valid_u32x4, b_x_f32x4, zero_f32x4);
-        b_y_f32x4 = vbslq_f32(valid_u32x4, b_y_f32x4, zero_f32x4);
-        b_z_f32x4 = vbslq_f32(valid_u32x4, b_z_f32x4, zero_f32x4);
-
-        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_f32x4, centroid_a_x_f32x4);
-        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_f32x4, centroid_a_y_f32x4);
-        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_f32x4, centroid_a_z_f32x4);
-        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_f32x4, centroid_b_x_f32x4);
-        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
-        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
-
+        // Low half
+        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_low_f32x4, centroid_a_x_f32x4);
+        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_low_f32x4, centroid_a_y_f32x4);
+        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_low_f32x4, centroid_a_z_f32x4);
+        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_low_f32x4, centroid_b_x_f32x4);
+        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_low_f32x4, centroid_b_y_f32x4);
+        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_low_f32x4, centroid_b_z_f32x4);
         float32x4_t ra_x_f32x4 = vmulq_f32(
             scale_f32x4,
             vfmaq_f32(vfmaq_f32(vmulq_f32(r00_f32x4, pa_x_f32x4), r01_f32x4, pa_y_f32x4), r02_f32x4, pa_z_f32x4));
@@ -1421,12 +1443,33 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neon_(nk_f16_t const *a, nk_f16_t co
         float32x4_t ra_z_f32x4 = vmulq_f32(
             scale_f32x4,
             vfmaq_f32(vfmaq_f32(vmulq_f32(r20_f32x4, pa_x_f32x4), r21_f32x4, pa_y_f32x4), r22_f32x4, pa_z_f32x4));
-
         float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
         float32x4_t delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
-
         float32x4_t tail_sum_f32x4 = vmulq_f32(delta_x_f32x4, delta_x_f32x4);
+        tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_y_f32x4, delta_y_f32x4);
+        tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_z_f32x4, delta_z_f32x4);
+
+        // High half
+        pa_x_f32x4 = vsubq_f32(a_x_high_f32x4, centroid_a_x_f32x4);
+        pa_y_f32x4 = vsubq_f32(a_y_high_f32x4, centroid_a_y_f32x4);
+        pa_z_f32x4 = vsubq_f32(a_z_high_f32x4, centroid_a_z_f32x4);
+        pb_x_f32x4 = vsubq_f32(b_x_high_f32x4, centroid_b_x_f32x4);
+        pb_y_f32x4 = vsubq_f32(b_y_high_f32x4, centroid_b_y_f32x4);
+        pb_z_f32x4 = vsubq_f32(b_z_high_f32x4, centroid_b_z_f32x4);
+        ra_x_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r00_f32x4, pa_x_f32x4), r01_f32x4, pa_y_f32x4), r02_f32x4, pa_z_f32x4));
+        ra_y_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r10_f32x4, pa_x_f32x4), r11_f32x4, pa_y_f32x4), r12_f32x4, pa_z_f32x4));
+        ra_z_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r20_f32x4, pa_x_f32x4), r21_f32x4, pa_y_f32x4), r22_f32x4, pa_z_f32x4));
+        delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
+        delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
+        delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
+        tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_x_f32x4, delta_x_f32x4);
         tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_y_f32x4, delta_y_f32x4);
         tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_z_f32x4, delta_z_f32x4);
         sum_squared += vaddvq_f32(tail_sum_f32x4);
@@ -1456,45 +1499,61 @@ NK_PUBLIC void nk_rmsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t 
     float32x4_t sum_b_x_f32x4 = zeros_f32x4, sum_b_y_f32x4 = zeros_f32x4, sum_b_z_f32x4 = zeros_f32x4;
     float32x4_t sum_squared_x_f32x4 = zeros_f32x4, sum_squared_y_f32x4 = zeros_f32x4, sum_squared_z_f32x4 = zeros_f32x4;
 
-    float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+    float32x4_t a_x_low_f32x4, a_x_high_f32x4, a_y_low_f32x4, a_y_high_f32x4, a_z_low_f32x4, a_z_high_f32x4;
+    float32x4_t b_x_low_f32x4, b_x_high_f32x4, b_y_low_f32x4, b_y_high_f32x4, b_z_low_f32x4, b_z_high_f32x4;
     nk_size_t i = 0;
 
-    // Main loop processing 4 points at a time
-    for (; i + 4 <= n; i += 4) {
-        nk_deinterleave_f16x4_to_f32x4_neon_(a + i * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_deinterleave_f16x4_to_f32x4_neon_(b + i * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+    for (; i + 8 <= n; i += 8) {
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(a + i * 3, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                               &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(b + i * 3, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                               &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        float32x4_t delta_x_f32x4 = vsubq_f32(a_x_f32x4, b_x_f32x4);
-        float32x4_t delta_y_f32x4 = vsubq_f32(a_y_f32x4, b_y_f32x4);
-        float32x4_t delta_z_f32x4 = vsubq_f32(a_z_f32x4, b_z_f32x4);
+        float32x4_t delta_x_f32x4 = vsubq_f32(a_x_low_f32x4, b_x_low_f32x4);
+        float32x4_t delta_y_f32x4 = vsubq_f32(a_y_low_f32x4, b_y_low_f32x4);
+        float32x4_t delta_z_f32x4 = vsubq_f32(a_z_low_f32x4, b_z_low_f32x4);
+        sum_squared_x_f32x4 = vfmaq_f32(sum_squared_x_f32x4, delta_x_f32x4, delta_x_f32x4);
+        sum_squared_y_f32x4 = vfmaq_f32(sum_squared_y_f32x4, delta_y_f32x4, delta_y_f32x4);
+        sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
 
+        delta_x_f32x4 = vsubq_f32(a_x_high_f32x4, b_x_high_f32x4);
+        delta_y_f32x4 = vsubq_f32(a_y_high_f32x4, b_y_high_f32x4);
+        delta_z_f32x4 = vsubq_f32(a_z_high_f32x4, b_z_high_f32x4);
         sum_squared_x_f32x4 = vfmaq_f32(sum_squared_x_f32x4, delta_x_f32x4, delta_x_f32x4);
         sum_squared_y_f32x4 = vfmaq_f32(sum_squared_y_f32x4, delta_y_f32x4, delta_y_f32x4);
         sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
     }
 
     if (i < n) {
-        nk_partial_deinterleave_f16_to_f32x4_neon_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_partial_deinterleave_f16_to_f32x4_neon_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(a + i * 3, n - i, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                                     &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(b + i * 3, n - i, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                                     &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        float32x4_t delta_x_f32x4 = vsubq_f32(a_x_f32x4, b_x_f32x4);
-        float32x4_t delta_y_f32x4 = vsubq_f32(a_y_f32x4, b_y_f32x4);
-        float32x4_t delta_z_f32x4 = vsubq_f32(a_z_f32x4, b_z_f32x4);
+        float32x4_t delta_x_f32x4 = vsubq_f32(a_x_low_f32x4, b_x_low_f32x4);
+        float32x4_t delta_y_f32x4 = vsubq_f32(a_y_low_f32x4, b_y_low_f32x4);
+        float32x4_t delta_z_f32x4 = vsubq_f32(a_z_low_f32x4, b_z_low_f32x4);
+        sum_squared_x_f32x4 = vfmaq_f32(sum_squared_x_f32x4, delta_x_f32x4, delta_x_f32x4);
+        sum_squared_y_f32x4 = vfmaq_f32(sum_squared_y_f32x4, delta_y_f32x4, delta_y_f32x4);
+        sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
 
+        delta_x_f32x4 = vsubq_f32(a_x_high_f32x4, b_x_high_f32x4);
+        delta_y_f32x4 = vsubq_f32(a_y_high_f32x4, b_y_high_f32x4);
+        delta_z_f32x4 = vsubq_f32(a_z_high_f32x4, b_z_high_f32x4);
         sum_squared_x_f32x4 = vfmaq_f32(sum_squared_x_f32x4, delta_x_f32x4, delta_x_f32x4);
         sum_squared_y_f32x4 = vfmaq_f32(sum_squared_y_f32x4, delta_y_f32x4, delta_y_f32x4);
         sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
@@ -1560,52 +1619,55 @@ NK_PUBLIC void nk_kabsch_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     float32x4_t cov_zx_f32x4 = zeros_f32x4, cov_zy_f32x4 = zeros_f32x4, cov_zz_f32x4 = zeros_f32x4;
 
     nk_size_t i = 0;
-    float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+    float32x4_t a_x_low_f32x4, a_x_high_f32x4, a_y_low_f32x4, a_y_high_f32x4, a_z_low_f32x4, a_z_high_f32x4;
+    float32x4_t b_x_low_f32x4, b_x_high_f32x4, b_y_low_f32x4, b_y_high_f32x4, b_z_low_f32x4, b_z_high_f32x4;
 
-    for (; i + 4 <= n; i += 4) {
-        nk_deinterleave_f16x4_to_f32x4_neon_(a + i * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_deinterleave_f16x4_to_f32x4_neon_(b + i * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+    for (; i + 8 <= n; i += 8) {
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(a + i * 3, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                               &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(b + i * 3, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                               &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        // Accumulate centroids
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        // Accumulate outer products
-        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
-        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
-        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
-        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
-        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
-        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
-        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
-        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
-        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+        cov_xx_f32x4 = vfmaq_f32(vfmaq_f32(cov_xx_f32x4, a_x_low_f32x4, b_x_low_f32x4), a_x_high_f32x4, b_x_high_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(vfmaq_f32(cov_xy_f32x4, a_x_low_f32x4, b_y_low_f32x4), a_x_high_f32x4, b_y_high_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(vfmaq_f32(cov_xz_f32x4, a_x_low_f32x4, b_z_low_f32x4), a_x_high_f32x4, b_z_high_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(vfmaq_f32(cov_yx_f32x4, a_y_low_f32x4, b_x_low_f32x4), a_y_high_f32x4, b_x_high_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(vfmaq_f32(cov_yy_f32x4, a_y_low_f32x4, b_y_low_f32x4), a_y_high_f32x4, b_y_high_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(vfmaq_f32(cov_yz_f32x4, a_y_low_f32x4, b_z_low_f32x4), a_y_high_f32x4, b_z_high_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(vfmaq_f32(cov_zx_f32x4, a_z_low_f32x4, b_x_low_f32x4), a_z_high_f32x4, b_x_high_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(vfmaq_f32(cov_zy_f32x4, a_z_low_f32x4, b_y_low_f32x4), a_z_high_f32x4, b_y_high_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(vfmaq_f32(cov_zz_f32x4, a_z_low_f32x4, b_z_low_f32x4), a_z_high_f32x4, b_z_high_f32x4);
     }
 
     if (i < n) {
-        nk_partial_deinterleave_f16_to_f32x4_neon_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_partial_deinterleave_f16_to_f32x4_neon_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(a + i * 3, n - i, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                                     &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(b + i * 3, n - i, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                                     &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
-        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
-        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
-        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
-        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
-        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
-        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
-        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
-        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+        cov_xx_f32x4 = vfmaq_f32(vfmaq_f32(cov_xx_f32x4, a_x_low_f32x4, b_x_low_f32x4), a_x_high_f32x4, b_x_high_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(vfmaq_f32(cov_xy_f32x4, a_x_low_f32x4, b_y_low_f32x4), a_x_high_f32x4, b_y_high_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(vfmaq_f32(cov_xz_f32x4, a_x_low_f32x4, b_z_low_f32x4), a_x_high_f32x4, b_z_high_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(vfmaq_f32(cov_yx_f32x4, a_y_low_f32x4, b_x_low_f32x4), a_y_high_f32x4, b_x_high_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(vfmaq_f32(cov_yy_f32x4, a_y_low_f32x4, b_y_low_f32x4), a_y_high_f32x4, b_y_high_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(vfmaq_f32(cov_yz_f32x4, a_y_low_f32x4, b_z_low_f32x4), a_y_high_f32x4, b_z_high_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(vfmaq_f32(cov_zx_f32x4, a_z_low_f32x4, b_x_low_f32x4), a_z_high_f32x4, b_x_high_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(vfmaq_f32(cov_zy_f32x4, a_z_low_f32x4, b_y_low_f32x4), a_z_high_f32x4, b_y_high_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(vfmaq_f32(cov_zz_f32x4, a_z_low_f32x4, b_z_low_f32x4), a_z_high_f32x4, b_z_high_f32x4);
     }
 
     // Reduce vector accumulators
@@ -1716,61 +1778,69 @@ NK_PUBLIC void nk_umeyama_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size
     float32x4_t variance_a_f32x4 = zeros_f32x4;
 
     nk_size_t i = 0;
-    float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+    float32x4_t a_x_low_f32x4, a_x_high_f32x4, a_y_low_f32x4, a_y_high_f32x4, a_z_low_f32x4, a_z_high_f32x4;
+    float32x4_t b_x_low_f32x4, b_x_high_f32x4, b_y_low_f32x4, b_y_high_f32x4, b_z_low_f32x4, b_z_high_f32x4;
 
-    for (; i + 4 <= n; i += 4) {
-        nk_deinterleave_f16x4_to_f32x4_neon_(a + i * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_deinterleave_f16x4_to_f32x4_neon_(b + i * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+    for (; i + 8 <= n; i += 8) {
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(a + i * 3, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                               &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_deinterleave_f16x8_to_f32x4x2_neon_(b + i * 3, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                               &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        // Accumulate centroids
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        // Accumulate outer products
-        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
-        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
-        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
-        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
-        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
-        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
-        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
-        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
-        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+        cov_xx_f32x4 = vfmaq_f32(vfmaq_f32(cov_xx_f32x4, a_x_low_f32x4, b_x_low_f32x4), a_x_high_f32x4, b_x_high_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(vfmaq_f32(cov_xy_f32x4, a_x_low_f32x4, b_y_low_f32x4), a_x_high_f32x4, b_y_high_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(vfmaq_f32(cov_xz_f32x4, a_x_low_f32x4, b_z_low_f32x4), a_x_high_f32x4, b_z_high_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(vfmaq_f32(cov_yx_f32x4, a_y_low_f32x4, b_x_low_f32x4), a_y_high_f32x4, b_x_high_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(vfmaq_f32(cov_yy_f32x4, a_y_low_f32x4, b_y_low_f32x4), a_y_high_f32x4, b_y_high_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(vfmaq_f32(cov_yz_f32x4, a_y_low_f32x4, b_z_low_f32x4), a_y_high_f32x4, b_z_high_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(vfmaq_f32(cov_zx_f32x4, a_z_low_f32x4, b_x_low_f32x4), a_z_high_f32x4, b_x_high_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(vfmaq_f32(cov_zy_f32x4, a_z_low_f32x4, b_y_low_f32x4), a_z_high_f32x4, b_y_high_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(vfmaq_f32(cov_zz_f32x4, a_z_low_f32x4, b_z_low_f32x4), a_z_high_f32x4, b_z_high_f32x4);
 
-        // Accumulate variance of A
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_f32x4, a_x_f32x4);
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_f32x4, a_y_f32x4);
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_f32x4, a_z_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_low_f32x4, a_x_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_low_f32x4, a_y_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_low_f32x4, a_z_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_high_f32x4, a_x_high_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_high_f32x4, a_y_high_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_high_f32x4, a_z_high_f32x4);
     }
 
     if (i < n) {
-        nk_partial_deinterleave_f16_to_f32x4_neon_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
-        nk_partial_deinterleave_f16_to_f32x4_neon_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(a + i * 3, n - i, &a_x_low_f32x4, &a_x_high_f32x4, &a_y_low_f32x4,
+                                                     &a_y_high_f32x4, &a_z_low_f32x4, &a_z_high_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4x2_neon_(b + i * 3, n - i, &b_x_low_f32x4, &b_x_high_f32x4, &b_y_low_f32x4,
+                                                     &b_y_high_f32x4, &b_z_low_f32x4, &b_z_high_f32x4);
 
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+        sum_a_x_f32x4 = vaddq_f32(vaddq_f32(sum_a_x_f32x4, a_x_low_f32x4), a_x_high_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(vaddq_f32(sum_a_y_f32x4, a_y_low_f32x4), a_y_high_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(vaddq_f32(sum_a_z_f32x4, a_z_low_f32x4), a_z_high_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(vaddq_f32(sum_b_x_f32x4, b_x_low_f32x4), b_x_high_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(vaddq_f32(sum_b_y_f32x4, b_y_low_f32x4), b_y_high_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(vaddq_f32(sum_b_z_f32x4, b_z_low_f32x4), b_z_high_f32x4);
 
-        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
-        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
-        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
-        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
-        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
-        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
-        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
-        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
-        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+        cov_xx_f32x4 = vfmaq_f32(vfmaq_f32(cov_xx_f32x4, a_x_low_f32x4, b_x_low_f32x4), a_x_high_f32x4, b_x_high_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(vfmaq_f32(cov_xy_f32x4, a_x_low_f32x4, b_y_low_f32x4), a_x_high_f32x4, b_y_high_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(vfmaq_f32(cov_xz_f32x4, a_x_low_f32x4, b_z_low_f32x4), a_x_high_f32x4, b_z_high_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(vfmaq_f32(cov_yx_f32x4, a_y_low_f32x4, b_x_low_f32x4), a_y_high_f32x4, b_x_high_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(vfmaq_f32(cov_yy_f32x4, a_y_low_f32x4, b_y_low_f32x4), a_y_high_f32x4, b_y_high_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(vfmaq_f32(cov_yz_f32x4, a_y_low_f32x4, b_z_low_f32x4), a_y_high_f32x4, b_z_high_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(vfmaq_f32(cov_zx_f32x4, a_z_low_f32x4, b_x_low_f32x4), a_z_high_f32x4, b_x_high_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(vfmaq_f32(cov_zy_f32x4, a_z_low_f32x4, b_y_low_f32x4), a_z_high_f32x4, b_y_high_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(vfmaq_f32(cov_zz_f32x4, a_z_low_f32x4, b_z_low_f32x4), a_z_high_f32x4, b_z_high_f32x4);
 
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_f32x4, a_x_f32x4);
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_f32x4, a_y_f32x4);
-        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_f32x4, a_z_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_low_f32x4, a_x_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_low_f32x4, a_y_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_low_f32x4, a_z_low_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_high_f32x4, a_x_high_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_high_f32x4, a_y_high_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_high_f32x4, a_z_high_f32x4);
     }
 
     // Reduce vector accumulators
