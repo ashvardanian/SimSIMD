@@ -117,7 +117,7 @@ NK_PUBLIC void nk_each_sum_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b,
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_add(a_f32_vec.v128, b_f32_vec.v128);
         nk_b64_vec_t result_f16_vec = nk_f32x4_to_f16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_f16_vec);
+        nk_store_b64_serial_(&result_f16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
@@ -142,7 +142,7 @@ NK_PUBLIC void nk_each_scale_f16_v128relaxed(nk_f16_t const *a, nk_size_t n, nk_
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(a_f32_vec.v128, alpha_f32x4, beta_f32x4);
         nk_b64_vec_t result_f16_vec = nk_f32x4_to_f16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_f16_vec);
+        nk_store_b64_serial_(&result_f16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai;
@@ -179,7 +179,7 @@ NK_PUBLIC void nk_each_blend_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(b_f32_vec.v128, beta_f32x4, a_scaled_f32x4);
         nk_b64_vec_t result_f16_vec = nk_f32x4_to_f16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_f16_vec);
+        nk_store_b64_serial_(&result_f16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
@@ -211,7 +211,7 @@ NK_PUBLIC void nk_each_fma_f16_v128relaxed(                  //
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(c_f32_vec.v128, beta_f32x4, ab_scaled_f32x4);
         nk_b64_vec_t result_f16_vec = nk_f32x4_to_f16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_f16_vec);
+        nk_store_b64_serial_(&result_f16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
@@ -237,7 +237,7 @@ NK_PUBLIC void nk_each_sum_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const 
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_add(a_f32_vec.v128, b_f32_vec.v128);
         nk_b64_vec_t result_bf16_vec = nk_f32x4_to_bf16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_bf16_vec);
+        nk_store_b64_serial_(&result_bf16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
@@ -262,7 +262,7 @@ NK_PUBLIC void nk_each_scale_bf16_v128relaxed(nk_bf16_t const *a, nk_size_t n, n
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(a_f32_vec.v128, alpha_f32x4, beta_f32x4);
         nk_b64_vec_t result_bf16_vec = nk_f32x4_to_bf16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_bf16_vec);
+        nk_store_b64_serial_(&result_bf16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai;
@@ -299,7 +299,7 @@ NK_PUBLIC void nk_each_blend_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t cons
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(b_f32_vec.v128, beta_f32x4, a_scaled_f32x4);
         nk_b64_vec_t result_bf16_vec = nk_f32x4_to_bf16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_bf16_vec);
+        nk_store_b64_serial_(&result_bf16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
@@ -331,7 +331,7 @@ NK_PUBLIC void nk_each_fma_bf16_v128relaxed(                    //
         nk_b128_vec_t result_f32_vec;
         result_f32_vec.v128 = wasm_f32x4_relaxed_madd(c_f32_vec.v128, beta_f32x4, ab_scaled_f32x4);
         nk_b64_vec_t result_bf16_vec = nk_f32x4_to_bf16x4_v128relaxed_(result_f32_vec);
-        nk_store_b64_serial_(result + i, &result_bf16_vec);
+        nk_store_b64_serial_(&result_bf16_vec, result + i);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
