@@ -685,6 +685,10 @@ def _infer_dtype_name(value) -> str:
         if hasattr(dt, "name"):
             return dt.name
         return str(dt)
+    if isinstance(value, int):
+        return "int64"
+    if isinstance(value, float):
+        return "float64"
     if numpy_available:
         arr = np.asarray(value)
         return arr.dtype.name

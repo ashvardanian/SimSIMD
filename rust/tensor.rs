@@ -4625,14 +4625,12 @@ fn uniform_stride_tail(shape: &[usize], strides: &[isize]) -> (usize, usize, usi
     }
     let mut tail: usize = 1;
     let innermost_stride = strides[rank - 1];
-    let mut expected_stride = innermost_stride.unsigned_abs() as isize;
+    let mut expected_stride = innermost_stride;
     for i in (0..rank - 1).rev() {
-        let next = expected_stride * shape[i + 1] as isize;
-        let actual_stride = strides[i].unsigned_abs() as isize;
-        if actual_stride != next {
+        expected_stride *= shape[i + 1] as isize;
+        if strides[i] != expected_stride {
             break;
         }
-        expected_stride = next;
         tail += 1;
     }
     let count: usize = shape[rank - tail..].iter().product();
@@ -6466,6 +6464,128 @@ mod tests {
         let reversed_argmax = reversed.try_argmax_axis(-1_i32, false).unwrap();
         assert_eq!(reversed_argmin.as_slice(), &[2, 2, 2]);
         assert_eq!(reversed_argmax.as_slice(), &[0, 0, 0]);
+    }
+
+    #[test]
+    fn nd_contraction_global_reductions() {
+        // Verify that N-D contiguous tensors produce the same moments/minmax as a flat copy.
+        // This tests the uniform-stride-tail collapsing and recursive re-analysis paths.
+        let data: Vec<f32> = (0..720).map(|i| (i as f32) * 0.1 - 36.0).collect();
+
+        // 4-D: shape [2, 3, 4, 30] = 720 elements
+        let t4d = Tensor::<f32>::try_from_slice(&data, &[2, 3, 4, 30]).unwrap();
+        let t1d = Tensor::<f32>::try_from_slice(&data, &[720]).unwrap();
+        let (sum_4d, sumsq_4d) = t4d.view().try_moments_all().unwrap();
+        let (sum_1d, sumsq_1d) = t1d.view().try_moments_all().unwrap();
+        assert!((sum_4d - sum_1d).abs() < 1e-3, "4D vs 1D sum: {sum_4d} != {sum_1d}");
+        assert!(
+            (sumsq_4d - sumsq_1d).abs() < 1e-1,
+            "4D vs 1D sumsq: {sumsq_4d} != {sumsq_1d}"
+        );
+        let mm_4d = t4d.view().try_minmax_all().unwrap();
+        let mm_1d = t1d.view().try_minmax_all().unwrap();
+        assert_eq!(mm_4d.min_value, mm_1d.min_value);
+        assert_eq!(mm_4d.max_value, mm_1d.max_value);
+        assert_eq!(mm_4d.min_index, mm_1d.min_index);
+        assert_eq!(mm_4d.max_index, mm_1d.max_index);
+
+        // 5-D: shape [2, 3, 4, 5, 6] = 720 elements
+        let t5d = Tensor::<f32>::try_from_slice(&data, &[2, 3, 4, 5, 6]).unwrap();
+        let (sum_5d, sumsq_5d) = t5d.view().try_moments_all().unwrap();
+        assert!((sum_5d - sum_1d).abs() < 1e-3, "5D vs 1D sum");
+        assert!((sumsq_5d - sumsq_1d).abs() < 1e-1, "5D vs 1D sumsq");
+    }
+
+    #[test]
+    fn nd_contraction_strided_views() {
+        // Verify reductions on non-contiguous uniform-stride subviews.
+        let data: Vec<f32> = (0..48).map(|i| i as f32).collect();
+        let t = Tensor::<f32>::try_from_slice(&data, &[4, 4, 3]).unwrap();
+
+        // Channel subview: [:, :, 1] → shape [4, 4], stride = 3 * sizeof(f32)
+        let channel = t.slice(&[
+            SliceRange::full(),
+            SliceRange::full(),
+            SliceRange::index(1),
+        ]).unwrap();
+        assert_eq!(channel.shape(), &[4, 4]);
+        let (ch_sum, _) = channel.try_moments_all().unwrap();
+        let expected: f64 = (0..16).map(|i| (i * 3 + 1) as f64).sum();
+        assert!((ch_sum - expected).abs() < 1e-3, "channel subview sum: {ch_sum} != {expected}");
+
+        // Row skip: [::2, :, :] → shape [2, 4, 3], outer stride doubled
+        let skipped = t.slice(&[
+            SliceRange::range_step(0, 4, 2),
+            SliceRange::full(),
+            SliceRange::full(),
+        ]).unwrap();
+        assert_eq!(skipped.shape(), &[2, 4, 3]);
+        let (skip_sum, _) = skipped.try_moments_all().unwrap();
+        let expected_skip: f64 = data.iter().enumerate()
+            .filter(|(i, _)| *i < 12 || (*i >= 24 && *i < 36))
+            .map(|(_, v)| *v as f64)
+            .sum();
+        assert!(
+            (skip_sum - expected_skip).abs() < 1e-3,
+            "row skip sum: {skip_sum} != {expected_skip}"
+        );
+    }
+
+    #[test]
+    fn nd_contraction_axis_reductions() {
+        // Verify axis reductions on N-D tensors match manual computation.
+        let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
+        let t = Tensor::<f32>::try_from_slice(&data, &[2, 3, 4]).unwrap();
+
+        // axis=0: sum over batch → shape [3, 4]
+        let (sums_a0, _) = t.view().try_moments_axis(0, false).unwrap();
+        assert_eq!(sums_a0.shape(), &[3, 4]);
+        // [0..4] + [12..16] = [12, 14, 16, 18]
+        assert!((sums_a0.as_slice()[0] - 12.0).abs() < 1e-6);
+        assert!((sums_a0.as_slice()[1] - 14.0).abs() < 1e-6);
+
+        // axis=-1: sum over innermost → shape [2, 3]
+        let (sums_last, _) = t.view().try_moments_axis(-1_i32, false).unwrap();
+        assert_eq!(sums_last.shape(), &[2, 3]);
+        // First row: 0+1+2+3 = 6
+        assert!((sums_last.as_slice()[0] - 6.0).abs() < 1e-6);
+
+        // axis=1: sum over middle → shape [2, 4]
+        let (sums_mid, _) = t.view().try_moments_axis(1, false).unwrap();
+        assert_eq!(sums_mid.shape(), &[2, 4]);
+        // Column 0: 0+4+8 = 12
+        assert!((sums_mid.as_slice()[0] - 12.0).abs() < 1e-6);
+
+        // Axis reduction on strided subview: [::2, :, :] on [4, 3, 4]
+        let data48: Vec<f32> = (0..48).map(|i| i as f32).collect();
+        let t48 = Tensor::<f32>::try_from_slice(&data48, &[4, 3, 4]).unwrap();
+        let skipped = t48.slice(&[
+            SliceRange::range_step(0, 4, 2),
+            SliceRange::full(),
+            SliceRange::full(),
+        ]).unwrap();
+        assert_eq!(skipped.shape(), &[2, 3, 4]);
+        let (sums_skip_last, _) = skipped.try_moments_axis(-1_i32, false).unwrap();
+        assert_eq!(sums_skip_last.shape(), &[2, 3]);
+        // First lane: 0+1+2+3 = 6
+        assert!((sums_skip_last.as_slice()[0] - 6.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn nd_contraction_singleton_dims() {
+        // Singleton dimensions (extent=1) should collapse freely.
+        let data: Vec<f32> = (0..64).map(|i| i as f32).collect();
+        let t = Tensor::<f32>::try_from_slice(&data, &[1, 64, 1]).unwrap();
+        let t_flat = Tensor::<f32>::try_from_slice(&data, &[64]).unwrap();
+        let (sum_nd, sumsq_nd) = t.view().try_moments_all().unwrap();
+        let (sum_flat, sumsq_flat) = t_flat.view().try_moments_all().unwrap();
+        assert_eq!(sum_nd, sum_flat);
+        assert_eq!(sumsq_nd, sumsq_flat);
+
+        let mm_nd = t.view().try_minmax_all().unwrap();
+        let mm_flat = t_flat.view().try_minmax_all().unwrap();
+        assert_eq!(mm_nd.min_index, mm_flat.min_index);
+        assert_eq!(mm_nd.max_index, mm_flat.max_index);
     }
 
     #[test]

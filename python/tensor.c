@@ -1123,13 +1123,10 @@ static size_t uniform_stride_tail_dims(Py_ssize_t const *shape, Py_ssize_t const
     }
     size_t tail = 1;
     Py_ssize_t innermost = strides[rank - 1];
-    Py_ssize_t abs_expected = innermost < 0 ? -innermost : innermost;
+    Py_ssize_t expected = innermost;
     for (size_t i = rank - 1; i > 0; --i) {
-        Py_ssize_t next = abs_expected * (Py_ssize_t)shape[i];
-        Py_ssize_t actual = strides[i - 1];
-        Py_ssize_t abs_actual = actual < 0 ? -actual : actual;
-        if (abs_actual != next) break;
-        abs_expected = next;
+        expected = expected * (Py_ssize_t)shape[i];
+        if (strides[i - 1] != expected) break;
         ++tail;
     }
     size_t count = 1;

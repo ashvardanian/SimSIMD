@@ -236,12 +236,10 @@ uniform_stride_tail_result_t_ uniform_stride_tail_(tensor_view<value_type_, max_
     if (rank == 0) return {0, 1, sizeof(value_type_)};
     std::size_t tail = 1;
     auto innermost_stride = input.stride_bytes(rank - 1);
-    auto expected_stride = innermost_stride < 0 ? -innermost_stride : innermost_stride;
+    auto expected_stride = innermost_stride;
     for (std::size_t i = rank - 1; i > 0; --i) {
-        auto next = expected_stride * static_cast<std::ptrdiff_t>(input.extent(i));
-        auto actual_stride = input.stride_bytes(i - 1);
-        if ((actual_stride < 0 ? -actual_stride : actual_stride) != next) break;
-        expected_stride = next;
+        expected_stride *= static_cast<std::ptrdiff_t>(input.extent(i));
+        if (input.stride_bytes(i - 1) != expected_stride) break;
         ++tail;
     }
     std::size_t count = 1;

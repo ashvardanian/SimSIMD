@@ -1794,13 +1794,10 @@ bool for_each_axis_lane_(tensor_view<value_type_, max_rank_> input, std::size_t 
             other_strides[i] = input.stride_bytes(remaining_dims[i]);
         }
         bool all_collapse = true;
-        auto expected_stride = other_strides[remaining_count - 1] < 0 ? -other_strides[remaining_count - 1]
-                                                                      : other_strides[remaining_count - 1];
+        auto expected_stride = other_strides[remaining_count - 1];
         for (std::size_t i = remaining_count - 1; i > 0 && all_collapse; --i) {
-            auto next = expected_stride * static_cast<std::ptrdiff_t>(other_extents[i]);
-            auto actual_stride = other_strides[i - 1] < 0 ? -other_strides[i - 1] : other_strides[i - 1];
-            if (actual_stride != next) all_collapse = false;
-            expected_stride = next;
+            expected_stride *= static_cast<std::ptrdiff_t>(other_extents[i]);
+            if (other_strides[i - 1] != expected_stride) all_collapse = false;
         }
         if (all_collapse) {
             auto lane_byte_increment = other_strides[remaining_count - 1];

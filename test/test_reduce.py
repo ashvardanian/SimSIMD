@@ -669,3 +669,102 @@ def test_multi_axis_module_level(capability):
 
 
 # endregion Multi-axis reductions
+
+# region N-D tensor contraction tests
+#
+# These test the stride-collapsing optimization paths: uniform-stride tail detection,
+# recursive re-analysis, and axis-reduction fast paths on contiguous non-axis dims.
+# Each case is validated against a flattened-then-reduced reference (for global reductions)
+# or NumPy (for axis reductions) to isolate the contraction logic from SIMD correctness.
+
+
+def _nd_global_case(description, np_arr):
+    """Verify global reduction on an N-D view matches a flat contiguous copy."""
+    flat = np.ascontiguousarray(np_arr).reshape(-1)
+    nk_sum, nk_sumsq = nk.moments(np_arr)
+    ref_sum, ref_sumsq = nk.moments(nk.Tensor(flat))
+    assert_allclose(nk_sum, ref_sum, err_msg=f"{description}: sum")
+    assert_allclose(nk_sumsq, ref_sumsq, err_msg=f"{description}: sumsq")
+    assert nk.min(np_arr) == nk.min(nk.Tensor(flat)), f"{description}: min mismatch"
+    assert nk.max(np_arr) == nk.max(nk.Tensor(flat)), f"{description}: max mismatch"
+
+
+def _nd_axis_case(description, np_arr, axis):
+    """Verify axis reduction matches NumPy."""
+    atol, rtol = tolerances_for_dtype(str(np_arr.dtype))
+    nk_result = np.asarray(nk.sum(np_arr, axis=axis))
+    np_result = np_arr.astype(np.float64).sum(axis=axis)
+    assert_allclose(nk_result, np_result, atol=atol, rtol=rtol, err_msg=description)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+def test_nd_contiguous_global_reduction(dtype):
+    """Global reduction on contiguous N-D tensors: all dims should collapse into one kernel call."""
+    rng = np.random.RandomState(42)
+    for shape in [(4, 64, 64, 3), (2, 3, 4, 5, 6), (8, 12, 16), (1, 1, 256)]:
+        arr = rng.randint(0, 100, shape).astype(dtype) if np.issubdtype(dtype, np.integer) else rng.randn(*shape).astype(dtype)
+        _nd_global_case(f"contiguous {shape} {dtype.__name__}", arr)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+def test_nd_strided_global_reduction(dtype):
+    """Global reduction on non-contiguous but uniformly-strided subviews."""
+    rng = np.random.RandomState(42)
+
+    # Channel subview: (H, W, C)[:, :, k] → uniform stride = C * itemsize
+    base = rng.randint(0, 100, (64, 64, 3)).astype(dtype) if np.issubdtype(dtype, np.integer) else rng.randn(64, 64, 3).astype(dtype)
+    _nd_global_case(f"channel subview {dtype.__name__}", base[:, :, 1])
+
+    # Row skip: (H, W)[::2, :] → first dim breaks, second dim contiguous
+    base2d = rng.randint(0, 100, (128, 64)).astype(dtype) if np.issubdtype(dtype, np.integer) else rng.randn(128, 64).astype(dtype)
+    _nd_global_case(f"row skip {dtype.__name__}", base2d[::2, :])
+
+    # Batch skip on 4-D: (B, H, W, C)[::2, :, :, :]
+    base4d = rng.randint(0, 100, (4, 32, 32, 3)).astype(dtype) if np.issubdtype(dtype, np.integer) else rng.randn(4, 32, 32, 3).astype(dtype)
+    _nd_global_case(f"batch skip {dtype.__name__}", base4d[::2, :, :, :])
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_nd_reversed_global_reduction():
+    """Global reduction on reversed (negative stride) views."""
+    rng = np.random.RandomState(42)
+    arr = rng.randint(0, 200, (512,), dtype=np.uint8)
+    _nd_global_case("reversed 1D", arr[::-1])
+    arr2d = rng.randn(64, 32).astype(np.float32)
+    _nd_global_case("reversed last dim", arr2d[:, ::-1])
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("axis", [0, 1, 2, 3, -1])
+def test_nd_axis_reduction_contiguous(axis):
+    """Axis reductions on contiguous 4-D image-like tensor."""
+    rng = np.random.RandomState(42)
+    arr = rng.randn(4, 32, 32, 3).astype(np.float32)
+    _nd_axis_case(f"axis={axis} on (4,32,32,3)", arr, axis)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_nd_axis_reduction_on_subview():
+    """Axis reductions on non-contiguous subviews."""
+    rng = np.random.RandomState(42)
+    base = rng.randn(8, 64, 64, 3).astype(np.float32)
+    # Skip every other batch → non-contiguous outer dim, contiguous inner dims
+    sub = base[::2, :, :, :]
+    _nd_axis_case("axis=0 on batch-skipped", sub, 0)
+    _nd_axis_case("axis=-1 on batch-skipped", sub, -1)
+    _nd_axis_case("axis=2 on batch-skipped", sub, 2)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_nd_singleton_dims():
+    """Reduction through singleton dimensions (extent=1) that should collapse freely."""
+    rng = np.random.RandomState(42)
+    arr = rng.randn(1, 64, 1, 64, 1).astype(np.float32)
+    _nd_global_case("singleton dims", arr)
+    _nd_axis_case("singleton axis=1", arr, 1)
+    _nd_axis_case("singleton axis=3", arr, 3)
+
+
+# endregion N-D tensor contraction tests
