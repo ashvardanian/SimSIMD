@@ -1519,7 +1519,7 @@ NK_PUBLIC svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_b16x, svuint8_t 
  *  Fused `e4m3` × `e4m3` → `f32` GEMM kernel using interleaved FMOPA.
  *  Converts `e4m3` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
-__arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk_dots_packed_e4m3_sme_streaming_( //
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_e4m3_sme_streaming_( //
     nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
@@ -2031,7 +2031,7 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t ve
  *  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using interleaved FMOPA.
  *  Converts `e5m2` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
-__arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk_dots_packed_e5m2_sme_streaming_( //
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_e5m2_sme_streaming_( //
     nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
@@ -2490,7 +2490,7 @@ NK_PUBLIC svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_b8x, svuint8_t raw_b
  *  Converts `e2m3` → `i8` on-the-fly for A, B is pre-converted during packing.
  *  Accumulates in `i32` via `svmopa_za32_s8_m`, then converts to `f32` with 1/256 scaling.
  */
-__arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk_dots_packed_e2m3_sme_streaming_( //
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_e2m3_sme_streaming_( //
     nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
@@ -3012,7 +3012,7 @@ NK_PUBLIC svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_b16x, svuint8_t 
  *  Fused `e3m2` × `e3m2` → `f32` GEMM kernel using interleaved FMOPA.
  *  Converts `e3m2` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
-__arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk_dots_packed_e3m2_sme_streaming_( //
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_e3m2_sme_streaming_( //
     nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {

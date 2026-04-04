@@ -139,7 +139,7 @@ NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f
  *  @brief f32 Mahalanobis: GEMV v = C×d via FMOPA, where d = a − b (exact in f64).
  *  ZA0.D = C staging, ZA1.D = GEMV accumulator.
  */
-__arm_locally_streaming __arm_new("za") static inline nk_f64_t
+__arm_locally_streaming __arm_new("za") static nk_f64_t
     nk_mahalanobis_f32_smef64_streaming_(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c,
                                          nk_size_t dimensions) {
 
@@ -266,10 +266,8 @@ NK_PUBLIC void nk_bilinear_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, nk_f
  *  @brief f64 Mahalanobis: row-by-row streaming SVE with Dot2 compensation.
  *  4-row fast path shares (a−b) column vector; 1-row tail for remainder.
  */
-__arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_streaming_(nk_f64_t const *a,
-                                                                                    nk_f64_t const *b,
-                                                                                    nk_f64_t const *c,
-                                                                                    nk_size_t dimensions) {
+__arm_locally_streaming static nk_f64_t nk_mahalanobis_f64_smef64_streaming_(nk_f64_t const *a, nk_f64_t const *b,
+                                                                             nk_f64_t const *c, nk_size_t dimensions) {
     svbool_t predicate_all_b64x = svptrue_b64();
     nk_f64_t outer_sum = 0.0, outer_comp = 0.0;
     nk_size_t row = 0;
