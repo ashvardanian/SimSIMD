@@ -359,7 +359,7 @@ def _is_editable_install() -> bool:
 SETUP_KWARGS = (
     {
         "packages": ["numkong"],
-        "package_dir": {"numkong": "python/annotations"},
+        "package_dir": {"numkong": "python/numkong"},
         "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
     }
     if not _is_editable_install()

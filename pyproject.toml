@@ -12,6 +12,10 @@
 build-backend = "setuptools.build_meta"
 requires = ["setuptools>=42"]
 
+[tool.pyright]
+extraPaths = ["test"]
+stubPath = "python"
+
 [tool.pytest.ini_options]
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 filterwarnings = ["error"]
