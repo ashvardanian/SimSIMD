@@ -691,48 +691,50 @@ def _nd_axis_case(description, np_arr, axis):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("dtype", ["uint8", "float32"])
 def test_nd_contiguous_global_reduction(dtype: str):
     """Global reduction on contiguous N-D tensors: all dims should collapse into one kernel call."""
+    np_dtype = np.dtype(dtype)
     rng = np.random.RandomState(42)
     for shape in [(4, 64, 64, 3), (2, 3, 4, 5, 6), (8, 12, 16), (1, 1, 256)]:
         arr = (
-            rng.randint(0, 100, shape).astype(dtype)
-            if np.issubdtype(dtype, np.integer)
-            else rng.randn(*shape).astype(dtype)
+            rng.randint(0, 100, shape).astype(np_dtype)
+            if np.issubdtype(np_dtype, np.integer)
+            else rng.randn(*shape).astype(np_dtype)
         )
-        _nd_global_case(f"contiguous {shape} {dtype.__name__}", arr)
+        _nd_global_case(f"contiguous {shape} {dtype}", arr)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("dtype", ["uint8", "float32"])
 def test_nd_strided_global_reduction(dtype: str):
     """Global reduction on non-contiguous but uniformly-strided subviews."""
+    np_dtype = np.dtype(dtype)
     rng = np.random.RandomState(42)
 
     # Channel subview: (H, W, C)[:, :, k] → uniform stride = C * itemsize
     base = (
-        rng.randint(0, 100, (64, 64, 3)).astype(dtype)
-        if np.issubdtype(dtype, np.integer)
-        else rng.randn(64, 64, 3).astype(dtype)
+        rng.randint(0, 100, (64, 64, 3)).astype(np_dtype)
+        if np.issubdtype(np_dtype, np.integer)
+        else rng.randn(64, 64, 3).astype(np_dtype)
     )
-    _nd_global_case(f"channel subview {dtype.__name__}", base[:, :, 1])
+    _nd_global_case(f"channel subview {dtype}", base[:, :, 1])
 
     # Row skip: (H, W)[::2, :] → first dim breaks, second dim contiguous
     base2d = (
-        rng.randint(0, 100, (128, 64)).astype(dtype)
-        if np.issubdtype(dtype, np.integer)
-        else rng.randn(128, 64).astype(dtype)
+        rng.randint(0, 100, (128, 64)).astype(np_dtype)
+        if np.issubdtype(np_dtype, np.integer)
+        else rng.randn(128, 64).astype(np_dtype)
     )
-    _nd_global_case(f"row skip {dtype.__name__}", base2d[::2, :])
+    _nd_global_case(f"row skip {dtype}", base2d[::2, :])
 
     # Batch skip on 4-D: (B, H, W, C)[::2, :, :, :]
     base4d = (
-        rng.randint(0, 100, (4, 32, 32, 3)).astype(dtype)
-        if np.issubdtype(dtype, np.integer)
-        else rng.randn(4, 32, 32, 3).astype(dtype)
+        rng.randint(0, 100, (4, 32, 32, 3)).astype(np_dtype)
+        if np.issubdtype(np_dtype, np.integer)
+        else rng.randn(4, 32, 32, 3).astype(np_dtype)
     )
-    _nd_global_case(f"batch skip {dtype.__name__}", base4d[::2, :, :, :])
+    _nd_global_case(f"batch skip {dtype}", base4d[::2, :, :, :])
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
