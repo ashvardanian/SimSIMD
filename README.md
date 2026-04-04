@@ -464,25 +464,32 @@ Float16 prioritizes __precision over range__ (10 vs 7 mantissa bits), making it 
 On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast Float16 → Float32 conversion; Sapphire Rapids+ adds native __AVX-512-FP16__ with dedicated Float16 arithmetic.
 On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
 
-| Platform               | BFloat16 Path            | Elem/Op | Float16 Path           | Elem/Op |
-| ---------------------- | ------------------------ | ------: | ---------------------- | ------: |
-| __x86__                |                          |         |                        |         |
-| Sapphire Rapids (2023) | ↓ Genoa                  |      32 | ↓ Skylake              |      16 |
-| Genoa (2022)           | `VDPBF16PS` widening dot |      32 | ↓ Skylake              |      16 |
-| Skylake (2015)         | `SLLI` + `VFMADD`        |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
-| Haswell (2013)         | `SLLI` + `VFMADD`        |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
-| __Arm__                |                          |         |                        |         |
-| Graviton 3 (2021)      | `SVBFDOT` widening dot   |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
-| Apple M2+ (2022)       | `BFDOT` widening dot     |       8 | ↓ FP16FML              |       8 |
-| Apple M1 (2020)        | ↓ NEON                   |       8 | `FMLAL` widening FMA   |       8 |
-| Graviton 2 (2019)      | ↓ NEON                   |       8 | `FCVTL` + `FMLA`       |       4 |
-| Graviton 1 (2018)      | `SHLL` + `FMLA`          |       8 | bit-manip → `FMLA`     |       8 |
+| Platform               | BFloat16 Path              | Elem/Op | Float16 Path           | Elem/Op |
+| ---------------------- | -------------------------- | ------: | ---------------------- | ------: |
+| __x86__                |                            |         |                        |         |
+| Diamond Rapids (2025)  | ↓ Genoa                    |      32 | `VDPPHPS` widening dot |      32 |
+| Sapphire Rapids (2023) | ↓ Genoa                    |      32 | ↓ Skylake              |      16 |
+| Genoa (2022)           | `VDPBF16PS` widening dot   |      32 | ↓ Skylake              |      16 |
+| Skylake (2015)         | `SLLI` + `VFMADD`          |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
+| Haswell (2013)         | `SLLI` + `VFMADD`          |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
+| __Arm__                |                            |         |                        |         |
+| Graviton 3 (2021)      | `SVBFDOT` widening dot     |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
+| Apple M2+ (2022)       | `BFDOT` widening dot       |       8 | ↓ FP16FML              |       8 |
+| Apple M1 (2020)        | ↓ NEON                     |       8 | `FMLAL` widening FMA   |       8 |
+| Graviton 2 (2019)      | ↓ NEON                     |       8 | `FCVTL` + `FMLA`       |       4 |
+| Graviton 1 (2018)      | `SHLL` + `FMLA`            |       8 | bit-manip → `FMLA`     |       8 |
+| __RISC-V__             |                            |         |                        |         |
+| RVV + Zvfbfwma         | `VFWMACCBF16` widening FMA |    4–32 | ↓ RVV                  |    4–32 |
+| RVV + Zvfh             | ↓ RVV                      |    4–32 | `VFWMACC` widening FMA |    4–32 |
+| RVV                    | shift + `VFMACC`           |    4–32 | convert + `VFMACC`     |    4–32 |
 
 > BFloat16 shares Float32's 8-bit exponent, so upcasting is a 16-bit left shift (`SLLI` on x86, `SHLL` on Arm) that zero-pads the truncated mantissa — essentially free.
 > Float16 has a different exponent width (5 vs 8 bits), requiring a dedicated convert: `VCVTPH2PS` (x86 F16C) or `FCVTL` (Arm NEON).
 > Widening dot products (`VDPBF16PS`, `BFDOT`, `FMLAL`) fuse the conversion and multiply-accumulate into one instruction.
 > Sapphire Rapids has native `VFMADDPH` for Float16 arithmetic, but NumKong does not use it for general dot products — Float16 accumulation loses precision.
 > It is only used for mini-float (E2M3/E3M2) paths where periodic flush-to-Float32 windows keep error bounded.
+> The table above covers only vector dot-product paths - GEMMs also leverage Arm SME and Intel AMX instructions.
+> Beyond x86, Arm, and RISC-V, NumKong also ships LoongArch, WebAssembly, and PowerPC backends, also excluded from the table.
 
 ### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
 
@@ -510,10 +517,49 @@ E4M3FN (no infinities, NaN only) is preferred for __training__ where precision n
 On x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BFloat16 via lookup tables, then use native __DPBF16PS__ for 2-per-lane dot products accumulating to Float32.
 On Arm Graviton 3+, the same BFloat16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
 
+| Platform                   | E5M2 Path                      | Elem/Op | E4M3 Path                      | Elem/Op |
+| -------------------------- | ------------------------------ | ------: | ------------------------------ | ------: |
+| __x86__                    |                                |         |                                |         |
+| Diamond Rapids (2025)      | `VCVTBF82PH` → F16 + `VDPPHPS` |      32 | `VCVTHF82PH` → F16 + `VDPPHPS` |      32 |
+| Genoa (2022)               | → BF16 + `VDPBF16PS`           |      32 | ↓ Ice Lake                     |      64 |
+| Ice Lake (2019)            | ↓ Skylake                      |      16 | octave LUT + `VPDPBUSD`        |      64 |
+| Skylake (2015)             | rebias → F32 FMA               |      16 | rebias → F32 FMA               |      16 |
+| Haswell (2013)             | rebias → F32 FMA               |       8 | rebias → F32 FMA               |       8 |
+| __Arm__                    |                                |         |                                |         |
+| NEON + FP8DOT (Olympus)    | native `FDOT`                  |      16 | native `FDOT`                  |      16 |
+| NEON + FP16FML (Apple M1+) | SHL → F16 + `FMLAL`            |      16 | LUT → F16 + `FMLAL`            |      16 |
+| NEON (Graviton 1+)         | SHL + `FCVTL` + FMA            |       8 | → F16 + `FCVTL` + FMA          |       8 |
+| __RISC-V__                 |                                |         |                                |         |
+| RVV + Zvfbfwma             | rebias → BF16 + `VFWMACCBF16`  |    4–32 | LUT → BF16 + `VFWMACCBF16`     |    4–32 |
+| RVV + Zvfh                 | SHL → F16 + `VFWMACC`          |    4–32 | LUT → F16 + `VFWMACC`          |    4–32 |
+| RVV                        | rebias → F32 + `VFMACC`        |    4–32 | LUT → F32 + `VFMACC`           |    4–32 |
+
+> E5M2 shares Float16's exponent bias (15), so E5M2 → Float16 conversion is a single left-shift by 8 bits (`SHL 8`).
+> E4M3 on Ice Lake uses "octave decomposition": the 4-bit exponent splits into 2 octave + 2 remainder bits, yielding 7 integer accumulators post-scaled by powers of 2.
+
 __6-bit floats (E3M2 & E2M3)__ follow the [OCP MX v1.0 standard](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf).
 Their smaller range allows scaling to exact integers that fit in `i8`/`i16`, enabling integer `VPDPBUSD`/`SDOT` accumulation instead of the floating-point pipeline.
 Float16 can also serve as an accumulator, accurately representing ~50 products of E3M2FN pairs or ~20 products of E2M3FN pairs before overflow.
 On Arm, NEON FHM extensions bring widening `FMLAL` dot-products for Float16 — both faster and more widely available than `BFDOT` for BFloat16.
+
+| Platform                     | E3M2 Path                  | Elem/Op | E2M3 Path                    | Elem/Op |
+| ---------------------------- | -------------------------- | ------: | ---------------------------- | ------: |
+| __x86__                      |                            |         |                              |         |
+| Ice Lake (2019)              | `VPERMW` LUT + `VPMADDWD`  |      32 | `VPERMB` LUT + `VPDPBUSD`    |      64 |
+| Sierra Forest (2024)         | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBSSD`   |      32 |
+| Alder Lake (2021)            | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBUSD`   |      32 |
+| Skylake (2015)               | `VPSHUFB` LUT + `VPMADDWD` |      64 | `VPSHUFB` LUT + `VPMADDUBSW` |      64 |
+| Haswell (2013)               | `VPSHUFB` LUT + `VPMADDWD` |      32 | `VPSHUFB` LUT + `VPMADDUBSW` |      32 |
+| __Arm__                      |                            |         |                              |         |
+| NEON + FP8DOT (Olympus)      | → E5M2 + `FDOT`            |      16 | → E4M3 + `FDOT`              |      16 |
+| NEON + DotProd (Graviton 2+) | `VQTBL2` LUT + `SMLAL`     |      16 | `VQTBL2` LUT + `SDOT`        |      16 |
+| NEON (Graviton 1+)           | → F16 + `FCVTL` + FMA      |      16 | → F16 + `FCVTL` + FMA        |      16 |
+| __RISC-V__                   |                            |         |                              |         |
+| RVV                          | I16 gather LUT + `VWMACC`  |    4–32 | U8 gather LUT + `VWMACC`     |    4–32 |
+
+> E3M2/E2M3 values map to exact integers via 32-entry LUTs (magnitudes up to 448 for E3M2, 120 for E2M3), enabling integer accumulation with no rounding error.
+> On NEON + FP8DOT, E3M2 is first promoted to E5M2 and E2M3 to E4M3 before the hardware `FDOT` instruction.
+> Sierra Forest and Alder Lake use native `VPDPBSSD` (signed×signed) and `VPDPBUSD` (unsigned×signed) respectively for E2M3.
 
 E4M3 and E5M2 cannot use the integer path.
 E4M3 scaled by 16 reaches 7,680 — too large for Int8, barely fitting Int16 with a 128-entry table.
