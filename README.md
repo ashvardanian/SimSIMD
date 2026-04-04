@@ -75,57 +75,52 @@ A broader throughput comparison is maintained in [NumWars](https://github.com/as
 
 NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers — across dozens of operations and 30+ SIMD backends, with hardware-aware defaults: Arm prioritizes `f16`, x86 prioritizes `bf16`.
 
-### Operations × Backend
+### Language Bindings
 
-| Backend        | [dot] | [dots] | [spatial] | [spatials] | [set] | [sets] | [cast] | [reduce] | [trig] | [maxsim] | [mesh] |
-| :------------- | :---: | :----: | :-------: | :--------: | :---: | :----: | :----: | :------: | :----: | :------: | :----: |
-| __x86__        |       |        |           |            |       |        |        |          |        |          |        |
-| Haswell        |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ●     |   ●    |
-| Skylake        |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ●    |    ●     |   ●    |    ·     |   ●    |
-| Ice Lake       |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ·    |    ●     |   ·    |
-| Genoa          |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
-| Sapphire       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ●    |    ·     |   ·    |    ·     |   ·    |
-| Sapphire AMX   |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ●     |   ·    |
-| Diamond        |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| Alder Lake     |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
-| Sierra Forest  |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ·    |
-| Turin          |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| __Arm__        |       |        |           |            |       |        |        |          |        |          |        |
-| NEON           |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ·     |   ●    |
-| NEON Half      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ●    |
-| NEON FHM       |   ●   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ·    |
-| NEON BF16      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ·     |   ●    |
-| NEON SDot      |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ●     |   ·    |    ●     |   ·    |
-| NEON FP8       |   ●   |   ●    |     ●     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SVE            |   ●   |   ·    |     ●     |     ·      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SVE Half       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SVE BF16       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SVE SDot       |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SVE2           |   ·   |   ·    |     ·     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SME            |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ●     |   ·    |
-| SME F64        |   ·   |   ●    |     ·     |     ●      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| SME BI32       |   ·   |   ●    |     ·     |     ·      |   ·   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| __Other__      |       |        |           |            |       |        |        |          |        |          |        |
-| Power VSX      |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| LoongArch LASX |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| RVV            |   ●   |   ●    |     ●     |     ●      |   ●   |   ·    |   ●    |    ●     |   ●    |    ·     |   ●    |
-| RVV Half       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| RVV BF16       |   ●   |   ·    |     ●     |     ·      |   ·   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| RVV BB         |   ●   |   ·    |     ·     |     ·      |   ●   |   ·    |   ·    |    ·     |   ·    |    ·     |   ·    |
-| WASM V128      |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ·    |    ●     |   ●    |    ●     |   ●    |
-| Serial         |   ●   |   ●    |     ●     |     ●      |   ●   |   ●    |   ●    |    ●     |   ●    |    ●     |   ●    |
+| Operation                   | [C/C++][c] | [Python][py] | [Rust][rs] | [JS][js] | [Swift][swift] | [Go][go] |
+| :-------------------------- | :--------: | :----------: | :--------: | :------: | :------------: | :------: |
+| __Vector Ops__              |            |              |            |          |                |          |
+| [Dot] Product               |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
+| [Spatial] Metric            |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
+| [Set] Similarity            |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
+| [Geo]spatial                |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
+| [Mesh] Alignment            |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| [Sparse] Products           |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| [Prob]ability Divergences   |     ●      |      ●       |     ●      |    ●     |       ·        |    ●     |
+| [Curved] Spaces             |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| __Many-to-Many Vector Ops__ |            |              |            |          |                |          |
+| "[Dots]" Products           |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
+| "[Spatials]" Metrics        |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
+| "[Sets]" Similarities       |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
+| [MaxSim] Scoring            |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
+| __Scalar Ops__              |            |              |            |          |                |          |
+| [Cast]                      |     ●      |      ●       |     ●      |    ●     |       ·        |    ·     |
+| [Reduce]                    |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| [Each]                      |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| [Trig]onometry              |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
 
-[dot]: include/numkong/dot/README.md
-[dots]: include/numkong/dots/README.md
-[spatial]: include/numkong/spatial/README.md
-[spatials]: include/numkong/spatials/README.md
-[set]: include/numkong/set/README.md
-[sets]: include/numkong/sets/README.md
-[cast]: include/numkong/cast/README.md
-[reduce]: include/numkong/reduce/README.md
-[trig]: include/numkong/trigonometry/README.md
-[maxsim]: include/numkong/maxsim/README.md
-[mesh]: include/numkong/mesh/README.md
+[Dot]: include/numkong/dot/README.md
+[Dots]: include/numkong/dots/README.md
+[Spatial]: include/numkong/spatial/README.md
+[Spatials]: include/numkong/spatials/README.md
+[Set]: include/numkong/set/README.md
+[Sets]: include/numkong/sets/README.md
+[Cast]: include/numkong/cast/README.md
+[Reduce]: include/numkong/reduce/README.md
+[Trig]: include/numkong/trigonometry/README.md
+[MaxSim]: include/numkong/maxsim/README.md
+[Mesh]: include/numkong/mesh/README.md
+[Each]: include/numkong/each/README.md
+[Sparse]: include/numkong/sparse/README.md
+[Prob]: include/numkong/probability/README.md
+[Curved]: include/numkong/curved/README.md
+[Geo]: include/numkong/geospatial/README.md
+[c]: include/README.md
+[py]: python/README.md
+[js]: javascript/README.md
+[rs]: rust/README.md
+[swift]: swift/README.md
+[go]: golang/README.md
 
 ### Numeric Types × Backend
 
@@ -134,67 +129,43 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 | __x86__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
 | Haswell        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |
 | Skylake        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
-| Ice Lake       |   ·   |   ●   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| Ice Lake       |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
 | Genoa          |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
-| Sapphire       |   ·   |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Sapphire AMX   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Diamond        |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Alder Lake     |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Sapphire       |   ·   |   ·   |   ·   |   ●   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Sapphire AMX   |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Alder Lake     |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | Sierra Forest  |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | Turin          |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| Diamond        |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | __Arm__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| NEON           |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
-| NEON Half      |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
+| NEON           |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ●   |
+| NEON Half      |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | NEON FHM       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
 | NEON BF16      |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
-| NEON SDot      |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| NEON SDot      |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | NEON FP8       |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SVE            |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
+| SVE            |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
 | SVE Half       |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
 | SVE BF16       |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SVE SDot       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SVE SDot       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | SVE2           |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SME            |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
+| SME            |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | SME F64        |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |
-| SME BI32       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| __Other__      |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| Power VSX      |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| SME BI32       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| __RISC-V__     |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
 | RVV            |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
 | RVV Half       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | RVV BF16       |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
 | RVV BB         |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| WASM V128      |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
-
-### Language Bindings
-
-| Operation    | [C/C++][c_guide] | [Python][py_guide] | [Rust][rs_guide] | [JavaScript][js_guide] | [Swift][sw_guide] | [Go][go_guide] |
-| :----------- | :--------------: | :----------------: | :--------------: | :--------------------: | :---------------: | :------------: |
-| [dot]        |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
-| [dots]       |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
-| [spatial]    |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
-| [spatials]   |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
-| [set]        |        ●         |         ●          |        ●         |           ●            |         ●         |       ●        |
-| [sets]       |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
-| [cast]       |        ●         |         ●          |        ●         |           ●            |         ·         |       ·        |
-| [reduce]     |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
-| [trig]       |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
-| [geospatial] |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
-| [maxsim]     |        ●         |         ●          |        ●         |           ·            |         ●         |       ●        |
-| [mesh]       |        ●         |         ●          |        ●         |           ·            |         ·         |       ·        |
-
-[geospatial]: include/numkong/geospatial/README.md
-[c_guide]: include/README.md
-[py_guide]: python/README.md
-[js_guide]: javascript/README.md
-[rs_guide]: rust/README.md
-[sw_guide]: swift/README.md
-[go_guide]: golang/README.md
+| __Other__      |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
+| Power VSX      |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
+| WASM V128      |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
 
 Not every combination is implemented — only the ones that unlock real performance gains.
 The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
 Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
-For details on compile-time and run-time [dispatch](CONTRIBUTING.md#compile-time-and-run-time-dispatch), see the contributor guide.
+For details on compile-time and run-time [dispatch](#compile-time-and-run-time-dispatch), see the contributor guide.
 
 ## Design Decisions
 
