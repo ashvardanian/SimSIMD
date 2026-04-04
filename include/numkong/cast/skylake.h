@@ -132,6 +132,29 @@ NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void 
     _mm256_mask_storeu_epi64(dst, mask, src->ymm);
 }
 
+/** @brief Type-agnostic full store for 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_store_b512_skylake_(nk_b512_vec_t const *src, void *dst) {
+    _mm512_storeu_si512((__m512i *)dst, src->zmm);
+}
+
+/** @brief Type-agnostic partial store for 16-bit elements (32 elements max) from 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b16x32_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    _mm512_mask_storeu_epi16(dst, mask, src->zmm);
+}
+
+/** @brief Type-agnostic partial store for 8-bit elements (64 elements max) from 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b8x64_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
+    _mm512_mask_storeu_epi8(dst, mask, src->zmm);
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (8 elements max) from 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b64x8_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
+    _mm512_mask_storeu_epi64(dst, mask, src->zmm);
+}
+
 #pragma endregion Type Punned Loads and Stores
 
 #pragma region Vectorized Conversions
@@ -561,6 +584,40 @@ NK_INTERNAL __m256i nk_f64x8_to_i32x8_skylake_(__m512d f64x8) {
 NK_INTERNAL __m256i nk_f64x8_to_u32x8_skylake_(__m512d f64x8) {
     __m512d clamped = _mm512_min_pd(_mm512_max_pd(f64x8, _mm512_setzero_pd()), _mm512_set1_pd((double)NK_U32_MAX));
     return _mm512_cvtpd_epu32(clamped);
+}
+
+/**
+ *  @brief Convert 64x E2M3 → 64x I8 using VPSHUFB LUT (Skylake AVX-512).
+ *
+ *  E2M3 format: [sign:1][magnitude:5] where magnitude indexes a 32-entry LUT
+ *  that produces the scaled integer value. Sign bit negates the result.
+ *  The 32-entry LUT is split into two 16-entry halves for VPSHUFB (which
+ *  indexes within 16-byte lanes). Bit 4 of the magnitude selects the half.
+ */
+NK_INTERNAL __m512i nk_e2m3x64_to_i8x64_skylake_(__m512i raw_i8x64) {
+    // lut_magnitude[0..15]  = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}
+    // lut_magnitude[16..31] = {32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120}
+    // _mm512_set4_epi32(d3, d2, d1, d0) fills bytes [0..3]=d0, [4..7]=d1, [8..11]=d2, [12..15]=d3
+    // per 128-bit lane, matching VPSHUFB's per-lane indexing.
+    __m512i lut_low_i8x64 = _mm512_set4_epi32( //
+        0x1E1C1A18, 0x16141210, 0x0E0C0A08, 0x06040200);
+    __m512i lut_high_i8x64 = _mm512_set4_epi32( //
+        0x78706860, 0x58504840, 0x3C383430, 0x2C282420);
+
+    __m512i magnitude_i8x64 = _mm512_and_si512(raw_i8x64, _mm512_set1_epi8(0x1F));
+    __m512i index_i8x64 = _mm512_and_si512(magnitude_i8x64, _mm512_set1_epi8(0x0F));
+
+    __m512i val_low_i8x64 = _mm512_shuffle_epi8(lut_low_i8x64, index_i8x64);
+    __m512i val_high_i8x64 = _mm512_shuffle_epi8(lut_high_i8x64, index_i8x64);
+
+    // Select high half when bit 4 of magnitude is set (magnitude >= 16)
+    __mmask64 use_high_mask = _mm512_test_epi8_mask(magnitude_i8x64, _mm512_set1_epi8(0x10));
+    __m512i val_i8x64 = _mm512_mask_blend_epi8(use_high_mask, val_low_i8x64, val_high_i8x64);
+
+    // Negate if sign bit (bit 5) is set
+    __mmask64 sign_mask = _mm512_test_epi8_mask(raw_i8x64, _mm512_set1_epi8(0x20));
+    __m512i negated_i8x64 = _mm512_sub_epi8(_mm512_setzero_si512(), val_i8x64);
+    return _mm512_mask_blend_epi8(sign_mask, val_i8x64, negated_i8x64);
 }
 
 #pragma endregion Vectorized Conversions

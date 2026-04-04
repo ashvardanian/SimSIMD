@@ -314,7 +314,6 @@ NK_PUBLIC void nk_angulars_packed_f64_smef64(             //
 #pragma endregion F64 Packed Angular
 #pragma region F64 Packed Euclidean
 
-
 __arm_locally_streaming static void nk_euclideans_packed_f64_smef64_finalize_streaming_( //
     nk_f64_t const *a, void const *b_packed, nk_f64_t *c,                                //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,                                  //

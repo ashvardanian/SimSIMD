@@ -921,36 +921,40 @@ NK_PUBLIC void nk_dots_pack_bf16_sapphireamx(                    //
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + tiles_offset);
     nk_bf16_t *column_edge_ptr = (nk_bf16_t *)((char *)b_packed + column_edge_offset);
 
-    // Zero-initialize all tiles (handles depth remainder padding)
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
-    // Pack tiles using LINEAR ordering: tile_index = column_tile × depth_tiles_count + depth_tile
-    // This provides sequential memory access when streaming along depth dimension,
-    // which is critical for cache efficiency in the compute kernel.
+    // Pack tiles using vectorized transposer: gather 16 strided rows into an aligned
+    // temporary, transpose via SIMD, then copy the result to the packed buffer.
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
 
-            // Linear tile index: all depth-tiles for one column-tile are contiguous
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
             nk_bf16_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
-            // Source coordinates in original B matrix
             nk_size_t const src_row_start = column_tile_idx * tmm_rows;
             nk_size_t const src_column_start = depth_tile_idx * tmm_cols;
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
-            // Pack with pair-interleaving as required by TDPBF16PS instruction.
-            // AMX expects: [col0_row0, col1_row0, col0_row1, col1_row1, col2_row0, col3_row0, ...]
-            // Formula: packed_idx = (column / 2) × 32 + row × 2 + (column % 2)
-            for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const src_idx = (src_row_start + row_idx) * b_stride_elements + src_column_start +
-                                              column_idx;
-                    nk_size_t const dst_idx = (column_idx / 2) * 32 + row_idx * 2 + (column_idx % 2);
-                    tile_output[dst_idx] = b[src_idx];
+            // Gather 16 strided source rows into a contiguous aligned tile
+            nk_dots_bf16_a16x32_sapphireamx_t source_tile;
+            if (columns_to_pack == tmm_cols) {
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_bf16_t const *source_row = b + (src_row_start + row_idx) * b_stride_elements + src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_loadu_si512(source_row));
                 }
             }
+            else {
+                __mmask32 depth_mask = (__mmask32)((columns_to_pack < 32) ? ((1U << columns_to_pack) - 1) : ~0U);
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_bf16_t const *source_row = b + (src_row_start + row_idx) * b_stride_elements + src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_maskz_loadu_epi16(depth_mask, source_row));
+                }
+            }
+
+            // Transpose into aligned local, then copy to (potentially unaligned) packed buffer
+            nk_dots_bf16_b32x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_bf16_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_bytes; i += 64)
+                _mm512_storeu_si512((char *)tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
@@ -1451,35 +1455,45 @@ NK_PUBLIC void nk_dots_pack_i8_sapphireamx(                    //
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + tiles_offset);
     nk_i8_t *column_edge_ptr = (nk_i8_t *)((char *)b_packed + column_edge_offset);
 
-    // Zero-initialize all tiles (handles depth remainder padding)
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
-    // Pack tiles using LINEAR ordering: tile_index = column_tile × depth_tiles_count + depth_tile
-    // This provides sequential memory access when streaming along depth dimension.
+    // Pack tiles using vectorized transposer: gather 16 strided rows into an aligned
+    // temporary, transpose via SIMD, then copy the result to the packed buffer.
+    // Stack-local aligned tiles are needed because the packed buffer may not be 64-byte aligned.
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
 
-            // Linear tile index: all depth-tiles for one column-tile are contiguous
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
             nk_i8_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
-            // Source coordinates in original B matrix
             nk_size_t const src_row_start = column_tile_idx * tmm_rows;
             nk_size_t const src_column_start = depth_tile_idx * tmm_cols;
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
-            // Pack with quad-interleaving as required by TDPBSSD instruction.
-            // AMX expects: [col0_row0, col1_row0, col2_row0, col3_row0, col0_row1, ...]
-            // Formula: packed_idx = (column / 4) × 64 + row × 4 + (column % 4)
-            for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const src_idx = (src_row_start + row_idx) * b_stride_in_bytes + src_column_start +
-                                              column_idx;
-                    nk_size_t const dst_idx = (column_idx / 4) * 64 + row_idx * 4 + (column_idx % 4);
-                    tile_output[dst_idx] = b[src_idx];
+            // Gather 16 strided source rows into a contiguous aligned tile
+            nk_dots_i8_a16x64_sapphireamx_t source_tile;
+            if (columns_to_pack == tmm_cols) {
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_i8_t const *source_row = (nk_i8_t const *)((char const *)b +
+                                                                  (src_row_start + row_idx) * b_stride_in_bytes) +
+                                                src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_loadu_si512(source_row));
                 }
             }
+            else {
+                __mmask64 depth_mask = (__mmask64)((columns_to_pack < 64) ? ((1ULL << columns_to_pack) - 1) : ~0ULL);
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_i8_t const *source_row = (nk_i8_t const *)((char const *)b +
+                                                                  (src_row_start + row_idx) * b_stride_in_bytes) +
+                                                src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_maskz_loadu_epi8(depth_mask, source_row));
+                }
+            }
+
+            // Transpose into aligned local, then copy to (potentially unaligned) packed buffer
+            nk_dots_i8_b64x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_i8_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_elements; i += 64)
+                _mm512_storeu_si512(tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
@@ -2020,8 +2034,9 @@ NK_PUBLIC void nk_dots_pack_u8_sapphireamx(                    //
     nk_u8_t *tiles_ptr = (nk_u8_t *)((char *)b_packed + tiles_offset);
     nk_u8_t *column_edge_ptr = (nk_u8_t *)((char *)b_packed + column_edge_offset);
 
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
+    // Pack tiles using vectorized transposer: gather 16 strided rows into an aligned
+    // temporary, transpose via SIMD, then copy the result to the packed buffer.
+    // Stack-local aligned tiles are needed because the packed buffer may not be 64-byte aligned.
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
 
@@ -2033,15 +2048,31 @@ NK_PUBLIC void nk_dots_pack_u8_sapphireamx(                    //
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
-            // Pack with quad-interleaving as required by TDPBUUD instruction.
-            for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const src_idx = (src_row_start + row_idx) * b_stride_in_bytes + src_column_start +
-                                              column_idx;
-                    nk_size_t const dst_idx = (column_idx / 4) * 64 + row_idx * 4 + (column_idx % 4);
-                    tile_output[dst_idx] = b[src_idx];
+            // Gather 16 strided source rows into a contiguous aligned tile
+            nk_dots_u8_a16x64_sapphireamx_t source_tile;
+            if (columns_to_pack == tmm_cols) {
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_u8_t const *source_row = (nk_u8_t const *)((char const *)b +
+                                                                  (src_row_start + row_idx) * b_stride_in_bytes) +
+                                                src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_loadu_si512(source_row));
                 }
             }
+            else {
+                __mmask64 depth_mask = (__mmask64)((columns_to_pack < 64) ? ((1ULL << columns_to_pack) - 1) : ~0ULL);
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    nk_u8_t const *source_row = (nk_u8_t const *)((char const *)b +
+                                                                  (src_row_start + row_idx) * b_stride_in_bytes) +
+                                                src_column_start;
+                    _mm512_store_si512(&source_tile.data[row_idx][0], _mm512_maskz_loadu_epi8(depth_mask, source_row));
+                }
+            }
+
+            // Transpose into aligned local, then copy to (potentially unaligned) packed buffer
+            nk_dots_u8_b64x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_u8_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_elements; i += 64)
+                _mm512_storeu_si512(tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
@@ -2474,8 +2505,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphireamx(                    //
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + tiles_offset);
     nk_bf16_t *column_edge_ptr = (nk_bf16_t *)((char *)b_packed + column_edge_offset);
 
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
+    // Pack tiles using vectorized convert + SIMD transpose
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
@@ -2486,22 +2516,19 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphireamx(                    //
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
-            // Convert E4M3 to BF16 and pack with pair-interleaving
+            // Convert E4M3 → BF16 and gather into aligned source tile
+            __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
+            nk_dots_bf16_a16x32_sapphireamx_t source_tile;
             for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                nk_size_t src_row = src_row_start + row_idx;
-                // Load 32 E4M3 bytes and convert to BF16
-                __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
-                __m256i e4m3_row_u8x32 = _mm256_maskz_loadu_epi8(column_mask,
-                                                                 b + src_row * b_stride_in_bytes + src_column_start);
-                __m512i bf16_row_i16x32 = nk_e4m3x32_to_bf16x32_icelake_(e4m3_row_u8x32);
-                // Store with pair-interleaving
-                nk_bf16_t bf16_buf[32];
-                _mm512_storeu_si512((__m512i *)bf16_buf, bf16_row_i16x32);
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const dst_idx = (column_idx / 2) * 32 + row_idx * 2 + (column_idx % 2);
-                    tile_output[dst_idx] = bf16_buf[column_idx];
-                }
+                __m256i e4m3_row_u8x32 = _mm256_maskz_loadu_epi8(
+                    column_mask, b + (src_row_start + row_idx) * b_stride_in_bytes + src_column_start);
+                _mm512_store_si512(&source_tile.data[row_idx][0], nk_e4m3x32_to_bf16x32_icelake_(e4m3_row_u8x32));
             }
+
+            nk_dots_bf16_b32x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_bf16_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_bytes; i += 64)
+                _mm512_storeu_si512((char *)tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
@@ -2762,8 +2789,7 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphireamx(                    //
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + tiles_offset);
     nk_bf16_t *column_edge_ptr = (nk_bf16_t *)((char *)b_packed + column_edge_offset);
 
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
+    // Pack tiles using vectorized convert + SIMD transpose
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
@@ -2774,19 +2800,18 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphireamx(                    //
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
+            __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
+            nk_dots_bf16_a16x32_sapphireamx_t source_tile;
             for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                nk_size_t src_row = src_row_start + row_idx;
-                __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
-                __m256i e5m2_row_u8x32 = _mm256_maskz_loadu_epi8(column_mask,
-                                                                 b + src_row * b_stride_in_bytes + src_column_start);
-                __m512i bf16_row_i16x32 = nk_e5m2x32_to_bf16x32_icelake_(e5m2_row_u8x32);
-                nk_bf16_t bf16_buf[32];
-                _mm512_storeu_si512((__m512i *)bf16_buf, bf16_row_i16x32);
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const dst_idx = (column_idx / 2) * 32 + row_idx * 2 + (column_idx % 2);
-                    tile_output[dst_idx] = bf16_buf[column_idx];
-                }
+                __m256i e5m2_row_u8x32 = _mm256_maskz_loadu_epi8(
+                    column_mask, b + (src_row_start + row_idx) * b_stride_in_bytes + src_column_start);
+                _mm512_store_si512(&source_tile.data[row_idx][0], nk_e5m2x32_to_bf16x32_icelake_(e5m2_row_u8x32));
             }
+
+            nk_dots_bf16_b32x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_bf16_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_bytes; i += 64)
+                _mm512_storeu_si512((char *)tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
@@ -3271,16 +3296,7 @@ NK_PUBLIC void nk_dots_pack_e2m3_sapphireamx(                    //
     nk_i8_t *tiles_ptr = (nk_i8_t *)((char *)b_packed + tiles_offset);
     nk_i8_t *column_edge_ptr = (nk_i8_t *)((char *)b_packed + column_edge_offset);
 
-    // Zero-initialize all tiles (handles depth remainder padding)
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
-    // E2M3 magnitude-to-value LUT (value * 16)
-    static nk_u8_t const lut_magnitude[32] = {
-        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
-        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
-    };
-
-    // Pack tiles with E2M3 -> I8 conversion and quad-interleaving
+    // Pack tiles using vectorized E2M3 → I8 conversion + SIMD transpose
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
@@ -3291,22 +3307,39 @@ NK_PUBLIC void nk_dots_pack_e2m3_sapphireamx(                    //
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
-            for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const src_idx = (src_row_start + row_idx) * b_stride_in_bytes + src_column_start +
-                                              column_idx;
-                    nk_size_t const dst_idx = (column_idx / 4) * 64 + row_idx * 4 + (column_idx % 4);
-                    nk_u8_t raw = b[src_idx];
-                    nk_u8_t magnitude = raw & 0x1F;
-                    nk_i8_t val = (nk_i8_t)lut_magnitude[magnitude];
-                    if (raw & 0x20) val = -val;
-                    tile_output[dst_idx] = val;
+            // Convert E2M3 → I8 and gather into aligned source tile
+            nk_dots_i8_a16x64_sapphireamx_t source_tile;
+            if (columns_to_pack == tmm_cols) {
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    __m512i raw_row = _mm512_loadu_si512(
+                        (nk_e2m3_t const *)((char const *)b + (src_row_start + row_idx) * b_stride_in_bytes) +
+                        src_column_start);
+                    _mm512_store_si512(&source_tile.data[row_idx][0], nk_e2m3x64_to_i8x64_skylake_(raw_row));
                 }
             }
+            else {
+                __mmask64 depth_mask = (__mmask64)((columns_to_pack < 64) ? ((1ULL << columns_to_pack) - 1) : ~0ULL);
+                for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
+                    __m512i raw_row = _mm512_maskz_loadu_epi8(
+                        depth_mask,
+                        (nk_e2m3_t const *)((char const *)b + (src_row_start + row_idx) * b_stride_in_bytes) +
+                            src_column_start);
+                    _mm512_store_si512(&source_tile.data[row_idx][0], nk_e2m3x64_to_i8x64_skylake_(raw_row));
+                }
+            }
+
+            nk_dots_i8_b64x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_i8_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_elements; i += 64)
+                _mm512_storeu_si512(tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 
-    // Pack column-remainder rows (convert E2M3 to I8)
+    // Pack column-remainder rows (convert E2M3 to I8) using scalar LUT
+    static nk_u8_t const lut_magnitude[32] = {
+        0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,  //
+        32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, //
+    };
     if (column_remainder_count > 0) {
         nk_size_t const remainder_start_row = column_tiles_count * tmm_rows;
         for (nk_size_t row_idx = 0; row_idx < column_remainder_count; row_idx++) {
@@ -3652,8 +3685,7 @@ NK_PUBLIC void nk_dots_pack_e3m2_sapphireamx(                    //
     nk_bf16_t *tiles_ptr = (nk_bf16_t *)((char *)b_packed + tiles_offset);
     nk_bf16_t *column_edge_ptr = (nk_bf16_t *)((char *)b_packed + column_edge_offset);
 
-    for (nk_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
-
+    // Pack tiles using vectorized convert + SIMD transpose
     for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
         for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
             nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
@@ -3664,19 +3696,18 @@ NK_PUBLIC void nk_dots_pack_e3m2_sapphireamx(                    //
             nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
                                                                                      : (depth - src_column_start);
 
+            __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
+            nk_dots_bf16_a16x32_sapphireamx_t source_tile;
             for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                nk_size_t src_row = src_row_start + row_idx;
-                __mmask32 column_mask = (columns_to_pack >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << columns_to_pack) - 1;
-                __m256i e3m2_row_u8x32 = _mm256_maskz_loadu_epi8(column_mask,
-                                                                 b + src_row * b_stride_in_bytes + src_column_start);
-                __m512i bf16_row_i16x32 = nk_e3m2x32_to_bf16x32_icelake_(e3m2_row_u8x32);
-                nk_bf16_t bf16_buf[32];
-                _mm512_storeu_si512((__m512i *)bf16_buf, bf16_row_i16x32);
-                for (nk_size_t column_idx = 0; column_idx < columns_to_pack; column_idx++) {
-                    nk_size_t const dst_idx = (column_idx / 2) * 32 + row_idx * 2 + (column_idx % 2);
-                    tile_output[dst_idx] = bf16_buf[column_idx];
-                }
+                __m256i e3m2_row_u8x32 = _mm256_maskz_loadu_epi8(
+                    column_mask, b + (src_row_start + row_idx) * b_stride_in_bytes + src_column_start);
+                _mm512_store_si512(&source_tile.data[row_idx][0], nk_e3m2x32_to_bf16x32_icelake_(e3m2_row_u8x32));
             }
+
+            nk_dots_bf16_b32x16_sapphireamx_t transposed_tile;
+            nk_dots_pack_bf16_transposed_sapphireamx_(&source_tile, &transposed_tile);
+            for (nk_size_t i = 0; i < tile_bytes; i += 64)
+                _mm512_storeu_si512((char *)tile_output + i, _mm512_load_si512((char const *)&transposed_tile + i));
         }
     }
 

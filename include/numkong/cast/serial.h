@@ -239,6 +239,31 @@ NK_INTERNAL void nk_partial_load_b16x16_serial_(void const *src, nk_b256_vec_t *
     }
 }
 
+/** @brief Type-agnostic partial store for 16-bit elements (16 elements max) from 256-bit vector. */
+NK_INTERNAL void nk_partial_store_b16x16_serial_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u16_t *d = (nk_u16_t *)dst;
+    switch (n) {
+    default:
+    case 16: d[15] = src->u16s[15]; // fallthrough
+    case 15: d[14] = src->u16s[14]; // fallthrough
+    case 14: d[13] = src->u16s[13]; // fallthrough
+    case 13: d[12] = src->u16s[12]; // fallthrough
+    case 12: d[11] = src->u16s[11]; // fallthrough
+    case 11: d[10] = src->u16s[10]; // fallthrough
+    case 10: d[9] = src->u16s[9];   // fallthrough
+    case 9: d[8] = src->u16s[8];    // fallthrough
+    case 8: d[7] = src->u16s[7];    // fallthrough
+    case 7: d[6] = src->u16s[6];    // fallthrough
+    case 6: d[5] = src->u16s[5];    // fallthrough
+    case 5: d[4] = src->u16s[4];    // fallthrough
+    case 4: d[3] = src->u16s[3];    // fallthrough
+    case 3: d[2] = src->u16s[2];    // fallthrough
+    case 2: d[1] = src->u16s[1];    // fallthrough
+    case 1: d[0] = src->u16s[0];    // fallthrough
+    case 0: break;
+    }
+}
+
 /** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector. */
 NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
@@ -297,6 +322,72 @@ NK_INTERNAL void nk_partial_store_b8x8_serial_(nk_b64_vec_t const *src, void *ds
     case 3: d[2] = src->u8s[2]; // fallthrough
     case 2: d[1] = src->u8s[1]; // fallthrough
     case 1: d[0] = src->u8s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 8-bit elements (16 elements max) from 128-bit vector. */
+NK_INTERNAL void nk_partial_store_b8x16_serial_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u8_t *d = (nk_u8_t *)dst;
+    switch (n) {
+    default:
+    case 16: d[15] = src->u8s[15]; // fallthrough
+    case 15: d[14] = src->u8s[14]; // fallthrough
+    case 14: d[13] = src->u8s[13]; // fallthrough
+    case 13: d[12] = src->u8s[12]; // fallthrough
+    case 12: d[11] = src->u8s[11]; // fallthrough
+    case 11: d[10] = src->u8s[10]; // fallthrough
+    case 10: d[9] = src->u8s[9];   // fallthrough
+    case 9: d[8] = src->u8s[8];    // fallthrough
+    case 8: d[7] = src->u8s[7];    // fallthrough
+    case 7: d[6] = src->u8s[6];    // fallthrough
+    case 6: d[5] = src->u8s[5];    // fallthrough
+    case 5: d[4] = src->u8s[4];    // fallthrough
+    case 4: d[3] = src->u8s[3];    // fallthrough
+    case 3: d[2] = src->u8s[2];    // fallthrough
+    case 2: d[1] = src->u8s[1];    // fallthrough
+    case 1: d[0] = src->u8s[0];    // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 8-bit elements (32 elements max) from 256-bit vector. */
+NK_INTERNAL void nk_partial_store_b8x32_serial_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u8_t *d = (nk_u8_t *)dst;
+    switch (n) {
+    default:
+    case 32: d[31] = src->u8s[31]; // fallthrough
+    case 31: d[30] = src->u8s[30]; // fallthrough
+    case 30: d[29] = src->u8s[29]; // fallthrough
+    case 29: d[28] = src->u8s[28]; // fallthrough
+    case 28: d[27] = src->u8s[27]; // fallthrough
+    case 27: d[26] = src->u8s[26]; // fallthrough
+    case 26: d[25] = src->u8s[25]; // fallthrough
+    case 25: d[24] = src->u8s[24]; // fallthrough
+    case 24: d[23] = src->u8s[23]; // fallthrough
+    case 23: d[22] = src->u8s[22]; // fallthrough
+    case 22: d[21] = src->u8s[21]; // fallthrough
+    case 21: d[20] = src->u8s[20]; // fallthrough
+    case 20: d[19] = src->u8s[19]; // fallthrough
+    case 19: d[18] = src->u8s[18]; // fallthrough
+    case 18: d[17] = src->u8s[17]; // fallthrough
+    case 17: d[16] = src->u8s[16]; // fallthrough
+    case 16: d[15] = src->u8s[15]; // fallthrough
+    case 15: d[14] = src->u8s[14]; // fallthrough
+    case 14: d[13] = src->u8s[13]; // fallthrough
+    case 13: d[12] = src->u8s[12]; // fallthrough
+    case 12: d[11] = src->u8s[11]; // fallthrough
+    case 11: d[10] = src->u8s[10]; // fallthrough
+    case 10: d[9] = src->u8s[9];   // fallthrough
+    case 9: d[8] = src->u8s[8];    // fallthrough
+    case 8: d[7] = src->u8s[7];    // fallthrough
+    case 7: d[6] = src->u8s[6];    // fallthrough
+    case 6: d[5] = src->u8s[5];    // fallthrough
+    case 5: d[4] = src->u8s[4];    // fallthrough
+    case 4: d[3] = src->u8s[3];    // fallthrough
+    case 3: d[2] = src->u8s[2];    // fallthrough
+    case 2: d[1] = src->u8s[1];    // fallthrough
+    case 1: d[0] = src->u8s[0];    // fallthrough
     case 0: break;
     }
 }

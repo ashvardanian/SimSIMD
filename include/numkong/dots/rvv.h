@@ -103,12 +103,24 @@ NK_PUBLIC void nk_dots_pack_f32_rvv(nk_f32_t const *b, nk_size_t column_count, n
 
     nk_f32_t *packed = (nk_f32_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f32_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_f32_t const *src = (nk_f32_t const *)((char const *)b + column * b_stride_in_bytes);
         nk_f32_t *dst = packed + column * depth_padded;
-        for (nk_size_t k = 0; k < depth; ++k) dst[k] = src[k];
+        for (nk_size_t k = 0; k < depth;) {
+            nk_size_t vector_length = __riscv_vsetvl_e32m8(depth - k);
+            __riscv_vse32_v_f32m8(dst + k, __riscv_vle32_v_f32m8(src + k, vector_length), vector_length);
+            k += vector_length;
+        }
     }
 
     // Append per-column norms after packed data
@@ -294,12 +306,24 @@ NK_PUBLIC void nk_dots_pack_f64_rvv(nk_f64_t const *b, nk_size_t column_count, n
 
     nk_f64_t *packed = (nk_f64_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f64_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_f64_t const *src = (nk_f64_t const *)((char const *)b + column * b_stride_in_bytes);
         nk_f64_t *dst = packed + column * depth_padded;
-        for (nk_size_t k = 0; k < depth; ++k) dst[k] = src[k];
+        for (nk_size_t k = 0; k < depth;) {
+            nk_size_t vector_length = __riscv_vsetvl_e64m8(depth - k);
+            __riscv_vse64_v_f64m8(dst + k, __riscv_vle64_v_f64m8(src + k, vector_length), vector_length);
+            k += vector_length;
+        }
     }
 
     // Append per-column norms after packed data
@@ -526,7 +550,15 @@ NK_PUBLIC void nk_dots_pack_e2m3_rvv(nk_e2m3_t const *b, nk_size_t column_count,
 
     nk_i8_t *packed = (nk_i8_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_i8_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_u8_t const *src = (nk_u8_t const *)((char const *)b + column * b_stride_in_bytes);
@@ -810,7 +842,15 @@ NK_PUBLIC void nk_dots_pack_e3m2_rvv(nk_e3m2_t const *b, nk_size_t column_count,
 
     nk_i16_t *packed = (nk_i16_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_i16_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_u8_t const *src = (nk_u8_t const *)((char const *)b + column * b_stride_in_bytes);
@@ -1074,7 +1114,15 @@ NK_PUBLIC void nk_dots_pack_bf16_rvv(nk_bf16_t const *b, nk_size_t column_count,
 
     nk_f32_t *packed = (nk_f32_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f32_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_u16_t const *src = (nk_u16_t const *)((char const *)b + column * b_stride_in_bytes);
@@ -1295,7 +1343,15 @@ NK_PUBLIC void nk_dots_pack_f16_rvv(nk_f16_t const *b, nk_size_t column_count, n
 
     nk_f32_t *packed = (nk_f32_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f32_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_f16_t const *src = (nk_f16_t const *)((char const *)b + column * b_stride_in_bytes);
@@ -1509,12 +1565,25 @@ NK_PUBLIC void nk_dots_pack_i8_rvv(nk_i8_t const *b, nk_size_t column_count, nk_
 
     nk_i8_t *packed = (nk_i8_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_i8_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_i8_t const *src = (nk_i8_t const *)((char const *)b + column * b_stride_in_bytes);
         nk_i8_t *dst = packed + column * depth_padded;
-        for (nk_size_t k = 0; k < depth; ++k) dst[k] = src[k];
+        for (nk_size_t k = 0; k < depth;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(depth - k);
+            __riscv_vse8_v_u8m8((nk_u8_t *)(dst + k), __riscv_vle8_v_u8m8((nk_u8_t const *)(src + k), vector_length),
+                                vector_length);
+            k += vector_length;
+        }
     }
 
     // Append per-column norms after packed data
@@ -1722,12 +1791,24 @@ NK_PUBLIC void nk_dots_pack_u8_rvv(nk_u8_t const *b, nk_size_t column_count, nk_
 
     nk_u8_t *packed = (nk_u8_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_u8_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_u8_t const *src = (nk_u8_t const *)((char const *)b + column * b_stride_in_bytes);
         nk_u8_t *dst = packed + column * depth_padded;
-        for (nk_size_t k = 0; k < depth; ++k) dst[k] = src[k];
+        for (nk_size_t k = 0; k < depth;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(depth - k);
+            __riscv_vse8_v_u8m8(dst + k, __riscv_vle8_v_u8m8(src + k, vector_length), vector_length);
+            k += vector_length;
+        }
     }
 
     // Append per-column norms after packed data
@@ -1969,7 +2050,15 @@ NK_PUBLIC void nk_dots_pack_e4m3_rvv(nk_e4m3_t const *b, nk_size_t column_count,
 
     nk_f32_t *packed = (nk_f32_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f32_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_e4m3_t const *src = (nk_e4m3_t const *)((char const *)b + column * b_stride_in_bytes);
@@ -2261,7 +2350,15 @@ NK_PUBLIC void nk_dots_pack_e5m2_rvv(nk_e5m2_t const *b, nk_size_t column_count,
 
     nk_f32_t *packed = (nk_f32_t *)((char *)b_packed + sizeof(nk_cross_packed_buffer_header_t));
     nk_size_t total = column_count * depth_padded;
-    for (nk_size_t i = 0; i < total; ++i) packed[i] = 0;
+    {
+        nk_u8_t *zero_ptr = (nk_u8_t *)packed;
+        nk_size_t total_bytes = total * sizeof(nk_f32_t);
+        for (nk_size_t i = 0; i < total_bytes;) {
+            nk_size_t vector_length = __riscv_vsetvl_e8m8(total_bytes - i);
+            __riscv_vse8_v_u8m8(zero_ptr + i, __riscv_vmv_v_x_u8m8(0, vector_length), vector_length);
+            i += vector_length;
+        }
+    }
 
     for (nk_size_t column = 0; column < column_count; ++column) {
         nk_e5m2_t const *src = (nk_e5m2_t const *)((char const *)b + column * b_stride_in_bytes);
