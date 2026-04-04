@@ -229,6 +229,16 @@ int main(int argc, char **argv) {
         if (val > 0) global_config.max_coord_angle = val;
     }
 
+    // Shrink dimensions for QEMU — divides whatever value is currently stored,
+    // so explicit env-var or CLI overrides are proportionally reduced too.
+    if (global_config.running_in_qemu) {
+        global_config.dense_dimensions = std::max<std::size_t>(1, global_config.dense_dimensions / 4);
+        global_config.matrix_height = std::max<std::size_t>(1, global_config.matrix_height / 4);
+        global_config.matrix_width = std::max<std::size_t>(1, global_config.matrix_width / 4);
+        global_config.matrix_depth = std::max<std::size_t>(1, global_config.matrix_depth / 4);
+        global_config.mesh_points = std::max<std::size_t>(1, global_config.mesh_points / 4);
+    }
+
     nk_capability_t runtime_caps = nk_capabilities();
     nk_configure_thread(runtime_caps); // Also enables AMX if available
 

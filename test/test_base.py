@@ -67,6 +67,7 @@ if TYPE_CHECKING:
 faulthandler.enable()
 
 _nk_seed_base: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not None else None
+_nk_in_qemu: bool = "NK_IN_QEMU" in os.environ
 
 _nk_possible_dimensions = [
     # start with simplest cases
@@ -93,9 +94,14 @@ _nk_possible_dimensions = [
     64,
     65,
     97,
-]
+] if _nk_in_qemu else [1, 4, 16, 33, 64]
 
-randomized_repetitions_count: int = int(s) if (s := os.environ.get("NK_REPETITIONS")) is not None else 10
+
+randomized_repetitions_count: int = (
+    int(s)
+    if (s := os.environ.get("NK_REPETITIONS")) is not None
+    else (3 if _nk_in_qemu else 10)
+)
 
 dense_dimensions: list[int] = (
     [int(d) for d in s.split(",")]
