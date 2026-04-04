@@ -23,7 +23,7 @@
                 {
                     "action_name": "numkong_probe",
                     "inputs": ["<(numkong_root)/probes/probe.js"],
-                    "outputs": ["<(numkong_root)/nk_probes.h"],
+                    "outputs": ["<!(node -e \"console.log(require('path').resolve('<(numkong_root)','nk_probes.h'))\")"],
                     "action": ["node", "<(numkong_root)/probes/probe.js"],
                     "message": "Probing ISA capabilities for NumKong",
                 },
@@ -72,12 +72,12 @@
                 "-Wno-switch",
                 "-Wno-psabi",
                 "-include",
-                "<(numkong_root)/nk_probes.h",
+                "<!(node -e \"console.log(require('path').resolve('<(numkong_root)','nk_probes.h'))\")",
             ],
             "msvs_settings": {
                 "VCCLCompilerTool": {
                     "ForcedIncludeFiles": [
-                        "<(numkong_root)/nk_probes.h",
+                        "<!(node -e \"console.log(require('path').resolve('<(numkong_root)','nk_probes.h'))\")",
                     ],
                 },
             },
