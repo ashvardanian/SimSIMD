@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 """Test trigonometric functions: nk.sin, nk.cos, nk.atan.
 
-Covers dtypes: float32, float64.
-Parametrized over: ndim from dense_dimensions, dtype, capability from possible_capabilities.
-
-Precision notes:
-    All trig functions tested on uniform random inputs in [-pi, pi].
-    Assertions use NK_ATOL/NK_RTOL (0.1/0.1) against NumPy references.
-
+Dtypes: float64, float32.
+Baselines: math.sin/cos/atan (C libm double precision), NumPy references.
 Matches C++ suite: test_trigonometry.cpp.
 """
 
 import atexit
 import math
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -53,37 +49,37 @@ stats = create_stats()
 atexit.register(print_stats_report, stats)
 
 
-def baseline_sin(a):
+def baseline_sin(a, dtype=None):
     """Reference sin via NumPy."""
     return np.sin(a)
 
 
-def baseline_cos(a):
+def baseline_cos(a, dtype=None):
     """Reference cos via NumPy."""
     return np.cos(a)
 
 
-def baseline_atan(a):
+def baseline_atan(a, dtype=None):
     """Reference arctan via NumPy."""
     return np.arctan(a)
 
 
-def precise_sin(a):
+def precise_sin(a, dtype=None):
     """High-precision sin via math.sin (C libm double precision)."""
     return [math.sin(float(x)) for x in a]
 
 
-def precise_cos(a):
+def precise_cos(a, dtype=None):
     """High-precision cos via math.cos (C libm double precision)."""
     return [math.cos(float(x)) for x in a]
 
 
-def precise_atan(a):
+def precise_atan(a, dtype=None):
     """High-precision atan via math.atan (C libm double precision)."""
     return [math.atan(float(x)) for x in a]
 
 
-KERNELS_TRIGONOMETRY = {
+KERNELS_TRIGONOMETRY: dict[str, tuple[Callable, Callable, Callable]] = {
     "sin": (baseline_sin, nk.sin, precise_sin),
     "cos": (baseline_cos, nk.cos, precise_cos),
     "atan": (baseline_atan, nk.atan, precise_atan),
@@ -95,7 +91,7 @@ KERNELS_TRIGONOMETRY = {
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("metric", list(KERNELS_TRIGONOMETRY.keys()))
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometry_random_accuracy(ndim, dtype, metric, capability, nk_seed):
+def test_trigonometry_random_accuracy(ndim: int, dtype: str, metric: str, capability: str, nk_seed: int):
     """sin, cos, atan on random inputs against high-precision baselines."""
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_TRIGONOMETRY[metric]
@@ -118,7 +114,7 @@ def test_trigonometry_random_accuracy(ndim, dtype, metric, capability, nk_seed):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometry_at_zero(ndim, dtype, capability):
+def test_trigonometry_at_zero(ndim: int, dtype: str, capability: str):
     """sin(0)~0, cos(0)~1, atan(0)~0."""
     keep_one_capability(capability)
     zeros_vector = nk.zeros((ndim,), dtype=dtype)
@@ -134,7 +130,7 @@ def test_trigonometry_at_zero(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometry_known_values(ndim, dtype, capability):
+def test_trigonometry_known_values(ndim: int, dtype: str, capability: str):
     """sin(pi/2)~1, cos(pi/2)~0, atan(1)~pi/4 for all elements."""
     keep_one_capability(capability)
     half_pi = nk.full((ndim,), math.pi / 2, dtype=dtype)
@@ -151,7 +147,7 @@ def test_trigonometry_known_values(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_pythagorean_identity(ndim, dtype, capability):
+def test_pythagorean_identity(ndim: int, dtype: str, capability: str):
     """sin^2(x) + cos^2(x) ~ 1."""
     keep_one_capability(capability)
     input_angles = make_random_buffer(ndim, dtype)
@@ -165,7 +161,7 @@ def test_pythagorean_identity(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_trigonometry_odd_even(ndim, dtype, capability):
+def test_trigonometry_odd_even(ndim: int, dtype: str, capability: str):
     """sin(-x) ~ -sin(x) (odd), cos(-x) ~ cos(x) (even)."""
     keep_one_capability(capability)
     for random_angles in [0.5, 1.0, 2.0]:

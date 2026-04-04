@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
-"""Test set distances: nk.jaccard, nk.hamming (dense binary).
+"""Test set distances: nk.jaccard, nk.hamming.
 
-Covers dtypes: uint1 (packed uint8 bits), also verified via boolean view.
-Parametrized over: ndim from dense_dimensions, metric, capability.
-
-Precision notes:
-    Hamming and Jaccard/Tanimoto on packed bits use NK_ATOL/NK_RTOL (0.1/0.1).
-    Baseline computed at uint64 precision for the accurate reference.
-
+Dtypes: packed uint1 bits.
+Baselines: SciPy hamming/jaccard, NumPy logical operations.
 Matches C++ suite: test_set.cpp.
 """
 
 import array
 import atexit
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -52,18 +48,24 @@ atexit.register(print_stats_report, stats)
 try:
     import scipy.spatial.distance as spd
 
-    baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
-    baseline_jaccard = spd.jaccard
-except ImportError:
-    baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
+    def baseline_hamming(x, y, dtype=None):
+        return spd.hamming(x, y) * len(x)
 
-    def baseline_jaccard(x, y):
+    def baseline_jaccard(x, y, dtype=None):
+        return spd.jaccard(x, y)
+
+except ImportError:
+
+    def baseline_hamming(x, y, dtype=None):
+        return np.logical_xor(x, y).sum()
+
+    def baseline_jaccard(x, y, dtype=None):
         intersection = np.logical_and(x, y).sum()
         union = np.logical_or(x, y).sum()
         return 0.0 if union == 0 else 1.0 - float(intersection) / float(union)
 
 
-KERNELS_SET = {
+KERNELS_SET: dict[str, tuple[Callable, Callable, None]] = {
     "jaccard": (baseline_jaccard, nk.jaccard, None),
     "hamming": (baseline_hamming, nk.hamming, None),
 }
@@ -75,7 +77,7 @@ KERNELS_SET = {
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("metric", ["jaccard", "hamming"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_hamming_jaccard_random_accuracy(ndim, metric, capability):
+def test_hamming_jaccard_random_accuracy(ndim: int, metric: str, capability: str):
     """Hamming and Jaccard distances for dense bit arrays against SciPy baselines."""
     a_bits = np.random.randint(2, size=ndim).astype(np.uint8)
     b_bits = np.random.randint(2, size=ndim).astype(np.uint8)
@@ -100,7 +102,7 @@ def test_hamming_jaccard_random_accuracy(ndim, metric, capability):
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_hamming_self_zero(ndim, capability):
+def test_hamming_self_zero(ndim: int, capability: str):
     """hamming(v, v) = 0 for identical uint8 vectors."""
     keep_one_capability(capability)
     packed_vector = array.array("B", [0xFF] * ndim)
@@ -110,7 +112,7 @@ def test_hamming_self_zero(ndim, capability):
 
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_jaccard_self_zero(ndim, capability):
+def test_jaccard_self_zero(ndim: int, capability: str):
     """jaccard(v, v) = 0 for identical non-zero uint8 vectors."""
     keep_one_capability(capability)
     packed_vector = array.array("B", [0xAA] * ndim)

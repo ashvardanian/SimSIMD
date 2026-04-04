@@ -1,25 +1,13 @@
 #!/usr/bin/env python3
 """Test curved-space distances: nk.bilinear, nk.mahalanobis.
 
-Covers dtypes: float64, float32, float16 (with float32 compute), bfloat16,
-    e4m3, e5m2, e2m3, e3m2.
-Parametrized over: rows/columns from test_rows/columns_dimensions, metric, capability.
-
-Precision notes:
-    bilinear computes ``x @ z @ y``, mahalanobis computes ``sqrt((x-y) @ z @ (x-y))``.
-    Both take vectors a, b and a matrix c; the test constructs c as a symmetric
-    positive-definite matrix (c = abs(random) @ abs(random).T) so mahalanobis
-    produces real, finite results.
-
-    Real dtypes assert against a high-precision Decimal baseline.
-    Complex bilinear tested separately (Decimal doesn't support complex,
-    so it uses NumPy extended-precision types instead).
-
+Dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, complex64, complex128.
+Baselines: high-precision Decimal quadratic forms, SciPy mahalanobis.
 Matches C++ suite: test_curved.cpp.
 """
 
 import atexit
-import decimal
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -47,8 +35,8 @@ from test_base import (
     keep_one_capability,
     numpy_available,
     possible_capabilities,
-    print_stats_report,
     precise_decimal,
+    print_stats_report,
     profile,
     reduced_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -58,12 +46,15 @@ from test_base import (
 stats = create_stats()
 atexit.register(print_stats_report, stats)
 
-baseline_bilinear = lambda x, y, z: x @ z @ y
+
+def baseline_bilinear(x, y, z, dtype=None):
+    return x @ z @ y
+
 
 try:
     import scipy.spatial.distance as spd
 
-    def baseline_mahalanobis(x, y, z):
+    def baseline_mahalanobis(x, y, z, dtype=None):
         try:
             result = spd.mahalanobis(x, y, z).astype(np.float64)
             if not np.isnan(result):
@@ -74,7 +65,7 @@ try:
 
 except ImportError:
 
-    def baseline_mahalanobis(x, y, z):
+    def baseline_mahalanobis(x, y, z, dtype=None):
         diff = x - y
         return np.sqrt(diff @ z @ diff)
 
@@ -94,32 +85,32 @@ def make_positive_semidefinite(data):
     return data
 
 
-def precise_bilinear(a, b, c):
-    """High-precision bilinear form a·C·b via Python Decimal."""
-    with precise_decimal() as d:
-        da = [d.from_float(float(x)) for x in a]
-        db = [d.from_float(float(x)) for x in b]
-        n = len(a)
-        total = d(0)
-        for i in range(n):
-            for j in range(n):
-                total += da[i] * d.from_float(float(c[i, j])) * db[j]
+def precise_bilinear(left, right, matrix, dtype=None):
+    """High-precision bilinear form left·matrix·right via Python Decimal."""
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        right_values = [upcast(x) for x in right]
+        dimensions = len(left)
+        total = upcast(0)
+        for row in range(dimensions):
+            left_element = upcast(left[row])
+            for col in range(dimensions):
+                total += left_element * upcast(matrix[row, col]) * right_values[col]
         return float(total)
 
 
-def precise_mahalanobis(a, b, c):
-    """High-precision Mahalanobis distance √((a−b)·C·(a−b)) via Python Decimal."""
-    with precise_decimal() as d:
-        diff = [d.from_float(float(x)) - d.from_float(float(y)) for x, y in zip(a, b)]
-        n = len(diff)
-        total = d(0)
-        for i in range(n):
-            for j in range(n):
-                total += diff[i] * d.from_float(float(c[i, j])) * diff[j]
-        return float(total.sqrt())
+def precise_mahalanobis(left, right, matrix, dtype=None):
+    """High-precision Mahalanobis distance √((left−right)·matrix·(left−right)) via Python Decimal."""
+    with precise_decimal(dtype) as (upcast, sqrt, _ln):
+        differences = [upcast(x) - upcast(y) for x, y in zip(left, right)]
+        dimensions = len(differences)
+        total = upcast(0)
+        for row in range(dimensions):
+            for col in range(dimensions):
+                total += differences[row] * upcast(matrix[row, col]) * differences[col]
+        return float(sqrt(total))
 
 
-KERNELS_CURVED = {
+KERNELS_CURVED: dict[str, tuple[Callable, Callable, Callable]] = {
     "bilinear": (baseline_bilinear, nk.bilinear, precise_bilinear),
     "mahalanobis": (baseline_mahalanobis, nk.mahalanobis, precise_mahalanobis),
 }
@@ -139,7 +130,7 @@ KERNELS_CURVED = {
 )
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_curved_random_accuracy(ndim, dtypes, metric, capability):
+def test_curved_random_accuracy(ndim: int, dtypes: str, metric: str, capability: str):
     """Bilinear and Mahalanobis for float and bfloat16 dtypes against high-precision baselines."""
     dtype, compute_dtype = dtypes
 
@@ -157,8 +148,8 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_CURVED[metric]
 
-    # High-precision baseline (Decimal)
-    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline, c_baseline)
+    # High-precision baseline
+    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline, c_baseline, dtype=dtype)
 
     # Baseline at native compute precision (for error-stat collection)
     native_dt = np.dtype(compute_dtype).type
@@ -193,7 +184,7 @@ def test_curved_random_accuracy(ndim, dtypes, metric, capability):
 @pytest.mark.parametrize("ndim", test_curved_dimensions)
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_bilinear_complex_accuracy(ndim, dtype, capability):
+def test_bilinear_complex_accuracy(ndim: int, dtype: str, capability: str):
     """Complex bilinear form against NumPy at extended precision."""
     a_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
     b_vector = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)

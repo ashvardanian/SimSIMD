@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-"""Test tensor API: constructors, slicing, ndarray marshalling, scalar types.
+"""Test tensor API: constructors, slicing, reductions, scalar types, NumPy interop.
 
-Covers: nk.zeros, nk.ones, nk.full, nk.empty, nk.cdist,
-    nk.Tensor properties (shape, dtype, ndim, strides, etc.),
-    indexing, iteration, transpose, reshape, copy, equality,
-    NumPy interop (__array_interface__, memoryview, buffer protocol),
-    arithmetic operators (+, -, *, unary +/-),
-    strided/transposed/subview reductions,
-    bfloat16/float8 scalar types and conversion vs ml_dtypes,
-    GIL-free threading.
-Covers dtypes: float64, float32, int8, int32 (constructors/reductions);
-    bfloat16, float8_e4m3, float8_e5m2, float6_e2m3, float6_e3m2 (scalar types).
-Parametrized over: dtype, shape, ndim.
-
+Dtypes: float64, float32, int8, int32, bfloat16, float8_e4m3, float8_e5m2, float6_e2m3, float6_e3m2.
 Matches C++ suite: test_tensor.cpp.
 """
 
 import concurrent.futures
-import decimal
 import multiprocessing
 import sys
 import sysconfig
 import time
 import warnings
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -61,55 +50,46 @@ except ImportError:
     ml_dtypes = None  # type: ignore[assignment]
 
 
-def precise_sum(a):
+def precise_sum(a, dtype=None):
     """High-precision sum via Python Decimal."""
-    with precise_decimal() as d:
-        return float(sum(d.from_float(float(x)) for x in np.asarray(a).flat))
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        return float(sum(upcast(x) for x in np.asarray(a).flat))
 
 
-def precise_min(a):
+def precise_min(a, dtype=None):
     """Exact min — comparison is exact on IEEE floats."""
     return float(min(float(x) for x in np.asarray(a).flat))
 
 
-def precise_max(a):
+def precise_max(a, dtype=None):
     """Exact max — comparison is exact on IEEE floats."""
     return float(max(float(x) for x in np.asarray(a).flat))
 
 
-def precise_add(a, b):
+def precise_add(a, b, dtype=None):
     """High-precision element-wise add via Python Decimal."""
-    with precise_decimal() as d:
-        return [
-            float(d.from_float(float(x)) + d.from_float(float(y)))
-            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
-        ]
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        return [float(upcast(x) + upcast(y)) for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)]
 
 
-def precise_subtract(a, b):
+def precise_subtract(a, b, dtype=None):
     """High-precision element-wise subtract via Python Decimal."""
-    with precise_decimal() as d:
-        return [
-            float(d.from_float(float(x)) - d.from_float(float(y)))
-            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
-        ]
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        return [float(upcast(x) - upcast(y)) for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)]
 
 
-def precise_multiply(a, b):
+def precise_multiply(a, b, dtype=None):
     """High-precision element-wise multiply via Python Decimal."""
-    with precise_decimal() as d:
-        return [
-            float(d.from_float(float(x)) * d.from_float(float(y)))
-            for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)
-        ]
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        return [float(upcast(x) * upcast(y)) for x, y in zip(np.asarray(a).flat, np.asarray(b).flat)]
 
 
-def precise_negate(a):
+def precise_negate(a, dtype=None):
     """Exact negate — sign flip has no precision loss."""
     return [-float(x) for x in np.asarray(a).flat]
 
 
-KERNELS_TENSOR = {
+KERNELS_TENSOR: dict[str, tuple[Callable, Callable, Callable | None]] = {
     "sum": (lambda a: np.sum(np.asarray(a)), lambda a: a.sum(), precise_sum),
     "min": (lambda a: np.min(np.asarray(a)), lambda a: a.min(), precise_min),
     "max": (lambda a: np.max(np.asarray(a)), lambda a: a.max(), precise_max),
@@ -215,7 +195,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 @pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
-def test_bf16_conversion_vs_ml_dtypes(ndim):
+def test_bf16_conversion_vs_ml_dtypes(ndim: int):
     """Compare NumKong bfloat16 conversion with ml_dtypes reference implementation."""
     a_f32 = np.random.randn(ndim).astype(np.float32)
     _, a_nk_bf16 = f32_downcast_to_bf16(a_f32)
@@ -232,7 +212,7 @@ def test_bf16_conversion_vs_ml_dtypes(ndim):
 @pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
-def test_float8_e4m3_conversion_vs_ml_dtypes(ndim):
+def test_float8_e4m3_conversion_vs_ml_dtypes(ndim: int):
     """Compare NumKong float8_e4m3 conversion with ml_dtypes reference implementation."""
     a_f32 = (np.random.randn(ndim) * 10).astype(np.float32)
     a_f32 = np.clip(a_f32, -448, 448)
@@ -246,7 +226,7 @@ def test_float8_e4m3_conversion_vs_ml_dtypes(ndim):
 @pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
-def test_float8_e5m2_conversion_vs_ml_dtypes(ndim):
+def test_float8_e5m2_conversion_vs_ml_dtypes(ndim: int):
     """Compare NumKong float8_e5m2 conversion with ml_dtypes reference implementation."""
     a_f32 = (np.random.randn(ndim) * 100).astype(np.float32)
     a_f32 = np.clip(a_f32, -57344, 57344)
@@ -257,7 +237,7 @@ def test_float8_e5m2_conversion_vs_ml_dtypes(ndim):
 
 
 @pytest.mark.parametrize("ndim", dense_dimensions)
-def test_float6_e2m3_construction(ndim):
+def test_float6_e2m3_construction(ndim: int):
     """Verify that e2m3 tensors can be constructed and have the correct dtype."""
     a_nk = nk.zeros((ndim,), dtype="e2m3")
     assert a_nk.dtype == "e2m3"
@@ -266,7 +246,7 @@ def test_float6_e2m3_construction(ndim):
 
 
 @pytest.mark.parametrize("ndim", dense_dimensions)
-def test_float6_e3m2_construction(ndim):
+def test_float6_e3m2_construction(ndim: int):
     """Verify that e3m2 tensors can be constructed and have the correct dtype."""
     a_nk = nk.zeros((ndim,), dtype="e3m2")
     assert a_nk.dtype == "e3m2"
@@ -274,7 +254,7 @@ def test_float6_e3m2_construction(ndim):
     assert a_nk.ndim == 1
 
 
-def test_distances_tensor_properties(nk_seed):
+def test_distances_tensor_properties(nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype="float64")
     b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -297,7 +277,7 @@ def test_distances_tensor_properties(nk_seed):
     assert len(result.strides) == 2
 
 
-def test_distances_tensor_properties_1d(nk_seed):
+def test_distances_tensor_properties_1d(nk_seed: int):
     a = nk.iota((10, 128), nk_seed, dtype="float64")
     b = nk.iota((10, 128), nk_seed + 1, dtype="float64")
     result = nk.sqeuclidean(a, b)
@@ -308,7 +288,7 @@ def test_distances_tensor_properties_1d(nk_seed):
     assert len(result.strides) == 1
 
 
-def test_distances_tensor_len(nk_seed):
+def test_distances_tensor_len(nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype="float64")
     b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result_2d = nk.cdist(a, b, metric="sqeuclidean")
@@ -396,7 +376,7 @@ def test_distances_tensor_numpy_interop():
     np.testing.assert_array_equal(arr, arr_from_mv)
 
 
-def test_distances_tensor_scalar_conversion(nk_seed):
+def test_distances_tensor_scalar_conversion(nk_seed: int):
     a = nk.iota((1, 128), nk_seed, dtype="float64").flatten()
     b = nk.iota((1, 128), nk_seed + 1, dtype="float64").flatten()
     result = nk.sqeuclidean(a, b)
@@ -411,14 +391,14 @@ def test_distances_tensor_scalar_conversion(nk_seed):
 
 
 @pytest.mark.parametrize("input_dtype", ["float32", "float64"])
-def test_distances_tensor_dtype_consistency(input_dtype, nk_seed):
+def test_distances_tensor_dtype_consistency(input_dtype, nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype=input_dtype)
     b = nk.iota((7, 128), nk_seed + 1, dtype=input_dtype)
     result = nk.cdist(a, b, metric="sqeuclidean")
     assert result.dtype == "float64"
 
 
-def test_distances_tensor_strides(nk_seed):
+def test_distances_tensor_strides(nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype="float64")
     b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -429,7 +409,7 @@ def test_distances_tensor_strides(nk_seed):
     assert strides == (7 * 8, 8)
 
 
-def test_distances_tensor_array_interface(nk_seed):
+def test_distances_tensor_array_interface(nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype="float64")
     b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -467,7 +447,7 @@ def test_distances_tensor_transpose():
     assert t1d.shape == result1d.shape
 
 
-def test_distances_tensor_str(nk_seed):
+def test_distances_tensor_str(nk_seed: int):
     a = nk.iota((3, 128), nk_seed, dtype="float64")
     b = nk.iota((4, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -477,7 +457,7 @@ def test_distances_tensor_str(nk_seed):
     assert any(c.isdigit() for c in s)
 
 
-def test_distances_tensor_equality(nk_seed):
+def test_distances_tensor_equality(nk_seed: int):
     a = nk.iota((5, 4), nk_seed, dtype="float32")
     b = nk.iota((7, 4), nk_seed + 20, dtype="float32")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -497,7 +477,7 @@ def test_distances_tensor_equality(nk_seed):
     assert result != result3
 
 
-def test_distances_tensor_inf_nan_propagation(nk_seed):
+def test_distances_tensor_inf_nan_propagation(nk_seed: int):
     """Verify that inf/nan inputs propagate through cdist without crashing."""
     normal = nk.iota((3, 4), nk_seed, dtype="float64")
 
@@ -539,7 +519,7 @@ def test_distances_tensor_copy():
     np.testing.assert_array_equal(result_arr, copy_arr)
 
 
-def test_distances_tensor_reshape(nk_seed):
+def test_distances_tensor_reshape(nk_seed: int):
     a = nk.iota((5, 128), nk_seed, dtype="float64")
     b = nk.iota((7, 128), nk_seed + 1, dtype="float64")
     result = nk.cdist(a, b, metric="sqeuclidean")
@@ -650,7 +630,7 @@ def test_distances_tensor_zero_copy_views():
     "shape",
     [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4"), pytest.param((2, 3, 4), id="3d-2x3x4")],
 )
-def test_ndarray_zeros(dtype, shape):
+def test_ndarray_zeros(dtype: str, shape):
     arr = nk.zeros(shape, dtype=dtype)
     assert arr.shape == shape
     assert arr.dtype == dtype
@@ -672,7 +652,7 @@ def test_ndarray_zeros(dtype, shape):
     "shape",
     [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4"), pytest.param((2, 3, 4), id="3d-2x3x4")],
 )
-def test_ndarray_ones(dtype, shape):
+def test_ndarray_ones(dtype: str, shape):
     arr = nk.ones(shape, dtype=dtype)
     assert arr.shape == shape
     assert arr.dtype == dtype
@@ -691,7 +671,7 @@ def test_ndarray_ones(dtype, shape):
     ],
 )
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4")])
-def test_ndarray_full(dtype, fill_value, shape):
+def test_ndarray_full(dtype: str, fill_value, shape):
     arr = nk.full(shape, fill_value, dtype=dtype)
     assert arr.shape == shape
     assert arr.dtype == dtype
@@ -706,7 +686,7 @@ def test_ndarray_full(dtype, fill_value, shape):
 
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((5, 4), id="2d-5x4")])
-def test_ndarray_empty(dtype, shape):
+def test_ndarray_empty(dtype: str, shape):
     arr = nk.empty(shape, dtype=dtype)
     assert arr.shape == shape
     assert arr.dtype == dtype
@@ -722,7 +702,7 @@ def test_ndarray_empty(dtype, shape):
     ],
 )
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
-def test_ndarray_iota(dtype, shape):
+def test_ndarray_iota(dtype: str, shape):
     seed = 5
     arr = nk.iota(shape, seed, dtype=dtype)
     assert arr.shape == shape
@@ -743,7 +723,7 @@ def test_ndarray_iota(dtype, shape):
     ],
 )
 @pytest.mark.parametrize("n", [pytest.param(4, id="4x4"), pytest.param(8, id="8x8")])
-def test_ndarray_diagonal(dtype, n):
+def test_ndarray_diagonal(dtype: str, n):
     seed = 3
     arr = nk.diagonal(n, seed, dtype=dtype)
     assert arr.shape == (n, n)
@@ -764,7 +744,7 @@ def test_ndarray_diagonal(dtype, n):
     ],
 )
 @pytest.mark.parametrize("shape", [pytest.param((10,), id="1d-10"), pytest.param((3, 4), id="2d-3x4")])
-def test_ndarray_hash(dtype, shape):
+def test_ndarray_hash(dtype: str, shape):
     a = nk.hash(shape, seed=42, dtype=dtype)
     b = nk.hash(shape, seed=42, dtype=dtype)
     assert a.shape == shape
@@ -790,7 +770,7 @@ def test_ndarray_hash(dtype, shape):
     "shape",
     [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10"), pytest.param((4, 5, 5), id="3d-4x5x5")],
 )
-def test_ndarray_sum_float(dtype, shape):
+def test_ndarray_sum_float(dtype: str, shape):
     np_arr = np.random.randn(*shape).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
     baseline_kernel, simd_kernel, _ = KERNELS_TENSOR["sum"]
@@ -806,7 +786,7 @@ def test_ndarray_sum_float(dtype, shape):
     "shape",
     [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10"), pytest.param((4, 5, 5), id="3d-4x5x5")],
 )
-def test_ndarray_sum_integer(dtype, shape):
+def test_ndarray_sum_integer(dtype: str, shape):
     nk_dtype_conversion_info = np.iinfo(np.dtype(dtype))
     np_arr = np.random.randint(
         nk_dtype_conversion_info.min // 2, nk_dtype_conversion_info.max // 2, size=shape, dtype=dtype
@@ -818,7 +798,7 @@ def test_ndarray_sum_integer(dtype, shape):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
 @pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
-def test_ndarray_min_max_float(dtype, shape):
+def test_ndarray_min_max_float(dtype: str, shape):
     np_arr = np.random.randn(*shape).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
     atol, rtol = tolerances_for_dtype(dtype)
@@ -830,7 +810,7 @@ def test_ndarray_min_max_float(dtype, shape):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("int8", id="i8"), pytest.param("int32", id="i32")])
 @pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
-def test_ndarray_min_max_integer(dtype, shape):
+def test_ndarray_min_max_integer(dtype: str, shape):
     nk_dtype_conversion_info = np.iinfo(np.dtype(dtype))
     np_arr = np.random.randint(
         nk_dtype_conversion_info.min // 2, nk_dtype_conversion_info.max // 2, size=shape, dtype=dtype
@@ -845,7 +825,7 @@ def test_ndarray_min_max_integer(dtype, shape):
     "dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32"), pytest.param("int32", id="i32")]
 )
 @pytest.mark.parametrize("shape", [pytest.param((100,), id="1d-100"), pytest.param((10, 10), id="2d-10x10")])
-def test_ndarray_argmin_argmax_methods(dtype, shape):
+def test_ndarray_argmin_argmax_methods(dtype: str, shape):
     if dtype.startswith("float"):
         np_arr = np.random.randn(*shape).astype(dtype)
     else:
@@ -862,7 +842,7 @@ def test_ndarray_argmin_argmax_methods(dtype, shape):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_ndarray_add_float(dtype):
+def test_ndarray_add_float(dtype: str):
     shape = (20,)
     np_a = np.random.randn(*shape).astype(dtype)
     np_b = np.random.randn(*shape).astype(dtype)
@@ -885,7 +865,7 @@ def test_ndarray_add_integer():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_ndarray_subtract_float(dtype):
+def test_ndarray_subtract_float(dtype: str):
     shape = (20,)
     np_a = np.random.randn(*shape).astype(dtype)
     np_b = np.random.randn(*shape).astype(dtype)
@@ -908,7 +888,7 @@ def test_ndarray_subtract_integer():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_ndarray_multiply_float(dtype):
+def test_ndarray_multiply_float(dtype: str):
     shape = (20,)
     np_a = np.random.randn(*shape).astype(dtype)
     np_b = np.random.randn(*shape).astype(dtype)
@@ -931,7 +911,7 @@ def test_ndarray_multiply_integer():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_ndarray_unary_float(dtype):
+def test_ndarray_unary_float(dtype: str):
     shape = (20,)
     np_a = np.random.randn(*shape).astype(dtype)
     nk_a = make_nk(np_a, dtype)
@@ -952,7 +932,7 @@ def test_ndarray_unary_integer():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_reduction_on_strided_array(dtype):
+def test_reduction_on_strided_array(dtype: str):
     np_arr = np.random.randn(10, 10).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
 
@@ -967,7 +947,7 @@ def test_reduction_on_strided_array(dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_reduction_on_transposed_array(dtype):
+def test_reduction_on_transposed_array(dtype: str):
     np_arr = np.random.randn(5, 8).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
 
@@ -982,7 +962,7 @@ def test_reduction_on_transposed_array(dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", [pytest.param("float64", id="f64"), pytest.param("float32", id="f32")])
-def test_reduction_on_subview(dtype):
+def test_reduction_on_subview(dtype: str):
     np_arr = np.random.randn(20, 20).astype(dtype)
     nk_arr = make_nk(np_arr, dtype)
 
@@ -1032,8 +1012,8 @@ def test_bfloat16_scalar_unary():
     assert float(-a) == -1.5
     assert float(+a) == 1.5
     assert float(abs(nk.bfloat16(-1.5))) == 1.5
-    assert bool(a) == True
-    assert bool(nk.bfloat16(0.0)) == False
+    assert bool(a)
+    assert not bool(nk.bfloat16(0.0))
 
 
 def test_bfloat16_scalar_comparison():
@@ -1069,8 +1049,8 @@ def test_float8_e4m3_scalar():
     assert int(f8) == 1
     assert "float8_e4m3" in repr(f8)
     assert float(-f8) == -1.5
-    assert bool(f8) == True
-    assert bool(nk.float8_e4m3(0.0)) == False
+    assert bool(f8)
+    assert not bool(nk.float8_e4m3(0.0))
 
 
 def test_float8_e4m3_scalar_arithmetic():
@@ -1104,8 +1084,8 @@ def test_float8_e5m2_scalar():
     assert int(f8) == 1
     assert "float8_e5m2" in repr(f8)
     assert float(-f8) == -1.5
-    assert bool(f8) == True
-    assert bool(nk.float8_e5m2(0.0)) == False
+    assert bool(f8)
+    assert not bool(nk.float8_e5m2(0.0))
 
 
 def test_float8_e5m2_scalar_arithmetic():

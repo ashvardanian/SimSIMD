@@ -1151,8 +1151,8 @@ static char const *normalize_strided_base(char const *data, size_t count, Py_ssi
 /** @brief Collapse trailing uniform-stride dims into one, writing the result into caller-provided arrays.
  *  @return The new rank after collapsing (remaining_dims - tail_dims + 1). */
 static size_t build_collapsed_shape(Py_ssize_t const *shape, Py_ssize_t const *strides, size_t dim, size_t tail_dims,
-                                    size_t collapsed_count, Py_ssize_t collapsed_stride,
-                                    Py_ssize_t *out_shape, Py_ssize_t *out_strides, size_t remaining_dims) {
+                                    size_t collapsed_count, Py_ssize_t collapsed_stride, Py_ssize_t *out_shape,
+                                    Py_ssize_t *out_strides, size_t remaining_dims) {
     size_t collapsed_rank = remaining_dims - tail_dims + 1;
     for (size_t i = 0; i < collapsed_rank - 1; i++) {
         out_shape[i] = shape[dim + i];
@@ -1316,8 +1316,8 @@ static void reduce_minmax_recursive(                         //
                 partial_min_idx = (nk_size_t)(collapsed_count - 1) - partial_min_idx;
                 partial_max_idx = (nk_size_t)(collapsed_count - 1) - partial_max_idx;
             }
-            minmax_update(min_accum, min_idx_accum, max_accum, max_idx_accum, &partial_min, partial_min_idx, &partial_max,
-                          partial_max_idx, value_dtype, flat_offset);
+            minmax_update(min_accum, min_idx_accum, max_accum, max_idx_accum, &partial_min, partial_min_idx,
+                          &partial_max, partial_max_idx, value_dtype, flat_offset);
             return;
         }
         if (tail >= 2) {

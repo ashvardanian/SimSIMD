@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """Test geospatial distances: nk.haversine, nk.vincenty.
 
-Covers dtypes: float64, float32.
-Parametrized over: ndim from dense_dimensions, capability from possible_capabilities.
-
-Precision notes:
-    Haversine uses atol=10.0, rtol=1e-2 — the great-circle formula at f32 accumulates
-    rounding in intermediate trig computations.
-    Vincenty at f32 can show >40% relative error near antipodal points due to its
-    iterative algorithm; rtol=1.0 is used for f32 vs 1e-2 for f64.
-    Known-value test verifies New York → Los Angeles ≈ 3940 km.
-
+Dtypes: float64, float32.
+Baselines: NumPy great-circle and iterative Vincenty formulas.
+Vincenty at float32 shows high relative error near antipodal points.
 Matches C++ suite: test_geospatial.cpp.
 """
 
 import atexit
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -138,7 +132,7 @@ def baseline_vincenty(
     return polar_radius * coefficient_a * (sigma - delta_sigma)
 
 
-KERNELS_GEOSPATIAL = {
+KERNELS_GEOSPATIAL: dict[str, tuple[Callable, Callable, None]] = {
     "haversine": (baseline_haversine, nk.haversine, None),
     "vincenty": (baseline_vincenty, nk.vincenty, None),
 }
@@ -188,7 +182,7 @@ def _check_geospatial_accuracy(metric, ndim, dtype, coord_scale, atol, rtol):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_haversine_random_accuracy(ndim, dtype, capability):
+def test_haversine_random_accuracy(ndim: int, dtype: str, capability: str):
     """Haversine great-circle distance against baseline for random coordinates."""
     keep_one_capability(capability)
     _check_geospatial_accuracy("haversine", ndim, dtype, coord_scale=1.0, atol=10.0, rtol=1e-2)
@@ -199,7 +193,7 @@ def test_haversine_random_accuracy(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_vincenty_random_accuracy(ndim, dtype, capability):
+def test_vincenty_random_accuracy(ndim: int, dtype: str, capability: str):
     """Vincenty ellipsoidal geodesic distance against baseline for random coordinates."""
     keep_one_capability(capability)
     rtol = 1.0 if dtype == "float32" else 1e-2
@@ -226,7 +220,7 @@ def test_haversine_known():
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_haversine_self_zero(capability):
+def test_haversine_self_zero(capability: str):
     """haversine(lat, lon, lat, lon) ~ 0."""
     keep_one_capability(capability)
     lat = nk.full((1,), 0.5, dtype="float64")
@@ -237,7 +231,7 @@ def test_haversine_self_zero(capability):
 
 
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_vincenty_self_zero(capability):
+def test_vincenty_self_zero(capability: str):
     """vincenty(lat, lon, lat, lon) ~ 0."""
     keep_one_capability(capability)
     lat = nk.full((1,), 0.5, dtype="float64")

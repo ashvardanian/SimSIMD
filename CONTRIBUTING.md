@@ -279,6 +279,15 @@ On Windows and macOS, to avoid frequent path resolution issues, you may want to 
 python -m cibuildwheel --platform windows
 ```
 
+### Static Analysis & Formatting
+
+Once done editing the code, please run analyzers and formatters:
+
+```bash
+ruff check test/  # linting
+black .           # format with default settings
+```
+
 ## Rust
 
 ```sh

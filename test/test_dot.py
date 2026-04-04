@@ -1,23 +1,13 @@
 #!/usr/bin/env python3
-"""Test inner/dot products: nk.inner, nk.dot, nk.vdot.
+"""Test inner products: nk.inner, nk.dot, nk.vdot.
 
-Covers dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8.
-Parametrized over: ndim from dense_dimensions, capability from possible_capabilities.
-
-Precision notes:
-    Integer dtypes use exact ±1 tolerance (discrete arithmetic with possible
-    accumulator width differences). Floating-point dtypes use NK_ATOL/NK_RTOL
-    (0.1/0.1). Sub-byte floats (bf16, e4m3, e5m2, e2m3, e3m2) carry wider
-    quantization noise but are held to the same relative error bar.
-
-Complex dot/vdot tested separately (different kernel API surface).
-Overflow tests skipped pending issue #206.
-
+Dtypes: float64, float32, float16, bfloat16, e4m3, e5m2, e2m3, e3m2, int8, uint8, complex64, complex128.
+Baselines: high-precision Decimal accumulation, NumPy np.inner.
 Matches C++ suite: test_dot.cpp.
 """
 
 import atexit
-import decimal
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -49,8 +39,8 @@ from test_base import (
     nk_seed,  # noqa: F401 — pytest fixture
     numpy_available,
     possible_capabilities,
-    print_stats_report,
     precise_decimal,
+    print_stats_report,
     profile,
     randomized_repetitions_count,
     seed_rng,  # noqa: F401 — pytest fixture (autouse)
@@ -64,22 +54,28 @@ algebraic_ndims = [7, 97]
 stats = create_stats()
 atexit.register(print_stats_report, stats)
 
-baseline_inner = np.inner if numpy_available else None
+
+def baseline_inner(a, b, dtype=None):
+    return np.inner(a, b)
 
 
-def precise_inner(a, b):
+baseline_inner = baseline_inner if numpy_available else None
+
+
+def precise_inner(a, b, dtype=None):
     """High-precision inner product via Python Decimal, exceeding f118 accuracy."""
-    with precise_decimal() as d:
-        da = [d.from_float(float(x)) for x in a]
-        db = [d.from_float(float(x)) for x in b]
-        return float(sum(x * y for x, y in zip(da, db)))
+    with precise_decimal(dtype) as (upcast, _sqrt, _ln):
+        total = upcast(0)
+        for x, y in zip(a, b):
+            total += upcast(x) * upcast(y)
+        return float(total)
 
 
-KERNELS_DOT = {
+KERNELS_DOT: dict[str, tuple[Callable | None, Callable, Callable]] = {
     "inner": (baseline_inner, nk.inner, precise_inner),
 }
 
-KERNELS_OVERFLOW = {
+KERNELS_OVERFLOW: dict[str, tuple[Callable | None, Callable]] = {
     "inner": (baseline_inner, nk.inner),
     "euclidean": (baseline_euclidean, nk.euclidean),
     "sqeuclidean": (baseline_sqeuclidean, nk.sqeuclidean),
@@ -105,7 +101,7 @@ KERNELS_OVERFLOW = {
     ],
 )
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
+def test_inner_random_accuracy(ndim: int, dtype: str, capability: str, nk_seed: int):
     """Inner product of random vectors across all numeric dtypes, verified against high-precision Decimal baseline."""
     a_raw, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
     b_raw, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
@@ -114,8 +110,8 @@ def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, precise_kernel = KERNELS_DOT["inner"]
 
-    # High-precision baseline (always f64)
-    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline)
+    # High-precision baseline
+    accurate_dt, accurate = profile(precise_kernel or baseline_kernel, a_baseline, b_baseline, dtype=dtype)
 
     # Baseline at native precision (for error stats)
     if baseline_kernel is not None:
@@ -140,7 +136,7 @@ def test_inner_random_accuracy(ndim, dtype, capability, nk_seed):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["complex64", "complex128"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_vdot_complex_accuracy(ndim, dtype, capability, nk_seed):
+def test_dot_vdot_complex_accuracy(ndim: int, dtype: str, capability: str, nk_seed: int):
     """Complex dot and vdot products against NumPy for complex64 and complex128 inputs."""
     a_vector, a_baseline = make_random((ndim,), dtype, seed=nk_seed)
     b_vector, b_baseline = make_random((ndim,), dtype, seed=nk_seed + 1)
@@ -168,7 +164,7 @@ def test_dot_vdot_complex_accuracy(ndim, dtype, capability, nk_seed):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_vdot_complex_explicit_dtype(ndim, capability, nk_seed):
+def test_dot_vdot_complex_explicit_dtype(ndim: int, capability: str, nk_seed: int):
     """Complex dot and vdot with explicit dtype='complex64' passed to float32 storage."""
     np.random.seed(nk_seed)
     a_real_parts = np.random.randn(ndim * 2).astype(dtype=np.float32)
@@ -193,7 +189,7 @@ def test_dot_vdot_complex_explicit_dtype(ndim, capability, nk_seed):
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_float_overflow_detection(ndim, dtype, metric, capability):
+def test_inner_float_overflow_detection(ndim: int, dtype: str, metric: str, capability: str):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
 
     a = np.random.randn(ndim)
@@ -222,7 +218,7 @@ def test_inner_float_overflow_detection(ndim, dtype, metric, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_known(ndim, dtype, capability):
+def test_inner_known(ndim: int, dtype: str, capability: str):
     """inner(ones, ones) should equal n."""
     keep_one_capability(capability)
     ones_vector = nk.ones((ndim,), dtype=dtype)
@@ -233,7 +229,7 @@ def test_inner_known(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_orthogonal(ndim, dtype, capability):
+def test_inner_orthogonal(ndim: int, dtype: str, capability: str):
     """inner(ones, zeros) should equal 0."""
     keep_one_capability(capability)
     ones_vector = nk.ones((ndim,), dtype=dtype)
@@ -245,7 +241,7 @@ def test_inner_orthogonal(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_symmetry(ndim, dtype, capability):
+def test_inner_symmetry(ndim: int, dtype: str, capability: str):
     """Commutativity: inner(a, b) = inner(b, a)."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
@@ -258,7 +254,7 @@ def test_inner_symmetry(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", algebraic_ndims)
 @pytest.mark.parametrize("dtype", algebraic_dtypes)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_cauchy_schwarz(ndim, dtype, capability):
+def test_inner_cauchy_schwarz(ndim: int, dtype: str, capability: str):
     """Cauchy-Schwarz: |inner(a,b)|^2 <= inner(a,a) * inner(b,b)."""
     keep_one_capability(capability)
     a = make_random_buffer(ndim, dtype)
@@ -277,7 +273,7 @@ def test_inner_cauchy_schwarz(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", [131072, 262144])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_inner_integer_overflow_detection(ndim, metric, capability):
+def test_inner_integer_overflow_detection(ndim: int, metric: str, capability: str):
     """Tests if the integral kernels are capable of detecting overflow yield the same ±inf result,
     as with 2^16 elements accumulating "u32(u16(u8)*u16(u8))+u32" products should overflow and the
     same is true for 2^17 elements with "i32(i15(i8))*i32(i15(i8))" products.

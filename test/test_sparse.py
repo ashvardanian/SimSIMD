@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 """Test sparse operations: nk.sparse_dot, nk.intersect.
 
-Covers dtypes: float32 values with uint32 indices (sparse_dot),
-    uint16/uint32 indices (intersect).
-Parametrized over: capability, index dtype, length bounds.
-
-Precision notes:
-    sparse_dot uses NK_ATOL/NK_RTOL against manual weighted intersection.
-    intersect uses exact integer comparison (round to nearest int).
-
+Dtypes: float32 values with uint16/uint32 indices.
+Baselines: manual weighted intersection, NumPy intersect1d.
 Matches C++ suite: test_sparse.cpp.
 """
 
 import atexit
 import platform
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,6 +22,7 @@ try:
     numpy_available = True
 except Exception:
     numpy_available = False
+
 
 import numkong as nk
 from test_base import (
@@ -49,7 +45,9 @@ from test_base import (
 stats = create_stats()
 atexit.register(print_stats_report, stats)
 
-baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
+
+def baseline_intersect(x, y, dtype=None):
+    return len(np.intersect1d(x, y))
 
 
 def baseline_sparse_dot(a_idx, a_val, b_idx, b_val):
@@ -60,7 +58,7 @@ def baseline_sparse_dot(a_idx, a_val, b_idx, b_val):
     return total
 
 
-KERNELS_SPARSE = {
+KERNELS_SPARSE: dict[str, tuple[Callable, Callable, None]] = {
     "intersect": (baseline_intersect, nk.intersect, None),
     "sparse_dot": (baseline_sparse_dot, nk.sparse_dot, None),
 }
@@ -69,7 +67,7 @@ KERNELS_SPARSE = {
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_sparse_dot(capability):
+def test_sparse_dot(capability: str):
     """Test nk.sparse_dot against manual weighted intersection."""
     baseline_kernel, simd_kernel, _ = KERNELS_SPARSE["sparse_dot"]
     sparse_dim = sparse_dimensions[0]
@@ -96,7 +94,7 @@ def test_sparse_dot(capability):
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_intersect(dtype, first_length_bound, second_length_bound, capability):
+def test_intersect(dtype: str, first_length_bound: int, second_length_bound: int, capability: str):
     """Compares the nk.intersect() function with numpy.intersect1d."""
     if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
         pytest.skip("In QEMU `aarch64` emulation on `x86_64` the `intersect` function is not reliable")

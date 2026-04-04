@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-"""Test cdist (pairwise cross-distance) operations.
+"""Test pairwise cross-distances: nk.cdist for all metric families.
 
-Covers cdist for all metric families: dot, angular, euclidean, sqeuclidean,
-hamming, jaccard, kld, jsd, vdot, and exotic sub-byte dtypes.
-
-Precision notes:
-    Floating-point dtypes use NK_ATOL/NK_RTOL (0.1/0.1).
-    Integer output dtypes (cdist out_dtype) use atol=1.
-
+Dtypes: float64, float32, float16, bfloat16, int8, uint8, sub-byte floats.
+Baselines: SciPy cdist.
 Matches C++ suite: test_cross_*.cpp.
 """
 
