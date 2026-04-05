@@ -270,19 +270,20 @@
 #endif // defined(__VSX__)
 #endif // !defined(NK_TARGET_POWERVSX) || ...
 
-// Compiling for Arm: NK_TARGET_NEON (available on both AArch64 and AArch32 with NEON)
+// Compiling for Arm: NK_TARGET_NEON (AArch64 only, AArch32 NEON is not supported)
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM64_)
-#if defined(__ARM_NEON) || (defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM)))
+#if (defined(__ARM_NEON) && defined(__aarch64__)) || (defined(_MSC_VER) && defined(_M_ARM64))
 #define NK_TARGET_NEON 1
 #else
 #undef NK_TARGET_NEON
 #define NK_TARGET_NEON 0
-#endif // defined(__ARM_NEON) || ...
+#endif // (defined(__ARM_NEON) && defined(__aarch64__)) || ...
 #endif // !defined(NK_TARGET_NEON) || ...
 
-// Compiling for Arm: NK_TARGET_NEONSDOT (FEAT_DotProd, available on AArch64 and ARMv8.2+ AArch32)
+// Compiling for Arm: NK_TARGET_NEONSDOT (FEAT_DotProd, AArch64 only)
 #if !defined(NK_TARGET_NEONSDOT) || (NK_TARGET_NEONSDOT && !NK_TARGET_ARM64_)
-#if defined(__ARM_FEATURE_DOTPROD) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
+#if (defined(__ARM_FEATURE_DOTPROD) && defined(__aarch64__)) || \
+    (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
 #define NK_TARGET_NEONSDOT 1
 #else
 #undef NK_TARGET_NEONSDOT
@@ -290,9 +291,10 @@
 #endif
 #endif // !defined(NK_TARGET_NEONSDOT) || ...
 
-// Compiling for Arm: NK_TARGET_NEONHALF (FEAT_FP16, available on AArch64 and ARMv8.2+ AArch32)
+// Compiling for Arm: NK_TARGET_NEONHALF (FEAT_FP16, AArch64 only)
 #if !defined(NK_TARGET_NEONHALF) || (NK_TARGET_NEONHALF && !NK_TARGET_ARM64_)
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 802)
+#if (defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && defined(__aarch64__)) || \
+    (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 802)
 #define NK_TARGET_NEONHALF 1
 #else
 #undef NK_TARGET_NEONHALF
@@ -300,9 +302,10 @@
 #endif
 #endif // !defined(NK_TARGET_NEONHALF) || ...
 
-// Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM, available on AArch64 and ARMv8.2+ AArch32)
+// Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM, AArch64 only)
 #if !defined(NK_TARGET_NEONFHM) || (NK_TARGET_NEONFHM && !NK_TARGET_ARM64_)
-#if defined(__ARM_FEATURE_FP16_FML) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
+#if (defined(__ARM_FEATURE_FP16_FML) && defined(__aarch64__)) || \
+    (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 804)
 #define NK_TARGET_NEONFHM 1
 #else
 #undef NK_TARGET_NEONFHM
@@ -310,9 +313,10 @@
 #endif
 #endif // !defined(NK_TARGET_NEONFHM) || ...
 
-// Compiling for Arm: NK_TARGET_NEONBFDOT (FEAT_BF16, optional from ARMv8.2, mandatory at ARMv8.6 with FP)
+// Compiling for Arm: NK_TARGET_NEONBFDOT (FEAT_BF16, AArch64 only)
 #if !defined(NK_TARGET_NEONBFDOT) || (NK_TARGET_NEONBFDOT && !NK_TARGET_ARM64_)
-#if defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) || (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 806)
+#if (defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC) && defined(__aarch64__)) || \
+    (defined(_MSC_VER) && defined(_M_ARM64) && __ARM_ARCH >= 806)
 #define NK_TARGET_NEONBFDOT 1
 #else
 #undef NK_TARGET_NEONBFDOT
@@ -324,7 +328,7 @@
 // ACLE macro __ARM_FEATURE_FP8DOT4 defined by GCC 15+ and Clang 21+ when +fp8dot4 is enabled.
 // Older compilers lack mfloat8x16_t and the fp8dot4 target attribute entirely.
 #if !defined(NK_TARGET_NEONFP8) || (NK_TARGET_NEONFP8 && !NK_TARGET_ARM64_)
-#if defined(__ARM_FEATURE_FP8DOT4)
+#if defined(__ARM_FEATURE_FP8DOT4) && defined(__aarch64__)
 #define NK_TARGET_NEONFP8 1
 #else
 #undef NK_TARGET_NEONFP8
