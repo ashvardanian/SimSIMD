@@ -1021,33 +1021,33 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
 
             // Upcast to f16x8 hub
             switch (from_type) {
-            case nk_e4m3_k: hub_vec.f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
-            case nk_e5m2_k: hub_vec.f16x8 = nk_e5m2x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
-            case nk_e2m3_k: hub_vec.f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
-            case nk_e3m2_k: hub_vec.f16x8 = nk_e3m2x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
-            case nk_f16_k: hub_vec.f16x8 = vreinterpretq_f16_u16(vld1q_u16((nk_u16_t const *)from_ptr)); break;
+            case nk_e4m3_k: hub_vec.u16x8 = vreinterpretq_u16_f16(nk_e4m3x8_to_f16x8_neon_(vld1_u8(from_ptr))); break;
+            case nk_e5m2_k: hub_vec.u16x8 = vreinterpretq_u16_f16(nk_e5m2x8_to_f16x8_neon_(vld1_u8(from_ptr))); break;
+            case nk_e2m3_k: hub_vec.u16x8 = vreinterpretq_u16_f16(nk_e2m3x8_to_f16x8_neon_(vld1_u8(from_ptr))); break;
+            case nk_e3m2_k: hub_vec.u16x8 = vreinterpretq_u16_f16(nk_e3m2x8_to_f16x8_neon_(vld1_u8(from_ptr))); break;
+            case nk_f16_k: hub_vec.u16x8 = vld1q_u16((nk_u16_t const *)from_ptr); break;
             case nk_bf16_k: {
                 float32x4_t low_f32x4 = nk_bf16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)from_ptr));
                 float32x4_t high_f32x4 = nk_bf16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)(from_ptr + 8)));
-                hub_vec.f16x8 = vcombine_f16(vcvt_f16_f32(low_f32x4), vcvt_f16_f32(high_f32x4));
+                hub_vec.u16x8 = vreinterpretq_u16_f16(vcombine_f16(vcvt_f16_f32(low_f32x4), vcvt_f16_f32(high_f32x4)));
             } break;
-            default: hub_vec.f16x8 = vreinterpretq_f16_u16(vdupq_n_u16(0)); break;
+            default: hub_vec.u16x8 = vdupq_n_u16(0); break;
             }
 
             // Downcast from f16x8 hub
             switch (to_type) {
-            case nk_e4m3_k: vst1_u8(to_ptr, nk_f16x8_to_e4m3x8_neon_(hub_vec.f16x8)); break;
-            case nk_e5m2_k: vst1_u8(to_ptr, nk_f16x8_to_e5m2x8_neon_(hub_vec.f16x8)); break;
+            case nk_e4m3_k: vst1_u8(to_ptr, nk_f16x8_to_e4m3x8_neon_(vreinterpretq_f16_u16(hub_vec.u16x8))); break;
+            case nk_e5m2_k: vst1_u8(to_ptr, nk_f16x8_to_e5m2x8_neon_(vreinterpretq_f16_u16(hub_vec.u16x8))); break;
             case nk_f16_k: vst1q_u16((nk_u16_t *)to_ptr, hub_vec.u16x8); break;
             case nk_bf16_k: {
-                float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(hub_vec.f16x8));
-                float32x4_t high_f32x4 = vcvt_high_f32_f16(hub_vec.f16x8);
+                float32x4_t low_f32x4 = vcvt_f32_f16(vget_low_f16(vreinterpretq_f16_u16(hub_vec.u16x8)));
+                float32x4_t high_f32x4 = vcvt_high_f32_f16(vreinterpretq_f16_u16(hub_vec.u16x8));
                 vst1_u16((nk_u16_t *)to_ptr, nk_f32x4_to_bf16x4_neon_(low_f32x4));
                 vst1_u16((nk_u16_t *)(to_ptr + 8), nk_f32x4_to_bf16x4_neon_(high_f32x4));
             } break;
             case nk_f32_k: {
-                vst1q_f32((nk_f32_t *)to_ptr, vcvt_f32_f16(vget_low_f16(hub_vec.f16x8)));
-                vst1q_f32((nk_f32_t *)(to_ptr + 16), vcvt_high_f32_f16(hub_vec.f16x8));
+                vst1q_f32((nk_f32_t *)to_ptr, vcvt_f32_f16(vget_low_f16(vreinterpretq_f16_u16(hub_vec.u16x8))));
+                vst1q_f32((nk_f32_t *)(to_ptr + 16), vcvt_high_f32_f16(vreinterpretq_f16_u16(hub_vec.u16x8)));
             } break;
             default: break;
             }
