@@ -68,6 +68,22 @@
                         }
                     }
                 ],
+                [
+                    "OS=='win' and target_arch=='arm64'",
+                    {
+                        "defines": [
+                            "_ARM64_"
+                        ]
+                    }
+                ],
+                [
+                    "OS=='win' and target_arch=='x64'",
+                    {
+                        "defines": [
+                            "_AMD64_"
+                        ]
+                    }
+                ],
             ],
         }
     ],
