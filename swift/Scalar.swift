@@ -153,6 +153,9 @@ extension Float32: NumKongSqEuclidean {
     }
 }
 
+// Float16 is a type-level absence on x86_64 — the compiler rejects it before
+// @available runtime checks apply, so we need a compile-time arch guard.
+// See: https://github.com/unum-cloud/USearch/pull/739
 #if !arch(x86_64)
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: NumKongDot {
