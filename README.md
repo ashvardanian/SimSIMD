@@ -77,27 +77,27 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 
 ### Language Bindings
 
-| Operation                   | [C/C++][c] | [Python][py] | [Rust][rs] | [JS][js] | [Swift][swift] | [Go][go] |
-| :-------------------------- | :--------: | :----------: | :--------: | :------: | :------------: | :------: |
-| __Vector Ops__              |            |              |            |          |                |          |
-| [Dot] Product               |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
-| [Spatial] Metric            |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
-| [Set] Similarity            |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
-| [Geo]spatial                |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
-| [Mesh] Alignment            |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
-| [Sparse] Products           |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
-| [Prob]ability Divergences   |     ●      |      ●       |     ●      |    ●     |       ·        |    ●     |
-| [Curved] Spaces             |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
-| __Many-to-Many Vector Ops__ |            |              |            |          |                |          |
-| "[Dots]" Products           |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
-| "[Spatials]" Metrics        |     ●      |      ●       |     ●      |    ●     |       ●        |    ●     |
-| "[Sets]" Similarities       |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
-| [MaxSim] Scoring            |     ●      |      ●       |     ●      |    ·     |       ●        |    ●     |
-| __Scalar Ops__              |            |              |            |          |                |          |
-| [Cast]                      |     ●      |      ●       |     ●      |    ●     |       ·        |    ·     |
-| [Reduce]                    |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
-| [Each]                      |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
-| [Trig]onometry              |     ●      |      ●       |     ●      |    ·     |       ·        |    ·     |
+| Operation                   | [C and C++][c] | [Python][py] | [Rust][rs] | [JavaScript][js] | [Swift][swift] | [GoLang][go] |
+| :-------------------------- | :------------: | :----------: | :--------: | :--------------: | :------------: | :----------: |
+| __Vector Ops__              |                |              |            |                  |                |              |
+| [Dot] Product               |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Spatial] Metric            |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Set] Similarity            |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Geo]spatial                |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
+| [Mesh] Alignment            |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Sparse] Products           |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Probability] Divergences   |       ●        |      ●       |     ●      |        ●         |       ·        |      ●       |
+| [Curved] Spaces             |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| __Many-to-Many Vector Ops__ |                |              |            |                  |                |              |
+| "[Dots]" Products           |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
+| "[Spatials]" Metrics        |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
+| "[Sets]" Similarities       |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
+| [MaxSim] Scoring            |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
+| __Scalar Ops__              |                |              |            |                  |                |              |
+| [Cast]                      |       ●        |      ●       |     ●      |        ●         |       ·        |      ·       |
+| [Reduce]                    |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Each]                      |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Trigonometry]              |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
 
 [Dot]: include/numkong/dot/README.md
 [Dots]: include/numkong/dots/README.md
@@ -107,12 +107,12 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 [Sets]: include/numkong/sets/README.md
 [Cast]: include/numkong/cast/README.md
 [Reduce]: include/numkong/reduce/README.md
-[Trig]: include/numkong/trigonometry/README.md
+[Trigonometry]: include/numkong/trigonometry/README.md
 [MaxSim]: include/numkong/maxsim/README.md
 [Mesh]: include/numkong/mesh/README.md
 [Each]: include/numkong/each/README.md
 [Sparse]: include/numkong/sparse/README.md
-[Prob]: include/numkong/probability/README.md
+[Probability]: include/numkong/probability/README.md
 [Curved]: include/numkong/curved/README.md
 [Geo]: include/numkong/geospatial/README.md
 [c]: include/README.md
@@ -122,50 +122,6 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 [swift]: swift/README.md
 [go]: golang/README.md
 
-### Numeric Types × Backend
-
-| Backend        |  f64  |  f32  | bf16  |  f16  | e5m2  | e4m3  | e3m2  | e2m3  |  i8   |  u8   |  i4   |  u4   |  u1   | f64c  | f32c  | bf16c | f16c  |
-| :------------- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| __x86__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| Haswell        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |
-| Skylake        |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
-| Ice Lake       |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| Genoa          |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
-| Sapphire       |   ·   |   ·   |   ·   |   ●   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Sapphire AMX   |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Alder Lake     |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Sierra Forest  |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Turin          |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| Diamond        |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| __Arm__        |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| NEON           |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ●   |
-| NEON Half      |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| NEON FHM       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
-| NEON BF16      |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |
-| NEON SDot      |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| NEON FP8       |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SVE            |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |
-| SVE Half       |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |
-| SVE BF16       |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SVE SDot       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SVE2           |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SME            |   ·   |   ·   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| SME F64        |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |
-| SME BI32       |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| __RISC-V__     |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| RVV            |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
-| RVV Half       |   ·   |   ·   |   ·   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| RVV BF16       |   ·   |   ·   |   ●   |   ·   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |
-| RVV BB         |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| __Other__      |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |       |
-| Power VSX      |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| LoongArch LASX |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |   ·   |   ·   |   ●   |   ●   |   ·   |   ·   |   ●   |   ·   |   ·   |   ·   |   ·   |
-| WASM V128      |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ●   |   ·   |   ·   |
-
-Not every combination is implemented — only the ones that unlock real performance gains.
-The `icelake` level doesn't get a `dot_bf16` variant, for example, and falls through to `dot_bf16_skylake`.
-Every operation has a `serial` fallback, but even types no CPU supports today get optimized via lookup tables and bit-twiddling hacks rather than scalar loops.
-For details on compile-time and run-time [dispatch](#compile-time-and-run-time-dispatch), see the contributor guide.
 
 ## Design Decisions
 
