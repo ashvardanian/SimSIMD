@@ -58,3 +58,4 @@ jobs:
           packages-dir: dist
           verbose: true
           print-hash: true
+          skip-existing: true
