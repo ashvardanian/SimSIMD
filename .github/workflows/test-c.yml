@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Print machine specs
+      - name: Print Machine Specs
         shell: bash
         run: |
           echo "::group::Machine Information"
@@ -28,12 +28,12 @@ jobs:
           free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
           echo "::endgroup::"
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev libopenblas-dev
 
-      - name: Build locally
+      - name: Build Locally
         run: |
           cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=1 -D NK_BUILD_BENCH=1 -D NK_COMPARE_TO_BLAS=1 -B build_release
           cmake --build build_release --config Release
@@ -43,12 +43,12 @@ jobs:
         env:
           NK_BUDGET_SECS: 0.2
 
-      - name: Build shared library test
+      - name: Build Shared Library Test
         run: |
           cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_SHARED=1 -D NK_BUILD_SHARED_TEST=1 -B build_shared
           cmake --build build_shared --config Release --target nk_shared_test
 
-      - name: Test shared library
+      - name: Test Shared Library
         run: LD_LIBRARY_PATH=build_shared build_shared/nk_shared_test
 
   test_android:
@@ -59,7 +59,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Print machine specs
+      - name: Print Machine Specs
         shell: bash
         run: |
           echo "::group::Machine Information"
@@ -81,16 +81,16 @@ jobs:
             -DNK_BUILD_SHARED=ON
           cmake --build build_android
 
-      - name: Verify binary
+      - name: Verify Binary
         run: |
           file build_android/libnumkong.so
           file build_android/libnumkong.so | grep -q "ELF 64-bit.*aarch64"
           readelf -d build_android/libnumkong.so | head -20
 
-      - name: Install Rust toolchain
+      - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Install cargo-ndk and target
+      - name: Install cargo-ndk and Target
         run: |
           cargo install cargo-ndk
           rustup target add aarch64-linux-android
@@ -121,15 +121,15 @@ jobs:
             -DNK_BUILD_SHARED=ON
           cmake --build build_android_armv7
 
-      - name: Verify binary
+      - name: Verify Binary
         run: |
           file build_android_armv7/libnumkong.so
           file build_android_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
 
-      - name: Install Rust toolchain
+      - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Install cargo-ndk and target
+      - name: Install cargo-ndk and Target
         run: |
           cargo install cargo-ndk
           rustup target add armv7-linux-androideabi
@@ -147,7 +147,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install cross-compiler
+      - name: Install Cross-Compiler
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
@@ -163,15 +163,15 @@ jobs:
             -DNK_BUILD_SHARED=ON
           cmake --build build_armv7
 
-      - name: Verify binary
+      - name: Verify Binary
         run: |
           file build_armv7/libnumkong.so
           file build_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
 
-      - name: Install Rust toolchain
+      - name: Install Rust Toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Install target
+      - name: Install Target
         run: |
           rustup target add armv7-unknown-linux-gnueabihf
           sudo apt-get install -y gcc-arm-linux-gnueabihf
@@ -189,7 +189,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl gnupg
@@ -201,7 +201,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake clang-23 lld-23 llvm-23 gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
 
-      - name: Configure portable RISC-V library build
+      - name: Configure Portable RISC-V Library Build
         shell: bash
         run: |
           set -euo pipefail
@@ -213,7 +213,7 @@ jobs:
             -DRISCV_MARCH=rv64gcv \
             -DNK_BUILD_SHARED=ON
 
-      - name: Build portable RISC-V library
+      - name: Build Portable RISC-V Library
         run: cmake --build build_riscv --parallel --target nk_shared
 
   test_loongarch:
@@ -224,7 +224,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake qemu-user \
@@ -262,7 +262,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake qemu-user \
@@ -302,7 +302,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential
@@ -314,14 +314,14 @@ jobs:
           tar -xf sde.tar.xz
           echo "$(pwd)/${SDE_VERSION}" >> "$GITHUB_PATH"
 
-      - name: Build with all x86 ISAs
+      - name: Build with All x86 ISAs
         run: |
           cmake -B build_sde \
             -DCMAKE_BUILD_TYPE=Release \
             -DNK_BUILD_TEST=ON
           cmake --build build_sde --config Release --parallel
 
-      - name: Test under Granite Rapids emulation
+      - name: Test Under Granite Rapids Emulation
         run: sde64 -gnr -- build_sde/nk_test
         env:
           NK_BUDGET_SECS: 0

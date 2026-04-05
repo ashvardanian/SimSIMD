@@ -33,7 +33,7 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download wheels
+      - name: Download Wheels
         # unpacks all CIBW artifacts into dist/
         # continue-on-error handles cases where some wheel jobs failed
         uses: actions/download-artifact@v8
@@ -43,16 +43,16 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Download source distribution
+      - name: Download Source Distribution
         uses: actions/download-artifact@v8
         with:
           name: sdist
           path: dist
 
-      - name: List available distributions
+      - name: List Available Distributions
         run: ls -la dist/
 
-      - name: Publish to PyPi
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist

@@ -58,18 +58,18 @@ jobs:
     needs: versioning
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout the latest code
+      - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Perform rebase
+      - name: Perform Rebase
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout main-dev
           git rebase origin/main
-      - name: Push changes
+      - name: Push Changes
         uses: CasperWA/push-protected@v2
         with:
           token: ${{ secrets.SEMANTIC_REBASE_TOKEN }}
